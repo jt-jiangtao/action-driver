@@ -12,9 +12,9 @@
 
 ## 3. Skill Registry 与 Runtime 编排
 
-- [ ] 3.1 先编写 Registry 测试，再实现按 `skill_id + contract_version` 注册、下线和查找 Provider，验证 Browser 与 Computer Provider 状态互不影响。
-- [ ] 3.2 实现确定性 Agent 命令和 Skill 调度状态机，验证未注册能力返回 `CAPABILITY_UNAVAILABLE`，已注册调用先持久化 queued 再发布有序生命周期事件。
-- [ ] 3.3 实现按持久化游标读取的事件订阅，验证断线后从 `cursor + 1` 恢复且已确认事件不被重复应用。
+- [x] 3.1 先编写 Registry 测试，再实现按 `skill_id + contract_version` 注册、下线和查找 Provider，验证 Browser 与 Computer Provider 状态互不影响。
+- [x] 3.2 实现确定性 Agent 命令和 Skill 调度状态机，验证未注册能力返回 `CAPABILITY_UNAVAILABLE`，已注册调用先持久化 queued 再发布有序生命周期事件。
+- [x] 3.3 实现按持久化游标读取的事件订阅，验证断线后从 `cursor + 1` 恢复且已确认事件不被重复应用。
 
 ## 4. gRPC over UDS 传输
 

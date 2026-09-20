@@ -63,6 +63,29 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+func (s *Store) Task(ctx context.Context, taskID string) (storage.Task, error) {
+	var task storage.Task
+	var updatedAt string
+	err := s.db.QueryRowContext(ctx, "SELECT id, goal, state, updated_at FROM tasks WHERE id = ?", taskID).Scan(
+		&task.ID,
+		&task.Goal,
+		&task.State,
+		&updatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return storage.Task{}, storage.ErrNotFound
+	}
+	if err != nil {
+		return storage.Task{}, fmt.Errorf("query task: %w", err)
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, updatedAt)
+	if err != nil {
+		return storage.Task{}, fmt.Errorf("parse task timestamp: %w", err)
+	}
+	task.UpdatedAt = parsed
+	return task, nil
+}
+
 func (s *Store) WithTx(ctx context.Context, fn func(storage.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

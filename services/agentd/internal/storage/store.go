@@ -2,8 +2,11 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var ErrNotFound = errors.New("storage record not found")
 
 type Task struct {
 	ID        string
@@ -61,6 +64,7 @@ type Tx interface {
 
 type Store interface {
 	WithTx(context.Context, func(Tx) error) error
+	Task(context.Context, string) (Task, error)
 	EventsAfter(context.Context, int64) ([]Event, error)
 	Close() error
 }
