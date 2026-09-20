@@ -2,17 +2,12 @@ import type { TaskProjection } from '@actiondriver/contracts'
 import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import type { TaskLayoutMode } from './components/BrowserPanel'
-import type { AppServices } from './di/container'
+import { useAppServices } from './di/services-context'
 import { HomePage } from './pages/HomePage'
 import { TaskPage } from './pages/TaskPage'
 
-export function App({
-  services,
-  initialRoute = 'home'
-}: {
-  services: AppServices
-  initialRoute?: 'home' | 'task'
-}) {
+export function App({ initialRoute = 'home' }: { initialRoute?: 'home' | 'task' }) {
+  const services = useAppServices()
   const [route, setRoute] = useState<string>(initialRoute === 'home' ? '/' : '/tasks/hotel-task')
   const [task, setTask] = useState<TaskProjection | null>(() =>
     initialRoute === 'task' ? services.agentSessionRepository.getTask('hotel-task') : null

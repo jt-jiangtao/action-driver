@@ -10,7 +10,7 @@ import { createRendererContainer, resolveAppServices } from './container'
 
 describe('renderer composition root', () => {
   it('binds agent ports and the independently registered skill gateway without exposing the container', () => {
-    const services = resolveAppServices(createRendererContainer())
+    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
 
     expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
@@ -28,7 +28,9 @@ describe('renderer composition root', () => {
       [SKILL_IDS.browser]: new MockBrowserSkillCapability(),
       [SKILL_IDS.computer]: new MockComputerUseSkillCapability()
     })
-    const services = resolveAppServices(createRendererContainer({ skillGateway: replacement }))
+    const services = resolveAppServices(
+      createRendererContainer({ mode: 'mock', skillGateway: replacement })
+    )
 
     expect(services.skillGateway).toBe(replacement)
     expect(services.agentCommandService).not.toBe(replacement)
@@ -55,6 +57,7 @@ describe('renderer composition root', () => {
     }
     const services = resolveAppServices(
       createRendererContainer({
+        mode: 'mock',
         browserCapability,
         computerCapability: new MockComputerUseSkillCapability()
       })
@@ -66,6 +69,12 @@ describe('renderer composition root', () => {
     expect(services.skillGateway.getCapability(SKILL_IDS.browser)).toBe(browserCapability)
     expect(services.skillGateway.getCapability(SKILL_IDS.computer)).toBeInstanceOf(
       MockComputerUseSkillCapability
+    )
+  })
+
+  it('rejects local mode until a desktop adapter is supplied', () => {
+    expect(() => createRendererContainer({ mode: 'local' })).toThrow(
+      'Local renderer services are not configured'
     )
   })
 })

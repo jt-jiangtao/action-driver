@@ -24,12 +24,18 @@ interface RendererOverrides extends Partial<AppServices> {
   computerCapability?: SkillCapability<typeof SKILL_IDS.computer>
 }
 
-export function createRendererContainer(overrides: RendererOverrides = {}): Container {
+export interface RendererContainerOptions extends RendererOverrides {
+  mode: 'mock' | 'local'
+}
+
+export function createRendererContainer(options: RendererContainerOptions): Container {
+  if (options.mode === 'local') throw new Error('Local renderer services are not configured')
+
   const container = new Container()
-  const browserCapability = overrides.browserCapability ?? new MockBrowserSkillCapability()
-  const computerCapability = overrides.computerCapability ?? new MockComputerUseSkillCapability()
+  const browserCapability = options.browserCapability ?? new MockBrowserSkillCapability()
+  const computerCapability = options.computerCapability ?? new MockComputerUseSkillCapability()
   const skillGateway =
-    overrides.skillGateway ??
+    options.skillGateway ??
     new MockSkillGateway({
       [SKILL_IDS.browser]: browserCapability,
       [SKILL_IDS.computer]: computerCapability
@@ -37,10 +43,10 @@ export function createRendererContainer(overrides: RendererOverrides = {}): Cont
   const runtime = new MockAgentRuntime(skillGateway)
   container
     .bind<AgentCommandService>(SERVICE_TYPES.agentCommandService)
-    .toConstantValue(overrides.agentCommandService ?? runtime)
+    .toConstantValue(options.agentCommandService ?? runtime)
   container
     .bind<AgentSessionRepository>(SERVICE_TYPES.agentSessionRepository)
-    .toConstantValue(overrides.agentSessionRepository ?? runtime)
+    .toConstantValue(options.agentSessionRepository ?? runtime)
   container.bind<SkillGateway>(SERVICE_TYPES.skillGateway).toConstantValue(skillGateway)
   return container
 }
