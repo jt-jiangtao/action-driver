@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="256"
+  height="256"
+  viewBox="0 0 1254 1254"
+  fill="none"
+  role="img"
+  aria-labelledby="actiondriver-logo-title"
+>
+  <title id="actiondriver-logo-title">ActionDriver</title>
+  <defs>
+    <linearGradient id="actiondriver-left" x1="650" y1="200" x2="150" y2="1050" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#547EFC"/>
+      <stop offset="1" stop-color="#4968FB"/>
+    </linearGradient>
+    <linearGradient id="actiondriver-dot" x1="860" y1="500" x2="970" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#557CFB"/>
+      <stop offset="1" stop-color="#4A68F7"/>
+    </linearGradient>
+    <linearGradient id="actiondriver-right" x1="650" y1="724" x2="1150" y2="1095" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4D5BF6"/>
+      <stop offset="1" stop-color="#4339CE"/>
+    </linearGradient>
+  </defs>
+
+  <path
+    d="M622 198C594 198 573 210 558 229L72 1045C61 1063 66 1082 92 1094H296C330 1094 359 1074 382 1045L560 785L774 465C803 432 838 408 876 393C887 389 892 376 885 360L820 241C811 223 790 207 755 199C711 198 666 198 622 198Z"
+    fill="url(#actiondriver-left)"
+  />
+
+  <circle cx="913" cy="574.5" r="91.5" fill="url(#actiondriver-dot)"/>
+
+  <path
+    d="M658 724H924C950 724 976 741 994 771L1161 1053C1175 1078 1165 1094 1149 1094H892C855 1094 824 1084 802 1050L650 799C631 768 625 745 644 730C648 727 653 724 658 724Z"
+    fill="url(#actiondriver-right)"
+  />
+</svg>

@@ -1,0 +1,35 @@
+:root {
+  --ad-color-bg-canvas: #ffffff;
+  --ad-color-bg-sidebar: #f7f7f8;
+  --ad-color-bg-surface: #ffffff;
+  --ad-color-bg-subtle: #f1f1f2;
+  --ad-color-bg-hover: #f1f1f2;
+  --ad-color-bg-selected: #eef2ff;
+  --ad-color-action-primary: #5267f7;
+  --ad-color-text-primary: #1f2228;
+  --ad-color-text-secondary: #5c616b;
+  --ad-color-text-tertiary: #757a84;
+  --ad-color-border-default: #e8e8ea;
+  --ad-color-status-success: #2fb67c;
+  --ad-color-status-warning: #d98b25;
+  --ad-color-status-danger: #d85454;
+  --ad-shadow-subtle: 0 2px 3px rgb(0 0 0 / 12%);
+  --ad-shadow-floating: 0 8px 12px rgb(0 0 0 / 12%);
+  --ad-motion-instant: 80ms;
+  --ad-motion-fast: 160ms;
+  --ad-motion-standard: 240ms;
+  --ad-motion-emphasis: 360ms;
+  --ad-motion-long: 600ms;
+  --ad-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ad-ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ad-motion-instant: 1ms;
+    --ad-motion-fast: 1ms;
+    --ad-motion-standard: 1ms;
+    --ad-motion-emphasis: 1ms;
+    --ad-motion-long: 1ms;
+  }
+}

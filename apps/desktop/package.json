@@ -1,0 +1,29 @@
+{
+  "name": "@actiondriver/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@actiondriver/contracts": "workspace:*",
+    "@actiondriver/design-tokens": "workspace:*",
+    "antd": "6.6.4",
+    "inversify": "8.2.3",
+    "lucide-react": "1.47.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "reflect-metadata": "0.2.2",
+    "slate": "0.126.2",
+    "slate-react": "0.126.4"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-vite": "3.1.0"
+  }
+}

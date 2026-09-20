@@ -1,0 +1,10 @@
+.git
+.agents
+.superpowers
+**/node_modules
+**/out
+**/dist
+coverage
+design/actual
+test-results
+playwright-report
