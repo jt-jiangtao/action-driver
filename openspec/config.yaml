@@ -5,6 +5,21 @@ context: |
   All artifacts must be written in zh.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
+rules:
+  proposal:
+    - 对产品或架构决策型变更，说明 Battle 是否完成、最终方向以及仍未解决的关键分歧；不得把未裁决方案写成既定范围。
+  design:
+    - 对产品或架构决策型变更，在 Decisions 中记录当前方案、至少一个真实替代方案、选择理由和最终裁决。
+    - 在 Risks / Trade-offs 中记录主要风险，以及用户覆盖 Agent 建议时接受的已知代价。
+  tasks:
+    - 任务只实施已裁决内容，不得重新打开 Decisions 中已解决的问题；若执行任务需要新的产品或架构决策，应先更新 Battle 结论和规划产物。
+
+operations:
+  apply:
+    guidance:
+      - 执行中发现产品歧义、架构冲突、不可逆影响、跨模块新依赖或显著范围扩张时，暂停相关写操作并升级为 Battle；裁决后更新变更产物再继续。
+      - 低风险、可逆且完全处于已裁决范围内的机械任务直接推进，不得制造形式化争论。
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
