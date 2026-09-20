@@ -1,0 +1,15 @@
+{
+  "name": "@actiondriver/runtime-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/generated/actiondriver/runtime/v1/runtime.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.15.0",
+    "@grpc/grpc-js": "1.14.5",
+    "protobufjs": "8.8.0"
+  }
+}

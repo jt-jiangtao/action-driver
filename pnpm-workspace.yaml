@@ -3,5 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
+  '@bufbuild/buf': true
   electron: true
   esbuild: true
+  protobufjs: true

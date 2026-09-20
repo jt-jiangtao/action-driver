@@ -1,0 +1,20 @@
+version: v2
+clean: true
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.11
+    out: services/agentd/internal/gen
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go:v1.5.1
+    out: services/agentd/internal/gen
+    opt: paths=source_relative
+  - local: ['pnpm', 'exec', 'protoc-gen-ts_proto']
+    out: packages/runtime-protocol/src/generated
+    opt:
+      - esModuleInterop=true
+      - outputServices=grpc-js
+      - useExactTypes=false
+      - forceLong=string
+      - env=node
+      - removeEnumPrefix=true
+inputs:
+  - directory: proto

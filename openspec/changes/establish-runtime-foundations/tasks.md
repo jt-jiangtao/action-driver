@@ -1,8 +1,8 @@
 ## 1. 协议与工作区基础
 
-- [ ] 1.1 建立 Go 1.24 Workspace、`services/agentd` 与 `packages/runtime-protocol`，锁定 Eino、gRPC、SQLite、Buf 和 TypeScript 协议依赖，并验证 `go test ./...` 与 `pnpm install --frozen-lockfile` 成功。
-- [ ] 1.2 定义 Runtime Control、Agent Command、Runtime Events 和 Skill Provider v1 Protobuf 契约，生成 Go/TypeScript 代码，并用 Buf lint、breaking check 与生成物 drift 检查验证契约可重复生成。
-- [ ] 1.3 增加跨语言 golden fixture，验证请求标识、版本握手、错误码、Skill 生命周期和事件游标在 Go 与 TypeScript 间往返一致。
+- [x] 1.1 建立 Go 1.24 Workspace、`services/agentd` 与 `packages/runtime-protocol`，锁定 Eino、gRPC、SQLite、Buf 和 TypeScript 协议依赖，并验证 `go test ./...` 与 `pnpm install --frozen-lockfile` 成功。
+- [x] 1.2 定义 Runtime Control、Agent Command、Runtime Events 和 Skill Provider v1 Protobuf 契约，生成 Go/TypeScript 代码，并用 Buf lint、breaking check 与生成物 drift 检查验证契约可重复生成。
+- [x] 1.3 增加跨语言 golden fixture，验证请求标识、版本握手、错误码、Skill 生命周期和事件游标在 Go 与 TypeScript 间往返一致。
 
 ## 2. Go Sidecar 与本地存储
 
