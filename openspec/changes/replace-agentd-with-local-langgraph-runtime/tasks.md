@@ -1,8 +1,8 @@
 ## 1. TypeScript 工作区与运行时合同
 
 - [ ] 1.1 建立 `apps/agent-runtime` TypeScript 包、独立入口和构建产物，锁定 LangGraph、LangChain Core、InversifyJS、Zod 与 SQLite 依赖，并验证 `pnpm install --frozen-lockfile`、该包 typecheck 和 build 通过。
-- [ ] 1.2 建立 `packages/runtime-contracts`，定义握手、命令、响应、事件、Skill 反向调用和错误的 discriminated union 与 Zod schema，并用单元测试验证所有合法 fixture 可往返、未知类型和错误版本被拒绝。
-- [ ] 1.3 增加结构化克隆与协议兼容测试，验证合同不包含函数、DOM/Electron 对象或 Provider 私有引用，且主版本不一致在业务命令前失败。
+- [x] 1.2 建立 `packages/runtime-contracts`，定义握手、命令、响应、事件、Skill 反向调用和错误的 discriminated union 与 Zod schema，并用单元测试验证所有合法 fixture 可往返、未知类型和错误版本被拒绝。
+- [x] 1.3 增加结构化克隆与协议兼容测试，验证合同不包含函数、DOM/Electron 对象或 Provider 私有引用，且主版本不一致在业务命令前失败。
 
 ## 2. LangGraph Agent Runtime
 
