@@ -33,12 +33,13 @@
 - [ ] 5.3 实现按持久化 cursor 的事件订阅、ack 和重连恢复，验证从 `cursor + 1` 继续、重复 cursor 不重复应用且迟到事件不覆盖新状态。
 - [ ] 5.4 增加 Runtime 入口路径和应用数据路径解析测试，验证开发产物与打包后 macOS arm64/x64 路径均可解析，路径和消息端口不暴露给 Renderer。
 
-## 6. Electron 与现有 UI 集成
+## 6. Electron、前端依赖注入与现有 UI 集成
 
 - [ ] 6.1 在 Main 注册明确命名的 Agent IPC Handler，在 Preload 暴露最小 submit/get/interrupt/continue/provideInput/subscribe API，并验证 Renderer 无法访问 MessagePort、UtilityProcess、数据库路径或通用 IPC。
 - [ ] 6.2 实现协议 DTO 到现有 `packages/contracts` 的映射和本地 AgentCommandService/AgentSessionRepository 适配器，验证结构化克隆安全、错误映射完整且 React 组件无需导入 Runtime 合同。
-- [ ] 6.3 更新桌面组合根，使视觉/组件测试继续绑定 Mock、生产绑定 local Runtime；运行现有首页和任务页测试及 Playwright 视觉用例，确认布局、文案和已绘制交互没有变化。
-- [ ] 6.4 增加桌面集成测试，验证提交目标、收到时间线事件、中断、继续、等待用户恢复和应用退出清理的完整路径，所有数据使用 Mock Provider。
+- [ ] 6.3 完善 Renderer 的 InversifyJS composition root 和类型化 React Context bridge，使首页、任务页与组件只消费 `AppServices`，并用容器测试验证 mock/local adapter 可替换、组件不导入 Container 且不会直接构造基础设施实现。
+- [ ] 6.4 更新 Renderer、Main 和 Runtime 三层组合根，使视觉/组件测试继续绑定 Mock、生产绑定 local Runtime；运行现有首页和任务页测试及 Playwright 视觉用例，确认布局、文案和已绘制交互没有变化。
+- [ ] 6.5 增加桌面集成测试，验证提交目标、收到时间线事件、中断、继续、等待用户恢复和应用退出清理的完整路径，所有数据使用 Mock Provider。
 
 ## 7. 打包、CI 与交付验证
 

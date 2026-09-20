@@ -8,7 +8,7 @@
 - 在独立的 `apps/agent-runtime` 中使用 LangGraph 编排 Agent Loop、checkpoint、中断、继续和等待用户；LangChain 仅按需提供模型与 Tool 适配，不使用高层 `createAgent` 作为核心循环。
 - Electron Main 负责启动和监督单一 Runtime 进程，并通过版本化、类型安全的本地消息协议进行双向通信；Renderer 仍只能通过白名单 Preload API 使用 Agent 能力。
 - 由本地 Runtime 独占 SQLite 写入，保存任务、消息、步骤、Skill 调用、运行事件、历史会话和 LangGraph checkpoint；远程模型推理端不保存 ActionDriver 会话历史。
-- 使用 InversifyJS 组装 Runtime、存储、模型适配器和 Skill Registry；Browser Use 与 Computer Use 继续作为相互独立的 Skill Provider，由 Agent Loop 调用。
+- 使用 InversifyJS 分别组装 Renderer 前端、Electron Main 和 Agent Runtime；前端页面只消费注入的领域服务，Browser Use 与 Computer Use 继续作为相互独立的 Skill Provider，由 Agent Loop 调用。
 - 保留确定性 Mock Runtime 和 Mock Skill，用于当前页面、组件测试和视觉回归；本阶段不实现真实模型推理、Browser Use、Computer Use、Action Graph 或 Page/Procedure Memory。
 - 后续 Browser Use change 将独立实现 Playwright Fork 第一版，并为 Native Browser Engine 保留分离的接口与评测边界；不得在本 change 中把两套引擎抽象成同一底层 Graph Provider。
 
@@ -28,5 +28,5 @@
 
 - 新增 `apps/agent-runtime` 及其 TypeScript 构建、测试和 Electron 打包入口；不再恢复 `services/agentd`、Go Workspace、Eino、Buf、Protobuf 或 gRPC 依赖。
 - Electron Main 新增 Runtime Supervisor、本地消息客户端、IPC Adapter 和明确的进程退出处理；Preload 与 React 继续使用现有领域 DTO。
-- 新增 LangGraph、LangChain Core/模型适配、InversifyJS 和 SQLite 驱动依赖，版本将在实施计划中锁定并接受 Electron 打包验证。
+- 新增 LangGraph、LangChain Core/模型适配和 SQLite 驱动依赖；Renderer、Electron Main 与 Agent Runtime 统一使用 InversifyJS，版本将在实施计划中锁定并接受 Electron 打包验证。
 - 现有 `establish-runtime-foundations` change 被本 change 的 Runtime 相关决策取代；其中定制 Electron/Chromium Fork 供应链目标继续有效，但 Browser Use 细节进入后续独立 change。

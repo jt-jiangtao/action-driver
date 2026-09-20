@@ -30,15 +30,19 @@
 - **THEN** Runtime 请求取消该调用，并在收到完成、失败或取消结果前不发起后续动作
 
 ### Requirement: 使用依赖注入替换实现
-系统 MUST 通过依赖注入绑定 Agent Runtime、模型、存储、Skill Registry 与 Provider 端口，使测试实现能够在不修改消费者的情况下替换生产实现。
+系统 MUST 在 Renderer 前端、Electron Main 和 Agent Runtime 分别通过 InversifyJS 组合根绑定领域服务、模型、存储、Skill Registry 与 Provider 端口，使测试实现能够在不修改消费者的情况下替换生产实现；React 页面和组件不得直接构造基础设施适配器或访问全局容器。
 
 #### Scenario: 使用 Mock 组合根启动
 - **WHEN** 应用以测试或视觉验收配置启动
-- **THEN** Agent 会话仓储、模型端口和 Skill Provider 解析为确定性 Mock 实现
+- **THEN** Renderer 前端、Electron Main 和 Agent Runtime 的组合根分别将 Agent 会话仓储、模型端口和 Skill Provider 解析为确定性 Mock 实现
 
 #### Scenario: 未来切换 IPC 适配器
 - **WHEN** 生产应用完成 Runtime 版本握手
 - **THEN** Electron Main 将相同领域服务标识绑定到本地 Runtime Adapter，React 页面保持不变
+
+#### Scenario: React 页面消费前端服务
+- **WHEN** React 页面需要提交任务、读取会话或控制 Skill
+- **THEN** 页面通过前端 composition root 提供的类型化服务集合访问能力，不直接调用 `new` 创建适配器，也不在组件内调用全局容器解析服务
 
 ### Requirement: 保持跨边界数据可序列化
 系统 SHALL 让 Agent、任务、步骤和 Skill 调用的数据结构经过运行时校验并可被结构化克隆，不包含函数、DOM 节点、Electron 对象或 Provider 私有实时引用。

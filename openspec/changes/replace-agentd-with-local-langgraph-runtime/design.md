@@ -72,11 +72,11 @@ LangGraph 的 `thread_id` 使用稳定 task id。需要用户信息时使用 `in
 
 数据库迁移在 Runtime ready 前执行，只允许前进。Mock 模式使用临时数据库或内存适配器，不访问用户数据。
 
-### 5. 使用 InversifyJS 组合端口与适配器
+### 5. Renderer、Main 与 Runtime 分别使用 InversifyJS 组合端口与适配器
 
-`apps/agent-runtime` 的容器只绑定 Runtime 端口：GraphRunner、CheckpointStore、TaskRepository、EventRepository、ModelGateway、SkillRegistry、Clock 和 IdGenerator。Electron Main 容器绑定 RuntimeSupervisor、RuntimeClient、SkillProviderHost、BrowserSkillProvider 占位和 ComputerSkillProvider 占位。Renderer 继续使用现有 AgentCommandService、AgentSessionRepository 和 SkillGateway 领域接口。
+`apps/agent-runtime` 的容器只绑定 Runtime 端口：GraphRunner、CheckpointStore、TaskRepository、EventRepository、ModelGateway、SkillRegistry、Clock 和 IdGenerator。Electron Main 容器绑定 RuntimeSupervisor、RuntimeClient、SkillProviderHost、BrowserSkillProvider 占位和 ComputerSkillProvider 占位。Renderer 前端保留独立的 InversifyJS composition root，绑定 AgentCommandService、AgentSessionRepository 和 SkillGateway；React 根节点通过类型化 Context 注入一次解析出的 `AppServices`，页面和组件只接收服务接口，不直接导入 Container、不使用 service locator，也不自行 `new` 基础设施适配器。
 
-组合根分为 `mock` 与 `local`：测试/视觉模式使用确定性模型、内存仓储和 Mock Provider；生产使用 UtilityProcess client、SQLite 和真实模型适配器占位。运行模式由应用构建配置决定，不由用户输入切换。
+三个进程层的组合根都支持明确的 `mock` 与 `local` 绑定：Renderer 的 mock 绑定现有 MockAgentRuntime，local 绑定 Preload Runtime Adapter；Main 的 mock 绑定进程内测试替身，local 绑定 UtilityProcess Supervisor；Runtime 的 mock 绑定确定性模型与内存仓储，local 绑定 SQLite 和远程模型适配器占位。运行模式由应用构建配置决定，不由用户输入切换。测试只能通过组合根 override 替换依赖，避免在 React 组件中散落条件分支。
 
 ### 6. Skill Registry 保存逻辑请求与实际 Provider
 
