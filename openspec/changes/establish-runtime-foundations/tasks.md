@@ -1,20 +1,20 @@
 ## 1. 协议与工作区基础
 
-- [x] 1.1 建立 Go 1.24 Workspace、`services/agentd` 与 `packages/runtime-protocol`，锁定 Eino、gRPC、SQLite、Buf 和 TypeScript 协议依赖，并验证 `go test ./...` 与 `pnpm install --frozen-lockfile` 成功。
-- [x] 1.2 定义 Runtime Control、Agent Command、Runtime Events 和 Skill Provider v1 Protobuf 契约，生成 Go/TypeScript 代码，并用 Buf lint、breaking check 与生成物 drift 检查验证契约可重复生成。
-- [x] 1.3 增加跨语言 golden fixture，验证请求标识、版本握手、错误码、Skill 生命周期和事件游标在 Go 与 TypeScript 间往返一致。
+- [ ] 1.1 建立 Go 1.24 Workspace、`services/agentd` 与 `packages/runtime-protocol`，锁定 Eino、gRPC、SQLite、Buf 和 TypeScript 协议依赖，并验证 `go test ./...` 与 `pnpm install --frozen-lockfile` 成功。
+- [ ] 1.2 定义 Runtime Control、Agent Command、Runtime Events 和 Skill Provider v1 Protobuf 契约，生成 Go/TypeScript 代码，并用 Buf lint、breaking check 与生成物 drift 检查验证契约可重复生成。
+- [ ] 1.3 增加跨语言 golden fixture，验证请求标识、版本握手、错误码、Skill 生命周期和事件游标在 Go 与 TypeScript 间往返一致。
 
 ## 2. Go Sidecar 与本地存储
 
-- [x] 2.1 建立 `actiondriver-agentd` 入口、配置解析、Eino adapter 边界和确定性 Runtime Driver，并用 Go 单元测试验证无模型凭据时仍可启动健康服务。
-- [x] 2.2 实现 SQLite 连接、WAL/foreign-key 配置和嵌入式原子迁移，使用临时数据库测试首次创建、重复启动、checksum 与迁移失败回滚。
-- [x] 2.3 实现任务、消息、步骤、Skill 调用和事件仓储，验证一次状态变化与对应事件在同一事务中提交，失败时两者均不落盘。
+- [ ] 2.1 建立 `actiondriver-agentd` 入口、配置解析、Eino adapter 边界和确定性 Runtime Driver，并用 Go 单元测试验证无模型凭据时仍可启动健康服务。
+- [ ] 2.2 实现 SQLite 连接、WAL/foreign-key 配置和嵌入式原子迁移，使用临时数据库测试首次创建、重复启动、checksum 与迁移失败回滚。
+- [ ] 2.3 实现任务、消息、步骤、Skill 调用和事件仓储，验证一次状态变化与对应事件在同一事务中提交，失败时两者均不落盘。
 
 ## 3. Skill Registry 与 Runtime 编排
 
-- [x] 3.1 先编写 Registry 测试，再实现按 `skill_id + contract_version` 注册、下线和查找 Provider，验证 Browser 与 Computer Provider 状态互不影响。
-- [x] 3.2 实现确定性 Agent 命令和 Skill 调度状态机，验证未注册能力返回 `CAPABILITY_UNAVAILABLE`，已注册调用先持久化 queued 再发布有序生命周期事件。
-- [x] 3.3 实现按持久化游标读取的事件订阅，验证断线后从 `cursor + 1` 恢复且已确认事件不被重复应用。
+- [ ] 3.1 先编写 Registry 测试，再实现按 `skill_id + contract_version` 注册、下线和查找 Provider，验证 Browser 与 Computer Provider 状态互不影响。
+- [ ] 3.2 实现确定性 Agent 命令和 Skill 调度状态机，验证未注册能力返回 `CAPABILITY_UNAVAILABLE`，已注册调用先持久化 queued 再发布有序生命周期事件。
+- [ ] 3.3 实现按持久化游标读取的事件订阅，验证断线后从 `cursor + 1` 恢复且已确认事件不被重复应用。
 
 ## 4. gRPC over UDS 传输
 

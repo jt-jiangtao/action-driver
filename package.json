@@ -17,14 +17,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
-    "check:all": "pnpm check && pnpm test:e2e",
-    "proto:generate": "buf generate && prettier --write packages/runtime-protocol/src/generated",
-    "proto:lint": "buf lint",
-    "proto:breaking": "buf breaking --against '.git#branch=main'",
-    "proto:check": "pnpm proto:generate && git diff --exit-code -- packages/runtime-protocol/src/generated services/agentd/internal/gen"
+    "check:all": "pnpm check && pnpm test:e2e"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.73.0",
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "7.0.1",
@@ -42,7 +37,6 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "5.9.3",
-    "ts-proto": "2.12.4",
     "typescript-eslint": "8.50.1",
     "vite": "6.4.3",
     "vitest": "3.2.7"
