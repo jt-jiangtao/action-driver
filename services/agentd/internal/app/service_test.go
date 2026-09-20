@@ -27,6 +27,7 @@ func TestServiceStartsWithoutModelCredentials(t *testing.T) {
 	}
 
 	service := NewService(config, einoadapter.NewDeterministicDriver())
+	defer service.Stop()
 	if err := service.Start(context.Background()); err != nil {
 		t.Fatalf("start service: %v", err)
 	}

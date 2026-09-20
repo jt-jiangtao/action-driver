@@ -7,7 +7,7 @@ import (
 
 	"github.com/actiondriver/action-driver/services/agentd/internal/einoadapter"
 	runtimev1 "github.com/actiondriver/action-driver/services/agentd/internal/gen/actiondriver/runtime/v1"
-	_ "modernc.org/sqlite" // Register the embedded SQLite driver used by the local store.
+	"github.com/actiondriver/action-driver/services/agentd/internal/storage/sqlite"
 )
 
 const RuntimeVersion = "0.1.0"
@@ -15,6 +15,7 @@ const RuntimeVersion = "0.1.0"
 type Service struct {
 	config Config
 	driver einoadapter.Driver
+	store  *sqlite.Store
 	ready  atomic.Bool
 }
 
@@ -32,6 +33,11 @@ func (s *Service) Start(ctx context.Context) error {
 	if s.config.SocketPath == "" || s.config.DatabasePath == "" || s.config.SessionToken == "" {
 		return fmt.Errorf("runtime config is incomplete")
 	}
+	store, err := sqlite.Open(ctx, s.config.DatabasePath)
+	if err != nil {
+		return fmt.Errorf("open runtime store: %w", err)
+	}
+	s.store = store
 	s.ready.Store(true)
 	return nil
 }
@@ -50,4 +56,8 @@ func (s *Service) Health(requestID string) *runtimev1.HealthResponse {
 
 func (s *Service) Stop() {
 	s.ready.Store(false)
+	if s.store != nil {
+		_ = s.store.Close()
+		s.store = nil
+	}
 }
