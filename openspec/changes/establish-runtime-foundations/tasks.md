@@ -6,7 +6,7 @@
 
 ## 2. Go Sidecar 与本地存储
 
-- [ ] 2.1 建立 `actiondriver-agentd` 入口、配置解析、Eino adapter 边界和确定性 Runtime Driver，并用 Go 单元测试验证无模型凭据时仍可启动健康服务。
+- [x] 2.1 建立 `actiondriver-agentd` 入口、配置解析、Eino adapter 边界和确定性 Runtime Driver，并用 Go 单元测试验证无模型凭据时仍可启动健康服务。
 - [ ] 2.2 实现 SQLite 连接、WAL/foreign-key 配置和嵌入式原子迁移，使用临时数据库测试首次创建、重复启动、checksum 与迁移失败回滚。
 - [ ] 2.3 实现任务、消息、步骤、Skill 调用和事件仓储，验证一次状态变化与对应事件在同一事务中提交，失败时两者均不落盘。
 
