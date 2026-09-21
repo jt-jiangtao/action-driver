@@ -232,6 +232,9 @@ importers:
       '@actiondriver/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@actiondriver/model-connections':
+        specifier: workspace:*
+        version: link:../../packages/model-connections
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
@@ -272,6 +275,9 @@ importers:
       '@actiondriver/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@actiondriver/model-connections':
+        specifier: workspace:*
+        version: link:../../packages/model-connections
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
@@ -310,6 +316,8 @@ importers:
   packages/contracts: {}
 
   packages/design-tokens: {}
+
+  packages/model-connections: {}
 
   packages/runtime-contracts:
     dependencies:

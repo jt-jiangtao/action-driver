@@ -1,17 +1,13 @@
+import {
+  ModelStorageError,
+  type ModelConnectionStore,
+  type StoredModelConnection
+} from '@actiondriver/model-connections'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { ModelOptionDto, ModelProtocol } from '../../shared/model-ipc-contract'
 
-export type StoredModelConnection = {
-  id: string
-  name: string
-  protocol: ModelProtocol
-  baseUrl: string
-  apiKeyCipher: string
-  apiKeyHint: string
-  expanded: boolean
-  models: ModelOptionDto[]
-}
+export { ModelStorageError }
+export type { ModelConnectionStore, StoredModelConnection }
 
 export type FileSystemPort = {
   exists(path: string): boolean
@@ -19,20 +15,6 @@ export type FileSystemPort = {
   writeFile(path: string, contents: string): void
   mkdir(path: string): void
   rename(from: string, to: string): void
-}
-
-export interface ModelConnectionStore {
-  read(): StoredModelConnection[]
-  write(connections: readonly StoredModelConnection[]): void
-}
-
-export class ModelStorageError extends Error {
-  readonly code = 'MODEL_STORAGE_ERROR'
-
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(`MODEL_STORAGE_ERROR: ${message}`, options)
-    this.name = 'ModelStorageError'
-  }
 }
 
 const STORE_VERSION = 1
@@ -69,7 +51,10 @@ export function createModelConnectionStore(options: {
       if (!isStorePayload(payload)) {
         throw new ModelStorageError(`Unexpected contents in ${filePath}`)
       }
-      return payload.connections.map((connection) => ({ ...connection, models: [...connection.models] }))
+      return payload.connections.map((connection) => ({
+        ...connection,
+        models: [...connection.models]
+      }))
     },
     write(connections) {
       try {

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@actiondriver/contracts": "workspace:*",
+    "@actiondriver/model-connections": "workspace:*",
     "@actiondriver/runtime-contracts": "workspace:*",
     "@langchain/core": "1.2.12",
     "@langchain/langgraph": "1.4.16",

@@ -4,10 +4,16 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@actiondriver/runtime-contracts'] })]
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: ['@actiondriver/runtime-contracts', '@actiondriver/model-connections']
+      })
+    ]
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({ exclude: ['@actiondriver/model-connections'] })
+    ],
     build: {
       rollupOptions: {
         // Sandboxed preload scripts must be CommonJS; the package is ESM, so emit .cjs explicitly.

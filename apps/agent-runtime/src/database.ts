@@ -80,6 +80,35 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         CREATE INDEX runtime_events_task_cursor_idx ON runtime_events(task_id, cursor);
       `)
     }
+  },
+  {
+    version: 2,
+    name: 'create-model-connection-schema',
+    up(database) {
+      database.exec(`
+        CREATE TABLE model_connections (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          protocol TEXT NOT NULL,
+          base_url TEXT NOT NULL,
+          api_key_cipher TEXT NOT NULL,
+          api_key_hint TEXT NOT NULL,
+          expanded INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE model_connection_models (
+          connection_id TEXT NOT NULL REFERENCES model_connections(id) ON DELETE CASCADE,
+          model_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL,
+          test_state TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          PRIMARY KEY (connection_id, model_id)
+        );
+      `)
+    }
   }
 ]
 

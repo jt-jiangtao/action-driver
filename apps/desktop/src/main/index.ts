@@ -1,9 +1,9 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeImage, safeStorage } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
 import { createMainContainer, resolveMainServices } from './container'
-import { applyApplicationName, applyDockIcon, resolveDesktopIconPath } from './app-identity'
+import { applyApplicationName, resolveDesktopIconPath } from './app-identity'
 import { registerAgentIpcHandlers } from './agent-ipc'
 import { createLocalRuntimeServices } from './local-runtime'
 import { registerModelIpcHandlers } from './model-ipc'
@@ -23,6 +23,19 @@ let quitting = false
 
 applyApplicationName(app)
 
+/**
+ * Sets the Dock icon from the brand asset. A missing or unreadable asset is reported loudly instead
+ * of silently leaving the Electron icon in place.
+ */
+function applyDesktopBranding(): void {
+  const icon = nativeImage.createFromPath(desktopIconPath)
+  if (icon.isEmpty()) {
+    console.error(`[branding] ActionDriver icon could not be loaded from ${desktopIconPath}`)
+    return
+  }
+  app.dock?.setIcon(icon)
+}
+
 function createWindow(mainServices: MainServices): BrowserWindow {
   const rendererPath = join(__dirname, '../renderer/index.html')
   const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
@@ -41,7 +54,7 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
-  applyDockIcon(app, desktopIconPath)
+  applyDesktopBranding()
   if (compositionMode === 'mock') {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
@@ -77,6 +90,8 @@ app.whenReady().then(async () => {
   }
 
   createWindow(services)
+  // macOS can reset the Dock tile when the first window is created; re-apply after it exists.
+  applyDesktopBranding()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
   })
@@ -87,5 +102,10 @@ app.on('before-quit', (event) => {
   if (!services?.runtimeSupervisor || quitting) return
   event.preventDefault()
   quitting = true
-  void services.runtimeSupervisor.stop().finally(() => app.quit())
+  // Never leave a lingering Dock tile: quit even if the supervisor shutdown stalls.
+  const forceQuit = setTimeout(() => app.exit(0), 3_000)
+  void services.runtimeSupervisor.stop().finally(() => {
+    clearTimeout(forceQuit)
+    app.quit()
+  })
 })

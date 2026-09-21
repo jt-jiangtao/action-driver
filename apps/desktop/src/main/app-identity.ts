@@ -12,7 +12,7 @@ export function applyApplicationName(application: ApplicationNameTarget): void {
 
 export type DockIconTarget = {
   dock?: {
-    setIcon(iconPath: string): unknown
+    setIcon(icon: string | unknown): unknown
   } | undefined
 }
 
@@ -20,6 +20,14 @@ export function applyDockIcon(application: DockIconTarget, iconPath: string): vo
   application.dock?.setIcon(iconPath)
 }
 
+/**
+ * Resolves the brand icon used for the window and the Dock.
+ *
+ * A development run still executes the Electron bundle, so macOS derives the Dock *name* from that
+ * bundle and only the runtime icon override applies. Packaged builds must additionally carry
+ * CFBundleName/CFBundleDisplayName/CFBundleIconFile, otherwise the Dock falls back to the Electron
+ * bundle icon while the app is starting or quitting.
+ */
 export function resolveDesktopIconPath(compiledMainDirectory: string): string {
   return join(compiledMainDirectory, '..', '..', 'resources', 'actiondriver.png')
 }
