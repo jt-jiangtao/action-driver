@@ -6,7 +6,11 @@ export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin({
-        exclude: ['@actiondriver/runtime-contracts', '@actiondriver/model-connections']
+        exclude: [
+          '@actiondriver/runtime-contracts',
+          '@actiondriver/model-connections',
+          '@actiondriver/observability'
+        ]
       })
     ]
   },

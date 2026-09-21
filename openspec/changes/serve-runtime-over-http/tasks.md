@@ -89,11 +89,12 @@
 
 ## 12. Renderer ↔ 服务端 交互日志
 
-- [ ] 12.1 定义交互日志字段契约（transport、direction、method/path 或消息类型、requestId/taskId、status/outcome、durationMs、载荷尺寸），用单元测试验证字段完整且不含凭据。
-- [ ] 12.2 服务端用 pino 记录每次 HTTP 交互（接受、拒绝原因、结果与耗时）并同时写入 `<userData>/logs/service.log`，验证格式化输出可读、日志文件可 tail。
+- [x] 12.1 定义交互日志字段契约（transport、direction、method/path 或消息类型、requestId/taskId、status/outcome、durationMs、载荷尺寸），用单元测试验证字段完整且不含凭据。
+- [x] 12.2 服务端用 pino 记录每次 HTTP 交互（接受、拒绝原因、结果与耗时）并同时写入 `<userData>/logs/service.log`，验证格式化输出可读、日志文件可 tail。
 - [ ] 12.3 服务端记录每次 WebSocket 交互（握手、命令、事件推送、反向调用）并携带 requestId/taskId，验证同一任务的交互可串联。
 - [ ] 12.4 客户端（Main 作为服务端原生客户端）按同一字段契约记录出站请求与响应，验证同一 requestId 能在两端对齐。
 - [ ] 12.5 Renderer SDK 记录每次服务调用（方法、耗时、结果），开发态在控制台可见并转发给 Main，使日志同时出现在终端与日志文件。
-- [ ] 12.6 脱敏与体积守卫：日志中不出现服务凭据、模型密钥与完整请求体；大载荷只记录尺寸与摘要，用守卫测试覆盖。
-- [ ] 12.7 日志级别与格式：默认 info、可用环境变量调整；开发态使用可读格式化，打包态使用 JSON 行，验证两种输出。
-- [ ] 12.8 日志上限策略：单文件大小上限与保留策略（或明确记录不轮转的边界），验证长时间运行不会无限增长。
+- [x] 12.6 脱敏与体积守卫：日志中不出现服务凭据、模型密钥与完整请求体；大载荷只记录尺寸与摘要，用守卫测试覆盖。
+- [x] 12.7 日志级别与格式：默认 info、可用环境变量调整；开发态使用可读格式化，打包态使用 JSON 行，验证两种输出。
+- [x] 12.8 日志上限策略：单文件大小上限与保留策略（或明确记录不轮转的边界），验证长时间运行不会无限增长。
+- [x] 12.9 记录当前边界的 Renderer → Main IPC 交互（transport=ipc、operation=通道名、outcome、载荷尺寸）并写入 `<userData>/logs/renderer-service.log`，验证设置页读取连接时产生可读记录。

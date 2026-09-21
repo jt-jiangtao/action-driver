@@ -235,6 +235,9 @@ importers:
       '@actiondriver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
+      '@actiondriver/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
@@ -284,6 +287,9 @@ importers:
       '@actiondriver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
+      '@actiondriver/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
@@ -324,6 +330,15 @@ importers:
   packages/design-tokens: {}
 
   packages/model-connections: {}
+
+  packages/observability:
+    dependencies:
+      pino:
+        specifier: 9.5.0
+        version: 9.5.0
+      pino-pretty:
+        specifier: 13.0.0
+        version: 13.0.0
 
   packages/runtime-contracts:
     dependencies:

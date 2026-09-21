@@ -7,6 +7,7 @@ import { applyApplicationName, resolveDesktopIconPath } from './app-identity'
 import { registerAgentIpcHandlers } from './agent-ipc'
 import { createLocalRuntimeServices } from './local-runtime'
 import { registerModelIpcHandlers } from './model-ipc'
+import { createMainLogging, type MainLogging } from './logging'
 import { createModelConnectionStore, createNodeFileSystem } from './model-connections/connection-store'
 import { createFetchHttpTransport } from './model-connections/http-transport'
 import { ModelConnectionService } from './model-connections/model-connection-service'
@@ -19,6 +20,7 @@ import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 const desktopIconPath = resolveDesktopIconPath(__dirname)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
+let logging: MainLogging | undefined
 let quitting = false
 
 applyApplicationName(app)
@@ -55,6 +57,7 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 
 app.whenReady().then(async () => {
   applyDesktopBranding()
+  logging = createMainLogging({ userDataPath: app.getPath('userData') })
   if (compositionMode === 'mock') {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
@@ -84,8 +87,8 @@ app.whenReady().then(async () => {
         ...runtime
       })
     )
-    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient)
-    registerModelIpcHandlers(ipcMain, modelConnectionService)
+    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions)
+    registerModelIpcHandlers(ipcMain, modelConnectionService, logging.interactions)
     await runtime.runtimeSupervisor.start()
   }
 
@@ -104,8 +107,12 @@ app.on('before-quit', (event) => {
   quitting = true
   // Never leave a lingering Dock tile: quit even if the supervisor shutdown stalls.
   const forceQuit = setTimeout(() => app.exit(0), 3_000)
-  void services.runtimeSupervisor.stop().finally(() => {
-    clearTimeout(forceQuit)
-    app.quit()
-  })
+  void services.runtimeSupervisor
+    .stop()
+    .catch(() => undefined)
+    .then(() => logging?.logger.close())
+    .finally(() => {
+      clearTimeout(forceQuit)
+      app.quit()
+    })
 })

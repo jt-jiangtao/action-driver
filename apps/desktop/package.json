@@ -16,6 +16,7 @@
     "@actiondriver/contracts": "workspace:*",
     "@actiondriver/design-tokens": "workspace:*",
     "@actiondriver/model-connections": "workspace:*",
+    "@actiondriver/observability": "workspace:*",
     "@actiondriver/runtime-contracts": "workspace:*",
     "antd": "6.6.4",
     "inversify": "8.2.3",
