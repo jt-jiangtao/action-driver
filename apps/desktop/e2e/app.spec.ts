@@ -168,6 +168,14 @@ test('captures all eight Settings Figma states through public controls', async (
   ])
   await capture(page, 'settings-populated')
 
+  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
+  await expect(page.getByTestId('e2e/settings/logs/page#page')).toBeVisible()
+  await auditRenderedInteractions(page, contracts, ['e2e/settings/logs/page#page'])
+  await capture(page, 'logs-page')
+  await expect(page.getByTestId('e2e/settings/sidebar/model-connections#button')).toBeVisible()
+  await page.getByTestId('e2e/settings/sidebar/model-connections#button').click()
+  await expect(page.getByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+
   await page.getByRole('button', { name: '公司模型网关的更多操作' }).click()
   await expect(page.getByRole('menu')).toBeVisible()
   await auditRenderedInteractions(page, contracts)

@@ -7,6 +7,7 @@ import { applyApplicationName, resolveDesktopIconPath } from './app-identity'
 import { registerAgentIpcHandlers } from './agent-ipc'
 import { createLocalRuntimeServices } from './local-runtime'
 import { registerModelIpcHandlers } from './model-ipc'
+import { registerLogIpcHandlers } from './logs-ipc'
 import { createMainLogging, type MainLogging } from './logging'
 import { createModelConnectionStore, createNodeFileSystem } from './model-connections/connection-store'
 import { createFetchHttpTransport } from './model-connections/http-transport'
@@ -58,6 +59,14 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 app.whenReady().then(async () => {
   applyDesktopBranding()
   logging = createMainLogging({ userDataPath: app.getPath('userData') })
+  registerLogIpcHandlers(
+    ipcMain,
+    [
+      { filePath: join(app.getPath('userData'), 'logs', 'renderer-service.log') },
+      { filePath: join(app.getPath('userData'), 'logs', 'service.log') }
+    ],
+    logging.interactions
+  )
   if (compositionMode === 'mock') {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {

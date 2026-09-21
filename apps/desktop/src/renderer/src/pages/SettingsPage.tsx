@@ -9,10 +9,12 @@ import type { ModelConnection, ModelConnectionsService } from '../models/model-c
 
 export function SettingsPage({
   service,
-  onBack
+  onBack,
+  onOpenLogs
 }: {
   service: ModelConnectionsService
   onBack(): void
+  onOpenLogs?(): void
 }) {
   const [connections, setConnections] = useState<ModelConnection[]>([])
   const [expandedIds, setExpandedIds] = useState(() => new Set<string>())
@@ -47,7 +49,7 @@ export function SettingsPage({
 
   return (
     <div className="settings-shell" data-testid="e2e/settings/model-connections/page#page">
-      <SettingsSidebar onBack={onBack} />
+      <SettingsSidebar onBack={onBack} active="model-connections" {...(onOpenLogs ? { onOpenLogs } : {})} />
 
       <main className="settings-main">
         <div className="settings-content">

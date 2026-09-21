@@ -13,6 +13,8 @@ import type {
   ModelTestResultDto
 } from '../shared/model-ipc-contract'
 import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
+import type { LogIpcResponse, LogListRequest, LogListResult } from '../shared/log-ipc-contract'
+import { LOG_IPC_CHANNELS } from '../shared/log-ipc-contract'
 import type {
   AgentAcceptedResult,
   AgentControlSkillResult,
@@ -48,6 +50,7 @@ export interface DesktopApi {
   getEnvironment(): { platform: NodeJS.Platform; version: string }
   agent: AgentDesktopApi
   modelConnections: ModelConnectionsDesktopApi
+  logs: LogsDesktopApi
 }
 
 export interface ModelConnectionsDesktopApi {
@@ -60,6 +63,10 @@ export interface ModelConnectionsDesktopApi {
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
   add(draft: ModelConnectionDraftDto, models: ModelOptionDto[]): Promise<ModelConnectionDto>
   delete(connectionId: string): Promise<void>
+}
+
+export interface LogsDesktopApi {
+  list(request: LogListRequest): Promise<LogListResult>
 }
 
 async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
@@ -203,6 +210,13 @@ export function createDesktopApi(
         invokeModel<ModelConnectionDto>(ipc, MODEL_IPC_CHANNELS.add, { draft, models }),
       async delete(connectionId) {
         await invokeModel<void>(ipc, MODEL_IPC_CHANNELS.delete, { connectionId })
+      }
+    },
+    logs: {
+      async list(request) {
+        const response = (await ipc.invoke(LOG_IPC_CHANNELS.list, request)) as LogIpcResponse<LogListResult>
+        if (!response.ok) return Promise.reject(response.error)
+        return response.value
       }
     }
   }

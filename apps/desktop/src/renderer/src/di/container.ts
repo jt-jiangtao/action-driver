@@ -4,6 +4,11 @@ import type {
   SkillCapability,
   SkillGateway
 } from '@actiondriver/contracts'
+import type { InteractionLogService } from '../models/interaction-logs'
+import {
+  DesktopInteractionLogService,
+  MockInteractionLogService
+} from '../services/desktop-interaction-logs'
 import { SERVICE_TYPES, SKILL_IDS } from '@actiondriver/contracts'
 import { Container } from 'inversify'
 import type { DesktopApi } from '../../../preload/desktop-api'
@@ -25,10 +30,12 @@ export interface AppServices {
   agentSessionRepository: AgentSessionRepository
   skillGateway: SkillGateway
   modelConnectionsService: ModelConnectionsService
+  interactionLogService: InteractionLogService
   taskCatalog: TaskCatalog
 }
 
 const MODEL_CONNECTIONS_SERVICE = Symbol('MODEL_CONNECTIONS_SERVICE')
+const INTERACTION_LOG_SERVICE = Symbol('INTERACTION_LOG_SERVICE')
 const TASK_CATALOG = Symbol('TASK_CATALOG')
 
 interface RendererOverrides extends Partial<AppServices> {
@@ -86,6 +93,14 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
   container
     .bind<TaskCatalog>(TASK_CATALOG)
     .toConstantValue(options.taskCatalog ?? new MockTaskCatalog())
+  container
+    .bind<InteractionLogService>(INTERACTION_LOG_SERVICE)
+    .toConstantValue(
+      options.interactionLogService ??
+        (options.mode === 'local' && options.desktopApi
+          ? new DesktopInteractionLogService(options.desktopApi.logs)
+          : new MockInteractionLogService())
+    )
   return container
 }
 
@@ -95,6 +110,7 @@ export function resolveAppServices(container: Container): AppServices {
     agentSessionRepository: container.get(SERVICE_TYPES.agentSessionRepository),
     skillGateway: container.get(SERVICE_TYPES.skillGateway),
     modelConnectionsService: container.get(MODEL_CONNECTIONS_SERVICE),
+    interactionLogService: container.get(INTERACTION_LOG_SERVICE),
     taskCatalog: container.get(TASK_CATALOG)
   }
 }

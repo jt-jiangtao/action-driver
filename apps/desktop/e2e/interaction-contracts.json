@@ -460,5 +460,59 @@
     "route": "tasks",
     "type": "page",
     "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/sidebar/logs#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "renders interaction records and refreshes on demand"
+  },
+  {
+    "target": "e2e/settings/logs/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/logs/level#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters by level, direction and search"
+  },
+  {
+    "target": "e2e/settings/logs/direction#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters by level, direction and search"
+  },
+  {
+    "target": "e2e/settings/logs/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters by level, direction and search"
+  },
+  {
+    "target": "e2e/settings/logs/auto-refresh#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "pauses and resumes automatic refresh"
+  },
+  {
+    "target": "e2e/settings/logs/refresh#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "renders interaction records and refreshes on demand"
   }
 ]

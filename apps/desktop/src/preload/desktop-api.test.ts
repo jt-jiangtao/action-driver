@@ -25,7 +25,7 @@ describe('createDesktopApi', () => {
     const api = createDesktopApi('darwin', '0.1.0', bridge, () => 'renderer-subscription')
 
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
-    expect(Object.keys(api)).toEqual(['getEnvironment', 'agent', 'modelConnections'])
+    expect(Object.keys(api)).toEqual(['getEnvironment', 'agent', 'modelConnections', 'logs'])
     expect(Object.keys(api.agent).sort()).toEqual([
       'continue',
       'controlSkill',
@@ -39,6 +39,7 @@ describe('createDesktopApi', () => {
     expect(api).not.toHaveProperty('messagePort')
     expect(api).not.toHaveProperty('utilityProcess')
     expect(api).not.toHaveProperty('databasePath')
+    expect(Object.keys(api.logs)).toEqual(['list'])
     expect(Object.keys(api.modelConnections).sort()).toEqual([
       'add',
       'delete',

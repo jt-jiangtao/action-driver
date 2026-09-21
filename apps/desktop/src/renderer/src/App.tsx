@@ -5,8 +5,10 @@ import type { TaskLayoutMode } from './components/BrowserPanel'
 import { useAppServices } from './di/services-context'
 import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
+import { LogsPage } from './pages/LogsPage'
 import { TaskPage } from './pages/TaskPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
+import type { MainAppRoute } from './models/app-route'
 import { defaultModelSelection } from './models/model-selection'
 
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
@@ -43,9 +45,17 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setRoute({ kind: 'task', taskId: projection.id })
   }
 
+  const mainRoute: MainAppRoute =
+    route.kind === 'settings' || route.kind === 'logs' ? route.returnTo : route
+
   const openSettings = () => {
     if (route.kind === 'settings') return
-    setRoute({ kind: 'settings', returnTo: route })
+    setRoute({ kind: 'settings', returnTo: mainRoute })
+  }
+
+  const openLogs = () => {
+    if (route.kind === 'logs') return
+    setRoute({ kind: 'logs', returnTo: mainRoute })
   }
 
   if (route.kind === 'settings') {
@@ -53,6 +63,17 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       <SettingsPage
         service={services.modelConnectionsService}
         onBack={() => setRoute(route.returnTo)}
+        onOpenLogs={openLogs}
+      />
+    )
+  }
+
+  if (route.kind === 'logs') {
+    return (
+      <LogsPage
+        service={services.interactionLogService}
+        onBack={() => setRoute(route.returnTo)}
+        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
       />
     )
   }

@@ -1,6 +1,9 @@
 export type MainAppRoute = { kind: 'home' } | { kind: 'task'; taskId: string }
 
-export type AppRoute = MainAppRoute | { kind: 'settings'; returnTo: MainAppRoute }
+export type AppRoute =
+  | MainAppRoute
+  | { kind: 'settings'; returnTo: MainAppRoute }
+  | { kind: 'logs'; returnTo: MainAppRoute }
 
 export type InitialAppRoute = 'home' | 'task' | 'settings'
 

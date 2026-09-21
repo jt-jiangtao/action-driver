@@ -55,6 +55,9 @@ function createDesktopApi(): DesktopApi {
         models: []
       }),
       delete: async () => undefined
+    },
+    logs: {
+      list: async () => ({ records: [], files: [], readable: true })
     }
   }
 }
@@ -71,6 +74,7 @@ describe('renderer composition root', () => {
     expect(Object.keys(services).sort()).toEqual([
       'agentCommandService',
       'agentSessionRepository',
+      'interactionLogService',
       'modelConnectionsService',
       'skillGateway',
       'taskCatalog'
@@ -93,6 +97,7 @@ describe('renderer composition root', () => {
       'agentSessionRepository',
       'skillGateway',
       'modelConnectionsService',
+      'interactionLogService',
       'taskCatalog'
     ])
   })
