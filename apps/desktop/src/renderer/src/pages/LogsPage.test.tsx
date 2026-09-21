@@ -71,6 +71,7 @@ describe('LogsPage', () => {
     const user = userEvent.setup()
     renderPage()
 
+    expect(screen.queryByTestId('e2e/settings/logs/inspector#section')).not.toBeInTheDocument()
     const entries = await screen.findAllByTestId(/e2e\/settings\/logs\/entries\/\d+#button/)
     await user.click(entries[0]!)
 
@@ -79,6 +80,9 @@ describe('LogsPage', () => {
     expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
     expect(within(inspector).getByText('12ms')).toBeVisible()
     expect(within(inspector).getByText('1738B · 2 项')).toBeVisible()
+
+    await user.click(entries[0]!)
+    expect(screen.queryByTestId('e2e/settings/logs/inspector#section')).not.toBeInTheDocument()
   })
 
   it('copies the selected entry', async () => {

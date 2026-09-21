@@ -170,6 +170,8 @@ test('captures all eight Settings Figma states through public controls', async (
 
   await page.getByTestId('e2e/settings/sidebar/logs#button').click()
   await expect(page.getByTestId('e2e/settings/logs/page#page')).toBeVisible()
+  await page.getByTestId('e2e/settings/logs/entries/0#button').click()
+  await expect(page.getByTestId('e2e/settings/logs/inspector#section')).toBeVisible()
   await auditRenderedInteractions(page, contracts, ['e2e/settings/logs/page#page'])
   await capture(page, 'logs-page')
   await expect(page.getByTestId('e2e/settings/sidebar/model-connections#button')).toBeVisible()

@@ -53,11 +53,9 @@ export function LogsPage({
       setRecords(result.records)
       setFiles(result.files)
       setError(null)
-      setSelectedKey((current) => {
-        if (current && result.records.some((record) => keyOf(record) === current)) return current
-        const newest = result.records.at(-1)
-        return newest ? keyOf(newest) : null
-      })
+      setSelectedKey((current) =>
+        current && result.records.some((record) => keyOf(record) === current) ? current : null
+      )
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -98,79 +96,85 @@ export function LogsPage({
       <main className="settings-main">
         <div className="settings-content logs-content">
           <header className="logs-header">
-            <div>
+            <div className="logs-heading">
               <h2>交互日志</h2>
               <p>Renderer 与服务端之间的每一次调用都会记录在这里</p>
             </div>
-            <div className="logs-actions">
-              <label>
-                <span>级别</span>
-                <select
-                  aria-label="日志级别"
-                  data-testid="e2e/settings/logs/level#select"
-                  value={level}
-                  onChange={(event) => setLevel(event.currentTarget.value)}
+            <div className="logs-toolbar">
+              <div className="logs-filters">
+                <label>
+                  <span>级别</span>
+                  <select
+                    aria-label="日志级别"
+                    data-testid="e2e/settings/logs/level#select"
+                    value={level}
+                    onChange={(event) => setLevel(event.currentTarget.value)}
+                  >
+                    {LEVELS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>方向</span>
+                  <select
+                    aria-label="日志方向"
+                    data-testid="e2e/settings/logs/direction#select"
+                    value={direction}
+                    onChange={(event) => setDirection(event.currentTarget.value)}
+                  >
+                    {DIRECTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <input
+                  aria-label="搜索日志"
+                  data-testid="e2e/settings/logs/search#input"
+                  placeholder="搜索通道或结果"
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.currentTarget.value)}
+                />
+              </div>
+              <div className="logs-actions">
+                <button
+                  className="plain-icon-action"
+                  data-testid="e2e/settings/logs/theme#switch"
+                  type="button"
+                  aria-label={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
+                  title={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
+                  aria-pressed={consoleTheme === 'light'}
+                  onClick={() =>
+                    setConsoleTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+                  }
                 >
-                  {LEVELS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>方向</span>
-                <select
-                  aria-label="日志方向"
-                  data-testid="e2e/settings/logs/direction#select"
-                  value={direction}
-                  onChange={(event) => setDirection(event.currentTarget.value)}
+                  <AppIcon name="eye" />
+                </button>
+                <button
+                  className="secondary-button"
+                  data-testid="e2e/settings/logs/auto-refresh#switch"
+                  type="button"
+                  aria-pressed={autoRefresh}
+                  onClick={() => setAutoRefresh((current) => !current)}
                 >
-                  {DIRECTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <input
-                aria-label="搜索日志"
-                data-testid="e2e/settings/logs/search#input"
-                placeholder="搜索通道或结果"
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-              />
-              <button
-                className="plain-icon-action"
-                data-testid="e2e/settings/logs/theme#switch"
-                type="button"
-                aria-label={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
-                title={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
-                aria-pressed={consoleTheme === 'light'}
-                onClick={() => setConsoleTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-              >
-                <AppIcon name="eye" />
-              </button>
-              <button
-                className="secondary-button"
-                data-testid="e2e/settings/logs/auto-refresh#switch"
-                type="button"
-                aria-pressed={autoRefresh}
-                onClick={() => setAutoRefresh((current) => !current)}
-              >
-                <AppIcon name={autoRefresh ? 'pause' : 'play'} />
-                {autoRefresh ? '暂停' : '自动刷新'}
-              </button>
-              <button
-                className="secondary-button"
-                data-testid="e2e/settings/logs/refresh#button"
-                type="button"
-                onClick={() => void load()}
-              >
-                <AppIcon name="refresh" />
-                刷新
-              </button>
+                  <AppIcon name={autoRefresh ? 'pause' : 'play'} />
+                  {autoRefresh ? '暂停' : '自动刷新'}
+                </button>
+                <button
+                  className="secondary-button"
+                  data-testid="e2e/settings/logs/refresh#button"
+                  type="button"
+                  onClick={() => void load()}
+                >
+                  <AppIcon name="refresh" />
+                  刷新
+                </button>
+              </div>
             </div>
           </header>
 
@@ -186,7 +190,7 @@ export function LogsPage({
               <span>执行一次模型连接读取或任务提交后即可在这里看到</span>
             </div>
           ) : (
-            <div className="logs-workspace">
+            <div className={`logs-workspace ${selected ? 'has-inspector' : ''}`}>
               <section className={`logs-console is-${consoleTheme}`} aria-label="交互日志控制台">
                 {records.map((record, index) => {
                   const key = keyOf(record)
@@ -199,7 +203,7 @@ export function LogsPage({
                       data-selected={key === selectedKey}
                       key={key}
                       type="button"
-                      onClick={() => setSelectedKey(key)}
+                      onClick={() => setSelectedKey((current) => (current === key ? null : key))}
                     >
                       <span className="logs-entry-time">{formatTime(record.time)}</span>
                       <span className={`logs-level is-${record.levelLabel}`}>
@@ -216,21 +220,20 @@ export function LogsPage({
                 })}
               </section>
 
-              <aside className="logs-inspector" data-testid="e2e/settings/logs/inspector#section">
-                <header>
-                  <strong>详情</strong>
-                  <button
-                    className="plain-icon-action"
-                    data-testid="e2e/settings/logs/inspector/copy#button"
-                    type="button"
-                    aria-label="复制条目"
-                    disabled={!selected}
-                    onClick={() => void copySelected()}
-                  >
-                    <AppIcon name={copyState === 'copied' ? 'check' : 'folder'} />
-                  </button>
-                </header>
-                {selected ? (
+              {selected ? (
+                <aside className="logs-inspector" data-testid="e2e/settings/logs/inspector#section">
+                  <header>
+                    <strong>详情</strong>
+                    <button
+                      className="plain-icon-action"
+                      data-testid="e2e/settings/logs/inspector/copy#button"
+                      type="button"
+                      aria-label="复制条目"
+                      onClick={() => void copySelected()}
+                    >
+                      <AppIcon name={copyState === 'copied' ? 'check' : 'folder'} />
+                    </button>
+                  </header>
                   <dl>
                     <Detail
                       label="时间"
@@ -268,10 +271,8 @@ export function LogsPage({
                       <Detail label="错误信息" value={selected.errorMessage} />
                     ) : null}
                   </dl>
-                ) : (
-                  <p className="logs-inspector-empty">选择左侧任意一条记录查看详情</p>
-                )}
-              </aside>
+                </aside>
+              ) : null}
             </div>
           )}
 
