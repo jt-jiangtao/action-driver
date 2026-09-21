@@ -26,14 +26,15 @@ export const INTERACTIVE_ROLES = new Set([
   'tab'
 ])
 
-export const SHARED_INTERACTIVE_COMPONENTS = new Set([
-  'IconButton',
-  'TextButton',
-  'Checkbox',
-  'RadioOption',
-  'ModelSelectorTrigger',
-  'SidebarEntry',
-  'RecentTaskItem'
+export const SHARED_INTERACTIVE_COMPONENTS = new Map([
+  ['IconButton', 'testId'],
+  ['TextButton', 'testId'],
+  ['Checkbox', 'testId'],
+  ['RadioOption', 'testId'],
+  ['ModelToggle', 'testId'],
+  ['TextField', 'testId'],
+  ['SidebarEntry', 'testId'],
+  ['Editable', 'data-testid']
 ])
 
 function jsxTagName(node) {
@@ -77,6 +78,9 @@ function testIdReference(item) {
   if (!ts.isJsxExpression(item.initializer) || !item.initializer.expression) return null
   const expression = item.initializer.expression
   if (ts.isStringLiteralLike(expression)) return { kind: 'static', target: expression.text }
+  if (ts.isIdentifier(expression) && expression.text === 'testId') {
+    return { kind: 'forwarded', target: 'testId' }
+  }
   if (
     ts.isCallExpression(expression) &&
     ts.isIdentifier(expression.expression) &&
@@ -120,7 +124,7 @@ export function validateInteractionSources({ files, projectRoot = process.cwd(),
     const visit = (node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTagName(node)
-        const idAttributeName = SHARED_INTERACTIVE_COMPONENTS.has(tag) ? 'testId' : 'data-testid'
+        const idAttributeName = SHARED_INTERACTIVE_COMPONENTS.get(tag) ?? 'data-testid'
         const idAttribute = attribute(node, idAttributeName)
 
         if (interactionKind(node) && !idAttribute) {
@@ -131,6 +135,8 @@ export function validateInteractionSources({ files, projectRoot = process.cwd(),
           const reference = testIdReference(idAttribute)
           if (!reference || reference.kind === 'unapproved') {
             addError(source, node, 'unapproved-dynamic-id', `${idAttributeName} must be a literal or e2eId()`)
+          } else if (reference.kind === 'forwarded') {
+            // The public shared component call site owns and registers the concrete id.
           } else if (!E2E_TEST_ID_PATTERN.test(reference.target)) {
             addError(source, node, 'invalid-test-id', `Invalid E2E test id: ${reference.target}`)
           } else {

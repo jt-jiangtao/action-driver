@@ -31,10 +31,10 @@ export function TaskPage({
   const browserWidth = mode === 'split' ? 656 : mode === 'browser-expanded' ? 1192 : 0
   const flowWidth = mode === 'browser-collapsed' ? 720 : 480
   return (
-    <main className="task-page" data-testid="task-page" data-mode={mode}>
+    <main className="task-page" data-testid="e2e/tasks/detail/page#page" data-mode={mode}>
       <section
         className={`agent-panel ${agentWidth === 0 ? 'is-hidden' : ''}`}
-        data-testid="agent-panel"
+        data-testid="e2e/tasks/detail/agent#section"
         data-width={agentWidth}
       >
         <TaskHeader
@@ -63,7 +63,7 @@ export function TaskPage({
       </section>
       <section
         className={`browser-panel-slot ${browserWidth === 0 ? 'is-hidden' : ''}`}
-        data-testid="browser-panel-slot"
+        data-testid="e2e/tasks/detail/browser#section"
         data-width={browserWidth}
       >
         {task.browser ? (

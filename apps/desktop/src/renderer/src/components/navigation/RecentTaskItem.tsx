@@ -1,5 +1,6 @@
 import type { RecentTaskSummary } from '../../models/task-catalog'
 import { AppIcon } from '../ui/AppIcon'
+import { e2eId } from '../../testing/e2e-id'
 
 export function RecentTaskItem({
   task,
@@ -14,6 +15,7 @@ export function RecentTaskItem({
     <button
       aria-current={active ? 'page' : undefined}
       className={`recent-task ${active ? 'is-active' : ''}`}
+      data-testid={e2eId('e2e/shared/sidebar/tasks/:task-id#button', { 'task-id': task.id })}
       onClick={() => onOpen(task.id)}
       type="button"
     >

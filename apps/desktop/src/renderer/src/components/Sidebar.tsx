@@ -21,10 +21,15 @@ export function Sidebar({
   onOpenSettings?(): void
 }) {
   return (
-    <aside className="sidebar" data-testid="sidebar" data-width="248">
+    <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="248">
       <div className="sidebar-window-row">
         <span className="traffic-light-spacer" aria-hidden="true" />
-        <IconButton className="sidebar-collapse" icon="panel-left" aria-label="折叠侧栏" />
+        <IconButton
+          className="sidebar-collapse"
+          icon="panel-left"
+          aria-label="折叠侧栏"
+          testId="e2e/shared/sidebar/collapse#button"
+        />
       </div>
 
       <div className="sidebar-brand-row">
@@ -32,13 +37,24 @@ export function Sidebar({
           <ActionDriverLogo size={18} />
         </span>
         <strong>ActionDriver</strong>
-        <IconButton className="sidebar-search" icon="search" aria-label="搜索" />
+        <IconButton
+          className="sidebar-search"
+          icon="search"
+          aria-label="搜索"
+          testId="e2e/shared/sidebar/search#button"
+        />
       </div>
 
       <nav className="sidebar-primary-nav" aria-label="主导航">
-        <SidebarEntry icon="plus" label="新任务" onClick={onNewTask} selected={active === 'new'} />
-        <SidebarEntry icon="skill" label="Skills" />
-        <SidebarEntry icon="mcp" label="MCP" />
+        <SidebarEntry
+          icon="plus"
+          label="新任务"
+          onClick={onNewTask}
+          selected={active === 'new'}
+          testId="e2e/shared/sidebar/new-task#button"
+        />
+        <SidebarEntry icon="skill" label="Skills" testId="e2e/shared/sidebar/skills#button" />
+        <SidebarEntry icon="mcp" label="MCP" testId="e2e/shared/sidebar/mcp#button" />
       </nav>
 
       <section className="sidebar-recents" aria-labelledby="recent-tasks-title">

@@ -8,12 +8,21 @@ export function BrowserSizeToggle({
   expanded: boolean
   onModeChange(mode: TaskLayoutMode): void
 }) {
-  return (
+  return expanded ? (
     <IconButton
-      aria-label={expanded ? '缩小浏览器' : '放大浏览器'}
+      aria-label="缩小浏览器"
       className="browser-plain-button"
-      icon={expanded ? 'minimize' : 'maximize'}
-      onClick={() => onModeChange(expanded ? 'split' : 'browser-expanded')}
+      icon="minimize"
+      testId="e2e/tasks/detail/browser/restore#button"
+      onClick={() => onModeChange('split')}
+    />
+  ) : (
+    <IconButton
+      aria-label="放大浏览器"
+      className="browser-plain-button"
+      icon="maximize"
+      testId="e2e/tasks/detail/browser/expand#button"
+      onClick={() => onModeChange('browser-expanded')}
     />
   )
 }

@@ -3,6 +3,7 @@ import { ModelStatusPill } from '../ModelStatusPill'
 import { ModelToggle } from '../ModelToggle'
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
+import { e2eId } from '../../testing/e2e-id'
 
 export function LibraryModelRow({
   model,
@@ -23,10 +24,20 @@ export function LibraryModelRow({
           className="plain-icon-action model-test-action"
           disabled={model.testState === 'testing'}
           icon="play"
+          testId={e2eId('e2e/settings/model-connections/models/:model-id/test#button', {
+            'model-id': model.id
+          })}
           onClick={onTest}
         />
       </span>
-      <ModelToggle label={`启用${model.name}`} checked={model.enabled} onChange={onToggle} />
+      <ModelToggle
+        label={`启用${model.name}`}
+        checked={model.enabled}
+        onChange={onToggle}
+        testId={e2eId('e2e/settings/model-connections/models/:model-id/toggle#switch', {
+          'model-id': model.id
+        })}
+      />
     </div>
   )
 }

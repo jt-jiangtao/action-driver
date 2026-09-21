@@ -56,6 +56,7 @@ export function AgentComposer({
         <Editable
           className="composer-editor"
           aria-label="任务描述"
+          data-testid="e2e/shared/composer/editor#input"
           placeholder="随心输入"
           readOnly={disabled}
           onInput={(event) => {
@@ -77,6 +78,7 @@ export function AgentComposer({
           <button
             className="composer-add icon-button"
             aria-label="添加"
+            data-testid="e2e/shared/composer/add#button"
             type="button"
             onClick={onAdd}
           >
@@ -94,6 +96,7 @@ export function AgentComposer({
           <button
             className="composer-submit composer-stop"
             aria-label="中断任务"
+            data-testid="e2e/shared/composer/interrupt#button"
             onClick={onInterrupt}
           >
             <Square />
@@ -102,6 +105,7 @@ export function AgentComposer({
           <button
             className="composer-submit"
             aria-label="发送"
+            data-testid="e2e/shared/composer/send#button"
             disabled={disabled || !hasText}
             onClick={() => {
               const currentText = readText()

@@ -1,1 +1,458 @@
-[]
+[
+  {
+    "target": "e2e/home/header/expand-browser#button",
+    "route": "home",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/home/main/composer#section",
+    "route": "home",
+    "type": "section",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/add-model-set/add-manual-model#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/api-key#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/back#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/base-url#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/close#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/dialog#dialog",
+    "route": "settings",
+    "type": "dialog",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/add-model-set/models/:model-id/name#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/models/:model-id/test#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/models/:model-id/toggle#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/name#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/next#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/save#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/test-all-models#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/add-model-set/test-connection#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/add#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/connections/:connection-id/delete#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/connections/:connection-id/more#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/connections/:connection-id/refresh#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/connections/:connection-id/toggle#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/delete/cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/delete/confirm#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/empty/add#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/empty/protocols#link",
+    "route": "settings",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/models/:model-id/test#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/models/:model-id/toggle#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/model-connections/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/sidebar/back#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/settings/sidebar/model-connections#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/sidebar/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/composer/add#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/composer/editor#input",
+    "route": "shared",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/composer/interrupt#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/composer/send#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/model-selector/connections/:connection-id#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/model-selector/models/:model-id#option",
+    "route": "shared",
+    "type": "option",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/model-selector/trigger#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/sidebar/collapse#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/mcp#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/new-task#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/sidebar/root#nav",
+    "route": "shared",
+    "type": "nav",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/search#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/settings#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
+    "target": "e2e/shared/sidebar/skills#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/tasks/:task-id#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/agent#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/back#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/collapse#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/expand#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/expand-collapsed#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/forward#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/menu#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/new-tab#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/pause#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/refresh#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/restore#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/resume#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/take-over#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all Home and Task Figma states through public controls"
+  },
+  {
+    "target": "e2e/tasks/detail/page#page",
+    "route": "tasks",
+    "type": "page",
+    "coverage": "visual-only"
+  }
+]

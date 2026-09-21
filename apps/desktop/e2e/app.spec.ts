@@ -38,7 +38,7 @@ test('captures all Home and Task Figma states through public controls', async ()
   const page = await launch()
 
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
-  await expect(page.getByTestId('home-composer')).toHaveCSS('width', '720px')
+  await expect(page.getByTestId('e2e/home/main/composer#section')).toHaveCSS('width', '720px')
   await capture(page, 'home-default')
   await expect(page).toHaveScreenshot('home-1440x900.png', {
     animations: 'disabled',
@@ -54,10 +54,10 @@ test('captures all Home and Task Figma states through public controls', async ()
 
   await page.getByLabel('任务描述').fill('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')
   await page.getByLabel('发送').click()
-  await expect(page.getByTestId('task-page')).toHaveAttribute('data-mode', 'split')
-  await expect(page.getByTestId('sidebar')).toHaveCSS('width', '248px')
-  await expect(page.getByTestId('agent-panel')).toHaveCSS('width', '536px')
-  await expect(page.getByTestId('browser-panel-slot')).toHaveCSS('width', '656px')
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
+  await expect(page.getByTestId('e2e/shared/sidebar/root#nav')).toHaveCSS('width', '248px')
+  await expect(page.getByTestId('e2e/tasks/detail/agent#section')).toHaveCSS('width', '536px')
+  await expect(page.getByTestId('e2e/tasks/detail/browser#section')).toHaveCSS('width', '656px')
   await capture(page, 'task-split')
   await expect(page).toHaveScreenshot('task-split-1440x900.png', {
     animations: 'disabled',
@@ -77,7 +77,7 @@ test('captures all Home and Task Figma states through public controls', async ()
   await page.getByText('继续 Agent').click()
 
   await page.getByLabel('放大浏览器').click()
-  await expect(page.getByTestId('task-page')).toHaveAttribute('data-mode', 'browser-expanded')
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
   await capture(page, 'task-browser-expanded')
   await expect(page).toHaveScreenshot('task-browser-expanded-1440x900.png', {
     animations: 'disabled',
@@ -86,7 +86,7 @@ test('captures all Home and Task Figma states through public controls', async ()
 
   await page.getByLabel('缩小浏览器').click()
   await page.getByLabel('折叠浏览器').click()
-  await expect(page.getByTestId('task-page')).toHaveAttribute('data-mode', 'browser-collapsed')
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-collapsed')
   await capture(page, 'task-browser-collapsed')
   await expect(page).toHaveScreenshot('task-browser-collapsed-1440x900.png', {
     animations: 'disabled',
@@ -105,7 +105,7 @@ test('captures all Home and Task Figma states through public controls', async ()
 test('captures all eight Settings Figma states through public controls', async () => {
   const page = await launch()
   await page.getByRole('button', { name: '设置' }).click()
-  await expect(page.getByTestId('settings-page')).toBeVisible()
+  await expect(page.getByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
   await capture(page, 'settings-populated')
 
   await page.getByRole('button', { name: '公司模型网关的更多操作' }).click()
@@ -160,8 +160,8 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
   await expectInsideViewport(page, page.getByLabel('发送'))
 
   await page.getByRole('button', { name: '预订周末去杭州的酒店' }).click()
-  const agent = await page.getByTestId('agent-panel').boundingBox()
-  const browser = await page.getByTestId('browser-panel-slot').boundingBox()
+  const agent = await page.getByTestId('e2e/tasks/detail/agent#section').boundingBox()
+  const browser = await page.getByTestId('e2e/tasks/detail/browser#section').boundingBox()
   expect(agent).not.toBeNull()
   expect(browser).not.toBeNull()
   expect(agent!.x + agent!.width).toBeLessThanOrEqual(browser!.x + 0.5)

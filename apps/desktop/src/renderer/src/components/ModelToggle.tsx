@@ -1,9 +1,11 @@
 export function ModelToggle({
   label,
+  testId,
   checked,
   onChange
 }: {
   label: string
+  testId: string
   checked: boolean
   onChange(checked: boolean): void
 }) {
@@ -15,6 +17,7 @@ export function ModelToggle({
       aria-label={label}
       aria-checked={checked}
       data-checked={checked ? 'true' : 'false'}
+      data-testid={testId}
       onClick={() => onChange(!checked)}
     />
   )

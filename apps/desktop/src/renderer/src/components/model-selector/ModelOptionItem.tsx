@@ -1,5 +1,6 @@
 import type { ModelOptionItemProjection } from '../../models/model-selection'
 import { AppIcon } from '../ui/AppIcon'
+import { e2eId } from '../../testing/e2e-id'
 
 export function ModelOptionItem({
   active,
@@ -17,6 +18,9 @@ export function ModelOptionItem({
       aria-selected={selected}
       className="model-option-item"
       data-active={active}
+      data-testid={e2eId('e2e/shared/model-selector/models/:model-id#option', {
+        'model-id': model.id
+      })}
       onClick={onSelect}
       role="option"
       tabIndex={-1}

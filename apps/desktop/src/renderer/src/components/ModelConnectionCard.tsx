@@ -2,6 +2,7 @@ import type { ModelConnection } from '../models/model-connections'
 import { useRef, useState } from 'react'
 import { ModelLibrary } from './settings/ModelLibrary'
 import { AppIcon } from './ui/AppIcon'
+import { e2eId } from '../testing/e2e-id'
 
 export function ModelConnectionCard({
   connection,
@@ -46,6 +47,10 @@ export function ModelConnectionCard({
           className="model-disclosure"
           type="button"
           aria-label={`${expanded ? '收起' : '展开'}${connection.name}`}
+          data-testid={e2eId(
+            'e2e/settings/model-connections/connections/:connection-id/toggle#button',
+            { 'connection-id': connection.id }
+          )}
           onClick={onToggleExpanded}
         >
           <AppIcon name={expanded ? 'chevron-down' : 'chevron-right'} />
@@ -68,6 +73,10 @@ export function ModelConnectionCard({
             className="plain-icon-action"
             type="button"
             aria-label={`刷新${connection.name}`}
+            data-testid={e2eId(
+              'e2e/settings/model-connections/connections/:connection-id/refresh#button',
+              { 'connection-id': connection.id }
+            )}
             disabled={refreshPending}
             onClick={() => void refresh()}
           >
@@ -79,13 +88,25 @@ export function ModelConnectionCard({
               type="button"
               aria-label={`${connection.name}的更多操作`}
               aria-expanded={menuOpen}
+              data-testid={e2eId(
+                'e2e/settings/model-connections/connections/:connection-id/more#button',
+                { 'connection-id': connection.id }
+              )}
               onClick={onToggleMenu}
             >
               <AppIcon name="ellipsis" />
             </button>
             {menuOpen ? (
               <div className="model-more-menu" role="menu">
-                <button type="button" role="menuitem" onClick={onDelete}>
+                <button
+                  data-testid={e2eId(
+                    'e2e/settings/model-connections/connections/:connection-id/delete#menuitem',
+                    { 'connection-id': connection.id }
+                  )}
+                  type="button"
+                  role="menuitem"
+                  onClick={onDelete}
+                >
                   <AppIcon name="trash" />
                   删除模型集
                 </button>

@@ -123,7 +123,6 @@ export function AppIcon({ name, size = 16, className }: { name: AppIconName; siz
       className={className}
       color="currentColor"
       data-color="currentColor"
-      data-testid={`app-icon-${name}`}
       size={size}
       strokeWidth={1.8}
     />

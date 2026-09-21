@@ -15,7 +15,11 @@ export function HomePage({
   return (
     <main className="home-page">
       <header className="home-topbar">
-        <button className="icon-button" aria-label="展开浏览器">
+        <button
+          className="icon-button"
+          aria-label="展开浏览器"
+          data-testid="e2e/home/header/expand-browser#button"
+        >
           <PanelRight />
         </button>
       </header>
@@ -30,7 +34,7 @@ export function HomePage({
           </div>
         </section>
         <div className="home-spacer" />
-        <div data-testid="home-composer" data-width="720">
+        <div data-testid="e2e/home/main/composer#section" data-width="720">
           <AgentComposer
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}

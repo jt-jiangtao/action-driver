@@ -5,11 +5,13 @@ export type CheckboxValue = boolean | 'indeterminate'
 
 export function Checkbox({
   checked,
+  testId,
   disabled = false,
   children,
   onCheckedChange
 }: {
   checked: CheckboxValue
+  testId: string
   disabled?: boolean
   children?: ReactNode
   onCheckedChange(value: boolean): void
@@ -19,6 +21,7 @@ export function Checkbox({
       aria-checked={checked === 'indeterminate' ? 'mixed' : checked}
       className="ui-checkbox"
       data-state={checked === 'indeterminate' ? 'indeterminate' : checked ? 'checked' : 'unchecked'}
+      data-testid={testId}
       disabled={disabled}
       onClick={() => onCheckedChange(checked !== true)}
       role="checkbox"

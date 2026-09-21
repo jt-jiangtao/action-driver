@@ -60,9 +60,9 @@
   flex: 1 1 auto;
   min-height: 24px;
 }
-.home-body > [data-testid='home-composer'] {
+.home-body > [data-testid='e2e/home/main/composer#section'] {
   width: min(720px, calc(100% - 32px));
 }
-.home-body > [data-testid='home-composer'] .agent-composer {
+.home-body > [data-testid='e2e/home/main/composer#section'] .agent-composer {
   width: 100%;
 }

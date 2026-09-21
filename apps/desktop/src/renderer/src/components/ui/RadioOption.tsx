@@ -1,10 +1,12 @@
 export function RadioOption({
   selected,
+  testId,
   title,
   description,
   onSelect
 }: {
   selected: boolean
+  testId: string
   title: string
   description: string
   onSelect(): void
@@ -14,6 +16,7 @@ export function RadioOption({
       aria-checked={selected}
       className="ui-radio-option"
       data-selected={selected}
+      data-testid={testId}
       onClick={onSelect}
       role="radio"
       type="button"

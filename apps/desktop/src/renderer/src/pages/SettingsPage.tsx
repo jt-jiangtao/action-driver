@@ -25,7 +25,7 @@ export function SettingsPage({
   const syncConnections = () => setConnections(service.list())
 
   return (
-    <div className="settings-shell" data-testid="settings-page">
+    <div className="settings-shell" data-testid="e2e/settings/model-connections/page#page">
       <SettingsSidebar onBack={onBack} />
 
       <main className="settings-main">

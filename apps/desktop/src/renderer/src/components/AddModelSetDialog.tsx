@@ -85,12 +85,19 @@ export function AddModelSetDialog({
         aria-labelledby="add-model-set-title"
         aria-modal="true"
         className="model-dialog"
+        data-testid="e2e/settings/add-model-set/dialog#dialog"
         data-view-state={getAddModelSetViewState(state)}
         role="dialog"
       >
         <header className="model-dialog-header">
           <h2 id="add-model-set-title">添加模型集</h2>
-          <IconButton className="plain-icon-action" icon="close" aria-label="关闭" onClick={onClose} />
+          <IconButton
+            className="plain-icon-action"
+            icon="close"
+            aria-label="关闭"
+            onClick={onClose}
+            testId="e2e/settings/add-model-set/close#button"
+          />
         </header>
 
         <div className="model-dialog-steps" aria-label="添加步骤">
@@ -110,6 +117,7 @@ export function AddModelSetDialog({
               <label>
                 <span>名称</span>
                 <input
+                  data-testid="e2e/settings/add-model-set/name#input"
                   value={state.draft.name}
                   onChange={(event) => updateDraft('name', event.currentTarget.value)}
                   placeholder="例如：公司模型网关"
@@ -118,6 +126,7 @@ export function AddModelSetDialog({
               <label>
                 <span>接口地址</span>
                 <input
+                  data-testid="e2e/settings/add-model-set/base-url#input"
                   value={state.draft.baseUrl}
                   onChange={(event) => updateDraft('baseUrl', event.currentTarget.value)}
                   placeholder="https://api.example.com/v1"
@@ -126,6 +135,7 @@ export function AddModelSetDialog({
               <label>
                 <span>API 密钥</span>
                 <input
+                  data-testid="e2e/settings/add-model-set/api-key#input"
                   type="password"
                   value={state.draft.apiKey}
                   onChange={(event) => updateDraft('apiKey', event.currentTarget.value)}
@@ -136,6 +146,7 @@ export function AddModelSetDialog({
                 <button
                   className="secondary-button"
                   disabled={!fieldsComplete || state.connectionState === 'testing'}
+                  data-testid="e2e/settings/add-model-set/test-connection#button"
                   onClick={() => void testConnection()}
                   type="button"
                 >
@@ -159,11 +170,13 @@ export function AddModelSetDialog({
                   className="plain-icon-action"
                   icon="plus"
                   onClick={addManualModel}
+                  testId="e2e/settings/add-model-set/add-manual-model#button"
                   title="手动添加模型"
                 />
                 <button
                   className="secondary-button"
                   disabled={state.discovering || state.models.length === 0}
+                  data-testid="e2e/settings/add-model-set/test-all-models#button"
                   onClick={() => void testModels(state.models.map((model) => model.id))}
                   type="button"
                 >
@@ -198,16 +211,27 @@ export function AddModelSetDialog({
 
         <footer className="model-dialog-footer">
           {state.step === 'models' ? (
-            <button className="secondary-button" type="button" onClick={() => dispatch({ type: 'back' })}>
+            <button
+              className="secondary-button"
+              data-testid="e2e/settings/add-model-set/back#button"
+              type="button"
+              onClick={() => dispatch({ type: 'back' })}
+            >
               <AppIcon name="arrow-left" />上一步
             </button>
           ) : <span />}
           <div>
-            <button className="secondary-button" type="button" onClick={onClose}>取消</button>
+            <button
+              className="secondary-button"
+              data-testid="e2e/settings/add-model-set/cancel#button"
+              type="button"
+              onClick={onClose}
+            >取消</button>
             {state.step === 'connection' ? (
               <button
                 className="primary-button"
                 disabled={state.connectionState !== 'success'}
+                data-testid="e2e/settings/add-model-set/next#button"
                 onClick={() => void enterModelStep()}
                 type="button"
               >下一步</button>
@@ -215,6 +239,7 @@ export function AddModelSetDialog({
               <button
                 className="primary-button"
                 disabled={!state.models.some((model) => model.testState === 'success')}
+                data-testid="e2e/settings/add-model-set/save#button"
                 onClick={async () => {
                   if (savePending.current) return
                   savePending.current = true

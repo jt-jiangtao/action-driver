@@ -12,6 +12,7 @@ export type TextFieldState =
 
 export function TextField({
   label,
+  testId,
   value,
   state = 'default',
   helper,
@@ -20,6 +21,7 @@ export function TextField({
   onChange
 }: {
   label: string
+  testId: string
   value: string
   state?: TextFieldState
   helper?: string
@@ -37,6 +39,7 @@ export function TextField({
           aria-describedby={helper ? helperId : undefined}
           aria-invalid={state === 'error'}
           data-state={state}
+          data-testid={testId}
           disabled={state === 'disabled'}
           id={id}
           onChange={onChange}

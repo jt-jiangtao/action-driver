@@ -31,7 +31,7 @@ describe('conversation components', () => {
       </>
     )
 
-    expect(screen.getByTestId('user-message')).toHaveTextContent(mockTaskFixture.messages[0]!.content)
-    expect(screen.getByTestId('agent-response')).toHaveTextContent(mockTaskFixture.messages[1]!.content)
+    expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toHaveClass('user-message')
+    expect(screen.getByText(mockTaskFixture.messages[1]!.content)).toHaveClass('agent-message')
   })
 })

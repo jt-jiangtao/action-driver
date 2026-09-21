@@ -6,6 +6,7 @@ export type TextButtonState = 'default' | 'loading' | 'disabled'
 
 export function TextButton({
   variant,
+  testId,
   state = 'default',
   icon,
   children,
@@ -15,6 +16,7 @@ export function TextButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant: TextButtonVariant
+  testId: string
   state?: TextButtonState
   icon?: AppIconName
   children: ReactNode
@@ -25,6 +27,7 @@ export function TextButton({
       aria-busy={state === 'loading'}
       className={`text-button text-button-${variant} ${className}`.trim()}
       data-state={state}
+      data-testid={testId}
       disabled={unavailable}
       type={type}
       {...props}

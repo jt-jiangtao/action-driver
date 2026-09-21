@@ -3,6 +3,7 @@ import { ModelStatusPill } from '../ModelStatusPill'
 import { ModelToggle } from '../ModelToggle'
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
+import { e2eId } from '../../testing/e2e-id'
 
 export function ModelPickerRow({
   model,
@@ -23,9 +24,19 @@ export function ModelPickerRow({
         className="plain-icon-action"
         disabled={model.testState === 'testing'}
         icon="play"
+        testId={e2eId('e2e/settings/add-model-set/models/:model-id/test#button', {
+          'model-id': model.id
+        })}
         onClick={onTest}
       />
-      <ModelToggle label={`选择${model.name}`} checked={model.enabled} onChange={onToggle} />
+      <ModelToggle
+        label={`选择${model.name}`}
+        checked={model.enabled}
+        onChange={onToggle}
+        testId={e2eId('e2e/settings/add-model-set/models/:model-id/toggle#switch', {
+          'model-id': model.id
+        })}
+      />
     </div>
   )
 }

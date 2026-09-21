@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AppIcon } from './AppIcon'
 import { Checkbox } from './Checkbox'
+import { IconButton } from './IconButton'
 import { ModelTestStatus } from './ModelTestStatus'
 import { RadioOption } from './RadioOption'
 import { TextButton } from './TextButton'
@@ -10,9 +11,21 @@ import { TextField } from './TextField'
 import { ModelStatusPill } from '../ModelStatusPill'
 
 describe('shared Figma controls', () => {
+  it('forwards a required route test id through shared interactive controls', () => {
+    render(
+      <IconButton
+        testId="e2e/shared/sidebar/search#button"
+        icon="search"
+        aria-label="搜索"
+      />
+    )
+
+    expect(screen.getByTestId('e2e/shared/sidebar/search#button')).toHaveAccessibleName('搜索')
+  })
+
   it('lets a plus icon inherit the primary button foreground', () => {
     render(
-      <TextButton variant="primary" icon="plus">
+      <TextButton testId="e2e/settings/model-connections/add#button" variant="primary" icon="plus">
         添加模型集
       </TextButton>
     )
@@ -20,18 +33,29 @@ describe('shared Figma controls', () => {
     expect(screen.getByRole('button', { name: '添加模型集' })).toHaveClass(
       'text-button-primary'
     )
-    expect(screen.getByTestId('app-icon-plus')).toHaveAttribute('data-color', 'currentColor')
+    expect(screen.getByRole('button', { name: '添加模型集' }).querySelector('svg')).toHaveAttribute(
+      'data-color',
+      'currentColor'
+    )
   })
 
   it('maps every semantic glyph through the shared icon adapter', () => {
-    render(<AppIcon name="network" />)
-    expect(screen.getByTestId('app-icon-network')).toHaveAttribute('aria-hidden', 'true')
+    const { container } = render(<AppIcon name="network" />)
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it.each(['default', 'focused', 'filled', 'error', 'success', 'loading', 'disabled'] as const)(
     'renders text field state %s',
     (state) => {
-      render(<TextField label="名称" state={state} value="" onChange={() => undefined} />)
+      render(
+        <TextField
+          label="名称"
+          testId="e2e/settings/add-model-set/name#input"
+          state={state}
+          value=""
+          onChange={() => undefined}
+        />
+      )
       expect(screen.getByLabelText('名称')).toHaveAttribute('data-state', state)
     }
   )
@@ -40,7 +64,11 @@ describe('shared Figma controls', () => {
     const user = userEvent.setup()
     const onCheckedChange = vi.fn()
     render(
-      <Checkbox checked="indeterminate" onCheckedChange={onCheckedChange}>
+      <Checkbox
+        checked="indeterminate"
+        testId="e2e/settings/add-model-set/select-all#checkbox"
+        onCheckedChange={onCheckedChange}
+      >
         选择模型
       </Checkbox>
     )
@@ -53,7 +81,13 @@ describe('shared Figma controls', () => {
 
   it('exposes selected radio option semantics', () => {
     render(
-      <RadioOption selected title="OpenAI 兼容" description="适用于标准接口" onSelect={() => undefined} />
+      <RadioOption
+        selected
+        testId="e2e/settings/add-model-set/protocol-openai#radio"
+        title="OpenAI 兼容"
+        description="适用于标准接口"
+        onSelect={() => undefined}
+      />
     )
     expect(screen.getByRole('radio', { name: /OpenAI 兼容/ })).toHaveAttribute(
       'aria-checked',
@@ -63,7 +97,11 @@ describe('shared Figma controls', () => {
 
   it('disables loading buttons and exposes progress', () => {
     render(
-      <TextButton state="loading" variant="secondary">
+      <TextButton
+        state="loading"
+        testId="e2e/settings/add-model-set/test-connection#button"
+        variant="secondary"
+      >
         测试连接
       </TextButton>
     )

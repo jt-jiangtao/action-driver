@@ -16,7 +16,7 @@ describe('ActionDriver pages', () => {
       />
     )
     expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
-    expect(screen.getByTestId('home-composer')).toHaveAttribute('data-width', '720')
+    expect(screen.getByTestId('e2e/home/main/composer#section')).toHaveAttribute('data-width', '720')
   })
 
   it.each([
@@ -38,9 +38,9 @@ describe('ActionDriver pages', () => {
       />
     )
 
-    expect(screen.getByTestId('task-page')).toHaveAttribute('data-mode', mode)
-    expect(screen.getByTestId('agent-panel')).toHaveAttribute('data-width', agentWidth)
-    expect(screen.getByTestId('browser-panel-slot')).toHaveAttribute('data-width', browserWidth)
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', mode)
+    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute('data-width', agentWidth)
+    expect(screen.getByTestId('e2e/tasks/detail/browser#section')).toHaveAttribute('data-width', browserWidth)
   })
 
   it('closes the model menu when the task layout changes without resetting the task', async () => {

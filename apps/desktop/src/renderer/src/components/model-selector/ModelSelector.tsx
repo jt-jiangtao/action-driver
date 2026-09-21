@@ -109,6 +109,7 @@ export function ModelSelector({
             return (
               <div className="model-selector-group" key={connection.id}>
                 <ModelConnectionItem
+                  connectionId={connection.id}
                   expanded={isExpanded}
                   name={connection.name}
                   onToggle={() => {

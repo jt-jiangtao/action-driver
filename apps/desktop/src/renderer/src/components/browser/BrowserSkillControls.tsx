@@ -53,6 +53,7 @@ export function BrowserSkillControls({
       {resumable ? (
         <button
           className="skill-control-button"
+          data-testid="e2e/tasks/detail/browser/resume#button"
           disabled={pending}
           onClick={() => void runTransition(onResume)}
         >
@@ -61,6 +62,7 @@ export function BrowserSkillControls({
       ) : status === 'running' ? (
         <button
           className="skill-control-button"
+          data-testid="e2e/tasks/detail/browser/pause#button"
           disabled={pending}
           onClick={() => void runTransition(onPause)}
         >
@@ -70,6 +72,7 @@ export function BrowserSkillControls({
       {status === 'running' || paused || takenOver ? (
         <button
           className={`skill-control-button take-over ${takenOver ? 'is-active' : ''}`}
+          data-testid="e2e/tasks/detail/browser/take-over#button"
           disabled={takenOver || pending}
           onClick={() => void runTransition(onTakeOver)}
         >

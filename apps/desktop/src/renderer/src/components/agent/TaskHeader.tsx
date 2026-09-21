@@ -15,7 +15,12 @@ export function TaskHeader({
       <AppIcon name="folder" />
       <strong>{title}</strong>
       {browserCollapsed ? (
-        <IconButton icon="panel-right" aria-label="展开浏览器" onClick={onExpandBrowser} />
+        <IconButton
+          icon="panel-right"
+          aria-label="展开浏览器"
+          onClick={onExpandBrowser}
+          testId="e2e/tasks/detail/browser/expand-collapsed#button"
+        />
       ) : null}
     </header>
   )

@@ -29,12 +29,16 @@ export function ModelConnectionsEmptyState({ onAdd }: { onAdd(): void }) {
         className="primary-button model-empty-add"
         type="button"
         aria-label="添加模型集"
+        data-testid="e2e/settings/model-connections/empty/add#button"
         onClick={onAdd}
       >
         <AppIcon name="plus" />
         添加模型集
       </button>
-      <a href="#supported-protocols">查看支持的接口协议</a>
+      <a
+        data-testid="e2e/settings/model-connections/empty/protocols#link"
+        href="#supported-protocols"
+      >查看支持的接口协议</a>
     </section>
   )
 }

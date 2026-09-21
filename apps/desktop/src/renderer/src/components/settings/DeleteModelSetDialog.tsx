@@ -24,9 +24,15 @@ export function DeleteModelSetDialog({
         <h2 id="delete-model-set-title">删除模型集</h2>
         <p>确定删除“{connectionName}”吗？此操作不会删除远端模型。</p>
         <footer>
-          <TextButton variant="secondary" disabled={pending} onClick={onCancel}>取消</TextButton>
+          <TextButton
+            variant="secondary"
+            testId="e2e/settings/model-connections/delete/cancel#button"
+            disabled={pending}
+            onClick={onCancel}
+          >取消</TextButton>
           <TextButton
             variant="danger"
+            testId="e2e/settings/model-connections/delete/confirm#button"
             state={pending ? 'loading' : 'default'}
             onClick={async () => {
               if (pendingRef.current) return

@@ -14,7 +14,12 @@ export function SettingsPageTitle({
         <p>连接并管理任务中使用的模型服务</p>
       </div>
       {hasConnections ? (
-        <TextButton icon="plus" variant="primary" onClick={onAdd}>添加模型集</TextButton>
+        <TextButton
+          icon="plus"
+          testId="e2e/settings/model-connections/add#button"
+          variant="primary"
+          onClick={onAdd}
+        >添加模型集</TextButton>
       ) : null}
     </header>
   )

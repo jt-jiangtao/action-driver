@@ -24,6 +24,7 @@ export function ModelSelectorTrigger({
       aria-label={`当前模型：${connectionName} / ${modelName}`}
       className="model-selector-trigger"
       data-state={open ? 'open' : 'default'}
+      data-testid="e2e/shared/model-selector/trigger#button"
       onClick={onClick}
       onKeyDown={onKeyDown}
       type="button"
