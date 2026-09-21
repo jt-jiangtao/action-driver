@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import ts from 'typescript'
+import { E2E_TEST_ID_PATTERN } from './config.mjs'
 import { validateContracts } from './contracts.mjs'
 
-export const E2E_TEST_ID_PATTERN =
-  /^e2e\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/(?:[a-z0-9]+(?:-[a-z0-9]+)*|:[a-z][a-z0-9-]*)){2,}#(?:button|link|input|checkbox|radio|option|menuitem|tab|page|section|nav|dialog|status|select|textarea|switch)$/
+export { E2E_TEST_ID_PATTERN } from './config.mjs'
 
 export const INTERACTIVE_TAGS = new Set([
   'button',
@@ -67,6 +67,7 @@ function interactionKind(node) {
   const lowerTag = tag.toLowerCase()
   if (INTERACTIVE_TAGS.has(lowerTag)) return true
   if (SHARED_INTERACTIVE_COMPONENTS.has(tag)) return true
+  if (tag === lowerTag && attribute(node, 'onClick')) return true
   if (attribute(node, 'contentEditable')) return true
   const role = literalAttributeValue(attribute(node, 'role'))
   return typeof role === 'string' && INTERACTIVE_ROLES.has(role)

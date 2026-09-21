@@ -9,9 +9,10 @@
   },
   "scripts": {
     "dev": "pnpm --filter @actiondriver/desktop dev",
-    "build": "pnpm --filter @actiondriver/desktop build",
+    "build": "pnpm validate:e2e-interactions && pnpm --filter @actiondriver/desktop build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "eslint .",
+    "validate:e2e-interactions": "node scripts/validate-e2e-interactions.mjs",
+    "lint": "pnpm validate:e2e-interactions && eslint .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",

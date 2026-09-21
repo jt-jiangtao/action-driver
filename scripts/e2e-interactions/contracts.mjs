@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { E2E_TEST_ID_PATTERN } from './validator.mjs'
+import { E2E_TEST_ID_PATTERN } from './config.mjs'
 
 const error = (code, message) => ({
   file: 'apps/desktop/e2e/interaction-contracts.json',

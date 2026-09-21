@@ -18,11 +18,11 @@
 - [x] 3.1 为每个 `functional` 契约补充或关联组件测试/E2E，验证导航、输入、选择、切换、提交、展开、关闭和异步状态的用户可观察结果
 - [x] 3.2 为每个 `visual-only` 契约补充通用测试，验证目标存在、可见、唯一和 ID 合规，不伪造尚未实现的业务行为
 - [x] 3.3 在 Home、Task 和 Settings 的全部既有场景加入运行时 DOM 审计，验证条件渲染后的交互节点无漏标、无重复且与契约清单匹配
-- [ ] 3.4 添加回归测试：临时 fixture 缺少 ID、使用错误路由、重复 ID、未登记契约或功能条目缺少测试引用时，校验命令均以非零状态退出
+- [x] 3.4 添加回归测试：临时 fixture 缺少 ID、使用错误路由、重复 ID、未登记契约或功能条目缺少测试引用时，校验命令均以非零状态退出
 
 ## 4. 打包门禁与最终验证
 
-- [ ] 4.1 新增根级 `validate:e2e-interactions` 脚本并接入 Lint，运行命令验证合规代码通过、违规 fixture 阻断且错误可定位
-- [ ] 4.2 将同一 AST 校验直接接入 Desktop `prebuild`，分别从根目录和 desktop 包执行 Build，验证两条正式打包路径都无法绕过门禁
-- [ ] 4.3 使用 pnpm 12 frozen install 后运行单测、类型检查、Lint、Build、完整 E2E、OpenSpec strict validation 和 `git diff --check`，验证全部通过且主工作区无非预期产物
-- [ ] 4.4 更新交互契约清单统计与维护说明，记录 functional/visual-only 数量、动态模式和新增组件接入方式，并人工抽查所有页面状态无遗漏
+- [x] 4.1 新增根级 `validate:e2e-interactions` 脚本并接入 Lint，运行命令验证合规代码通过、违规 fixture 阻断且错误可定位
+- [x] 4.2 将同一 AST 校验直接接入 Desktop `prebuild`，分别从根目录和 desktop 包执行 Build，验证两条正式打包路径都无法绕过门禁
+- [x] 4.3 使用 pnpm 12 frozen install 后运行单测、类型检查、Lint、Build、完整 E2E、OpenSpec strict validation 和 `git diff --check`，验证全部通过且主工作区无非预期产物
+- [x] 4.4 更新交互契约清单统计与维护说明，记录 functional/visual-only 数量、动态模式和新增组件接入方式，并人工抽查所有页面状态无遗漏

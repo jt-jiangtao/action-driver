@@ -8,11 +8,18 @@ export default tseslint.config(
       '**/out/**',
       '**/dist/**',
       '**/coverage/**',
-      '**/.superpowers/**'
+      '**/.superpowers/**',
+      'scripts/e2e-interactions/fixtures/**'
     ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly' }
+    }
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

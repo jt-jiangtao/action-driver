@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -53,9 +54,10 @@ describe('validateInteractionSources', () => {
     )
   })
 
-  it('detects role, contenteditable, disabled and spread-only bypasses', () => {
+  it('detects role, contenteditable, native click handlers, disabled and spread-only bypasses', () => {
     const result = validateInteractionSources({ files: [fixture('interaction-kinds.tsx')] })
     expect(result.errors.map((error) => error.code)).toEqual([
+      'missing-test-id',
       'missing-test-id',
       'missing-test-id',
       'missing-test-id',
@@ -92,7 +94,7 @@ describe('validateInteractionSources', () => {
 })
 
 const contract = (target: string, overrides: Record<string, unknown> = {}) => {
-  const [, route, ...rest] = target.split('/')
+  const [, route] = target.split('/')
   const type = target.slice(target.lastIndexOf('#') + 1)
   return { target, route, type, coverage: 'visual-only', ...overrides }
 }
@@ -121,5 +123,28 @@ describe('validateContracts', () => {
       contracts: [contract('e2e/home/other/action#button')]
     })
     expect(result.errors).toContainEqual(expect.objectContaining({ code: 'stale-contract' }))
+  })
+})
+
+describe('validate-e2e-interactions CLI', () => {
+  const cli = resolve(fixtureRoot, '..', '..', 'validate-e2e-interactions.mjs')
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, [cli, ...args], { cwd: resolve(fixtureRoot, '../../..'), encoding: 'utf8' })
+
+  it('returns zero for valid source and non-zero for each enforced violation', () => {
+    expect(run('--files', fixture('valid.tsx'), '--skip-contracts').status).toBe(0)
+
+    for (const name of ['missing-id.tsx', 'invalid-dynamic-id.tsx', 'duplicates.tsx']) {
+      const result = run('--files', fixture(name), '--skip-contracts')
+      expect(result.status, `${name}: ${result.stderr}`).not.toBe(0)
+    }
+
+    const unregistered = run(
+      '--files',
+      fixture('unregistered.tsx'),
+      '--contracts',
+      fixture('empty-contracts.json')
+    )
+    expect(unregistered.status, unregistered.stderr).not.toBe(0)
   })
 })
