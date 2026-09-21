@@ -13,6 +13,8 @@ export interface AgentIpcMain {
   handle(channel: string, handler: AgentIpcHandler): void
 }
 
+export type AgentRuntimeClient = Pick<RuntimeClient, 'request' | 'subscribeEvents'>
+
 async function asIpcResponse<T>(operation: () => Promise<T>): Promise<AgentIpcResponse<T>> {
   try {
     return { ok: true, value: await operation() }
@@ -35,7 +37,7 @@ function serializeError(error: unknown): AgentIpcError {
 
 export function registerAgentIpcHandlers(
   ipcMain: AgentIpcMain,
-  runtimeClient: Pick<RuntimeClient, 'request' | 'subscribeEvents'>
+  runtimeClient: AgentRuntimeClient
 ): void {
   ipcMain.handle(AGENT_IPC_CHANNELS.submit, (_event, input) =>
     asIpcResponse(() => runtimeClient.request('task.submit', input as { goal: string }))

@@ -1,4 +1,6 @@
-import { utilityProcess } from 'electron'
+import { MessageChannelMain, utilityProcess } from 'electron'
+import type { RuntimeMessageEndpoint } from '@actiondriver/runtime-contracts'
+import { adaptRuntimeMessageChannel } from './runtime-message-port'
 
 export type RuntimeSupervisorState =
   | 'stopped'
@@ -158,10 +160,26 @@ export class RuntimeSupervisor {
   }
 }
 
-export function createElectronRuntimeProcessFactory(): RuntimeProcessFactory {
+export type ElectronRuntimeProcessFactoryOptions = {
+  databasePath: string
+  onEndpoint(endpoint: RuntimeMessageEndpoint): void
+}
+
+export function createElectronRuntimeProcessFactory(
+  options: ElectronRuntimeProcessFactoryOptions
+): RuntimeProcessFactory {
   return {
     fork(entryPath) {
-      const child = utilityProcess.fork(entryPath)
+      const child = utilityProcess.fork(entryPath, [], {
+        env: {
+          ...process.env,
+          ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath
+        }
+      })
+      const messageChannel = new MessageChannelMain()
+      const runtimeChannel = adaptRuntimeMessageChannel(messageChannel)
+      options.onEndpoint(runtimeChannel.endpoint)
+      child.postMessage({ type: 'runtime.connect' }, [messageChannel.port2])
       return {
         postMessage(message) {
           child.postMessage(message)

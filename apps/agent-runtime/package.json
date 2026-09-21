@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

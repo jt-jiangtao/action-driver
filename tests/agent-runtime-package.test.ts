@@ -25,7 +25,7 @@ describe('agent runtime package', () => {
     })
     expect(packageJson.scripts).toEqual(
       expect.objectContaining({
-        build: expect.stringContaining('src/index.ts'),
+        build: expect.stringContaining('src/runtime-entry.ts'),
         typecheck: 'tsc --noEmit -p tsconfig.json'
       })
     )

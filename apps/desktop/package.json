@@ -8,6 +8,7 @@
     "dev": "electron-vite dev",
     "prebuild": "corepack pnpm --dir ../.. validate:e2e-interactions",
     "build": "electron-vite build",
+    "build:visual": "electron-vite build --mode visual",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

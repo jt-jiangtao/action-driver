@@ -3,6 +3,7 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { assertPersistablePayload } from './persistence-guard'
+import type { CheckpointStore } from './ports'
 
 export class ResilientSqliteSaver extends SqliteSaver {
   override async put(
@@ -80,6 +81,44 @@ export class ResilientSqliteSaver extends SqliteSaver {
     } catch {
       return undefined
     }
+  }
+
+  close(): void {
+    this.db.close()
+  }
+}
+
+export class SqliteCheckpointStore implements CheckpointStore {
+  private sequence = 0
+
+  constructor(private readonly saver: ResilientSqliteSaver) {}
+
+  async get(threadId: string): Promise<unknown | null> {
+    const tuple = await this.saver.getTuple({
+      configurable: { thread_id: threadId, checkpoint_ns: 'actiondriver-port' }
+    })
+    return tuple?.checkpoint.channel_values.actiondriver ?? null
+  }
+
+  async put(threadId: string, checkpoint: unknown): Promise<void> {
+    assertPersistablePayload(checkpoint, 'checkpoint.value')
+    this.sequence += 1
+    const timestamp = new Date().toISOString()
+    const checkpointId = `${Date.now().toString().padStart(16, '0')}-${this.sequence
+      .toString()
+      .padStart(8, '0')}`
+    await this.saver.put(
+      { configurable: { thread_id: threadId, checkpoint_ns: 'actiondriver-port' } },
+      {
+        v: 4,
+        id: checkpointId,
+        ts: timestamp,
+        channel_values: { actiondriver: checkpoint },
+        channel_versions: { actiondriver: this.sequence },
+        versions_seen: {}
+      },
+      { source: 'update', step: this.sequence, parents: {} }
+    )
   }
 }
 
