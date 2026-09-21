@@ -5,9 +5,11 @@ import { SkillProviderHost } from './skill-provider-host'
 describe('main composition root', () => {
   it('resolves the window factory through Inversify', () => {
     const services = resolveMainServices(createMainContainer())
-    const options = services.windowOptionsFactory('/tmp/preload.js')
+    const options = services.windowOptionsFactory('/tmp/preload.js', '/tmp/actiondriver.png')
 
     expect(options.width).toBe(1440)
+    expect(options.title).toBe('ActionDriver')
+    expect(options.icon).toBe('/tmp/actiondriver.png')
     expect(options.webPreferences?.preload).toBe('/tmp/preload.js')
   })
 

@@ -7,7 +7,7 @@ Battle 已完成：用户确认应用名使用 `ActionDriver`，图标复用现�
 ## What Changes
 
 - 将 Electron 应用名称、主窗口标题和页面标题统一为 `ActionDriver`。
-- 从现有 ActionDriver SVG 品牌资产生成 Electron 可稳定加载的 PNG 图标，并作为受版本控制的桌面资源维护。
+- 参考用户提供的图标样式，将现有 ActionDriver 标志置于白色圆角方形底中，生成 Electron 可稳定加载的 PNG 图标，并作为受版本控制的桌面资源维护。
 - 在主进程设置应用名称、窗口图标，并在 macOS 可用时设置 Dock 图标。
 - 增加资源路径和窗口身份测试，验证开发构建与生产构建均能解析同一品牌资源。
 - 不引入新的打包器，不处理安装包、代码签名、公证或 Windows `.ico` / macOS `.icns` 发行资产。

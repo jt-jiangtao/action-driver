@@ -63,6 +63,8 @@ test.afterAll(() => {
 test('captures all Home and Task Figma states through public controls', async () => {
   const page = await launch()
 
+  expect(await application!.evaluate(({ app }) => app.getName())).toBe('ActionDriver')
+  await expect(page).toHaveTitle('ActionDriver')
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   await auditRenderedInteractions(page, contracts, [
     'e2e/home/header/expand-browser#button',

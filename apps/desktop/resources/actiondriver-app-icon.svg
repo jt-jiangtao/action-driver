@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512" viewBox="0 0 1254 1254" fill="none">
+  <defs>
+    <filter id="tile-shadow" x="80" y="80" width="1094" height="1124" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="140" y="126" width="974" height="974" rx="248" fill="#FFFFFF" filter="url(#tile-shadow)"/>
+  <image
+    x="280"
+    y="280"
+    width="694"
+    height="694"
+    preserveAspectRatio="xMidYMid meet"
+    href="../../../design/assets/actiondriver-logo.svg"
+    xlink:href="../../../design/assets/actiondriver-logo.svg"
+  />
+</svg>

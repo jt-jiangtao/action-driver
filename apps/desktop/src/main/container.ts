@@ -3,7 +3,10 @@ import { Container } from 'inversify'
 import { createMainWindowOptions } from './window-options'
 import { createMockSkillProviderHost, type SkillProviderHost } from './skill-provider-host'
 
-export type WindowOptionsFactory = (preloadPath: string) => BrowserWindowConstructorOptions
+export type WindowOptionsFactory = (
+  preloadPath: string,
+  iconPath: string
+) => BrowserWindowConstructorOptions
 
 const MAIN_TYPES = {
   skillProviderHost: Symbol.for('actiondriver.skill-provider-host'),
