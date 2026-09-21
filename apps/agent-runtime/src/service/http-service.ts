@@ -14,6 +14,7 @@ import {
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Logger } from 'pino'
+import { LOG_LEVELS, readRecentLogRecords } from './logs'
 
 export const SERVICE_PROTOCOL_VERSION = 1
 
@@ -34,6 +35,7 @@ export type ServiceHttpOptions = {
   token: string
   runtimeVersion: string
   logger?: Logger
+  logFilePath?: string
   host?: string
   port?: number
   bodyLimitBytes?: number
@@ -131,6 +133,27 @@ async function handleRequest(
         }
       })
       requestLog?.info({ status: 200, durationMs: Date.now() - startedAt }, 'service response')
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/logs') {
+      const limit = Number(url.searchParams.get('limit') ?? '')
+      const level = url.searchParams.get('level') ?? undefined
+      const records = options.logFilePath
+        ? readRecentLogRecords({
+            filePath: options.logFilePath,
+            ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
+            ...(level ? { minLevel: LOG_LEVELS[level] ?? LOG_LEVELS.info! } : {})
+          })
+        : []
+      sendJson(response, 200, {
+        ok: true,
+        value: { records, filePath: options.logFilePath ?? null }
+      })
+      requestLog?.info(
+        { status: 200, records: records.length, durationMs: Date.now() - startedAt },
+        'service response'
+      )
       return
     }
 

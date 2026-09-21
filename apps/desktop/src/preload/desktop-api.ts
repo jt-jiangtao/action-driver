@@ -63,9 +63,11 @@ export interface ModelConnectionsDesktopApi {
 }
 
 async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
-  const response = (await ipc.invoke(channel, input)) as AgentIpcResponse<T>
-  if (!response.ok) return Promise.reject(response.error)
-  return response.value
+  return await traceInteraction(channel, async () => {
+    const response = (await ipc.invoke(channel, input)) as AgentIpcResponse<T>
+    if (!response.ok) return Promise.reject(response.error)
+    return response.value
+  })
 }
 
 async function invokeModel<T>(
@@ -73,9 +75,40 @@ async function invokeModel<T>(
   channel: string,
   input: unknown
 ): Promise<T> {
-  const response = (await ipc.invoke(channel, input)) as ModelIpcResponse<T>
-  if (!response.ok) return Promise.reject(response.error)
-  return response.value
+  return await traceInteraction(channel, async () => {
+    const response = (await ipc.invoke(channel, input)) as ModelIpcResponse<T>
+    if (!response.ok) return Promise.reject(response.error)
+    return response.value
+  })
+}
+
+/**
+ * Prints every renderer to service interaction to the console (visible in DevTools) so the same
+ * traffic the service logs can be followed live while developing. Payloads are never printed.
+ */
+async function traceInteraction<T>(channel: string, operation: () => Promise<T>): Promise<T> {
+  const environment = globalThis.process?.env
+  const enabled = environment?.ACTIONDRIVER_LOG_CONSOLE !== '0' && environment?.NODE_ENV !== 'test'
+  const startedAt = Date.now()
+  if (enabled) console.debug(`[actiondriver] -> ${channel}`)
+  try {
+    const value = await operation()
+    if (enabled) {
+      console.debug(`[actiondriver] <- ${channel} ok (${Date.now() - startedAt}ms)`)
+    }
+    return value
+  } catch (error) {
+    if (enabled) {
+      const code =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String((error as { code: unknown }).code)
+          : 'unknown'
+      console.warn(
+        `[actiondriver] <- ${channel} error ${code} (${Date.now() - startedAt}ms)`
+      )
+    }
+    throw error
+  }
 }
 
 export function createDesktopApi(
