@@ -536,13 +536,5 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "copies the selected entry"
-  },
-  {
-    "target": "e2e/settings/logs/theme#switch",
-    "route": "settings",
-    "type": "switch",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
-    "testName": "switches the console between dark and light"
   }
 ]

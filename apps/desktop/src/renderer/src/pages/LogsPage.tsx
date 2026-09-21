@@ -12,12 +12,9 @@ const DIRECTIONS = [
   { id: 'service->skill', label: '服务端 → 本机能力' }
 ] as const
 
-type ConsoleTheme = 'dark' | 'light'
-
 /**
  * Interaction log screen: a console stream on the left and a details inspector for the selected
- * entry on the right. The console can be switched between a dark developer console and a light
- * surface that matches the rest of settings.
+ * entry on the right. The console uses the light surface that matches the rest of settings.
  */
 export function LogsPage({
   service,
@@ -31,12 +28,10 @@ export function LogsPage({
   autoRefreshMs?: number
 }) {
   const [records, setRecords] = useState<InteractionLogRecord[]>([])
-  const [files, setFiles] = useState<string[]>([])
   const [level, setLevel] = useState<string>('info')
   const [direction, setDirection] = useState<string>('')
   const [search, setSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [consoleTheme, setConsoleTheme] = useState<ConsoleTheme>('dark')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +46,6 @@ export function LogsPage({
         limit: 200
       })
       setRecords(result.records)
-      setFiles(result.files)
       setError(null)
       setSelectedKey((current) =>
         current && result.records.some((record) => keyOf(record) === current) ? current : null
@@ -101,60 +95,42 @@ export function LogsPage({
               <p>Renderer 与服务端之间的每一次调用都会记录在这里</p>
             </div>
             <div className="logs-toolbar">
-              <div className="logs-filters">
-                <label>
-                  <span>级别</span>
-                  <select
-                    aria-label="日志级别"
-                    data-testid="e2e/settings/logs/level#select"
-                    value={level}
-                    onChange={(event) => setLevel(event.currentTarget.value)}
-                  >
-                    {LEVELS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>方向</span>
-                  <select
-                    aria-label="日志方向"
-                    data-testid="e2e/settings/logs/direction#select"
-                    value={direction}
-                    onChange={(event) => setDirection(event.currentTarget.value)}
-                  >
-                    {DIRECTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <label className="logs-search">
+                <AppIcon name="search" />
                 <input
                   aria-label="搜索日志"
                   data-testid="e2e/settings/logs/search#input"
-                  placeholder="搜索通道或结果"
+                  placeholder="搜索通道、结果或方向"
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.currentTarget.value)}
                 />
-              </div>
+              </label>
+              <select
+                aria-label="日志级别"
+                data-testid="e2e/settings/logs/level#select"
+                value={level}
+                onChange={(event) => setLevel(event.currentTarget.value)}
+              >
+                {LEVELS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="日志方向"
+                data-testid="e2e/settings/logs/direction#select"
+                value={direction}
+                onChange={(event) => setDirection(event.currentTarget.value)}
+              >
+                {DIRECTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <div className="logs-actions">
-                <button
-                  className="plain-icon-action"
-                  data-testid="e2e/settings/logs/theme#switch"
-                  type="button"
-                  aria-label={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
-                  title={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
-                  aria-pressed={consoleTheme === 'light'}
-                  onClick={() =>
-                    setConsoleTheme((current) => (current === 'dark' ? 'light' : 'dark'))
-                  }
-                >
-                  <AppIcon name="eye" />
-                </button>
                 <button
                   className="secondary-button"
                   data-testid="e2e/settings/logs/auto-refresh#switch"
@@ -191,7 +167,7 @@ export function LogsPage({
             </div>
           ) : (
             <div className={`logs-workspace ${selected ? 'has-inspector' : ''}`}>
-              <section className={`logs-console is-${consoleTheme}`} aria-label="交互日志控制台">
+              <section className="logs-console is-light" aria-label="交互日志控制台">
                 {records.map((record, index) => {
                   const key = keyOf(record)
                   return (
@@ -206,6 +182,13 @@ export function LogsPage({
                       onClick={() => setSelectedKey((current) => (current === key ? null : key))}
                     >
                       <span className="logs-entry-time">{formatTime(record.time)}</span>
+                      <span
+                        className={`logs-entry-direction is-${directionKind(record.direction)}`}
+                        aria-label={directionLabel(record.direction)}
+                        title={directionLabel(record.direction)}
+                      >
+                        <AppIcon name={directionIcon(record.direction)} />
+                      </span>
                       <span className={`logs-level is-${record.levelLabel}`}>
                         {record.levelLabel.toUpperCase()}
                       </span>
@@ -240,6 +223,7 @@ export function LogsPage({
                       value={new Date(selected.time).toLocaleString('zh-CN', { hour12: false })}
                     />
                     <Detail label="级别" value={selected.levelLabel} />
+                    {selected.name ? <Detail label="来源" value={selected.name} /> : null}
                     <Detail label="方向" value={directionLabel(selected.direction)} />
                     <Detail label="传输" value={selected.transport ?? '—'} />
                     <Detail label="操作" value={selected.operation ?? selected.msg ?? '—'} mono />
@@ -270,19 +254,18 @@ export function LogsPage({
                     {selected.errorMessage ? (
                       <Detail label="错误信息" value={selected.errorMessage} />
                     ) : null}
+                    {selected.status !== undefined ? (
+                      <Detail label="状态码" value={String(selected.status)} />
+                    ) : null}
+                    {selected.payloadItems !== undefined ? (
+                      <Detail label="载荷条目" value={`${selected.payloadItems} 项`} />
+                    ) : null}
                   </dl>
+                  <pre className="logs-inspector-raw">{JSON.stringify(selected, null, 2)}</pre>
                 </aside>
               ) : null}
             </div>
           )}
-
-          <footer className="logs-footer">
-            <span>日志文件</span>
-            {files.map((file) => (
-              <code key={file}>{file}</code>
-            ))}
-            <span className="logs-hint">终端查看：tail -f &lt;文件路径&gt;</span>
-          </footer>
         </div>
       </main>
     </div>
@@ -310,6 +293,18 @@ function directionLabel(direction: string | undefined): string {
   if (direction === 'service->renderer') return '服务端 → 页面'
   if (direction === 'service->skill') return '服务端 → 本机能力'
   return direction ?? '—'
+}
+
+function directionKind(direction: string | undefined): 'outgoing' | 'incoming' | 'skill' {
+  if (direction === 'service->renderer') return 'incoming'
+  if (direction === 'service->skill') return 'skill'
+  return 'outgoing'
+}
+
+function directionIcon(direction: string | undefined): 'arrow-right' | 'arrow-left' | 'arrow-down-right' {
+  if (direction === 'service->renderer') return 'arrow-left'
+  if (direction === 'service->skill') return 'arrow-down-right'
+  return 'arrow-right'
 }
 
 function keyOf(record: InteractionLogRecord): string {

@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowDownRight,
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   Blocks,
   Boxes,
@@ -40,6 +42,8 @@ import {
 
 export type AppIconName =
   | 'arrow-left'
+  | 'arrow-right'
+  | 'arrow-down-right'
   | 'check'
   | 'chevron-down'
   | 'chevron-left'
@@ -78,6 +82,8 @@ export type AppIconName =
 
 const iconByName: Record<AppIconName, LucideIcon> = {
   'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
+  'arrow-down-right': ArrowDownRight,
   check: Check,
   'chevron-down': ChevronDown,
   'chevron-left': ChevronLeft,

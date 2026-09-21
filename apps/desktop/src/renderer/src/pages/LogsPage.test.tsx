@@ -80,6 +80,7 @@ describe('LogsPage', () => {
     expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
     expect(within(inspector).getByText('12ms')).toBeVisible()
     expect(within(inspector).getByText('1738B · 2 项')).toBeVisible()
+    expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
 
     await user.click(entries[0]!)
     expect(screen.queryByTestId('e2e/settings/logs/inspector#section')).not.toBeInTheDocument()
@@ -105,22 +106,9 @@ describe('LogsPage', () => {
     expect(String(copied)).toContain('actiondriver:model-connections:list')
   })
 
-  it('switches the console between dark and light', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText('actiondriver:model-connections:list')
-
-    const toggle = screen.getByTestId('e2e/settings/logs/theme#switch')
-    expect(toggle).toHaveAttribute('aria-pressed', 'false')
-    await user.click(toggle)
-    expect(toggle).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByLabelText('交互日志控制台')).toHaveClass('is-light')
-  })
-
-  it('shows the empty and failure states with the log file location', async () => {
+  it('shows the empty and failure states', async () => {
     const { unmount } = renderPage({ list: async () => ({ records: [], files: ['/tmp/logs/renderer-service.log'] }) })
     expect(await screen.findByText('还没有交互记录')).toBeVisible()
-    expect(screen.getByText('/tmp/logs/renderer-service.log')).toBeVisible()
     unmount()
 
     renderPage({
