@@ -106,30 +106,36 @@ export function LogsPage({
                   onChange={(event) => setSearch(event.currentTarget.value)}
                 />
               </label>
-              <select
-                aria-label="日志级别"
-                data-testid="e2e/settings/logs/level#select"
-                value={level}
-                onChange={(event) => setLevel(event.currentTarget.value)}
-              >
-                {LEVELS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="日志方向"
-                data-testid="e2e/settings/logs/direction#select"
-                value={direction}
-                onChange={(event) => setDirection(event.currentTarget.value)}
-              >
-                {DIRECTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <span className="logs-select">
+                <select
+                  aria-label="日志级别"
+                  data-testid="e2e/settings/logs/level#select"
+                  value={level}
+                  onChange={(event) => setLevel(event.currentTarget.value)}
+                >
+                  {LEVELS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <AppIcon name="chevron-down" />
+              </span>
+              <span className="logs-select logs-select-wide">
+                <select
+                  aria-label="日志方向"
+                  data-testid="e2e/settings/logs/direction#select"
+                  value={direction}
+                  onChange={(event) => setDirection(event.currentTarget.value)}
+                >
+                  {DIRECTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <AppIcon name="chevron-down" />
+              </span>
               <div className="logs-actions">
                 <button
                   className="secondary-button"
@@ -179,7 +185,7 @@ export function LogsPage({
                   <span>方向</span>
                   <span>级别</span>
                   <span>操作</span>
-                  <span className="is-end">耗时</span>
+                  <span className="is-center">耗时</span>
                   <span className="is-end">结果</span>
                 </div>
                 {records.map((record, index) => {
@@ -212,7 +218,10 @@ export function LogsPage({
                       <span className="logs-entry-duration">
                         {record.durationMs === undefined ? '—' : `${record.durationMs}ms`}
                       </span>
-                      <span className={`logs-result is-${resultKind(record)}`}>
+                      <span
+                        className={`logs-result is-${resultKind(record)}`}
+                        title={resultDetail(record)}
+                      >
                         {resultIcon(record) ? <AppIcon name={resultIcon(record)!} /> : null}
                         {resultLabel(record)}
                       </span>
@@ -353,9 +362,11 @@ export function resultKind(record: InteractionLogRecord): 'success' | 'warning' 
 
 export function resultLabel(record: InteractionLogRecord): string {
   const kind = resultKind(record)
-  const label = kind === 'success' ? '成功' : kind === 'failure' ? '失败' : '被拒绝'
-  const detail = record.errorCode ?? record.status
-  return detail === undefined ? label : `${label} · ${detail}`
+  return kind === 'success' ? '成功' : kind === 'failure' ? '失败' : '被拒绝'
+}
+
+function resultDetail(record: InteractionLogRecord): string {
+  return [record.outcome, record.errorCode, record.status].filter(Boolean).join(' · ')
 }
 
 function resultIcon(

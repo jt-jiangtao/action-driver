@@ -20,7 +20,7 @@ describe('LogsPage', () => {
 
     expect(await screen.findByText('actiondriver:model-connections:list')).toBeVisible()
     expect(screen.getAllByText('页面 → 服务端').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('失败 · unauthorized').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('失败').length).toBeGreaterThan(0)
 
     await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
     await waitFor(() => expect(listSpy.mock.calls.length).toBeGreaterThan(1))
