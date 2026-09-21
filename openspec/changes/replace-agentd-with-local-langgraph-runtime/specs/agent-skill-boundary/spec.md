@@ -29,6 +29,10 @@
 - **WHEN** 用户中断任务且 Skill 调用仍在运行
 - **THEN** Runtime 请求取消该调用，并在收到完成、失败或取消结果前不发起后续动作
 
+#### Scenario: 用户控制单次 Skill 调用
+- **WHEN** Renderer 请求暂停、继续或人工接管某个 Skill invocation
+- **THEN** 请求通过类型化 `controlSkill(invocationId, command)` 白名单进入 Runtime，由统一 Skill 状态机验证转换并返回持久化后的生命周期事件
+
 ### Requirement: 使用依赖注入替换实现
 系统 MUST 在 Renderer 前端、Electron Main 和 Agent Runtime 分别通过 InversifyJS 组合根绑定领域服务、模型、存储、Skill Registry 与 Provider 端口，使测试实现能够在不修改消费者的情况下替换生产实现；React 页面和组件不得直接构造基础设施适配器或访问全局容器。
 
@@ -38,7 +42,7 @@
 
 #### Scenario: 未来切换 IPC 适配器
 - **WHEN** 生产应用完成 Runtime 版本握手
-- **THEN** Electron Main 将相同领域服务标识绑定到本地 Runtime Adapter，React 页面保持不变
+- **THEN** Electron Main 将相同领域服务标识绑定到本地 Runtime Adapter，AgentCommandService、AgentSessionRepository 和 SkillGateway 均不再依赖 Renderer Mock，React 页面保持不变
 
 #### Scenario: React 页面消费前端服务
 - **WHEN** React 页面需要提交任务、读取会话或控制 Skill

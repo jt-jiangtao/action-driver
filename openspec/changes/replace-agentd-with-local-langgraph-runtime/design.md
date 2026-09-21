@@ -96,6 +96,12 @@ Supervisor 状态为 `stopped | starting | ready | degraded | stopping | failed`
 
 开发测试通过注入 ProcessFactory、RuntimeClientFactory、Clock 和 FileSystem 端口验证状态机，不启动真实 Electron Helper。macOS 打包冒烟必须验证 arm64 与 x64 应用能够找到 Runtime 入口和原生 SQLite 依赖；最终用户不需要安装 Node.js 或 Docker。
 
+### 9. Renderer 通过单一类型化入口控制 Skill 生命周期
+
+local Renderer 的现有暂停、继续和人工接管控件继续消费 `SkillGateway`，但生产实现不得绑定 Mock。Runtime 合同增加 `skill.control` 命令，请求仅包含 `invocationId` 与 `pause | resume | take-over`，响应返回持久化后的 `SkillExecutionEvent`。Electron Main 注册明确命名的 Agent IPC Handler，Preload 只暴露 `controlSkill(invocationId, command)`，Renderer Adapter 将其映射回现有 `SkillGateway`。
+
+Battle 已于 2026-09-22 裁决。被否方案包括：把 Skill 暂停/继续映射成任务级 interrupt/continue，因为这会混淆恢复点和单次调用状态；在 local 组合根保留 Mock SkillGateway 或把按钮降级为视觉占位，因为这会让生产控件产生伪成功并违反既有 functional 交互契约。选定方案增加一项公共 IPC 与 Runtime command，代价是协议和测试面扩大，但保持 UI 语义、Provider 独立性与统一生命周期状态机不变。重新开启条件是 Runtime 无法以 invocation id 稳定定位持久化调用，或后续权限模型要求把人工接管拆成独立授权流程。
+
 ## Risks / Trade-offs
 
 - [LangGraph checkpoint 与业务投影在不同写入路径产生短暂不一致] → 使用 checkpoint 关联键、幂等 ProjectionService 和启动 reconciliation，恢复测试覆盖每个崩溃窗口。
@@ -104,6 +110,7 @@ Supervisor 状态为 `stopped | starting | ready | degraded | stopping | failed`
 - [用户中断发生在不可取消的外部动作中间] → Provider 契约声明取消能力；Runtime 不把“已请求取消”当作“已取消”，等待终态并在恢复前重新观察。
 - [LangGraph 或 LangChain 类型泄漏到 UI 和 Skill 合同] → 框架类型只存在于 Runtime adapter；`packages/contracts` 与 `packages/runtime-contracts` 使用 ActionDriver 自有 DTO。
 - [本 change 被扩展成 Browser Use 实现] → 验收仅允许 Mock Provider、注册/调用/取消和独立 Provider 标识；Playwright/Native 引擎、记忆和网页操作进入后续 change。
+- [新增 Skill 控制入口扩大 Renderer 可调用面] → 只允许固定的 invocation id 与三种枚举命令，Main 与 Runtime 双重校验，拒绝通用命令名、任意状态和值未持久化的伪成功响应。
 
 ## Migration Plan
 

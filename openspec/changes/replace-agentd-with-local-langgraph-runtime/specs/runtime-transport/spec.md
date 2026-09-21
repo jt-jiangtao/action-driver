@@ -50,3 +50,7 @@
 #### Scenario: Renderer 请求任务状态
 - **WHEN** Renderer 读取或订阅任务状态
 - **THEN** 请求经由白名单桥接和 Main 适配器完成，Renderer 无法访问数据库路径、Runtime 通道或通用 IPC 调用
+
+#### Scenario: Renderer 控制 Skill 生命周期
+- **WHEN** Renderer 暂停、继续或人工接管一个已知 Skill invocation
+- **THEN** Preload 只接受 invocation id 与 `pause`、`resume`、`take-over` 之一，并通过明确命名的 IPC Handler 转换为版本化 `skill.control` Runtime 命令；Renderer 不获得通用命令发送能力
