@@ -20,7 +20,7 @@ describe('LogsPage', () => {
 
     expect(await screen.findByText('actiondriver:model-connections:list')).toBeVisible()
     expect(screen.getAllByText('页面 → 服务端').length).toBeGreaterThan(0)
-    expect(screen.getByText('unauthorized')).toBeVisible()
+    expect(screen.getAllByText('unauthorized').length).toBeGreaterThan(0)
 
     await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
     await waitFor(() => expect(listSpy.mock.calls.length).toBeGreaterThan(1))
@@ -65,6 +65,52 @@ describe('LogsPage', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 120))
     expect(listSpy.mock.calls.length).toBe(callsAfterPause)
+  })
+
+  it('selects an entry and shows its details', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const entries = await screen.findAllByTestId(/e2e\/settings\/logs\/entries\/\d+#button/)
+    await user.click(entries[0]!)
+
+    const inspector = screen.getByTestId('e2e/settings/logs/inspector#section')
+    expect(within(inspector).getByText('actiondriver:model-connections:list')).toBeVisible()
+    expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
+    expect(within(inspector).getByText('12ms')).toBeVisible()
+    expect(within(inspector).getByText('1738B · 2 项')).toBeVisible()
+  })
+
+  it('copies the selected entry', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined)
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+    renderPage()
+    await screen.findByText('actiondriver:model-connections:list')
+
+    const entries = await screen.findAllByTestId(/e2e\/settings\/logs\/entries\/\d+#button/)
+    await user.click(entries[0]!)
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/copy#button'))
+
+    expect(writeText).toHaveBeenCalledOnce()
+    const copied = writeText.mock.calls[0]?.[0]
+    expect(typeof copied).toBe('string')
+    expect(String(copied)).toContain('actiondriver:model-connections:list')
+  })
+
+  it('switches the console between dark and light', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('actiondriver:model-connections:list')
+
+    const toggle = screen.getByTestId('e2e/settings/logs/theme#switch')
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('交互日志控制台')).toHaveClass('is-light')
   })
 
   it('shows the empty and failure states with the log file location', async () => {

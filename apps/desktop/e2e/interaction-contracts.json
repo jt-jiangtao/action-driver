@@ -514,5 +514,35 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "renders interaction records and refreshes on demand"
+  },
+  {
+    "target": "e2e/settings/logs/entries/:entry-index#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "selects an entry and shows its details"
+  },
+  {
+    "target": "e2e/settings/logs/inspector#section",
+    "route": "settings",
+    "type": "section",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/copy#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "copies the selected entry"
+  },
+  {
+    "target": "e2e/settings/logs/theme#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "switches the console between dark and light"
   }
 ]

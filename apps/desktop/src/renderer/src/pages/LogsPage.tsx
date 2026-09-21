@@ -1,19 +1,24 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { AppIcon } from '../components/ui/AppIcon'
-import type {
-  InteractionLogRecord,
-  InteractionLogService
-} from '../models/interaction-logs'
+import type { InteractionLogRecord, InteractionLogService } from '../models/interaction-logs'
+import { e2eId } from '../testing/e2e-id'
 
 const LEVELS = ['debug', 'info', 'warn', 'error'] as const
 const DIRECTIONS = [
   { id: '', label: '全部方向' },
-  { id: 'renderer->service', label: 'Renderer → 服务端' },
-  { id: 'service->renderer', label: '服务端 → Renderer' },
+  { id: 'renderer->service', label: '页面 → 服务端' },
+  { id: 'service->renderer', label: '服务端 → 页面' },
   { id: 'service->skill', label: '服务端 → 本机能力' }
 ] as const
 
+type ConsoleTheme = 'dark' | 'light'
+
+/**
+ * Interaction log screen: a console stream on the left and a details inspector for the selected
+ * entry on the right. The console can be switched between a dark developer console and a light
+ * surface that matches the rest of settings.
+ */
 export function LogsPage({
   service,
   onBack,
@@ -31,6 +36,9 @@ export function LogsPage({
   const [direction, setDirection] = useState<string>('')
   const [search, setSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [consoleTheme, setConsoleTheme] = useState<ConsoleTheme>('dark')
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,6 +53,11 @@ export function LogsPage({
       setRecords(result.records)
       setFiles(result.files)
       setError(null)
+      setSelectedKey((current) => {
+        if (current && result.records.some((record) => keyOf(record) === current)) return current
+        const newest = result.records.at(-1)
+        return newest ? keyOf(newest) : null
+      })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -62,6 +75,18 @@ export function LogsPage({
     return () => clearInterval(timer)
   }, [autoRefresh, autoRefreshMs, load])
 
+  const selected = useMemo(
+    () => records.find((record) => keyOf(record) === selectedKey) ?? null,
+    [records, selectedKey]
+  )
+
+  const copySelected = async () => {
+    if (!selected) return
+    await globalThis.navigator?.clipboard?.writeText(JSON.stringify(selected, null, 2))
+    setCopyState('copied')
+    setTimeout(() => setCopyState('idle'), 1_500)
+  }
+
   return (
     <div className="settings-shell" data-testid="e2e/settings/logs/page#page">
       <SettingsSidebar
@@ -71,7 +96,7 @@ export function LogsPage({
         onOpenConnections={onOpenConnections}
       />
       <main className="settings-main">
-        <div className="settings-content">
+        <div className="settings-content logs-content">
           <header className="logs-header">
             <div>
               <h2>交互日志</h2>
@@ -117,6 +142,17 @@ export function LogsPage({
                 onChange={(event) => setSearch(event.currentTarget.value)}
               />
               <button
+                className="plain-icon-action"
+                data-testid="e2e/settings/logs/theme#switch"
+                type="button"
+                aria-label={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
+                title={consoleTheme === 'dark' ? '切换为浅色控制台' : '切换为暗色控制台'}
+                aria-pressed={consoleTheme === 'light'}
+                onClick={() => setConsoleTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+              >
+                <AppIcon name="eye" />
+              </button>
+              <button
                 className="secondary-button"
                 data-testid="e2e/settings/logs/auto-refresh#switch"
                 type="button"
@@ -124,7 +160,7 @@ export function LogsPage({
                 onClick={() => setAutoRefresh((current) => !current)}
               >
                 <AppIcon name={autoRefresh ? 'pause' : 'play'} />
-                {autoRefresh ? '暂停刷新' : '自动刷新'}
+                {autoRefresh ? '暂停' : '自动刷新'}
               </button>
               <button
                 className="secondary-button"
@@ -150,35 +186,92 @@ export function LogsPage({
               <span>执行一次模型连接读取或任务提交后即可在这里看到</span>
             </div>
           ) : (
-            <div className="logs-table" role="table" aria-label="交互日志">
-              <div className="logs-row logs-row-head" role="row">
-                <span role="columnheader">时间</span>
-                <span role="columnheader">方向</span>
-                <span role="columnheader">通道 / 端点</span>
-                <span role="columnheader">结果</span>
-                <span role="columnheader">耗时</span>
-                <span role="columnheader">载荷</span>
-              </div>
-              {records.map((record, index) => (
-                <div className="logs-row" role="row" key={`${record.time}-${index}`}>
-                  <span role="cell">{formatTime(record.time)}</span>
-                  <span role="cell">{directionLabel(record.direction)}</span>
-                  <span role="cell" className="logs-operation" title={record.operation ?? record.msg ?? ''}>
-                    {record.operation ?? record.msg ?? '—'}
-                  </span>
-                  <span role="cell">
-                    <span className={`logs-outcome is-${record.outcome ?? 'ok'}`}>
-                      {record.errorCode ?? record.outcome ?? '—'}
-                    </span>
-                  </span>
-                  <span role="cell">{record.durationMs === undefined ? '—' : `${record.durationMs}ms`}</span>
-                  <span role="cell">
-                    {record.payloadBytes === undefined
-                      ? '—'
-                      : `${record.payloadBytes}B${record.payloadItems === undefined ? '' : ` · ${record.payloadItems} 项`}`}
-                  </span>
-                </div>
-              ))}
+            <div className="logs-workspace">
+              <section className={`logs-console is-${consoleTheme}`} aria-label="交互日志控制台">
+                {records.map((record, index) => {
+                  const key = keyOf(record)
+                  return (
+                    <button
+                      className="logs-entry"
+                      data-testid={e2eId('e2e/settings/logs/entries/:entry-index#button', {
+                        'entry-index': String(index)
+                      })}
+                      data-selected={key === selectedKey}
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedKey(key)}
+                    >
+                      <span className="logs-entry-time">{formatTime(record.time)}</span>
+                      <span className={`logs-level is-${record.levelLabel}`}>
+                        {record.levelLabel.toUpperCase()}
+                      </span>
+                      <span className="logs-entry-operation">
+                        {record.operation ?? record.msg ?? '—'}
+                      </span>
+                      <span className="logs-entry-outcome">
+                        {record.errorCode ?? record.outcome ?? ''}
+                      </span>
+                    </button>
+                  )
+                })}
+              </section>
+
+              <aside className="logs-inspector" data-testid="e2e/settings/logs/inspector#section">
+                <header>
+                  <strong>详情</strong>
+                  <button
+                    className="plain-icon-action"
+                    data-testid="e2e/settings/logs/inspector/copy#button"
+                    type="button"
+                    aria-label="复制条目"
+                    disabled={!selected}
+                    onClick={() => void copySelected()}
+                  >
+                    <AppIcon name={copyState === 'copied' ? 'check' : 'folder'} />
+                  </button>
+                </header>
+                {selected ? (
+                  <dl>
+                    <Detail
+                      label="时间"
+                      value={new Date(selected.time).toLocaleString('zh-CN', { hour12: false })}
+                    />
+                    <Detail label="级别" value={selected.levelLabel} />
+                    <Detail label="方向" value={directionLabel(selected.direction)} />
+                    <Detail label="传输" value={selected.transport ?? '—'} />
+                    <Detail label="操作" value={selected.operation ?? selected.msg ?? '—'} mono />
+                    <Detail
+                      label="结果"
+                      value={
+                        selected.errorCode ??
+                        [selected.outcome, selected.status].filter(Boolean).join(' · ') ??
+                        '—'
+                      }
+                    />
+                    <Detail
+                      label="耗时"
+                      value={selected.durationMs === undefined ? '—' : `${selected.durationMs}ms`}
+                    />
+                    <Detail
+                      label="载荷"
+                      value={
+                        selected.payloadBytes === undefined
+                          ? '—'
+                          : `${selected.payloadBytes}B${
+                              selected.payloadItems === undefined
+                                ? ''
+                                : ` · ${selected.payloadItems} 项`
+                            }`
+                      }
+                    />
+                    {selected.errorMessage ? (
+                      <Detail label="错误信息" value={selected.errorMessage} />
+                    ) : null}
+                  </dl>
+                ) : (
+                  <p className="logs-inspector-empty">选择左侧任意一条记录查看详情</p>
+                )}
+              </aside>
             </div>
           )}
 
@@ -195,8 +288,20 @@ export function LogsPage({
   )
 }
 
+function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd className={mono ? 'is-mono' : undefined}>{value}</dd>
+    </>
+  )
+}
+
 function formatTime(time: number): string {
-  return new Date(time).toLocaleTimeString('zh-CN', { hour12: false })
+  const date = new Date(time)
+  const text = date.toLocaleTimeString('zh-CN', { hour12: false })
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0')
+  return `${text}.${milliseconds}`
 }
 
 function directionLabel(direction: string | undefined): string {
@@ -204,4 +309,8 @@ function directionLabel(direction: string | undefined): string {
   if (direction === 'service->renderer') return '服务端 → 页面'
   if (direction === 'service->skill') return '服务端 → 本机能力'
   return direction ?? '—'
+}
+
+function keyOf(record: InteractionLogRecord): string {
+  return `${record.time}-${record.operation ?? record.msg ?? 'entry'}`
 }
