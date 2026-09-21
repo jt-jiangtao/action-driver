@@ -22,7 +22,7 @@ function createWindow(mainServices: MainServices): BrowserWindow {
   const rendererPath = join(__dirname, '../renderer/index.html')
   const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
   const window = new BrowserWindow(
-    mainServices.windowOptionsFactory(join(__dirname, '../preload/index.mjs'), desktopIconPath)
+    mainServices.windowOptionsFactory(join(__dirname, '../preload/index.cjs'), desktopIconPath)
   )
 
   installNavigationGuards(window.webContents, rendererEntryUrl)

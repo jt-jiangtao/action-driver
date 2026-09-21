@@ -14,13 +14,44 @@ import type {
 import { LangGraphRunner } from './agent-graph'
 import { RuntimeSkillRegistry } from './skill-registry'
 
+/**
+ * Goal markers that make the deterministic Runtime bindings repeatable for tests, visual acceptance
+ * and offline development. They only affect the deterministic ModelGateway; this change never
+ * reaches a real model provider.
+ *
+ * - `（长时间准备）` keeps the first plan call pending until the run is interrupted.
+ * - `（等待确认）` asks the Skill to report that the Agent must wait for user input.
+ */
+export const MOCK_PENDING_PLAN_MARKER = '（长时间准备）'
+export const MOCK_USER_INPUT_MARKER = '（等待确认）'
+
 export class DeterministicModelGateway implements ModelGateway {
-  async complete(request: Parameters<ModelGateway['complete']>[0]): Promise<ModelResult> {
+  private readonly planAttempts = new Map<string, number>()
+
+  async complete(
+    request: Parameters<ModelGateway['complete']>[0],
+    signal?: AbortSignal
+  ): Promise<ModelResult> {
     const goal =
       [...request.messages].reverse().find((message) => message.role === 'user')?.content ?? ''
     const skill = request.skills[0]
 
     if (!skill) return { kind: 'finish', content: goal }
+
+    const attempt = (this.planAttempts.get(request.requestId) ?? 0) + 1
+    this.planAttempts.set(request.requestId, attempt)
+
+    if (attempt === 1 && goal.includes(MOCK_PENDING_PLAN_MARKER)) {
+      return await this.blockUntilAborted(signal)
+    }
+
+    if (goal.includes(MOCK_USER_INPUT_MARKER)) {
+      return {
+        kind: 'invoke-skill',
+        skillId: skill.skillId,
+        input: { goal, needsUser: true }
+      }
+    }
 
     return {
       kind: 'invoke-skill',
@@ -28,6 +59,20 @@ export class DeterministicModelGateway implements ModelGateway {
       input: { goal }
     }
   }
+
+  private async blockUntilAborted(signal?: AbortSignal): Promise<ModelResult> {
+    if (!signal) {
+      throw new Error('MOCK_PENDING_PLAN_REQUIRES_ABORT_SIGNAL')
+    }
+    if (signal.aborted) throw abortError()
+    return await new Promise<ModelResult>((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(abortError()), { once: true })
+    })
+  }
+}
+
+function abortError(): Error {
+  return new DOMException('The operation was aborted', 'AbortError')
 }
 
 export class MockSkillProvider implements SkillProvider {

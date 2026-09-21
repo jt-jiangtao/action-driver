@@ -39,7 +39,8 @@
 - [x] 6.2 实现协议 DTO 到现有 `packages/contracts` 的映射和本地 AgentCommandService/AgentSessionRepository 适配器，验证结构化克隆安全、错误映射完整且 React 组件无需导入 Runtime 合同。
 - [x] 6.3 完善 Renderer 的 InversifyJS composition root 和类型化 React Context bridge，使首页、任务页与组件只消费 `AppServices`；local 模式将 AgentCommandService、AgentSessionRepository 与 SkillGateway 绑定到同一 Preload Runtime Adapter，并用容器测试验证 mock/local adapter 可替换、组件不导入 Container 且不会直接构造基础设施实现。
 - [x] 6.4 更新 Renderer、Main 和 Runtime 三层组合根，使视觉/组件测试继续绑定 Mock、生产绑定 local Runtime；运行现有首页和任务页测试及 Playwright 视觉用例，确认布局、文案和已绘制交互没有变化。
-- [ ] 6.5 增加桌面集成测试，验证提交目标、收到时间线事件、中断、继续、等待用户恢复和应用退出清理的完整路径，所有数据使用 Mock Provider。
+- [x] 6.5 增加桌面集成测试，验证提交目标、收到时间线事件、中断、继续、等待用户恢复和应用退出清理的完整路径，所有数据使用 Mock Provider。
+- [x] 6.6 建立 Electron ABI 的 `better-sqlite3` 原生产物与加载规则（依赖已裁决的 Battle 2）：产物缺失或 ABI 不匹配时 local Runtime 启动失败并给出可诊断错误，Node 单测继续使用 pnpm 默认绑定。
 
 ## 7. 打包、CI 与交付验证
 

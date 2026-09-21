@@ -10,6 +10,25 @@ afterEach(() => {
 })
 
 describe('SkillProviderHost', () => {
+  it('reports a requested user hand-off back to the Runtime', async () => {
+    const host = createMockSkillProviderHost()
+
+    await expect(
+      host.execute(
+        {
+          invocationId: 'browser-handoff',
+          requestedSkillId: 'browser-use',
+          resolvedProviderId: 'mock.browser',
+          providerVersion: '1.0.0',
+          input: { goal: '预订酒店', needsUser: true }
+        },
+        Date.now() + 1_000
+      )
+    ).resolves.toMatchObject({
+      output: { providerId: 'mock.browser', needsUser: true }
+    })
+  })
+
   it('executes independent Mock Browser and Computer reverse calls', async () => {
     const host = createMockSkillProviderHost()
 

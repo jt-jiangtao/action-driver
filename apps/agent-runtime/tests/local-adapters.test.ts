@@ -39,4 +39,29 @@ describe('local runtime adapters', () => {
     await expect(checkpoints.get('task-local')).resolves.toEqual({ stage: 'accepted' })
     local.close()
   })
+
+  it('propagates a user hand-off reported by the hosted Skill provider', async () => {
+    const path = databasePath()
+    const local = createLocalRuntimeAdapters(path, async (request) => ({
+      event: {
+        id: `event-${request.invocationId}`,
+        invocationId: request.invocationId,
+        skillId: request.requestedSkillId,
+        state: 'succeeded',
+        occurredAt: '2026-09-22T00:00:00.000Z'
+      },
+      output: { needsUser: true, question: '确认预订吗？' }
+    }))
+    const provider = local.adapters.skillRegistry.resolve('browser-use', 1)
+
+    await expect(
+      provider.execute({ invocationId: 'skill:task-hosted', input: { goal: '预订酒店' } })
+    ).resolves.toEqual({
+      ok: true,
+      providerId: 'mock.browser',
+      input: { needsUser: true, question: '确认预订吗？' },
+      needsUser: true
+    })
+    local.close()
+  })
 })

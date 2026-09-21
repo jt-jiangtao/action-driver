@@ -34,9 +34,22 @@
 
 ## Battle Status
 
-- 状态：已裁决（2026-09-22）。
+### Battle 1：Renderer Skill 生命周期控制（已裁决，2026-09-22）
+
+- 状态：已裁决。
 - 目标：让 local Renderer 的暂停、继续和人工接管控件通过真实 Runtime Skill 生命周期生效，同时保持 Runtime 通道与 Renderer 隔离。
 - 最终方向：扩展 Runtime 合同和 Preload 白名单，新增类型化 `controlSkill(invocationId, command)`。
 - 被否方案：将 Skill 暂停/继续错误映射为任务 interrupt/continue；local 模式继续绑定 Mock SkillGateway 或把现有功能控件降级为视觉占位。
 - 主要理由：选定方案保持现有 UI 语义、统一 Skill 生命周期和生产组合根真实性，不制造伪成功，也不混淆任务与单次 Skill 调用的控制边界。
 - 用户覆盖：无。
+
+### Battle 2：桌面集成测试的落地层与 Electron 原生依赖（已裁决，2026-09-22）
+
+- 状态：已裁决。
+- 目标：让 6.5 覆盖"提交目标 → 收到时间线事件 → 中断 → 继续 → 等待用户恢复 → 应用退出清理"的真实桌面路径，且全部数据来自 Mock Provider。
+- 最终方向：6.5 实现为 Electron local 模式的 Playwright 集成测试；把 7.1 中 Electron ABI 原生依赖部分前移为 6.6，先建立 Electron ABI 的 `better-sqlite3` 原生产物与加载规则，再补测试。
+- 被否方案：只做进程内（vitest）桌面集成测试；把 Electron local 模式冒烟全部推迟到打包之后。
+- 主要理由：证据显示仅进程内测试无法覆盖 Electron utility process 的真实约束——本 change 已因此暴露 `runtime-entry` 具名导入 `parentPort` 导致入口无法加载，以及 `better-sqlite3` 为 Node ABI（137）而 Electron 38 utility process 需要 ABI 139 的启动崩溃。用户已裁决优先取得真实桌面证据。
+- 主要权衡：Node 单测与 E2E 需要不同 ABI 的原生绑定，因此必须区分 Node 默认绑定与 Electron 专用产物，并让缺失或不匹配的产物在 local 模式启动时显式失败；代价是新增一条原生构建步骤和产物路径。
+- 用户覆盖：无。
+- 重新开启条件：Electron 专用原生产物无法在受支持的 macOS 架构上稳定产出，或产物加载规则与打包方案冲突。

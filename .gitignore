@@ -1,10 +1,10 @@
 node_modules/
 out/
 dist/
+apps/agent-runtime/native/
 coverage/
 playwright-report/
 test-results/
 .superpowers/
 .DS_Store
 *.log
-

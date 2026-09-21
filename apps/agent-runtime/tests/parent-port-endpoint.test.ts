@@ -1,9 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { describe, expect, it, vi } from 'vitest'
-import {
-  createParentPortEndpoint,
-  waitForRuntimeMessagePort
-} from '../src/parent-port-endpoint'
+import { createParentPortEndpoint, waitForRuntimeMessagePort } from '../src/parent-port-endpoint'
 
 class FakeParentPort extends EventEmitter {
   readonly postMessage = vi.fn()

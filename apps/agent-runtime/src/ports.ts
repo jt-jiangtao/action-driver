@@ -30,6 +30,11 @@ export type SkillProviderResult = {
   ok: true
   providerId: string
   input: unknown
+  /**
+   * Signals that the Agent must wait for the user before continuing. Skill providers report this
+   * through the Runtime Skill boundary; the graph routes to `awaitUser` and checkpoints state.
+   */
+  needsUser?: boolean
 }
 
 export interface SkillProvider {

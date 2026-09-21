@@ -1,7 +1,5 @@
 import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite'
-import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { createRuntimeDatabase } from './database'
 import { assertPersistablePayload } from './persistence-guard'
 import type { CheckpointStore } from './ports'
 
@@ -123,6 +121,5 @@ export class SqliteCheckpointStore implements CheckpointStore {
 }
 
 export function createSqliteCheckpointer(path: string): ResilientSqliteSaver {
-  mkdirSync(dirname(path), { recursive: true })
-  return new ResilientSqliteSaver(new Database(path))
+  return new ResilientSqliteSaver(createRuntimeDatabase(path))
 }

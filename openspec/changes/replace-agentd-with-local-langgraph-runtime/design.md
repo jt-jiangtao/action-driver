@@ -102,6 +102,17 @@ local Renderer 的现有暂停、继续和人工接管控件继续消费 `SkillG
 
 Battle 已于 2026-09-22 裁决。被否方案包括：把 Skill 暂停/继续映射成任务级 interrupt/continue，因为这会混淆恢复点和单次调用状态；在 local 组合根保留 Mock SkillGateway 或把按钮降级为视觉占位，因为这会让生产控件产生伪成功并违反既有 functional 交互契约。选定方案增加一项公共 IPC 与 Runtime command，代价是协议和测试面扩大，但保持 UI 语义、Provider 独立性与统一生命周期状态机不变。重新开启条件是 Runtime 无法以 invocation id 稳定定位持久化调用，或后续权限模型要求把人工接管拆成独立授权流程。
 
+### 10. Electron 原生 SQLite 绑定与 local 模式桌面集成测试
+
+Electron 38 的 utility process 使用自己的 Node ABI（本机实测 `NODE_MODULE_VERSION 139`），而 pnpm 为本地 Node 构建的 `better-sqlite3` 是另一个 ABI。二者不能共用同一份原生二进制，因此：
+
+- Node 侧（vitest、迁移和仓储测试）继续使用 pnpm 安装的默认原生绑定，不改变现有测试回路。
+- Electron 侧使用独立产物 `apps/agent-runtime/native/electron/<arch>/better_sqlite3.node`，由 `scripts/build-electron-native.mjs` 针对 Electron 版本与架构构建（node-gyp + Electron headers），不覆盖 pnpm 的 Node 绑定。
+- Runtime 在 `process.versions.electron` 存在时只加载 Electron 专用产物，并通过 `better-sqlite3` 的官方 `nativeBinding` 选项注入；产物缺失或 ABI 不匹配时，local Runtime 启动失败并输出可诊断错误，不得回退到 Node 绑定或 Mock。
+- 业务数据库与 LangGraph checkpointer 共用同一 `createRuntimeDatabase()` 入口，避免两处分别解析原生绑定。
+
+Battle 已于 2026-09-22 裁决：用户选择用真实桌面路径验证 6.5，并要求提前建立 Electron 原生依赖（原 7.1 的一部分）。被否方案是只做进程内 vitest 集成测试，或把 Electron local 模式冒烟全部推迟到打包之后。选择该方案的理由是本 change 已出现两个只在 Electron 中暴露的失败：`runtime-entry` 以具名导入方式取 `parentPort` 导致入口无法加载，以及原生绑定 ABI 不匹配导致 Runtime 启动即崩。代价是新增原生构建步骤与产物所有权，以及 E2E 需要 production（local）构建。重新开启条件是 Electron 专用产物无法稳定产出，或打包方案要求不同的原生依赖布局。
+
 ## Risks / Trade-offs
 
 - [LangGraph checkpoint 与业务投影在不同写入路径产生短暂不一致] → 使用 checkpoint 关联键、幂等 ProjectionService 和启动 reconciliation，恢复测试覆盖每个崩溃窗口。
@@ -111,6 +122,8 @@ Battle 已于 2026-09-22 裁决。被否方案包括：把 Skill 暂停/继续�
 - [LangGraph 或 LangChain 类型泄漏到 UI 和 Skill 合同] → 框架类型只存在于 Runtime adapter；`packages/contracts` 与 `packages/runtime-contracts` 使用 ActionDriver 自有 DTO。
 - [本 change 被扩展成 Browser Use 实现] → 验收仅允许 Mock Provider、注册/调用/取消和独立 Provider 标识；Playwright/Native 引擎、记忆和网页操作进入后续 change。
 - [新增 Skill 控制入口扩大 Renderer 可调用面] → 只允许固定的 invocation id 与三种枚举命令，Main 与 Runtime 双重校验，拒绝通用命令名、任意状态和值未持久化的伪成功响应。
+- [Electron 专用原生产物与 Node 绑定并存造成误用] → 只在 `process.versions.electron` 为真时加载 Electron 产物，缺失即启动失败；构建脚本按 Electron 版本与架构输出到独立目录，并在产物旁记录 Electron 版本、架构与构建时间的元数据，加载时逐项校验。
+- [真实桌面 E2E 需要 production/local 构建，与视觉 E2E 共用 `out/`] → 视觉与 local 两套 E2E 分别执行构建与运行，不并行共享构建输出。
 
 ## Migration Plan
 

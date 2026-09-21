@@ -116,7 +116,16 @@ function createEchoProvider(skillId: string, providerId: string): HostedSkillPro
     providerId,
     providerVersion: '1.0.0',
     async execute(input) {
-      return { providerId, input }
+      return {
+        providerId,
+        input,
+        // Deterministic Mock behaviour: report the requested user hand-off back to the Runtime.
+        ...(isRecord(input) && input.needsUser === true ? { needsUser: true } : {})
+      }
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

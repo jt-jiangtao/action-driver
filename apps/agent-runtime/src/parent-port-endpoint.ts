@@ -1,4 +1,7 @@
-import type { RuntimeMessageEndpoint, RuntimeMessageListener } from '@actiondriver/runtime-contracts'
+import type {
+  RuntimeMessageEndpoint,
+  RuntimeMessageListener
+} from '@actiondriver/runtime-contracts'
 
 type MessageEventLike = { data: unknown; ports?: UtilityMessagePortLike[] }
 

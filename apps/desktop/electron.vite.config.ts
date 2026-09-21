@@ -7,7 +7,13 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@actiondriver/runtime-contracts'] })]
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        // Sandboxed preload scripts must be CommonJS; the package is ESM, so emit .cjs explicitly.
+        output: { format: 'cjs', entryFileNames: '[name].cjs' }
+      }
+    }
   },
   renderer: {
     resolve: {

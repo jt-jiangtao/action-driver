@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { requiresElectronNativeBinding, resolveElectronNativeBinding } from './native-binding'
 
 export type RuntimeMigration = {
   version: number
@@ -86,8 +87,7 @@ export function openRuntimeDatabase(
   path: string,
   migrations: readonly RuntimeMigration[] = DEFAULT_RUNTIME_MIGRATIONS
 ): Database.Database {
-  mkdirSync(dirname(path), { recursive: true })
-  const database = new Database(path)
+  const database = createRuntimeDatabase(path)
 
   try {
     configureDatabase(database)
@@ -98,6 +98,12 @@ export function openRuntimeDatabase(
     database.close()
     throw error
   }
+}
+
+export function createRuntimeDatabase(path: string): Database.Database {
+  mkdirSync(dirname(path), { recursive: true })
+  if (!requiresElectronNativeBinding()) return new Database(path)
+  return new Database(path, { nativeBinding: resolveElectronNativeBinding() })
 }
 
 function configureDatabase(database: Database.Database): void {

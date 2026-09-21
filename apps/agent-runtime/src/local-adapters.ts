@@ -50,8 +50,22 @@ class HostedSkillProvider implements SkillProvider {
       providerVersion: this.providerVersion,
       input: request.input
     })
-    return { ok: true, providerId: this.providerId, input: result.output }
+    return {
+      ok: true,
+      providerId: this.providerId,
+      input: result.output,
+      ...(requestsUserInput(result.output) ? { needsUser: true } : {})
+    }
   }
+}
+
+function requestsUserInput(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'needsUser' in value &&
+    (value as { needsUser?: unknown }).needsUser === true
+  )
 }
 
 export function createLocalRuntimeAdapters(
