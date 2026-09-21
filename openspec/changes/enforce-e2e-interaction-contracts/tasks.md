@@ -1,8 +1,8 @@
 ## 1. AST 校验基础
 
-- [ ] 1.1 先为测试 ID 语法解析与 `e2eId` 动态构造器编写失败测试，再实现受控 route/path/type 校验，验证合法静态 ID、稳定业务 ID和全部非法格式用例
-- [ ] 1.2 先用 TSX fixture 覆盖原生标签、contenteditable、交互 role、disabled 状态和共享交互组件的缺失 ID，再使用 TypeScript Compiler API 实现 AST 扫描，验证错误包含文件、行列和原因
-- [ ] 1.3 为展开属性、条件 JSX、动态表达式、重复静态 ID、未经批准的动态构造和非交互节点编写校验器测试，验证 AST 规则不会被简单语法变化绕过且不会误报普通容器
+- [x] 1.1 先为测试 ID 语法解析与 `e2eId` 动态构造器编写失败测试，再实现受控 route/path/type 校验，验证合法静态 ID、稳定业务 ID和全部非法格式用例
+- [x] 1.2 先用 TSX fixture 覆盖原生标签、contenteditable、交互 role、disabled 状态和共享交互组件的缺失 ID，再使用 TypeScript Compiler API 实现 AST 扫描，验证错误包含文件、行列和原因
+- [x] 1.3 为展开属性、条件 JSX、动态表达式、重复静态 ID、未经批准的动态构造和非交互节点编写校验器测试，验证 AST 规则不会被简单语法变化绕过且不会误报普通容器
 - [ ] 1.4 建立共享交互组件登记与必填 `testId` API，运行组件类型检查和校验器 fixture，验证包装组件与原生节点形成闭合检查
 
 ## 2. 交互契约与全量迁移
