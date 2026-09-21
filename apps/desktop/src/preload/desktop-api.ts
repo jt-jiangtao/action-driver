@@ -4,6 +4,7 @@ import type {
   AgentAcceptedResult,
   AgentEventMessage,
   AgentGetResult,
+  AgentIpcResponse,
   AgentSubmitResult,
   AgentSubscriptionResult
 } from '../shared/agent-ipc-contract'
@@ -33,6 +34,12 @@ export interface DesktopApi {
   agent: AgentDesktopApi
 }
 
+async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
+  const response = (await ipc.invoke(channel, input)) as AgentIpcResponse<T>
+  if (!response.ok) return Promise.reject(response.error)
+  return response.value
+}
+
 export function createDesktopApi(
   platform: NodeJS.Platform,
   version: string,
@@ -42,23 +49,22 @@ export function createDesktopApi(
   return {
     getEnvironment: () => ({ platform, version }),
     agent: {
-      submit: (goal) =>
-        ipc.invoke(AGENT_IPC_CHANNELS.submit, { goal }) as Promise<AgentSubmitResult>,
+      submit: (goal) => invokeAgent<AgentSubmitResult>(ipc, AGENT_IPC_CHANNELS.submit, { goal }),
       async get(taskId) {
-        const result = (await ipc.invoke(AGENT_IPC_CHANNELS.get, { taskId })) as AgentGetResult
+        const result = await invokeAgent<AgentGetResult>(ipc, AGENT_IPC_CHANNELS.get, { taskId })
         return result.task
       },
       async interrupt(taskId) {
-        await (ipc.invoke(AGENT_IPC_CHANNELS.interrupt, { taskId }) as Promise<AgentAcceptedResult>)
+        await invokeAgent<AgentAcceptedResult>(ipc, AGENT_IPC_CHANNELS.interrupt, { taskId })
       },
       async continue(taskId) {
-        await (ipc.invoke(AGENT_IPC_CHANNELS.continue, { taskId }) as Promise<AgentAcceptedResult>)
+        await invokeAgent<AgentAcceptedResult>(ipc, AGENT_IPC_CHANNELS.continue, { taskId })
       },
       async provideInput(taskId, value) {
-        await (ipc.invoke(AGENT_IPC_CHANNELS.provideInput, {
+        await invokeAgent<AgentAcceptedResult>(ipc, AGENT_IPC_CHANNELS.provideInput, {
           taskId,
           value
-        }) as Promise<AgentAcceptedResult>)
+        })
       },
       async subscribe(taskId, afterCursor, listener) {
         const subscriptionId = subscriptionIdFactory()
@@ -68,11 +74,11 @@ export function createDesktopApi(
         }
         ipc.on(AGENT_IPC_CHANNELS.event, handleEvent)
         try {
-          await (ipc.invoke(AGENT_IPC_CHANNELS.subscribe, {
+          await invokeAgent<AgentSubscriptionResult>(ipc, AGENT_IPC_CHANNELS.subscribe, {
             subscriptionId,
             taskId,
             afterCursor
-          }) as Promise<AgentSubscriptionResult>)
+          })
         } catch (error) {
           ipc.off(AGENT_IPC_CHANNELS.event, handleEvent)
           throw error

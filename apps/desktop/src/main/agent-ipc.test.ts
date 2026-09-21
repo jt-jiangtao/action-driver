@@ -1,5 +1,5 @@
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
-import type { RuntimeClient } from '@actiondriver/runtime-contracts'
+import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import { registerAgentIpcHandlers } from './agent-ipc'
 
@@ -14,6 +14,9 @@ function createHarness() {
   let eventListener: ((event: RuntimeEvent) => void) | undefined
   const request = vi.fn(async (command: string, input: unknown) => {
     void input
+    if (command === 'task.submit' && input === 'timeout') {
+      throw new RuntimeRpcError('DEADLINE_EXCEEDED', 'Runtime request timed out', { timeoutMs: 50 })
+    }
     if (command === 'task.submit') return { taskId: 'task-1' }
     if (command === 'task.get') {
       return {
@@ -71,27 +74,33 @@ describe('registerAgentIpcHandlers', () => {
     ])
 
     await expect(invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })).resolves.toEqual({
-      taskId: 'task-1'
+      ok: true,
+      value: { taskId: 'task-1' }
     })
     await expect(invoke('actiondriver:agent:get', { taskId: 'task-1' })).resolves.toEqual({
-      task: {
-        id: 'task-1',
-        title: 'Book a hotel',
-        status: 'running',
-        messages: [],
-        steps: [],
-        browser: null
+      ok: true,
+      value: {
+        task: {
+          id: 'task-1',
+          title: 'Book a hotel',
+          status: 'running',
+          messages: [],
+          steps: [],
+          browser: null
+        }
       }
     })
     await expect(invoke('actiondriver:agent:interrupt', { taskId: 'task-1' })).resolves.toEqual({
-      accepted: true
+      ok: true,
+      value: { accepted: true }
     })
     await expect(invoke('actiondriver:agent:continue', { taskId: 'task-1' })).resolves.toEqual({
-      accepted: true
+      ok: true,
+      value: { accepted: true }
     })
     await expect(
       invoke('actiondriver:agent:provide-input', { taskId: 'task-1', value: 'confirm' })
-    ).resolves.toEqual({ accepted: true })
+    ).resolves.toEqual({ ok: true, value: { accepted: true } })
 
     expect(request.mock.calls).toEqual([
       ['task.submit', { goal: 'Book a hotel' }],
@@ -111,7 +120,7 @@ describe('registerAgentIpcHandlers', () => {
         taskId: 'task-1',
         afterCursor: 4
       })
-    ).resolves.toEqual({ cursor: 4 })
+    ).resolves.toEqual({ ok: true, value: { cursor: 4 } })
 
     const event: RuntimeEvent = {
       cursor: 5,
@@ -129,5 +138,20 @@ describe('registerAgentIpcHandlers', () => {
         payload: { subscriptionId: 'renderer-subscription', event }
       }
     ])
+  })
+
+  it('returns structured-clone-safe Runtime errors instead of throwing through Electron IPC', async () => {
+    const { handlers } = createHarness()
+    const handler = handlers.get('actiondriver:agent:submit')
+    const sender = { send: vi.fn() }
+
+    await expect(handler?.({ sender }, 'timeout')).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'DEADLINE_EXCEEDED',
+        message: 'Runtime request timed out',
+        details: { timeoutMs: 50 }
+      }
+    })
   })
 })

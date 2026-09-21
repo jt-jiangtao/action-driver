@@ -1,5 +1,6 @@
 import type { TaskProjection } from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
+import type { RuntimeRpcErrorCode } from '@actiondriver/runtime-contracts'
 
 export const AGENT_IPC_CHANNELS = {
   submit: 'actiondriver:agent:submit',
@@ -16,3 +17,9 @@ export type AgentGetResult = { task: TaskProjection | null }
 export type AgentAcceptedResult = { accepted: true }
 export type AgentSubscriptionResult = { cursor: number }
 export type AgentEventMessage = { subscriptionId: string; event: RuntimeEvent }
+export type AgentIpcError = {
+  code: RuntimeRpcErrorCode | 'UNKNOWN'
+  message: string
+  details?: unknown
+}
+export type AgentIpcResponse<T> = { ok: true; value: T } | { ok: false; error: AgentIpcError }

@@ -1,4 +1,5 @@
-import type { RuntimeClient } from '@actiondriver/runtime-contracts'
+import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
+import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
 
 type AgentIpcEvent = {
@@ -11,40 +12,64 @@ export interface AgentIpcMain {
   handle(channel: string, handler: AgentIpcHandler): void
 }
 
+async function asIpcResponse<T>(operation: () => Promise<T>): Promise<AgentIpcResponse<T>> {
+  try {
+    return { ok: true, value: await operation() }
+  } catch (error) {
+    return { ok: false, error: serializeError(error) }
+  }
+}
+
+function serializeError(error: unknown): AgentIpcError {
+  if (error instanceof RuntimeRpcError) {
+    return error.details === undefined
+      ? { code: error.code, message: error.message }
+      : { code: error.code, message: error.message, details: error.details }
+  }
+  return {
+    code: 'UNKNOWN',
+    message: error instanceof Error ? error.message : String(error)
+  }
+}
+
 export function registerAgentIpcHandlers(
   ipcMain: AgentIpcMain,
   runtimeClient: Pick<RuntimeClient, 'request' | 'subscribeEvents'>
 ): void {
   ipcMain.handle(AGENT_IPC_CHANNELS.submit, (_event, input) =>
-    runtimeClient.request('task.submit', input as { goal: string })
+    asIpcResponse(() => runtimeClient.request('task.submit', input as { goal: string }))
   )
   ipcMain.handle(AGENT_IPC_CHANNELS.get, (_event, input) =>
-    runtimeClient.request('task.get', input as { taskId: string })
+    asIpcResponse(() => runtimeClient.request('task.get', input as { taskId: string }))
   )
   ipcMain.handle(AGENT_IPC_CHANNELS.interrupt, (_event, input) =>
-    runtimeClient.request('task.interrupt', input as { taskId: string })
+    asIpcResponse(() => runtimeClient.request('task.interrupt', input as { taskId: string }))
   )
   ipcMain.handle(AGENT_IPC_CHANNELS.continue, (_event, input) =>
-    runtimeClient.request('task.continue', input as { taskId: string })
+    asIpcResponse(() => runtimeClient.request('task.continue', input as { taskId: string }))
   )
   ipcMain.handle(AGENT_IPC_CHANNELS.provideInput, (_event, input) =>
-    runtimeClient.request('task.provide-input', input as { taskId: string; value: unknown })
+    asIpcResponse(() =>
+      runtimeClient.request('task.provide-input', input as { taskId: string; value: unknown })
+    )
   )
-  ipcMain.handle(AGENT_IPC_CHANNELS.subscribe, async (event, rawInput) => {
+  ipcMain.handle(AGENT_IPC_CHANNELS.subscribe, (event, rawInput) => {
     const input = rawInput as {
       subscriptionId: string
       taskId: string
       afterCursor: number
     }
-    const subscription = await runtimeClient.subscribeEvents(
-      input.taskId,
-      input.afterCursor,
-      (runtimeEvent) =>
-        event.sender.send(AGENT_IPC_CHANNELS.event, {
-          subscriptionId: input.subscriptionId,
-          event: runtimeEvent
-        })
-    )
-    return { cursor: subscription.cursor }
+    return asIpcResponse(async () => {
+      const subscription = await runtimeClient.subscribeEvents(
+        input.taskId,
+        input.afterCursor,
+        (runtimeEvent) =>
+          event.sender.send(AGENT_IPC_CHANNELS.event, {
+            subscriptionId: input.subscriptionId,
+            event: runtimeEvent
+          })
+      )
+      return { cursor: subscription.cursor }
+    })
   })
 }

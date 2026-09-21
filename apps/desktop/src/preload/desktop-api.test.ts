@@ -8,7 +8,10 @@ describe('createDesktopApi', () => {
     const bridge = {
       invoke(channel: string, input: unknown) {
         invocations.push({ channel, input })
-        return Promise.resolve(channel.endsWith(':subscribe') ? { cursor: 4 } : { accepted: true })
+        return Promise.resolve({
+          ok: true,
+          value: channel.endsWith(':subscribe') ? { cursor: 4 } : { accepted: true }
+        })
       },
       on(channel: string, listener: (event: unknown, payload: unknown) => void) {
         const channelListeners = listeners.get(channel) ?? new Set()
@@ -82,5 +85,19 @@ describe('createDesktopApi', () => {
         }
       }
     ])
+  })
+
+  it('rejects with the structured Runtime error returned by Main', async () => {
+    const error = {
+      code: 'RUNTIME_DISCONNECTED',
+      message: 'Runtime message channel disconnected'
+    }
+    const api = createDesktopApi('darwin', '0.1.0', {
+      invoke: () => Promise.resolve({ ok: false, error }),
+      on: () => undefined,
+      off: () => undefined
+    })
+
+    await expect(api.agent.submit('Book a hotel')).rejects.toEqual(error)
   })
 })

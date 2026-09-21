@@ -1,0 +1,184 @@
+import type {
+  AgentCommandService,
+  AgentSessionRepository,
+  TaskProjection
+} from '@actiondriver/contracts'
+import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
+import type { AgentDesktopApi } from '../../../preload/desktop-api'
+
+export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
+  private readonly tasks = new Map<string, TaskProjection>()
+  private readonly listeners = new Set<(task: TaskProjection) => void>()
+  private readonly subscriptions = new Map<string, () => void>()
+
+  constructor(private readonly api: AgentDesktopApi) {}
+
+  async submitGoal(goal: string): Promise<TaskProjection> {
+    try {
+      const { taskId } = await this.api.submit(goal)
+      await this.ensureSubscription(taskId)
+      return await this.refreshTask(taskId)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+
+  async interrupt(taskId: string): Promise<void> {
+    try {
+      await this.api.interrupt(taskId)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+
+  async continueTask(taskId: string): Promise<void> {
+    try {
+      await this.api.continue(taskId)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+
+  async provideInput(taskId: string, value: unknown): Promise<void> {
+    try {
+      await this.api.provideInput(taskId, value)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+
+  getTask(taskId: string): TaskProjection | null {
+    const task = this.tasks.get(taskId)
+    return task ? structuredClone(task) : null
+  }
+
+  subscribe(listener: (task: TaskProjection) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  private async ensureSubscription(taskId: string): Promise<void> {
+    if (this.subscriptions.has(taskId)) return
+    const unsubscribe = await this.api.subscribe(taskId, 0, (event) => {
+      if (event.taskId !== taskId) return
+      void this.refreshTask(taskId).catch(() => undefined)
+    })
+    this.subscriptions.set(taskId, unsubscribe)
+  }
+
+  private async refreshTask(taskId: string): Promise<TaskProjection> {
+    const task = await this.api.get(taskId)
+    if (!task) {
+      throw new AgentServiceError('invalid-response', `Runtime returned no task for ${taskId}`)
+    }
+    const projection = mapTaskProjection(task)
+    this.tasks.set(taskId, projection)
+    this.emit(projection)
+    return structuredClone(projection)
+  }
+
+  private emit(task: TaskProjection): void {
+    this.listeners.forEach((listener) => listener(structuredClone(task)))
+  }
+}
+
+const ERROR_CODE_MAP = {
+  HANDSHAKE_REQUIRED: 'unavailable',
+  HANDSHAKE_REJECTED: 'incompatible-runtime',
+  DEADLINE_EXCEEDED: 'timeout',
+  INVALID_MESSAGE: 'invalid-response',
+  RUNTIME_DISCONNECTED: 'unavailable',
+  REMOTE_ERROR: 'runtime-error',
+  LATE_RESPONSE: 'invalid-response'
+} as const
+
+function mapAgentError(error: unknown): AgentServiceError {
+  if (error instanceof AgentServiceError) return error
+  if (isRecord(error)) {
+    const code =
+      typeof error.code === 'string'
+        ? ERROR_CODE_MAP[error.code as keyof typeof ERROR_CODE_MAP]
+        : undefined
+    const message =
+      typeof error.message === 'string' ? error.message : 'Agent Runtime request failed'
+    return new AgentServiceError(code ?? 'runtime-error', message, error.details)
+  }
+  return new AgentServiceError(
+    'runtime-error',
+    error instanceof Error ? error.message : String(error)
+  )
+}
+
+function mapTaskProjection(value: unknown): TaskProjection {
+  if (!isSerializableContract(value) || !isTaskProjection(value)) {
+    throw new AgentServiceError('invalid-response', 'Runtime returned an invalid task projection')
+  }
+  return structuredClone(value)
+}
+
+function isTaskProjection(value: unknown): value is TaskProjection {
+  if (!isRecord(value)) return false
+  if (!isString(value.id) || !isString(value.title) || !isSkillState(value.status)) return false
+  if (!Array.isArray(value.messages) || !value.messages.every(isMessage)) return false
+  if (!Array.isArray(value.steps) || !value.steps.every(isStep)) return false
+  return value.browser === null || isBrowserProjection(value.browser)
+}
+
+function isMessage(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    (value.role === 'user' || value.role === 'agent') &&
+    isString(value.content)
+  )
+}
+
+function isStep(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    isString(value.title) &&
+    isString(value.detail) &&
+    ['success', 'current', 'waiting', 'failed'].includes(String(value.state))
+  )
+}
+
+function isBrowserProjection(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  return (
+    isString(value.title) &&
+    isString(value.url) &&
+    isSkillState(value.status) &&
+    (value.target === null || isBrowserTarget(value.target))
+  )
+}
+
+function isBrowserTarget(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isString(value.label) &&
+    [value.x, value.y, value.width, value.height].every(
+      (coordinate) => typeof coordinate === 'number' && Number.isFinite(coordinate)
+    )
+  )
+}
+
+function isSkillState(value: unknown): value is TaskProjection['status'] {
+  return [
+    'queued',
+    'running',
+    'paused',
+    'waiting-user',
+    'taken-over',
+    'succeeded',
+    'failed'
+  ].includes(String(value))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}

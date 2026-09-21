@@ -106,6 +106,24 @@ export interface AgentCommandService {
   continueTask(taskId: string): Promise<void>
 }
 
+export type AgentServiceErrorCode =
+  | 'unavailable'
+  | 'incompatible-runtime'
+  | 'timeout'
+  | 'invalid-response'
+  | 'runtime-error'
+
+export class AgentServiceError extends Error {
+  constructor(
+    readonly code: AgentServiceErrorCode,
+    message: string,
+    readonly details?: unknown
+  ) {
+    super(message)
+    this.name = 'AgentServiceError'
+  }
+}
+
 export interface SkillGateway {
   invoke(invocation: SkillInvocation): Promise<SkillExecutionEvent>
   pause(invocationId: string): Promise<SkillExecutionEvent>
