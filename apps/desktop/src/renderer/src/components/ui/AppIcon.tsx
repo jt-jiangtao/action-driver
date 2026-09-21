@@ -11,6 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Clock,
+  Code,
+  Copy,
+  Download,
   Cpu,
   Ellipsis,
   Eye,
@@ -29,6 +33,10 @@ import {
   PanelLeft,
   PanelRight,
   Pause,
+  Terminal,
+  Timer,
+  Upload,
+  Monitor,
   Play,
   Plus,
   RefreshCw,
@@ -49,6 +57,10 @@ export type AppIconName =
   | 'chevron-left'
   | 'chevron-right'
   | 'circle-alert'
+  | 'clock'
+  | 'code'
+  | 'copy'
+  | 'download'
   | 'close'
   | 'ellipsis'
   | 'eye'
@@ -74,6 +86,10 @@ export type AppIconName =
   | 'settings'
   | 'skill'
   | 'takeover'
+  | 'terminal'
+  | 'timer'
+  | 'upload'
+  | 'monitor'
   | 'task'
   | 'trash'
   | 'network'
@@ -89,6 +105,10 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight,
   'circle-alert': CircleAlert,
+  clock: Clock,
+  code: Code,
+  copy: Copy,
+  download: Download,
   close: X,
   ellipsis: Ellipsis,
   eye: Eye,
@@ -114,6 +134,10 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   settings: Settings,
   skill: WandSparkles,
   takeover: Hand,
+  terminal: Terminal,
+  timer: Timer,
+  upload: Upload,
+  monitor: Monitor,
   task: ListTodo,
   trash: Trash2,
   network: Network,

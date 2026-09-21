@@ -20,7 +20,7 @@ describe('LogsPage', () => {
 
     expect(await screen.findByText('actiondriver:model-connections:list')).toBeVisible()
     expect(screen.getAllByText('页面 → 服务端').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('unauthorized').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('失败 · unauthorized').length).toBeGreaterThan(0)
 
     await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
     await waitFor(() => expect(listSpy.mock.calls.length).toBeGreaterThan(1))
@@ -79,7 +79,7 @@ describe('LogsPage', () => {
     expect(within(inspector).getByText('actiondriver:model-connections:list')).toBeVisible()
     expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
     expect(within(inspector).getByText('12ms')).toBeVisible()
-    expect(within(inspector).getByText('1738B · 2 项')).toBeVisible()
+    expect(within(inspector).getByText('1.7KB · 2 项')).toBeVisible()
     expect(within(inspector).getByText('页面 → 服务端')).toBeVisible()
 
     await user.click(entries[0]!)
@@ -104,6 +104,18 @@ describe('LogsPage', () => {
     const copied = writeText.mock.calls[0]?.[0]
     expect(typeof copied).toBe('string')
     expect(String(copied)).toContain('actiondriver:model-connections:list')
+  })
+
+  it('expands and collapses the raw record', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const entries = await screen.findAllByTestId(/e2e\/settings\/logs\/entries\/\d+#button/)
+    await user.click(entries[0]!)
+
+    const toggle = screen.getByTestId('e2e/settings/logs/raw#button')
+    expect(toggle.closest('details')).toHaveAttribute('open')
+    await user.click(toggle)
+    expect(toggle.closest('details')).not.toHaveAttribute('open')
   })
 
   it('shows the empty and failure states', async () => {

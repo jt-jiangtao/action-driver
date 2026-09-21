@@ -536,5 +536,13 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "copies the selected entry"
+  },
+  {
+    "target": "e2e/settings/logs/raw#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands and collapses the raw record"
   }
 ]

@@ -168,6 +168,20 @@ export function LogsPage({
           ) : (
             <div className={`logs-workspace ${selected ? 'has-inspector' : ''}`}>
               <section className="logs-console is-light" aria-label="交互日志控制台">
+                <header className="logs-console-header">
+                  <strong>调用记录</strong>
+                  <span>
+                    {records.length} 条 · 最近更新 {formatTime(records.at(-1)!.time)}
+                  </span>
+                </header>
+                <div className="logs-console-columns" aria-hidden="true">
+                  <span>时间</span>
+                  <span>方向</span>
+                  <span>级别</span>
+                  <span>操作</span>
+                  <span>耗时</span>
+                  <span>结果</span>
+                </div>
                 {records.map((record, index) => {
                   const key = keyOf(record)
                   return (
@@ -183,11 +197,11 @@ export function LogsPage({
                     >
                       <span className="logs-entry-time">{formatTime(record.time)}</span>
                       <span
-                        className={`logs-entry-direction is-${directionKind(record.direction)}`}
-                        aria-label={directionLabel(record.direction)}
+                        className={`logs-direction is-${directionKind(record.direction)}`}
                         title={directionLabel(record.direction)}
                       >
                         <AppIcon name={directionIcon(record.direction)} />
+                        {directionShort(record.direction)}
                       </span>
                       <span className={`logs-level is-${record.levelLabel}`}>
                         {record.levelLabel.toUpperCase()}
@@ -195,8 +209,12 @@ export function LogsPage({
                       <span className="logs-entry-operation">
                         {record.operation ?? record.msg ?? '—'}
                       </span>
-                      <span className="logs-entry-outcome">
-                        {record.errorCode ?? record.outcome ?? ''}
+                      <span className="logs-entry-duration">
+                        {record.durationMs === undefined ? '—' : `${record.durationMs}ms`}
+                      </span>
+                      <span className={`logs-result is-${resultKind(record)}`}>
+                        {resultIcon(record) ? <AppIcon name={resultIcon(record)!} /> : null}
+                        {resultLabel(record)}
                       </span>
                     </button>
                   )
@@ -206,7 +224,10 @@ export function LogsPage({
               {selected ? (
                 <aside className="logs-inspector" data-testid="e2e/settings/logs/inspector#section">
                   <header>
-                    <strong>详情</strong>
+                    <span className="logs-inspector-title">
+                      <AppIcon name="task" />
+                      <strong>详情</strong>
+                    </span>
                     <button
                       className="plain-icon-action"
                       data-testid="e2e/settings/logs/inspector/copy#button"
@@ -214,54 +235,69 @@ export function LogsPage({
                       aria-label="复制条目"
                       onClick={() => void copySelected()}
                     >
-                      <AppIcon name={copyState === 'copied' ? 'check' : 'folder'} />
+                      <AppIcon name={copyState === 'copied' ? 'check' : 'copy'} />
                     </button>
                   </header>
-                  <dl>
-                    <Detail
-                      label="时间"
-                      value={new Date(selected.time).toLocaleString('zh-CN', { hour12: false })}
-                    />
-                    <Detail label="级别" value={selected.levelLabel} />
-                    {selected.name ? <Detail label="来源" value={selected.name} /> : null}
-                    <Detail label="方向" value={directionLabel(selected.direction)} />
-                    <Detail label="传输" value={selected.transport ?? '—'} />
-                    <Detail label="操作" value={selected.operation ?? selected.msg ?? '—'} mono />
-                    <Detail
-                      label="结果"
-                      value={
-                        selected.errorCode ??
-                        [selected.outcome, selected.status].filter(Boolean).join(' · ') ??
-                        '—'
-                      }
-                    />
-                    <Detail
-                      label="耗时"
-                      value={selected.durationMs === undefined ? '—' : `${selected.durationMs}ms`}
-                    />
-                    <Detail
-                      label="载荷"
-                      value={
-                        selected.payloadBytes === undefined
-                          ? '—'
-                          : `${selected.payloadBytes}B${
-                              selected.payloadItems === undefined
-                                ? ''
-                                : ` · ${selected.payloadItems} 项`
-                            }`
-                      }
-                    />
-                    {selected.errorMessage ? (
-                      <Detail label="错误信息" value={selected.errorMessage} />
-                    ) : null}
+                  <div className="logs-inspector-fields">
+                    <InspectorRow icon="clock" label="时间">
+                      {new Date(selected.time).toLocaleString('zh-CN', { hour12: false })}
+                    </InspectorRow>
+                    <InspectorRow icon="circle-alert" label="级别">
+                      <span className={`logs-level is-${selected.levelLabel}`}>
+                        {selected.levelLabel.toUpperCase()}
+                      </span>
+                    </InspectorRow>
+                    <InspectorRow icon="server" label="来源">
+                      {selected.name ?? '—'}
+                    </InspectorRow>
+                    <InspectorRow
+                      icon={directionIcon(selected.direction)}
+                      label="方向"
+                      iconClass={directionKind(selected.direction)}
+                    >
+                      {directionLabel(selected.direction)}
+                    </InspectorRow>
+                    <InspectorRow icon="network" label="传输">
+                      {selected.transport ?? '—'}
+                    </InspectorRow>
+                    <InspectorRow icon="terminal" label="操作" mono>
+                      {selected.operation ?? selected.msg ?? '—'}
+                    </InspectorRow>
+                    <InspectorRow icon="check" label="结果">
+                      <span className={`logs-result is-${resultKind(selected)}`}>
+                        {resultLabel(selected)}
+                      </span>
+                    </InspectorRow>
+                    <InspectorRow icon="timer" label="耗时">
+                      {selected.durationMs === undefined ? '—' : `${selected.durationMs}ms`}
+                    </InspectorRow>
+                    <InspectorRow icon="boxes" label="载荷">
+                      {selected.payloadBytes === undefined
+                        ? '—'
+                        : `${formatBytes(selected.payloadBytes)}${
+                            selected.payloadItems === undefined
+                              ? ''
+                              : ` · ${selected.payloadItems} 项`
+                          }`}
+                    </InspectorRow>
                     {selected.status !== undefined ? (
-                      <Detail label="状态码" value={String(selected.status)} />
+                      <InspectorRow icon="code" label="状态码">
+                        {String(selected.status)}
+                      </InspectorRow>
                     ) : null}
-                    {selected.payloadItems !== undefined ? (
-                      <Detail label="载荷条目" value={`${selected.payloadItems} 项`} />
+                    {selected.errorMessage ? (
+                      <InspectorRow icon="circle-alert" label="错误信息">
+                        {selected.errorMessage}
+                      </InspectorRow>
                     ) : null}
-                  </dl>
-                  <pre className="logs-inspector-raw">{JSON.stringify(selected, null, 2)}</pre>
+                  </div>
+                    <details className="logs-inspector-raw" open>
+                    <summary data-testid="e2e/settings/logs/raw#button">
+                      <AppIcon name="code" />
+                      原始记录
+                    </summary>
+                    <pre>{JSON.stringify(selected, null, 2)}</pre>
+                  </details>
                 </aside>
               ) : null}
             </div>
@@ -272,12 +308,27 @@ export function LogsPage({
   )
 }
 
-function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function InspectorRow({
+  icon,
+  label,
+  iconClass,
+  mono = false,
+  children
+}: {
+  icon: Parameters<typeof AppIcon>[0]['name']
+  label: string
+  iconClass?: string
+  mono?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <>
-      <dt>{label}</dt>
-      <dd className={mono ? 'is-mono' : undefined}>{value}</dd>
-    </>
+    <div className="logs-inspector-row">
+      <span className={`logs-inspector-icon ${iconClass ? `is-${iconClass}` : ''}`}>
+        <AppIcon name={icon} />
+      </span>
+      <span className="logs-inspector-label">{label}</span>
+      <span className={`logs-inspector-value ${mono ? 'is-mono' : ''}`}>{children}</span>
+    </div>
   )
 }
 
@@ -286,6 +337,40 @@ function formatTime(time: number): string {
   const text = date.toLocaleTimeString('zh-CN', { hour12: false })
   const milliseconds = String(date.getMilliseconds()).padStart(3, '0')
   return `${text}.${milliseconds}`
+}
+
+export function resultKind(record: InteractionLogRecord): 'success' | 'warning' | 'failure' {
+  if (record.errorCode || record.outcome === 'error') return 'failure'
+  if (record.outcome === 'ok' || record.outcome === 'success') return 'success'
+  const status = record.status
+  if (status !== undefined) {
+    if (status >= 500) return 'failure'
+    if (status >= 400) return 'warning'
+    if (status < 300) return 'success'
+  }
+  return 'warning'
+}
+
+export function resultLabel(record: InteractionLogRecord): string {
+  const kind = resultKind(record)
+  const label = kind === 'success' ? '成功' : kind === 'failure' ? '失败' : '被拒绝'
+  const detail = record.errorCode ?? record.status
+  return detail === undefined ? label : `${label} · ${detail}`
+}
+
+function resultIcon(
+  record: InteractionLogRecord
+): 'check' | 'circle-alert' | null {
+  const kind = resultKind(record)
+  if (kind === 'success') return 'check'
+  if (kind === 'failure') return 'circle-alert'
+  return 'circle-alert'
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
 function directionLabel(direction: string | undefined): string {
@@ -301,10 +386,16 @@ function directionKind(direction: string | undefined): 'outgoing' | 'incoming' |
   return 'outgoing'
 }
 
-function directionIcon(direction: string | undefined): 'arrow-right' | 'arrow-left' | 'arrow-down-right' {
-  if (direction === 'service->renderer') return 'arrow-left'
-  if (direction === 'service->skill') return 'arrow-down-right'
-  return 'arrow-right'
+function directionIcon(direction: string | undefined): 'upload' | 'download' | 'monitor' {
+  if (direction === 'service->renderer') return 'download'
+  if (direction === 'service->skill') return 'monitor'
+  return 'upload'
+}
+
+function directionShort(direction: string | undefined): string {
+  if (direction === 'service->renderer') return '入站'
+  if (direction === 'service->skill') return '本机'
+  return '出站'
 }
 
 function keyOf(record: InteractionLogRecord): string {
