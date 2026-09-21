@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentRuntimeClient } from './agent-ipc'
 import { createMainContainer, resolveMainServices } from './container'
+import { ModelConnectionService } from './model-connections/model-connection-service'
 import type { RuntimeSupervisor } from './runtime-supervisor'
 import { SkillProviderHost } from './skill-provider-host'
 
@@ -21,6 +22,7 @@ describe('main composition root', () => {
     expect(services.skillProviderHost).toBeInstanceOf(SkillProviderHost)
     expect(services.runtimeSupervisor).toBeNull()
     expect(services.runtimeClient).toBeNull()
+    expect(services.modelConnectionService).toBeNull()
   })
 
   it('binds the local Runtime lifecycle and client without changing Main consumers', () => {
@@ -33,18 +35,25 @@ describe('main composition root', () => {
       subscribeEvents: async () => ({ subscriptionId: 'subscription-1', cursor: 0 })
     } as unknown as AgentRuntimeClient
     const skillProviderHost = new SkillProviderHost()
+    const modelConnectionService = new ModelConnectionService({
+      store: { read: () => [], write: () => undefined },
+      cipher: { isAvailable: () => true, encrypt: (value) => value, decrypt: (value) => value },
+      transport: { request: async () => ({ status: 200, body: {}, text: '' }) }
+    })
 
     const services = resolveMainServices(
       createMainContainer({
         mode: 'local',
         runtimeSupervisor,
         runtimeClient,
-        skillProviderHost
+        skillProviderHost,
+        modelConnectionService
       })
     )
 
     expect(services.runtimeSupervisor).toBe(runtimeSupervisor)
     expect(services.runtimeClient).toBe(runtimeClient)
     expect(services.skillProviderHost).toBe(skillProviderHost)
+    expect(services.modelConnectionService).toBe(modelConnectionService)
   })
 })

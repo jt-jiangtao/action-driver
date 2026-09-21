@@ -10,7 +10,7 @@ describe('SettingsPage model connections', () => {
     render(<SettingsPage service={new MockModelConnectionsService({ delayMs: 0 })} onBack={() => {}} />)
 
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
-    expect(screen.getByText('公司模型网关')).toBeVisible()
+    expect(await screen.findByText('公司模型网关')).toBeVisible()
     expect(screen.getByText('gpt-5.2')).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: '收起公司模型网关' }))
@@ -25,7 +25,7 @@ describe('SettingsPage model connections', () => {
     const deleteSpy = vi.spyOn(service, 'delete')
     render(<SettingsPage service={service} onBack={() => {}} />)
 
-    await user.click(screen.getByRole('button', { name: '公司模型网关的更多操作' }))
+    await user.click(await screen.findByRole('button', { name: '公司模型网关的更多操作' }))
     const menu = screen.getByRole('menu')
     expect(within(menu).getByRole('menuitem', { name: '删除模型集' })).toBeVisible()
     await user.click(within(menu).getByRole('menuitem', { name: '删除模型集' }))
@@ -35,13 +35,13 @@ describe('SettingsPage model connections', () => {
     await user.click(within(confirmation).getByRole('button', { name: '取消' }))
     expect(screen.getByText('公司模型网关')).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: '公司模型网关的更多操作' }))
+    await user.click(await screen.findByRole('button', { name: '公司模型网关的更多操作' }))
     await user.click(screen.getByRole('menuitem', { name: '删除模型集' }))
     await user.click(within(screen.getByRole('dialog', { name: '删除模型集' })).getByRole('button', { name: '确认删除' }))
 
     expect(deleteSpy).toHaveBeenCalledOnce()
     expect(screen.queryByText('公司模型网关')).not.toBeInTheDocument()
-    expect(screen.getByText('Anthropic 生产连接')).toBeVisible()
+    expect(await screen.findByText('Anthropic 生产连接')).toBeVisible()
   })
 
   it('opens and cancels add-model-set from the designed empty state', async () => {
@@ -53,7 +53,7 @@ describe('SettingsPage model connections', () => {
       />
     )
 
-    expect(screen.getByText('还没有模型集')).toBeVisible()
+    expect(await screen.findByText('还没有模型集')).toBeVisible()
     expect(screen.getByText('连接模型服务')).toBeVisible()
     expect(screen.getByRole('button', { name: '添加模型集' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
@@ -64,7 +64,7 @@ describe('SettingsPage model connections', () => {
 
   it('enters the empty state after confirming deletion of the last model set', async () => {
     const user = userEvent.setup()
-    const seed = new MockModelConnectionsService({ delayMs: 0 }).list().slice(0, 1)
+    const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
     render(
       <SettingsPage
         service={new MockModelConnectionsService({ delayMs: 0, seed })}
@@ -72,11 +72,11 @@ describe('SettingsPage model connections', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: '公司模型网关的更多操作' }))
+    await user.click(await screen.findByRole('button', { name: '公司模型网关的更多操作' }))
     await user.click(screen.getByRole('menuitem', { name: '删除模型集' }))
     await user.click(screen.getByRole('button', { name: '确认删除' }))
 
-    expect(screen.getByText('还没有模型集')).toBeVisible()
+    expect(await screen.findByText('还没有模型集')).toBeVisible()
     expect(screen.queryByText('公司模型网关')).not.toBeInTheDocument()
   })
 
@@ -85,6 +85,7 @@ describe('SettingsPage model connections', () => {
     const service = new MockModelConnectionsService({ delayMs: 0 })
     render(<SettingsPage service={service} onBack={() => {}} />)
 
+    await screen.findByText('公司模型网关')
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
     const dialog = screen.getByRole('dialog', { name: '添加模型集' })
     expect(dialog).toHaveAttribute('data-view-state', 'connection-idle')
@@ -129,6 +130,7 @@ describe('SettingsPage model connections', () => {
     const testModelsSpy = vi.spyOn(service, 'testModels')
     render(<SettingsPage service={service} onBack={() => {}} />)
 
+    await screen.findByText('还没有模型集')
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
     const dialog = screen.getByRole('dialog', { name: '添加模型集' })
     await user.type(within(dialog).getByLabelText('名称'), '测试网关')

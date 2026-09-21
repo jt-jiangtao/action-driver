@@ -23,7 +23,7 @@ export type AddModelSetAction =
 
 export const initialAddModelSetState: AddModelSetState = {
   step: 'connection',
-  draft: { name: '', baseUrl: '', apiKey: '' },
+  draft: { name: '', protocol: 'openai-compatible', baseUrl: '', apiKey: '' },
   connectionState: 'idle',
   models: [],
   discovering: false

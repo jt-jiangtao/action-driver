@@ -1,10 +1,16 @@
-import { useReducer, useRef } from 'react'
+import { useReducer, useRef, useState } from 'react'
 import {
   addModelSetReducer,
   getAddModelSetViewState,
   initialAddModelSetState
 } from '../models/add-model-set-state'
-import type { ModelConnectionsService, ModelConnectionDraft } from '../models/model-connections'
+import { MODEL_PROTOCOLS } from '../models/model-connections'
+import type {
+  ModelConnectionsService,
+  ModelConnectionDraft,
+  ModelFailure,
+  ModelProtocol
+} from '../models/model-connections'
 import { ManualModelRow } from './settings/ManualModelRow'
 import { ModelPickerRow } from './settings/ModelPickerRow'
 import { AppIcon } from './ui/AppIcon'
@@ -20,6 +26,7 @@ export function AddModelSetDialog({
   onSaved(): void
 }) {
   const [state, dispatch] = useReducer(addModelSetReducer, initialAddModelSetState)
+  const [failure, setFailure] = useState<ModelFailure | null>(null)
   const operationToken = useRef(0)
   const modelTokens = useRef(new Map<string, number>())
   const pendingModelIds = useRef(new Set<string>())
@@ -29,26 +36,44 @@ export function AddModelSetDialog({
   )
 
   const updateDraft = (key: keyof ModelConnectionDraft, value: string) => {
+    setFailure(null)
     dispatch({ type: 'update-draft', draft: { ...state.draft, [key]: value } })
   }
 
   const testConnection = async () => {
     const token = ++operationToken.current
+    setFailure(null)
     dispatch({ type: 'connection-testing' })
-    const result = await service.testConnection(state.draft)
-    if (operationToken.current === token) dispatch({ type: 'connection-result', ok: result.ok })
+    try {
+      const result = await service.testConnection(state.draft)
+      if (operationToken.current !== token) return
+      dispatch({ type: 'connection-result', ok: result.ok })
+      setFailure(result.ok ? null : result.failure)
+    } catch (error) {
+      if (operationToken.current !== token) return
+      dispatch({ type: 'connection-result', ok: false })
+      setFailure({ code: 'unknown', message: toMessage(error) })
+    }
   }
 
   const enterModelStep = async () => {
+    setFailure(null)
     dispatch({ type: 'enter-models' })
     if (state.models.length > 0) return
     const token = ++operationToken.current
-    const models = await service.discover(state.draft)
-    if (operationToken.current === token) dispatch({ type: 'models-discovered', models })
+    try {
+      const models = await service.discover(state.draft)
+      if (operationToken.current === token) dispatch({ type: 'models-discovered', models })
+    } catch (error) {
+      if (operationToken.current !== token) return
+      dispatch({ type: 'models-discovered', models: [] })
+      setFailure({ code: 'unknown', message: toMessage(error) })
+    }
   }
 
   const testModels = async (modelIds: readonly string[]) => {
     if (modelIds.some((modelId) => pendingModelIds.current.has(modelId))) return
+    setFailure(null)
     const token = ++operationToken.current
     for (const modelId of modelIds) {
       modelTokens.current.set(modelId, token)
@@ -56,9 +81,15 @@ export function AddModelSetDialog({
     }
     dispatch({ type: 'model-testing', modelIds })
     try {
-      const results = await service.testModels([...modelIds])
+      const results = await service.testModels(state.draft, [...modelIds])
       const currentResults = results.filter((result) => modelTokens.current.get(result.modelId) === token)
       if (currentResults.length) dispatch({ type: 'model-result', results: currentResults })
+    } catch (error) {
+      dispatch({
+        type: 'model-result',
+        results: modelIds.map((modelId) => ({ modelId, state: 'failed' as const }))
+      })
+      setFailure({ code: 'unknown', message: toMessage(error) })
     } finally {
       for (const modelId of modelIds) {
         if (modelTokens.current.get(modelId) === token) pendingModelIds.current.delete(modelId)
@@ -115,6 +146,24 @@ export function AddModelSetDialog({
           {state.step === 'connection' ? (
             <div className="connection-form">
               <label>
+                <span>协议</span>
+                <select
+                  aria-label="协议"
+                  className="protocol-select"
+                  data-testid="e2e/settings/add-model-set/protocol#select"
+                  value={state.draft.protocol}
+                  onChange={(event) =>
+                    updateDraft('protocol', event.currentTarget.value as ModelProtocol)
+                  }
+                >
+                  {MODEL_PROTOCOLS.map((protocol) => (
+                    <option key={protocol.id} value={protocol.id}>
+                      {protocol.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 <span>名称</span>
                 <input
                   data-testid="e2e/settings/add-model-set/name#input"
@@ -160,6 +209,11 @@ export function AddModelSetDialog({
                   <span className="connection-test-result is-failed"><AppIcon name="close" />连接失败</span>
                 ) : null}
               </div>
+              {failure && state.connectionState === 'failed' ? (
+                <p className="connection-test-detail" role="alert">
+                  {failure.message}
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="model-picker">
@@ -205,6 +259,11 @@ export function AddModelSetDialog({
                   ))}
                 </div>
               )}
+              {failure && !state.discovering ? (
+                <p className="connection-test-detail" role="alert">
+                  {failure.message}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
@@ -242,10 +301,13 @@ export function AddModelSetDialog({
                 data-testid="e2e/settings/add-model-set/save#button"
                 onClick={async () => {
                   if (savePending.current) return
+                  setFailure(null)
                   savePending.current = true
                   try {
                     await service.add(state.draft, [...state.models])
                     onSaved()
+                  } catch (error) {
+                    setFailure({ code: 'unknown', message: toMessage(error) })
                   } finally { savePending.current = false }
                 }}
                 type="button"
@@ -256,4 +318,8 @@ export function AddModelSetDialog({
       </section>
     </div>
   )
+}
+
+function toMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

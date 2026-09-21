@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AddModelSetDialog } from '../components/AddModelSetDialog'
 import { ModelConnectionCard } from '../components/ModelConnectionCard'
 import { ModelConnectionsEmptyState } from '../components/ModelConnectionsEmptyState'
@@ -14,15 +14,36 @@ export function SettingsPage({
   service: ModelConnectionsService
   onBack(): void
 }) {
-  const [connections, setConnections] = useState<ModelConnection[]>(() => service.list())
-  const [expandedIds, setExpandedIds] = useState(
-    () => new Set(connections.filter((connection) => connection.expanded).map((connection) => connection.id))
-  )
+  const [connections, setConnections] = useState<ModelConnection[]>([])
+  const [expandedIds, setExpandedIds] = useState(() => new Set<string>())
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ModelConnection | null>(null)
 
-  const syncConnections = () => setConnections(service.list())
+  const syncConnections = useCallback(async () => {
+    try {
+      const loaded = await service.list()
+      setConnections(loaded)
+      setExpandedIds((current) => {
+        const next = new Set(current)
+        for (const connection of loaded) {
+          if (connection.expanded) next.add(connection.id)
+        }
+        return next
+      })
+      setLoadError(null)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setLoading(false)
+    }
+  }, [service])
+
+  useEffect(() => {
+    void syncConnections()
+  }, [syncConnections])
 
   return (
     <div className="settings-shell" data-testid="e2e/settings/model-connections/page#page">
@@ -31,11 +52,13 @@ export function SettingsPage({
       <main className="settings-main">
         <div className="settings-content">
           <SettingsPageTitle
-            hasConnections={connections.length > 0}
+            hasConnections={loading || connections.length > 0}
             onAdd={() => setDialogOpen(true)}
           />
 
-          {connections.length === 0 ? (
+          {loading ? (
+            <p className="settings-loading">正在读取模型连接…</p>
+          ) : connections.length === 0 ? (
             <ModelConnectionsEmptyState onAdd={() => setDialogOpen(true)} />
           ) : (
             <div className="model-connection-list">
@@ -62,7 +85,7 @@ export function SettingsPage({
                   }}
                   onRefresh={async () => {
                     await service.refresh(connection.id)
-                    syncConnections()
+                    await syncConnections()
                   }}
                   onTestModel={async (modelId) => {
                     setConnections((current) =>
@@ -80,16 +103,21 @@ export function SettingsPage({
                       )
                     )
                     await service.testConnectionModels(connection.id, [modelId])
-                    syncConnections()
+                    await syncConnections()
                   }}
                   onToggleModel={async (modelId, enabled) => {
                     await service.setModelEnabled(connection.id, modelId, enabled)
-                    syncConnections()
+                    await syncConnections()
                   }}
                 />
               ))}
             </div>
           )}
+          {loadError ? (
+            <p className="settings-error" role="alert">
+              无法读取模型连接：{loadError}
+            </p>
+          ) : null}
         </div>
       </main>
       {dialogOpen ? (
@@ -97,7 +125,7 @@ export function SettingsPage({
           service={service}
           onClose={() => setDialogOpen(false)}
           onSaved={() => {
-            syncConnections()
+            void syncConnections()
             setDialogOpen(false)
           }}
         />
@@ -109,7 +137,7 @@ export function SettingsPage({
           onConfirm={async () => {
             await service.delete(deleteTarget.id)
             setDeleteTarget(null)
-            syncConnections()
+            await syncConnections()
           }}
         />
       ) : null}

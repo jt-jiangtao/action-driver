@@ -25,7 +25,7 @@ describe('createDesktopApi', () => {
     const api = createDesktopApi('darwin', '0.1.0', bridge, () => 'renderer-subscription')
 
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
-    expect(Object.keys(api)).toEqual(['getEnvironment', 'agent'])
+    expect(Object.keys(api)).toEqual(['getEnvironment', 'agent', 'modelConnections'])
     expect(Object.keys(api.agent).sort()).toEqual([
       'continue',
       'controlSkill',
@@ -39,6 +39,17 @@ describe('createDesktopApi', () => {
     expect(api).not.toHaveProperty('messagePort')
     expect(api).not.toHaveProperty('utilityProcess')
     expect(api).not.toHaveProperty('databasePath')
+    expect(Object.keys(api.modelConnections).sort()).toEqual([
+      'add',
+      'delete',
+      'discover',
+      'list',
+      'refresh',
+      'setModelEnabled',
+      'testConnection',
+      'testConnectionModels',
+      'testModels'
+    ])
 
     await api.agent.submit('Book a hotel')
     await api.agent.get('task-1')
@@ -69,6 +80,12 @@ describe('createDesktopApi', () => {
       })
     }
     expect(events).toEqual([{ cursor: 5, taskId: 'task-1' }])
+    const draft = {
+      name: '公司模型网关',
+      protocol: 'openai-compatible' as const,
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-e2e-secret'
+    }
     expect(invocations).toEqual([
       { channel: 'actiondriver:agent:submit', input: { goal: 'Book a hotel' } },
       { channel: 'actiondriver:agent:get', input: { taskId: 'task-1' } },
@@ -90,6 +107,47 @@ describe('createDesktopApi', () => {
           afterCursor: 4
         }
       }
+    ])
+
+    await api.modelConnections.list()
+    await api.modelConnections.testConnection(draft)
+    await api.modelConnections.discover(draft)
+    await api.modelConnections.refresh('company-gateway')
+    await api.modelConnections.testModels(draft, ['qwen3.7-plus'])
+    await api.modelConnections.testConnectionModels('company-gateway', ['qwen3.7-plus'])
+    await api.modelConnections.setModelEnabled('company-gateway', 'qwen3.7-plus', true)
+    await api.modelConnections.add(draft, [
+      { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'success' }
+    ])
+    await api.modelConnections.delete('company-gateway')
+
+    expect(invocations.slice(-9)).toEqual([
+      { channel: 'actiondriver:model-connections:list', input: {} },
+      { channel: 'actiondriver:model-connections:test-connection', input: draft },
+      { channel: 'actiondriver:model-connections:discover', input: draft },
+      { channel: 'actiondriver:model-connections:refresh', input: { connectionId: 'company-gateway' } },
+      {
+        channel: 'actiondriver:model-connections:test-models',
+        input: { draft, modelIds: ['qwen3.7-plus'] }
+      },
+      {
+        channel: 'actiondriver:model-connections:test-connection-models',
+        input: { connectionId: 'company-gateway', modelIds: ['qwen3.7-plus'] }
+      },
+      {
+        channel: 'actiondriver:model-connections:set-model-enabled',
+        input: { connectionId: 'company-gateway', modelId: 'qwen3.7-plus', enabled: true }
+      },
+      {
+        channel: 'actiondriver:model-connections:add',
+        input: {
+          draft,
+          models: [
+            { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'success' }
+          ]
+        }
+      },
+      { channel: 'actiondriver:model-connections:delete', input: { connectionId: 'company-gateway' } }
     ])
   })
 

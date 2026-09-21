@@ -1,5 +1,6 @@
 import type {
   ModelConnection,
+  ModelConnectionTestResult,
   ModelConnectionDraft,
   ModelConnectionsService,
   ModelOption,
@@ -22,16 +23,18 @@ const defaultConnections: ModelConnection[] = [
   {
     id: 'company-gateway',
     name: '公司模型网关',
-    protocol: 'OpenAI 兼容',
+    protocol: 'openai-compatible',
     baseUrl: 'https://api.example.com/v1',
+    apiKeyHint: '••••1234',
     expanded: true,
     models: discoveredModels
   },
   {
     id: 'anthropic-production',
     name: 'Anthropic 生产连接',
-    protocol: 'OpenAI 兼容',
+    protocol: 'anthropic',
     baseUrl: 'https://anthropic.example.com/v1',
+    apiKeyHint: '••••5678',
     expanded: false,
     models: [
       { id: 'claude-opus-4.1', name: 'claude-opus-4.1', enabled: true, testState: 'success' },
@@ -59,13 +62,16 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     this.connections = (options.seed ?? defaultConnections).map(cloneConnection)
   }
 
-  list(): ModelConnection[] {
+  async list(): Promise<ModelConnection[]> {
     return this.connections.map(cloneConnection)
   }
 
-  async testConnection(draft: ModelConnectionDraft): Promise<{ ok: boolean }> {
+  async testConnection(draft: ModelConnectionDraft): Promise<ModelConnectionTestResult> {
     await this.wait()
-    return { ok: Boolean(draft.name.trim() && draft.baseUrl.trim() && draft.apiKey.trim()) }
+    if (!draft.name.trim() || !draft.baseUrl.trim() || !draft.apiKey.trim()) {
+      return { ok: false, failure: { code: 'invalid-request', message: '连接信息不完整' } }
+    }
+    return { ok: true }
   }
 
   async discover(draft: ModelConnectionDraft): Promise<ModelOption[]> {
@@ -85,8 +91,12 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     return cloneModels(connection.models)
   }
 
-  async testModels(modelIds: string[]): Promise<ModelTestResult[]> {
+  async testModels(
+    draft: ModelConnectionDraft,
+    modelIds: string[]
+  ): Promise<ModelTestResult[]> {
     await this.wait()
+    if (!draft.baseUrl.trim()) return []
     return modelIds.map((modelId) => ({
       modelId,
       state:
@@ -100,9 +110,17 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     connectionId: string,
     modelIds: string[]
   ): Promise<ModelTestResult[]> {
-    const results = await this.testModels(modelIds)
-    const resultById = new Map(results.map((result) => [result.modelId, result.state]))
     const connection = this.requireConnection(connectionId)
+    const results = await this.testModels(
+      {
+        name: connection.name,
+        protocol: connection.protocol,
+        baseUrl: connection.baseUrl,
+        apiKey: 'mock-connection-key'
+      },
+      modelIds
+    )
+    const resultById = new Map(results.map((result) => [result.modelId, result.state]))
     connection.models = connection.models.map((model) => {
       const result = resultById.get(model.id)
       return result ? { ...model, testState: result } : model
@@ -133,8 +151,9 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const connection: ModelConnection = {
       id,
       name: draft.name.trim(),
-      protocol: 'OpenAI 兼容',
+      protocol: draft.protocol,
       baseUrl: draft.baseUrl.trim(),
+      apiKeyHint: `••••${draft.apiKey.trim().slice(-4)}`,
       expanded: true,
       models: cloneModels(models)
     }

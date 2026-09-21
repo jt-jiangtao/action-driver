@@ -1,4 +1,5 @@
 import type { ModelConnection } from '../models/model-connections'
+import { modelProtocolLabel } from '../models/model-connections'
 import { useRef, useState } from 'react'
 import { ModelLibrary } from './settings/ModelLibrary'
 import { AppIcon } from './ui/AppIcon'
@@ -61,7 +62,7 @@ export function ModelConnectionCard({
         <div className="connection-copy">
           <strong>{connection.name}</strong>
           <span>
-            {connection.protocol} · {connection.baseUrl}
+            {modelProtocolLabel(connection.protocol)} · {connection.baseUrl} · {connection.apiKeyHint}
           </span>
         </div>
         <span className="connection-counts">

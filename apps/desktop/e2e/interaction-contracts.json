@@ -20,6 +20,14 @@
     "testName": "captures all eight Settings Figma states through public controls"
   },
   {
+    "target": "e2e/settings/add-model-set/protocol#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
     "target": "e2e/settings/add-model-set/api-key#input",
     "route": "settings",
     "type": "input",

@@ -8,17 +8,31 @@ import { SettingsPageTitle } from './SettingsPageTitle'
 import { ManualModelRow } from './ManualModelRow'
 import { ModelPickerRow } from './ModelPickerRow'
 import { ModelConnectionCard } from '../ModelConnectionCard'
+import { ModelStatusPill } from '../ModelStatusPill'
 
 const connection: ModelConnection = {
   id: 'gateway',
   name: '公司模型网关',
-  protocol: 'OpenAI 兼容',
+  protocol: 'openai-compatible',
   baseUrl: 'https://api.example.com/v1',
+  apiKeyHint: '••••test',
   expanded: true,
   models: [{ id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'untested' }]
 }
 
 describe('settings components', () => {
+  it('renders the unsupported-text state distinctly from failures', () => {
+    render(
+      <>
+        <ModelStatusPill state="unsupported" />
+        <ModelStatusPill state="failed" />
+      </>
+    )
+
+    expect(screen.getByText('不支持文本')).toBeVisible()
+    expect(screen.getByText('失败')).toBeVisible()
+  })
+
   it('runs the reusable page title and model library row actions', async () => {
     const user = userEvent.setup()
     const onAdd = vi.fn()
@@ -49,6 +63,7 @@ describe('settings components', () => {
   it('keeps draft, models, and results when the wizard goes back', () => {
     const draft: ModelConnectionDraft = {
       name: '研发网关',
+      protocol: 'openai-compatible',
       baseUrl: 'https://models.example.com/v1',
       apiKey: 'sk-test'
     }

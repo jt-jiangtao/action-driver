@@ -11,6 +11,7 @@ import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
+import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
 import {
   MockBrowserSkillCapability,
@@ -76,7 +77,12 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
   container.bind<SkillGateway>(SERVICE_TYPES.skillGateway).toConstantValue(skillGateway)
   container
     .bind<ModelConnectionsService>(MODEL_CONNECTIONS_SERVICE)
-    .toConstantValue(options.modelConnectionsService ?? new MockModelConnectionsService())
+    .toConstantValue(
+      options.modelConnectionsService ??
+        (options.mode === 'local' && options.desktopApi
+          ? new DesktopModelConnectionsService(options.desktopApi.modelConnections)
+          : new MockModelConnectionsService())
+    )
   container
     .bind<TaskCatalog>(TASK_CATALOG)
     .toConstantValue(options.taskCatalog ?? new MockTaskCatalog())

@@ -586,7 +586,8 @@
 .connection-form > label > span {
   font-weight: 500;
 }
-.connection-form input {
+.connection-form input,
+.connection-form select {
   width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -595,9 +596,26 @@
   border-radius: 8px;
   outline: none;
 }
-.connection-form input:focus {
+.connection-form input:focus,
+.connection-form select:focus {
   border-color: var(--ad-color-action-primary);
   box-shadow: 0 0 0 3px rgb(82 103 247 / 10%);
+}
+.connection-test-detail {
+  margin: 0;
+  padding-left: 96px;
+  color: #c0392b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.settings-loading,
+.settings-error {
+  margin: 12px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+.settings-error {
+  color: #c0392b;
 }
 .connection-test-row {
   display: flex;

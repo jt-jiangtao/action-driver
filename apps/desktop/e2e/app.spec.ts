@@ -160,6 +160,7 @@ test('captures all eight Settings Figma states through public controls', async (
   const page = await launch()
   await page.getByRole('button', { name: '设置' }).click()
   await expect(page.getByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+  await expect(page.getByText('公司模型网关')).toBeVisible()
   await auditRenderedInteractions(page, contracts, [
     'e2e/settings/model-connections/page#page',
     'e2e/settings/sidebar/search#input',

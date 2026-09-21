@@ -1,12 +1,13 @@
 import { AppIcon, type AppIconName } from './AppIcon'
 
-export type ModelTestState = 'untested' | 'testing' | 'success' | 'failed'
+export type ModelTestState = 'untested' | 'testing' | 'success' | 'failed' | 'unsupported'
 
 const statusPresentation: Record<ModelTestState, { icon?: AppIconName; label: string }> = {
   untested: { label: '未测试' },
   testing: { icon: 'loader', label: '测试中' },
   success: { icon: 'check', label: '成功' },
-  failed: { icon: 'circle-alert', label: '失败' }
+  failed: { icon: 'circle-alert', label: '失败' },
+  unsupported: { icon: 'circle-alert', label: '不支持文本' }
 }
 
 export function ModelTestStatus({ state }: { state: ModelTestState }) {

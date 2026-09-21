@@ -5,6 +5,15 @@ import type {
 } from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import type {
+  ModelConnectionDraftDto,
+  ModelConnectionDto,
+  ModelConnectionTestResultDto,
+  ModelIpcResponse,
+  ModelOptionDto,
+  ModelTestResultDto
+} from '../shared/model-ipc-contract'
+import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
+import type {
   AgentAcceptedResult,
   AgentControlSkillResult,
   AgentEventMessage,
@@ -38,10 +47,33 @@ export interface AgentDesktopApi {
 export interface DesktopApi {
   getEnvironment(): { platform: NodeJS.Platform; version: string }
   agent: AgentDesktopApi
+  modelConnections: ModelConnectionsDesktopApi
+}
+
+export interface ModelConnectionsDesktopApi {
+  list(): Promise<ModelConnectionDto[]>
+  testConnection(draft: ModelConnectionDraftDto): Promise<ModelConnectionTestResultDto>
+  discover(draft: ModelConnectionDraftDto): Promise<ModelOptionDto[]>
+  refresh(connectionId: string): Promise<ModelOptionDto[]>
+  testModels(draft: ModelConnectionDraftDto, modelIds: string[]): Promise<ModelTestResultDto[]>
+  testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResultDto[]>
+  setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
+  add(draft: ModelConnectionDraftDto, models: ModelOptionDto[]): Promise<ModelConnectionDto>
+  delete(connectionId: string): Promise<void>
 }
 
 async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
   const response = (await ipc.invoke(channel, input)) as AgentIpcResponse<T>
+  if (!response.ok) return Promise.reject(response.error)
+  return response.value
+}
+
+async function invokeModel<T>(
+  ipc: DesktopIpcBridge,
+  channel: string,
+  input: unknown
+): Promise<T> {
+  const response = (await ipc.invoke(channel, input)) as ModelIpcResponse<T>
   if (!response.ok) return Promise.reject(response.error)
   return response.value
 }
@@ -107,6 +139,37 @@ export function createDesktopApi(
           throw error
         }
         return () => ipc.off(AGENT_IPC_CHANNELS.event, handleEvent)
+      }
+    },
+    modelConnections: {
+      list: () => invokeModel<ModelConnectionDto[]>(ipc, MODEL_IPC_CHANNELS.list, {}),
+      testConnection: (draft) =>
+        invokeModel<ModelConnectionTestResultDto>(ipc, MODEL_IPC_CHANNELS.testConnection, draft),
+      discover: (draft) =>
+        invokeModel<ModelOptionDto[]>(ipc, MODEL_IPC_CHANNELS.discover, draft),
+      refresh: (connectionId) =>
+        invokeModel<ModelOptionDto[]>(ipc, MODEL_IPC_CHANNELS.refresh, { connectionId }),
+      testModels: (draft, modelIds) =>
+        invokeModel<ModelTestResultDto[]>(ipc, MODEL_IPC_CHANNELS.testModels, {
+          draft,
+          modelIds
+        }),
+      testConnectionModels: (connectionId, modelIds) =>
+        invokeModel<ModelTestResultDto[]>(ipc, MODEL_IPC_CHANNELS.testConnectionModels, {
+          connectionId,
+          modelIds
+        }),
+      async setModelEnabled(connectionId, modelId, enabled) {
+        await invokeModel<void>(ipc, MODEL_IPC_CHANNELS.setModelEnabled, {
+          connectionId,
+          modelId,
+          enabled
+        })
+      },
+      add: (draft, models) =>
+        invokeModel<ModelConnectionDto>(ipc, MODEL_IPC_CHANNELS.add, { draft, models }),
+      async delete(connectionId) {
+        await invokeModel<void>(ipc, MODEL_IPC_CHANNELS.delete, { connectionId })
       }
     }
   }

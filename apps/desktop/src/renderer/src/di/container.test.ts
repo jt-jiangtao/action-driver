@@ -8,6 +8,8 @@ import {
 } from '@actiondriver/contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
+import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
+import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
 import {
@@ -34,6 +36,25 @@ function createDesktopApi(): DesktopApi {
         occurredAt: '2026-09-22T00:00:00.000Z'
       }),
       subscribe: async () => () => undefined
+    },
+    modelConnections: {
+      list: async () => [],
+      testConnection: async () => ({ ok: true }),
+      discover: async () => [],
+      refresh: async () => [],
+      testModels: async () => [],
+      testConnectionModels: async () => [],
+      setModelEnabled: async () => undefined,
+      add: async () => ({
+        id: 'model-connection',
+        name: '连接',
+        protocol: 'openai-compatible',
+        baseUrl: 'https://api.example.com/v1',
+        apiKeyHint: '••••test',
+        expanded: true,
+        models: []
+      }),
+      delete: async () => undefined
     }
   }
 }
@@ -122,6 +143,13 @@ describe('renderer composition root', () => {
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
     expect(services.skillGateway).toBeInstanceOf(DesktopSkillGateway)
     expect(services.skillGateway).not.toBeInstanceOf(MockSkillGateway)
+    expect(services.modelConnectionsService).toBeInstanceOf(DesktopModelConnectionsService)
+  })
+
+  it('binds the mock model connection service for fixture and visual runs', () => {
+    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+
+    expect(services.modelConnectionsService).toBeInstanceOf(MockModelConnectionsService)
   })
 
   it('keeps explicit local port overrides replaceable without changing consumers', () => {
