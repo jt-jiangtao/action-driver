@@ -1,5 +1,6 @@
 import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
 import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
+import type { AgentControlSkillInput } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
 
 type AgentIpcEvent = {
@@ -52,6 +53,9 @@ export function registerAgentIpcHandlers(
     asIpcResponse(() =>
       runtimeClient.request('task.provide-input', input as { taskId: string; value: unknown })
     )
+  )
+  ipcMain.handle(AGENT_IPC_CHANNELS.controlSkill, (_event, input) =>
+    asIpcResponse(() => runtimeClient.request('skill.control', input as AgentControlSkillInput))
   )
   ipcMain.handle(AGENT_IPC_CHANNELS.subscribe, (event, rawInput) => {
     const input = rawInput as {

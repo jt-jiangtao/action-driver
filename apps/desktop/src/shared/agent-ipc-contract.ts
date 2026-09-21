@@ -1,4 +1,8 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type {
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
+} from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import type { RuntimeRpcErrorCode } from '@actiondriver/runtime-contracts'
 
@@ -8,6 +12,7 @@ export const AGENT_IPC_CHANNELS = {
   interrupt: 'actiondriver:agent:interrupt',
   continue: 'actiondriver:agent:continue',
   provideInput: 'actiondriver:agent:provide-input',
+  controlSkill: 'actiondriver:agent:control-skill',
   subscribe: 'actiondriver:agent:subscribe',
   event: 'actiondriver:agent:event'
 } as const
@@ -16,6 +21,11 @@ export type AgentSubmitResult = { taskId: string }
 export type AgentGetResult = { task: TaskProjection | null }
 export type AgentAcceptedResult = { accepted: true }
 export type AgentSubscriptionResult = { cursor: number }
+export type AgentControlSkillResult = { event: SkillExecutionEvent }
+export type AgentControlSkillInput = {
+  invocationId: string
+  command: SkillControlCommand
+}
 export type AgentEventMessage = { subscriptionId: string; event: RuntimeEvent }
 export type AgentIpcError = {
   code: RuntimeRpcErrorCode | 'UNKNOWN'

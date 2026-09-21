@@ -1,9 +1,13 @@
-import type { TaskProjection } from '@actiondriver/contracts'
-import { AgentServiceError } from '@actiondriver/contracts'
+import type {
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
+} from '@actiondriver/contracts'
+import { AgentServiceError, SKILL_IDS } from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
-import { DesktopAgentAdapter } from './desktop-agent-adapter'
+import { DesktopAgentAdapter, DesktopSkillGateway } from './desktop-agent-adapter'
 
 const task = (status: TaskProjection['status'] = 'running'): TaskProjection => ({
   id: 'task-1',
@@ -23,6 +27,15 @@ function harness() {
     interrupt: vi.fn(async () => undefined),
     continue: vi.fn(async () => undefined),
     provideInput: vi.fn(async () => undefined),
+    controlSkill: vi.fn(
+      async (invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent> => ({
+        id: `event-${command}`,
+        invocationId,
+        skillId: SKILL_IDS.browser,
+        state: command === 'pause' ? 'paused' : command === 'resume' ? 'running' : 'taken-over',
+        occurredAt: '2026-09-22T00:00:00.000Z'
+      })
+    ),
     subscribe: vi.fn(async (_taskId, _cursor, listener) => {
       eventListener = listener
       return () => {
@@ -32,6 +45,7 @@ function harness() {
   }
   return {
     adapter: new DesktopAgentAdapter(api),
+    skillGateway: new DesktopSkillGateway(api),
     api,
     emit(event: RuntimeEvent) {
       eventListener?.(event)
@@ -80,6 +94,42 @@ describe('DesktopAgentAdapter', () => {
     expect(api.interrupt).toHaveBeenCalledWith('task-1')
     expect(api.continue).toHaveBeenCalledWith('task-1')
     expect(api.provideInput).toHaveBeenCalledWith('task-1', { approved: true })
+  })
+
+  it('controls Skill lifecycle through Preload and publishes the persisted events', async () => {
+    const { api, skillGateway } = harness()
+    const listener = vi.fn()
+    skillGateway.subscribe(listener)
+
+    await expect(skillGateway.pause('browser-invocation')).resolves.toMatchObject({
+      state: 'paused'
+    })
+    await expect(skillGateway.resume('browser-invocation')).resolves.toMatchObject({
+      state: 'running'
+    })
+    await expect(skillGateway.takeOver('browser-invocation')).resolves.toMatchObject({
+      state: 'taken-over'
+    })
+
+    expect(api.controlSkill).toHaveBeenNthCalledWith(1, 'browser-invocation', 'pause')
+    expect(api.controlSkill).toHaveBeenNthCalledWith(2, 'browser-invocation', 'resume')
+    expect(api.controlSkill).toHaveBeenNthCalledWith(3, 'browser-invocation', 'take-over')
+    expect(listener).toHaveBeenCalledTimes(3)
+  })
+
+  it('exposes typed Browser and Computer capabilities without allowing Renderer invocation', async () => {
+    const { skillGateway } = harness()
+
+    expect(skillGateway.getCapability(SKILL_IDS.browser).skillId).toBe(SKILL_IDS.browser)
+    expect(skillGateway.getCapability(SKILL_IDS.computer).skillId).toBe(SKILL_IDS.computer)
+    await expect(
+      skillGateway.invoke({
+        id: 'renderer-invocation',
+        taskId: 'task-1',
+        skillId: SKILL_IDS.browser,
+        input: { action: 'open-url', url: 'https://example.com' }
+      })
+    ).rejects.toMatchObject({ code: 'unavailable' })
   })
 
   it('rejects malformed or non-cloneable task projections before caching them', async () => {

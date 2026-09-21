@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createDesktopApi } from './desktop-api'
 
 describe('createDesktopApi', () => {
-  it('exposes only environment information and the six Agent operations', async () => {
+  it('exposes only environment information and the seven Agent operations', async () => {
     const invocations: Array<{ channel: string; input: unknown }> = []
     const listeners = new Map<string, Set<(event: unknown, payload: unknown) => void>>()
     const bridge = {
@@ -26,12 +26,13 @@ describe('createDesktopApi', () => {
 
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
     expect(Object.keys(api)).toEqual(['getEnvironment', 'agent'])
-    expect(Object.keys(api.agent)).toEqual([
-      'submit',
+    expect(Object.keys(api.agent).sort()).toEqual([
+      'continue',
+      'controlSkill',
       'get',
       'interrupt',
-      'continue',
       'provideInput',
+      'submit',
       'subscribe'
     ])
     expect(api).not.toHaveProperty('ipcRenderer')
@@ -44,6 +45,7 @@ describe('createDesktopApi', () => {
     await api.agent.interrupt('task-1')
     await api.agent.continue('task-1')
     await api.agent.provideInput('task-1', 'confirm')
+    await api.agent.controlSkill('browser-invocation', 'take-over')
 
     const events: unknown[] = []
     const unsubscribe = await api.agent.subscribe('task-1', 4, (event) => events.push(event))
@@ -77,6 +79,10 @@ describe('createDesktopApi', () => {
         input: { taskId: 'task-1', value: 'confirm' }
       },
       {
+        channel: 'actiondriver:agent:control-skill',
+        input: { invocationId: 'browser-invocation', command: 'take-over' }
+      },
+      {
         channel: 'actiondriver:agent:subscribe',
         input: {
           subscriptionId: 'renderer-subscription',
@@ -99,5 +105,22 @@ describe('createDesktopApi', () => {
     })
 
     await expect(api.agent.submit('Book a hotel')).rejects.toEqual(error)
+  })
+
+  it.each([
+    ['', 'pause'],
+    ['browser-invocation', 'cancel']
+  ])('rejects invalid Skill control input before IPC', async (invocationId, command) => {
+    const invoke = vi.fn(() => Promise.resolve({ ok: true, value: {} }))
+    const api = createDesktopApi('darwin', '0.1.0', {
+      invoke,
+      on: () => undefined,
+      off: () => undefined
+    })
+
+    await expect(
+      api.agent.controlSkill(invocationId, command as Parameters<typeof api.agent.controlSkill>[1])
+    ).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
+    expect(invoke).not.toHaveBeenCalled()
   })
 })

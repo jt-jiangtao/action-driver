@@ -6,6 +6,7 @@ import type {
 } from '@actiondriver/contracts'
 import { SERVICE_TYPES, SKILL_IDS } from '@actiondriver/contracts'
 import { Container } from 'inversify'
+import type { DesktopApi } from '../../../preload/desktop-api'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
@@ -16,6 +17,7 @@ import {
   MockComputerUseSkillCapability,
   MockSkillGateway
 } from '../services/mock-skill-capabilities'
+import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -35,27 +37,42 @@ interface RendererOverrides extends Partial<AppServices> {
 
 export interface RendererContainerOptions extends RendererOverrides {
   mode: 'mock' | 'local'
+  desktopApi?: DesktopApi
 }
 
 export function createRendererContainer(options: RendererContainerOptions): Container {
-  if (options.mode === 'local') throw new Error('Local renderer services are not configured')
-
   const container = new Container()
-  const browserCapability = options.browserCapability ?? new MockBrowserSkillCapability()
-  const computerCapability = options.computerCapability ?? new MockComputerUseSkillCapability()
-  const skillGateway =
-    options.skillGateway ??
-    new MockSkillGateway({
-      [SKILL_IDS.browser]: browserCapability,
-      [SKILL_IDS.computer]: computerCapability
-    })
-  const runtime = new MockAgentRuntime(skillGateway)
+  let agentCommandService: AgentCommandService
+  let agentSessionRepository: AgentSessionRepository
+  let skillGateway: SkillGateway
+
+  if (options.mode === 'local') {
+    if (!options.desktopApi) throw new Error('Local renderer services require DesktopApi')
+
+    const agentAdapter = new DesktopAgentAdapter(options.desktopApi.agent)
+    agentCommandService = options.agentCommandService ?? agentAdapter
+    agentSessionRepository = options.agentSessionRepository ?? agentAdapter
+    skillGateway = options.skillGateway ?? new DesktopSkillGateway(options.desktopApi.agent)
+  } else {
+    const browserCapability = options.browserCapability ?? new MockBrowserSkillCapability()
+    const computerCapability = options.computerCapability ?? new MockComputerUseSkillCapability()
+    skillGateway =
+      options.skillGateway ??
+      new MockSkillGateway({
+        [SKILL_IDS.browser]: browserCapability,
+        [SKILL_IDS.computer]: computerCapability
+      })
+    const runtime = new MockAgentRuntime(skillGateway)
+    agentCommandService = options.agentCommandService ?? runtime
+    agentSessionRepository = options.agentSessionRepository ?? runtime
+  }
+
   container
     .bind<AgentCommandService>(SERVICE_TYPES.agentCommandService)
-    .toConstantValue(options.agentCommandService ?? runtime)
+    .toConstantValue(agentCommandService)
   container
     .bind<AgentSessionRepository>(SERVICE_TYPES.agentSessionRepository)
-    .toConstantValue(options.agentSessionRepository ?? runtime)
+    .toConstantValue(agentSessionRepository)
   container.bind<SkillGateway>(SERVICE_TYPES.skillGateway).toConstantValue(skillGateway)
   container
     .bind<ModelConnectionsService>(MODEL_CONNECTIONS_SERVICE)

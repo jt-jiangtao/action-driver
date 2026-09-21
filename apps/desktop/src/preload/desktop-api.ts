@@ -1,7 +1,12 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type {
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
+} from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import type {
   AgentAcceptedResult,
+  AgentControlSkillResult,
   AgentEventMessage,
   AgentGetResult,
   AgentIpcResponse,
@@ -22,6 +27,7 @@ export interface AgentDesktopApi {
   interrupt(taskId: string): Promise<void>
   continue(taskId: string): Promise<void>
   provideInput(taskId: string, value: unknown): Promise<void>
+  controlSkill(invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent>
   subscribe(
     taskId: string,
     afterCursor: number,
@@ -65,6 +71,23 @@ export function createDesktopApi(
           taskId,
           value
         })
+      },
+      async controlSkill(invocationId, command) {
+        if (
+          invocationId.length === 0 ||
+          !(['pause', 'resume', 'take-over'] as const).includes(command)
+        ) {
+          return Promise.reject({
+            code: 'INVALID_MESSAGE',
+            message: 'Skill control requires an invocation id and a supported command'
+          })
+        }
+        const result = await invokeAgent<AgentControlSkillResult>(
+          ipc,
+          AGENT_IPC_CHANNELS.controlSkill,
+          { invocationId, command }
+        )
+        return result.event
       },
       async subscribe(taskId, afterCursor, listener) {
         const subscriptionId = subscriptionIdFactory()

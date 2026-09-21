@@ -17,6 +17,17 @@ function createHarness() {
     if (command === 'task.submit' && input === 'timeout') {
       throw new RuntimeRpcError('DEADLINE_EXCEEDED', 'Runtime request timed out', { timeoutMs: 50 })
     }
+    if (command === 'skill.control') {
+      return {
+        event: {
+          id: 'event-1',
+          invocationId: 'browser-invocation',
+          skillId: 'browser-use',
+          state: 'paused',
+          occurredAt: '2026-09-22T00:00:00.000Z'
+        }
+      }
+    }
     if (command === 'task.submit') return { taskId: 'task-1' }
     if (command === 'task.get') {
       return {
@@ -61,11 +72,12 @@ function createHarness() {
 }
 
 describe('registerAgentIpcHandlers', () => {
-  it('registers only the six explicitly named Agent command handlers', async () => {
+  it('registers only the seven explicitly named Agent command handlers', async () => {
     const { handlers, invoke, request } = createHarness()
 
     expect([...handlers.keys()].sort()).toEqual([
       'actiondriver:agent:continue',
+      'actiondriver:agent:control-skill',
       'actiondriver:agent:get',
       'actiondriver:agent:interrupt',
       'actiondriver:agent:provide-input',
@@ -101,13 +113,23 @@ describe('registerAgentIpcHandlers', () => {
     await expect(
       invoke('actiondriver:agent:provide-input', { taskId: 'task-1', value: 'confirm' })
     ).resolves.toEqual({ ok: true, value: { accepted: true } })
+    await expect(
+      invoke('actiondriver:agent:control-skill', {
+        invocationId: 'browser-invocation',
+        command: 'pause'
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { event: { invocationId: 'browser-invocation', state: 'paused' } }
+    })
 
     expect(request.mock.calls).toEqual([
       ['task.submit', { goal: 'Book a hotel' }],
       ['task.get', { taskId: 'task-1' }],
       ['task.interrupt', { taskId: 'task-1' }],
       ['task.continue', { taskId: 'task-1' }],
-      ['task.provide-input', { taskId: 'task-1', value: 'confirm' }]
+      ['task.provide-input', { taskId: 'task-1', value: 'confirm' }],
+      ['skill.control', { invocationId: 'browser-invocation', command: 'pause' }]
     ])
   })
 

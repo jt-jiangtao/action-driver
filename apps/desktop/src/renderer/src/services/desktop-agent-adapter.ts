@@ -1,6 +1,12 @@
 import type {
   AgentCommandService,
   AgentSessionRepository,
+  SkillCapability,
+  SkillControlCommand,
+  SkillExecutionEvent,
+  SkillGateway,
+  SkillId,
+  SkillInvocation,
   TaskProjection
 } from '@actiondriver/contracts'
 import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
@@ -82,6 +88,66 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   }
 }
 
+export class DesktopSkillGateway implements SkillGateway {
+  private readonly listeners = new Set<(event: SkillExecutionEvent) => void>()
+
+  constructor(private readonly api: AgentDesktopApi) {}
+
+  invoke(invocation: SkillInvocation): Promise<SkillExecutionEvent> {
+    void invocation
+    return Promise.reject(
+      new AgentServiceError(
+        'unavailable',
+        'Renderer cannot invoke Skill providers directly; submit an Agent goal instead'
+      )
+    )
+  }
+
+  pause(invocationId: string): Promise<SkillExecutionEvent> {
+    return this.control(invocationId, 'pause')
+  }
+
+  resume(invocationId: string): Promise<SkillExecutionEvent> {
+    return this.control(invocationId, 'resume')
+  }
+
+  takeOver(invocationId: string): Promise<SkillExecutionEvent> {
+    return this.control(invocationId, 'take-over')
+  }
+
+  getCapability<TSkillId extends SkillId>(skillId: TSkillId): SkillCapability<TSkillId> {
+    return {
+      skillId,
+      invoke: () =>
+        Promise.reject(
+          new AgentServiceError(
+            'unavailable',
+            'Renderer cannot invoke Skill providers directly; submit an Agent goal instead'
+          )
+        ),
+      transition: (invocationId, command) => this.control(invocationId, command)
+    }
+  }
+
+  subscribe(listener: (event: SkillExecutionEvent) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  private async control(
+    invocationId: string,
+    command: SkillControlCommand
+  ): Promise<SkillExecutionEvent> {
+    try {
+      const event = mapSkillEvent(await this.api.controlSkill(invocationId, command))
+      this.listeners.forEach((listener) => listener(structuredClone(event)))
+      return structuredClone(event)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+}
+
 const ERROR_CODE_MAP = {
   HANDSHAKE_REQUIRED: 'unavailable',
   HANDSHAKE_REJECTED: 'incompatible-runtime',
@@ -114,6 +180,28 @@ function mapTaskProjection(value: unknown): TaskProjection {
     throw new AgentServiceError('invalid-response', 'Runtime returned an invalid task projection')
   }
   return structuredClone(value)
+}
+
+function mapSkillEvent(value: unknown): SkillExecutionEvent {
+  if (!isSerializableContract(value) || !isRecord(value)) {
+    throw new AgentServiceError('invalid-response', 'Runtime returned an invalid Skill event')
+  }
+  if (
+    !isString(value.id) ||
+    !isString(value.invocationId) ||
+    !isString(value.skillId) ||
+    !isSkillState(value.state) ||
+    !isString(value.occurredAt)
+  ) {
+    throw new AgentServiceError('invalid-response', 'Runtime returned an invalid Skill event')
+  }
+  return structuredClone({
+    id: value.id,
+    invocationId: value.invocationId,
+    skillId: value.skillId,
+    state: value.state,
+    occurredAt: value.occurredAt
+  })
 }
 
 function isTaskProjection(value: unknown): value is TaskProjection {

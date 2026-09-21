@@ -11,6 +11,22 @@ const baseEnvelopeFields = {
   version: versionSchema
 } as const
 
+const skillControlInputSchema = z.object({
+  invocationId: z.string().min(1),
+  command: z.enum(['pause', 'resume', 'take-over'])
+})
+
+const commandPayloadSchema = z.union([
+  z.object({ command: z.literal('skill.control'), input: skillControlInputSchema }),
+  z.object({
+    command: z
+      .string()
+      .min(1)
+      .refine((command) => command !== 'skill.control'),
+    input: z.unknown()
+  })
+])
+
 export const runtimeErrorSchema = z.object({
   code: z.string().min(1),
   message: z.string().min(1),
@@ -48,7 +64,7 @@ export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
     type: z.literal('command.request'),
     ...baseEnvelopeFields,
     deadlineUnixMs: z.number().int().positive(),
-    payload: z.object({ command: z.string().min(1), input: z.unknown() })
+    payload: commandPayloadSchema
   }),
   z.object({
     type: z.literal('command.response'),

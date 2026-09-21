@@ -27,6 +27,16 @@ const fixtures = [
     payload: { command: 'task.submit', input: { goal: '打开示例页面' } }
   },
   {
+    type: 'command.request',
+    requestId: 'request-skill-control',
+    version: RUNTIME_PROTOCOL_VERSION,
+    deadlineUnixMs: 1_800_000_000_000,
+    payload: {
+      command: 'skill.control',
+      input: { invocationId: 'invocation-1', command: 'take-over' }
+    }
+  },
+  {
     type: 'command.response',
     requestId: 'request-command',
     version: RUNTIME_PROTOCOL_VERSION,
@@ -116,6 +126,24 @@ describe('runtime protocol', () => {
   ])('rejects malformed or incompatible envelopes', (value) => {
     expect(() => parseRuntimeEnvelope(value)).toThrow()
   })
+
+  it.each(['cancel', '', 'TAKE_OVER'])(
+    'rejects unsupported Skill control command %s',
+    (command) => {
+      expect(() =>
+        parseRuntimeEnvelope({
+          type: 'command.request',
+          requestId: 'request-skill-control',
+          version: RUNTIME_PROTOCOL_VERSION,
+          deadlineUnixMs: 1_800_000_000_000,
+          payload: {
+            command: 'skill.control',
+            input: { invocationId: 'invocation-1', command }
+          }
+        })
+      ).toThrow()
+    }
+  )
 
   it.each(fixtures)('keeps $type structured-clone safe', (fixture) => {
     const parsed = parseRuntimeEnvelope(fixture)

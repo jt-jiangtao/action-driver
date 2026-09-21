@@ -1,4 +1,8 @@
-import type { SkillExecutionEvent, TaskProjection } from '@actiondriver/contracts'
+import type {
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
+} from '@actiondriver/contracts'
 
 export const RUNTIME_PROTOCOL_VERSION = { major: 1, minor: 0 } as const
 
@@ -11,6 +15,10 @@ export type RuntimeCommandMap = {
     response: { accepted: true }
   }
   'task.get': { request: { taskId: string }; response: { task: TaskProjection | null } }
+  'skill.control': {
+    request: { invocationId: string; command: SkillControlCommand }
+    response: { event: SkillExecutionEvent }
+  }
 }
 
 export type RuntimeEvent = {
