@@ -10,6 +10,16 @@ const fixtures = [
     payload: { appVersion: '0.1.0', capabilities: ['events.v1'] }
   },
   {
+    type: 'handshake.response',
+    requestId: 'request-handshake',
+    version: RUNTIME_PROTOCOL_VERSION,
+    payload: {
+      ok: true,
+      runtimeVersion: '0.1.0',
+      capabilities: ['events.v1']
+    }
+  },
+  {
     type: 'command.request',
     requestId: 'request-command',
     version: RUNTIME_PROTOCOL_VERSION,
@@ -23,10 +33,32 @@ const fixtures = [
     payload: { ok: true, value: { taskId: 'task-1' } }
   },
   {
+    type: 'event.subscribe',
+    requestId: 'subscription-1',
+    version: RUNTIME_PROTOCOL_VERSION,
+    deadlineUnixMs: 1_800_000_000_000,
+    payload: { taskId: 'task-1', afterCursor: 0 }
+  },
+  {
+    type: 'event.ack',
+    requestId: 'subscription-1',
+    version: RUNTIME_PROTOCOL_VERSION,
+    payload: { ok: true, cursor: 0 }
+  },
+  {
     type: 'event.item',
     requestId: 'subscription-1',
     version: RUNTIME_PROTOCOL_VERSION,
-    payload: { cursor: 1, event: { type: 'task.created', taskId: 'task-1' } }
+    payload: {
+      cursor: 1,
+      event: {
+        cursor: 1,
+        type: 'task.created',
+        taskId: 'task-1',
+        payload: {},
+        occurredAt: '2026-09-20T00:00:00.000Z'
+      }
+    }
   },
   {
     type: 'skill.execute',
@@ -40,6 +72,18 @@ const fixtures = [
       providerVersion: '1.0.0',
       input: { action: 'open-url', url: 'https://example.com' }
     }
+  },
+  {
+    type: 'skill.result',
+    requestId: 'request-skill',
+    version: RUNTIME_PROTOCOL_VERSION,
+    payload: { ok: true, value: { title: 'Example' } }
+  },
+  {
+    type: 'runtime.shutdown',
+    requestId: 'request-shutdown',
+    version: RUNTIME_PROTOCOL_VERSION,
+    payload: {}
   }
 ] as const
 

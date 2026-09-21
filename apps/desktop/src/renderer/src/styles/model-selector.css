@@ -1,0 +1,112 @@
+.model-selector {
+  position: relative;
+  min-width: 0;
+}
+
+.model-selector-trigger,
+.model-connection-item,
+.model-option-item {
+  display: flex;
+  align-items: center;
+  color: var(--ad-color-text-primary);
+  border-radius: 8px;
+}
+
+.model-selector-trigger {
+  max-width: 310px;
+  height: 32px;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--ad-color-bg-selected);
+}
+
+.model-selector-trigger:hover,
+.model-selector-trigger[data-state='open'] {
+  background: #e6eaff;
+}
+
+.model-selector-trigger > span {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-selector-trigger svg {
+  flex: 0 0 16px;
+  color: #5f6670;
+}
+
+.model-selector-trigger > svg:last-child {
+  transform: rotate(180deg);
+  transition: transform var(--ad-motion-fast) var(--ad-ease-standard);
+}
+
+.model-selector-trigger[data-state='open'] > svg:last-child {
+  transform: rotate(0deg);
+}
+
+.model-selector-menu {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 344px;
+  max-height: 264px;
+  padding: 8px;
+  overflow-y: auto;
+  background: var(--ad-color-bg-surface);
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgb(20 24 33 / 16%), 0 2px 8px rgb(20 24 33 / 8%);
+  outline: none;
+}
+
+.model-selector-group + .model-selector-group {
+  margin-top: 4px;
+}
+
+.model-connection-item,
+.model-option-item {
+  width: 100%;
+  height: 36px;
+  text-align: left;
+}
+
+.model-connection-item {
+  gap: 8px;
+  padding: 0 8px;
+  font-weight: 500;
+}
+
+.model-connection-item > span,
+.model-option-item > span {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-connection-item svg,
+.model-option-item svg {
+  flex: 0 0 16px;
+  color: #626975;
+}
+
+.model-option-item {
+  justify-content: space-between;
+  padding: 0 8px 0 40px;
+  color: var(--ad-color-text-secondary);
+}
+
+.model-connection-item:hover,
+.model-option-item:hover,
+.model-option-item[data-active='true'] {
+  background: var(--ad-color-bg-hover);
+}
+
+.model-option-item[aria-selected='true'] {
+  color: var(--ad-color-text-primary);
+  background: var(--ad-color-bg-selected);
+}

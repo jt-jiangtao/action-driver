@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ConversationMessages, TaskHeader } from './Conversation'
+import { AgentResponse } from './agent/AgentResponse'
+import { UserMessage } from './agent/UserMessage'
 import { mockTaskFixture } from '../services/mock-task-fixture'
 
 describe('conversation components', () => {
@@ -19,5 +21,17 @@ describe('conversation components', () => {
     expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toBeVisible()
     expect(screen.getByText(mockTaskFixture.messages[1]!.content)).toBeVisible()
     expect(screen.queryByText('ActionDriver')).not.toBeInTheDocument()
+  })
+
+  it('keeps message roles in dedicated presentational components', () => {
+    render(
+      <>
+        <UserMessage message={mockTaskFixture.messages[0]!} />
+        <AgentResponse message={mockTaskFixture.messages[1]!} />
+      </>
+    )
+
+    expect(screen.getByTestId('user-message')).toHaveTextContent(mockTaskFixture.messages[0]!.content)
+    expect(screen.getByTestId('agent-response')).toHaveTextContent(mockTaskFixture.messages[1]!.content)
   })
 })

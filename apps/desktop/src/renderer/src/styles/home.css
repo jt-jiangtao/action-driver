@@ -1,0 +1,68 @@
+/* Home */
+.home-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  background: var(--ad-color-bg-canvas);
+}
+.home-topbar {
+  display: flex;
+  flex: 0 0 56px;
+  align-items: center;
+  justify-content: flex-end;
+  height: 56px;
+  padding: 0 18px;
+  -webkit-app-region: drag;
+}
+.home-topbar button {
+  -webkit-app-region: no-drag;
+}
+.home-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 210px 0 32px;
+}
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.home-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+}
+.home-copy {
+  text-align: center;
+}
+.home-copy h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 34px;
+  letter-spacing: 0.75px;
+}
+.home-copy p {
+  margin: 19px 0 0;
+  color: var(--ad-color-text-secondary);
+  line-height: 20px;
+}
+.home-spacer,
+.conversation-spacer {
+  flex: 1 1 auto;
+  min-height: 24px;
+}
+.home-body > [data-testid='home-composer'] {
+  width: min(720px, calc(100% - 32px));
+}
+.home-body > [data-testid='home-composer'] .agent-composer {
+  width: 100%;
+}

@@ -11,6 +11,20 @@ const baseEnvelopeFields = {
   version: versionSchema
 } as const
 
+export const runtimeErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  details: z.unknown().optional()
+})
+
+export const runtimeEventSchema = z.object({
+  cursor: z.number().int().nonnegative(),
+  taskId: z.string().min(1),
+  type: z.string().min(1),
+  payload: z.unknown(),
+  occurredAt: z.string().min(1)
+})
+
 export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('handshake.request'),
@@ -18,6 +32,16 @@ export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
     payload: z.object({
       appVersion: z.string().min(1),
       capabilities: z.array(z.string())
+    })
+  }),
+  z.object({
+    type: z.literal('handshake.response'),
+    ...baseEnvelopeFields,
+    payload: z.object({
+      ok: z.boolean(),
+      runtimeVersion: z.string().min(1),
+      capabilities: z.array(z.string()),
+      error: runtimeErrorSchema.optional()
     })
   }),
   z.object({
@@ -32,7 +56,25 @@ export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
     payload: z.object({
       ok: z.boolean(),
       value: z.unknown().optional(),
-      error: z.unknown().optional()
+      error: runtimeErrorSchema.optional()
+    })
+  }),
+  z.object({
+    type: z.literal('event.subscribe'),
+    ...baseEnvelopeFields,
+    deadlineUnixMs: z.number().int().positive(),
+    payload: z.object({
+      taskId: z.string().min(1),
+      afterCursor: z.number().int().nonnegative()
+    })
+  }),
+  z.object({
+    type: z.literal('event.ack'),
+    ...baseEnvelopeFields,
+    payload: z.object({
+      ok: z.boolean(),
+      cursor: z.number().int().nonnegative(),
+      error: runtimeErrorSchema.optional()
     })
   }),
   z.object({
@@ -40,7 +82,7 @@ export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
     ...baseEnvelopeFields,
     payload: z.object({
       cursor: z.number().int().nonnegative(),
-      event: z.unknown()
+      event: runtimeEventSchema
     })
   }),
   z.object({
@@ -54,6 +96,20 @@ export const runtimeEnvelopeSchema = z.discriminatedUnion('type', [
       providerVersion: z.string().min(1),
       input: z.unknown()
     })
+  }),
+  z.object({
+    type: z.literal('skill.result'),
+    ...baseEnvelopeFields,
+    payload: z.object({
+      ok: z.boolean(),
+      value: z.unknown().optional(),
+      error: runtimeErrorSchema.optional()
+    })
+  }),
+  z.object({
+    type: z.literal('runtime.shutdown'),
+    ...baseEnvelopeFields,
+    payload: z.object({})
   })
 ])
 

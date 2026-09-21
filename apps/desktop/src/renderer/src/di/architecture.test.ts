@@ -30,4 +30,16 @@ describe('renderer dependency boundary', () => {
       expect(source).not.toMatch(/new Container\(/)
     }
   })
+
+  it('does not import Runtime transport or expose its private paths and ports', async () => {
+    const rendererRoot = join(import.meta.dirname, '..')
+    const files = await sourceFiles(rendererRoot)
+
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      expect(source).not.toMatch(/@actiondriver\/runtime-contracts/)
+      expect(source).not.toMatch(/runtime-message-port|parent-port-endpoint|MessagePortMain/)
+      expect(source).not.toMatch(/actiondriver\.db|databasePath|runtimeEntryPath/)
+    }
+  })
 })

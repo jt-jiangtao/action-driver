@@ -1,35 +1,19 @@
 import type { AgentMessageProjection } from '@actiondriver/contracts'
-import { Folder, PanelRight } from 'lucide-react'
+import { AgentResponse } from './agent/AgentResponse'
+import { UserMessage } from './agent/UserMessage'
 
-export function TaskHeader({
-  title,
-  browserCollapsed,
-  onExpandBrowser
-}: {
-  title: string
-  browserCollapsed: boolean
-  onExpandBrowser(): void
-}) {
-  return (
-    <header className="task-header">
-      <Folder />
-      <strong>{title}</strong>
-      {browserCollapsed ? (
-        <button className="icon-button" aria-label="展开浏览器" onClick={onExpandBrowser}>
-          <PanelRight />
-        </button>
-      ) : null}
-    </header>
-  )
-}
+export { TaskHeader } from './agent/TaskHeader'
 
 export function ConversationMessages({ messages }: { messages: AgentMessageProjection[] }) {
-  const userMessage = messages.find((message) => message.role === 'user')
-  const agentMessage = messages.find((message) => message.role === 'agent')
   return (
     <>
-      {userMessage ? <div className="user-message">{userMessage.content}</div> : null}
-      {agentMessage ? <p className="agent-message">{agentMessage.content}</p> : null}
+      {messages.map((message) =>
+        message.role === 'user' ? (
+          <UserMessage key={message.id} message={message} />
+        ) : (
+          <AgentResponse key={message.id} message={message} />
+        )
+      )}
     </>
   )
 }

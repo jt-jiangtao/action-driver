@@ -7,6 +7,10 @@ import type {
 import { SERVICE_TYPES, SKILL_IDS } from '@actiondriver/contracts'
 import { Container } from 'inversify'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
+import type { ModelConnectionsService } from '../models/model-connections'
+import type { TaskCatalog } from '../models/task-catalog'
+import { MockModelConnectionsService } from '../services/mock-model-connections'
+import { MockTaskCatalog } from '../services/mock-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
@@ -17,7 +21,12 @@ export interface AppServices {
   agentCommandService: AgentCommandService
   agentSessionRepository: AgentSessionRepository
   skillGateway: SkillGateway
+  modelConnectionsService: ModelConnectionsService
+  taskCatalog: TaskCatalog
 }
+
+const MODEL_CONNECTIONS_SERVICE = Symbol('MODEL_CONNECTIONS_SERVICE')
+const TASK_CATALOG = Symbol('TASK_CATALOG')
 
 interface RendererOverrides extends Partial<AppServices> {
   browserCapability?: SkillCapability<typeof SKILL_IDS.browser>
@@ -48,6 +57,12 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
     .bind<AgentSessionRepository>(SERVICE_TYPES.agentSessionRepository)
     .toConstantValue(options.agentSessionRepository ?? runtime)
   container.bind<SkillGateway>(SERVICE_TYPES.skillGateway).toConstantValue(skillGateway)
+  container
+    .bind<ModelConnectionsService>(MODEL_CONNECTIONS_SERVICE)
+    .toConstantValue(options.modelConnectionsService ?? new MockModelConnectionsService())
+  container
+    .bind<TaskCatalog>(TASK_CATALOG)
+    .toConstantValue(options.taskCatalog ?? new MockTaskCatalog())
   return container
 }
 
@@ -55,6 +70,8 @@ export function resolveAppServices(container: Container): AppServices {
   return {
     agentCommandService: container.get(SERVICE_TYPES.agentCommandService),
     agentSessionRepository: container.get(SERVICE_TYPES.agentSessionRepository),
-    skillGateway: container.get(SERVICE_TYPES.skillGateway)
+    skillGateway: container.get(SERVICE_TYPES.skillGateway),
+    modelConnectionsService: container.get(MODEL_CONNECTIONS_SERVICE),
+    taskCatalog: container.get(TASK_CATALOG)
   }
 }

@@ -1,30 +1,30 @@
-import { Blocks, LoaderCircle, PanelLeft, Plus, Search, WandSparkles } from 'lucide-react'
 import { ActionDriverLogo } from './ActionDriverLogo'
-
-const recentTasks = [
-  '预订周末去杭州的酒店',
-  '整理产品研究资料',
-  '比较三款显示器',
-  '更新旅行清单',
-  '汇总本周会议记录'
-]
+import type { RecentTaskSummary } from '../models/task-catalog'
+import { IconButton } from './ui/IconButton'
+import { RecentTaskItem } from './navigation/RecentTaskItem'
+import { SettingsNavEntry } from './navigation/SettingsNavEntry'
+import { SidebarEntry } from './navigation/SidebarEntry'
 
 export function Sidebar({
   active,
+  activeTaskId,
+  recentTasks,
   onNewTask,
-  onOpenTask
+  onOpenTask,
+  onOpenSettings
 }: {
   active: 'new' | 'task'
+  activeTaskId: string | null
+  recentTasks: readonly RecentTaskSummary[]
   onNewTask(): void
   onOpenTask?(taskId: string): void
+  onOpenSettings?(): void
 }) {
   return (
     <aside className="sidebar" data-testid="sidebar" data-width="248">
       <div className="sidebar-window-row">
         <span className="traffic-light-spacer" aria-hidden="true" />
-        <button className="icon-button sidebar-collapse" aria-label="折叠侧栏">
-          <PanelLeft />
-        </button>
+        <IconButton className="sidebar-collapse" icon="panel-left" aria-label="折叠侧栏" />
       </div>
 
       <div className="sidebar-brand-row">
@@ -32,46 +32,31 @@ export function Sidebar({
           <ActionDriverLogo size={18} />
         </span>
         <strong>ActionDriver</strong>
-        <button className="icon-button sidebar-search" aria-label="搜索">
-          <Search />
-        </button>
+        <IconButton className="sidebar-search" icon="search" aria-label="搜索" />
       </div>
 
       <nav className="sidebar-primary-nav" aria-label="主导航">
-        <button
-          className={`sidebar-nav-item ${active === 'new' ? 'is-active' : ''}`}
-          onClick={onNewTask}
-        >
-          <Plus />
-          <span>新任务</span>
-        </button>
-        <button className="sidebar-nav-item" type="button">
-          <WandSparkles />
-          <span>Skills</span>
-        </button>
-        <button className="sidebar-nav-item" type="button">
-          <Blocks />
-          <span>MCP</span>
-        </button>
+        <SidebarEntry icon="plus" label="新任务" onClick={onNewTask} selected={active === 'new'} />
+        <SidebarEntry icon="skill" label="Skills" />
+        <SidebarEntry icon="mcp" label="MCP" />
       </nav>
 
       <section className="sidebar-recents" aria-labelledby="recent-tasks-title">
         <h2 id="recent-tasks-title">最近任务</h2>
         <div className="recent-task-list">
-          {recentTasks.map((task, index) => (
-            <button
-              className={`recent-task ${active === 'task' && index === 0 ? 'is-active' : ''}`}
-              key={task}
-              onClick={() => {
-                if (index === 0) onOpenTask?.('hotel-task')
-              }}
-            >
-              <span>{task}</span>
-              {index === 0 ? <LoaderCircle aria-label="加载中" className="loading-icon" /> : null}
-            </button>
+          {recentTasks.map((task) => (
+            <RecentTaskItem
+              active={active === 'task' && activeTaskId === task.id}
+              key={task.id}
+              onOpen={(taskId) => onOpenTask?.(taskId)}
+              task={task}
+            />
           ))}
         </div>
       </section>
+      <div className="sidebar-footer">
+        <SettingsNavEntry {...(onOpenSettings ? { onClick: onOpenSettings } : {})} />
+      </div>
     </aside>
   )
 }

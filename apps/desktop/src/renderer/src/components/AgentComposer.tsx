@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { ArrowUp, Plus, Square } from 'lucide-react'
 import { createEditor, Node, type Descendant } from 'slate'
 import { Editable, Slate, withReact } from 'slate-react'
+import type { ModelSelectionProjection } from '../models/model-selection'
+import { ModelSelector } from './model-selector/ModelSelector'
 
 type Paragraph = { type: 'paragraph'; children: { text: string }[] }
 
@@ -12,6 +14,9 @@ export function AgentComposer({
   onSubmit,
   onInterrupt,
   onAdd,
+  modelSelection,
+  onSelectModel,
+  menuCloseKey,
   width = 720
 }: {
   initialText?: string
@@ -20,6 +25,9 @@ export function AgentComposer({
   onSubmit(text: string): void
   onInterrupt?(): void
   onAdd?(): void
+  modelSelection?: ModelSelectionProjection
+  onSelectModel?(modelId: string): void
+  menuCloseKey?: string
   width?: 480 | 720
 }) {
   const editor = useMemo(() => withReact(createEditor()), [])
@@ -37,7 +45,7 @@ export function AgentComposer({
   }
 
   return (
-    <div className="agent-composer" data-width={width} style={{ width }}>
+    <div className="agent-composer" data-width={width}>
       <Slate
         editor={editor}
         initialValue={initialValue}
@@ -65,14 +73,23 @@ export function AgentComposer({
         />
       </Slate>
       <div className="composer-actions">
-        <button
-          className="composer-add icon-button"
-          aria-label="添加"
-          type="button"
-          onClick={onAdd}
-        >
-          <Plus />
-        </button>
+        <div className="composer-leading-actions">
+          <button
+            className="composer-add icon-button"
+            aria-label="添加"
+            type="button"
+            onClick={onAdd}
+          >
+            <Plus />
+          </button>
+          {modelSelection && onSelectModel ? (
+            <ModelSelector
+              projection={modelSelection}
+              onSelect={onSelectModel}
+              {...(menuCloseKey ? { closeKey: menuCloseKey } : {})}
+            />
+          ) : null}
+        </div>
         {running ? (
           <button
             className="composer-submit composer-stop"

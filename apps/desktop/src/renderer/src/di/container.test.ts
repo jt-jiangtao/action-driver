@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SKILL_IDS, type SkillCapability } from '@actiondriver/contracts'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
+import { MockTaskCatalog } from '../services/mock-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
@@ -16,10 +17,13 @@ describe('renderer composition root', () => {
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
     expect(services.skillGateway).toBeInstanceOf(MockSkillGateway)
     expect(services.skillGateway).not.toBe(services.agentCommandService)
+    expect(services.taskCatalog).toBeInstanceOf(MockTaskCatalog)
     expect(Object.keys(services).sort()).toEqual([
       'agentCommandService',
       'agentSessionRepository',
-      'skillGateway'
+      'modelConnectionsService',
+      'skillGateway',
+      'taskCatalog'
     ])
   })
 
@@ -37,7 +41,9 @@ describe('renderer composition root', () => {
     expect(Object.keys(services)).toEqual([
       'agentCommandService',
       'agentSessionRepository',
-      'skillGateway'
+      'skillGateway',
+      'modelConnectionsService',
+      'taskCatalog'
     ])
   })
 

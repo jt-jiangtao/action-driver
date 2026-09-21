@@ -1,8 +1,17 @@
 import { PanelRight } from 'lucide-react'
 import { ActionDriverLogo } from '../components/ActionDriverLogo'
 import { AgentComposer } from '../components/AgentComposer'
+import type { ModelSelectionProjection } from '../models/model-selection'
 
-export function HomePage({ onSubmit }: { onSubmit(goal: string): void }) {
+export function HomePage({
+  modelSelection,
+  onSelectModel,
+  onSubmit
+}: {
+  modelSelection: ModelSelectionProjection
+  onSelectModel(modelId: string): void
+  onSubmit(goal: string): void
+}) {
   return (
     <main className="home-page">
       <header className="home-topbar">
@@ -22,7 +31,12 @@ export function HomePage({ onSubmit }: { onSubmit(goal: string): void }) {
         </section>
         <div className="home-spacer" />
         <div data-testid="home-composer" data-width="720">
-          <AgentComposer onSubmit={onSubmit} width={720} />
+          <AgentComposer
+            modelSelection={modelSelection}
+            onSelectModel={onSelectModel}
+            onSubmit={onSubmit}
+            width={720}
+          />
         </div>
       </div>
     </main>

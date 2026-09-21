@@ -4,10 +4,13 @@ import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ExecutionTimeline } from '../components/ExecutionTimeline'
+import type { ModelSelectionProjection } from '../models/model-selection'
 
 export function TaskPage({
   mode,
   task,
+  modelSelection,
+  onSelectModel,
   onModeChange,
   onPause,
   onResume,
@@ -16,6 +19,8 @@ export function TaskPage({
 }: {
   mode: TaskLayoutMode
   task: TaskProjection
+  modelSelection: ModelSelectionProjection
+  onSelectModel(modelId: string): void
   onModeChange(mode: TaskLayoutMode): void
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
@@ -31,39 +36,37 @@ export function TaskPage({
         className={`agent-panel ${agentWidth === 0 ? 'is-hidden' : ''}`}
         data-testid="agent-panel"
         data-width={agentWidth}
-        style={{ width: agentWidth }}
       >
-        {agentWidth > 0 ? (
-          <>
-            <TaskHeader
-              title={task.title}
-              browserCollapsed={mode === 'browser-collapsed'}
-              onExpandBrowser={() => onModeChange('split')}
-            />
-            <div className="conversation-body">
-              <div className="conversation-stream" style={{ width: flowWidth }}>
-                <ConversationMessages messages={task.messages} />
-                <ExecutionTimeline steps={task.steps} />
-              </div>
-              <div className="conversation-spacer" />
-              <AgentComposer
-                running={task.status === 'running'}
-                disabled={task.status !== 'running'}
-                onSubmit={() => undefined}
-                onInterrupt={onInterrupt}
-                width={flowWidth}
-              />
-            </div>
-          </>
-        ) : null}
+        <TaskHeader
+          title={task.title}
+          browserCollapsed={mode === 'browser-collapsed'}
+          onExpandBrowser={() => onModeChange('split')}
+        />
+        <div className="conversation-body">
+          <div className="conversation-stream" data-width={flowWidth}>
+            <ConversationMessages messages={task.messages} />
+            <ExecutionTimeline steps={task.steps} />
+          </div>
+          <div className="conversation-spacer" />
+          <AgentComposer
+            key={task.id}
+            running={task.status === 'running'}
+            disabled={task.status !== 'running'}
+            menuCloseKey={mode}
+            modelSelection={modelSelection}
+            onSelectModel={onSelectModel}
+            onSubmit={() => undefined}
+            onInterrupt={onInterrupt}
+            width={flowWidth}
+          />
+        </div>
       </section>
       <section
         className={`browser-panel-slot ${browserWidth === 0 ? 'is-hidden' : ''}`}
         data-testid="browser-panel-slot"
         data-width={browserWidth}
-        style={{ width: browserWidth }}
       >
-        {browserWidth > 0 && task.browser ? (
+        {task.browser ? (
           <BrowserPanel
             mode={mode === 'browser-expanded' ? 'browser-expanded' : 'split'}
             projection={task.browser}

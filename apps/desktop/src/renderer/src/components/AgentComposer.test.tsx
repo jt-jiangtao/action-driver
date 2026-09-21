@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AgentComposer } from './AgentComposer'
+import { defaultModelSelection } from '../models/model-selection'
 
 describe('AgentComposer', () => {
   it('uses the plus and send actions and submits Slate text', async () => {
@@ -42,5 +43,24 @@ describe('AgentComposer', () => {
     expect(editor).toHaveAttribute('contenteditable', 'false')
     await user.click(screen.getByLabelText('发送'))
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('selects a model without clearing the Slate draft', async () => {
+    const user = userEvent.setup()
+    const onSelectModel = vi.fn()
+    render(
+      <AgentComposer
+        initialText="保留这段文字"
+        modelSelection={defaultModelSelection}
+        onSelectModel={onSelectModel}
+        onSubmit={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /当前模型/ }))
+    await user.click(screen.getByRole('option', { name: 'gpt-4.1' }))
+
+    expect(onSelectModel).toHaveBeenCalledWith('gpt-4.1')
+    expect(screen.getByLabelText('任务描述')).toHaveTextContent('保留这段文字')
   })
 })

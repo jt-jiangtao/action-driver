@@ -1,0 +1,182 @@
+import { utilityProcess } from 'electron'
+
+export type RuntimeSupervisorState =
+  | 'stopped'
+  | 'starting'
+  | 'ready'
+  | 'degraded'
+  | 'stopping'
+  | 'failed'
+
+export interface RuntimeProcess {
+  postMessage(message: unknown): void
+  kill(): void
+  on(
+    event: 'message' | 'exit',
+    listener: ((message: unknown) => void) | ((code: number | null) => void)
+  ): void
+}
+
+export interface RuntimeProcessFactory {
+  fork(entryPath: string): RuntimeProcess
+}
+
+export type RuntimeSupervisorOptions = {
+  maxRestarts?: number
+  restartWindowMs?: number
+  shutdownTimeoutMs?: number
+  now?: () => number
+}
+
+export class RuntimeSupervisor {
+  private currentProcess: RuntimeProcess | null = null
+  private readyPromise: Promise<void> | null = null
+  private resolveReady: (() => void) | null = null
+  private rejectReady: ((error: Error) => void) | null = null
+  private stopPromise: Promise<void> | null = null
+  private resolveStop: (() => void) | null = null
+  private shutdownTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly restartTimestamps: number[] = []
+  private readonly maxRestarts: number
+  private readonly restartWindowMs: number
+  private readonly shutdownTimeoutMs: number
+  private readonly now: () => number
+
+  state: RuntimeSupervisorState = 'stopped'
+
+  constructor(
+    private readonly processFactory: RuntimeProcessFactory,
+    private readonly entryPath: string,
+    options: RuntimeSupervisorOptions = {}
+  ) {
+    this.maxRestarts = options.maxRestarts ?? 3
+    this.restartWindowMs = options.restartWindowMs ?? 60_000
+    this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000
+    this.now = options.now ?? Date.now
+  }
+
+  start(): Promise<void> {
+    if (this.state === 'ready') return Promise.resolve()
+    if (this.state === 'starting' && this.readyPromise) return this.readyPromise
+    if (this.state === 'stopping') return Promise.reject(new Error('Runtime is stopping'))
+    if (this.state === 'failed')
+      return Promise.reject(new Error('Runtime restart budget exhausted'))
+    return this.spawn()
+  }
+
+  stop(): Promise<void> {
+    if (this.state === 'stopped') return Promise.resolve()
+    if (this.state === 'stopping' && this.stopPromise) return this.stopPromise
+
+    this.state = 'stopping'
+    this.stopPromise = new Promise<void>((resolve) => {
+      this.resolveStop = resolve
+    })
+    const process = this.currentProcess
+    if (!process) {
+      this.finishStop()
+      return this.stopPromise
+    }
+
+    process.postMessage({ type: 'runtime.shutdown' })
+    this.shutdownTimer = setTimeout(() => {
+      if (this.currentProcess !== process || this.state !== 'stopping') return
+      process.kill()
+      if (this.currentProcess === process) {
+        this.currentProcess = null
+        this.finishStop()
+      }
+    }, this.shutdownTimeoutMs)
+    return this.stopPromise
+  }
+
+  private spawn(preservePendingStart = false): Promise<void> {
+    this.state = 'starting'
+    if (!preservePendingStart || !this.readyPromise) {
+      this.readyPromise = new Promise<void>((resolve, reject) => {
+        this.resolveReady = resolve
+        this.rejectReady = reject
+      })
+    }
+    const process = this.processFactory.fork(this.entryPath)
+    this.currentProcess = process
+    process.on('message', (message: unknown) => this.handleMessage(process, message))
+    process.on('exit', (code: number | null) => this.handleExit(process, code))
+    return this.readyPromise
+  }
+
+  private handleMessage(process: RuntimeProcess, message: unknown): void {
+    if (this.currentProcess !== process) return
+    if (
+      typeof message === 'object' &&
+      message !== null &&
+      'type' in message &&
+      message.type === 'runtime.ready'
+    ) {
+      this.state = 'ready'
+      this.resolveReady?.()
+      this.resolveReady = null
+      this.rejectReady = null
+    }
+  }
+
+  private handleExit(process: RuntimeProcess, code: number | null): void {
+    if (this.currentProcess !== process) return
+    const preservePendingStart = this.state === 'starting'
+    this.currentProcess = null
+
+    if (this.state === 'stopping') {
+      this.finishStop()
+      return
+    }
+
+    const now = this.now()
+    while (
+      this.restartTimestamps.length > 0 &&
+      now - this.restartTimestamps[0]! >= this.restartWindowMs
+    ) {
+      this.restartTimestamps.shift()
+    }
+    if (this.restartTimestamps.length >= this.maxRestarts) {
+      this.state = 'failed'
+      this.rejectReady?.(new Error(`Runtime exited with code ${String(code)}`))
+      return
+    }
+
+    this.state = 'degraded'
+    this.restartTimestamps.push(now)
+    void this.spawn(preservePendingStart)
+  }
+
+  private finishStop(): void {
+    if (this.shutdownTimer) clearTimeout(this.shutdownTimer)
+    this.shutdownTimer = null
+    this.currentProcess = null
+    this.state = 'stopped'
+    this.resolveStop?.()
+    this.resolveStop = null
+  }
+}
+
+export function createElectronRuntimeProcessFactory(): RuntimeProcessFactory {
+  return {
+    fork(entryPath) {
+      const child = utilityProcess.fork(entryPath)
+      return {
+        postMessage(message) {
+          child.postMessage(message)
+        },
+        kill() {
+          child.kill()
+        },
+        on(event, listener) {
+          if (event === 'message') {
+            child.on('message', listener as (message: unknown) => void)
+          } else {
+            child.on('exit', listener as (code: number) => void)
+          }
+        }
+      }
+    }
+  }
+}

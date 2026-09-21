@@ -1,0 +1,27 @@
+export const AGENT_RUNTIME_VERSION = '0.1.0'
+
+export interface AgentRuntimeBuildInfo {
+  name: '@actiondriver/agent-runtime'
+  version: string
+}
+
+export function getAgentRuntimeBuildInfo(): AgentRuntimeBuildInfo {
+  return {
+    name: '@actiondriver/agent-runtime',
+    version: AGENT_RUNTIME_VERSION
+  }
+}
+
+export * from './composition-root'
+export * from './agent-graph'
+export * from './database'
+export * from './mock-adapters'
+export * from './parent-port-endpoint'
+export * from './persistence-guard'
+export * from './ports'
+export * from './projection-service'
+export * from './repositories'
+export * from './sqlite-checkpointer'
+export * from './skill-registry'
+export * from './skill-invocation-service'
+export * from './skill-invocation-state-machine'

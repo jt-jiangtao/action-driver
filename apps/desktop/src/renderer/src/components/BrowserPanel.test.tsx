@@ -2,9 +2,42 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { BrowserPanel } from './BrowserPanel'
+import { BrowserSizeToggle } from './browser/BrowserSizeToggle'
+import { BrowserSkillControls } from './browser/BrowserSkillControls'
 import { mockTaskFixture } from '../services/mock-task-fixture'
 
 describe('BrowserPanel', () => {
+  it('exposes maximize and restore through the size toggle component', async () => {
+    const user = userEvent.setup()
+    const onModeChange = vi.fn()
+    const { rerender } = render(<BrowserSizeToggle expanded={false} onModeChange={onModeChange} />)
+
+    await user.click(screen.getByRole('button', { name: '放大浏览器' }))
+    expect(onModeChange).toHaveBeenCalledWith('browser-expanded')
+
+    rerender(<BrowserSizeToggle expanded onModeChange={onModeChange} />)
+    await user.click(screen.getByRole('button', { name: '缩小浏览器' }))
+    expect(onModeChange).toHaveBeenCalledWith('split')
+  })
+
+  it('locks the extracted floating controls while a command is pending', async () => {
+    const user = userEvent.setup()
+    let finish: (() => void) | undefined
+    const onPause = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    render(
+      <BrowserSkillControls
+        status="running"
+        onPause={onPause}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+      />
+    )
+
+    await user.dblClick(screen.getByRole('button', { name: '暂停' }))
+    expect(onPause).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Browser Skill 控制')).toHaveAttribute('aria-busy', 'true')
+    finish?.()
+  })
   it('renders the static raster, target highlight, and running controls', () => {
     render(
       <BrowserPanel
