@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import ts from 'typescript'
+import { validateContracts } from './contracts.mjs'
 
 export const E2E_TEST_ID_PATTERN =
   /^e2e\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/(?:[a-z0-9]+(?:-[a-z0-9]+)*|:[a-z][a-z0-9-]*)){2,}#(?:button|link|input|checkbox|radio|option|menuitem|tab|page|section|nav|dialog|status|select|textarea|switch)$/
@@ -97,7 +98,7 @@ function location(source, node, projectRoot) {
   }
 }
 
-export function validateInteractionSources({ files, projectRoot = process.cwd() }) {
+export function validateInteractionSources({ files, projectRoot = process.cwd(), contracts }) {
   const errors = []
   const interactions = []
   const staticIds = new Map()
@@ -150,6 +151,10 @@ export function validateInteractionSources({ files, projectRoot = process.cwd() 
     }
 
     visit(source)
+  }
+
+  if (contracts !== undefined) {
+    errors.push(...validateContracts(contracts, { projectRoot, interactions }).errors)
   }
 
   return { errors, interactions }

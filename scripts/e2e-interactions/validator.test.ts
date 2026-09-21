@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { e2eId } from '../../apps/desktop/src/renderer/src/testing/e2e-id'
+import { validateContracts } from './contracts.mjs'
 import { validateInteractionSources } from './validator.mjs'
 
 const fixtureRoot = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -66,5 +67,59 @@ describe('validateInteractionSources', () => {
     const result = validateInteractionSources({ files: [fixture('duplicates.tsx')] })
     expect(result.errors).toContainEqual(expect.objectContaining({ code: 'duplicate-test-id' }))
     expect(result.errors).toHaveLength(1)
+  })
+
+  it('rejects an interaction missing from the contract manifest', () => {
+    const result = validateInteractionSources({
+      files: [fixture('unregistered.tsx')],
+      contracts: []
+    })
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: 'unregistered-interaction' })
+    )
+  })
+
+  it('accepts a registered dynamic pattern', () => {
+    const result = validateInteractionSources({
+      files: [fixture('valid.tsx')],
+      contracts: [
+        contract('e2e/home/composer/send#button'),
+        contract('e2e/shared/sidebar/tasks/:task-id#button')
+      ]
+    })
+    expect(result.errors).toEqual([])
+  })
+})
+
+const contract = (target: string, overrides: Record<string, unknown> = {}) => {
+  const [, route, ...rest] = target.split('/')
+  const type = target.slice(target.lastIndexOf('#') + 1)
+  return { target, route, type, coverage: 'visual-only', ...overrides }
+}
+
+describe('validateContracts', () => {
+  it('requires functional contracts to reference a real named test', () => {
+    const result = validateContracts([
+      contract('e2e/home/composer/send#button', { coverage: 'functional' })
+    ])
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: 'missing-test-reference' })
+    )
+  })
+
+  it('rejects duplicate targets and route/type mismatches', () => {
+    const entry = contract('e2e/home/composer/send#button')
+    const result = validateContracts([entry, entry, { ...entry, target: 'e2e/task/agent/send#button' }])
+    expect(result.errors.map((error) => error.code)).toEqual(
+      expect.arrayContaining(['duplicate-contract', 'contract-route-mismatch'])
+    )
+  })
+
+  it('rejects stale contracts that have no source interaction', () => {
+    const result = validateInteractionSources({
+      files: [fixture('unregistered.tsx')],
+      contracts: [contract('e2e/home/other/action#button')]
+    })
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: 'stale-contract' }))
   })
 })

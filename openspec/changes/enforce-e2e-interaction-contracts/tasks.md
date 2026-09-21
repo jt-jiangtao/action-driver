@@ -7,7 +7,7 @@
 
 ## 2. 交互契约与全量迁移
 
-- [ ] 2.1 建立交互契约清单及其 schema 校验，要求 ID/动态模式、route、type、`functional`/`visual-only` 和测试引用完整，并用失败测试验证重复、失效文件与缺失字段会被拒绝
+- [x] 2.1 建立交互契约清单及其 schema 校验，要求 ID/动态模式、route、type、`functional`/`visual-only` 和测试引用完整，并用失败测试验证重复、失效文件与缺失字段会被拒绝
 - [ ] 2.2 迁移 Shared 与 Home 的全部交互元素及既有非交互测试 ID，使用 `e2e/shared/...`、`e2e/home/...` 命名，并运行 AST 校验确认没有遗漏
 - [ ] 2.3 迁移 Task 的 Agent、模型选择器、Browser 面板和最近任务动态条目，使用稳定 task/model/connection ID 构造动态测试 ID，并运行 AST 校验与现有组件测试
 - [ ] 2.4 迁移 Settings 列表、菜单、删除确认和添加模型集两步流程的全部交互元素，覆盖弹窗各状态并运行 AST 校验与设置页测试
