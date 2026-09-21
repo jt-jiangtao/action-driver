@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:pino --external:pino-pretty",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -17,11 +17,13 @@
     "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
     "better-sqlite3": "12.11.1",
     "inversify": "8.2.3",
+    "pino": "9.5.0",
     "reflect-metadata": "0.2.2",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "pino-pretty": "13.0.0"
   }
 }

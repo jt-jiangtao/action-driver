@@ -13,6 +13,7 @@ import {
 } from '@actiondriver/model-connections'
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import type { Logger } from 'pino'
 
 export const SERVICE_PROTOCOL_VERSION = 1
 
@@ -32,6 +33,7 @@ export type ServiceHttpOptions = {
   service: ServiceModelConnectionPort
   token: string
   runtimeVersion: string
+  logger?: Logger
   host?: string
   port?: number
   bodyLimitBytes?: number
@@ -57,8 +59,9 @@ export async function startServiceHttpServer(
   const host = options.host ?? '127.0.0.1'
   const bodyLimit = options.bodyLimitBytes ?? DEFAULT_BODY_LIMIT
   const tokenDigest = createHash('sha256').update(options.token).digest()
+  const logger = options.logger ?? null
   const server = createServer((request, response) => {
-    void handleRequest(request, response, options, tokenDigest, bodyLimit)
+    void handleRequest(request, response, options, tokenDigest, bodyLimit, logger)
   })
 
   await new Promise<void>((resolve, reject) => {
@@ -87,28 +90,36 @@ async function handleRequest(
   response: ServerResponse,
   options: ServiceHttpOptions,
   tokenDigest: Buffer,
-  bodyLimit: number
+  bodyLimit: number,
+  logger: Logger | null
 ): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://localhost')
   const method = request.method ?? 'GET'
+  const startedAt = Date.now()
+  const requestLog = logger?.child({ transport: 'http', method, path: url.pathname })
 
   // Browser origins are rejected, mirroring Codex app-server behaviour, so a rendered page can
   // never drive the local service directly.
   if (request.headers.origin) {
+    requestLog?.warn({ status: 403, reason: 'origin-rejected' }, 'service request rejected')
     sendJson(response, 403, failure('unauthorized', 'Browser origins are not allowed'))
     return
   }
 
   if (url.pathname === '/readyz' || url.pathname === '/healthz') {
+    requestLog?.debug({ status: 200, durationMs: Date.now() - startedAt }, 'service health probe')
     response.writeHead(200, { 'content-type': 'text/plain' })
     response.end('ok')
     return
   }
 
   if (!isAuthorized(request, tokenDigest)) {
+    requestLog?.warn({ status: 401, reason: 'unauthorized' }, 'service request rejected')
     sendJson(response, 401, failure('unauthorized', 'A valid service credential is required'))
     return
   }
+
+  requestLog?.info({ status: 'accepted' }, 'service request received')
 
   try {
     if (method === 'GET' && url.pathname === '/version') {
@@ -119,44 +130,94 @@ async function handleRequest(
           protocolVersion: SERVICE_PROTOCOL_VERSION
         }
       })
+      requestLog?.info({ status: 200, durationMs: Date.now() - startedAt }, 'service response')
       return
     }
 
     if (method === 'GET' && url.pathname === '/model-connections') {
-      sendJson(response, 200, { ok: true, value: options.service.list() })
+      const connections = options.service.list()
+      sendJson(response, 200, { ok: true, value: connections })
+      requestLog?.info(
+        { status: 200, connections: connections.length, durationMs: Date.now() - startedAt },
+        'service response'
+      )
       return
     }
 
     if (method === 'POST' && url.pathname === '/model-connections') {
       const body = await readJson(request, bodyLimit)
-      sendJson(response, 200, { ok: true, value: await options.service.add(body as ModelAddRequestDto) })
+      const created = await options.service.add(body as ModelAddRequestDto)
+      sendJson(response, 200, { ok: true, value: created })
+      requestLog?.info(
+        { status: 200, connectionId: created.id, durationMs: Date.now() - startedAt },
+        'service response'
+      )
       return
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/test') {
       const body = await readJson(request, bodyLimit)
+      const request_ = body as ModelConnectionDraftDto
+      const childLog = requestLog?.child({
+        protocol: request_.protocol,
+        baseUrl: request_.baseUrl,
+        apiKey: '[redacted]'
+      })
+      const result = await options.service.testConnection(request_)
       sendJson(response, 200, {
         ok: true,
-        value: await options.service.testConnection(body as ModelConnectionDraftDto)
+        value: result
       })
+      childLog?.info(
+        {
+          status: 200,
+          outcome: result.ok ? 'ok' : result.failure.code,
+          durationMs: Date.now() - startedAt
+        },
+        'service response'
+      )
       return
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/discover') {
       const body = await readJson(request, bodyLimit)
+      const request_ = body as ModelConnectionDraftDto
+      const models = await options.service.discover(request_)
       sendJson(response, 200, {
         ok: true,
-        value: await options.service.discover(body as ModelConnectionDraftDto)
+        value: models
       })
+      requestLog?.info(
+        {
+          status: 200,
+          protocol: request_.protocol,
+          baseUrl: request_.baseUrl,
+          models: models.length,
+          durationMs: Date.now() - startedAt
+        },
+        'service response'
+      )
       return
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/test-models') {
       const body = await readJson(request, bodyLimit)
+      const request_ = body as ModelTestRequestDto
+      const results = await options.service.testModels(request_)
       sendJson(response, 200, {
         ok: true,
-        value: await options.service.testModels(body as ModelTestRequestDto)
+        value: results
       })
+      requestLog?.info(
+        {
+          status: 200,
+          models: results.length,
+          unsupported: results.filter((result) => result.state === 'unsupported').length,
+          failed: results.filter((result) => result.state === 'failed').length,
+          durationMs: Date.now() - startedAt
+        },
+        'service response'
+      )
       return
     }
 
@@ -166,25 +227,42 @@ async function handleRequest(
       if (method === 'DELETE' && action === undefined) {
         await options.service.delete(connectionId)
         sendJson(response, 200, { ok: true, value: null })
+        requestLog?.info(
+          { status: 200, connectionId, durationMs: Date.now() - startedAt },
+          'service response'
+        )
         return
       }
       if (method === 'POST' && action === 'refresh') {
+        const models = await options.service.refresh(connectionId)
         sendJson(response, 200, {
           ok: true,
-          value: await options.service.refresh(connectionId)
+          value: models
         })
+        requestLog?.info(
+          { status: 200, connectionId, models: models.length, durationMs: Date.now() - startedAt },
+          'service response'
+        )
         return
       }
       if (method === 'POST' && action === 'test-models') {
         const body = await readJson(request, bodyLimit)
         const request_ = body as { modelIds?: unknown }
+        const modelIds = Array.isArray(request_.modelIds) ? (request_.modelIds as string[]) : []
+        const results = await options.service.testConnectionModels({ connectionId, modelIds })
         sendJson(response, 200, {
           ok: true,
-          value: await options.service.testConnectionModels({
-            connectionId,
-            modelIds: Array.isArray(request_.modelIds) ? (request_.modelIds as string[]) : []
-          })
+          value: results
         })
+        requestLog?.info(
+          {
+            status: 200,
+            connectionId,
+            models: results.length,
+            durationMs: Date.now() - startedAt
+          },
+          'service response'
+        )
         return
       }
       if (method === 'POST' && action === 'models' && modelId) {
@@ -192,13 +270,27 @@ async function handleRequest(
         const enabled = (body as { enabled?: unknown }).enabled === true
         await options.service.setModelEnabled({ connectionId, modelId, enabled })
         sendJson(response, 200, { ok: true, value: null })
+        requestLog?.info(
+          { status: 200, connectionId, modelId, enabled, durationMs: Date.now() - startedAt },
+          'service response'
+        )
         return
       }
     }
 
+    requestLog?.warn({ status: 404, durationMs: Date.now() - startedAt }, 'service response')
     sendJson(response, 404, failure('not-found', `Unknown route: ${method} ${url.pathname}`))
   } catch (error) {
     const mapped = toEnvelopeError(error)
+    requestLog?.error(
+      {
+        status: mapped.status,
+        code: mapped.code,
+        message: mapped.message,
+        durationMs: Date.now() - startedAt
+      },
+      'service request failed'
+    )
     sendJson(response, mapped.status, failure(mapped.code, mapped.message))
   }
 }
