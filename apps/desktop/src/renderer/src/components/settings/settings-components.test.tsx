@@ -19,14 +19,18 @@ const connection: ModelConnection = {
 }
 
 describe('settings components', () => {
-  it('renders the reusable page title and model library rows', () => {
+  it('runs the reusable page title and model library row actions', async () => {
+    const user = userEvent.setup()
+    const onAdd = vi.fn()
+    const onTestModel = vi.fn()
+    const onToggleModel = vi.fn()
     render(
       <>
-        <SettingsPageTitle hasConnections onAdd={vi.fn()} />
+        <SettingsPageTitle hasConnections onAdd={onAdd} />
         <ModelLibrary
           connection={connection}
-          onTestModel={vi.fn()}
-          onToggleModel={vi.fn()}
+          onTestModel={onTestModel}
+          onToggleModel={onToggleModel}
         />
       </>
     )
@@ -34,6 +38,12 @@ describe('settings components', () => {
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
     expect(screen.getByText('gpt-5.2')).toBeVisible()
     expect(screen.getByText('未测试')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '添加模型集' }))
+    await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
+    await user.click(screen.getByRole('switch', { name: '启用gpt-5.2' }))
+    expect(onAdd).toHaveBeenCalledOnce()
+    expect(onTestModel).toHaveBeenCalledWith('gpt-5.2')
+    expect(onToggleModel).toHaveBeenCalledWith('gpt-5.2', false)
   })
 
   it('keeps draft, models, and results when the wizard goes back', () => {
@@ -55,33 +65,50 @@ describe('settings components', () => {
     expect(state.connectionState).toBe('success')
   })
 
-  it('renders a controlled manual model row', () => {
+  it('runs controlled manual model row actions', async () => {
+    const user = userEvent.setup()
     const onChangeName = vi.fn()
+    const onTest = vi.fn()
+    const onToggle = vi.fn()
     render(
       <ManualModelRow
         model={{ id: 'custom-model', name: 'custom-model', enabled: true, testState: 'untested' }}
         onChangeName={onChangeName}
-        onTest={vi.fn()}
-        onToggle={vi.fn()}
+        onTest={onTest}
+        onToggle={onToggle}
       />
     )
 
     expect(screen.getByLabelText('手动模型名称')).toHaveValue('custom-model')
     expect(screen.getByRole('switch', { name: '选择custom-model' })).toHaveAttribute('aria-checked', 'true')
+    await user.type(screen.getByLabelText('手动模型名称'), '-v2')
+    await user.click(screen.getByRole('button', { name: '测试custom-model' }))
+    await user.click(screen.getByRole('switch', { name: '选择custom-model' }))
+    expect(onChangeName).toHaveBeenCalled()
+    expect(onChangeName).toHaveBeenLastCalledWith('custom-model2')
+    expect(onTest).toHaveBeenCalledOnce()
+    expect(onToggle).toHaveBeenCalledWith(false)
   })
 
-  it('renders the picker model row states as a reusable component', () => {
+  it('runs picker model row actions', async () => {
+    const user = userEvent.setup()
+    const onTest = vi.fn()
+    const onToggle = vi.fn()
     render(
       <ModelPickerRow
         model={{ id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success' }}
-        onTest={vi.fn()}
-        onToggle={vi.fn()}
+        onTest={onTest}
+        onToggle={onToggle}
       />
     )
 
     expect(screen.getByText('gpt-5.2')).toBeVisible()
     expect(screen.getByText('成功')).toBeVisible()
     expect(screen.getByRole('switch', { name: '选择gpt-5.2' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
+    await user.click(screen.getByRole('switch', { name: '选择gpt-5.2' }))
+    expect(onTest).toHaveBeenCalledOnce()
+    expect(onToggle).toHaveBeenCalledWith(false)
   })
 
   it('prevents duplicate refreshes while a connection refresh is pending', async () => {

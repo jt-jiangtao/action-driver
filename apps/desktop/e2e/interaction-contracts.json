@@ -24,32 +24,32 @@
     "route": "settings",
     "type": "input",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/back#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/base-url#input",
     "route": "settings",
     "type": "input",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/cancel#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "opens and cancels add-model-set from the designed empty state"
   },
   {
     "target": "e2e/settings/add-model-set/close#button",
@@ -70,152 +70,150 @@
     "route": "settings",
     "type": "input",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs controlled manual model row actions"
   },
   {
     "target": "e2e/settings/add-model-set/models/:model-id/test#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs picker model row actions"
   },
   {
     "target": "e2e/settings/add-model-set/models/:model-id/toggle#switch",
     "route": "settings",
     "type": "switch",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs picker model row actions"
   },
   {
     "target": "e2e/settings/add-model-set/name#input",
     "route": "settings",
     "type": "input",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/next#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/save#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/test-all-models#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/add-model-set/test-connection#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
     "target": "e2e/settings/model-connections/add#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs the reusable page title and model library row actions"
   },
   {
     "target": "e2e/settings/model-connections/connections/:connection-id/delete#menuitem",
     "route": "settings",
     "type": "menuitem",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "confirms before deleting and preserves the card when deletion is cancelled"
   },
   {
     "target": "e2e/settings/model-connections/connections/:connection-id/more#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "confirms before deleting and preserves the card when deletion is cancelled"
   },
   {
     "target": "e2e/settings/model-connections/connections/:connection-id/refresh#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "prevents duplicate refreshes while a connection refresh is pending"
   },
   {
     "target": "e2e/settings/model-connections/connections/:connection-id/toggle#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "renders connection cards and expands or collapses their model rows"
   },
   {
     "target": "e2e/settings/model-connections/delete/cancel#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "confirms before deleting and preserves the card when deletion is cancelled"
   },
   {
     "target": "e2e/settings/model-connections/delete/confirm#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "confirms before deleting and preserves the card when deletion is cancelled"
   },
   {
     "target": "e2e/settings/model-connections/empty/add#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "opens and cancels add-model-set from the designed empty state"
   },
   {
     "target": "e2e/settings/model-connections/empty/protocols#link",
     "route": "settings",
     "type": "link",
-    "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "coverage": "visual-only"
   },
   {
     "target": "e2e/settings/model-connections/models/:model-id/test#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs the reusable page title and model library row actions"
   },
   {
     "target": "e2e/settings/model-connections/models/:model-id/toggle#switch",
     "route": "settings",
     "type": "switch",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
+    "testName": "runs the reusable page title and model library row actions"
   },
   {
     "target": "e2e/settings/model-connections/page#page",
@@ -228,8 +226,8 @@
     "route": "settings",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "opens model connection settings and returns to the application"
   },
   {
     "target": "e2e/settings/sidebar/model-connections#button",
@@ -254,48 +252,48 @@
     "route": "shared",
     "type": "input",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "uses the plus and send actions and submits Slate text"
   },
   {
     "target": "e2e/shared/composer/interrupt#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "shows the Codex-style stop button and interrupts a running task"
   },
   {
     "target": "e2e/shared/composer/send#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "uses the plus and send actions and submits Slate text"
   },
   {
     "target": "e2e/shared/model-selector/connections/:connection-id#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/model-selector/ModelSelector.test.tsx",
+    "testName": "expands connections and selects a model"
   },
   {
     "target": "e2e/shared/model-selector/models/:model-id#option",
     "route": "shared",
     "type": "option",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/model-selector/ModelSelector.test.tsx",
+    "testName": "expands connections and selects a model"
   },
   {
     "target": "e2e/shared/model-selector/trigger#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/components/model-selector/ModelSelector.test.tsx",
+    "testName": "expands connections and selects a model"
   },
   {
     "target": "e2e/shared/sidebar/collapse#button",
@@ -314,8 +312,8 @@
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "reopens the current mock task from Recent Tasks after returning home"
   },
   {
     "target": "e2e/shared/sidebar/root#nav",
@@ -334,8 +332,8 @@
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "opens model connection settings and returns to the application"
   },
   {
     "target": "e2e/shared/sidebar/skills#button",
@@ -348,8 +346,8 @@
     "route": "shared",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "opens different recent tasks through the shared task page"
   },
   {
     "target": "e2e/tasks/detail/agent#section",
@@ -374,24 +372,24 @@
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "switches between split, expanded, and collapsed browser layouts"
   },
   {
     "target": "e2e/tasks/detail/browser/expand#button",
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "switches between split, expanded, and collapsed browser layouts"
   },
   {
     "target": "e2e/tasks/detail/browser/expand-collapsed#button",
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "switches between split, expanded, and collapsed browser layouts"
   },
   {
     "target": "e2e/tasks/detail/browser/forward#button",
@@ -430,8 +428,8 @@
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all Home and Task Figma states through public controls"
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "switches between split, expanded, and collapsed browser layouts"
   },
   {
     "target": "e2e/tasks/detail/browser/resume#button",

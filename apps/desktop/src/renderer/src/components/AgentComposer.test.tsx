@@ -28,10 +28,14 @@ describe('AgentComposer', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('shows the Codex-style stop button while running', () => {
-    render(<AgentComposer running onSubmit={vi.fn()} />)
+  it('shows the Codex-style stop button and interrupts a running task', async () => {
+    const user = userEvent.setup()
+    const onInterrupt = vi.fn()
+    render(<AgentComposer running onSubmit={vi.fn()} onInterrupt={onInterrupt} />)
     expect(screen.getByLabelText('中断任务')).toBeVisible()
     expect(screen.queryByLabelText('发送')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('中断任务'))
+    expect(onInterrupt).toHaveBeenCalledOnce()
   })
 
   it('keeps unsupported non-running task input read-only instead of silently submitting', async () => {

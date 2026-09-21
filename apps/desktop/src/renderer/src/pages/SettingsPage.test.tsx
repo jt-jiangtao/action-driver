@@ -44,7 +44,8 @@ describe('SettingsPage model connections', () => {
     expect(screen.getByText('Anthropic 生产连接')).toBeVisible()
   })
 
-  it('renders the designed empty state when there are no model sets', () => {
+  it('opens and cancels add-model-set from the designed empty state', async () => {
+    const user = userEvent.setup()
     render(
       <SettingsPage
         service={new MockModelConnectionsService({ delayMs: 0, seed: [] })}
@@ -55,6 +56,10 @@ describe('SettingsPage model connections', () => {
     expect(screen.getByText('还没有模型集')).toBeVisible()
     expect(screen.getByText('连接模型服务')).toBeVisible()
     expect(screen.getByRole('button', { name: '添加模型集' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '添加模型集' }))
+    expect(screen.getByRole('dialog', { name: '添加模型集' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('dialog', { name: '添加模型集' })).not.toBeInTheDocument()
   })
 
   it('enters the empty state after confirming deletion of the last model set', async () => {

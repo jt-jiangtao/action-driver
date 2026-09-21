@@ -1,7 +1,29 @@
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { auditRenderedInteractions as auditPageInteractions } from './interaction-audit'
+import type { InteractionContract } from './interaction-audit'
 
 const mainEntry = fileURLToPath(new URL('../out/main/index.js', import.meta.url))
+const contracts = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./interaction-contracts.json', import.meta.url)), 'utf8')
+) as InteractionContract[]
+const expectedVisualTargets = contracts
+  .filter(({ coverage }) => coverage === 'visual-only')
+  .map(({ target }) => target)
+const seenVisualTargets = new Set<string>()
+
+async function auditRenderedInteractions(
+  page: Page,
+  manifest: InteractionContract[],
+  expectedTargets: string[] = []
+) {
+  const result = await auditPageInteractions(page, manifest, expectedTargets)
+  for (const target of result.renderedTargets) {
+    if (expectedVisualTargets.includes(target)) seenVisualTargets.add(target)
+  }
+  return result
+}
 const artifact = (name: string) =>
   fileURLToPath(new URL(`../../../design/actual/${name}.png`, import.meta.url))
 
@@ -34,10 +56,24 @@ test.afterEach(async () => {
   application = undefined
 })
 
+test.afterAll(() => {
+  expect([...seenVisualTargets].sort()).toEqual([...expectedVisualTargets].sort())
+})
+
 test('captures all Home and Task Figma states through public controls', async () => {
   const page = await launch()
 
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+  await auditRenderedInteractions(page, contracts, [
+    'e2e/home/header/expand-browser#button',
+    'e2e/home/main/composer#section',
+    'e2e/shared/sidebar/root#nav',
+    'e2e/shared/sidebar/collapse#button',
+    'e2e/shared/sidebar/search#button',
+    'e2e/shared/sidebar/skills#button',
+    'e2e/shared/sidebar/mcp#button',
+    'e2e/shared/composer/add#button'
+  ])
   await expect(page.getByTestId('e2e/home/main/composer#section')).toHaveCSS('width', '720px')
   await capture(page, 'home-default')
   await expect(page).toHaveScreenshot('home-1440x900.png', {
@@ -48,6 +84,7 @@ test('captures all Home and Task Figma states through public controls', async ()
   const modelTrigger = page.getByRole('button', { name: /当前模型/ })
   await modelTrigger.click()
   await expect(page.getByRole('listbox', { name: '选择模型' })).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'home-model-selecting')
   await page.getByRole('option', { name: 'gpt-4.1' }).click()
   await expect(modelTrigger).toContainText('gpt-4.1')
@@ -58,6 +95,15 @@ test('captures all Home and Task Figma states through public controls', async ()
   await expect(page.getByTestId('e2e/shared/sidebar/root#nav')).toHaveCSS('width', '248px')
   await expect(page.getByTestId('e2e/tasks/detail/agent#section')).toHaveCSS('width', '536px')
   await expect(page.getByTestId('e2e/tasks/detail/browser#section')).toHaveCSS('width', '656px')
+  await auditRenderedInteractions(page, contracts, [
+    'e2e/tasks/detail/page#page',
+    'e2e/tasks/detail/agent#section',
+    'e2e/tasks/detail/browser#section',
+    'e2e/tasks/detail/browser/back#button',
+    'e2e/tasks/detail/browser/forward#button',
+    'e2e/tasks/detail/browser/refresh#button',
+    'e2e/tasks/detail/browser/new-tab#button'
+  ])
   await capture(page, 'task-split')
   await expect(page).toHaveScreenshot('task-split-1440x900.png', {
     animations: 'disabled',
@@ -65,19 +111,23 @@ test('captures all Home and Task Figma states through public controls', async ()
   })
 
   await page.getByRole('button', { name: /当前模型/ }).click()
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'task-model-selecting')
   await page.keyboard.press('Escape')
 
   await page.getByText('暂停', { exact: true }).click()
   await expect(page.getByText('Browser Skill · 已暂停')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await page.getByText('继续 Agent').click()
   await expect(page.getByText('Browser Skill · 运行中')).toBeVisible()
   await page.getByText('人工接管', { exact: true }).click()
   await expect(page.getByText('Browser Skill · 人工接管中')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await page.getByText('继续 Agent').click()
 
   await page.getByLabel('放大浏览器').click()
   await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+  await auditRenderedInteractions(page, contracts, ['e2e/tasks/detail/browser/menu#button'])
   await capture(page, 'task-browser-expanded')
   await expect(page).toHaveScreenshot('task-browser-expanded-1440x900.png', {
     animations: 'disabled',
@@ -87,6 +137,7 @@ test('captures all Home and Task Figma states through public controls', async ()
   await page.getByLabel('缩小浏览器').click()
   await page.getByLabel('折叠浏览器').click()
   await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-collapsed')
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'task-browser-collapsed')
   await expect(page).toHaveScreenshot('task-browser-collapsed-1440x900.png', {
     animations: 'disabled',
@@ -100,22 +151,30 @@ test('captures all Home and Task Figma states through public controls', async ()
   await page.getByRole('button', { name: '比较三款显示器' }).click()
   await expect(page.getByText('核对接口规格')).toBeVisible()
   await expect(page.getByText('显示器参数比较')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
 })
 
 test('captures all eight Settings Figma states through public controls', async () => {
   const page = await launch()
   await page.getByRole('button', { name: '设置' }).click()
   await expect(page.getByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+  await auditRenderedInteractions(page, contracts, [
+    'e2e/settings/model-connections/page#page',
+    'e2e/settings/sidebar/search#input',
+    'e2e/settings/sidebar/model-connections#button'
+  ])
   await capture(page, 'settings-populated')
 
   await page.getByRole('button', { name: '公司模型网关的更多操作' }).click()
   await expect(page.getByRole('menu')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-menu-open')
   await page.getByRole('button', { name: '公司模型网关的更多操作' }).click()
 
   await page.getByRole('button', { name: '添加模型集' }).click()
   const dialog = page.getByRole('dialog', { name: '添加模型集' })
   await expect(dialog).toHaveAttribute('data-view-state', 'connection-idle')
+  await auditRenderedInteractions(page, contracts, ['e2e/settings/add-model-set/dialog#dialog'])
   await capture(page, 'settings-connection-form')
 
   await dialog.getByLabel('名称').fill('研发模型服务')
@@ -125,20 +184,25 @@ test('captures all eight Settings Figma states through public controls', async (
   await expect(dialog).toHaveAttribute('data-view-state', 'connection-success')
   await dialog.getByRole('button', { name: '下一步' }).click()
   await expect(dialog).toHaveAttribute('data-view-state', 'models-untested')
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-models-untested')
 
   await dialog.getByRole('button', { name: '测试全部模型' }).click()
   await expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-models-testing')
   await expect(dialog).toHaveAttribute('data-view-state', 'models-success')
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-models-success')
 
   await dialog.getByRole('button', { name: '手动添加模型' }).click()
   await expect(dialog.getByLabel('手动模型名称')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await dialog.getByRole('button', { name: '测试全部模型' }).click()
   await expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
   await expect(dialog).toHaveAttribute('data-view-state', 'models-partial-failure')
   await expect(dialog.getByText('失败')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-models-partial-failure')
   await dialog.getByRole('button', { name: '关闭' }).click()
 
@@ -147,10 +211,14 @@ test('captures all eight Settings Figma states through public controls', async (
     await page.getByRole('menuitem', { name: '删除模型集' }).click()
     const confirmation = page.getByRole('dialog', { name: '删除模型集' })
     await expect(confirmation).toBeVisible()
+    await auditRenderedInteractions(page, contracts)
     await confirmation.getByRole('button', { name: '确认删除' }).click()
     await expect(page.getByText(connectionName)).toHaveCount(0)
   }
   await expect(page.getByText('还没有模型集')).toBeVisible()
+  await auditRenderedInteractions(page, contracts, [
+    'e2e/settings/model-connections/empty/protocols#link'
+  ])
   await capture(page, 'settings-empty')
 })
 
@@ -158,6 +226,7 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
   const page = await launch({ width: 1024, height: 700 })
   await expectInsideViewport(page, page.getByRole('button', { name: /当前模型/ }))
   await expectInsideViewport(page, page.getByLabel('发送'))
+  await auditRenderedInteractions(page, contracts)
 
   await page.getByRole('button', { name: '预订周末去杭州的酒店' }).click()
   const agent = await page.getByTestId('e2e/tasks/detail/agent#section').boundingBox()
@@ -167,11 +236,13 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
   expect(agent!.x + agent!.width).toBeLessThanOrEqual(browser!.x + 0.5)
   await expectInsideViewport(page, page.locator('.browser-skill-controls'))
   await expectInsideViewport(page, page.getByLabel('折叠浏览器'))
+  await auditRenderedInteractions(page, contracts)
 
   await page.getByRole('button', { name: '设置' }).click()
   await expectInsideViewport(page, page.getByRole('button', { name: '添加模型集' }))
   await page.getByRole('button', { name: '添加模型集' }).click()
   await expectInsideViewport(page, page.getByRole('dialog', { name: '添加模型集' }))
+  await auditRenderedInteractions(page, contracts)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await capture(page, 'minimum-window')
 })
