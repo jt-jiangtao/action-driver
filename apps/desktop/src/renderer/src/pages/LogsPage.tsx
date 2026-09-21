@@ -179,8 +179,8 @@ export function LogsPage({
                   <span>方向</span>
                   <span>级别</span>
                   <span>操作</span>
-                  <span>耗时</span>
-                  <span>结果</span>
+                  <span className="is-end">耗时</span>
+                  <span className="is-end">结果</span>
                 </div>
                 {records.map((record, index) => {
                   const key = keyOf(record)
@@ -200,7 +200,7 @@ export function LogsPage({
                         className={`logs-direction is-${directionKind(record.direction)}`}
                         title={directionLabel(record.direction)}
                       >
-                        <AppIcon name={directionIcon(record.direction)} />
+                        <i />
                         {directionShort(record.direction)}
                       </span>
                       <span className={`logs-level is-${record.levelLabel}`}>

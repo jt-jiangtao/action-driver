@@ -751,7 +751,7 @@
 }
 .logs-console-columns {
   display: grid;
-  grid-template-columns: 96px 68px 58px minmax(0, 1fr) 64px 96px;
+  grid-template-columns: 96px 62px 58px minmax(0, 1fr) 64px 92px;
   gap: 8px;
   padding: 7px 14px;
   background: #fafbfc;
@@ -761,7 +761,7 @@
 }
 .logs-entry {
   display: grid;
-  grid-template-columns: 96px 68px 58px minmax(0, 1fr) 64px 96px;
+  grid-template-columns: 96px 62px 58px minmax(0, 1fr) 64px 92px;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -791,17 +791,20 @@
 .logs-direction {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   justify-self: start;
+  width: 58px;
   height: 22px;
   padding: 0 8px;
   border-radius: 7px;
   font-size: 12px;
   white-space: nowrap;
 }
-.logs-direction svg {
-  width: 12px;
-  height: 12px;
+.logs-direction i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
 }
 .logs-direction.is-outgoing {
   background: #eef1fe;
@@ -824,6 +827,7 @@
   color: #6b7280;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
+  justify-self: end;
   white-space: nowrap;
 }
 .logs-result {
@@ -832,9 +836,9 @@
   justify-content: center;
   justify-self: end;
   gap: 5px;
-  width: fit-content;
+  width: 92px;
   height: 22px;
-  padding: 0 9px;
+  padding: 0;
   border-radius: 7px;
   font-size: 12px;
   white-space: nowrap;
@@ -860,8 +864,9 @@
   align-items: center;
   justify-content: center;
   justify-self: start;
+  width: 54px;
   height: 20px;
-  padding: 0 8px;
+  padding: 0;
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
