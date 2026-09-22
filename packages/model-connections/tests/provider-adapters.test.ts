@@ -72,6 +72,22 @@ describe('OpenAI compatible adapter', () => {
     expect(JSON.stringify(result)).not.toContain('sk-secret-value')
   })
 
+  it('removes the effective credential from generic transport errors', async () => {
+    const reflected = transportOf((request) => {
+      throw new Error(`Transport failed for ${request.headers.authorization}`)
+    })
+
+    const result = await createOpenAiCompatibleAdapter(reflected).discover({
+      ...endpoint,
+      apiKey: 'sk-secret-value'
+    })
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { code: 'unknown', message: 'Transport failed for [redacted]' }
+    })
+    expect(JSON.stringify(result)).not.toContain('sk-secret-value')
+  })
+
   it('marks models that reject text requests as unsupported instead of failed', async () => {
     const media = transportOf(() => ({
       status: 400,

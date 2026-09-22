@@ -155,7 +155,10 @@ async function send(
     }
     return {
       ok: false,
-      failure: failure('unknown', error instanceof Error ? error.message : String(error))
+      failure: redactProviderFailure(
+        failure('unknown', error instanceof Error ? error.message : String(error)),
+        request.headers
+      )
     }
   }
 }
