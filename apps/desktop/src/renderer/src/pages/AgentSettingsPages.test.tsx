@@ -73,6 +73,80 @@ describe('Agent settings pages', () => {
     expect(screen.getByRole('button', { name: '重新加载' })).toBeEnabled()
   })
 
+  it('restores the built-in main prompt only after confirmation', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    render(<MainPromptPage service={service} onBack={() => undefined} />)
+
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    await user.click(screen.getByRole('button', { name: '源码' }))
+    const source = screen.getByRole('textbox', { name: '主提示词 Markdown 源码' })
+    await user.clear(source)
+    await user.type(source, '# 临时提示词')
+    await user.click(screen.getByRole('button', { name: '恢复默认' }))
+
+    expect(screen.getByRole('dialog', { name: '恢复默认主提示词？' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('dialog', { name: '恢复默认主提示词？' })).not.toBeInTheDocument()
+    expect(source).toHaveValue('# 临时提示词')
+
+    await user.click(screen.getByRole('button', { name: '恢复默认' }))
+    await user.click(screen.getByRole('button', { name: '确认恢复' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled())
+    expect((await service.getMainPrompt()).content).toContain('# ActionDriver 主提示词')
+  })
+
+  it('offers save, discard, and cancel before leaving a dirty main prompt', async () => {
+    const user = userEvent.setup()
+    const openConnections = vi.fn()
+    render(
+      <MainPromptPage
+        service={new MockAgentFilesService()}
+        onBack={() => undefined}
+        onOpenConnections={openConnections}
+      />
+    )
+
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    await user.click(screen.getByRole('button', { name: '源码' }))
+    await user.type(screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }), '草稿')
+    await user.click(screen.getByRole('button', { name: '模型连接' }))
+
+    const dialog = screen.getByRole('dialog', { name: '离开主提示词？' })
+    expect(dialog).toBeVisible()
+    expect(screen.getByRole('button', { name: '保存并离开' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '放弃更改' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(openConnections).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: '模型连接' }))
+    await user.click(screen.getByRole('button', { name: '放弃更改' }))
+    expect(openConnections).toHaveBeenCalledOnce()
+  })
+
+  it('saves a dirty main prompt before completing deferred navigation', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    const openConnections = vi.fn()
+    render(
+      <MainPromptPage
+        service={service}
+        onBack={() => undefined}
+        onOpenConnections={openConnections}
+      />
+    )
+
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    await user.click(screen.getByRole('button', { name: '源码' }))
+    await user.type(screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }), '\n保存后离开')
+    await user.click(screen.getByRole('button', { name: '模型连接' }))
+    await user.click(screen.getByRole('button', { name: '保存并离开' }))
+
+    await waitFor(() => expect(openConnections).toHaveBeenCalledOnce())
+    expect((await service.getMainPrompt()).content).toContain('保存后离开')
+  })
+
   it('opens a skill into its file tree and saves the selected file', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()

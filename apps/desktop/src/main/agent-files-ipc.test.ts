@@ -17,8 +17,15 @@ describe('Agent file IPC handlers', () => {
   it('registers every whitelisted operation and forwards typed input', async () => {
     const ipcMain = createIpcMain()
     const saveFile = vi.fn(async (input) => ({ ...input, digest: 'new', modifiedAt: 'now' }))
+    const resetMainPrompt = vi.fn(async () => ({
+      path: '.action-driver/prompts/main.md',
+      content: '# Default',
+      digest: 'reset',
+      modifiedAt: 'now'
+    }))
     registerAgentFilesIpcHandlers(ipcMain, {
       getMainPrompt: vi.fn(),
+      resetMainPrompt,
       listSkills: vi.fn(),
       getSkillTree: vi.fn(),
       readFile: vi.fn(),
@@ -29,13 +36,30 @@ describe('Agent file IPC handlers', () => {
       setSkillEnabled: vi.fn()
     } as unknown as AgentFileStore)
 
-    expect([...ipcMain.handlers.keys()].sort()).toEqual(Object.values(AGENT_FILES_IPC_CHANNELS).sort())
-    const input = { path: '.action-driver/prompts/main.md', content: 'updated', expectedDigest: 'old' }
-    expect(await ipcMain.handlers.get(AGENT_FILES_IPC_CHANNELS.saveFile)!(undefined, input)).toEqual({
+    expect([...ipcMain.handlers.keys()].sort()).toEqual(
+      Object.values(AGENT_FILES_IPC_CHANNELS).sort()
+    )
+    const input = {
+      path: '.action-driver/prompts/main.md',
+      content: 'updated',
+      expectedDigest: 'old'
+    }
+    expect(
+      await ipcMain.handlers.get(AGENT_FILES_IPC_CHANNELS.saveFile)!(undefined, input)
+    ).toEqual({
       ok: true,
       value: { ...input, digest: 'new', modifiedAt: 'now' }
     })
     expect(saveFile).toHaveBeenCalledWith(input)
+    expect(
+      await ipcMain.handlers.get(AGENT_FILES_IPC_CHANNELS.resetMainPrompt)!(undefined, {
+        expectedDigest: 'old'
+      })
+    ).toMatchObject({
+      ok: true,
+      value: { content: '# Default', digest: 'reset' }
+    })
+    expect(resetMainPrompt).toHaveBeenCalledWith('old')
   })
 
   it('serializes diagnostic errors without exposing implementation details', async () => {
@@ -46,7 +70,9 @@ describe('Agent file IPC handlers', () => {
       }
     } as unknown as AgentFileStore)
 
-    expect(await ipcMain.handlers.get(AGENT_FILES_IPC_CHANNELS.getMainPrompt)!(undefined, {})).toEqual({
+    expect(
+      await ipcMain.handlers.get(AGENT_FILES_IPC_CHANNELS.getMainPrompt)!(undefined, {})
+    ).toEqual({
       ok: false,
       error: { code: 'PATH_REJECTED', message: 'outside root' }
     })

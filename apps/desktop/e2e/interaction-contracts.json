@@ -802,6 +802,54 @@
     "testName": "loads, edits, and saves the main prompt in one editor panel"
   },
   {
+    "target": "e2e/settings/main-prompt/restore#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/restore-confirm#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/restore-cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/leave-cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
+  },
+  {
+    "target": "e2e/settings/main-prompt/discard-leave#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
+  },
+  {
+    "target": "e2e/settings/main-prompt/save-leave#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "saves a dirty main prompt before completing deferred navigation"
+  },
+  {
     "target": "e2e/settings/skills/create#button",
     "route": "settings",
     "type": "button",

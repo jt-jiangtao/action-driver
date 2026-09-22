@@ -85,6 +85,14 @@ export function registerAgentFilesIpcHandlers(
       interactions
     )
   )
+  ipcMain.handle(AGENT_FILES_IPC_CHANNELS.resetMainPrompt, (event, input) =>
+    secureRespond(
+      event,
+      AGENT_FILES_IPC_CHANNELS.resetMainPrompt,
+      () => store.resetMainPrompt((input as { expectedDigest: string }).expectedDigest),
+      interactions
+    )
+  )
   ipcMain.handle(AGENT_FILES_IPC_CHANNELS.listSkills, (event) =>
     secureRespond(
       event,

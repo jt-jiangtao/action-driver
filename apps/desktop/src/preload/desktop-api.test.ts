@@ -25,7 +25,13 @@ describe('createDesktopApi', () => {
     const api = createDesktopApi('darwin', '0.1.0', bridge, () => 'renderer-subscription')
 
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
-    expect(Object.keys(api)).toEqual(['getEnvironment', 'agent', 'modelConnections', 'logs', 'agentFiles'])
+    expect(Object.keys(api)).toEqual([
+      'getEnvironment',
+      'agent',
+      'modelConnections',
+      'logs',
+      'agentFiles'
+    ])
     expect(Object.keys(api.agent).sort()).toEqual([
       'continue',
       'controlSkill',
@@ -48,6 +54,7 @@ describe('createDesktopApi', () => {
       'listSkills',
       'readFile',
       'renameSkill',
+      'resetMainPrompt',
       'saveFile',
       'setSkillEnabled'
     ])
@@ -137,7 +144,10 @@ describe('createDesktopApi', () => {
       { channel: 'actiondriver:model-connections:list', input: {} },
       { channel: 'actiondriver:model-connections:test-connection', input: draft },
       { channel: 'actiondriver:model-connections:discover', input: draft },
-      { channel: 'actiondriver:model-connections:refresh', input: { connectionId: 'company-gateway' } },
+      {
+        channel: 'actiondriver:model-connections:refresh',
+        input: { connectionId: 'company-gateway' }
+      },
       {
         channel: 'actiondriver:model-connections:test-models',
         input: { draft, modelIds: ['qwen3.7-plus'] }
@@ -159,7 +169,10 @@ describe('createDesktopApi', () => {
           ]
         }
       },
-      { channel: 'actiondriver:model-connections:delete', input: { connectionId: 'company-gateway' } }
+      {
+        channel: 'actiondriver:model-connections:delete',
+        input: { connectionId: 'company-gateway' }
+      }
     ])
   })
 

@@ -11,6 +11,8 @@ import {
 
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_ROOT = '.action-driver/skills/'
+const DEFAULT_MAIN_PROMPT =
+  '# ActionDriver 主提示词\n\n你是 ActionDriver 中的执行助手。\n\n## 原则\n\n- 在执行前确认用户目标。\n- 记录每一次模型与工具调用。\n- 当结果不确定时，说明假设与边界。'
 
 interface StoredFile {
   content: string
@@ -72,31 +74,40 @@ export class MockAgentFilesService implements AgentFilesService {
     [
       MAIN_PROMPT_PATH,
       {
-        content:
-          '# ActionDriver 主提示词\n\n你是 ActionDriver 中的执行助手。\n\n## 原则\n\n- 在执行前确认用户目标。\n- 记录每一次模型与工具调用。\n- 当结果不确定时，说明假设与边界。',
+        content: DEFAULT_MAIN_PROMPT,
         modifiedAt: '2026-09-21T10:24:00.000Z'
       }
     ],
-    ...builtInSkills.flatMap((skill): Array<[string, StoredFile]> => [
-      [
-        `${SKILLS_ROOT}${skill.id}/SKILL.md`,
-        {
-          content: `# ${skill.name}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。`,
-          modifiedAt: skill.modifiedAt
-        }
-      ],
-      [
-        `${SKILLS_ROOT}${skill.id}/references/README.md`,
-        {
-          content: `# ${skill.name} references\n\n在这里放置该 Skill 使用的参考资料。`,
-          modifiedAt: skill.modifiedAt
-        }
+    ...builtInSkills.flatMap(
+      (skill): Array<[string, StoredFile]> => [
+        [
+          `${SKILLS_ROOT}${skill.id}/SKILL.md`,
+          {
+            content: `# ${skill.name}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。`,
+            modifiedAt: skill.modifiedAt
+          }
+        ],
+        [
+          `${SKILLS_ROOT}${skill.id}/references/README.md`,
+          {
+            content: `# ${skill.name} references\n\n在这里放置该 Skill 使用的参考资料。`,
+            modifiedAt: skill.modifiedAt
+          }
+        ]
       ]
-    ])
+    )
   ])
 
   async getMainPrompt(): Promise<AgentTextFile> {
     return this.readFile(MAIN_PROMPT_PATH)
+  }
+
+  async resetMainPrompt(expectedDigest: string): Promise<AgentTextFile> {
+    return this.saveFile({
+      path: MAIN_PROMPT_PATH,
+      content: DEFAULT_MAIN_PROMPT,
+      expectedDigest
+    })
   }
 
   async listSkills(): Promise<AgentSkillSummary[]> {
@@ -142,7 +153,10 @@ export class MockAgentFilesService implements AgentFilesService {
   }
 
   async createSkill(input: CreateAgentSkillInput): Promise<AgentSkillSummary> {
-    const id = input.name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+    const id = input.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
     if (!id || this.skills.some((skill) => skill.id === id)) {
       throw new Error('名称不可用，请使用唯一的小写英文名称。')
     }

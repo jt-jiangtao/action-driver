@@ -1,6 +1,7 @@
 import type { AgentFilesDesktopApi } from '../../../preload/desktop-api'
 import {
   AgentFileConflictError,
+  AgentFileIoError,
   AgentFilePathError,
   type AgentFilesService,
   type CreateAgentSkillInput,
@@ -14,6 +15,7 @@ function mapError(error: unknown): Error {
   const message = typeof structured?.message === 'string' ? structured.message : String(error)
   if (structured?.code === 'CONFLICT') return new AgentFileConflictError(message)
   if (structured?.code === 'PATH_REJECTED') return new AgentFilePathError(message)
+  if (structured?.code === 'IO_ERROR') return new AgentFileIoError(message)
   return new Error(message)
 }
 
@@ -30,6 +32,10 @@ export class DesktopAgentFilesService implements AgentFilesService {
 
   getMainPrompt() {
     return call(() => this.api.getMainPrompt())
+  }
+
+  resetMainPrompt(expectedDigest: string) {
+    return call(() => this.api.resetMainPrompt(expectedDigest))
   }
 
   listSkills() {

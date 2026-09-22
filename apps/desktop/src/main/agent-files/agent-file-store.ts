@@ -95,6 +95,10 @@ export class AgentFileStore {
     return this.readFile(MAIN_PROMPT_PATH)
   }
 
+  async resetMainPrompt(expectedDigest: string): Promise<AgentTextFileDto> {
+    return this.saveFile({ path: MAIN_PROMPT_PATH, content: DEFAULT_PROMPT, expectedDigest })
+  }
+
   async listSkills(): Promise<AgentSkillSummaryDto[]> {
     this.assertInitialized()
     const entries = await readdir(this.skillsRoot, { withFileTypes: true })
@@ -178,9 +182,10 @@ export class AgentFileStore {
     const id = this.validateSkillId(skillId)
     const directory = await this.resolveExisting(`${SKILLS_PATH}/${id}`)
     const marker = join(directory, '.disabled')
-    if (enabled) await unlink(marker).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== 'ENOENT') throw error
-    })
+    if (enabled)
+      await unlink(marker).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') throw error
+      })
     else await this.atomicWrite(marker, 'disabled\n')
     return this.summarizeSkill(id)
   }
@@ -209,7 +214,10 @@ export class AgentFileStore {
     }
   }
 
-  private async readTree(absoluteDirectory: string, publicDirectory: string): Promise<AgentFileNodeDto[]> {
+  private async readTree(
+    absoluteDirectory: string,
+    publicDirectory: string
+  ): Promise<AgentFileNodeDto[]> {
     const entries = await readdir(absoluteDirectory, { withFileTypes: true })
     const visibleEntries = entries
       .filter((entry) => entry.name !== '.disabled')
@@ -246,7 +254,11 @@ export class AgentFileStore {
     } catch (error) {
       if (error instanceof AgentFileStoreError) throw error
       const code = (error as NodeJS.ErrnoException).code
-      throw new AgentFileStoreError(code === 'ENOENT' ? 'NOT_FOUND' : 'IO_ERROR', `无法读取：${publicPath}`, error)
+      throw new AgentFileStoreError(
+        code === 'ENOENT' ? 'NOT_FOUND' : 'IO_ERROR',
+        `无法读取：${publicPath}`,
+        error
+      )
     }
   }
 
@@ -295,7 +307,8 @@ export class AgentFileStore {
   }
 
   private assertInitialized(): void {
-    if (!this.managedRootRealPath) throw new AgentFileStoreError('IO_ERROR', 'Agent 文件服务尚未初始化。')
+    if (!this.managedRootRealPath)
+      throw new AgentFileStoreError('IO_ERROR', 'Agent 文件服务尚未初始化。')
   }
 
   private async writeDefaultIfMissing(path: string, content: string): Promise<void> {

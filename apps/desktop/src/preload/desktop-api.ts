@@ -81,6 +81,7 @@ export interface LogsDesktopApi {
 
 export interface AgentFilesDesktopApi {
   getMainPrompt(): Promise<AgentTextFileDto>
+  resetMainPrompt(expectedDigest: string): Promise<AgentTextFileDto>
   listSkills(): Promise<AgentSkillSummaryDto[]>
   getSkillTree(skillId: string): Promise<AgentFileNodeDto[]>
   readFile(path: string): Promise<AgentTextFileDto>
@@ -99,11 +100,7 @@ async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unk
   })
 }
 
-async function invokeModel<T>(
-  ipc: DesktopIpcBridge,
-  channel: string,
-  input: unknown
-): Promise<T> {
+async function invokeModel<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
   return await traceInteraction(channel, async () => {
     const response = (await ipc.invoke(channel, input)) as ModelIpcResponse<T>
     if (!response.ok) return Promise.reject(response.error)
@@ -144,9 +141,7 @@ async function traceInteraction<T>(channel: string, operation: () => Promise<T>)
         typeof error === 'object' && error !== null && 'code' in error
           ? String((error as { code: unknown }).code)
           : 'unknown'
-      console.warn(
-        `[actiondriver] <- ${channel} error ${code} (${Date.now() - startedAt}ms)`
-      )
+      console.warn(`[actiondriver] <- ${channel} error ${code} (${Date.now() - startedAt}ms)`)
     }
     throw error
   }
@@ -219,8 +214,7 @@ export function createDesktopApi(
       list: () => invokeModel<ModelConnectionDto[]>(ipc, MODEL_IPC_CHANNELS.list, {}),
       testConnection: (draft) =>
         invokeModel<ModelConnectionTestResultDto>(ipc, MODEL_IPC_CHANNELS.testConnection, draft),
-      discover: (draft) =>
-        invokeModel<ModelOptionDto[]>(ipc, MODEL_IPC_CHANNELS.discover, draft),
+      discover: (draft) => invokeModel<ModelOptionDto[]>(ipc, MODEL_IPC_CHANNELS.discover, draft),
       refresh: (connectionId) =>
         invokeModel<ModelOptionDto[]>(ipc, MODEL_IPC_CHANNELS.refresh, { connectionId }),
       testModels: (draft, modelIds) =>
@@ -248,7 +242,10 @@ export function createDesktopApi(
     },
     logs: {
       async list(request) {
-        const response = (await ipc.invoke(LOG_IPC_CHANNELS.list, request)) as LogIpcResponse<LogListResult>
+        const response = (await ipc.invoke(
+          LOG_IPC_CHANNELS.list,
+          request
+        )) as LogIpcResponse<LogListResult>
         if (!response.ok) return Promise.reject(response.error)
         return response.value
       }
@@ -256,10 +253,16 @@ export function createDesktopApi(
     agentFiles: {
       getMainPrompt: () =>
         invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.getMainPrompt, {}),
+      resetMainPrompt: (expectedDigest) =>
+        invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.resetMainPrompt, {
+          expectedDigest
+        }),
       listSkills: () =>
         invokeAgentFiles<AgentSkillSummaryDto[]>(ipc, AGENT_FILES_IPC_CHANNELS.listSkills, {}),
       getSkillTree: (skillId) =>
-        invokeAgentFiles<AgentFileNodeDto[]>(ipc, AGENT_FILES_IPC_CHANNELS.getSkillTree, { skillId }),
+        invokeAgentFiles<AgentFileNodeDto[]>(ipc, AGENT_FILES_IPC_CHANNELS.getSkillTree, {
+          skillId
+        }),
       readFile: (path) =>
         invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.readFile, { path }),
       saveFile: (input) =>

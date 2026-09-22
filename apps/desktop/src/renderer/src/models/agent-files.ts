@@ -49,8 +49,16 @@ export class AgentFilePathError extends Error {
   }
 }
 
+export class AgentFileIoError extends Error {
+  constructor(message = 'Agent 文件读写失败。') {
+    super(message)
+    this.name = 'AgentFileIoError'
+  }
+}
+
 export interface AgentFilesService {
   getMainPrompt(): Promise<AgentTextFile>
+  resetMainPrompt(expectedDigest: string): Promise<AgentTextFile>
   listSkills(): Promise<AgentSkillSummary[]>
   getSkillTree(skillId: string): Promise<AgentFileNode[]>
   readFile(path: string): Promise<AgentTextFile>

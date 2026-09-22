@@ -70,6 +70,51 @@ describe('AgentFileStore', () => {
     expect(await readFile(absolutePrompt, 'utf8')).toBe('# External edit')
   })
 
+  it('restores the built-in main prompt through the same digest conflict guard', async () => {
+    const { store } = await createStore()
+    const original = await store.getMainPrompt()
+    const customized = await store.saveFile({
+      path: original.path,
+      content: '# Custom prompt',
+      expectedDigest: original.digest
+    })
+
+    const restored = await store.resetMainPrompt(customized.digest)
+    expect(restored.content).toContain('# ActionDriver 主提示词')
+    await expect(store.resetMainPrompt(customized.digest)).rejects.toMatchObject({
+      code: 'CONFLICT'
+    })
+  })
+
+  it('persists a created Skill edit across restart, detects an external conflict, then deletes it', async () => {
+    const { store, homeDirectory } = await createStore()
+    const created = await store.createSkill({ name: 'release-helper', description: '整理发布记录' })
+    const publicPath = `.action-driver/skills/${created.id}/SKILL.md`
+    const initial = await store.readFile(publicPath)
+    await store.saveFile({
+      path: publicPath,
+      content: '# release-helper\n\n生成发布说明。\n',
+      expectedDigest: initial.digest
+    })
+
+    const restarted = new AgentFileStore({ homeDirectory })
+    await restarted.initialize()
+    const persisted = await restarted.readFile(publicPath)
+    expect(persisted.content).toContain('生成发布说明')
+
+    await writeFile(join(homeDirectory, publicPath), '# External edit')
+    await expect(
+      restarted.saveFile({
+        path: publicPath,
+        content: '# Stale edit',
+        expectedDigest: persisted.digest
+      })
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+
+    await restarted.deleteSkill(created.id)
+    expect((await restarted.listSkills()).some((skill) => skill.id === created.id)).toBe(false)
+  })
+
   it('creates, renames, toggles, enumerates, and deletes an editable skill', async () => {
     const { store, homeDirectory } = await createStore()
     const created = await store.createSkill({ name: 'release-helper', description: '整理发布记录' })

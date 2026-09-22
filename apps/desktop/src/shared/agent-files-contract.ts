@@ -52,6 +52,7 @@ export type AgentFileIpcResponse<T> =
 
 export const AGENT_FILES_IPC_CHANNELS = {
   getMainPrompt: 'actiondriver:agent-files:get-main-prompt',
+  resetMainPrompt: 'actiondriver:agent-files:reset-main-prompt',
   listSkills: 'actiondriver:agent-files:list-skills',
   getSkillTree: 'actiondriver:agent-files:get-skill-tree',
   readFile: 'actiondriver:agent-files:read-file',

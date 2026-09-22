@@ -9,7 +9,9 @@ import {
 import type { DesktopApi } from '../../../preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
+import { DesktopAgentFilesService } from '../services/desktop-agent-files'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
+import { MockAgentFilesService } from '../services/mock-agent-files'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
 import {
@@ -60,15 +62,50 @@ function createDesktopApi(): DesktopApi {
       list: async () => ({ records: [], files: [], readable: true })
     },
     agentFiles: {
-      getMainPrompt: async () => ({ path: '.action-driver/prompts/main.md', content: '', digest: 'a', modifiedAt: 'now' }),
+      getMainPrompt: async () => ({
+        path: '.action-driver/prompts/main.md',
+        content: '',
+        digest: 'a',
+        modifiedAt: 'now'
+      }),
+      resetMainPrompt: async () => ({
+        path: '.action-driver/prompts/main.md',
+        content: '',
+        digest: 'b',
+        modifiedAt: 'now'
+      }),
       listSkills: async () => [],
       getSkillTree: async () => [],
       readFile: async (path) => ({ path, content: '', digest: 'a', modifiedAt: 'now' }),
       saveFile: async (input) => ({ ...input, digest: 'b', modifiedAt: 'now' }),
-      createSkill: async (input) => ({ id: input.name, name: input.name, description: input.description, enabled: true, available: true, protected: false, modifiedAt: 'now' }),
-      renameSkill: async (skillId, name) => ({ id: skillId, name, description: '', enabled: true, available: true, protected: false, modifiedAt: 'now' }),
+      createSkill: async (input) => ({
+        id: input.name,
+        name: input.name,
+        description: input.description,
+        enabled: true,
+        available: true,
+        protected: false,
+        modifiedAt: 'now'
+      }),
+      renameSkill: async (skillId, name) => ({
+        id: skillId,
+        name,
+        description: '',
+        enabled: true,
+        available: true,
+        protected: false,
+        modifiedAt: 'now'
+      }),
       deleteSkill: async () => undefined,
-      setSkillEnabled: async (skillId, enabled) => ({ id: skillId, name: skillId, description: '', enabled, available: true, protected: false, modifiedAt: 'now' })
+      setSkillEnabled: async (skillId, enabled) => ({
+        id: skillId,
+        name: skillId,
+        description: '',
+        enabled,
+        available: true,
+        protected: false,
+        modifiedAt: 'now'
+      })
     }
   }
 }
@@ -80,6 +117,7 @@ describe('renderer composition root', () => {
     expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
     expect(services.skillGateway).toBeInstanceOf(MockSkillGateway)
+    expect(services.agentFilesService).toBeInstanceOf(MockAgentFilesService)
     expect(services.skillGateway).not.toBe(services.agentCommandService)
     expect(services.taskCatalog).toBeInstanceOf(MockTaskCatalog)
     expect(Object.keys(services).sort()).toEqual([
@@ -162,6 +200,7 @@ describe('renderer composition root', () => {
     expect(services.skillGateway).toBeInstanceOf(DesktopSkillGateway)
     expect(services.skillGateway).not.toBeInstanceOf(MockSkillGateway)
     expect(services.modelConnectionsService).toBeInstanceOf(DesktopModelConnectionsService)
+    expect(services.agentFilesService).toBeInstanceOf(DesktopAgentFilesService)
   })
 
   it('binds the mock model connection service for fixture and visual runs', () => {
