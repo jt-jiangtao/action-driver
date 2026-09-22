@@ -10,8 +10,8 @@
 
 ## 3. 按钮、下拉框与状态几何
 
-- [ ] 3.1 先补充控件内容刚好适配、padding 挤压、padding 过大、尾部图标预留、静态 HUG 标签、动态长标签省略和状态几何漂移测试，并确认新测试先失败
-- [ ] 3.2 实现权威组件/profile 匹配与 required/available width 内容预算，验证动态固定标签要求 `ENDING + maxLines: 1`，静态 HUG 按钮和图标按钮不被误报
+- [x] 3.1 先补充控件内容刚好适配、padding 挤压、padding 过大、尾部图标预留、静态 HUG 标签、动态长标签省略和状态几何漂移测试，并确认新测试先失败
+- [x] 3.2 实现权威组件/profile 匹配与 required/available width 内容预算，验证动态固定标签要求 `ENDING + maxLines: 1`，静态 HUG 按钮和图标按钮不被误报
 
 ## 4. 状态、Reaction 与项目配置
 

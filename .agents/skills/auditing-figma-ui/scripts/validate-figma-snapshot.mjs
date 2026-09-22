@@ -307,6 +307,193 @@ function modalIssues(snapshot, config, index) {
   return issues
 }
 
+function profileForNode(node, profiles) {
+  if (!node.sourceComponentId) return null
+  return profiles.find((profile) => profile.sourceComponentIds?.includes(node.sourceComponentId)) ?? null
+}
+
+function visibleInlineChildren(control, nodes, index) {
+  return childrenOf(control.id, nodes).filter(
+    (child) =>
+      isEffectivelyVisible(child, index) &&
+      child.layoutPositioning !== 'ABSOLUTE' &&
+      !['background', 'hotspot'].includes(child.semanticRole),
+  )
+}
+
+function controlMeasurements(control, profile, nodes, index) {
+  const children = visibleInlineChildren(control, nodes, index)
+  const gapCount = Math.max(0, children.length - 1)
+  const itemSpacing = control.itemSpacing ?? 0
+  const requiredWidth =
+    children.reduce((total, child) => total + child.width, 0) + itemSpacing * gapCount
+  const paddingLeft = control.paddingLeft ?? 0
+  const paddingRight = control.paddingRight ?? 0
+  const label = children.find((child) => child.semanticRole === profile.labelRole)
+  return {
+    availableWidth: control.width - paddingLeft - paddingRight,
+    children,
+    label,
+    paddingLeft,
+    paddingRight,
+    requiredWidth,
+  }
+}
+
+function controlProfileIssues(snapshot, config, index) {
+  const profiles = config.controlProfiles ?? []
+  const issues = []
+  const matched = snapshot.nodes
+    .map((node) => ({ node, profile: profileForNode(node, profiles) }))
+    .filter(({ node, profile }) => profile && isEffectivelyVisible(node, index))
+
+  for (const { node: control, profile } of matched) {
+    const measurements = controlMeasurements(control, profile, snapshot.nodes, index)
+    const budget = {
+      availableWidth: measurements.availableWidth,
+      requiredWidth: measurements.requiredWidth,
+    }
+    if (measurements.requiredWidth > control.width) {
+      issues.push(
+        createIssue(
+          snapshot,
+          control,
+          'CONTROL_CONTENT_OVERFLOW',
+          'visible inline content is wider than the control',
+          budget,
+        ),
+      )
+    } else if (measurements.requiredWidth > measurements.availableWidth) {
+      issues.push(
+        createIssue(
+          snapshot,
+          control,
+          'CONTROL_PADDING_BREAKS_CONTENT',
+          'horizontal padding leaves insufficient width for visible inline content',
+          budget,
+        ),
+      )
+    }
+
+    const paddingOutsideRange =
+      (Number.isFinite(profile.minPaddingX) &&
+        (measurements.paddingLeft < profile.minPaddingX ||
+          measurements.paddingRight < profile.minPaddingX)) ||
+      (Number.isFinite(profile.maxPaddingX) &&
+        (measurements.paddingLeft > profile.maxPaddingX ||
+          measurements.paddingRight > profile.maxPaddingX))
+    if (paddingOutsideRange) {
+      issues.push(
+        createIssue(
+          snapshot,
+          control,
+          'CONTROL_PADDING_OUTLIER',
+          'horizontal padding is outside the configured control profile',
+          {
+            maxPaddingX: profile.maxPaddingX ?? null,
+            minPaddingX: profile.minPaddingX ?? null,
+            paddingLeft: measurements.paddingLeft,
+            paddingRight: measurements.paddingRight,
+          },
+          'warning',
+        ),
+      )
+    }
+
+    if (
+      profile.dynamicLabel === true &&
+      profile.fixedWidth === true &&
+      measurements.label &&
+      (measurements.label.textTruncation !== 'ENDING' || measurements.label.maxLines !== 1)
+    ) {
+      issues.push(
+        createIssue(
+          snapshot,
+          measurements.label,
+          'CONTROL_LABEL_NO_ELLIPSIS',
+          'dynamic fixed-width label must use single-line ending truncation',
+          {
+            maxLines: measurements.label.maxLines ?? null,
+            textTruncation: measurements.label.textTruncation ?? null,
+          },
+        ),
+      )
+    }
+  }
+
+  const stateGroups = new Map()
+  for (const entry of matched.filter(({ profile }) => profile.compareStateGeometry === true)) {
+    const groupId = entry.node.auditGroupId
+    if (!groupId) continue
+    const key = `${entry.profile.id}:${groupId}`
+    const group = stateGroups.get(key) ?? []
+    group.push(entry)
+    stateGroups.set(key, group)
+  }
+
+  for (const group of stateGroups.values()) {
+    if (group.length < 2) continue
+    const ordered = [...group].sort((a, b) => {
+      const aState = a.node.variantProperties?.State ?? ''
+      const bState = b.node.variantProperties?.State ?? ''
+      const aPriority = aState === 'normal' ? 0 : 1
+      const bPriority = bState === 'normal' ? 0 : 1
+      return aPriority - bPriority || aState.localeCompare(bState) || a.node.id.localeCompare(b.node.id)
+    })
+    const reference = ordered[0]
+    const referenceMeasure = controlMeasurements(
+      reference.node,
+      reference.profile,
+      snapshot.nodes,
+      index,
+    )
+    const referenceLabel = referenceMeasure.label
+    for (const entry of ordered.slice(1)) {
+      const measurement = controlMeasurements(entry.node, entry.profile, snapshot.nodes, index)
+      const label = measurement.label
+      const changed =
+        entry.node.width !== reference.node.width ||
+        entry.node.height !== reference.node.height ||
+        measurement.paddingLeft !== referenceMeasure.paddingLeft ||
+        measurement.paddingRight !== referenceMeasure.paddingRight ||
+        (label?.x ?? null) !== (referenceLabel?.x ?? null) ||
+        (label?.y ?? null) !== (referenceLabel?.y ?? null)
+      if (!changed) continue
+      issues.push(
+        createIssue(
+          snapshot,
+          entry.node,
+          'CONTROL_GEOMETRY_DRIFT',
+          'control geometry changes across visual states',
+          {
+            referenceState: reference.node.variantProperties?.State ?? null,
+            state: entry.node.variantProperties?.State ?? null,
+            reference: {
+              height: reference.node.height,
+              labelX: referenceLabel?.x ?? null,
+              labelY: referenceLabel?.y ?? null,
+              paddingLeft: referenceMeasure.paddingLeft,
+              paddingRight: referenceMeasure.paddingRight,
+              width: reference.node.width,
+            },
+            actual: {
+              height: entry.node.height,
+              labelX: label?.x ?? null,
+              labelY: label?.y ?? null,
+              paddingLeft: measurement.paddingLeft,
+              paddingRight: measurement.paddingRight,
+              width: entry.node.width,
+            },
+          },
+          'warning',
+        ),
+      )
+    }
+  }
+
+  return issues
+}
+
 function textBoundsIssue(snapshot, node, index) {
   if (node.type !== 'TEXT' || !isEffectivelyVisible(node, index)) return null
   const parent = clippingAncestor(node, index)
@@ -432,6 +619,7 @@ export function validateSnapshot(snapshot, config) {
     ...manualFlowIssues(snapshot, config, index),
     ...fixedDynamicIssues(snapshot, config, index),
     ...modalIssues(snapshot, config, index),
+    ...controlProfileIssues(snapshot, config, index),
   )
 
   const issues = []

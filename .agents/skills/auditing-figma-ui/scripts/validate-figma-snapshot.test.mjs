@@ -359,6 +359,185 @@ test('warns for excessive modal whitespace but ignores drawer scroll space', () 
   assert.ok(!result.issues.some((issue) => issue.nodeId === 'drawer'))
 })
 
+function controlConfig(profileOverrides = {}) {
+  return validConfig({
+    controlProfiles: [
+      {
+        id: 'select',
+        sourceComponentIds: ['component:select'],
+        labelRole: 'label',
+        dynamicLabel: true,
+        fixedWidth: true,
+        allowedHeights: [32],
+        minPaddingX: 8,
+        maxPaddingX: 16,
+        compareStateGeometry: true,
+        ...profileOverrides,
+      },
+    ],
+  })
+}
+
+function selectSnapshot({
+  id = 'select',
+  width = 112,
+  paddingLeft = 12,
+  paddingRight = 12,
+  itemSpacing = 8,
+  labelWidth = 64,
+  text = 'gpt-5.2',
+  textTruncation = 'ENDING',
+  maxLines = 1,
+  state = 'normal',
+  auditGroupId = 'select-set',
+} = {}) {
+  return validSnapshot([
+    figmaNode({
+      id,
+      sourceComponentId: 'component:select',
+      auditGroupId,
+      variantProperties: { State: state },
+      layoutMode: 'HORIZONTAL',
+      width,
+      height: 32,
+      paddingLeft,
+      paddingRight,
+      itemSpacing,
+    }),
+    figmaNode({
+      id: `${id}-label`,
+      parentId: id,
+      type: 'TEXT',
+      semanticRole: 'label',
+      text,
+      width: labelWidth,
+      height: 20,
+      textTruncation,
+      maxLines,
+    }),
+    figmaNode({
+      id: `${id}-chevron`,
+      parentId: id,
+      semanticRole: 'trailing-icon',
+      x: labelWidth + itemSpacing,
+      width: 16,
+      height: 16,
+    }),
+  ])
+}
+
+test('accepts a select whose label, trailing icon, gaps, and padding exactly fit', () => {
+  const result = validateSnapshot(
+    selectSnapshot({ width: 104, labelWidth: 56, paddingLeft: 12, paddingRight: 12, itemSpacing: 8 }),
+    controlConfig(),
+  )
+
+  assert.ok(!result.issues.some((issue) => issue.ruleId.startsWith('CONTROL_')))
+})
+
+test('reports when select padding leaves too little room for visible content', () => {
+  const result = validateSnapshot(
+    selectSnapshot({ width: 104, labelWidth: 64, paddingLeft: 12, paddingRight: 12, itemSpacing: 8 }),
+    controlConfig(),
+  )
+
+  const issue = result.issues.find((candidate) => candidate.ruleId === 'CONTROL_PADDING_BREAKS_CONTENT')
+  assert.deepEqual(issue?.measurements, { availableWidth: 80, requiredWidth: 88 })
+})
+
+test('reports content wider than the whole select and excessive padding separately', () => {
+  const overflowing = validateSnapshot(
+    selectSnapshot({ width: 80, labelWidth: 72, paddingLeft: 0, paddingRight: 0, itemSpacing: 8 }),
+    controlConfig(),
+  )
+  const padded = validateSnapshot(
+    selectSnapshot({ width: 160, labelWidth: 64, paddingLeft: 28, paddingRight: 28, itemSpacing: 8 }),
+    controlConfig(),
+  )
+
+  assert.ok(overflowing.issues.some((issue) => issue.ruleId === 'CONTROL_CONTENT_OVERFLOW'))
+  assert.ok(padded.issues.some((issue) => issue.ruleId === 'CONTROL_PADDING_OUTLIER'))
+})
+
+test('requires ellipsis for a dynamic fixed select label', () => {
+  const result = validateSnapshot(
+    selectSnapshot({
+      text: 'claude-opus-4-1-20260805',
+      textTruncation: 'DISABLED',
+      maxLines: null,
+    }),
+    controlConfig(),
+  )
+
+  assert.ok(result.issues.some((issue) => issue.ruleId === 'CONTROL_LABEL_NO_ELLIPSIS'))
+})
+
+test('accepts a static HUG button and an icon-only square button without ellipsis', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'action',
+        sourceComponentId: 'component:button',
+        layoutMode: 'HORIZONTAL',
+        layoutSizingHorizontal: 'HUG',
+        width: 88,
+        height: 32,
+        paddingLeft: 12,
+        paddingRight: 12,
+      }),
+      figmaNode({
+        id: 'action-label',
+        parentId: 'action',
+        type: 'TEXT',
+        semanticRole: 'label',
+        text: '保存更改',
+        width: 64,
+        height: 20,
+        textTruncation: 'DISABLED',
+      }),
+      figmaNode({
+        id: 'icon-button',
+        sourceComponentId: 'component:button',
+        layoutMode: 'HORIZONTAL',
+        width: 32,
+        height: 32,
+        paddingLeft: 8,
+        paddingRight: 8,
+      }),
+      figmaNode({
+        id: 'icon-button-icon',
+        parentId: 'icon-button',
+        semanticRole: 'icon',
+        width: 16,
+        height: 16,
+      }),
+    ]),
+    controlConfig({
+      id: 'button',
+      sourceComponentIds: ['component:button'],
+      dynamicLabel: false,
+      fixedWidth: false,
+    }),
+  )
+
+  assert.ok(!result.issues.some((issue) => issue.ruleId === 'CONTROL_LABEL_NO_ELLIPSIS'))
+  assert.ok(!result.issues.some((issue) => issue.nodeId === 'icon-button'))
+})
+
+test('reports geometry drift between select states', () => {
+  const normal = selectSnapshot({ id: 'normal', state: 'normal' })
+  const hover = selectSnapshot({ id: 'hover', state: 'hover', paddingLeft: 16, paddingRight: 8 })
+  const result = validateSnapshot(
+    { ...normal, nodes: [...normal.nodes, ...hover.nodes] },
+    controlConfig(),
+  )
+
+  const issue = result.issues.find((candidate) => candidate.ruleId === 'CONTROL_GEOMETRY_DRIFT')
+  assert.equal(issue?.nodeId, 'hover')
+  assert.equal(issue?.measurements.referenceState, 'normal')
+  assert.equal(issue?.measurements.state, 'hover')
+})
+
 test('CLI returns 0 for clean input, 1 for violations, and 2 for invalid input', () => {
   const directory = mkdtempSync(join(tmpdir(), 'figma-audit-'))
   const configPath = join(directory, 'config.json')
