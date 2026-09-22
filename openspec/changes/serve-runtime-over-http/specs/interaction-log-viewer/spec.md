@@ -128,3 +128,26 @@
 #### Scenario: 记录二进制载荷
 - **WHEN** 交互携带二进制 Request 或 Response
 - **THEN** 系统只保存类型、原始大小与摘要，页面不加载或复制原始二进制
+
+### Requirement: 记录真实最小 Agent 闭环并提供真实日志投影
+系统 SHALL 记录从任务提交到真实模型返回的完整交互链路，并 SHALL 用真实运行事件生成接口层和模型层日志列表与详情；本地生产装配 MUST NOT 用 Mock 日志补齐空状态或失败状态。
+
+#### Scenario: 记录供应商模型调用
+- **WHEN** Runtime 向 OpenAI-compatible 上游发起请求并收到响应
+- **THEN** 接口层日志创建 `service->model` 方向的结构化事件，保存已排除鉴权头与 API Key 的真实 Request/Response
+
+#### Scenario: 查看模型层执行数据
+- **WHEN** 用户打开已完成或失败任务的模型层日志
+- **THEN** 页面按真实 `taskId`、`requestId` 与 `correlationId` 展示系统提示词、用户输入、模型请求、模型响应和任务终态
+
+#### Scenario: 请求失败仍可诊断
+- **WHEN** 上游请求在收到有效模型文本前失败
+- **THEN** 接口层保留实际 Request 与错误 Response 或失败元数据，模型层展示失败终态且不伪造模型回答
+
+#### Scenario: 日志列表使用真实数据
+- **WHEN** 当前存储没有匹配的接口层或模型层日志
+- **THEN** 页面展示空状态，不展示示例事件或 Mock 会话
+
+#### Scenario: 查看日志不产生新日志
+- **WHEN** 用户刷新、筛选或打开接口层与模型层日志详情
+- **THEN** `actiondriver:log:*` 控制面调用继续被采集器排除，列表内容不会因查看行为自增长

@@ -1,3 +1,16 @@
+## 0. 最高优先级：真实 OpenAI-compatible 最小 Agent 闭环
+
+> 本组是当前最高优先级。完成前只推进其直接依赖和严重回归修复；不接入 Anthropic Agent 执行、流式输出、Skill、Browser Use 或 Computer Use。
+
+- [ ] 0.1 把 Agent 模型选择改为服务端真实投影，以 `{ connectionId, modelId }` 标识选择；只允许已启用、支持文本的 OpenAI-compatible 模型执行，Anthropic 显示不可选原因，并覆盖空列表、重复模型名、选择失效与服务端不可用状态。
+- [ ] 0.2 扩展 `task.submit` 与客户端服务合同，携带模型引用、用户目标、主提示词和 `skills=[]`；用契约测试验证未知字段、失效引用和凭据不会进入提交载荷。
+- [ ] 0.3 在模型协议适配器/连接服务中实现真实 OpenAI-compatible 非流式 `/chat/completions` 请求、assistant 文本解析与认证/限流/超时/协议/无文本错误映射，确保凭据只存在于 Runtime 上游边界。
+- [ ] 0.4 在 Runtime 组合根共享同一个 `ModelConnectionService` 并注入真实模型网关；本地生产装配移除 `DeterministicModelGateway` 降级和 Browser/Computer Provider 注册，用组合测试证明不同装配边界。
+- [ ] 0.5 持久化真实任务、消息与运行事件并提供任务/会话列表及详情投影；把本地生产页面的最近列表和 Agent-only 详情切到真实数据，验证空状态、完成、失败和应用重启恢复，Mock 只留在测试/视觉装配。
+- [ ] 0.6 接入真实双层日志：接口层增加 `service->model` Request/Response，模型层从同一任务事件投影系统提示词、用户输入、模型请求、模型响应与终态；贯通 `taskId`/`requestId`/`correlationId`，排除凭据和 `actiondriver:log:*` 控制面。
+- [ ] 0.7 建立本地假 OpenAI-compatible HTTP 服务的端到端测试：添加并启用连接 → 选择模型 → 提交目标 → 断言真实上游请求 → 查看真实任务/会话列表、任务结果与双层日志；同时断言没有 Browser/Computer 调用、没有 Mock 降级和密钥泄漏。
+- [ ] 0.8 完成本组后再运行定向测试、完整 `pnpm check`、桌面 E2E 与 `openspec validate serve-runtime-over-http --strict`；在此之前不为每个子项重复跑全集门禁。
+
 ## 1. 服务端入口、生命周期与访问凭据
 
 - [ ] 1.1 定义服务端配置端口（监听地址、端口策略、存储根目录、凭据适配器、协议版本），用单元测试验证本地装配只使用回环地址且不读取本机专属路径。

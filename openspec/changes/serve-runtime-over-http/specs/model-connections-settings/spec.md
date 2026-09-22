@@ -84,3 +84,28 @@
 #### Scenario: 步骤间保留数据
 - **WHEN** 用户在连接配置和模型选择步骤之间前进或返回
 - **THEN** 已填写连接字段、选择的模型和已有测试结果均保持不变
+
+## ADDED Requirements
+
+### Requirement: 为 Agent 提供真实且无歧义的模型选项
+系统 SHALL 从服务端持久化的模型连接中投影 Agent 可选模型，并 MUST 使用 `connectionId` 与 `modelId` 的组合标识一次选择；本地生产装配 MUST NOT 注入硬编码默认模型或示例模型作为降级内容。
+
+#### Scenario: 选择可执行的 OpenAI-compatible 模型
+- **WHEN** 一个 OpenAI-compatible 连接已启用且其中存在已启用、支持文本的模型
+- **THEN** Agent 模型选择器展示该连接与模型，并把 `{ connectionId, modelId }` 作为提交引用
+
+#### Scenario: 两个连接包含同名模型
+- **WHEN** 两个连接都包含相同 `modelId`
+- **THEN** 页面按连接名称区分选项，选择其中一个不会解析到另一个连接
+
+#### Scenario: Anthropic 尚未接入 Agent 执行
+- **WHEN** 已配置可用的 Anthropic-compatible 连接
+- **THEN** 连接仍可在设置页管理和测试，但 Agent 模型选择器将其标记为不可选并说明“Agent 调用暂未接入”
+
+#### Scenario: 没有可用模型
+- **WHEN** 服务端没有返回任何可用于 Agent 执行的模型
+- **THEN** 页面展示配置模型连接的空状态，提交操作不可用且不选择示例模型
+
+#### Scenario: 已选模型不再可用
+- **WHEN** 当前选择对应的连接被删除、停用或模型被停用
+- **THEN** 页面清除失效选择、阻止提交并要求用户重新选择

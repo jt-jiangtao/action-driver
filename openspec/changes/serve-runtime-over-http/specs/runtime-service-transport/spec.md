@@ -103,3 +103,37 @@
 #### Scenario: 本地装配
 - **WHEN** 服务端随客户端启动
 - **THEN** 它使用本地存储与本地凭据适配器提供同样的契约，客户端不需要知道部署位置
+
+### Requirement: 任务提交绑定精确的模型连接
+系统 SHALL 要求 Agent 任务提交携带 `{ connectionId, modelId }` 模型引用、用户目标、主提示词与 Skill 选择，并 SHALL 由服务端依据自身持久化配置解析该引用；客户端 MUST NOT 传递供应商凭据或自行构造上游请求。
+
+#### Scenario: 提交最小 Agent 任务
+- **WHEN** 客户端用有效的 OpenAI-compatible 模型引用提交目标
+- **THEN** 服务端解析对应连接并创建任务，本阶段把 Skill 选择固定为空列表
+
+#### Scenario: 模型引用失效
+- **WHEN** 引用的连接或模型不存在、未启用或不支持文本
+- **THEN** 服务端在发起上游请求前返回稳定的不可执行错误，并且不回退到其他模型
+
+#### Scenario: 客户端未携带凭据
+- **WHEN** 服务端接收任务提交
+- **THEN** 请求只包含模型引用和业务输入，供应商密钥由服务端内部解析且不进入任务合同
+
+### Requirement: 通过真实 OpenAI-compatible 上游完成单轮执行
+本地生产装配 SHALL 通过模型连接服务持有的真实 OpenAI-compatible 凭据发起一次非流式模型请求，并 SHALL 把模型输出、任务状态与运行事件写入服务端存储；本地生产装配 MUST NOT 回退到确定性模型网关。
+
+#### Scenario: 上游成功返回文本
+- **WHEN** OpenAI-compatible `/chat/completions` 返回有效 assistant 文本
+- **THEN** 服务端保存 assistant 消息、把任务置为完成并发布可恢复的完成事件
+
+#### Scenario: 上游请求失败
+- **WHEN** 上游返回认证、限流、超时、协议或无文本错误
+- **THEN** 服务端保存结构化失败结果、把任务置为失败并返回不含凭据的稳定错误码
+
+#### Scenario: 服务重启后读取结果
+- **WHEN** 已完成或失败的任务在本地服务重启后被查询
+- **THEN** 服务端从持久化存储恢复相同任务状态、消息和运行事件
+
+#### Scenario: 最小闭环不调用本机 Skill
+- **WHEN** 本阶段任务运行
+- **THEN** Runtime 不注册或调用 Browser/Computer Provider，任务投影中也不产生虚构的 Browser/Computer 步骤
