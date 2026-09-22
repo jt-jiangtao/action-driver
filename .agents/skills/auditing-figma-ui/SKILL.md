@@ -18,8 +18,10 @@ Use this Skill for a Figma design audit or for validation after Figma UI changes
 
    ```bash
    pnpm validate:figma-audit -- /tmp/action-driver-figma-audit/*.json
-   pnpm validate:figma-audit -- --json /tmp/action-driver-figma-audit/*.json
+   pnpm --silent validate:figma-audit -- --json /tmp/action-driver-figma-audit/*.json
    ```
+
+   Use `--silent` for the JSON form so the package-runner banner does not corrupt redirected JSON output. Keep generated reports outside the snapshot glob.
 
 7. Treat exit `0` as no deterministic errors, exit `1` as a successful audit that found errors, and exit `2` as invalid input or configuration. Never suppress exit `1` to claim the design passed.
 8. Review every warning and every representative error visually. Capture screenshots for modal density, manual flow, icon semantics, control padding, geometry drift, and any rule whose meaning depends on visual context.
