@@ -36,7 +36,36 @@ describe('Agent Runtime process entry', () => {
     })
     await started
 
-    expect(parentPort.postMessage).toHaveBeenCalledWith({ type: 'runtime.ready' })
+    expect(parentPort.postMessage).toHaveBeenCalledWith({ type: 'runtime.ready', service: null })
+
+    parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+  })
+
+  it('reports the HTTP service address when the client injected a token', async () => {
+    const parentPort = new FakeParentPort()
+    const runtimePort = new LinkedPort()
+    const mainPort = new LinkedPort()
+    runtimePort.peer = mainPort
+    mainPort.peer = runtimePort
+    const exit = vi.fn()
+    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-http-')), 'runtime.db')
+
+    const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
+      ACTIONDRIVER_SERVICE_TOKEN: 'service-token',
+      ACTIONDRIVER_CREDENTIAL_KEY: 'credential-secret',
+      ACTIONDRIVER_RUNTIME_VERSION: '1.2.3'
+    })
+    parentPort.emit('message', {
+      data: { type: 'runtime.connect' },
+      ports: [runtimePort]
+    })
+    await started
+
+    const readyMessage = parentPort.postMessage.mock.calls.find(
+      ([message]) => (message as { type: string }).type === 'runtime.ready'
+    )?.[0] as { type: string; service: { baseUrl: string } }
+    expect(readyMessage.service.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))

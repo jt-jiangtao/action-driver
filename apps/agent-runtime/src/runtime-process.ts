@@ -1,15 +1,45 @@
 import { createLocalRuntimeServer } from './local-runtime-server'
 import { waitForRuntimeMessagePort, type ParentPortLike } from './parent-port-endpoint'
+import { openRuntimeDatabase } from './database'
+import { createSqliteModelConnectionStore } from './model-connections/sqlite-store'
+import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
+import { createServiceLogger } from './service/logger'
+import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
+import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
 
 type ParentMessageEvent = { data: unknown }
 
 export async function startAgentRuntimeProcess(
   parentPort: ParentPortLike,
   databasePath: string,
-  exit: (code: number) => void = process.exit
+  exit: (code: number) => void = process.exit,
+  environment: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
   const endpoint = await waitForRuntimeMessagePort(parentPort)
   const server = createLocalRuntimeServer(endpoint, databasePath)
+
+  const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
+  let httpServer: ServiceHttpServer | null = null
+  let logging: ReturnType<typeof createServiceLogger> | null = null
+
+  if (serviceToken) {
+    const database = openRuntimeDatabase(databasePath)
+    logging = createServiceLogger({ databasePath })
+    const service = new ModelConnectionService({
+      store: createSqliteModelConnectionStore(database),
+      cipher: createCredentialCipher(createCredentialKey(environment.ACTIONDRIVER_CREDENTIAL_KEY ?? '')),
+      transport: createFetchHttpTransport()
+    })
+    const serviceOptions = {
+      service,
+      token: serviceToken,
+      runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
+      logger: logging.logger,
+      ...(logging.logFilePath === null ? {} : { logFilePath: logging.logFilePath })
+    }
+    httpServer = await startServiceHttpServer(serviceOptions)
+  }
+
   const handleShutdown = (event: ParentMessageEvent) => {
     if (
       typeof event.data !== 'object' ||
@@ -20,8 +50,16 @@ export async function startAgentRuntimeProcess(
       return
     }
     parentPort.off('message', handleShutdown)
-    void server.close().then(() => exit(0))
+    void server.close().then(async () => {
+      await httpServer?.close()
+      await logging?.close()
+      exit(0)
+    })
   }
+
   parentPort.on('message', handleShutdown)
-  parentPort.postMessage({ type: 'runtime.ready' })
+  parentPort.postMessage({
+    type: 'runtime.ready',
+    service: httpServer ? { baseUrl: httpServer.url } : null
+  })
 }
