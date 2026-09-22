@@ -162,6 +162,14 @@ abstract class RpcPeer {
       )
     }
 
+    try {
+      parseRuntimeEnvelope(envelope)
+    } catch (error) {
+      return Promise.reject(
+        new RuntimeRpcError('INVALID_MESSAGE', 'Refused to send invalid runtime message', error)
+      )
+    }
+
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (!this.pending.delete(requestId)) return

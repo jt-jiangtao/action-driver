@@ -16,13 +16,54 @@ const skillControlInputSchema = z.object({
   command: z.enum(['pause', 'resume', 'take-over'])
 })
 
+const modelRefSchema = z
+  .object({
+    connectionId: z.string().trim().min(1),
+    modelId: z.string().trim().min(1)
+  })
+  .strict()
+
+const taskSubmitInputSchema = z
+  .object({
+    goal: z.string().trim().min(1),
+    model: modelRefSchema,
+    systemPrompt: z.string().optional(),
+    skills: z.tuple([])
+  })
+  .strict()
+
+const taskListInputSchema = z
+  .object({ limit: z.number().int().min(1).max(100).optional() })
+  .strict()
+
+const modelLogListInputSchema = z
+  .object({
+    status: z.enum(['completed', 'running', 'failed']).optional(),
+    query: z.string().optional()
+  })
+  .strict()
+
+const modelLogGetInputSchema = z.object({ taskId: z.string().trim().min(1) }).strict()
+
+const validatedCommands = new Set([
+  'skill.control',
+  'task.submit',
+  'task.list',
+  'model-log.list',
+  'model-log.get'
+])
+
 const commandPayloadSchema = z.union([
   z.object({ command: z.literal('skill.control'), input: skillControlInputSchema }),
+  z.object({ command: z.literal('task.submit'), input: taskSubmitInputSchema }),
+  z.object({ command: z.literal('task.list'), input: taskListInputSchema }),
+  z.object({ command: z.literal('model-log.list'), input: modelLogListInputSchema }),
+  z.object({ command: z.literal('model-log.get'), input: modelLogGetInputSchema }),
   z.object({
     command: z
       .string()
       .min(1)
-      .refine((command) => command !== 'skill.control'),
+      .refine((command) => !validatedCommands.has(command)),
     input: z.unknown()
   })
 ])

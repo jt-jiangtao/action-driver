@@ -24,7 +24,14 @@ const fixtures = [
     requestId: 'request-command',
     version: RUNTIME_PROTOCOL_VERSION,
     deadlineUnixMs: 1_800_000_000_000,
-    payload: { command: 'task.submit', input: { goal: '打开示例页面' } }
+    payload: {
+      command: 'task.submit',
+      input: {
+        goal: '打开示例页面',
+        model: { connectionId: 'connection-a', modelId: 'shared-model' },
+        skills: []
+      }
+    }
   },
   {
     type: 'command.request',
@@ -144,6 +151,40 @@ describe('runtime protocol', () => {
       ).toThrow()
     }
   )
+
+  it.each([
+    {
+      goal: 'hello',
+      model: { connectionId: '', modelId: 'shared-model' },
+      skills: []
+    },
+    {
+      goal: 'hello',
+      model: { connectionId: 'connection-a', modelId: '' },
+      skills: []
+    },
+    {
+      goal: 'hello',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' },
+      skills: [{ skillId: 'browser-use', description: 'Browser' }]
+    },
+    {
+      goal: 'hello',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' },
+      skills: [],
+      apiKey: 'must-not-cross-runtime-contract'
+    }
+  ])('rejects invalid or credential-bearing task submit input', (input) => {
+    expect(() =>
+      parseRuntimeEnvelope({
+        type: 'command.request',
+        requestId: 'request-submit',
+        version: RUNTIME_PROTOCOL_VERSION,
+        deadlineUnixMs: 1_800_000_000_000,
+        payload: { command: 'task.submit', input }
+      })
+    ).toThrow()
+  })
 
   it.each(fixtures)('keeps $type structured-clone safe', (fixture) => {
     const parsed = parseRuntimeEnvelope(fixture)

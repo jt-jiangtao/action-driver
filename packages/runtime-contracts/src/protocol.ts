@@ -1,4 +1,8 @@
 import type {
+  ModelLogSessionProjection,
+  ModelLogQuery,
+  ModelRef,
+  RecentTaskProjection,
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
@@ -13,8 +17,17 @@ export type RuntimeSkillDescription = {
 
 export type RuntimeCommandMap = {
   'task.submit': {
-    request: { goal: string; systemPrompt?: string; skills?: RuntimeSkillDescription[] }
+    request: { goal: string; model: ModelRef; systemPrompt?: string; skills: [] }
     response: { taskId: string }
+  }
+  'task.list': { request: { limit?: number }; response: { tasks: RecentTaskProjection[] } }
+  'model-log.list': {
+    request: ModelLogQuery
+    response: { sessions: ModelLogSessionProjection[] }
+  }
+  'model-log.get': {
+    request: { taskId: string }
+    response: { session: ModelLogSessionProjection | null }
   }
   'task.interrupt': { request: { taskId: string }; response: { accepted: true } }
   'task.continue': { request: { taskId: string }; response: { accepted: true } }

@@ -6,6 +6,9 @@ import {
   type BrowserSkillInvocation,
   type ComputerUseSkillInvocation,
   type BrowserSkillProjection,
+  type AgentGoalRequest,
+  type ModelLogSessionProjection,
+  type RecentTaskProjection,
   type SkillExecutionEvent,
   type TaskProjection
 } from '../src/index'
@@ -68,5 +71,69 @@ describe('agent skill contracts', () => {
     expect(isSerializableContract(event)).toBe(true)
     expect(isSerializableContract(task)).toBe(true)
     expect(isSerializableContract({ ...event, invalid: () => undefined })).toBe(false)
+  })
+
+  it('identifies an Agent model by both connection and model id', () => {
+    const request: AgentGoalRequest = {
+      goal: '总结本周进展',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' }
+    }
+
+    expect(request.model).toEqual({ connectionId: 'connection-a', modelId: 'shared-model' })
+    expect(isSerializableContract(request)).toBe(true)
+  })
+
+  it('keeps recent task and model log correlation data serializable', () => {
+    const recent: RecentTaskProjection = {
+      id: 'task-1',
+      sessionId: 'thread-1',
+      title: '总结本周进展',
+      status: 'succeeded',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' },
+      createdAt: '2026-09-23T01:00:00.000Z',
+      updatedAt: '2026-09-23T01:00:01.000Z'
+    }
+    const modelLogs: ModelLogSessionProjection = {
+      id: 'thread-1',
+      sessionId: 'thread-1',
+      name: '总结本周进展',
+      startTime: '2026-09-23T01:00:00.000Z',
+      endTime: '2026-09-23T01:00:01.000Z',
+      status: 'completed',
+      durationMs: 1000,
+      tasks: [
+        {
+          id: 'task-1',
+          sessionId: 'thread-1',
+          name: '总结本周进展',
+          startTime: '2026-09-23T01:00:00.000Z',
+          endTime: '2026-09-23T01:00:01.000Z',
+          status: 'completed',
+          durationMs: 1000,
+          model: { connectionId: 'connection-a', modelId: 'shared-model' },
+          calls: [
+            {
+              id: 'call-1',
+              taskId: 'task-1',
+              requestId: 'plan:task-1',
+              correlationId: 'correlation-1',
+              label: '模型调用',
+              time: '2026-09-23T01:00:00.000Z',
+              status: 'completed',
+              description: '真实模型返回',
+              sections: []
+            }
+          ]
+        }
+      ]
+    }
+
+    expect(recent).toMatchObject({ id: 'task-1', sessionId: 'thread-1' })
+    expect(modelLogs.tasks[0]?.calls[0]).toMatchObject({
+      taskId: 'task-1',
+      requestId: 'plan:task-1',
+      correlationId: 'correlation-1'
+    })
+    expect(isSerializableContract({ recent, modelLogs })).toBe(true)
   })
 })

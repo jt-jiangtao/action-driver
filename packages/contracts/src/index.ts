@@ -59,6 +59,75 @@ export interface TaskProjection {
   browser: BrowserSkillProjection | null
 }
 
+export type ModelRef = {
+  connectionId: string
+  modelId: string
+}
+
+export type AgentGoalRequest = {
+  goal: string
+  model: ModelRef
+}
+
+export type RecentTaskProjection = {
+  id: string
+  sessionId: string
+  title: string
+  status: SkillExecutionState
+  model: ModelRef
+  createdAt: string
+  updatedAt: string
+}
+
+export type ModelRunStatus = 'completed' | 'running' | 'failed'
+
+export type ModelLogDetailSectionProjection = {
+  id: 'system-prompt' | 'user-input' | 'model-request' | 'model-response' | 'metadata'
+  title: string
+  content: string
+  language?: 'json' | 'text'
+}
+
+export type ModelLogCallProjection = {
+  id: string
+  taskId: string
+  requestId: string
+  correlationId: string
+  label: string
+  time: string
+  status: ModelRunStatus
+  description: string
+  sections: ModelLogDetailSectionProjection[]
+}
+
+export type ModelLogTaskProjection = {
+  id: string
+  sessionId: string
+  name: string
+  startTime: string
+  endTime?: string
+  status: ModelRunStatus
+  durationMs: number | null
+  model: ModelRef
+  calls: ModelLogCallProjection[]
+}
+
+export type ModelLogSessionProjection = {
+  id: string
+  sessionId: string
+  name: string
+  startTime: string
+  endTime?: string
+  status: ModelRunStatus
+  durationMs: number | null
+  tasks: ModelLogTaskProjection[]
+}
+
+export type ModelLogQuery = {
+  status?: ModelRunStatus
+  query?: string
+}
+
 interface BaseSkillInvocation<TSkillId extends SkillId, TInput> {
   id: string
   taskId: string
@@ -101,9 +170,14 @@ export interface AgentSessionRepository {
 }
 
 export interface AgentCommandService {
-  submitGoal(goal: string): Promise<TaskProjection>
+  submitGoal(request: AgentGoalRequest): Promise<TaskProjection>
   interrupt(taskId: string): Promise<void>
   continueTask(taskId: string): Promise<void>
+}
+
+export interface TaskQueryService {
+  listRecentTasks(): Promise<readonly RecentTaskProjection[]>
+  getTask(taskId: string): Promise<TaskProjection | null>
 }
 
 export type AgentServiceErrorCode =

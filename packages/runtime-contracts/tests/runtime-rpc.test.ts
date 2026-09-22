@@ -92,7 +92,12 @@ describe('runtime RPC', () => {
     const onCommand = vi.fn((_command: string, input: unknown) => ({ taskId: input }))
     const { client } = createConnectedPair({ onCommand })
 
-    await expect(client.request('task.submit', { goal: 'too early' })).rejects.toMatchObject({
+    const submit = {
+      goal: 'go',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' },
+      skills: [] as []
+    }
+    await expect(client.request('task.submit', submit)).rejects.toMatchObject({
       code: 'HANDSHAKE_REQUIRED'
     })
 
@@ -100,10 +105,39 @@ describe('runtime RPC', () => {
       runtimeVersion: '0.1.0',
       capabilities: ['commands.v1', 'skills.v1']
     })
-    await expect(client.request('task.submit', { goal: 'go' })).resolves.toEqual({
-      taskId: { goal: 'go' }
+    await expect(client.request('task.submit', submit)).resolves.toEqual({
+      taskId: submit
     })
-    expect(onCommand).toHaveBeenCalledWith('task.submit', { goal: 'go' })
+    expect(onCommand).toHaveBeenCalledWith('task.submit', submit)
+  })
+
+  it('preserves the selected connection when model ids are duplicated', async () => {
+    const onCommand = vi.fn((_command: string, input: unknown) => ({ taskId: input }))
+    const { client } = createConnectedPair({ onCommand })
+    await client.connect()
+
+    const request = {
+      goal: 'hello',
+      model: { connectionId: 'second', modelId: 'shared-model' },
+      skills: [] as []
+    }
+    await expect(client.request('task.submit', request)).resolves.toEqual({ taskId: request })
+    expect(onCommand).toHaveBeenCalledWith('task.submit', request)
+  })
+
+  it('rejects a blank model connection before dispatch', async () => {
+    const onCommand = vi.fn()
+    const { client } = createConnectedPair({ onCommand })
+    await client.connect()
+
+    await expect(
+      client.request('task.submit', {
+        goal: 'hello',
+        model: { connectionId: '', modelId: 'shared-model' },
+        skills: []
+      })
+    ).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
+    expect(onCommand).not.toHaveBeenCalled()
   })
 
   it('rejects expired requests before dispatch and makes timeouts terminal', async () => {
@@ -161,7 +195,14 @@ describe('runtime RPC', () => {
       requestId: 'expired-command',
       version: { major: 1, minor: 0 },
       deadlineUnixMs: Date.now() - 1,
-      payload: { command: 'task.submit', input: { goal: 'must not run' } }
+      payload: {
+        command: 'task.submit',
+        input: {
+          goal: 'must not run',
+          model: { connectionId: 'connection-a', modelId: 'shared-model' },
+          skills: []
+        }
+      }
     })
     await new Promise<void>((resolve) => queueMicrotask(resolve))
     await new Promise<void>((resolve) => queueMicrotask(resolve))
