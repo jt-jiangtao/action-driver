@@ -43,3 +43,30 @@
 #### Scenario: 最小任务采用 Agent-only 布局
 - **WHEN** 用户打开本阶段任务详情
 - **THEN** 页面展示用户输入、Agent 状态与模型输出，不渲染 Browser Use 或 Computer Use 面板
+
+#### Scenario: 无浏览器动作时保持全宽
+- **WHEN** 当前任务没有 Browser Use 或 Computer Use 动作、观察或产物
+- **THEN** Agent 会话占用可用内容宽度，页面不打开右侧面板，也不展示折叠浏览器或 Computer 控件
+
+### Requirement: 页面实时渲染真实流式响应
+本地生产页面 SHALL 在 `request.accepted` 后立即展示已持久化的真实会话、用户消息、空 assistant 消息和生成中状态，并 SHALL 随 `response.content` 聚合 assistant 文本；页面 MUST 以聚合后的完整字符串进行 Markdown 渲染，MUST NOT 把单个增量片段作为独立 Markdown 文档解析。
+
+#### Scenario: 请求已接受但尚无正文
+- **WHEN** 页面收到 `request.accepted` 但尚未收到 `response.content`
+- **THEN** 页面显示真实会话与生成中状态，不插入示例答复、假进度或 Browser/Computer 步骤
+
+#### Scenario: 增量内容持续到达
+- **WHEN** 页面按顺序收到同一响应的多个 `response.content`
+- **THEN** 页面把 `delta` 追加到同一 assistant 消息并用聚合全文刷新 Markdown，未闭合的 Markdown 语法不会生成多条消息
+
+#### Scenario: 响应正常结束
+- **WHEN** 页面收到 `status=completed` 的 `response.end`
+- **THEN** 页面用事件携带的最终全文校准消息、停止生成态并展示完成状态和真实元数据
+
+#### Scenario: 响应失败或取消
+- **WHEN** 页面收到 `status=failed` 或 `status=cancelled` 的 `response.end`
+- **THEN** 页面保留已经生成的可用正文，停止生成态并展示对应错误或取消状态，不把任务显示为成功
+
+#### Scenario: 重放事件包含重复分片
+- **WHEN** 重连后收到已经应用过的 `eventId` 或较旧 `sequence`
+- **THEN** 页面忽略重复事件，不重复追加正文；发现序列缺口时请求恢复或快照而不继续显示可能损坏的文本

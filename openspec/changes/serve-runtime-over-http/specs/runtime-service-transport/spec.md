@@ -13,7 +13,7 @@
 
 #### Scenario: 客户端开启会话
 - **WHEN** 页面提交一个目标
-- **THEN** 请求经 WebSocket 到达服务端，服务端返回任务标识并在同一连接上继续推送该任务的事件
+- **THEN** 页面发送 `request.create`，服务端完成校验与初始持久化后返回 `request.accepted` 及稳定的会话、任务和响应标识，并在同一连接上继续推送该响应的流式事件
 
 #### Scenario: 两类接口使用同一模型
 - **WHEN** 开发者在 HTTP 与 WebSocket 之上实现同一能力
@@ -35,26 +35,61 @@
 - **THEN** 服务端拒绝请求并返回可诊断的授权错误，且不泄露内部路径或凭据内容
 
 ### Requirement: 会话在单一 WebSocket 上多路复用
-系统 SHALL 在一条 WebSocket 连接上承载多个会话的命令与事件，并通过请求标识关联响应、通过任务标识区分事件归属；客户端 MUST 能在不重建连接的情况下并发操作多个任务。
+系统 SHALL 使用一条应用级长期 WebSocket 连接承载会话创建、取消、恢复与流式事件，并通过 `requestId` 关联命令、通过 `sessionId` 与 `taskId` 区分运行归属、通过 `responseId`、`streamId` 与 `messageId` 区分一次模型响应；客户端 MUST 能在不重建连接的情况下处理连续或并发请求。
 
 #### Scenario: 同一连接并发运行两个任务
 - **WHEN** 客户端在同一连接上提交两个目标
 - **THEN** 服务端为两个任务分别推送事件，客户端按任务标识区分且响应不会串线
 
-#### Scenario: 控制命令往返
-- **WHEN** 客户端在会话连接上发送中断、继续或提供输入命令
-- **THEN** 服务端用同一请求标识返回类型化结果，并把由此产生的状态变化作为事件推送
+#### Scenario: 请求持久化后才被接受
+- **WHEN** 服务端收到带 `eventId`、`requestId` 与 `idempotencyKey` 的有效 `request.create`
+- **THEN** 服务端先创建并持久化真实会话、任务和用户消息，再返回一次 `request.accepted`，客户端随即进入该真实会话并等待流式事件
+
+#### Scenario: 创建请求无法开始执行
+- **WHEN** 请求在 `response.start` 前因参数、模型引用、授权或持久化错误而失败
+- **THEN** 服务端返回与原 `requestId` 关联的 `request.error`，且不伪造 `response.start` 或 `response.end`
+
+#### Scenario: 重复创建请求
+- **WHEN** 客户端因超时或重连用同一 `idempotencyKey` 重发 `request.create`
+- **THEN** 服务端返回原有的接受结果或当前快照，不创建第二个会话、任务或模型调用
+
+#### Scenario: 取消运行中请求
+- **WHEN** 客户端发送与运行中响应关联的 `request.cancel`
+- **THEN** 服务端停止继续生成，并最终为该响应发送 `status=cancelled` 的 `response.end`
+
+### Requirement: 流式响应遵循固定生命周期
+系统 SHALL 为每次已开始的模型响应严格发送一次 `response.start`、零到多次 `response.content` 和一次 `response.end`；同一响应的事件 SHALL 使用从零开始单调递增的 `sequence`，且 `response.end` MUST 对完成、失败和取消三种终态都成立。
+
+#### Scenario: 成功流式返回
+- **WHEN** 上游模型开始生成并连续返回文本增量
+- **THEN** 服务端先发送 `sequence=0` 的 `response.start`，再按顺序发送携带文本 `delta` 的 `response.content`，最后发送 `status=completed` 的 `response.end`
+
+#### Scenario: 上游在开始后失败
+- **WHEN** 服务端已经发送 `response.start`，随后上游发生认证、限流、超时、协议或连接错误
+- **THEN** 服务端发送且只发送一次 `status=failed` 的 `response.end`，其中包含稳定错误码且不包含凭据
+
+#### Scenario: 终态校准增量内容
+- **WHEN** 服务端发送任意状态的 `response.end`
+- **THEN** 事件包含当前可用的最终聚合 `content`、`finishReason`、用量和耗时，客户端用该全文校准已累积增量而不重复追加
+
+#### Scenario: 未产生文本的成功响应
+- **WHEN** 上游以成功协议结束但没有可渲染的 assistant 文本
+- **THEN** 服务端以稳定的无文本错误结束该响应，不把空字符串伪装成成功答复
 
 ### Requirement: 事件订阅支持游标恢复
-系统 SHALL 为每个任务的事件分配持久化单调游标，允许客户端在重连后从最后确认游标继续接收；重复确认或重复投递 MUST NOT 造成重复应用。
+系统 SHALL 为每个持久化事件分配全局可恢复 `cursor` 和唯一 `eventId`，允许客户端发送 `request.resume(afterCursor)` 继续接收；传输 SHALL 按至少一次投递设计，重复确认或重复投递 MUST NOT 造成重复文本或状态回退。
 
 #### Scenario: 断线重连
 - **WHEN** 页面与服务端的连接中断后重新建立
-- **THEN** 客户端从最后确认游标继续订阅，未确认的事件被重新投递，已确认事件不重复应用
+- **THEN** 客户端使用最后应用的 `cursor` 请求恢复，服务端重放后续事件，客户端按 `eventId` 去重并按 `sequence` 检查同一响应是否缺失事件
 
 #### Scenario: 页面重新加载
 - **WHEN** 页面重新加载并重新订阅已知任务
 - **THEN** 页面依据游标补齐缺失事件并得到与断线前一致的可见状态
+
+#### Scenario: 重放窗口已经过期
+- **WHEN** 客户端请求的 `afterCursor` 已超出服务端事件保留窗口
+- **THEN** 服务端返回 `response.snapshot`，其中包含当前会话、任务、消息全文与终态，客户端以快照替换本地不完整投影
 
 ### Requirement: 本地装配由服务端通过同一通道调用本机 Skill
 系统 SHALL 在服务端与客户端同机装配时，通过同一条客户端出站连接请求本机执行 Browser/Computer Skill，并携带请求标识、截止时间与取消语义；迟到的结果 MUST NOT 被当作新的成功结果。云端装配 MUST NOT 请求操作用户本机 GUI，也不得要求用户本机开放入站端口。
@@ -119,16 +154,16 @@
 - **WHEN** 服务端接收任务提交
 - **THEN** 请求只包含模型引用和业务输入，供应商密钥由服务端内部解析且不进入任务合同
 
-### Requirement: 通过真实 OpenAI-compatible 上游完成单轮执行
-本地生产装配 SHALL 通过模型连接服务持有的真实 OpenAI-compatible 凭据发起一次非流式模型请求，并 SHALL 把模型输出、任务状态与运行事件写入服务端存储；本地生产装配 MUST NOT 回退到确定性模型网关。
+### Requirement: 通过真实 OpenAI-compatible 上游完成流式执行
+本地生产装配 SHALL 通过模型连接服务持有的真实 OpenAI-compatible 凭据发起流式模型请求，并 SHALL 把可恢复的流式事件、最终模型输出、任务状态与运行事件写入服务端存储；本地生产装配 MUST NOT 回退到确定性模型网关或以定时器伪造流式输出。
 
-#### Scenario: 上游成功返回文本
-- **WHEN** OpenAI-compatible `/chat/completions` 返回有效 assistant 文本
-- **THEN** 服务端保存 assistant 消息、把任务置为完成并发布可恢复的完成事件
+#### Scenario: 上游成功流式返回文本
+- **WHEN** OpenAI-compatible `/chat/completions` 按流返回有效 assistant 文本增量并正常结束
+- **THEN** 服务端按固定生命周期发布事件，保存最终 assistant 全文、把任务置为完成并发布可恢复的终态事件
 
 #### Scenario: 上游请求失败
 - **WHEN** 上游返回认证、限流、超时、协议或无文本错误
-- **THEN** 服务端保存结构化失败结果、把任务置为失败并返回不含凭据的稳定错误码
+- **THEN** 服务端保存结构化失败结果、把任务置为失败，并依据是否已经开始响应使用 `request.error` 或失败的 `response.end` 返回不含凭据的稳定错误码
 
 #### Scenario: 服务重启后读取结果
 - **WHEN** 已完成或失败的任务在本地服务重启后被查询

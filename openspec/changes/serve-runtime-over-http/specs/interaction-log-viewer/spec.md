@@ -136,9 +136,17 @@
 - **WHEN** Runtime 向 OpenAI-compatible 上游发起请求并收到响应
 - **THEN** 接口层日志创建 `service->model` 方向的结构化事件，保存已排除鉴权头与 API Key 的真实 Request/Response
 
+#### Scenario: 聚合流式模型响应
+- **WHEN** OpenAI-compatible 上游返回多个流式内容分片后完成、失败或取消
+- **THEN** 接口层日志只为该模型调用保留一条可配对记录，Response 包含最终聚合正文、状态、结束原因、用量与耗时，不为每个 `response.content` 分片创建独立日志事件
+
 #### Scenario: 查看模型层执行数据
 - **WHEN** 用户打开已完成或失败任务的模型层日志
 - **THEN** 页面按真实 `taskId`、`requestId` 与 `correlationId` 展示系统提示词、用户输入、模型请求、模型响应和任务终态
+
+#### Scenario: 从会话追踪到请求响应
+- **WHEN** 用户从任务或会话打开对应日志
+- **THEN** 接口层与模型层记录使用真实 `taskId`、`requestId` 与 `correlationId` 串联到同一次模型调用，并展示最终聚合响应而非互不关联的分片列表
 
 #### Scenario: 请求失败仍可诊断
 - **WHEN** 上游请求在收到有效模型文本前失败

@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- **BREAKING**：以 HTTP + WebSocket 取代 MessagePort RPC。配置与模型连接走 HTTP；会话（提交目标、事件流、暂停/继续/人工接管、等待用户输入）走一条 WebSocket 长连接，服务端反向调用本机 Skill 也复用该连接。
+- **BREAKING**：以 HTTP + WebSocket 取代 MessagePort RPC。配置、查询与模型连接走 HTTP；任务创建、取消、恢复和流式输出走一条应用级 WebSocket 长连接。首个闭环固定使用 `request.create` / `request.accepted` 与 `response.start` / `response.content` / `response.end` 事件，不再等待完整模型响应后一次性渲染。
 - **BREAKING**：模型连接配置与凭据从 Electron Main 迁入服务端。服务端持有连接、凭据（本地形态加密后写入本地存储）并真实发起 `GET /models`、`POST /chat/completions`、`POST /v1/messages`；客户端页面只保留配置界面，不再持有密钥、不再直连供应商。
 - 服务端成为会话数据与配置的唯一写入者，并保持本地存储；客户端页面不再读写存储。
 - 服务端按"可迁移"约束实现：传输、存储、凭据、时钟与 ID 全部是端口，本地与云端各一套适配器，业务代码共用；本期只实现本地形态，云端形态作为同一代码的另一种装配。
@@ -17,7 +17,7 @@
 
 ### New Capabilities
 
-- `runtime-service-transport`: 定义服务端对客户端暴露的 HTTP 接口与 WebSocket 会话协议：地址与凭据协商、配置接口、会话多路复用、事件游标恢复、控制命令、反向 Skill 调用、错误与版本协商，以及本地形态与云端形态共用同一契约的约束。
+- `runtime-service-transport`: 定义服务端对客户端暴露的 HTTP 接口与 WebSocket 会话协议：地址与凭据协商、配置接口、会话多路复用、严格的 `start → content* → end` 流式生命周期、事件游标恢复、取消与恢复命令、错误与版本协商，以及本地形态与云端形态共用同一契约的约束。
 
 ### Modified Capabilities
 
@@ -33,6 +33,7 @@
 - 已配置的两条连接（含加密凭据）需要一次性迁移到服务端存储，客户端旧文件与 safeStorage 路径下线。
 - 测试面变化：契约测试改为 HTTP/WS；E2E 需要覆盖页面直连、断线重连与游标恢复；打包后仍需验证服务端随客户端启动。
 - 日志存储新增独立载荷与保留策略；查询契约拆分为摘要列表和单条详情，避免完整请求/响应随每次列表刷新重复传输。
+- 任务提交从原有请求/响应式调用升级为应用级 WebSocket 流；客户端需要维护事件去重、顺序校验、Markdown 增量内容聚合和断线后的游标恢复，服务端需要持久化可重放事件并在终态提供最终全文校准。
 
 ## Battle Status
 
@@ -67,5 +68,17 @@
   3. 页面直接调用供应商并绕过 Runtime。短期更快，但违反服务端唯一持有凭据、唯一写入会话和统一记录日志的既有边界。
 - 最终裁决：用户选择方案 2（B）。该垂直切片提升为本 change 的最高优先级；除其直接依赖与严重回归外，暂停更广泛的 HTTP/WS 迁移、Skill、Browser Use 与 Computer Use 工作。
 - 数据要求：本地生产装配中的模型选择、最近任务/会话列表、任务详情、接口层日志列表/详情、模型层日志列表/详情 MUST 全部来自真实持久化或真实执行投影；Mock 只允许存在于单元测试、组件测试与视觉测试装配中。
-- 已知取舍：首个闭环不流式输出，Anthropic 暂不可用于 Agent 执行；两项均通过显式 UI 状态表达，不允许静默回退到确定性模型或示例数据。
+- 当时取舍：该裁决先以非流式完成真实数据闭环，Anthropic 暂不可用于 Agent 执行；其中“非流式”范围已被下方 Streaming Priority Update 取代，Anthropic 后置与禁止 Mock 降级继续有效。
 - 重开条件：若 OpenAI-compatible 无法表达现有供应商端点、真实持久化需要改变“服务端唯一写入者”边界，或任务/日志投影必须引入新的跨模块所有权，再重新 Battle。
+
+## Streaming Priority Update (2026-09-23)
+
+- 类型：产品交互 + 公共协议 + 运行时架构，属于决策型任务；Battle 已完成。
+- 当前唯一优先目标：先跑通一个可验收的真实 Agent 流程——选择真实 OpenAI-compatible 模型、创建真实会话与任务、通过 WebSocket 接收并渲染流式输出、完成后查看同一次调用的真实 Request/Response 日志。除支撑该闭环的最小能力外，其他工作均后置。
+- 协议裁决：使用一条应用级长期 WebSocket 连接；客户端发送 `request.create`，服务端持久化后返回 `request.accepted`，随后严格发送一次 `response.start`、零到多次 `response.content`、一次 `response.end`。`response.end` 对完成、失败和取消都成立，并携带最终聚合全文用于校准客户端增量内容；开始前失败使用 `request.error`。
+- 标识与恢复：每条事件携带 `eventId`、`requestId`、`responseId`、`sessionId`、`taskId`、`streamId`、`messageId`、单响应递增 `sequence` 与可恢复 `cursor`；创建请求携带 `idempotencyKey`。传输按至少一次投递设计，客户端按 `eventId` 去重、按 `sequence` 检测缺口，并以 `request.resume(afterCursor)` 请求重放；超出保留窗口时服务端返回 `response.snapshot`。
+- 渲染裁决：`request.accepted` 后页面立即进入真实会话并创建用户消息、空 assistant 消息与生成中状态；`response.content` 只追加文本，页面聚合完整字符串后交给 `markdown-it` 渲染，不把单个 delta 片段独立解析为 Markdown。没有 Browser/Computer 动作时保持 Agent-only 全宽布局，不显示右侧面板或相关控件。
+- 日志裁决：一次模型调用只形成一条可配对记录，保存完整模型请求、最终聚合响应、用量、结束原因、状态和耗时；不得为每个 `response.content` 分片创建日志事件，日志查询控制面继续不被记录。
+- 范围后置：Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制及与最小闭环无关的横向 HTTP/WS 迁移均不阻塞本轮验收。
+- 用户覆盖：Agent 曾推荐首版本地形态复用既有 Runtime 事件通道以降低连接治理成本；用户明确选择独立 WebSocket，以便后续远程 Runtime 复用同一协议。接受的已知风险是新增鉴权、连接生命周期、幂等、重放、背压和断线恢复复杂度。
+- 成功标准：真实上游按流返回内容时，页面从 `start` 进入生成态、随 `content` 持续显示 Markdown、在 `end` 后进入准确终态；刷新或重连不会重复文本；任务列表、会话详情和请求/响应日志均来自真实持久化数据且能用标识串联；整个流程不出现 Mock 降级、Browser/Computer 面板或日志递归记录。

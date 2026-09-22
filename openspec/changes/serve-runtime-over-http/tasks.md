@@ -1,15 +1,18 @@
-## 0. 最高优先级：真实 OpenAI-compatible 最小 Agent 闭环
+## 0. 最高优先级：真实 OpenAI-compatible 流式 Agent 闭环
 
-> 本组是当前最高优先级。完成前只推进其直接依赖和严重回归修复；不接入 Anthropic Agent 执行、流式输出、Skill、Browser Use 或 Computer Use。
+> 本组是当前唯一优先交付。目标只有“真实请求流程跑通、页面实时渲染、日志可追踪”三项；完成前除直接依赖和严重回归外，不推进 Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制或其他横向迁移。每个子项只运行定向测试，整组完成后再运行全集门禁。
 
-- [ ] 0.1 把 Agent 模型选择改为服务端真实投影，以 `{ connectionId, modelId }` 标识选择；只允许已启用、支持文本的 OpenAI-compatible 模型执行，Anthropic 显示不可选原因，并覆盖空列表、重复模型名、选择失效与服务端不可用状态。
-- [ ] 0.2 扩展 `task.submit` 与客户端服务合同，携带模型引用、用户目标、主提示词和 `skills=[]`；用契约测试验证未知字段、失效引用和凭据不会进入提交载荷。
-- [ ] 0.3 在模型协议适配器/连接服务中实现真实 OpenAI-compatible 非流式 `/chat/completions` 请求、assistant 文本解析与认证/限流/超时/协议/无文本错误映射，确保凭据只存在于 Runtime 上游边界。
-- [ ] 0.4 在 Runtime 组合根共享同一个 `ModelConnectionService` 并注入真实模型网关；本地生产装配移除 `DeterministicModelGateway` 降级和 Browser/Computer Provider 注册，用组合测试证明不同装配边界。
-- [ ] 0.5 持久化真实任务、消息与运行事件并提供任务/会话列表及详情投影；把本地生产页面的最近列表和 Agent-only 详情切到真实数据，验证空状态、完成、失败和应用重启恢复，Mock 只留在测试/视觉装配。
-- [ ] 0.6 接入真实双层日志：接口层增加 `service->model` Request/Response，模型层从同一任务事件投影系统提示词、用户输入、模型请求、模型响应与终态；贯通 `taskId`/`requestId`/`correlationId`，排除凭据和 `actiondriver:log:*` 控制面。
-- [ ] 0.7 建立本地假 OpenAI-compatible HTTP 服务的端到端测试：添加并启用连接 → 选择模型 → 提交目标 → 断言真实上游请求 → 查看真实任务/会话列表、任务结果与双层日志；同时断言没有 Browser/Computer 调用、没有 Mock 降级和密钥泄漏。
-- [ ] 0.8 完成本组后再运行定向测试、完整 `pnpm check`、桌面 E2E 与 `openspec validate serve-runtime-over-http --strict`；在此之前不为每个子项重复跑全集门禁。
+- [ ] 0.1 定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。
+- [ ] 0.2 把 OpenAI-compatible 模型网关扩展为真实流式 `/chat/completions`：解析供应商分片并暴露可取消的 async iterable/回调端口，聚合最终 assistant 全文、用量与结束原因；用本地假上游定向测试覆盖多分片 Markdown、认证失败、限流、超时、畸形分片、无文本与中途断流，确认凭据只存在于 Runtime 上游边界且不以定时器伪造流。
+- [ ] 0.3 在 Runtime 建立最小 WebSocket 服务与流式执行编排：校验并持久化会话、任务、用户消息后发送 `request.accepted`，再持久化并发布固定生命周期事件，终态原子写入 assistant 全文与任务状态；实现同一 `idempotencyKey` 不重复执行、`eventId` 去重、`request.resume(afterCursor)` 重放和窗口过期快照，并用服务端定向测试覆盖完成、失败、取消与重连。
+- [ ] 0.4 实现桌面端单连接 WebSocket 客户端并接入真实提交：管理鉴权、原生 Ping/Pong、标准 close code、指数退避、命令关联、事件去重、序列检查与恢复；`request.accepted` 后立即切到真实会话并建立用户消息、空 assistant 消息和生成中投影，用客户端定向测试验证重连不重复正文、错误不串线且生产装配无 Mock 降级。
+- [ ] 0.5 完成任务页流式渲染：同一 `messageId` 聚合 `response.content.delta`，以 50–100ms 合并视图刷新并把完整字符串交给 `markdown-it`（`html: false`），在 `response.end` 用最终全文校准并正确显示完成、失败、取消；没有 Browser/Computer 数据时保持 Agent-only 全宽且不渲染右侧面板。用组件测试覆盖未闭合 Markdown、重复分片、终态校准、错误保留部分正文和窄窗口布局。
+- [ ] 0.6 接入真实聚合日志：一次 `service->model` 调用只创建一条 pending 交互并在终态补齐完整 Request、最终聚合 Response、状态、结束原因、用量和耗时；模型层投影系统提示词、用户输入、模型请求、最终响应和任务终态，并以 `taskId`/`requestId`/`correlationId` 串联。用回归测试证明供应商分片、`response.content` 与全部 `actiondriver:log:*` 控制面不会创建新日志，凭据不会进入摘要、详情或复制数据。
+- [ ] 0.7 建立确定性的自动化端到端回归：本地假 OpenAI-compatible 服务按多个分片返回 Markdown，桌面端选择真实持久化模型配置 → WebSocket 发送 → 立即出现真实会话 → 持续渲染 → 正确结束 → 在真实任务列表、会话详情、接口层和模型层日志中查看同一次调用；中途断开一次客户端连接并验证恢复后正文不重复，同时断言无 Mock 页面数据、无 Browser/Computer 面板、无分片日志和无密钥泄漏。
+- [ ] 0.8 使用用户已经在模型连接页配置并启用的真实 OpenAI-compatible 服务完成一次 live smoke：生产装配从 Runtime 凭据存储读取真实密钥并发起真实流式请求，页面展示真实返回，结束后任务、消息和双层日志都能查询；测试过程不得把密钥写入命令、测试夹具、截图、日志或仓库，真实服务不可用时必须明确失败而不能回退到假服务或 Mock。
+- [ ] 0.9 本组全部完成后再统一运行流式协议/网关/Runtime/页面/日志定向测试、完整 `corepack pnpm check`、桌面 E2E 与 `openspec validate serve-runtime-over-http --strict`；在此之前不得为每个子项重复运行全集门禁。
+
+> 以下第 1–13 组保留为后续路线与既有完成记录，不是当前闭环的前置条件；只有第 0 组确实依赖的最小部分可随对应 0.x 子项实现，其余等待新的优先级确认。
 
 ## 1. 服务端入口、生命周期与访问凭据
 
