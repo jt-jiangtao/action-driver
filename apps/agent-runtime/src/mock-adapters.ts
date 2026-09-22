@@ -122,6 +122,17 @@ class InMemoryTaskRepository implements TaskRepository {
     return this.tasks.get(taskId) ?? null
   }
 
+  async listRecent(limit: number): Promise<RuntimeTaskRecord[]> {
+    return [...this.tasks.values()]
+      .sort((left, right) =>
+        right.updatedAt === left.updatedAt
+          ? right.id.localeCompare(left.id)
+          : right.updatedAt.localeCompare(left.updatedAt)
+      )
+      .slice(0, limit)
+      .map((task) => structuredClone(task))
+  }
+
   async save(task: RuntimeTaskRecord): Promise<void> {
     this.tasks.set(task.id, structuredClone(task))
   }

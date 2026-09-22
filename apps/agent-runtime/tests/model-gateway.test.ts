@@ -1,15 +1,129 @@
 import { describe, expect, it, vi } from 'vitest'
+import type {
+  ModelCompletionOutcome,
+  ModelCompletionServicePort
+} from '@actiondriver/model-connections'
 import {
+  MemoryInteractionLogStore,
+  createInteractionLogRecorder
+} from '@actiondriver/observability'
+import {
+  ConnectionModelGateway,
   LangGraphRunner,
   MockSkillRegistry,
   RUNTIME_TYPES,
   createRuntimeContainer,
+  type ModelCallRepository,
   type ModelGateway,
   type ModelRequest,
+  type PersistedModelCall,
   type TaskRepository
 } from '../src/index'
 
+class MemoryModelCallRepository implements ModelCallRepository {
+  readonly records = new Map<string, PersistedModelCall>()
+
+  async save(call: PersistedModelCall): Promise<void> {
+    this.records.set(call.id, structuredClone(call))
+  }
+
+  async listByTask(taskId: string): Promise<PersistedModelCall[]> {
+    return [...this.records.values()].filter((call) => call.taskId === taskId)
+  }
+}
+
+function completionService(outcome: ModelCompletionOutcome): ModelCompletionServicePort {
+  return { complete: async () => structuredClone(outcome) }
+}
+
+function createGateway(service: ModelCompletionServicePort) {
+  const modelCalls = new MemoryModelCallRepository()
+  const interactions = new MemoryInteractionLogStore()
+  const gateway = new ConnectionModelGateway({
+    service,
+    modelCalls,
+    interactions: createInteractionLogRecorder({
+      store: interactions,
+      ids: { eventId: () => 'event-1', correlationId: () => 'unused-correlation' },
+      clock: () => 1_000
+    }),
+    callId: () => 'call-1',
+    correlationId: () => 'correlation-1',
+    now: () => '2026-01-01T00:00:00.000Z'
+  })
+  return { gateway, modelCalls, interactions }
+}
+
+const realRequest: ModelRequest = {
+  taskId: 'task-1',
+  requestId: 'plan:task-1',
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+  messages: [{ role: 'user', content: 'hello' }],
+  skills: [],
+  parameters: { temperature: 0 }
+}
+
 describe('ModelGateway boundary', () => {
+  it('persists and logs a completed real model call with one correlation id', async () => {
+    const { gateway, modelCalls, interactions } = createGateway(
+      completionService({
+        ok: true,
+        value: {
+          content: 'real answer',
+          providerProtocol: 'openai-compatible',
+          requestBody: { model: 'gpt-real', messages: realRequest.messages },
+          responseBody: { choices: [{ message: { content: 'real answer' } }] },
+          status: 200
+        }
+      })
+    )
+
+    await expect(gateway.complete(realRequest)).resolves.toEqual({
+      kind: 'finish',
+      content: 'real answer'
+    })
+    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
+      expect.objectContaining({
+        id: 'call-1',
+        correlationId: 'correlation-1',
+        requestId: 'plan:task-1',
+        status: 'completed',
+        response: { choices: [{ message: { content: 'real answer' } }] }
+      })
+    ])
+    expect((await interactions.list({ limit: 20 })).records[0]).toMatchObject({
+      correlationId: 'correlation-1',
+      direction: 'service->model',
+      taskId: 'task-1',
+      requestId: 'plan:task-1',
+      status: 200,
+      outcome: 'ok'
+    })
+  })
+
+  it('persists a structured model failure without leaking a credential', async () => {
+    const { gateway, modelCalls, interactions } = createGateway(
+      completionService({
+        ok: false,
+        failure: { code: 'unauthorized', message: 'authentication failed', retryable: false },
+        requestBody: { model: 'gpt-real' },
+        responseBody: { error: 'authentication failed', apiKey: 'secret-key' },
+        status: 401
+      })
+    )
+
+    await expect(gateway.complete(realRequest)).rejects.toMatchObject({
+      code: 'unauthorized',
+      retryable: false
+    })
+    const serialized = JSON.stringify({
+      calls: await modelCalls.listByTask('task-1'),
+      detail: await interactions.getDetail('event-1')
+    })
+    expect(serialized).not.toContain('secret-key')
+    expect(serialized).toContain('authentication failed')
+  })
+
   it('receives only the current node context and explicit model parameters', async () => {
     const complete = vi.fn<ModelGateway['complete']>(async () => ({
       kind: 'finish',
@@ -17,11 +131,17 @@ describe('ModelGateway boundary', () => {
     }))
     const runner = new LangGraphRunner({ complete }, new MockSkillRegistry())
 
-    await runner.run({ taskId: 'task-context', goal: 'current goal only' })
+    await runner.run({
+      taskId: 'task-context',
+      goal: 'current goal only',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
 
     expect(complete).toHaveBeenCalledWith(
       {
+        taskId: 'task-context',
         requestId: 'plan:task-context',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
         messages: [{ role: 'user', content: 'current goal only' }],
         skills: [],
         parameters: { temperature: 0 }
@@ -40,6 +160,7 @@ describe('ModelGateway boundary', () => {
     await runner.run({
       taskId: 'task-system-prompt',
       goal: 'Summarize the report',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       systemPrompt: '# Main prompt\n\nKeep answers concise.'
     })
 
@@ -64,6 +185,7 @@ describe('ModelGateway boundary', () => {
     await runner.run({
       taskId: 'task-skill-snapshot',
       goal: 'Open the website',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       skills: [{ skillId: 'browser-use', description: '通过浏览器完成任务' }]
     })
 
@@ -82,7 +204,9 @@ describe('ModelGateway boundary', () => {
       id: 'task-model-error',
       threadId: 'task-model-error',
       goal: 'saved locally',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       status: 'submitted',
+      error: null,
       lastCheckpointId: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z'
@@ -96,7 +220,8 @@ describe('ModelGateway boundary', () => {
     }
     const result = await new LangGraphRunner(model, new MockSkillRegistry()).run({
       taskId: 'task-model-error',
-      goal: 'saved locally'
+      goal: 'saved locally',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
     })
 
     expect(result).toMatchObject({

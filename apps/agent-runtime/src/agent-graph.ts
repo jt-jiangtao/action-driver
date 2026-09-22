@@ -9,6 +9,7 @@ import {
   interrupt as langGraphInterrupt,
   isInterrupted
 } from '@langchain/langgraph'
+import type { ModelRef } from '@actiondriver/contracts'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -36,6 +37,7 @@ const AgentState = Annotation.Root({
   taskId: Annotation<string>(),
   threadId: Annotation<string>(),
   goal: Annotation<string>(),
+  model: Annotation<ModelRef>(),
   systemPrompt: Annotation<string>({ reducer: replace, default: () => '' }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
     reducer: replace,
@@ -76,6 +78,7 @@ export class LangGraphRunner implements GraphRunner {
     request: {
       taskId: string
       goal: string
+      model: ModelRef
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
     },
@@ -88,6 +91,7 @@ export class LangGraphRunner implements GraphRunner {
         taskId: request.taskId,
         threadId,
         goal: request.goal,
+        model: request.model,
         systemPrompt: request.systemPrompt ?? '',
         skills: request.skills ?? [],
         status: 'submitted',
@@ -188,7 +192,9 @@ export class LangGraphRunner implements GraphRunner {
         try {
           plan = await this.modelGateway.complete(
             {
+              taskId: state.taskId,
               requestId: `plan:${state.taskId}`,
+              model: state.model,
               messages: [
                 ...(state.systemPrompt.trim()
                   ? [{ role: 'system' as const, content: state.systemPrompt }]

@@ -29,7 +29,9 @@ const task: RuntimeTaskRecord = {
   id: 'task-guard',
   threadId: 'task-guard',
   goal: 'guard payloads',
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',
+  error: null,
   lastCheckpointId: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'

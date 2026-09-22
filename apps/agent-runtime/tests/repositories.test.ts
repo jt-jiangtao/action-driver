@@ -6,6 +6,7 @@ import {
   SqliteRuntimeRepositories,
   openRuntimeDatabase,
   type PersistedMessage,
+  type PersistedModelCall,
   type PersistedSkillInvocation,
   type PersistedStep,
   type RuntimeEventRecord,
@@ -30,7 +31,9 @@ const task: RuntimeTaskRecord = {
   id: 'task-1',
   threadId: 'task-1',
   goal: 'research a product',
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',
+  error: null,
   lastCheckpointId: 'checkpoint-1',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
@@ -94,6 +97,45 @@ describe('SQLite runtime repositories', () => {
     await expect(repositories.events.listAfter(0)).resolves.toEqual([{ ...event, cursor: 1 }])
 
     repositories.close()
+  })
+
+  it('lists recent tasks and persisted model calls in stable order after reopening', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'actiondriver-repositories-reopen-'))
+    temporaryDirectories.push(directory)
+    const path = join(directory, 'actiondriver.db')
+    const first = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    await first.tasks.save(task)
+    await first.tasks.save({
+      ...task,
+      id: 'task-2',
+      threadId: 'task-2',
+      goal: 'newer task',
+      createdAt: '2026-01-01T00:01:00.000Z',
+      updatedAt: '2026-01-01T00:01:00.000Z'
+    })
+    const modelCall: PersistedModelCall = {
+      id: 'call-1',
+      taskId: task.id,
+      requestId: 'plan:task-1',
+      correlationId: 'correlation-1',
+      model: task.model,
+      status: 'completed',
+      request: { messages: [{ role: 'user', content: 'hello' }] },
+      response: { choices: [{ message: { content: 'answer' } }] },
+      error: null,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      completedAt: '2026-01-01T00:00:01.000Z'
+    }
+    await first.modelCalls.save(modelCall)
+    first.close()
+
+    const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    await expect(reopened.tasks.listRecent(20)).resolves.toEqual([
+      expect.objectContaining({ id: 'task-2' }),
+      expect.objectContaining({ id: 'task-1' })
+    ])
+    await expect(reopened.modelCalls.listByTask(task.id)).resolves.toEqual([modelCall])
+    reopened.close()
   })
 
   it('commits a task state change and its event atomically', async () => {

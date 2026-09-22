@@ -13,6 +13,8 @@ import {
   type SkillRegistry
 } from '../src/index'
 
+const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
+
 describe('minimal agent StateGraph', () => {
   it('runs the deterministic skill path through explicit graph nodes', async () => {
     const container = createRuntimeContainer({ mode: 'mock' })
@@ -21,6 +23,7 @@ describe('minimal agent StateGraph', () => {
     const result = await runner.run({
       taskId: 'task-42',
       goal: '打开产品主页',
+      model: modelRef,
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
 
@@ -49,7 +52,8 @@ describe('minimal agent StateGraph', () => {
     }
     const result = await new LangGraphRunner(model, new MockSkillRegistry()).run({
       taskId: 'task-failed',
-      goal: 'use a missing skill'
+      goal: 'use a missing skill',
+      model: modelRef
     })
 
     expect(result.status).toBe('failed')
@@ -86,6 +90,7 @@ describe('minimal agent StateGraph', () => {
     const result = await new LangGraphRunner(model, { resolve: () => provider }).run({
       taskId: 'task-disabled-skill',
       goal: 'bypass the visible tools',
+      model: modelRef,
       skills: []
     })
 
@@ -115,6 +120,7 @@ describe('minimal agent StateGraph', () => {
     const result = await new LangGraphRunner(model, registry).run({
       taskId: 'task-waiting',
       goal: 'ask first',
+      model: modelRef,
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
 

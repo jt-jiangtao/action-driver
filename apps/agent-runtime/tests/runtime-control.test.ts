@@ -31,6 +31,7 @@ describe('LangGraph runtime control', () => {
     const waiting = await runner.run({
       taskId: 'task-wait',
       goal: 'request approval',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
     expect(waiting.status).toBe('waiting-user')
@@ -89,6 +90,7 @@ describe('LangGraph runtime control', () => {
     const running = runner.run({
       taskId: 'task-abort',
       goal: 'long model call',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
     await started

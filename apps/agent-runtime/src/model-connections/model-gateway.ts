@@ -1,0 +1,209 @@
+import type {
+  ModelCompletionServicePort,
+  ModelFailureCode
+} from '@actiondriver/model-connections'
+import type { InteractionLogRecorder } from '@actiondriver/observability'
+import type {
+  ModelCallRepository,
+  ModelGateway,
+  ModelRequest,
+  PersistedModelCall
+} from '../ports'
+
+export class ModelExecutionError extends Error {
+  constructor(
+    readonly code: ModelFailureCode,
+    message: string,
+    readonly retryable: boolean
+  ) {
+    super(message)
+    this.name = 'ModelExecutionError'
+  }
+}
+
+export class ConnectionModelGateway implements ModelGateway {
+  constructor(
+    private readonly options: {
+      service: ModelCompletionServicePort
+      modelCalls: ModelCallRepository
+      interactions: InteractionLogRecorder
+      callId(): string
+      correlationId(): string
+      now(): string
+    }
+  ) {}
+
+  async complete(request: ModelRequest, signal?: AbortSignal) {
+    const id = this.options.callId()
+    const correlationId = this.options.correlationId()
+    const startedAt = this.options.now()
+    const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request))
+    const running: PersistedModelCall = {
+      id,
+      taskId: request.taskId,
+      requestId: request.requestId,
+      correlationId,
+      model: request.model,
+      status: 'running',
+      request: requestBody,
+      response: null,
+      error: null,
+      startedAt,
+      completedAt: null
+    }
+    await this.options.modelCalls.save(running)
+    const finishInteraction = await this.options.interactions.start({
+      correlationId,
+      transport: 'http',
+      direction: 'service->model',
+      operation: 'POST /chat/completions',
+      requestId: request.requestId,
+      taskId: request.taskId,
+      request: { kind: 'json', value: requestBody }
+    })
+
+    try {
+      const outcome = await this.options.service.complete(
+        {
+          model: request.model,
+          requestId: request.requestId,
+          taskId: request.taskId,
+          messages: request.messages,
+          parameters: request.parameters
+        },
+        signal
+      )
+      const completedAt = this.options.now()
+      if (outcome.ok) {
+        const safeRequest = sanitizeCredentialFields(outcome.value.requestBody)
+        const safeResponse = sanitizeCredentialFields(outcome.value.responseBody)
+        await this.options.modelCalls.save({
+          ...running,
+          status: 'completed',
+          request: safeRequest,
+          response: safeResponse,
+          completedAt
+        })
+        await finishInteraction({
+          outcome: 'ok',
+          status: outcome.value.status,
+          response: { kind: 'json', value: safeResponse }
+        })
+        return { kind: 'finish' as const, content: outcome.value.content }
+      }
+
+      const safeRequest = sanitizeCredentialFields(outcome.requestBody)
+      const safeResponse = sanitizeCredentialFields(outcome.responseBody)
+      const error = {
+        code: outcome.failure.code,
+        message: outcome.failure.message,
+        retryable: outcome.failure.retryable
+      }
+      await this.options.modelCalls.save({
+        ...running,
+        status: 'failed',
+        request: safeRequest,
+        response: safeResponse,
+        error,
+        completedAt
+      })
+      await finishInteraction({
+        outcome: 'error',
+        ...(outcome.status === null ? {} : { status: outcome.status }),
+        ...(safeResponse === null
+          ? {}
+          : { response: { kind: 'json' as const, value: safeResponse } }),
+        error: { code: error.code, message: error.message }
+      })
+      throw new ModelExecutionError(error.code, error.message, error.retryable)
+    } catch (caught) {
+      if (caught instanceof ModelExecutionError) throw caught
+      const completedAt = this.options.now()
+      const error = toStructuredError(caught)
+      await this.options.modelCalls.save({
+        ...running,
+        status: 'failed',
+        error,
+        completedAt
+      })
+      await finishInteraction({
+        outcome: 'error',
+        error: { code: error.code, message: error.message }
+      })
+      throw new ModelExecutionError(error.code, error.message, error.retryable)
+    }
+  }
+}
+
+function toOpenAiRequestBody(request: ModelRequest): unknown {
+  return {
+    model: request.model.modelId,
+    messages: request.messages,
+    ...(request.parameters.temperature === undefined
+      ? {}
+      : { temperature: request.parameters.temperature }),
+    ...(request.parameters.maxTokens === undefined
+      ? {}
+      : { max_tokens: request.parameters.maxTokens }),
+    stream: false
+  }
+}
+
+function toStructuredError(caught: unknown): {
+  code: ModelFailureCode
+  message: string
+  retryable: boolean
+} {
+  if (caught && typeof caught === 'object') {
+    const value = caught as { code?: unknown; message?: unknown; retryable?: unknown }
+    return {
+      code: isModelFailureCode(value.code) ? value.code : 'unknown',
+      message: typeof value.message === 'string' ? value.message : String(caught),
+      retryable: value.retryable === true
+    }
+  }
+  return { code: 'unknown', message: String(caught), retryable: false }
+}
+
+function isModelFailureCode(value: unknown): value is ModelFailureCode {
+  return [
+    'unauthorized',
+    'not-found',
+    'model-not-found',
+    'rate-limited',
+    'provider-error',
+    'network',
+    'timeout',
+    'cancelled',
+    'invalid-request',
+    'invalid-response',
+    'secret-unavailable',
+    'storage-error',
+    'unknown'
+  ].includes(String(value))
+}
+
+function sanitizeCredentialFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeCredentialFields)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, nested]) =>
+      isCredentialKey(key) ? [] : [[key, sanitizeCredentialFields(nested)]]
+    )
+  )
+}
+
+function isCredentialKey(key: string): boolean {
+  const normalized = key.toLowerCase().replaceAll(/[-_]/g, '')
+  return [
+    'apikey',
+    'authorization',
+    'proxyauthorization',
+    'cookie',
+    'cookies',
+    'setcookie',
+    'xapikey',
+    'sessiontoken',
+    'sessiontokens'
+  ].includes(normalized)
+}

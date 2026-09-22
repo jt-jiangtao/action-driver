@@ -109,6 +109,34 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         );
       `)
     }
+  },
+  {
+    version: 3,
+    name: 'add-task-model-and-model-calls',
+    up(database) {
+      database.exec(`
+        ALTER TABLE tasks ADD COLUMN connection_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE tasks ADD COLUMN model_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE tasks ADD COLUMN error_json TEXT;
+
+        CREATE TABLE model_calls (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          request_id TEXT NOT NULL,
+          correlation_id TEXT NOT NULL,
+          connection_id TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          status TEXT NOT NULL,
+          request_json TEXT NOT NULL,
+          response_json TEXT,
+          error_json TEXT,
+          started_at TEXT NOT NULL,
+          completed_at TEXT
+        );
+
+        CREATE INDEX model_calls_task_started_idx ON model_calls(task_id, started_at, id);
+      `)
+    }
   }
 ]
 

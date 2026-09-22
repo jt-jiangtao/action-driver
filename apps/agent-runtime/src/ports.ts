@@ -1,3 +1,5 @@
+import type { ModelRef } from '@actiondriver/contracts'
+
 export type RuntimeMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -9,7 +11,9 @@ export type ModelSkillDescription = {
 }
 
 export type ModelRequest = {
+  taskId: string
   requestId: string
+  model: ModelRef
   messages: RuntimeMessage[]
   skills: ModelSkillDescription[]
   parameters: {
@@ -57,7 +61,9 @@ export type RuntimeTaskRecord = {
   id: string
   threadId: string
   goal: string
+  model: ModelRef
   status: string
+  error: unknown | null
   lastCheckpointId: string | null
   createdAt: string
   updatedAt: string
@@ -65,7 +71,40 @@ export type RuntimeTaskRecord = {
 
 export interface TaskRepository {
   get(taskId: string): Promise<RuntimeTaskRecord | null>
+  listRecent(limit: number): Promise<RuntimeTaskRecord[]>
   save(task: RuntimeTaskRecord): Promise<void>
+}
+
+export type PersistedModelCall = {
+  id: string
+  taskId: string
+  requestId: string
+  correlationId: string
+  model: ModelRef
+  status: 'running' | 'completed' | 'failed'
+  request: unknown
+  response: unknown | null
+  error: unknown | null
+  startedAt: string
+  completedAt: string | null
+}
+
+export interface ModelCallRepository {
+  save(call: PersistedModelCall): Promise<void>
+  listByTask(taskId: string): Promise<PersistedModelCall[]>
+}
+
+export type PersistedMessage = {
+  id: string
+  taskId: string
+  role: string
+  content: unknown
+  createdAt: string
+}
+
+export interface MessageRepository {
+  save(message: PersistedMessage): Promise<void>
+  listByTask(taskId: string): Promise<PersistedMessage[]>
 }
 
 export type RuntimeEventRecord = {
@@ -94,6 +133,7 @@ export interface GraphRunner {
     request: {
       taskId: string
       goal: string
+      model: ModelRef
       systemPrompt?: string
       skills?: ModelSkillDescription[]
     },

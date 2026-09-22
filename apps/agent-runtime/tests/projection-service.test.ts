@@ -38,7 +38,11 @@ describe('ProjectionService reconciliation', () => {
     )
 
     await expect(
-      runtime.run({ taskId: 'task-crash-window', goal: 'recover after crash' })
+      runtime.run({
+        taskId: 'task-crash-window',
+        goal: 'recover after crash',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+      })
     ).resolves.toMatchObject({ status: 'completed' })
     await expect(firstRepositories.tasks.get('task-crash-window')).resolves.toBeNull()
 
@@ -55,6 +59,7 @@ describe('ProjectionService reconciliation', () => {
       id: 'task-crash-window',
       threadId: 'task-crash-window',
       goal: 'recover after crash',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       status: 'completed'
     })
     expect(task?.lastCheckpointId).toBeTruthy()

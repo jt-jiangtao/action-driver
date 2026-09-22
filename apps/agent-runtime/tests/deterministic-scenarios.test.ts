@@ -10,7 +10,9 @@ import {
 } from '../src/index'
 
 const modelRequest = (goal: string): ModelRequest => ({
+  taskId: 'task-scenario',
   requestId: 'plan:task-scenario',
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   messages: [{ role: 'user', content: goal }],
   skills: [{ skillId: 'browser-use', description: 'Operate a browser' }],
   parameters: { temperature: 0 }
@@ -65,6 +67,7 @@ describe('deterministic scenario markers', () => {
     const waiting = await runner.run({
       taskId: 'task-confirm',
       goal: `预订酒店${MOCK_USER_INPUT_MARKER}`,
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
     expect(waiting.status).toBe('waiting-user')

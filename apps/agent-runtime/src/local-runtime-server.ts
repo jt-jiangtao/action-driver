@@ -11,11 +11,12 @@ import {
   type RuntimeMessageEndpoint
 } from '@actiondriver/runtime-contracts'
 import { createRuntimeContainer, RUNTIME_TYPES } from './composition-root'
-import { createLocalRuntimeAdapters } from './local-adapters'
 import type {
   EventRepository,
   GraphRunner,
   IdGenerator,
+  MessageRepository,
+  RuntimeAdapters,
   RuntimeTaskRecord,
   TaskRepository
 } from './ports'
@@ -36,24 +37,16 @@ export type LocalRuntimeServer = {
 
 export function createLocalRuntimeServer(
   endpoint: RuntimeMessageEndpoint,
-  databasePath: string
+  options: { adapters: RuntimeAdapters; messages: MessageRepository }
 ): LocalRuntimeServer {
   const serverRef: { current: RuntimeServer | null } = { current: null }
-
   function requireServer(): RuntimeServer {
     if (!serverRef.current) {
-      throw new RuntimeRpcError(
-        'RUNTIME_DISCONNECTED',
-        'Local Agent Runtime is not ready for skill calls'
-      )
+      throw new RuntimeRpcError('RUNTIME_DISCONNECTED', 'Local Agent Runtime is not ready')
     }
     return serverRef.current
   }
-
-  const local = createLocalRuntimeAdapters(databasePath, (request) =>
-    requireServer().requestSkill(request)
-  )
-  const container = createRuntimeContainer({ mode: 'local', adapters: local.adapters })
+  const container = createRuntimeContainer({ mode: 'local', adapters: options.adapters })
   const graphRunner = container.get<GraphRunner>(RUNTIME_TYPES.graphRunner)
   const taskRepository = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)
   const eventRepository = container.get<EventRepository>(RUNTIME_TYPES.eventRepository)
@@ -74,10 +67,14 @@ export function createLocalRuntimeServer(
     requireServer().publishEvent(toRuntimeEvent(record))
   }
 
-  async function saveStatus(taskId: string, status: string): Promise<RuntimeTaskRecord | null> {
+  async function saveStatus(
+    taskId: string,
+    status: string,
+    error: unknown | null = null
+  ): Promise<RuntimeTaskRecord | null> {
     const task = await taskRepository.get(taskId)
     if (!task) return null
-    const updated = { ...task, status, updatedAt: new Date().toISOString() }
+    const updated = { ...task, status, error, updatedAt: options.adapters.clock.now() }
     await taskRepository.save(updated)
     await publishTask(updated, `task.${status}`)
     return updated
@@ -88,12 +85,31 @@ export function createLocalRuntimeServer(
     active.set(taskId, tracked)
   }
 
-  async function runTask(taskId: string, operation: Promise<{ status: string }>): Promise<void> {
+  async function runTask(
+    taskId: string,
+    operation: Promise<{ status: string; output: unknown; error: string | null }>
+  ): Promise<void> {
     try {
       const result = await operation
-      await saveStatus(taskId, result.status)
-    } catch {
-      await saveStatus(taskId, 'failed')
+      if (result.status === 'completed' && typeof result.output === 'string') {
+        await options.messages.save({
+          id: ids.next('message'),
+          taskId,
+          role: 'assistant',
+          content: result.output,
+          createdAt: options.adapters.clock.now()
+        })
+      }
+      await saveStatus(
+        taskId,
+        result.status,
+        result.error ? { code: 'MODEL_GATEWAY_ERROR', message: result.error } : null
+      )
+    } catch (error) {
+      await saveStatus(taskId, 'failed', {
+        code: 'RUNTIME_ERROR',
+        message: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 
@@ -102,23 +118,36 @@ export function createLocalRuntimeServer(
     capabilities: RUNTIME_CAPABILITIES,
     async onCommand(command, rawInput) {
       if (command === 'task.submit') {
-        const { goal, systemPrompt, skills } = rawInput as {
+        const { goal, model, systemPrompt, skills } = rawInput as {
           goal: string
+          model: RuntimeTaskRecord['model']
           systemPrompt?: string
-          skills?: Array<{ skillId: string; description: string }>
+          skills: []
+        }
+        if (skills.length !== 0) {
+          throw new RuntimeRpcError('INVALID_MESSAGE', 'Agent-only tasks require skills=[]')
         }
         const taskId = ids.next('task')
-        const now = new Date().toISOString()
+        const now = options.adapters.clock.now()
         const task: RuntimeTaskRecord = {
           id: taskId,
           threadId: taskId,
           goal,
+          model,
           status: 'running',
+          error: null,
           lastCheckpointId: null,
           createdAt: now,
           updatedAt: now
         }
         await taskRepository.save(task)
+        await options.messages.save({
+          id: ids.next('message'),
+          taskId,
+          role: 'user',
+          content: goal,
+          createdAt: now
+        })
         await publishTask(task, 'task.submitted')
         track(
           taskId,
@@ -127,8 +156,9 @@ export function createLocalRuntimeServer(
             graphRunner.run({
               taskId,
               goal,
+              model,
               ...(systemPrompt === undefined ? {} : { systemPrompt }),
-              ...(skills === undefined ? {} : { skills })
+              skills
             })
           )
         )
@@ -136,7 +166,9 @@ export function createLocalRuntimeServer(
       }
       if (command === 'task.get') {
         const task = await taskRepository.get((rawInput as { taskId: string }).taskId)
-        return { task: task ? toTaskProjection(task) : null }
+        return {
+          task: task ? toTaskProjection(task, await options.messages.listByTask(task.id)) : null
+        }
       }
       if (command === 'task.interrupt') {
         const { taskId } = rawInput as { taskId: string }
@@ -187,7 +219,6 @@ export function createLocalRuntimeServer(
     async close() {
       for (const taskId of active.keys()) graphRunner.interrupt(taskId)
       await Promise.allSettled(active.values())
-      local.close()
     }
   }
 }
@@ -208,13 +239,26 @@ function toRuntimeEvent(event: {
   }
 }
 
-function toTaskProjection(task: RuntimeTaskRecord): TaskProjection {
+function toTaskProjection(
+  task: RuntimeTaskRecord,
+  messages: Awaited<ReturnType<MessageRepository['listByTask']>>
+): TaskProjection {
   const status = toProjectionStatus(task.status)
   return {
     id: task.id,
     title: task.goal,
     status,
-    messages: [{ id: `message:${task.id}:user`, role: 'user', content: task.goal }],
+    messages: messages.flatMap((message) => {
+      if (typeof message.content !== 'string') return []
+      if (message.role !== 'user' && message.role !== 'assistant') return []
+      return [
+        {
+          id: message.id,
+          role: message.role === 'assistant' ? ('agent' as const) : ('user' as const),
+          content: message.content
+        }
+      ]
+    }),
     steps: [
       {
         id: `step:${task.id}:run`,
@@ -228,12 +272,7 @@ function toTaskProjection(task: RuntimeTaskRecord): TaskProjection {
         state: status === 'succeeded' ? 'success' : status === 'failed' ? 'failed' : 'current'
       }
     ],
-    browser: {
-      title: 'Browser Skill',
-      url: 'about:blank',
-      status,
-      target: null
-    }
+    browser: null
   }
 }
 

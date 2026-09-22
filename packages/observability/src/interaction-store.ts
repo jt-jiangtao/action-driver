@@ -5,7 +5,11 @@ export type InteractionTransport = 'ipc' | 'http' | 'websocket'
 export type InteractionState = 'pending' | 'completed' | 'incomplete'
 export type InteractionKind = 'request-response' | 'one-way-event'
 export type InteractionPayloadKind = 'json' | 'text' | 'binary-metadata' | 'empty'
-export type InteractionDirection = 'renderer->service' | 'service->renderer' | 'service->skill'
+export type InteractionDirection =
+  | 'renderer->service'
+  | 'service->renderer'
+  | 'service->skill'
+  | 'service->model'
 
 export type InteractionPayloadInput =
   | { kind: 'json'; value: unknown; contentType?: string; secretPaths?: string[] }
@@ -118,6 +122,7 @@ export type InteractionLogIdFactory = {
 }
 
 export type InteractionRecorderStart = {
+  correlationId?: string
   transport: InteractionTransport
   direction: InteractionDirection
   operation: string
@@ -158,7 +163,7 @@ export function createInteractionLogRecorder(options: {
       const time = input.startedAt ?? clock()
       const event: InteractionBeginRecord = {
         id: options.ids.eventId(),
-        correlationId: options.ids.correlationId(),
+        correlationId: input.correlationId ?? options.ids.correlationId(),
         time,
         transport: input.transport,
         direction: input.direction,
@@ -204,7 +209,7 @@ export function createInteractionLogRecorder(options: {
     async recordOneWay(input) {
       await options.store.recordOneWay({
         id: options.ids.eventId(),
-        correlationId: options.ids.correlationId(),
+        correlationId: input.correlationId ?? options.ids.correlationId(),
         time: clock(),
         transport: input.transport,
         direction: input.direction,

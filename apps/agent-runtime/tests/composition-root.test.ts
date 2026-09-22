@@ -18,13 +18,17 @@ describe('agent runtime composition root', () => {
 
     const model = container.get<ModelGateway>(RUNTIME_TYPES.modelGateway)
     const first = await model.complete({
+      taskId: 'task-1',
       requestId: 'request-1',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       messages: [{ role: 'user', content: '打开浏览器' }],
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }],
       parameters: { temperature: 0 }
     })
     const second = await model.complete({
+      taskId: 'task-1',
       requestId: 'request-1',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       messages: [{ role: 'user', content: '打开浏览器' }],
       skills: [{ skillId: 'browser-use', description: 'Operate a browser' }],
       parameters: { temperature: 0 }

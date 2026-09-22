@@ -1,6 +1,10 @@
 import { createLocalRuntimeServer } from './local-runtime-server'
+import { createLocalRuntimeAdapters } from './local-adapters'
 import { waitForRuntimeMessagePort, type ParentPortLike } from './parent-port-endpoint'
 import { openRuntimeDatabase } from './database'
+import { SqliteRuntimeRepositories } from './repositories'
+import { createSqliteCheckpointer } from './sqlite-checkpointer'
+import { ConnectionModelGateway } from './model-connections/model-gateway'
 import { createSqliteModelConnectionStore } from './model-connections/sqlite-store'
 import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
 import { createServiceLogger } from './service/logger'
@@ -23,35 +27,49 @@ export async function startAgentRuntimeProcess(
   environment: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
   const endpoint = await waitForRuntimeMessagePort(parentPort)
-  const server = createLocalRuntimeServer(endpoint, databasePath)
-
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
+  const database = openRuntimeDatabase(databasePath)
+  const repositories = new SqliteRuntimeRepositories(database)
+  const checkpointer = createSqliteCheckpointer(databasePath)
+  const logging = createServiceLogger({ databasePath })
+  const interactionStore = await createLocalInteractionLogStore({
+    rootDirectory: join(dirname(databasePath), '..', 'logs', 'interactions'),
+    source: 'service',
+    retention: DEFAULT_INTERACTION_SOURCE_RETENTION
+  })
+  const interactions = createInteractionLogRecorder({
+    store: interactionStore,
+    ids: {
+      eventId: () => `service:${randomUUID()}`,
+      correlationId: randomUUID
+    },
+    logger: logging.logger
+  })
+  const credentialSecret = environment.ACTIONDRIVER_CREDENTIAL_KEY?.trim()
+  const service = new ModelConnectionService({
+    store: createSqliteModelConnectionStore(database),
+    cipher: createCredentialCipher(
+      credentialSecret ? createCredentialKey(credentialSecret) : Buffer.alloc(0)
+    ),
+    transport: createFetchHttpTransport()
+  })
+  const modelGateway = new ConnectionModelGateway({
+    service,
+    modelCalls: repositories.modelCalls,
+    interactions,
+    callId: () => `model-call:${randomUUID()}`,
+    correlationId: randomUUID,
+    now: () => new Date().toISOString()
+  })
+  const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
+  const server = createLocalRuntimeServer(endpoint, {
+    adapters: local.adapters,
+    messages: repositories.messages
+  })
+
   let httpServer: ServiceHttpServer | null = null
-  let logging: ReturnType<typeof createServiceLogger> | null = null
 
   if (serviceToken) {
-    const database = openRuntimeDatabase(databasePath)
-    logging = createServiceLogger({ databasePath })
-    const interactionStore = await createLocalInteractionLogStore({
-      rootDirectory: join(dirname(databasePath), '..', 'logs', 'interactions'),
-      source: 'service',
-      retention: DEFAULT_INTERACTION_SOURCE_RETENTION
-    })
-    const interactions = createInteractionLogRecorder({
-      store: interactionStore,
-      ids: {
-        eventId: () => `service:${randomUUID()}`,
-        correlationId: randomUUID
-      },
-      logger: logging.logger
-    })
-    const service = new ModelConnectionService({
-      store: createSqliteModelConnectionStore(database),
-      cipher: createCredentialCipher(
-        createCredentialKey(environment.ACTIONDRIVER_CREDENTIAL_KEY ?? '')
-      ),
-      transport: createFetchHttpTransport()
-    })
     httpServer = await startServiceHttpServer({
       service,
       token: serviceToken,
@@ -74,7 +92,9 @@ export async function startAgentRuntimeProcess(
     parentPort.off('message', handleShutdown)
     void server.close().then(async () => {
       await httpServer?.close()
-      await logging?.close()
+      checkpointer.close()
+      repositories.close()
+      await logging.close()
       exit(0)
     })
   }

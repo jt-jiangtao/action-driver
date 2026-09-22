@@ -29,7 +29,9 @@ const task: RuntimeTaskRecord = {
   id: 'task-skill',
   threadId: 'task-skill',
   goal: 'invoke browser capability',
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',
+  error: null,
   lastCheckpointId: 'checkpoint-skill',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'

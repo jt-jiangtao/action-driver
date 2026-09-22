@@ -56,16 +56,30 @@ export class ProjectionService {
     const threadId = requiredString(values.threadId, 'threadId')
     const goal = requiredString(values.goal, 'goal')
     const status = requiredString(values.status, 'status')
+    const model = requiredModelRef(values.model)
 
     return {
       id: taskId,
       threadId,
       goal,
+      model,
       status,
+      error: values.error ?? null,
       lastCheckpointId: checkpointId,
       createdAt: checkpointTimestamp,
       updatedAt: checkpointTimestamp
     }
+  }
+}
+
+function requiredModelRef(value: unknown): RuntimeTaskRecord['model'] {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Checkpoint projection requires a model reference')
+  }
+  const model = value as Record<string, unknown>
+  return {
+    connectionId: requiredString(model.connectionId, 'model.connectionId'),
+    modelId: requiredString(model.modelId, 'model.modelId')
   }
 }
 

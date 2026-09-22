@@ -57,6 +57,7 @@ describe('official SQLite checkpointer integration', () => {
       firstRuntime.run({
         taskId: 'task-persisted',
         goal: 'wait',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
         skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
       })
     ).resolves.toMatchObject({
@@ -98,7 +99,8 @@ describe('official SQLite checkpointer integration', () => {
     const dependencies = waitingDependencies()
     await new LangGraphRunner(dependencies.model, dependencies.registry, checkpointer).run({
       taskId: 'task-corrupt',
-      goal: 'wait'
+      goal: 'wait',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
     })
     const valid = await checkpointer.getTuple({ configurable: { thread_id: 'task-corrupt' } })
 

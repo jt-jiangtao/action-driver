@@ -143,4 +143,30 @@ describe('structured interaction logs', () => {
 
     expect((await store.list({ search: 'correlation:1', limit: 20 })).records).toHaveLength(1)
   })
+
+  it('keeps a caller supplied correlation id for a model interaction', async () => {
+    const store = new MemoryInteractionLogStore()
+    const recorder = createInteractionLogRecorder({
+      store,
+      ids: sequentialIds(),
+      clock: () => 1_000
+    })
+    const finish = await recorder.start({
+      correlationId: 'model-call:task-1',
+      transport: 'http',
+      direction: 'service->model',
+      operation: 'POST /chat/completions',
+      requestId: 'plan:task-1',
+      taskId: 'task-1',
+      request: { kind: 'json', value: { model: 'gpt-real' } }
+    })
+    await finish({ outcome: 'ok', response: { kind: 'json', value: { content: 'done' } } })
+
+    expect((await store.list({ limit: 20 })).records[0]).toMatchObject({
+      correlationId: 'model-call:task-1',
+      direction: 'service->model',
+      requestId: 'plan:task-1',
+      taskId: 'task-1'
+    })
+  })
 })

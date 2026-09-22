@@ -4,9 +4,13 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   RUNTIME_TYPES,
+  SqliteRuntimeRepositories,
   createLocalRuntimeAdapters,
   createRuntimeContainer,
+  createSqliteCheckpointer,
+  openRuntimeDatabase,
   type CheckpointStore,
+  type ModelGateway,
   type TaskRepository
 } from '../src/index'
 
@@ -15,20 +19,35 @@ function databasePath(): string {
 }
 
 describe('local runtime adapters', () => {
-  it('binds SQLite-backed task and checkpoint ports without falling back to mock storage', async () => {
+  it('binds injected real model and SQLite ports without production Skill providers', async () => {
     const path = databasePath()
-    const local = createLocalRuntimeAdapters(path, async () => {
-      throw new Error('Skill execution is not needed')
-    })
+    const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const checkpointer = createSqliteCheckpointer(path)
+    const modelGateway: ModelGateway = {
+      async complete() {
+        return { kind: 'finish', content: 'real result' }
+      }
+    }
+    const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
     const container = createRuntimeContainer({ mode: 'local', adapters: local.adapters })
     const tasks = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)
     const checkpoints = container.get<CheckpointStore>(RUNTIME_TYPES.checkpointStore)
+
+    expect(container.get<ModelGateway>(RUNTIME_TYPES.modelGateway)).toBe(modelGateway)
+    expect(() => local.adapters.skillRegistry.resolve('browser-use', 1)).toThrow(
+      'CAPABILITY_UNAVAILABLE'
+    )
+    expect(() => local.adapters.skillRegistry.resolve('computer-use', 1)).toThrow(
+      'CAPABILITY_UNAVAILABLE'
+    )
 
     await tasks.save({
       id: 'task-local',
       threadId: 'task-local',
       goal: 'Persist locally',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       status: 'running',
+      error: null,
       lastCheckpointId: null,
       createdAt: '2026-09-22T00:00:00.000Z',
       updatedAt: '2026-09-22T00:00:00.000Z'
@@ -37,31 +56,7 @@ describe('local runtime adapters', () => {
 
     await expect(tasks.get('task-local')).resolves.toMatchObject({ goal: 'Persist locally' })
     await expect(checkpoints.get('task-local')).resolves.toEqual({ stage: 'accepted' })
-    local.close()
-  })
-
-  it('propagates a user hand-off reported by the hosted Skill provider', async () => {
-    const path = databasePath()
-    const local = createLocalRuntimeAdapters(path, async (request) => ({
-      event: {
-        id: `event-${request.invocationId}`,
-        invocationId: request.invocationId,
-        skillId: request.requestedSkillId,
-        state: 'succeeded',
-        occurredAt: '2026-09-22T00:00:00.000Z'
-      },
-      output: { needsUser: true, question: '确认预订吗？' }
-    }))
-    const provider = local.adapters.skillRegistry.resolve('browser-use', 1)
-
-    await expect(
-      provider.execute({ invocationId: 'skill:task-hosted', input: { goal: '预订酒店' } })
-    ).resolves.toEqual({
-      ok: true,
-      providerId: 'mock.browser',
-      input: { needsUser: true, question: '确认预订吗？' },
-      needsUser: true
-    })
-    local.close()
+    checkpointer.close()
+    repositories.close()
   })
 })
