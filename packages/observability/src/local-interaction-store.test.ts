@@ -218,7 +218,7 @@ describe('local interaction log store', () => {
   })
 
   it('compacts the append-only index while pruning instead of deleting every event', async () => {
-    const { store } = await createStore('main', {
+    const { rootDirectory, store } = await createStore('main', {
       maxTotalBytes: 2_000,
       maxAgeMs: 10_000,
       maxTextPayloadBytes: 4_194_304
@@ -230,5 +230,9 @@ describe('local interaction log store', () => {
     const records = (await store.list({ limit: 20 })).records
     expect(records.length).toBeGreaterThan(0)
     expect(records[0]?.id).toBe('main:third')
+    const indexLines = (await readFile(join(rootDirectory, 'main', 'index.ndjson'), 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+    expect(indexLines).toHaveLength(records.length)
   })
 })

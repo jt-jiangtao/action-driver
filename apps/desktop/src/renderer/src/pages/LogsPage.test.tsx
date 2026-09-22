@@ -266,13 +266,20 @@ describe('LogsPage', () => {
       .fn()
       .mockResolvedValueOnce({ records: [pending], nextCursor: null, files: [] })
       .mockResolvedValue({ records: [completed], nextCursor: null, files: [] })
+    const stalePendingDetail = {
+      ...createDetail(pending, { requestText: 'request' }),
+      state: 'pending' as const,
+      response: null
+    }
+    let resolvePending!: (detail: InteractionLogDetail) => void
     const detail = vi
       .fn()
-      .mockResolvedValueOnce({
-        ...createDetail(pending, { requestText: 'request' }),
-        state: 'pending',
-        response: null
-      })
+      .mockImplementationOnce(
+        () =>
+          new Promise<InteractionLogDetail>((resolve) => {
+            resolvePending = resolve
+          })
+      )
       .mockResolvedValue(createDetail(completed, { requestText: 'request', responseText: 'done' }))
     renderPage({ list, detail })
 
@@ -282,6 +289,9 @@ describe('LogsPage', () => {
     await waitFor(() => expect(detail).toHaveBeenCalledTimes(2))
     await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
     expect(await screen.findByText('done')).toBeVisible()
+    resolvePending(stalePendingDetail)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.getByText('done')).toBeVisible()
   })
 
   it('clears all interface filters and restores the first page', async () => {

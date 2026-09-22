@@ -24,7 +24,10 @@ function memoryStore(): ModelConnectionStore {
 const cipher: SecretCipher = {
   isAvailable: () => true,
   encrypt: (plainText) => Buffer.from(`cipher:${plainText}`).toString('base64'),
-  decrypt: (cipherText) => Buffer.from(cipherText, 'base64').toString().replace(/^cipher:/, '')
+  decrypt: (cipherText) =>
+    Buffer.from(cipherText, 'base64')
+      .toString()
+      .replace(/^cipher:/, '')
 }
 
 const draft = {
@@ -69,13 +72,36 @@ describe('model connection service', () => {
   it('classifies connection failures for the renderer', async () => {
     const { service } = createService((request) =>
       request.url.endsWith('/models')
-        ? { status: 401, body: { code: 'InvalidApiKey', message: 'Invalid API-key provided.' }, text: '' }
+        ? {
+            status: 401,
+            body: { code: 'InvalidApiKey', message: 'Invalid API-key provided.' },
+            text: ''
+          }
         : { status: 200, body: {}, text: '' }
     )
 
     await expect(service.testConnection(draft)).resolves.toEqual({
       ok: false,
       failure: { code: 'unauthorized', message: 'Invalid API-key provided.' }
+    })
+  })
+
+  it('redacts normalized and saved credentials from provider failures', async () => {
+    const { service } = createService((request) => ({
+      status: 401,
+      body: { message: `Rejected ${request.headers.authorization}` },
+      text: ''
+    }))
+
+    const draftResult = await service.testConnection({
+      ...draft,
+      apiKey: '  sk-secret-value  '
+    })
+    expect(JSON.stringify(draftResult)).not.toContain('sk-secret-value')
+
+    const created = await service.add({ draft, models: discoveredModels })
+    await expect(service.refresh(created.id)).rejects.toMatchObject({
+      message: 'Rejected [redacted]'
     })
   })
 
@@ -142,7 +168,12 @@ describe('model connection service', () => {
       draft,
       models: [
         { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'untested' },
-        { id: 'qwen-image-3.0-pro', name: 'qwen-image-3.0-pro', enabled: true, testState: 'untested' }
+        {
+          id: 'qwen-image-3.0-pro',
+          name: 'qwen-image-3.0-pro',
+          enabled: true,
+          testState: 'untested'
+        }
       ]
     })
     await service.testConnectionModels({
@@ -171,7 +202,10 @@ describe('model connection service', () => {
     await expect(service.list()).resolves.toEqual([])
 
     await expect(
-      service.testConnectionModels({ connectionId: 'missing-connection', modelIds: ['qwen3.7-plus'] })
+      service.testConnectionModels({
+        connectionId: 'missing-connection',
+        modelIds: ['qwen3.7-plus']
+      })
     ).rejects.toBeInstanceOf(ModelServiceError)
   })
 

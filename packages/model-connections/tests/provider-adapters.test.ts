@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HttpRequest, HttpResponse, HttpTransport } from '../src'
-import {
-  classifyResponse,
-  createAnthropicAdapter,
-  createOpenAiCompatibleAdapter
-} from '../src'
+import { classifyResponse, createAnthropicAdapter, createOpenAiCompatibleAdapter } from '../src'
 
 function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTransport & {
   requests: HttpRequest[]
@@ -58,6 +54,24 @@ describe('OpenAI compatible adapter', () => {
     ).resolves.toMatchObject({ ok: false, failure: { code: 'not-found' } })
   })
 
+  it('removes the effective credential when a provider reflects it in an error', async () => {
+    const reflected = transportOf((request) => ({
+      status: 401,
+      body: { message: `Rejected ${request.headers.authorization}` },
+      text: ''
+    }))
+
+    const result = await createOpenAiCompatibleAdapter(reflected).discover({
+      ...endpoint,
+      apiKey: 'sk-secret-value'
+    })
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { message: 'Rejected [redacted]' }
+    })
+    expect(JSON.stringify(result)).not.toContain('sk-secret-value')
+  })
+
   it('marks models that reject text requests as unsupported instead of failed', async () => {
     const media = transportOf(() => ({
       status: 400,
@@ -68,7 +82,10 @@ describe('OpenAI compatible adapter', () => {
       text: ''
     }))
     await expect(
-      createOpenAiCompatibleAdapter(media).probeModel({ ...endpoint, modelId: 'qwen-image-3.0-pro' })
+      createOpenAiCompatibleAdapter(media).probeModel({
+        ...endpoint,
+        modelId: 'qwen-image-3.0-pro'
+      })
     ).resolves.toMatchObject({ state: 'unsupported' })
 
     const unknownModel = transportOf(() => ({
@@ -104,9 +121,9 @@ describe('Anthropic compatible adapter', () => {
     const adapter = createAnthropicAdapter(transport)
 
     await expect(adapter.discover(anthEndpoint)).resolves.toEqual({ ok: true, value: [] })
-    await expect(
-      adapter.probeModel({ ...anthEndpoint, modelId: 'qwen3.7-plus' })
-    ).resolves.toEqual({ state: 'success' })
+    await expect(adapter.probeModel({ ...anthEndpoint, modelId: 'qwen3.7-plus' })).resolves.toEqual(
+      { state: 'success' }
+    )
     expect(transport.requests[0]).toMatchObject({
       url: 'https://token-plan.example.com/apps/anthropic/v1/messages',
       method: 'POST',
@@ -121,10 +138,12 @@ describe('Anthropic compatible adapter', () => {
       text: ''
     }))
 
-    await expect(createAnthropicAdapter(transport).verifyConnection(anthEndpoint)).resolves.toEqual({
-      ok: true,
-      value: null
-    })
+    await expect(createAnthropicAdapter(transport).verifyConnection(anthEndpoint)).resolves.toEqual(
+      {
+        ok: true,
+        value: null
+      }
+    )
   })
 
   it('still fails on rejected credentials', async () => {

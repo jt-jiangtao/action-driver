@@ -50,7 +50,8 @@ export function InterfaceLogsView({
   const [refreshing, setRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const requestInFlight = useRef(false)
-  const detailRequest = useRef<string | null>(null)
+  const detailRequest = useRef<{ eventId: string; generation: number } | null>(null)
+  const detailGeneration = useRef(0)
 
   const load = useCallback(async () => {
     if (requestInFlight.current) return
@@ -111,15 +112,24 @@ export function InterfaceLogsView({
         setDetailState({ eventId, state: 'ready', detail: null, error: null })
         return
       }
-      detailRequest.current = eventId
+      const generation = ++detailGeneration.current
+      detailRequest.current = { eventId, generation }
       setDetailState({ eventId, state: 'loading', detail: null, error: null })
       void service.detail(eventId).then(
         (detail) => {
-          if (detailRequest.current !== eventId) return
+          if (
+            detailRequest.current?.eventId !== eventId ||
+            detailRequest.current.generation !== generation
+          )
+            return
           setDetailState({ eventId, state: 'ready', detail, error: null })
         },
         (cause) => {
-          if (detailRequest.current !== eventId) return
+          if (
+            detailRequest.current?.eventId !== eventId ||
+            detailRequest.current.generation !== generation
+          )
+            return
           const code =
             cause && typeof cause === 'object' && 'code' in cause
               ? String((cause as { code: unknown }).code)

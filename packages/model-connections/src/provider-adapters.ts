@@ -142,16 +142,43 @@ async function send(
   try {
     const response = await transport.request(request)
     const classification = classifyResponse(response.status, response.body, response.text)
-    if (classification) return { ok: false, failure: classification }
+    if (classification) {
+      return { ok: false, failure: redactProviderFailure(classification, request.headers) }
+    }
     return { ok: true, value: response }
   } catch (error) {
     if (error instanceof HttpTransportError) {
-      return { ok: false, failure: failure(error.code, error.message) }
+      return {
+        ok: false,
+        failure: redactProviderFailure(failure(error.code, error.message), request.headers)
+      }
     }
     return {
       ok: false,
       failure: failure('unknown', error instanceof Error ? error.message : String(error))
     }
+  }
+}
+
+function redactProviderFailure(
+  providerFailure: ProviderFailure,
+  headers: Record<string, string>
+): ProviderFailure {
+  const secrets = Object.entries(headers).flatMap(([name, value]) => {
+    if (name.toLowerCase() === 'x-api-key') return [value]
+    if (name.toLowerCase() === 'authorization') {
+      return [value, value.replace(/^Bearer\s+/i, '')]
+    }
+    return []
+  })
+  return {
+    ...providerFailure,
+    message: secrets
+      .filter(Boolean)
+      .reduce(
+        (message, secret) => message.split(secret).join('[redacted]'),
+        providerFailure.message
+      )
   }
 }
 

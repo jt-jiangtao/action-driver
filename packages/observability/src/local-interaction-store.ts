@@ -288,6 +288,7 @@ class LocalInteractionLogStore implements InteractionLogStore {
         .filter((record) => now - record.time > this.retention.maxAgeMs)
         .map((record) => record.id)
     )
+    const physicalBytes = await directoryBytes(this.sourceDirectory)
     let totalBytes = await retainedBytes(this.records, remove, this.payloadDirectory)
     for (const record of oldestFirst) {
       if (totalBytes <= this.retention.maxTotalBytes) break
@@ -304,7 +305,9 @@ class LocalInteractionLogStore implements InteractionLogStore {
       await this.removePayload(id, 'response')
       this.records.delete(id)
     }
-    if (remove.size > 0) await this.rewriteIndex()
+    if (remove.size > 0 || physicalBytes > this.retention.maxTotalBytes) {
+      await this.rewriteIndex()
+    }
     return { removedEvents: remove.size, removedBytes }
   }
 
@@ -404,6 +407,15 @@ async function retainedBytes(
         if (!isMissing(error)) throw error
       }
     }
+  }
+  return total
+}
+
+async function directoryBytes(directory: string): Promise<number> {
+  let total = 0
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    total += entry.isDirectory() ? await directoryBytes(path) : (await stat(path)).size
   }
   return total
 }
