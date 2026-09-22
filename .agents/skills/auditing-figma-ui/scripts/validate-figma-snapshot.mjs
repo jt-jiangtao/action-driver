@@ -184,7 +184,11 @@ function manualFlowIssues(snapshot, config, index) {
         !['background', 'hotspot', 'overlay', 'target-highlight'].includes(child.semanticRole),
     )
 
-    if (parent.layoutMode === 'NONE' && children.length >= 3) {
+    if (
+      parent.semanticRole !== 'content-region' &&
+      parent.layoutMode === 'NONE' &&
+      children.length >= 3
+    ) {
       const orderedX = [...children].sort((a, b) => a.x - b.x)
       const orderedY = [...children].sort((a, b) => a.y - b.y)
       const horizontal = orderedX.every(
@@ -394,6 +398,7 @@ function controlMeasurements(control, profile, nodes, index) {
     availableWidth: control.width - paddingLeft - paddingRight,
     children,
     label,
+    hasExplicitPadding: Number.isFinite(control.paddingLeft) && Number.isFinite(control.paddingRight),
     paddingLeft,
     paddingRight,
     requiredWidth,
@@ -436,12 +441,13 @@ function controlProfileIssues(snapshot, config, index) {
     }
 
     const paddingOutsideRange =
-      (Number.isFinite(profile.minPaddingX) &&
+      measurements.hasExplicitPadding &&
+      ((Number.isFinite(profile.minPaddingX) &&
         (measurements.paddingLeft < profile.minPaddingX ||
           measurements.paddingRight < profile.minPaddingX)) ||
-      (Number.isFinite(profile.maxPaddingX) &&
+        (Number.isFinite(profile.maxPaddingX) &&
         (measurements.paddingLeft > profile.maxPaddingX ||
-          measurements.paddingRight > profile.maxPaddingX))
+          measurements.paddingRight > profile.maxPaddingX)))
     if (paddingOutsideRange) {
       issues.push(
         createIssue(

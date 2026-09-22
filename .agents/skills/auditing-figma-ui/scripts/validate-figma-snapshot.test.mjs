@@ -241,6 +241,26 @@ test('warns for manual sequential flow but permits registered overlays and hotsp
   assert.ok(!result.issues.some((issue) => issue.nodeId === 'prototype-hotspot'))
 })
 
+test('does not treat a fixed prototype content region as manual flow', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'screen',
+        semanticRole: 'content-region',
+        layoutMode: 'NONE',
+        width: 1440,
+        height: 900,
+      }),
+      figmaNode({ id: 'header', parentId: 'screen', width: 1440, height: 64 }),
+      figmaNode({ id: 'content', parentId: 'screen', y: 64, width: 1440, height: 760 }),
+      figmaNode({ id: 'footer', parentId: 'screen', y: 824, width: 1440, height: 76 }),
+    ]),
+    validConfig(),
+  )
+
+  assert.ok(!result.issues.some((issue) => issue.ruleId === 'MANUAL_FLOW_LAYOUT'))
+})
+
 test('warns for an unregistered absolute child in auto layout but permits a small icon', () => {
   const result = validateSnapshot(
     validSnapshot([
@@ -536,6 +556,22 @@ test('reports geometry drift between select states', () => {
   assert.equal(issue?.nodeId, 'hover')
   assert.equal(issue?.measurements.referenceState, 'normal')
   assert.equal(issue?.measurements.state, 'hover')
+})
+
+test('does not invent padding outliers when a compact component snapshot omits padding', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'compact-variant',
+        sourceComponentId: 'component:select',
+        paddingLeft: undefined,
+        paddingRight: undefined,
+      }),
+    ]),
+    controlConfig(),
+  )
+
+  assert.ok(!result.issues.some((issue) => issue.ruleId === 'CONTROL_PADDING_OUTLIER'))
 })
 
 test('reports a reaction whose internal target is missing but permits external actions', () => {
