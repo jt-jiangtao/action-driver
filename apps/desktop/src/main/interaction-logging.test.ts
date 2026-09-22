@@ -167,5 +167,10 @@ describe('renderer to service interaction logging', () => {
     await expect(
       ipcMain.handlers.get('actiondriver:logs:detail')!(undefined, { eventId: 'unknown:event-1' })
     ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-event-id' } })
+    await expect(
+      ipcMain.handlers.get('actiondriver:logs:detail')!(undefined, {
+        eventId: 'service:expired-event'
+      })
+    ).resolves.toMatchObject({ ok: false, error: { code: 'payload-expired' } })
   })
 })

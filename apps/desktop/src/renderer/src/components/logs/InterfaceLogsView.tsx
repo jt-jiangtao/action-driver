@@ -119,11 +119,20 @@ export function InterfaceLogsView({
       },
       (cause) => {
         if (detailRequest.current !== eventId) return
+        const code =
+          cause && typeof cause === 'object' && 'code' in cause
+            ? String((cause as { code: unknown }).code)
+            : null
         setDetailState({
           eventId,
           state: 'error',
           detail: null,
-          error: cause instanceof Error ? cause.message : String(cause)
+          error:
+            code === 'payload-expired'
+              ? '载荷已过期'
+              : cause instanceof Error
+                ? cause.message
+                : String(cause)
         })
       }
     )
@@ -612,6 +621,9 @@ function formatTime(time: number): string {
 }
 
 function resultKind(record: InteractionLogRecord): 'success' | 'warning' | 'failure' {
+  if (record.state === 'incomplete') return 'failure'
+  if (record.state === 'pending') return 'warning'
+  if (record.kind === 'one-way-event') return 'success'
   if (record.errorCode || record.outcome === 'error') return 'failure'
   if (record.outcome === 'ok' || record.outcome === 'success') return 'success'
   const status = record.status
@@ -624,6 +636,9 @@ function resultKind(record: InteractionLogRecord): 'success' | 'warning' | 'fail
 }
 
 function resultLabel(record: InteractionLogRecord): string {
+  if (record.state === 'pending') return '进行中'
+  if (record.state === 'incomplete') return '未完成'
+  if (record.kind === 'one-way-event') return '单向事件'
   const kind = resultKind(record)
   return kind === 'success' ? '成功' : kind === 'failure' ? '失败' : '被拒绝'
 }

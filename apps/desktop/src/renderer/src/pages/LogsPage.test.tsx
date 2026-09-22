@@ -171,6 +171,7 @@ describe('LogsPage', () => {
 
     await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
     const request = await screen.findByTestId('e2e/settings/logs/inspector/request#button')
+    expect(screen.getAllByText('进行中').length).toBeGreaterThan(0)
     expect(within(request).getByText('已截断')).toBeVisible()
     await user.click(request)
     expect(screen.getByText('partial request')).toBeVisible()
@@ -205,6 +206,32 @@ describe('LogsPage', () => {
     expect(screen.getByText('载荷已过期')).toBeVisible()
     await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
     expect(screen.getByText(/二进制载荷，仅保存元数据/)).toBeVisible()
+  })
+
+  it('labels incomplete and one-way events without calling them rejected', async () => {
+    const records = createRecords(2).map((record, index) => ({
+      ...record,
+      id: `main:state-${index}`,
+      ...(index === 0
+        ? { state: 'incomplete' as const, outcome: 'incomplete' }
+        : { state: 'completed' as const, kind: 'one-way-event' as const, outcome: 'sent' })
+    }))
+    renderPage({ list: async () => ({ records, nextCursor: null, files: [] }) })
+
+    expect(await screen.findByText('未完成')).toBeVisible()
+    expect(screen.getByText('单向事件')).toBeVisible()
+  })
+
+  it('shows an expired state when a retained summary no longer has detail', async () => {
+    const user = userEvent.setup()
+    const record = { ...createRecords(1)[0]!, id: 'service:expired' }
+    renderPage({
+      list: async () => ({ records: [record], nextCursor: null, files: [] }),
+      detail: async () => Promise.reject({ code: 'payload-expired' })
+    })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+    expect(await screen.findByText('载荷已过期')).toBeVisible()
   })
 
   it('clears all interface filters and restores the first page', async () => {

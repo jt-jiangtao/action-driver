@@ -6,10 +6,11 @@ import {
   type Page
 } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gunzipSync } from 'node:zlib'
 
 /**
  * Desktop integration coverage for the local Agent Runtime.
@@ -57,9 +58,7 @@ async function launch({ reuseDirectories = false } = {}): Promise<Page> {
     cwd: desktopRoot,
     env: {
       ...Object.fromEntries(
-        Object.entries(process.env).filter((entry): entry is [string, string] =>
-          Boolean(entry[1])
-        )
+        Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
       ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
@@ -73,7 +72,10 @@ async function launch({ reuseDirectories = false } = {}): Promise<Page> {
 function setSkillEnabled(page: Page, skillId: string, enabled: boolean): Promise<void> {
   return page.evaluate(
     async ([id, nextEnabled]) => {
-      await window.actionDriverDesktop.agentFiles.setSkillEnabled(id as string, nextEnabled as boolean)
+      await window.actionDriverDesktop.agentFiles.setSkillEnabled(
+        id as string,
+        nextEnabled as boolean
+      )
     },
     [skillId, enabled] as const
   )
@@ -127,6 +129,20 @@ function runtimeProcessCount(): number {
   }
 }
 
+function readInteractionFiles(directory: string): string {
+  if (!existsSync(directory)) return ''
+  return readdirSync(directory)
+    .flatMap((entry) => {
+      const path = join(directory, entry)
+      if (statSync(path).isDirectory()) return readInteractionFiles(path)
+      const contents = readFileSync(path)
+      return path.endsWith('.gz')
+        ? gunzipSync(contents).toString('utf8')
+        : contents.toString('utf8')
+    })
+    .join('\n')
+}
+
 test('carries a local Runtime task through submit, interrupt, continue and shutdown', async () => {
   const page = await launch()
 
@@ -176,7 +192,9 @@ test('waits for user input and resumes a local Runtime task from its checkpoint'
 
 test('enforces current Skill state across task snapshots and application restart', async () => {
   let page = await launch()
-  const initialSkills = await page.evaluate(() => window.actionDriverDesktop.agentFiles.listSkills())
+  const initialSkills = await page.evaluate(() =>
+    window.actionDriverDesktop.agentFiles.listSkills()
+  )
   expect(initialSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
     enabled: true,
     available: true,
@@ -209,7 +227,9 @@ test('enforces current Skill state across task snapshots and application restart
   application = undefined
   expect(readFileSync(browserSkillPath, 'utf8')).toContain('executor: browser-use')
   page = await launch({ reuseDirectories: true })
-  const persistedSkills = await page.evaluate(() => window.actionDriverDesktop.agentFiles.listSkills())
+  const persistedSkills = await page.evaluate(() =>
+    window.actionDriverDesktop.agentFiles.listSkills()
+  )
   expect(persistedSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
     enabled: false,
     available: true,
@@ -218,7 +238,57 @@ test('enforces current Skill state across task snapshots and application restart
 
   await setSkillEnabled(page, 'browser-tools', true)
   const resumedTaskId = await submitGoal(page, USER_INPUT_GOAL)
-  await expect.poll(() => agentStatus(page, resumedTaskId), { timeout: 20_000 }).toBe(
-    'waiting-user'
+  await expect
+    .poll(() => agentStatus(page, resumedTaskId), { timeout: 20_000 })
+    .toBe('waiting-user')
+})
+
+test('records real IPC and HTTP bodies without logging the log viewer itself', async () => {
+  const page = await launch()
+  const apiKey = 'sk-e2e-interaction-secret'
+
+  await page.evaluate(async (secret) => {
+    await window.actionDriverDesktop.modelConnections.list()
+    await window.actionDriverDesktop.modelConnections.testConnection({
+      name: 'E2E 日志连接',
+      protocol: 'openai-compatible',
+      baseUrl: 'http://127.0.0.1:1/v1',
+      apiKey: secret
+    })
+  }, apiKey)
+  await submitGoal(page, PENDING_PLAN_GOAL)
+
+  await page.getByRole('button', { name: '设置' }).click()
+  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
+  await expect(page.getByTestId('e2e/settings/logs/entries/0#button')).toBeVisible()
+
+  await page.getByTestId('e2e/settings/logs/transport#button').click()
+  await page.getByRole('menuitemcheckbox', { name: 'IPC' }).click()
+  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('IPC')
+  await page.getByTestId('e2e/settings/logs/transport#button').click()
+  await page.getByTestId('e2e/settings/logs/entries/0#button').click()
+  await page.getByTestId('e2e/settings/logs/inspector/request#button').click()
+  await page.getByTestId('e2e/settings/logs/inspector/response#button').click()
+
+  await page.getByTestId('e2e/settings/logs/auto-refresh#switch').click()
+  await expect(page.getByTestId('e2e/settings/logs/auto-refresh#switch')).toHaveAttribute(
+    'aria-pressed',
+    'false'
   )
+  await page.getByTestId('e2e/settings/logs/auto-refresh#switch').click()
+  await page.getByTestId('e2e/settings/logs/inspector/close#button').click()
+  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('IPC')
+
+  await page.getByTestId('e2e/settings/logs/transport#button').click()
+  await page.getByRole('menuitemcheckbox', { name: 'IPC' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'HTTP' }).click()
+  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('HTTP')
+  await expect(page.getByText('POST /model-connections/test')).toBeVisible()
+
+  await application!.close()
+  application = undefined
+  const persisted = readInteractionFiles(join(userDataDirectory!, 'logs', 'interactions'))
+  expect(persisted).not.toContain(apiKey)
+  expect(persisted).not.toContain('actiondriver:logs:list')
+  expect(persisted).not.toContain('actiondriver:logs:detail')
 })

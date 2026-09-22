@@ -5,10 +5,7 @@ export type InteractionTransport = 'ipc' | 'http' | 'websocket'
 export type InteractionState = 'pending' | 'completed' | 'incomplete'
 export type InteractionKind = 'request-response' | 'one-way-event'
 export type InteractionPayloadKind = 'json' | 'text' | 'binary-metadata' | 'empty'
-export type InteractionDirection =
-  | 'renderer->service'
-  | 'service->renderer'
-  | 'service->skill'
+export type InteractionDirection = 'renderer->service' | 'service->renderer' | 'service->skill'
 
 export type InteractionPayloadInput =
   | { kind: 'json'; value: unknown; contentType?: string; secretPaths?: string[] }
@@ -318,7 +315,8 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
     return record ? structuredClone(record) : null
   }
 
-  async prune(_now: number): Promise<InteractionPruneResult> {
+  async prune(now: number): Promise<InteractionPruneResult> {
+    void now
     return { removedEvents: 0, removedBytes: 0 }
   }
 }
@@ -343,7 +341,9 @@ function summaryBase(
 }
 
 function withoutPayloads(record: InteractionLogDetail): InteractionLogSummary {
-  const { request: _request, response: _response, ...summary } = record
+  const { request, response, ...summary } = record
+  void request
+  void response
   return structuredClone(summary)
 }
 

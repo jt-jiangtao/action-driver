@@ -45,7 +45,9 @@ export function registerLogIpcHandlers(
     }
     try {
       const detail = await (await source.store()).getDetail(eventId)
-      if (!detail) return failure('not-found', new Error('Interaction event was not found'))
+      if (!detail) {
+        return failure('payload-expired', new Error('Interaction event is no longer retained'))
+      }
       return { ok: true, value: detail } satisfies LogIpcResponse<LogDetailResult>
     } catch (error) {
       return failure('storage-error', error)
