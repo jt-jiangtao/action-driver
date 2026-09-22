@@ -277,6 +277,8 @@ it('captures request and response with one correlation id', async () => {
 
 Add model-connection coverage asserting `draft.apiKey` is absent while non-secret fields remain.
 
+Add a control-plane exclusion test asserting `actiondriver:log:list`, `actiondriver:log:detail`, and any future `actiondriver:log:*` channel do not call the interaction recorder. Keep the prefix rule centralized at the IPC capture boundary so automatic refresh cannot generate self-observation noise.
+
 - [ ] **Step 2: Run IPC tests and confirm RED**
 
 Run: `corepack pnpm vitest run apps/desktop/src/main/agent-ipc.test.ts apps/desktop/src/main/model-ipc.test.ts apps/desktop/src/main/agent-files-ipc.test.ts apps/desktop/src/main/interaction-logging.test.ts`

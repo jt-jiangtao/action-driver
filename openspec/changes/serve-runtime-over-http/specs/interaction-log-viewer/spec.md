@@ -57,6 +57,10 @@
 - **WHEN** 服务端推送没有对应请求的 WebSocket 事件
 - **THEN** 系统将其记录为 `one-way-event`，只展示实际消息方向与载荷
 
+#### Scenario: 查询日志控制面
+- **WHEN** Renderer 调用 `actiondriver:log:list`、`actiondriver:log:detail` 或其他 `actiondriver:log:*` 日志管理通道
+- **THEN** 系统返回日志数据但不为该调用创建新的交互事件，避免查询行为污染记录或形成递归采集
+
 ### Requirement: 按需读取请求与响应详情
 日志查询服务 SHALL 将摘要列表与单条详情拆分：列表响应 MUST NOT 包含请求或响应正文，详情接口 SHALL 只按事件 ID 返回该事件可用的 Request/Response；筛选、分页和自动刷新 MUST NOT 批量加载正文。
 

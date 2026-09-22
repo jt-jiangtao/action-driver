@@ -100,7 +100,7 @@
 - [x] 12.9 记录当前边界的 Renderer → Main IPC 交互（transport=ipc、operation=通道名、outcome、载荷尺寸）并写入 `<userData>/logs/renderer-service.log`，验证设置页读取连接时产生可读记录。
 - [ ] 12.10 定义可替换的 `InteractionLogStore` 端口，提供开始事件、完成事件、记录单向事件、摘要分页、按 ID 读取详情与清理能力；用内存适配器测试状态转换、分页游标和幂等完成。
 - [ ] 12.11 实现本地日志存储适配器：追加式摘要索引、按事件 ID 命名的压缩载荷文件、临时文件 + 原子替换提交；验证列表不读取正文、详情只读取目标载荷、摘要存在但载荷缺失时返回结构化 `payload-unavailable`。
-- [ ] 12.12 把 IPC Handler、HTTP 服务端与 WebSocket 会话的真实输入输出接入统一采集器；验证同一调用共享 `correlationId`，HTTP 状态、IPC 结果和 WebSocket requestId/taskId 可串联，事件推送记录为 `one-way-event`。
+- [ ] 12.12 把 IPC Handler、HTTP 服务端与 WebSocket 会话的真实输入输出接入统一采集器；验证同一调用共享 `correlationId`，HTTP 状态、IPC 结果和 WebSocket requestId/taskId 可串联，事件推送记录为 `one-way-event`；日志控制面 `actiondriver:log:*` 必须被统一排除并用回归测试证明列表/详情查询不会生成新日志。
 - [ ] 12.13 在服务启动恢复阶段把无法完成的旧 `pending` 事件转为 `incomplete`，验证已有请求正文保留且系统不会伪造失败响应。
 
 ## 13. 控制台与日志页面
