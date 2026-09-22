@@ -59,50 +59,36 @@ export async function listLogs(
   sources: LogSource[],
   request: LogListRequest
 ): Promise<LogListResult> {
+  const limit = Math.max(1, Math.min(request.limit ?? 200, 1_000))
+  const before = decodeCursor(request.cursor)
   const records = (
     await Promise.all(
-      sources.map(async (source) => collectSummaries(await source.store(), request))
+      sources.map(async (source) => {
+        const page = await (
+          await source.store()
+        ).list({
+          ...(request.level ? { level: request.level } : {}),
+          ...(request.direction ? { direction: request.direction } : {}),
+          ...(request.transports ? { transports: request.transports } : {}),
+          ...(request.search ? { search: request.search } : {}),
+          ...(before ? { before } : {}),
+          limit: limit + 1
+        })
+        return page.records
+      })
     )
   )
     .flat()
     .sort((left, right) => right.time - left.time || right.id.localeCompare(left.id))
-  const after = decodeCursor(request.cursor)
-  const eligible = after
-    ? records.filter(
-        (record) => record.time < after.time || (record.time === after.time && record.id < after.id)
-      )
-    : records
-  const limit = Math.max(1, Math.min(request.limit ?? 200, 1_000))
-  const page = eligible.slice(0, limit)
+  const page = records.slice(0, limit)
   return {
     records: page,
     nextCursor:
-      page.length < eligible.length
+      page.length < records.length
         ? encodeCursor(page[page.length - 1] as InteractionLogSummary)
         : null,
     files: sources.map((source) => source.filePath)
   }
-}
-
-async function collectSummaries(
-  store: InteractionLogStore,
-  request: LogListRequest
-): Promise<InteractionLogSummary[]> {
-  const records: InteractionLogSummary[] = []
-  let cursor: string | null = null
-  do {
-    const page = await store.list({
-      ...(request.level ? { level: request.level } : {}),
-      ...(request.direction ? { direction: request.direction } : {}),
-      ...(request.transports ? { transports: request.transports } : {}),
-      ...(request.search ? { search: request.search } : {}),
-      cursor,
-      limit: 1_000
-    })
-    records.push(...page.records)
-    cursor = page.nextCursor
-  } while (cursor)
-  return records
 }
 
 function encodeCursor(record: Pick<InteractionLogSummary, 'time' | 'id'>): string {

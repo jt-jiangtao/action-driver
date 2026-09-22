@@ -1,4 +1,8 @@
-import type { ModelConnectionDto, ModelConnectionService } from '@actiondriver/model-connections'
+import {
+  ModelServiceError,
+  type ModelConnectionDto,
+  type ModelConnectionService
+} from '@actiondriver/model-connections'
 import {
   createInteractionLogRecorder,
   MemoryInteractionLogStore,
@@ -63,7 +67,7 @@ function recordingInteractions() {
       eventId: () => `service:event-${++sequence}`,
       correlationId: () => `correlation-${sequence}`
     },
-    clock: () => 2_000 + sequence
+    clock: Date.now
   })
   return { interactions, store }
 }
@@ -225,5 +229,74 @@ describe('service HTTP surface', () => {
     expect(JSON.stringify(details)).not.toContain('wrong-token')
     expect(JSON.stringify(details)).not.toContain('sk-secret-value')
     expect(details.every((detail) => detail?.responseAvailable)).toBe(true)
+  })
+
+  it('records a pending HTTP event before the service completes and includes service duration', async () => {
+    const { interactions, store } = recordingInteractions()
+    let release!: () => void
+    const waiting = new Promise<ModelConnectionDto[]>((resolve) => {
+      release = () => resolve([connection])
+    })
+    await startService({ list: () => waiting }, interactions)
+
+    const responsePromise = authorized('/model-connections')
+    await vi.waitFor(async () => {
+      expect((await store.list({ limit: 20 })).records[0]?.state).toBe('pending')
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    release()
+    expect((await responsePromise).status).toBe(200)
+
+    expect((await store.list({ limit: 20 })).records[0]).toMatchObject({
+      state: 'completed',
+      outcome: 'ok'
+    })
+    expect((await store.list({ limit: 20 })).records[0]!.durationMs).toBeGreaterThanOrEqual(10)
+  })
+
+  it('does not persist an API key reflected by a provider error', async () => {
+    const { interactions, store } = recordingInteractions()
+    await startService(
+      {
+        testConnection: () => {
+          throw new ModelServiceError('provider-error', 'Invalid API key: sk-secret-value')
+        }
+      },
+      interactions
+    )
+
+    await authorized('/model-connections/test', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: '公司模型网关',
+        protocol: 'openai-compatible',
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-secret-value'
+      })
+    })
+
+    const record = (await store.list({ limit: 20 })).records[0]!
+    expect(JSON.stringify(await store.getDetail(record.id))).not.toContain('sk-secret-value')
+  })
+
+  it('keeps HTTP business responses successful when interaction storage fails', async () => {
+    let calls = 0
+    const interactions: InteractionLogRecorder = {
+      async start() {
+        calls += 1
+        if (calls === 1) throw new Error('disk unavailable')
+        return async () => {
+          throw new Error('disk full')
+        }
+      },
+      async recordOneWay() {
+        throw new Error('disk unavailable')
+      }
+    }
+    await startService({}, interactions)
+
+    expect((await authorized('/model-connections')).status).toBe(200)
+    expect((await authorized('/model-connections')).status).toBe(200)
   })
 })

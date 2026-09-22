@@ -8,7 +8,8 @@ import { startServiceHttpServer, type ServiceHttpServer } from './service/http-s
 import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
 import {
   createInteractionLogRecorder,
-  createLocalInteractionLogStore
+  createLocalInteractionLogStore,
+  DEFAULT_INTERACTION_SOURCE_RETENTION
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
@@ -33,7 +34,8 @@ export async function startAgentRuntimeProcess(
     logging = createServiceLogger({ databasePath })
     const interactionStore = await createLocalInteractionLogStore({
       rootDirectory: join(dirname(databasePath), '..', 'logs', 'interactions'),
-      source: 'service'
+      source: 'service',
+      retention: DEFAULT_INTERACTION_SOURCE_RETENTION
     })
     const interactions = createInteractionLogRecorder({
       store: interactionStore,

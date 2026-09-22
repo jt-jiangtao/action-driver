@@ -104,39 +104,51 @@ export function InterfaceLogsView({
     setPage(1)
   }
 
-  const requestDetail = (record: InteractionLogRecord) => {
-    const eventId = keyOf(record)
-    if (!service.detail) {
-      setDetailState({ eventId, state: 'ready', detail: null, error: null })
-      return
-    }
-    detailRequest.current = eventId
-    setDetailState({ eventId, state: 'loading', detail: null, error: null })
-    void service.detail(eventId).then(
-      (detail) => {
-        if (detailRequest.current !== eventId) return
-        setDetailState({ eventId, state: 'ready', detail, error: null })
-      },
-      (cause) => {
-        if (detailRequest.current !== eventId) return
-        const code =
-          cause && typeof cause === 'object' && 'code' in cause
-            ? String((cause as { code: unknown }).code)
-            : null
-        setDetailState({
-          eventId,
-          state: 'error',
-          detail: null,
-          error:
-            code === 'payload-expired'
-              ? '载荷已过期'
-              : cause instanceof Error
-                ? cause.message
-                : String(cause)
-        })
+  const requestDetail = useCallback(
+    (record: InteractionLogRecord) => {
+      const eventId = keyOf(record)
+      if (!service.detail) {
+        setDetailState({ eventId, state: 'ready', detail: null, error: null })
+        return
       }
-    )
-  }
+      detailRequest.current = eventId
+      setDetailState({ eventId, state: 'loading', detail: null, error: null })
+      void service.detail(eventId).then(
+        (detail) => {
+          if (detailRequest.current !== eventId) return
+          setDetailState({ eventId, state: 'ready', detail, error: null })
+        },
+        (cause) => {
+          if (detailRequest.current !== eventId) return
+          const code =
+            cause && typeof cause === 'object' && 'code' in cause
+              ? String((cause as { code: unknown }).code)
+              : null
+          setDetailState({
+            eventId,
+            state: 'error',
+            detail: null,
+            error:
+              code === 'payload-expired'
+                ? '载荷已过期'
+                : cause instanceof Error
+                  ? cause.message
+                  : String(cause)
+          })
+        }
+      )
+    },
+    [service]
+  )
+
+  useEffect(() => {
+    if (!selected) return
+    const updated = records.find((record) => keyOf(record) === keyOf(selected))
+    if (!updated) return
+    const becameComplete = selected.state === 'pending' && updated.state !== 'pending'
+    if (selected !== updated) setSelected(updated)
+    if (becameComplete) requestDetail(updated)
+  }, [records, requestDetail, selected])
 
   const selectRecord = (record: InteractionLogRecord) => {
     const eventId = keyOf(record)
@@ -311,7 +323,7 @@ export function InterfaceLogsView({
         </div>
       ) : loading ? (
         <p className="settings-loading">正在读取真实接口日志…</p>
-      ) : records.length === 0 ? (
+      ) : records.length === 0 && !selected ? (
         <div className="logs-empty">
           <AppIcon name="scroll-text" size={24} />
           <strong>还没有交互记录</strong>
@@ -327,14 +339,22 @@ export function InterfaceLogsView({
               </div>
               <span>{records.length} 条记录</span>
             </header>
-            <div className="logs-console-columns" aria-hidden="true">
-              <span>时间</span>
-              <span>来源</span>
-              <span>传输</span>
-              <span>操作</span>
-              <span className="is-center">耗时</span>
-              <span className="is-end">状态</span>
-            </div>
+            {records.length > 0 ? (
+              <div className="logs-console-columns" aria-hidden="true">
+                <span>时间</span>
+                <span>来源</span>
+                <span>传输</span>
+                <span>操作</span>
+                <span className="is-center">耗时</span>
+                <span className="is-end">状态</span>
+              </div>
+            ) : (
+              <div className="logs-empty">
+                <AppIcon name="scroll-text" size={24} />
+                <strong>当前筛选下没有交互记录</strong>
+                <span>详情仍保留在右侧，可关闭详情后调整筛选条件</span>
+              </div>
+            )}
             {visibleRecords.map((record, index) => {
               const key = keyOf(record)
               const recordIndex = (page - 1) * PAGE_SIZE + index
@@ -371,33 +391,35 @@ export function InterfaceLogsView({
                 </button>
               )
             })}
-            <footer className="logs-pagination" aria-label="接口日志分页">
-              <span>
-                第 {page} / {totalPages} 页 · 共 {records.length} 条
-              </span>
-              <div>
-                <button
-                  className="plain-icon-action"
-                  data-testid="e2e/settings/logs/pagination/previous#button"
-                  type="button"
-                  aria-label="上一页"
-                  disabled={page === 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                >
-                  <AppIcon name="chevron-left" />
-                </button>
-                <button
-                  className="plain-icon-action"
-                  data-testid="e2e/settings/logs/pagination/next#button"
-                  type="button"
-                  aria-label="下一页"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                >
-                  <AppIcon name="chevron-right" />
-                </button>
-              </div>
-            </footer>
+            {records.length > 0 ? (
+              <footer className="logs-pagination" aria-label="接口日志分页">
+                <span>
+                  第 {page} / {totalPages} 页 · 共 {records.length} 条
+                </span>
+                <div>
+                  <button
+                    className="plain-icon-action"
+                    data-testid="e2e/settings/logs/pagination/previous#button"
+                    type="button"
+                    aria-label="上一页"
+                    disabled={page === 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    <AppIcon name="chevron-left" />
+                  </button>
+                  <button
+                    className="plain-icon-action"
+                    data-testid="e2e/settings/logs/pagination/next#button"
+                    type="button"
+                    aria-label="下一页"
+                    disabled={page === totalPages}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  >
+                    <AppIcon name="chevron-right" />
+                  </button>
+                </div>
+              </footer>
+            ) : null}
           </section>
 
           {selected ? (

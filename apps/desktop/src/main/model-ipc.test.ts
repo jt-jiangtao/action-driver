@@ -3,6 +3,11 @@ import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
 import { registerModelIpcHandlers, serializeModelError } from './model-ipc'
 import { ModelServiceError } from '@actiondriver/model-connections'
 import type { ModelConnectionService } from '@actiondriver/model-connections'
+import {
+  createInteractionLogRecorder,
+  MemoryInteractionLogStore,
+  type InteractionLogRecorder
+} from '@actiondriver/observability'
 
 function createIpcMain() {
   const handlers = new Map<string, (event: unknown, input: unknown) => unknown>()
@@ -98,5 +103,50 @@ describe('model connection IPC handlers', () => {
 
   it('maps unknown failures to a serializable error', () => {
     expect(serializeModelError(new Error('boom'))).toEqual({ code: 'unknown', message: 'boom' })
+  })
+
+  it('does not persist an API key reflected in a provider error', async () => {
+    const ipcMain = createIpcMain()
+    const store = new MemoryInteractionLogStore()
+    const interactions = createInteractionLogRecorder({
+      store,
+      ids: { eventId: () => 'main:reflected', correlationId: () => 'correlation-reflected' }
+    })
+    registerModelIpcHandlers(
+      ipcMain,
+      serviceStub({
+        testConnection: async () => {
+          throw new ModelServiceError('provider-error', 'Invalid API key: sk-secret-value')
+        }
+      }),
+      interactions
+    )
+
+    await ipcMain.handlers.get(MODEL_IPC_CHANNELS.testConnection)!(undefined, {
+      name: '连接',
+      protocol: 'openai-compatible',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-secret-value'
+    })
+
+    expect(JSON.stringify(await store.getDetail('main:reflected'))).not.toContain('sk-secret-value')
+  })
+
+  it('does not fail a successful IPC operation when interaction storage fails', async () => {
+    const ipcMain = createIpcMain()
+    const interactions: InteractionLogRecorder = {
+      async start() {
+        throw new Error('disk unavailable')
+      },
+      async recordOneWay() {
+        throw new Error('disk unavailable')
+      }
+    }
+    registerModelIpcHandlers(ipcMain, serviceStub(), interactions)
+
+    await expect(ipcMain.handlers.get(MODEL_IPC_CHANNELS.list)!(undefined, {})).resolves.toEqual({
+      ok: true,
+      value: []
+    })
   })
 })

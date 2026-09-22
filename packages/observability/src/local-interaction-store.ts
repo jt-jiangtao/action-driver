@@ -79,6 +79,7 @@ class LocalInteractionLogStore implements InteractionLogStore {
       if (!isMissing(error)) throw error
     }
     if (!this.readOnly) {
+      await this.recoverIncomplete(this.clock() + 1)
       await this.removeOrphanPayloads()
       await this.pruneDirect(this.clock())
     }
@@ -101,7 +102,10 @@ class LocalInteractionLogStore implements InteractionLogStore {
           event.request.kind !== 'empty' && event.request.unavailableReason === null,
         responseAvailable: false,
         requestTruncated: event.request.truncated,
-        responseTruncated: false
+        responseTruncated: false,
+        ...(event.request.unavailableReason
+          ? { requestUnavailableReason: event.request.unavailableReason }
+          : {})
       }
       this.records.set(event.id, summary)
       await this.appendSummary(summary)
@@ -129,6 +133,9 @@ class LocalInteractionLogStore implements InteractionLogStore {
           completion.response.unavailableReason === null
         ),
         responseTruncated: completion.response?.truncated ?? false,
+        ...(completion.response?.unavailableReason
+          ? { responseUnavailableReason: completion.response.unavailableReason }
+          : {}),
         ...(completion.error
           ? {
               level: 50,
@@ -163,7 +170,10 @@ class LocalInteractionLogStore implements InteractionLogStore {
           event.payload.kind !== 'empty' && event.payload.unavailableReason === null,
         responseAvailable: false,
         requestTruncated: event.payload.truncated,
-        responseTruncated: false
+        responseTruncated: false,
+        ...(event.payload.unavailableReason
+          ? { requestUnavailableReason: event.payload.unavailableReason }
+          : {})
       }
       this.records.set(event.id, summary)
       await this.appendSummary(summary)
@@ -191,6 +201,12 @@ class LocalInteractionLogStore implements InteractionLogStore {
     const offset = decodeCursor(query.cursor)
     const needle = query.search?.trim().toLowerCase()
     const filtered = [...this.records.values()]
+      .filter(
+        (record) =>
+          !query.before ||
+          record.time < query.before.time ||
+          (record.time === query.before.time && record.id < query.before.id)
+      )
       .filter((record) => !query.transports?.length || query.transports.includes(record.transport))
       .filter((record) => !query.direction || record.direction === query.direction)
       .filter((record) => !query.level || record.levelLabel === query.level)
@@ -216,7 +232,7 @@ class LocalInteractionLogStore implements InteractionLogStore {
       ...structuredClone(summary),
       request: summary.requestAvailable
         ? await this.readPayload(eventId, 'request', summary.requestBytes, summary.requestTruncated)
-        : null,
+        : unavailablePayload(summary.requestUnavailableReason, summary.requestBytes),
       response: summary.responseAvailable
         ? await this.readPayload(
             eventId,
@@ -224,7 +240,7 @@ class LocalInteractionLogStore implements InteractionLogStore {
             summary.responseBytes,
             summary.responseTruncated
           )
-        : null
+        : unavailablePayload(summary.responseUnavailableReason, summary.responseBytes)
     }
   }
 
@@ -272,18 +288,12 @@ class LocalInteractionLogStore implements InteractionLogStore {
         .filter((record) => now - record.time > this.retention.maxAgeMs)
         .map((record) => record.id)
     )
-    for (const id of remove) {
-      await this.removePayload(id, 'request')
-      await this.removePayload(id, 'response')
-    }
-    let totalBytes = await directoryBytes(this.sourceDirectory)
+    let totalBytes = await retainedBytes(this.records, remove, this.payloadDirectory)
     for (const record of oldestFirst) {
       if (totalBytes <= this.retention.maxTotalBytes) break
       if (remove.has(record.id)) continue
       remove.add(record.id)
-      await this.removePayload(record.id, 'request')
-      await this.removePayload(record.id, 'response')
-      totalBytes = await directoryBytes(this.sourceDirectory)
+      totalBytes = await retainedBytes(this.records, remove, this.payloadDirectory)
     }
     let removedBytes = 0
     for (const id of remove) {
@@ -375,13 +385,43 @@ async function atomicWrite(path: string, contents: string | Uint8Array): Promise
   await rename(temporary, path)
 }
 
-async function directoryBytes(directory: string): Promise<number> {
+async function retainedBytes(
+  records: Map<string, InteractionLogSummary>,
+  remove: Set<string>,
+  payloadDirectory: string
+): Promise<number> {
   let total = 0
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name)
-    total += entry.isDirectory() ? await directoryBytes(path) : (await stat(path)).size
+  for (const record of records.values()) {
+    if (remove.has(record.id)) continue
+    total += Buffer.byteLength(`${JSON.stringify(record)}\n`, 'utf8')
+    for (const side of ['request', 'response'] as const) {
+      const available = side === 'request' ? record.requestAvailable : record.responseAvailable
+      if (!available) continue
+      const path = join(payloadDirectory, `${encodeURIComponent(record.id)}.${side}.json.gz`)
+      try {
+        total += (await stat(path)).size
+      } catch (error) {
+        if (!isMissing(error)) throw error
+      }
+    }
   }
   return total
+}
+
+function unavailablePayload(
+  reason: InteractionPayloadView['unavailableReason'] | undefined,
+  byteLength: number
+): InteractionPayloadView | null {
+  return reason
+    ? {
+        kind: 'text',
+        contentType: null,
+        byteLength,
+        truncated: false,
+        text: null,
+        unavailableReason: reason
+      }
+    : null
 }
 
 function decodeCursor(cursor: string | null | undefined): number {

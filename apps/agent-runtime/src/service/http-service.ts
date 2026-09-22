@@ -14,7 +14,11 @@ import {
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Logger } from 'pino'
-import type { InteractionLogRecorder, InteractionRecorderResult } from '@actiondriver/observability'
+import {
+  startBestEffortInteraction,
+  type InteractionLogRecorder,
+  type InteractionRecorderResult
+} from '@actiondriver/observability'
 import { LOG_LEVELS, readRecentLogRecords } from './logs'
 
 export const SERVICE_PROTOCOL_VERSION = 1
@@ -112,31 +116,46 @@ async function handleRequest(
     finishPromise =
       url.pathname === '/logs' || !options.interactions
         ? Promise.resolve(null)
-        : options.interactions.start({
-            transport: 'http',
-            direction: 'renderer->service',
-            operation: `${method} ${url.pathname}`,
-            request: {
-              kind: 'json',
-              value: {
-                method,
-                path: url.pathname,
-                query: Object.fromEntries(url.searchParams),
-                headers: request.headers,
-                body: requestBody
-              },
-              secretPaths: [
-                'headers.authorization',
-                'headers.proxy-authorization',
-                'headers.cookie',
-                'headers.set-cookie',
-                'headers.x-api-key',
-                'body.apiKey',
-                'body.draft.apiKey'
-              ]
-            }
-          })
+        : startBestEffortInteraction(
+            options.interactions,
+            {
+              transport: 'http',
+              direction: 'renderer->service',
+              operation: `${method} ${url.pathname}`,
+              startedAt,
+              request: {
+                kind: 'json',
+                value: {
+                  method,
+                  path: url.pathname,
+                  query: Object.fromEntries(url.searchParams),
+                  headers: request.headers,
+                  body: requestBody
+                },
+                secretPaths: [
+                  'headers.authorization',
+                  'headers.proxy-authorization',
+                  'headers.cookie',
+                  'headers.set-cookie',
+                  'headers.x-api-key',
+                  'body.apiKey',
+                  'body.draft.apiKey'
+                ]
+              }
+            },
+            (error) =>
+              requestLog?.warn(
+                { error: error instanceof Error ? error.message : String(error) },
+                'interaction log write failed'
+              )
+          )
     return finishPromise
+  }
+  const secretValues = () => credentialValues(requestBody, ['apiKey', 'draft.apiKey'])
+  const readCapturedJson = async () => {
+    requestBody = await readJson(request, bodyLimit)
+    await ensureCapture()
+    return requestBody
   }
   const replyJson = async (status: number, payload: Envelope<unknown>) => {
     const finish = await ensureCapture()
@@ -144,6 +163,7 @@ async function handleRequest(
       outcome: payload.ok ? 'ok' : 'error',
       status,
       response: { kind: 'json', value: payload },
+      secretValues: secretValues(),
       ...(payload.ok ? {} : { error: payload.error })
     })
     sendJson(response, status, payload)
@@ -153,7 +173,8 @@ async function handleRequest(
     await finish?.({
       outcome: status < 400 ? 'ok' : 'error',
       status,
-      response: { kind: 'text', text, contentType }
+      response: { kind: 'text', text, contentType },
+      secretValues: secretValues()
     })
     response.writeHead(status, { 'content-type': contentType })
     response.end(text)
@@ -182,6 +203,7 @@ async function handleRequest(
   requestLog?.info({ status: 'accepted' }, 'service request received')
 
   try {
+    if (method !== 'POST') await ensureCapture()
     if (method === 'GET' && url.pathname === '/version') {
       await replyJson(200, {
         ok: true,
@@ -226,8 +248,7 @@ async function handleRequest(
     }
 
     if (method === 'POST' && url.pathname === '/model-connections') {
-      const body = await readJson(request, bodyLimit)
-      requestBody = body
+      const body = await readCapturedJson()
       const created = await options.service.add(body as ModelAddRequestDto)
       await replyJson(200, { ok: true, value: created })
       requestLog?.info(
@@ -238,8 +259,7 @@ async function handleRequest(
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/test') {
-      const body = await readJson(request, bodyLimit)
-      requestBody = body
+      const body = await readCapturedJson()
       const request_ = body as ModelConnectionDraftDto
       const childLog = requestLog?.child({
         protocol: request_.protocol,
@@ -263,8 +283,7 @@ async function handleRequest(
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/discover') {
-      const body = await readJson(request, bodyLimit)
-      requestBody = body
+      const body = await readCapturedJson()
       const request_ = body as ModelConnectionDraftDto
       const models = await options.service.discover(request_)
       await replyJson(200, {
@@ -285,8 +304,7 @@ async function handleRequest(
     }
 
     if (method === 'POST' && url.pathname === '/model-connections/test-models') {
-      const body = await readJson(request, bodyLimit)
-      requestBody = body
+      const body = await readCapturedJson()
       const request_ = body as ModelTestRequestDto
       const results = await options.service.testModels(request_)
       await replyJson(200, {
@@ -319,6 +337,7 @@ async function handleRequest(
         return
       }
       if (method === 'POST' && action === 'refresh') {
+        await ensureCapture()
         const models = await options.service.refresh(connectionId)
         await replyJson(200, {
           ok: true,
@@ -331,8 +350,7 @@ async function handleRequest(
         return
       }
       if (method === 'POST' && action === 'test-models') {
-        const body = await readJson(request, bodyLimit)
-        requestBody = body
+        const body = await readCapturedJson()
         const request_ = body as { modelIds?: unknown }
         const modelIds = Array.isArray(request_.modelIds) ? (request_.modelIds as string[]) : []
         const results = await options.service.testConnectionModels({ connectionId, modelIds })
@@ -352,8 +370,7 @@ async function handleRequest(
         return
       }
       if (method === 'POST' && action === 'models' && modelId) {
-        const body = await readJson(request, bodyLimit)
-        requestBody = body
+        const body = await readCapturedJson()
         const enabled = (body as { enabled?: unknown }).enabled === true
         await options.service.setModelEnabled({ connectionId, modelId, enabled })
         await replyJson(200, { ok: true, value: null })
@@ -373,7 +390,7 @@ async function handleRequest(
       {
         status: mapped.status,
         code: mapped.code,
-        message: mapped.message,
+        message: redactSecrets(mapped.message, secretValues()),
         durationMs: Date.now() - startedAt
       },
       'service request failed'
@@ -382,9 +399,7 @@ async function handleRequest(
   }
 }
 
-function matchConnectionRoute(
-  pathname: string
-): {
+function matchConnectionRoute(pathname: string): {
   connectionId: string
   action?: 'refresh' | 'test-models' | 'models'
   modelId?: string
@@ -459,4 +474,24 @@ function closeServer(server: Server): Promise<void> {
   return new Promise((resolve) => {
     server.close(() => resolve())
   })
+}
+
+function credentialValues(value: unknown, paths: string[]): string[] {
+  const values: string[] = []
+  for (const path of paths) {
+    let current = value
+    for (const segment of path.split('.')) {
+      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+        current = undefined
+        break
+      }
+      current = (current as Record<string, unknown>)[segment]
+    }
+    if (typeof current === 'string' && current.length > 0) values.push(current)
+  }
+  return values
+}
+
+function redactSecrets(text: string, secrets: string[]): string {
+  return secrets.reduce((sanitized, secret) => sanitized.split(secret).join('[redacted]'), text)
 }

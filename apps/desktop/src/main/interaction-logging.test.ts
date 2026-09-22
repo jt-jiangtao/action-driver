@@ -1,12 +1,13 @@
 import {
   createInteractionLogRecorder,
   MemoryInteractionLogStore,
-  type InteractionLogRecorder
+  type InteractionLogRecorder,
+  type InteractionLogStore
 } from '@actiondriver/observability'
 import { ModelConnectionService } from '@actiondriver/model-connections'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { registerAgentIpcHandlers } from './agent-ipc'
-import { registerLogIpcHandlers } from './logs-ipc'
+import { listLogs, registerLogIpcHandlers } from './logs-ipc'
 import { registerModelIpcHandlers } from './model-ipc'
 
 function recordingInteractions(source = 'main') {
@@ -172,5 +173,60 @@ describe('renderer to service interaction logging', () => {
         eventId: 'service:expired-event'
       })
     ).resolves.toMatchObject({ ok: false, error: { code: 'payload-expired' } })
+  })
+
+  it('merges only one bounded page from each log source', async () => {
+    const makeStore = (source: string, start: number) => {
+      const list = vi.fn(
+        async (query: { limit?: number; before?: { time: number; id: string } }) => ({
+          records: Array.from({ length: query.limit ?? 0 }, (_, index) => ({
+            id: `${source}:event-${index}`,
+            correlationId: `${source}:correlation-${index}`,
+            time: start - index,
+            completedAt: start - index,
+            transport: 'ipc' as const,
+            direction: 'renderer->service' as const,
+            kind: 'request-response' as const,
+            state: 'completed' as const,
+            operation: `${source}-operation`,
+            level: 30,
+            levelLabel: 'info',
+            requestBytes: 0,
+            responseBytes: 0,
+            requestAvailable: false,
+            responseAvailable: false,
+            requestTruncated: false,
+            responseTruncated: false
+          })),
+          nextCursor: 'ignored'
+        })
+      )
+      return { list, store: { list } as unknown as InteractionLogStore }
+    }
+    const main = makeStore('main', 200_000)
+    const service = makeStore('service', 100_000)
+
+    const first = await listLogs(
+      [
+        { prefix: 'main', filePath: '/main', store: async () => main.store },
+        { prefix: 'service', filePath: '/service', store: async () => service.store }
+      ],
+      { limit: 50 }
+    )
+    await listLogs(
+      [
+        { prefix: 'main', filePath: '/main', store: async () => main.store },
+        { prefix: 'service', filePath: '/service', store: async () => service.store }
+      ],
+      { limit: 50, cursor: first.nextCursor }
+    )
+
+    expect(main.list).toHaveBeenCalledTimes(2)
+    expect(service.list).toHaveBeenCalledTimes(2)
+    expect(main.list).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 51 }))
+    expect(main.list).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ limit: 51, before: expect.any(Object) })
+    )
   })
 })

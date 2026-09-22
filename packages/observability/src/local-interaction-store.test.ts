@@ -1,4 +1,13 @@
-import { appendFile, mkdtemp, mkdir, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises'
+import {
+  appendFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  unlink,
+  writeFile
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -8,7 +17,9 @@ import type { InteractionLogStore, InteractionPayloadView } from './interaction-
 const directories: string[] = []
 
 afterEach(async () => {
-  await Promise.all(directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })))
+  await Promise.all(
+    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true }))
+  )
 })
 
 async function createStore(
@@ -38,7 +49,12 @@ function payload(text: string): InteractionPayloadView {
   }
 }
 
-async function seedCompleted(store: InteractionLogStore, id: string, time: number, text = 'request') {
+async function seedCompleted(
+  store: InteractionLogStore,
+  id: string,
+  time: number,
+  text = 'request'
+) {
   await store.begin({
     id,
     correlationId: `correlation-${id}`,
@@ -115,8 +131,33 @@ describe('local interaction log store', () => {
       source: 'main',
       clock: () => 2_000
     })
-    expect(await restarted.recoverIncomplete(1_001)).toBe(1)
+    expect(await restarted.recoverIncomplete(1_001)).toBe(0)
     expect((await restarted.list({ limit: 20 })).records[0]?.state).toBe('incomplete')
+  })
+
+  it('preserves the reason when a payload cannot be persisted safely', async () => {
+    const { store } = await createStore()
+    await store.begin({
+      id: 'main:unsafe',
+      correlationId: 'correlation-unsafe',
+      time: 1_000,
+      transport: 'ipc',
+      direction: 'renderer->service',
+      operation: 'unsafe',
+      request: {
+        kind: 'json',
+        contentType: 'application/json',
+        byteLength: 0,
+        truncated: false,
+        text: null,
+        unavailableReason: 'unsafe-to-persist'
+      }
+    })
+
+    expect(await store.getDetail('main:unsafe')).toMatchObject({
+      requestAvailable: false,
+      request: { unavailableReason: 'unsafe-to-persist' }
+    })
   })
 
   it('prunes oldest events by age and rewrites summaries with their payloads', async () => {
@@ -174,5 +215,20 @@ describe('local interaction log store', () => {
     expect((await restarted.list({ limit: 20 })).records.map((record) => record.id)).toEqual([
       'main:current'
     ])
+  })
+
+  it('compacts the append-only index while pruning instead of deleting every event', async () => {
+    const { store } = await createStore('main', {
+      maxTotalBytes: 2_000,
+      maxAgeMs: 10_000,
+      maxTextPayloadBytes: 4_194_304
+    })
+    await seedCompleted(store, 'main:first', 1_000, '')
+    await seedCompleted(store, 'main:second', 1_001, '')
+    await seedCompleted(store, 'main:third', 1_002, '')
+
+    const records = (await store.list({ limit: 20 })).records
+    expect(records.length).toBeGreaterThan(0)
+    expect(records[0]?.id).toBe('main:third')
   })
 })

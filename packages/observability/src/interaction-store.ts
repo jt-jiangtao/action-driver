@@ -45,6 +45,8 @@ export type InteractionLogSummary = {
   responseAvailable: boolean
   requestTruncated: boolean
   responseTruncated: boolean
+  requestUnavailableReason?: InteractionPayloadView['unavailableReason']
+  responseUnavailableReason?: InteractionPayloadView['unavailableReason']
   errorCode?: string
   errorMessage?: string
 }
@@ -60,6 +62,7 @@ export type InteractionLogQuery = {
   transports?: InteractionTransport[]
   search?: string
   cursor?: string | null
+  before?: Pick<InteractionLogSummary, 'time' | 'id'>
   limit?: number
 }
 
@@ -121,6 +124,7 @@ export type InteractionRecorderStart = {
   requestId?: string
   taskId?: string
   request: InteractionPayloadInput
+  startedAt?: number
 }
 
 export type InteractionRecorderResult = {
@@ -128,6 +132,7 @@ export type InteractionRecorderResult = {
   status?: number
   response?: InteractionPayloadInput
   error?: { code: string; message: string }
+  secretValues?: string[]
 }
 
 export type InteractionRecorderOneWay = Omit<InteractionRecorderStart, 'request'> & {
@@ -150,7 +155,7 @@ export function createInteractionLogRecorder(options: {
   const clock = options.clock ?? Date.now
   return {
     async start(input) {
-      const time = clock()
+      const time = input.startedAt ?? clock()
       const event: InteractionBeginRecord = {
         id: options.ids.eventId(),
         correlationId: options.ids.correlationId(),
@@ -165,12 +170,20 @@ export function createInteractionLogRecorder(options: {
       await options.store.begin(event)
       return async (result) => {
         const completedAt = clock()
+        const safeError = result.error
+          ? {
+              code: result.error.code,
+              message: redactKnownSecrets(result.error.message, result.secretValues ?? []) as string
+            }
+          : undefined
         await options.store.complete(event.id, {
           completedAt,
           outcome: result.outcome,
           ...(result.status === undefined ? {} : { status: result.status }),
-          response: result.response ? encodeInteractionPayload(result.response) : null,
-          ...(result.error ? { error: result.error } : {})
+          response: result.response
+            ? encodeInteractionPayload(result.response, undefined, result.secretValues)
+            : null,
+          ...(safeError ? { error: safeError } : {})
         })
         const record = {
           transport: event.transport,
@@ -180,11 +193,9 @@ export function createInteractionLogRecorder(options: {
           outcome: result.outcome,
           durationMs: completedAt - event.time,
           ...(result.status === undefined ? {} : { status: result.status }),
-          ...(result.error
-            ? { errorCode: result.error.code, errorMessage: result.error.message }
-            : {})
+          ...(safeError ? { errorCode: safeError.code, errorMessage: safeError.message } : {})
         }
-        options.logger?.[result.error ? 'error' : 'info'](
+        options.logger?.[safeError ? 'error' : 'info'](
           record,
           `${event.direction} ${event.operation} ${result.outcome}`
         )
@@ -219,10 +230,13 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
       levelLabel: 'info',
       requestBytes: event.request.byteLength,
       responseBytes: 0,
-      requestAvailable: event.request.kind !== 'empty',
+      requestAvailable: event.request.kind !== 'empty' && event.request.unavailableReason === null,
       responseAvailable: false,
       requestTruncated: event.request.truncated,
       responseTruncated: false,
+      ...(event.request.unavailableReason
+        ? { requestUnavailableReason: event.request.unavailableReason }
+        : {}),
       request: event.request,
       response: null
     })
@@ -241,8 +255,13 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
       ...(completion.status === undefined ? {} : { status: completion.status }),
       durationMs: completion.completedAt - current.time,
       responseBytes: response?.byteLength ?? 0,
-      responseAvailable: Boolean(response && response.kind !== 'empty'),
+      responseAvailable: Boolean(
+        response && response.kind !== 'empty' && response.unavailableReason === null
+      ),
       responseTruncated: response?.truncated ?? false,
+      ...(response?.unavailableReason
+        ? { responseUnavailableReason: response.unavailableReason }
+        : {}),
       response,
       ...(completion.error
         ? {
@@ -267,10 +286,13 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
       durationMs: 0,
       requestBytes: event.payload.byteLength,
       responseBytes: 0,
-      requestAvailable: event.payload.kind !== 'empty',
+      requestAvailable: event.payload.kind !== 'empty' && event.payload.unavailableReason === null,
       responseAvailable: false,
       requestTruncated: event.payload.truncated,
       responseTruncated: false,
+      ...(event.payload.unavailableReason
+        ? { requestUnavailableReason: event.payload.unavailableReason }
+        : {}),
       request: event.payload,
       response: null
     })
@@ -290,6 +312,12 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
     const limit = Math.max(1, query.limit ?? 200)
     const needle = query.search?.trim().toLowerCase()
     const filtered = [...this.records.values()]
+      .filter(
+        (record) =>
+          !query.before ||
+          record.time < query.before.time ||
+          (record.time === query.before.time && record.id < query.before.id)
+      )
       .filter((record) => !query.transports?.length || query.transports.includes(record.transport))
       .filter((record) => !query.direction || record.direction === query.direction)
       .filter((record) => !query.level || record.levelLabel === query.level)
@@ -351,4 +379,51 @@ function decodeCursor(cursor: string | null | undefined): number {
   if (!cursor) return 0
   const parsed = Number(cursor)
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
+}
+
+export async function startBestEffortInteraction(
+  interactions: InteractionLogRecorder | undefined,
+  input: InteractionRecorderStart,
+  onError?: (error: unknown) => void
+): Promise<((result: InteractionRecorderResult) => Promise<void>) | null> {
+  if (!interactions) return null
+  try {
+    const finish = await interactions.start(input)
+    return async (result) => {
+      try {
+        await finish(result)
+      } catch (error) {
+        reportInteractionFailure(onError, error)
+      }
+    }
+  } catch (error) {
+    reportInteractionFailure(onError, error)
+    return null
+  }
+}
+
+function reportInteractionFailure(
+  onError: ((error: unknown) => void) | undefined,
+  error: unknown
+): void {
+  try {
+    onError?.(error)
+  } catch {
+    // Observability must never change the business result, including if its diagnostic sink fails.
+  }
+}
+
+function redactKnownSecrets(value: unknown, secrets: string[]): unknown {
+  const usable = secrets.filter((secret) => secret.length > 0)
+  if (usable.length === 0) return value
+  if (typeof value === 'string') {
+    return usable.reduce((text, secret) => text.split(secret).join('[redacted]'), value)
+  }
+  if (Array.isArray(value)) return value.map((entry) => redactKnownSecrets(entry, usable))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, redactKnownSecrets(entry, usable)])
+    )
+  }
+  return value
 }

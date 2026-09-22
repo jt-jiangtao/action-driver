@@ -2,10 +2,13 @@ import {
   createInteractionLogRecorder,
   createLocalInteractionLogStore,
   createLogger,
+  DEFAULT_INTERACTION_SOURCE_RETENTION,
+  startBestEffortInteraction,
   type ActionDriverLogger,
   type InteractionLogRecorder,
   type InteractionLogStore,
-  type InteractionPayloadInput
+  type InteractionPayloadInput,
+  type InteractionRecorderResult
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
@@ -27,7 +30,8 @@ export async function createMainLogging(options: { userDataPath: string }): Prom
   })
   const store = await createLocalInteractionLogStore({
     rootDirectory: join(options.userDataPath, 'logs', 'interactions'),
-    source: 'main'
+    source: 'main',
+    retention: DEFAULT_INTERACTION_SOURCE_RETENTION
   })
   return {
     logger,
@@ -52,14 +56,14 @@ export function startIpcInteraction(
   channel: string,
   input: unknown,
   secretPaths: string[] = []
-): ReturnType<InteractionLogRecorder['start']> | Promise<null> {
+): Promise<((result: InteractionRecorderResult) => Promise<void>) | null> {
   if (!interactions || isLogControlPlaneChannel(channel)) return Promise.resolve(null)
   const request: InteractionPayloadInput = {
     kind: 'json',
     value: input ?? null,
     ...(secretPaths.length ? { secretPaths } : {})
   }
-  return interactions.start({
+  return startBestEffortInteraction(interactions, {
     transport: 'ipc',
     direction: 'renderer->service',
     operation: channel,

@@ -6,6 +6,12 @@ export const DEFAULT_INTERACTION_RETENTION = {
   maxTextPayloadBytes: 4 * 1024 * 1024
 } as const
 
+/** Main and Runtime are the two production writers under the shared interaction-log root. */
+export const DEFAULT_INTERACTION_SOURCE_RETENTION = {
+  ...DEFAULT_INTERACTION_RETENTION,
+  maxTotalBytes: DEFAULT_INTERACTION_RETENTION.maxTotalBytes / 2
+} as const
+
 export function sanitizeCredentialPaths(value: unknown, paths: string[]): unknown {
   const cloned = cloneSerializable(value, new WeakSet<object>())
   for (const path of paths) removePath(cloned, path.split('.').filter(Boolean))
@@ -14,7 +20,8 @@ export function sanitizeCredentialPaths(value: unknown, paths: string[]): unknow
 
 export function encodeInteractionPayload(
   input: InteractionPayloadInput,
-  maxTextPayloadBytes = DEFAULT_INTERACTION_RETENTION.maxTextPayloadBytes
+  maxTextPayloadBytes = DEFAULT_INTERACTION_RETENTION.maxTextPayloadBytes,
+  secretValues: string[] = []
 ): InteractionPayloadView {
   if (input.kind === 'empty') {
     return view('empty', null, 0, false, null)
@@ -29,10 +36,11 @@ export function encodeInteractionPayload(
     )
   }
   try {
-    const safeValue =
+    const pathSafeValue =
       input.kind === 'json'
         ? sanitizeCredentialPaths(input.value, input.secretPaths ?? [])
         : input.text
+    const safeValue = redactKnownSecrets(pathSafeValue, secretValues)
     const text = input.kind === 'json' ? JSON.stringify(safeValue, null, 2) : String(safeValue)
     const byteLength = Buffer.byteLength(text, 'utf8')
     const truncatedText = truncateUtf8(text, maxTextPayloadBytes)
@@ -49,6 +57,21 @@ export function encodeInteractionPayload(
       unavailableReason: 'unsafe-to-persist'
     }
   }
+}
+
+function redactKnownSecrets(value: unknown, secrets: string[]): unknown {
+  const usable = secrets.filter((secret) => secret.length > 0)
+  if (usable.length === 0) return value
+  if (typeof value === 'string') {
+    return usable.reduce((text, secret) => text.split(secret).join('[redacted]'), value)
+  }
+  if (Array.isArray(value)) return value.map((entry) => redactKnownSecrets(entry, usable))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, redactKnownSecrets(entry, usable)])
+    )
+  }
+  return value
 }
 
 function truncateUtf8(text: string, maxBytes: number): string {

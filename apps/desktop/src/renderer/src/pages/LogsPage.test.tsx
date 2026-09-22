@@ -234,6 +234,56 @@ describe('LogsPage', () => {
     expect(await screen.findByText('载荷已过期')).toBeVisible()
   })
 
+  it('keeps the inspector open when refresh no longer returns the selected event', async () => {
+    const user = userEvent.setup()
+    const record = { ...createRecords(1)[0]!, id: 'main:retained-selection' }
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ records: [record], nextCursor: null, files: [] })
+      .mockResolvedValue({ records: [], nextCursor: null, files: [] })
+    renderPage({
+      list,
+      detail: async () => createDetail(record, { requestText: 'retained request' })
+    })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/auto-refresh#switch'))
+    await user.click(screen.getByTestId('e2e/settings/logs/entries/0#button'))
+    await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
+
+    expect(await screen.findByTestId('e2e/settings/logs/inspector#section')).toBeVisible()
+    expect(screen.getByText('当前筛选下没有交互记录')).toBeVisible()
+  })
+
+  it('refreshes the selected detail when a pending event completes', async () => {
+    const user = userEvent.setup()
+    const pending = {
+      ...createRecords(1)[0]!,
+      id: 'main:pending-refresh',
+      state: 'pending' as const
+    }
+    const completed = { ...pending, state: 'completed' as const, durationMs: 30 }
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ records: [pending], nextCursor: null, files: [] })
+      .mockResolvedValue({ records: [completed], nextCursor: null, files: [] })
+    const detail = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...createDetail(pending, { requestText: 'request' }),
+        state: 'pending',
+        response: null
+      })
+      .mockResolvedValue(createDetail(completed, { requestText: 'request', responseText: 'done' }))
+    renderPage({ list, detail })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/auto-refresh#switch'))
+    await user.click(screen.getByTestId('e2e/settings/logs/entries/0#button'))
+    await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
+    await waitFor(() => expect(detail).toHaveBeenCalledTimes(2))
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
+    expect(await screen.findByText('done')).toBeVisible()
+  })
+
   it('clears all interface filters and restores the first page', async () => {
     const user = userEvent.setup()
     const records = createRecords(30)

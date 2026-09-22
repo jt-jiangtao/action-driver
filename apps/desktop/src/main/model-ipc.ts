@@ -28,19 +28,32 @@ async function asModelResponse<T>(
   interactions?: InteractionLogRecorder,
   secretPaths: string[] = []
 ): Promise<ModelIpcResponse<T>> {
+  const secretValues = readSecretValues(input, secretPaths)
   const finish = await startIpcInteraction(interactions, channel, input, secretPaths)
   try {
     const value = await operation()
-    await finish?.({ outcome: 'ok', response: { kind: 'json', value } })
+    await finish?.({ outcome: 'ok', response: { kind: 'json', value }, secretValues })
     return { ok: true, value }
   } catch (error) {
     const serialized = serializeModelError(error)
     await finish?.({
       outcome: 'error',
-      error: { code: serialized.code, message: serialized.message }
+      error: { code: serialized.code, message: serialized.message },
+      secretValues
     })
     return { ok: false, error: serialized }
   }
+}
+
+function readSecretValues(value: unknown, paths: string[]): string[] {
+  return paths.flatMap((path) => {
+    let current = value
+    for (const segment of path.split('.')) {
+      if (!current || typeof current !== 'object' || Array.isArray(current)) return []
+      current = (current as Record<string, unknown>)[segment]
+    }
+    return typeof current === 'string' && current.length > 0 ? [current] : []
+  })
 }
 
 export function serializeModelError(error: unknown): ModelIpcError {

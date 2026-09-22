@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { encodeInteractionPayload, sanitizeCredentialPaths } from './interaction-payload'
+import {
+  DEFAULT_INTERACTION_RETENTION,
+  DEFAULT_INTERACTION_SOURCE_RETENTION,
+  encodeInteractionPayload,
+  sanitizeCredentialPaths
+} from './interaction-payload'
 
 describe('interaction payloads', () => {
   it('removes declared credential paths but keeps ordinary business text', () => {
@@ -9,6 +14,21 @@ describe('interaction payloads', () => {
     )
     expect(result).toEqual({ draft: { name: 'team' }, prompt: { token: 'explain this token' } })
     expect(JSON.stringify(result)).not.toContain('secret')
+  })
+
+  it('removes known credential values reflected inside response strings', () => {
+    const result = encodeInteractionPayload(
+      {
+        kind: 'json',
+        value: { error: 'Invalid API key: sk-secret-value', token: 'ordinary token text' }
+      },
+      undefined,
+      ['sk-secret-value']
+    )
+
+    expect(result.text).toContain('Invalid API key: [redacted]')
+    expect(result.text).toContain('ordinary token text')
+    expect(result.text).not.toContain('sk-secret-value')
   })
 
   it('fails closed when a declared credential path cannot be sanitized', () => {
@@ -43,5 +63,11 @@ describe('interaction payloads', () => {
       text: 'sha256:abc',
       unavailableReason: null
     })
+  })
+
+  it('bounds the two production writer namespaces to one shared total', () => {
+    expect(DEFAULT_INTERACTION_SOURCE_RETENTION.maxTotalBytes * 2).toBe(
+      DEFAULT_INTERACTION_RETENTION.maxTotalBytes
+    )
   })
 })
