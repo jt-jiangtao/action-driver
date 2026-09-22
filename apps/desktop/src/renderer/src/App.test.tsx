@@ -5,7 +5,7 @@ import { App } from './App'
 import { createRendererContainer, resolveAppServices } from './di/container'
 import { AppServicesProvider } from './di/services-context'
 
-function renderApp(initialRoute: 'home' | 'task' | 'settings' = 'home') {
+function renderApp(initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' = 'home') {
   const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
   return render(
     <AppServicesProvider services={services}>
@@ -93,5 +93,23 @@ describe('App', () => {
   it('can start directly on the settings route', () => {
     renderApp('settings')
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
+  })
+
+  it('navigates across the single settings sidebar without duplicating the shell', async () => {
+    const user = userEvent.setup()
+    renderApp('settings')
+
+    await user.click(screen.getByRole('button', { name: '主提示词' }))
+    expect(await screen.findByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
+    expect(screen.getAllByRole('navigation', { name: '设置导航' })).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Skills' }))
+    expect(await screen.findByTestId('e2e/settings/skills/page#page')).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: '日志' }))
+    expect(await screen.findByTestId('e2e/settings/logs/page#page')).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: '模型连接' }))
+    expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
   })
 })

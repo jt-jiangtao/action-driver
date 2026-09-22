@@ -720,5 +720,189 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "opens and closes independent model detail sections"
+  },
+  {
+    "target": "e2e/settings/sidebar/main-prompt#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/sidebar/skills#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/sidebar/mcp#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/main-prompt/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/skills/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/mode/:mode#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/save#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/content#textarea",
+    "route": "settings",
+    "type": "textarea",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/main-prompt/reload#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/skills/create#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/items/:skill-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/toggles/:skill-id#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/detail/back#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "returns from a skill detail to the repository list"
+  },
+  {
+    "target": "e2e/settings/skills/detail/actions#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "returns from a skill detail to the repository list"
+  },
+  {
+    "target": "e2e/settings/skills/files/:path#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/detail/rename#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/detail/delete#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/close#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/name#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/description#textarea",
+    "route": "settings",
+    "type": "textarea",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/submit#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
   }
 ]

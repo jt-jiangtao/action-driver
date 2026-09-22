@@ -5,12 +5,16 @@ export function SettingsSidebar({
   onBack,
   active = 'model-connections',
   onOpenLogs,
-  onOpenConnections
+  onOpenConnections,
+  onOpenMainPrompt,
+  onOpenSkills
 }: {
   onBack(): void
-  active?: 'model-connections' | 'logs'
+  active?: 'model-connections' | 'main-prompt' | 'skills' | 'logs'
   onOpenLogs?(): void
   onOpenConnections?(): void
+  onOpenMainPrompt?(): void
+  onOpenSkills?(): void
 }) {
   return (
     <aside className="settings-sidebar">
@@ -33,6 +37,7 @@ export function SettingsSidebar({
           placeholder="搜索设置"
         />
       </label>
+      <nav className="settings-sidebar-nav" aria-label="设置导航">
       <div className="settings-nav-group">
         <span className="settings-nav-label">模型</span>
         <button
@@ -44,6 +49,35 @@ export function SettingsSidebar({
           <AppIcon name="cable" />
           模型连接
         </button>
+      </div>
+      <div className="settings-nav-group">
+        <span className="settings-nav-label">Agent</span>
+        <button
+          className={`settings-nav-item ${active === 'main-prompt' ? 'is-active' : ''}`}
+          data-testid="e2e/settings/sidebar/main-prompt#button"
+          type="button"
+          onClick={active === 'main-prompt' ? undefined : onOpenMainPrompt}
+        >
+          <AppIcon name="code" />
+          主提示词
+        </button>
+        <button
+          className={`settings-nav-item ${active === 'skills' ? 'is-active' : ''}`}
+          data-testid="e2e/settings/sidebar/skills#button"
+          type="button"
+          onClick={active === 'skills' ? undefined : onOpenSkills}
+        >
+          <AppIcon name="skill" />
+          Skills
+        </button>
+        <button className="settings-nav-item" data-testid="e2e/settings/sidebar/mcp#button" type="button" disabled title="MCP 配置尚未开放">
+          <AppIcon name="mcp" />
+          MCP
+          <span className="settings-nav-soon">稍后</span>
+        </button>
+      </div>
+      <div className="settings-nav-group">
+        <span className="settings-nav-label">诊断</span>
         {onOpenLogs ? (
           <button
             className={`settings-nav-item ${active === 'logs' ? 'is-active' : ''}`}
@@ -56,6 +90,7 @@ export function SettingsSidebar({
           </button>
         ) : null}
       </div>
+      </nav>
       <div className="settings-brand">
         <ActionDriverLogo size={18} />
         <strong>ActionDriver</strong>

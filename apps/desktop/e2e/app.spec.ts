@@ -37,6 +37,9 @@ async function launch(viewport = { width: 1440, height: 900 }) {
 }
 
 async function capture(page: Page, name: string) {
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  )
   await page.screenshot({ path: artifact(name), scale: 'css' })
 }
 
@@ -168,6 +171,32 @@ test('captures all eight Settings Figma states through public controls', async (
   ])
   await capture(page, 'settings-populated')
 
+  await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
+  await expect(page.getByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
+  await capture(page, 'settings-main-prompt')
+  await page.getByTestId('e2e/settings/agent-editors/main-prompt/content#textarea').fill('# 更新后的主提示词\n\n保持回答简洁。')
+  await expect(page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button')).toBeEnabled()
+  await capture(page, 'settings-main-prompt-dirty')
+
+  await page.getByTestId('e2e/settings/sidebar/skills#button').click()
+  await expect(page.getByTestId('e2e/settings/skills/page#page')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
+  await capture(page, 'settings-skills-list')
+  await page.getByTestId('e2e/settings/skills/create#button').click()
+  await expect(page.getByRole('dialog', { name: '新建 Skill' })).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
+  await capture(page, 'settings-skill-create')
+  await page.getByTestId('e2e/settings/skills/dialog/cancel#button').click()
+  await page.getByTestId('e2e/settings/skills/items/browser-tools#button').click()
+  await expect(page.getByRole('tree', { name: 'Skill 文件' })).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
+  await capture(page, 'settings-skill-detail')
+  await page.getByTestId('e2e/settings/skills/detail/actions#button').click()
+  await expect(page.getByRole('menu')).toBeVisible()
+  await auditRenderedInteractions(page, contracts)
+  await capture(page, 'settings-skill-actions')
+
   await page.getByTestId('e2e/settings/sidebar/logs#button').click()
   await expect(page.getByTestId('e2e/settings/logs/page#page')).toBeVisible()
   await capture(page, 'logs-interface-list')
@@ -267,6 +296,10 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
 
   await page.getByRole('button', { name: '设置' }).click()
   await expectInsideViewport(page, page.getByRole('button', { name: '添加模型集' }))
+  await page.getByTestId('e2e/settings/sidebar/skills#button').click()
+  await expectInsideViewport(page, page.getByTestId('e2e/settings/skills/create#button'))
+  await expectInsideViewport(page, page.getByTestId('e2e/settings/skills/search#input'))
+  await page.getByTestId('e2e/settings/sidebar/model-connections#button').click()
   await page.getByRole('button', { name: '添加模型集' }).click()
   await expectInsideViewport(page, page.getByRole('dialog', { name: '添加模型集' }))
   await auditRenderedInteractions(page, contracts)

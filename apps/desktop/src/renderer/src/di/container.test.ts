@@ -73,6 +73,7 @@ describe('renderer composition root', () => {
     expect(services.taskCatalog).toBeInstanceOf(MockTaskCatalog)
     expect(Object.keys(services).sort()).toEqual([
       'agentCommandService',
+      'agentFilesService',
       'agentSessionRepository',
       'interactionLogService',
       'modelConnectionsService',
@@ -98,6 +99,7 @@ describe('renderer composition root', () => {
       'skillGateway',
       'modelConnectionsService',
       'interactionLogService',
+      'agentFilesService',
       'taskCatalog'
     ])
   })

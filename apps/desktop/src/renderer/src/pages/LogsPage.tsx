@@ -10,11 +10,15 @@ export function LogsPage({
   service,
   onBack,
   onOpenConnections,
+  onOpenMainPrompt,
+  onOpenSkills,
   autoRefreshMs = 2_000
 }: {
   service: InteractionLogService
   onBack(): void
   onOpenConnections(): void
+  onOpenMainPrompt?(): void
+  onOpenSkills?(): void
   autoRefreshMs?: number
 }) {
   const [layer, setLayer] = useState<LogLayer>('interface')
@@ -26,6 +30,8 @@ export function LogsPage({
         active="logs"
         onOpenLogs={() => {}}
         onOpenConnections={onOpenConnections}
+        {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
+        {...(onOpenSkills ? { onOpenSkills } : {})}
       />
       <main className="settings-main logs-main">
         <div className="settings-content logs-content">

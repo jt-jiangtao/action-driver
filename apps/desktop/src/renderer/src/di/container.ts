@@ -5,6 +5,7 @@ import type {
   SkillGateway
 } from '@actiondriver/contracts'
 import type { InteractionLogService } from '../models/interaction-logs'
+import type { AgentFilesService } from '../models/agent-files'
 import {
   DesktopInteractionLogService,
   MockInteractionLogService
@@ -24,6 +25,7 @@ import {
   MockSkillGateway
 } from '../services/mock-skill-capabilities'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
+import { MockAgentFilesService } from '../services/mock-agent-files'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -31,11 +33,13 @@ export interface AppServices {
   skillGateway: SkillGateway
   modelConnectionsService: ModelConnectionsService
   interactionLogService: InteractionLogService
+  agentFilesService: AgentFilesService
   taskCatalog: TaskCatalog
 }
 
 const MODEL_CONNECTIONS_SERVICE = Symbol('MODEL_CONNECTIONS_SERVICE')
 const INTERACTION_LOG_SERVICE = Symbol('INTERACTION_LOG_SERVICE')
+const AGENT_FILES_SERVICE = Symbol('AGENT_FILES_SERVICE')
 const TASK_CATALOG = Symbol('TASK_CATALOG')
 
 interface RendererOverrides extends Partial<AppServices> {
@@ -101,6 +105,9 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
           ? new DesktopInteractionLogService(options.desktopApi.logs)
           : new MockInteractionLogService())
     )
+  container
+    .bind<AgentFilesService>(AGENT_FILES_SERVICE)
+    .toConstantValue(options.agentFilesService ?? new MockAgentFilesService())
   return container
 }
 
@@ -111,6 +118,7 @@ export function resolveAppServices(container: Container): AppServices {
     skillGateway: container.get(SERVICE_TYPES.skillGateway),
     modelConnectionsService: container.get(MODEL_CONNECTIONS_SERVICE),
     interactionLogService: container.get(INTERACTION_LOG_SERVICE),
+    agentFilesService: container.get(AGENT_FILES_SERVICE),
     taskCatalog: container.get(TASK_CATALOG)
   }
 }

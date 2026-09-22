@@ -7,6 +7,8 @@ import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LogsPage } from './pages/LogsPage'
 import { TaskPage } from './pages/TaskPage'
+import { MainPromptPage } from './pages/MainPromptPage'
+import { SkillsPage } from './pages/SkillsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
 import type { MainAppRoute } from './models/app-route'
 import { defaultModelSelection } from './models/model-selection'
@@ -46,7 +48,9 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   const mainRoute: MainAppRoute =
-    route.kind === 'settings' || route.kind === 'logs' ? route.returnTo : route
+    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills' || route.kind === 'logs'
+      ? route.returnTo
+      : route
 
   const openSettings = () => {
     if (route.kind === 'settings') return
@@ -58,11 +62,47 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setRoute({ kind: 'logs', returnTo: mainRoute })
   }
 
+  const openMainPrompt = () => {
+    if (route.kind === 'main-prompt') return
+    setRoute({ kind: 'main-prompt', returnTo: mainRoute })
+  }
+
+  const openSkills = () => {
+    if (route.kind === 'skills') return
+    setRoute({ kind: 'skills', returnTo: mainRoute })
+  }
+
   if (route.kind === 'settings') {
     return (
       <SettingsPage
         service={services.modelConnectionsService}
         onBack={() => setRoute(route.returnTo)}
+        onOpenLogs={openLogs}
+        onOpenMainPrompt={openMainPrompt}
+        onOpenSkills={openSkills}
+      />
+    )
+  }
+
+  if (route.kind === 'main-prompt') {
+    return (
+      <MainPromptPage
+        service={services.agentFilesService}
+        onBack={() => setRoute(route.returnTo)}
+        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+        onOpenSkills={openSkills}
+        onOpenLogs={openLogs}
+      />
+    )
+  }
+
+  if (route.kind === 'skills') {
+    return (
+      <SkillsPage
+        service={services.agentFilesService}
+        onBack={() => setRoute(route.returnTo)}
+        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+        onOpenMainPrompt={openMainPrompt}
         onOpenLogs={openLogs}
       />
     )
@@ -74,6 +114,8 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         service={services.interactionLogService}
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+        onOpenMainPrompt={openMainPrompt}
+        onOpenSkills={openSkills}
       />
     )
   }
