@@ -2,7 +2,7 @@
 
 > 本组是当前唯一优先交付。目标只有“真实请求流程跑通、页面实时渲染、日志可追踪”三项；完成前除直接依赖和严重回归外，不推进 Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制或其他横向迁移。每个子项只运行定向测试，整组完成后再运行全集门禁。
 
-- [ ] 0.1 定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。
+- [x] 0.1 定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。
 - [ ] 0.2 把 OpenAI-compatible 模型网关扩展为真实流式 `/chat/completions`：解析供应商分片并暴露可取消的 async iterable/回调端口，聚合最终 assistant 全文、用量与结束原因；用本地假上游定向测试覆盖多分片 Markdown、认证失败、限流、超时、畸形分片、无文本与中途断流，确认凭据只存在于 Runtime 上游边界且不以定时器伪造流。
 - [ ] 0.3 在 Runtime 建立最小 WebSocket 服务与流式执行编排：校验并持久化会话、任务、用户消息后发送 `request.accepted`，再持久化并发布固定生命周期事件，终态原子写入 assistant 全文与任务状态；实现同一 `idempotencyKey` 不重复执行、`eventId` 去重、`request.resume(afterCursor)` 重放和窗口过期快照，并用服务端定向测试覆盖完成、失败、取消与重连。
 - [ ] 0.4 实现桌面端单连接 WebSocket 客户端并接入真实提交：管理鉴权、原生 Ping/Pong、标准 close code、指数退避、命令关联、事件去重、序列检查与恢复；`request.accepted` 后立即切到真实会话并建立用户消息、空 assistant 消息和生成中投影，用客户端定向测试验证重连不重复正文、错误不串线且生产装配无 Mock 降级。

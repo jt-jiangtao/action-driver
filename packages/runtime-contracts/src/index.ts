@@ -1,3 +1,5 @@
 export * from './protocol'
 export * from './rpc'
 export * from './schemas'
+export * from './stream-lifecycle'
+export * from './stream-protocol'
