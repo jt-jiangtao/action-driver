@@ -811,6 +811,11 @@
   background: #fff;
   border: 1px solid #e4e6ea;
 }
+.logs-console.is-dark {
+  background: #111318;
+  border: 1px solid #2b3039;
+  color: #d8dde7;
+}
 .logs-console-header {
   display: flex;
   align-items: baseline;
@@ -1467,6 +1472,33 @@
   gap: 3px;
 }
 
+.logs-console-header .logs-console-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.logs-theme-toggle {
+  width: 28px;
+  height: 28px;
+  color: #687386;
+}
+
+.logs-console.is-dark .logs-theme-toggle {
+  color: #b9c1ce;
+}
+
+.logs-console.is-dark .logs-console-header,
+.logs-console.is-dark .logs-pagination {
+  border-color: #292e37;
+}
+
+.logs-console.is-dark .logs-console-columns {
+  background: #171a20;
+  border-color: #292e37;
+  color: #8992a2;
+}
+
 .logs-console-header > div span {
   color: #8b93a1;
   font-size: 11px;
@@ -1485,7 +1517,24 @@
 
 .logs-entry {
   min-height: 42px;
-  padding: 7px 16px;
+  padding: 7px 16px 7px 13px;
+  border-inline-start: 3px solid var(--log-level-color, transparent);
+}
+
+.logs-entry[data-level='debug'] {
+  --log-level-color: #8b93a1;
+}
+
+.logs-entry[data-level='info'] {
+  --log-level-color: #3b82f6;
+}
+
+.logs-entry[data-level='warn'] {
+  --log-level-color: #d99a32;
+}
+
+.logs-entry[data-level='error'] {
+  --log-level-color: #cf4b55;
 }
 
 .logs-entry > span {
@@ -1497,12 +1546,38 @@
   background: #eef2ff;
 }
 
-.logs-entry[data-selected='true']::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: #5267f7;
-  content: '';
+.logs-console.is-dark .logs-entry {
+  border-bottom-color: #222730;
+}
+
+.logs-console.is-dark .logs-entry:hover {
+  background: #1b2029;
+}
+
+.logs-console.is-dark .logs-entry[data-selected='true'] {
+  background: #20283a;
+}
+
+.logs-console.is-dark .logs-entry-operation {
+  color: #e3e7ee;
+}
+
+.logs-console.is-dark .logs-entry-time,
+.logs-console.is-dark .logs-entry-duration,
+.logs-console.is-dark .logs-transport {
+  color: #9da6b5;
+}
+
+.logs-entry-operation mark {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: #fff0a6;
+  color: inherit;
+}
+
+.logs-console.is-dark .logs-entry-operation mark {
+  background: #6b5819;
+  color: #fff4bd;
 }
 
 .logs-transport {
@@ -2391,6 +2466,21 @@
   padding: 8px 14px 10px;
 }
 
+.logs-chain-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid #edf0f4;
+  color: #7b8493;
+  font-size: 11.5px;
+}
+
+.logs-chain-action > span {
+  min-width: 0;
+}
+
 .logs-inspector-row {
   grid-template-columns: 72px minmax(0, 1fr);
   padding: 7px 0;
@@ -2432,16 +2522,39 @@
   padding: 0 3px;
 }
 
+.logs-file-location,
+.logs-tail-command {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.logs-file-location {
+  flex: 1 1 320px;
+}
+
+.logs-tail-command {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
 .logs-footer svg {
+  flex: 0 0 auto;
   width: 14px;
   height: 14px;
 }
 
 .logs-footer code {
+  display: block;
   overflow: hidden;
-  max-width: 68%;
+  max-width: min(48vw, 520px);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.logs-tail-command code {
+  max-width: min(36vw, 420px);
 }
 
 .model-log-toolbar {

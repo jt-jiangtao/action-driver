@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LogsPage } from './LogsPage'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { MockInteractionLogService } from '../services/desktop-interaction-logs'
@@ -14,6 +14,10 @@ function renderPage(service: InteractionLogService = new MockInteractionLogServi
 }
 
 describe('LogsPage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('switches between real interface logs and mock model sessions', async () => {
     const user = userEvent.setup()
     const service = new MockInteractionLogService()
@@ -82,6 +86,56 @@ describe('LogsPage', () => {
     )
   })
 
+  it('highlights the active keyword and exposes the record level', async () => {
+    const user = userEvent.setup()
+    const record = { ...createRecords(1)[0]!, level: 40, levelLabel: 'warn' }
+    renderPage({ list: async () => ({ records: [record], files: [] }) })
+
+    await user.type(screen.getByTestId('e2e/settings/logs/search#input'), 'operation')
+
+    const entry = await screen.findByTestId('e2e/settings/logs/entries/0#button')
+    expect(entry).toHaveAttribute('data-level', 'warn')
+    expect(within(entry).getByText('operation', { selector: 'mark' })).toBeVisible()
+  })
+
+  it('filters the list to the selected interaction chain', async () => {
+    const user = userEvent.setup()
+    const record = {
+      ...createRecords(1)[0]!,
+      id: 'main:chain-event',
+      taskId: 'task-chain-42',
+      requestId: 'request-chain-7',
+      correlationId: 'correlation-chain-3'
+    }
+    const list = vi.fn(async () => ({ records: [record], files: [] }))
+    renderPage({ list, detail: async () => createDetail(record, {}) })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+    await user.click(await screen.findByTestId('e2e/settings/logs/inspector/chain#button'))
+
+    expect(screen.getByTestId('e2e/settings/logs/search#input')).toHaveValue('task-chain-42')
+    await waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'task-chain-42' }))
+    )
+  })
+
+  it('persists the console theme without changing the page theme', async () => {
+    const user = userEvent.setup()
+    const first = renderPage()
+    const consolePanel = await screen.findByLabelText('交互日志控制台')
+    const toggle = screen.getByTestId('e2e/settings/logs/theme#button')
+
+    expect(consolePanel).toHaveClass('is-light')
+    await user.click(toggle)
+    expect(consolePanel).toHaveClass('is-dark')
+    expect(localStorage.getItem('actiondriver.logs.console-theme')).toBe('dark')
+    expect(screen.getByTestId('e2e/settings/logs/page#page')).not.toHaveClass('is-dark')
+
+    first.unmount()
+    renderPage()
+    expect(await screen.findByLabelText('交互日志控制台')).toHaveClass('is-dark')
+  })
+
   it('filters by one or more real transport protocols', async () => {
     const user = userEvent.setup()
     const list = vi.fn(async () => ({ records: [], nextCursor: null, files: [] }))
@@ -120,6 +174,35 @@ describe('LogsPage', () => {
     expect(await screen.findByText('{"goal":"检查日志"}')).toBeVisible()
     await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
     expect(screen.getByText('{"taskId":"task-1"}')).toBeVisible()
+  })
+
+  it('copies request and response bodies exactly', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined)
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+    const record = { ...createRecords(1)[0]!, id: 'main:copy-payloads' }
+    renderPage({
+      list: async () => ({ records: [record], files: [] }),
+      detail: async () =>
+        createDetail(record, {
+          requestText: '{"prompt":"exact request"}',
+          responseText: 'exact response\nwith newline'
+        })
+    })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+    await user.click(await screen.findByTestId('e2e/settings/logs/inspector/request#button'))
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/request/copy#button'))
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response/copy#button'))
+
+    expect(writeText.mock.calls.map(([text]) => text)).toEqual([
+      '{"prompt":"exact request"}',
+      'exact response\nwith newline'
+    ])
   })
 
   it('ignores a stale detail response after another event is selected', async () => {
@@ -449,6 +532,8 @@ describe('LogsPage', () => {
       list: async () => ({ records: [], files: ['/tmp/logs/renderer-service.log'] })
     })
     expect(await screen.findByText('还没有交互记录')).toBeVisible()
+    expect(screen.getByText('/tmp/logs/renderer-service.log')).toBeVisible()
+    expect(screen.getByText('tail -f "/tmp/logs/renderer-service.log"')).toBeVisible()
     unmount()
 
     const list = vi.fn(async () => {

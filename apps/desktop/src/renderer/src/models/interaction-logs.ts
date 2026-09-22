@@ -9,6 +9,8 @@ export type LogDirection = 'renderer->service' | 'service->renderer' | 'service-
 export interface InteractionLogRecord {
   id?: string
   correlationId?: string
+  requestId?: string
+  taskId?: string
   level: number
   levelLabel: string
   time: number

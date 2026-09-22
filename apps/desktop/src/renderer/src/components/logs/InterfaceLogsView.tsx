@@ -10,6 +10,8 @@ import { AppIcon } from '../ui/AppIcon'
 
 const LEVELS = ['debug', 'info', 'warn', 'error'] as const
 const PAGE_SIZE = 12
+const CONSOLE_THEME_KEY = 'actiondriver.logs.console-theme'
+type ConsoleTheme = 'light' | 'dark'
 const TRANSPORTS: Array<{ id: InteractionTransport; label: string }> = [
   { id: 'ipc', label: 'IPC' },
   { id: 'http', label: 'HTTP' },
@@ -49,6 +51,7 @@ export function InterfaceLogsView({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [page, setPage] = useState(1)
+  const [consoleTheme, setConsoleTheme] = useState<ConsoleTheme>(readConsoleTheme)
   const requestInFlight = useRef(false)
   const detailRequest = useRef<{ eventId: string; generation: number } | null>(null)
   const detailGeneration = useRef(0)
@@ -96,6 +99,14 @@ export function InterfaceLogsView({
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages))
   }, [totalPages])
+
+  useEffect(() => {
+    try {
+      globalThis.localStorage?.setItem(CONSOLE_THEME_KEY, consoleTheme)
+    } catch {
+      // Keep the in-memory preference when persistent storage is unavailable.
+    }
+  }, [consoleTheme])
 
   const clearFilters = () => {
     setLevel('')
@@ -341,13 +352,30 @@ export function InterfaceLogsView({
         </div>
       ) : (
         <div className={`logs-workspace ${selected ? 'has-inspector' : ''}`}>
-          <section className="logs-console is-light" aria-label="交互日志控制台">
+          <section
+            className={`logs-console is-${consoleTheme}`}
+            aria-label="交互日志控制台"
+          >
             <header className="logs-console-header">
-              <div>
+              <div className="logs-console-title">
                 <strong>接口事件</strong>
                 <span>前端、主进程、模型服务与本机组件的真实调用</span>
               </div>
-              <span>{records.length} 条记录</span>
+              <div className="logs-console-actions">
+                <span>{records.length} 条记录</span>
+                <button
+                  className="plain-icon-action logs-theme-toggle"
+                  data-testid="e2e/settings/logs/theme#button"
+                  type="button"
+                  aria-label={consoleTheme === 'light' ? '切换为深色控制台' : '切换为浅色控制台'}
+                  aria-pressed={consoleTheme === 'dark'}
+                  onClick={() =>
+                    setConsoleTheme((current) => (current === 'light' ? 'dark' : 'light'))
+                  }
+                >
+                  <AppIcon name={consoleTheme === 'light' ? 'moon' : 'sun'} />
+                </button>
+              </div>
             </header>
             {records.length > 0 ? (
               <div className="logs-console-columns" aria-hidden="true">
@@ -374,6 +402,7 @@ export function InterfaceLogsView({
                   data-testid={e2eId('e2e/settings/logs/entries/:entry-index#button', {
                     'entry-index': String(recordIndex)
                   })}
+                  data-level={record.levelLabel}
                   data-selected={selected ? key === keyOf(selected) : false}
                   key={key}
                   type="button"
@@ -388,8 +417,11 @@ export function InterfaceLogsView({
                     {directionShort(record.direction)}
                   </span>
                   <span className="logs-transport">{record.transport?.toUpperCase() ?? '—'}</span>
-                  <span className="logs-entry-operation">
-                    {record.operation ?? record.msg ?? '—'}
+                  <span
+                    className="logs-entry-operation"
+                    title={record.operation ?? record.msg ?? '—'}
+                  >
+                    {highlightText(record.operation ?? record.msg ?? '—', search)}
                   </span>
                   <span className="logs-entry-duration">
                     {record.durationMs === undefined ? '—' : `${record.durationMs}ms`}
@@ -440,16 +472,28 @@ export function InterfaceLogsView({
               onClose={closeDetail}
               onCopy={copySelected}
               onRetry={() => requestDetail(selected)}
+              onFilterChain={() => {
+                const chainId = chainIdOf(selected)
+                if (!chainId) return
+                setSearch(chainId)
+                setPage(1)
+              }}
             />
           ) : null}
         </div>
       )}
 
       {files.length > 0 ? (
-        <footer className="logs-footer">
-          <AppIcon name="folder" />
-          <span>真实日志库</span>
-          <code>{files[0]}</code>
+        <footer className="logs-footer" aria-label="日志文件位置">
+          <span className="logs-file-location">
+            <AppIcon name="folder" />
+            <span>日志文件</span>
+            <code title={files[0]}>{files[0]}</code>
+          </span>
+          <span className="logs-tail-command">
+            <span>终端查看</span>
+            <code>{`tail -f "${files[0]}"`}</code>
+          </span>
         </footer>
       ) : null}
     </section>
@@ -462,7 +506,8 @@ function InterfaceLogInspector({
   copyState,
   onClose,
   onCopy,
-  onRetry
+  onRetry,
+  onFilterChain
 }: {
   record: InteractionLogRecord
   detailState: {
@@ -475,6 +520,7 @@ function InterfaceLogInspector({
   onClose(): void
   onCopy(): void
   onRetry(): void
+  onFilterChain(): void
 }) {
   const detail = detailState?.detail
   return (
@@ -538,7 +584,36 @@ function InterfaceLogInspector({
         {record.errorMessage ? (
           <InspectorRow label="错误信息">{record.errorMessage}</InspectorRow>
         ) : null}
+        {record.taskId ? (
+          <InspectorRow label="任务 ID" mono>
+            {record.taskId}
+          </InspectorRow>
+        ) : null}
+        {record.requestId ? (
+          <InspectorRow label="请求 ID" mono>
+            {record.requestId}
+          </InspectorRow>
+        ) : null}
+        {record.correlationId ? (
+          <InspectorRow label="关联 ID" mono>
+            {record.correlationId}
+          </InspectorRow>
+        ) : null}
       </div>
+
+      {chainIdOf(record) ? (
+        <div className="logs-chain-action">
+          <span>查看同一任务或请求的完整调用链</span>
+          <button
+            className="plain-text-action"
+            data-testid="e2e/settings/logs/inspector/chain#button"
+            type="button"
+            onClick={onFilterChain}
+          >
+            筛选此链路
+          </button>
+        </div>
+      ) : null}
 
       {detailState?.state === 'loading' ? (
         <p className="logs-detail-state">正在读取 Request / Response…</p>
@@ -710,4 +785,35 @@ function transportLabel(transports: InteractionTransport[]): string {
 
 function keyOf(record: InteractionLogRecord): string {
   return record.id ?? `${record.time}-${record.operation ?? record.msg ?? 'entry'}`
+}
+
+function chainIdOf(record: InteractionLogRecord): string | null {
+  return record.taskId ?? record.requestId ?? record.correlationId ?? null
+}
+
+function readConsoleTheme(): ConsoleTheme {
+  try {
+    return globalThis.localStorage?.getItem(CONSOLE_THEME_KEY) === 'dark' ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+function highlightText(text: string, query: string): React.ReactNode {
+  const needle = query.trim()
+  if (!needle) return text
+  const lowerText = text.toLocaleLowerCase()
+  const lowerNeedle = needle.toLocaleLowerCase()
+  const parts: React.ReactNode[] = []
+  let cursor = 0
+  let match = lowerText.indexOf(lowerNeedle)
+  while (match >= 0) {
+    if (match > cursor) parts.push(text.slice(cursor, match))
+    parts.push(<mark key={`${match}-${parts.length}`}>{text.slice(match, match + needle.length)}</mark>)
+    cursor = match + needle.length
+    match = lowerText.indexOf(lowerNeedle, cursor)
+  }
+  if (parts.length === 0) return text
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
 }

@@ -125,4 +125,22 @@ describe('structured interaction logs', () => {
     expect(second.records.map((record) => record.operation)).toEqual(['ipc-1000'])
     expect(second.nextCursor).toBeNull()
   })
+
+  it('finds a complete interaction chain by correlation identifier', async () => {
+    const store = new MemoryInteractionLogStore()
+    const recorder = createInteractionLogRecorder({
+      store,
+      ids: sequentialIds(),
+      clock: () => 1_000
+    })
+    const finish = await recorder.start({
+      transport: 'http',
+      direction: 'renderer->service',
+      operation: 'POST /tasks',
+      request: { kind: 'empty' }
+    })
+    await finish({ outcome: 'ok', response: { kind: 'empty' } })
+
+    expect((await store.list({ search: 'correlation:1', limit: 20 })).records).toHaveLength(1)
+  })
 })

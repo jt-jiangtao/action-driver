@@ -540,6 +540,14 @@
     "testName": "filters by level, direction and search"
   },
   {
+    "target": "e2e/settings/logs/theme#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "persists the console theme without changing the page theme"
+  },
+  {
     "target": "e2e/settings/logs/auto-refresh#switch",
     "route": "settings",
     "type": "switch",
@@ -576,6 +584,14 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "copies the selected entry"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/chain#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters the list to the selected interaction chain"
   },
   {
     "target": "e2e/settings/logs/raw#button",
@@ -615,7 +631,7 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
-    "testName": "loads request and response lazily for the selected event"
+    "testName": "copies request and response bodies exactly"
   },
   {
     "target": "e2e/settings/logs/inspector/retry#button",

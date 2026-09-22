@@ -324,7 +324,14 @@ export class MemoryInteractionLogStore implements InteractionLogStore {
       .filter(
         (record) =>
           !needle ||
-          [record.operation, record.outcome, record.errorCode, record.taskId, record.requestId]
+          [
+            record.operation,
+            record.outcome,
+            record.errorCode,
+            record.taskId,
+            record.requestId,
+            record.correlationId
+          ]
             .filter(Boolean)
             .some((value) => String(value).toLowerCase().includes(needle))
       )

@@ -89,6 +89,15 @@ describe('local interaction log store', () => {
     })
   })
 
+  it('finds a persisted interaction chain by correlation identifier', async () => {
+    const { store } = await createStore()
+    await seedCompleted(store, 'main:event-1', 1_000)
+
+    expect(
+      (await store.list({ search: 'correlation-main:event-1', limit: 20 })).records
+    ).toHaveLength(1)
+  })
+
   it('keeps source namespaces isolated under a shared root', async () => {
     const rootDirectory = await mkdtemp(join(tmpdir(), 'actiondriver-interactions-'))
     directories.push(rootDirectory)

@@ -38,6 +38,7 @@ import {
   Timer,
   Upload,
   Monitor,
+  Moon,
   Play,
   Plus,
   RefreshCw,
@@ -45,6 +46,7 @@ import {
   ScrollText,
   Server,
   Settings,
+  Sun,
   Trash2,
   WandSparkles,
   X
@@ -92,6 +94,7 @@ export type AppIconName =
   | 'timer'
   | 'upload'
   | 'monitor'
+  | 'moon'
   | 'task'
   | 'trash'
   | 'network'
@@ -99,6 +102,7 @@ export type AppIconName =
   | 'boxes'
   | 'cable'
   | 'scroll-text'
+  | 'sun'
 
 const iconByName: Record<AppIconName, LucideIcon> = {
   'arrow-left': ArrowLeft,
@@ -142,13 +146,15 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   timer: Timer,
   upload: Upload,
   monitor: Monitor,
+  moon: Moon,
   task: ListTodo,
   trash: Trash2,
   network: Network,
   cpu: Cpu,
   boxes: Boxes,
   cable: Cable,
-  'scroll-text': ScrollText
+  'scroll-text': ScrollText,
+  sun: Sun
 }
 
 export function AppIcon({ name, size = 16, className }: { name: AppIconName; size?: number; className?: string }) {

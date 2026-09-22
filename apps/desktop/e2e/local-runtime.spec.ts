@@ -269,6 +269,12 @@ test('records real IPC and HTTP bodies without logging the log viewer itself', a
   await page.getByTestId('e2e/settings/logs/entries/0#button').click()
   await page.getByTestId('e2e/settings/logs/inspector/request#button').click()
   await page.getByTestId('e2e/settings/logs/inspector/response#button').click()
+  const requestCopy = page.getByTestId('e2e/settings/logs/inspector/request/copy#button')
+  await expect(requestCopy).toBeVisible()
+  await requestCopy.click()
+  await expect
+    .poll(() => page.evaluate(() => globalThis.navigator.clipboard.readText()))
+    .not.toBe('')
 
   await page.getByTestId('e2e/settings/logs/auto-refresh#switch').click()
   await expect(page.getByTestId('e2e/settings/logs/auto-refresh#switch')).toHaveAttribute(
@@ -285,10 +291,22 @@ test('records real IPC and HTTP bodies without logging the log viewer itself', a
   await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('HTTP')
   await expect(page.getByText('POST /model-connections/test')).toBeVisible()
 
+  const expired = await page.evaluate(async () => {
+    try {
+      await window.actionDriverDesktop.logs.detail('main:expired-e2e-event')
+      return null
+    } catch (error) {
+      return error as { code?: string; message?: string }
+    }
+  })
+  expect(expired).toMatchObject({ code: 'payload-expired' })
+
   await application!.close()
   application = undefined
   const persisted = readInteractionFiles(join(userDataDirectory!, 'logs', 'interactions'))
   expect(persisted).not.toContain(apiKey)
+  expect(persisted).not.toContain('actiondriver:log:list')
+  expect(persisted).not.toContain('actiondriver:log:detail')
   expect(persisted).not.toContain('actiondriver:logs:list')
   expect(persisted).not.toContain('actiondriver:logs:detail')
 })
