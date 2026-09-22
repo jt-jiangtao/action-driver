@@ -58,6 +58,17 @@ function createDesktopApi(): DesktopApi {
     },
     logs: {
       list: async () => ({ records: [], files: [], readable: true })
+    },
+    agentFiles: {
+      getMainPrompt: async () => ({ path: '.action-driver/prompts/main.md', content: '', digest: 'a', modifiedAt: 'now' }),
+      listSkills: async () => [],
+      getSkillTree: async () => [],
+      readFile: async (path) => ({ path, content: '', digest: 'a', modifiedAt: 'now' }),
+      saveFile: async (input) => ({ ...input, digest: 'b', modifiedAt: 'now' }),
+      createSkill: async (input) => ({ id: input.name, name: input.name, description: input.description, enabled: true, available: true, protected: false, modifiedAt: 'now' }),
+      renameSkill: async (skillId, name) => ({ id: skillId, name, description: '', enabled: true, available: true, protected: false, modifiedAt: 'now' }),
+      deleteSkill: async () => undefined,
+      setSkillEnabled: async (skillId, enabled) => ({ id: skillId, name: skillId, description: '', enabled, available: true, protected: false, modifiedAt: 'now' })
     }
   }
 }

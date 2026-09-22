@@ -26,6 +26,7 @@ import {
 } from '../services/mock-skill-capabilities'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 import { MockAgentFilesService } from '../services/mock-agent-files'
+import { DesktopAgentFilesService } from '../services/desktop-agent-files'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -107,7 +108,12 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
     )
   container
     .bind<AgentFilesService>(AGENT_FILES_SERVICE)
-    .toConstantValue(options.agentFilesService ?? new MockAgentFilesService())
+    .toConstantValue(
+      options.agentFilesService ??
+        (options.mode === 'local' && options.desktopApi
+          ? new DesktopAgentFilesService(options.desktopApi.agentFiles)
+          : new MockAgentFilesService())
+    )
   return container
 }
 

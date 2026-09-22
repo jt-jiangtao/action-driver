@@ -19,6 +19,8 @@ import { resolveRuntimePaths } from './runtime-paths'
 import { createMockSkillProviderHost } from './skill-provider-host'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
+import { AgentFileStore } from './agent-files/agent-file-store'
+import { registerAgentFilesIpcHandlers } from './agent-files-ipc'
 
 const desktopIconPath = resolveDesktopIconPath(__dirname)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
@@ -72,6 +74,9 @@ app.whenReady().then(async () => {
   if (compositionMode === 'mock') {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
+    const agentFileStore = new AgentFileStore({ homeDirectory: app.getPath('home') })
+    await agentFileStore.initialize()
+    registerAgentFilesIpcHandlers(ipcMain, agentFileStore, logging.interactions)
     const skillProviderHost = createMockSkillProviderHost()
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,

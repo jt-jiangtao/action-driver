@@ -1,0 +1,66 @@
+import type { AgentFilesDesktopApi } from '../../../preload/desktop-api'
+import {
+  AgentFileConflictError,
+  AgentFilePathError,
+  type AgentFilesService,
+  type CreateAgentSkillInput,
+  type SaveAgentFileInput
+} from '../models/agent-files'
+
+type StructuredError = { code?: unknown; message?: unknown }
+
+function mapError(error: unknown): Error {
+  const structured = error as StructuredError
+  const message = typeof structured?.message === 'string' ? structured.message : String(error)
+  if (structured?.code === 'CONFLICT') return new AgentFileConflictError(message)
+  if (structured?.code === 'PATH_REJECTED') return new AgentFilePathError(message)
+  return new Error(message)
+}
+
+async function call<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    throw mapError(error)
+  }
+}
+
+export class DesktopAgentFilesService implements AgentFilesService {
+  constructor(private readonly api: AgentFilesDesktopApi) {}
+
+  getMainPrompt() {
+    return call(() => this.api.getMainPrompt())
+  }
+
+  listSkills() {
+    return call(() => this.api.listSkills())
+  }
+
+  getSkillTree(skillId: string) {
+    return call(() => this.api.getSkillTree(skillId))
+  }
+
+  readFile(path: string) {
+    return call(() => this.api.readFile(path))
+  }
+
+  saveFile(input: SaveAgentFileInput) {
+    return call(() => this.api.saveFile(input))
+  }
+
+  createSkill(input: CreateAgentSkillInput) {
+    return call(() => this.api.createSkill(input))
+  }
+
+  renameSkill(skillId: string, name: string) {
+    return call(() => this.api.renameSkill(skillId, name))
+  }
+
+  deleteSkill(skillId: string) {
+    return call(() => this.api.deleteSkill(skillId))
+  }
+
+  setSkillEnabled(skillId: string, enabled: boolean) {
+    return call(() => this.api.setSkillEnabled(skillId, enabled))
+  }
+}

@@ -25,6 +25,15 @@ import type {
   AgentSubscriptionResult
 } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
+import {
+  AGENT_FILES_IPC_CHANNELS,
+  type AgentFileIpcResponse,
+  type AgentFileNodeDto,
+  type AgentSkillSummaryDto,
+  type AgentTextFileDto,
+  type CreateAgentSkillDto,
+  type SaveAgentFileDto
+} from '../shared/agent-files-contract'
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
@@ -51,6 +60,7 @@ export interface DesktopApi {
   agent: AgentDesktopApi
   modelConnections: ModelConnectionsDesktopApi
   logs: LogsDesktopApi
+  agentFiles: AgentFilesDesktopApi
 }
 
 export interface ModelConnectionsDesktopApi {
@@ -69,6 +79,18 @@ export interface LogsDesktopApi {
   list(request: LogListRequest): Promise<LogListResult>
 }
 
+export interface AgentFilesDesktopApi {
+  getMainPrompt(): Promise<AgentTextFileDto>
+  listSkills(): Promise<AgentSkillSummaryDto[]>
+  getSkillTree(skillId: string): Promise<AgentFileNodeDto[]>
+  readFile(path: string): Promise<AgentTextFileDto>
+  saveFile(input: SaveAgentFileDto): Promise<AgentTextFileDto>
+  createSkill(input: CreateAgentSkillDto): Promise<AgentSkillSummaryDto>
+  renameSkill(skillId: string, name: string): Promise<AgentSkillSummaryDto>
+  deleteSkill(skillId: string): Promise<void>
+  setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummaryDto>
+}
+
 async function invokeAgent<T>(ipc: DesktopIpcBridge, channel: string, input: unknown): Promise<T> {
   return await traceInteraction(channel, async () => {
     const response = (await ipc.invoke(channel, input)) as AgentIpcResponse<T>
@@ -84,6 +106,18 @@ async function invokeModel<T>(
 ): Promise<T> {
   return await traceInteraction(channel, async () => {
     const response = (await ipc.invoke(channel, input)) as ModelIpcResponse<T>
+    if (!response.ok) return Promise.reject(response.error)
+    return response.value
+  })
+}
+
+async function invokeAgentFiles<T>(
+  ipc: DesktopIpcBridge,
+  channel: string,
+  input: unknown
+): Promise<T> {
+  return await traceInteraction(channel, async () => {
+    const response = (await ipc.invoke(channel, input)) as AgentFileIpcResponse<T>
     if (!response.ok) return Promise.reject(response.error)
     return response.value
   })
@@ -218,6 +252,33 @@ export function createDesktopApi(
         if (!response.ok) return Promise.reject(response.error)
         return response.value
       }
+    },
+    agentFiles: {
+      getMainPrompt: () =>
+        invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.getMainPrompt, {}),
+      listSkills: () =>
+        invokeAgentFiles<AgentSkillSummaryDto[]>(ipc, AGENT_FILES_IPC_CHANNELS.listSkills, {}),
+      getSkillTree: (skillId) =>
+        invokeAgentFiles<AgentFileNodeDto[]>(ipc, AGENT_FILES_IPC_CHANNELS.getSkillTree, { skillId }),
+      readFile: (path) =>
+        invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.readFile, { path }),
+      saveFile: (input) =>
+        invokeAgentFiles<AgentTextFileDto>(ipc, AGENT_FILES_IPC_CHANNELS.saveFile, input),
+      createSkill: (input) =>
+        invokeAgentFiles<AgentSkillSummaryDto>(ipc, AGENT_FILES_IPC_CHANNELS.createSkill, input),
+      renameSkill: (skillId, name) =>
+        invokeAgentFiles<AgentSkillSummaryDto>(ipc, AGENT_FILES_IPC_CHANNELS.renameSkill, {
+          skillId,
+          name
+        }),
+      async deleteSkill(skillId) {
+        await invokeAgentFiles<void>(ipc, AGENT_FILES_IPC_CHANNELS.deleteSkill, { skillId })
+      },
+      setSkillEnabled: (skillId, enabled) =>
+        invokeAgentFiles<AgentSkillSummaryDto>(ipc, AGENT_FILES_IPC_CHANNELS.setSkillEnabled, {
+          skillId,
+          enabled
+        })
     }
   }
 }
