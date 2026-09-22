@@ -1,5 +1,6 @@
 import type {
   AgentCommandService,
+  AgentGoalRequest,
   AgentSessionRepository,
   SkillExecutionEvent,
   SkillGateway,
@@ -50,8 +51,8 @@ export class MockAgentRuntime implements AgentCommandService, AgentSessionReposi
     })
   }
 
-  async submitGoal(goal: string): Promise<TaskProjection> {
-    this.task = initialTask(goal)
+  async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
+    this.task = initialTask(request.goal)
     await this.skillGateway.invoke({
       id: BROWSER_INVOCATION_ID,
       taskId: this.task.id,

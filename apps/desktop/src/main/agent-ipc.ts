@@ -1,8 +1,5 @@
-import {
-  RuntimeRpcError,
-  type RuntimeClient,
-  type RuntimeSkillDescription
-} from '@actiondriver/runtime-contracts'
+import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
+import type { AgentGoalRequest, ModelLogQuery } from '@actiondriver/contracts'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
 import type { AgentControlSkillInput } from '../shared/agent-ipc-contract'
@@ -23,7 +20,6 @@ export type AgentRuntimeClient = Pick<RuntimeClient, 'request' | 'subscribeEvent
 
 export interface AgentTaskConfiguration {
   getSystemPrompt(): Promise<string>
-  getEnabledSkills(): Promise<RuntimeSkillDescription[]>
 }
 
 async function asIpcResponse<T>(
@@ -70,13 +66,15 @@ export function registerAgentIpcHandlers(
       AGENT_IPC_CHANNELS.submit,
       input,
       async () => {
-        const request = input as { goal: string }
-        if (!taskConfiguration) return runtimeClient.request('task.submit', request)
-        const [systemPrompt, skills] = await Promise.all([
-          taskConfiguration.getSystemPrompt(),
-          taskConfiguration.getEnabledSkills()
-        ])
-        return runtimeClient.request('task.submit', { ...request, systemPrompt, skills })
+        const request = input as AgentGoalRequest
+        const systemPrompt = taskConfiguration
+          ? await taskConfiguration.getSystemPrompt()
+          : undefined
+        return runtimeClient.request('task.submit', {
+          ...request,
+          ...(systemPrompt === undefined ? {} : { systemPrompt }),
+          skills: []
+        })
       },
       interactions
     )
@@ -86,6 +84,30 @@ export function registerAgentIpcHandlers(
       AGENT_IPC_CHANNELS.get,
       input,
       () => runtimeClient.request('task.get', input as { taskId: string }),
+      interactions
+    )
+  )
+  ipcMain.handle(AGENT_IPC_CHANNELS.list, (_event, input) =>
+    asIpcResponse(
+      AGENT_IPC_CHANNELS.list,
+      input,
+      () => runtimeClient.request('task.list', input as { limit?: number }),
+      interactions
+    )
+  )
+  ipcMain.handle(AGENT_IPC_CHANNELS.modelLogList, (_event, input) =>
+    asIpcResponse(
+      AGENT_IPC_CHANNELS.modelLogList,
+      input,
+      () => runtimeClient.request('model-log.list', input as ModelLogQuery),
+      interactions
+    )
+  )
+  ipcMain.handle(AGENT_IPC_CHANNELS.modelLogGet, (_event, input) =>
+    asIpcResponse(
+      AGENT_IPC_CHANNELS.modelLogGet,
+      input,
+      () => runtimeClient.request('model-log.get', input as { taskId: string }),
       interactions
     )
   )

@@ -8,16 +8,19 @@ type Handler = (
   input: unknown
 ) => unknown
 
-function createHarness(
-  getSystemPrompt?: () => Promise<string>,
-  getEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
-) {
+function createHarness(getSystemPrompt?: () => Promise<string>) {
   const handlers = new Map<string, Handler>()
   const sent: Array<{ channel: string; payload: unknown }> = []
   let eventListener: ((event: RuntimeEvent) => void) | undefined
   const request = vi.fn(async (command: string, input: unknown) => {
     void input
-    if (command === 'task.submit' && input === 'timeout') {
+    if (
+      command === 'task.submit' &&
+      typeof input === 'object' &&
+      input !== null &&
+      'goal' in input &&
+      input.goal === 'timeout'
+    ) {
       throw new RuntimeRpcError('DEADLINE_EXCEEDED', 'Runtime request timed out', { timeoutMs: 50 })
     }
     if (command === 'skill.control') {
@@ -44,6 +47,9 @@ function createHarness(
         }
       }
     }
+    if (command === 'task.list') return { tasks: [] }
+    if (command === 'model-log.list') return { sessions: [] }
+    if (command === 'model-log.get') return { session: null }
     return { accepted: true as const }
   })
   const subscribeEvents = vi.fn(
@@ -64,12 +70,7 @@ function createHarness(
     },
     runtimeClient,
     undefined,
-    getSystemPrompt || getEnabledSkills
-      ? {
-          getSystemPrompt: getSystemPrompt ?? (async () => ''),
-          getEnabledSkills: getEnabledSkills ?? (async () => [])
-        }
-      : undefined
+    getSystemPrompt ? { getSystemPrompt } : undefined
   )
   const sender = {
     send(channel: string, payload: unknown) {
@@ -86,7 +87,12 @@ describe('registerAgentIpcHandlers', () => {
     const getSystemPrompt = vi.fn(async () => '# Current main prompt')
     const { invoke, request } = createHarness(getSystemPrompt)
 
-    await expect(invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })).resolves.toEqual({
+    await expect(
+      invoke('actiondriver:agent:submit', {
+        goal: 'Book a hotel',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+      })
+    ).resolves.toEqual({
       ok: true,
       value: { taskId: 'task-1' }
     })
@@ -94,28 +100,13 @@ describe('registerAgentIpcHandlers', () => {
     expect(getSystemPrompt).toHaveBeenCalledOnce()
     expect(request).toHaveBeenCalledWith('task.submit', {
       goal: 'Book a hotel',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       systemPrompt: '# Current main prompt',
       skills: []
     })
   })
 
-  it('passes only the enabled and available Skill snapshot when a task is submitted', async () => {
-    const getEnabledSkills = vi.fn(async () => [
-      { skillId: 'browser-use', description: '通过浏览器完成任务' }
-    ])
-    const { invoke, request } = createHarness(async () => '# Prompt', getEnabledSkills)
-
-    await invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })
-
-    expect(getEnabledSkills).toHaveBeenCalledOnce()
-    expect(request).toHaveBeenCalledWith('task.submit', {
-      goal: 'Book a hotel',
-      systemPrompt: '# Prompt',
-      skills: [{ skillId: 'browser-use', description: '通过浏览器完成任务' }]
-    })
-  })
-
-  it('registers only the seven explicitly named Agent command handlers', async () => {
+  it('registers and forwards the typed task and model-log query handlers', async () => {
     const { handlers, invoke, request } = createHarness()
 
     expect([...handlers.keys()].sort()).toEqual([
@@ -123,12 +114,20 @@ describe('registerAgentIpcHandlers', () => {
       'actiondriver:agent:control-skill',
       'actiondriver:agent:get',
       'actiondriver:agent:interrupt',
+      'actiondriver:agent:list',
+      'actiondriver:agent:model-log-get',
+      'actiondriver:agent:model-log-list',
       'actiondriver:agent:provide-input',
       'actiondriver:agent:submit',
       'actiondriver:agent:subscribe'
     ])
 
-    await expect(invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })).resolves.toEqual({
+    await expect(
+      invoke('actiondriver:agent:submit', {
+        goal: 'Book a hotel',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+      })
+    ).resolves.toEqual({
       ok: true,
       value: { taskId: 'task-1' }
     })
@@ -145,6 +144,22 @@ describe('registerAgentIpcHandlers', () => {
         }
       }
     })
+    await expect(invoke('actiondriver:agent:list', { limit: 20 })).resolves.toEqual({
+      ok: true,
+      value: { tasks: [] }
+    })
+    await expect(
+      invoke('actiondriver:agent:model-log-list', { status: 'failed' })
+    ).resolves.toEqual({
+      ok: true,
+      value: { sessions: [] }
+    })
+    await expect(invoke('actiondriver:agent:model-log-get', { taskId: 'task-1' })).resolves.toEqual(
+      {
+        ok: true,
+        value: { session: null }
+      }
+    )
     await expect(invoke('actiondriver:agent:interrupt', { taskId: 'task-1' })).resolves.toEqual({
       ok: true,
       value: { accepted: true }
@@ -167,8 +182,18 @@ describe('registerAgentIpcHandlers', () => {
     })
 
     expect(request.mock.calls).toEqual([
-      ['task.submit', { goal: 'Book a hotel' }],
+      [
+        'task.submit',
+        {
+          goal: 'Book a hotel',
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+          skills: []
+        }
+      ],
       ['task.get', { taskId: 'task-1' }],
+      ['task.list', { limit: 20 }],
+      ['model-log.list', { status: 'failed' }],
+      ['model-log.get', { taskId: 'task-1' }],
       ['task.interrupt', { taskId: 'task-1' }],
       ['task.continue', { taskId: 'task-1' }],
       ['task.provide-input', { taskId: 'task-1', value: 'confirm' }],
@@ -210,7 +235,9 @@ describe('registerAgentIpcHandlers', () => {
     const handler = handlers.get('actiondriver:agent:submit')
     const sender = { send: vi.fn() }
 
-    await expect(handler?.({ sender }, 'timeout')).resolves.toEqual({
+    await expect(
+      handler?.({ sender }, { goal: 'timeout', model: { connectionId: 'c', modelId: 'm' } })
+    ).resolves.toEqual({
       ok: false,
       error: {
         code: 'DEADLINE_EXCEEDED',

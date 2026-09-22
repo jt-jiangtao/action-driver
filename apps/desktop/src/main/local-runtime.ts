@@ -7,6 +7,9 @@ import type { SkillProviderHost } from './skill-provider-host'
 const RUNTIME_CAPABILITIES = [
   'task.submit',
   'task.get',
+  'task.list',
+  'model-log.list',
+  'model-log.get',
   'task.interrupt',
   'task.continue',
   'task.provide-input',
@@ -37,11 +40,7 @@ export function createLocalRuntimeServices(
         appVersion,
         capabilities: RUNTIME_CAPABILITIES,
         onSkillExecute: (request) =>
-          skillProviderHost.execute(
-            request,
-            Date.now() + 30_000,
-            options.authorizeSkillExecution
-          )
+          skillProviderHost.execute(request, Date.now() + 30_000, options.authorizeSkillExecution)
       })
       runtimeClient.attach(client.connect().then(() => client))
     }

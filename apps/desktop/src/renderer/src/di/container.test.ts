@@ -27,6 +27,9 @@ function createDesktopApi(): DesktopApi {
     agent: {
       submit: async () => ({ taskId: 'task-1' }),
       get: async () => null,
+      listTasks: async () => [],
+      listModelLogs: async () => [],
+      getModelLog: async () => null,
       interrupt: async () => undefined,
       continue: async () => undefined,
       provideInput: async () => undefined,
@@ -184,7 +187,10 @@ describe('renderer composition root', () => {
       })
     )
 
-    await services.agentCommandService.submitGoal('使用浏览器')
+    await services.agentCommandService.submitGoal({
+      goal: '使用浏览器',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
 
     expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
     expect(services.skillGateway.getCapability(SKILL_IDS.browser)).toBe(browserCapability)

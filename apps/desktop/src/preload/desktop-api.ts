@@ -1,4 +1,8 @@
 import type {
+  AgentGoalRequest,
+  ModelLogQuery,
+  ModelLogSessionProjection,
+  RecentTaskProjection,
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
@@ -26,6 +30,9 @@ import type {
   AgentEventMessage,
   AgentGetResult,
   AgentIpcResponse,
+  AgentListResult,
+  AgentModelLogGetResult,
+  AgentModelLogListResult,
   AgentSubmitResult,
   AgentSubscriptionResult
 } from '../shared/agent-ipc-contract'
@@ -47,8 +54,11 @@ export interface DesktopIpcBridge {
 }
 
 export interface AgentDesktopApi {
-  submit(goal: string): Promise<AgentSubmitResult>
+  submit(request: AgentGoalRequest): Promise<AgentSubmitResult>
   get(taskId: string): Promise<TaskProjection | null>
+  listTasks(limit?: number): Promise<RecentTaskProjection[]>
+  listModelLogs(query?: ModelLogQuery): Promise<ModelLogSessionProjection[]>
+  getModelLog(taskId: string): Promise<ModelLogSessionProjection | null>
   interrupt(taskId: string): Promise<void>
   continue(taskId: string): Promise<void>
   provideInput(taskId: string, value: unknown): Promise<void>
@@ -162,10 +172,32 @@ export function createDesktopApi(
   return {
     getEnvironment: () => ({ platform, version }),
     agent: {
-      submit: (goal) => invokeAgent<AgentSubmitResult>(ipc, AGENT_IPC_CHANNELS.submit, { goal }),
+      submit: (request) => invokeAgent<AgentSubmitResult>(ipc, AGENT_IPC_CHANNELS.submit, request),
       async get(taskId) {
         const result = await invokeAgent<AgentGetResult>(ipc, AGENT_IPC_CHANNELS.get, { taskId })
         return result.task
+      },
+      async listTasks(limit) {
+        const result = await invokeAgent<AgentListResult>(ipc, AGENT_IPC_CHANNELS.list, {
+          ...(limit === undefined ? {} : { limit })
+        })
+        return result.tasks
+      },
+      async listModelLogs(query = {}) {
+        const result = await invokeAgent<AgentModelLogListResult>(
+          ipc,
+          AGENT_IPC_CHANNELS.modelLogList,
+          query
+        )
+        return result.sessions
+      },
+      async getModelLog(taskId) {
+        const result = await invokeAgent<AgentModelLogGetResult>(
+          ipc,
+          AGENT_IPC_CHANNELS.modelLogGet,
+          { taskId }
+        )
+        return result.session
       },
       async interrupt(taskId) {
         await invokeAgent<AgentAcceptedResult>(ipc, AGENT_IPC_CHANNELS.interrupt, { taskId })

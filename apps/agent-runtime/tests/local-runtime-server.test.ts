@@ -43,11 +43,12 @@ function createHarness(modelGateway: ModelGateway) {
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
   const server = createLocalRuntimeServer(serverEndpoint, {
     adapters: local.adapters,
-    messages: repositories.messages
+    messages: repositories.messages,
+    modelCalls: repositories.modelCalls
   })
   const client = new RuntimeClient(clientEndpoint, {
     appVersion: '0.1.0',
-    capabilities: ['task.submit', 'task.get'],
+    capabilities: ['task.submit', 'task.get', 'task.list', 'model-log.list', 'model-log.get'],
     onSkillExecute: async () => {
       throw new Error('Agent-only local runtime does not execute Skills')
     }
@@ -83,6 +84,35 @@ describe('local Runtime server composition', () => {
       expect.objectContaining({ role: 'user', content: 'Book a hotel' }),
       expect.objectContaining({ role: 'assistant', content: 'Real model answer' })
     ])
+    await harness.repositories.modelCalls.save({
+      id: 'call-1',
+      taskId,
+      requestId: `plan:${taskId}`,
+      correlationId: 'correlation-1',
+      model,
+      status: 'completed',
+      request: { model: 'gpt-real', messages: [{ role: 'user', content: 'Book a hotel' }] },
+      response: { choices: [{ message: { content: 'Real model answer' } }] },
+      error: null,
+      startedAt: '2026-09-23T01:00:00.000Z',
+      completedAt: '2026-09-23T01:00:01.000Z'
+    })
+    await expect(harness.client.request('task.list', { limit: 100 })).resolves.toMatchObject({
+      tasks: [
+        {
+          id: taskId,
+          sessionId: taskId,
+          model,
+          status: 'succeeded'
+        }
+      ]
+    })
+    await expect(harness.client.request('model-log.list', {})).resolves.toMatchObject({
+      sessions: [{ id: taskId, tasks: [{ calls: [{ correlationId: 'correlation-1' }] }] }]
+    })
+    await expect(harness.client.request('model-log.get', { taskId })).resolves.toMatchObject({
+      session: { id: taskId, tasks: [{ calls: [{ requestId: `plan:${taskId}` }] }] }
+    })
     await harness.server.close()
     harness.checkpointer.close()
     harness.repositories.close()

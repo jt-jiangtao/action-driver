@@ -18,7 +18,10 @@ const createRuntime = () => {
 describe('MockAgentRuntime', () => {
   it('creates the deterministic hotel task from a submitted goal', async () => {
     const { runtime } = createRuntime()
-    const task = await runtime.submitGoal('帮我预订杭州酒店')
+    const task = await runtime.submitGoal({
+      goal: '帮我预订杭州酒店',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
 
     expect(task.id).toBe('hotel-task')
     expect(task.messages[0]?.content).toBe('帮我预订杭州酒店')

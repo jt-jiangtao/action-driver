@@ -63,10 +63,21 @@ export function startIpcInteraction(
     value: input ?? null,
     ...(secretPaths.length ? { secretPaths } : {})
   }
+  const identifiers = interactionIdentifiers(input)
   return startBestEffortInteraction(interactions, {
     transport: 'ipc',
     direction: 'renderer->service',
     operation: channel,
+    ...identifiers,
     request
   })
+}
+
+function interactionIdentifiers(input: unknown): { taskId?: string; requestId?: string } {
+  if (!input || typeof input !== 'object') return {}
+  const value = input as { taskId?: unknown; requestId?: unknown }
+  return {
+    ...(typeof value.taskId === 'string' ? { taskId: value.taskId } : {}),
+    ...(typeof value.requestId === 'string' ? { requestId: value.requestId } : {})
+  }
 }

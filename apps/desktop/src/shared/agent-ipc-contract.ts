@@ -1,4 +1,7 @@
 import type {
+  ModelLogQuery,
+  ModelLogSessionProjection,
+  RecentTaskProjection,
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
@@ -9,6 +12,9 @@ import type { RuntimeRpcErrorCode } from '@actiondriver/runtime-contracts'
 export const AGENT_IPC_CHANNELS = {
   submit: 'actiondriver:agent:submit',
   get: 'actiondriver:agent:get',
+  list: 'actiondriver:agent:list',
+  modelLogList: 'actiondriver:agent:model-log-list',
+  modelLogGet: 'actiondriver:agent:model-log-get',
   interrupt: 'actiondriver:agent:interrupt',
   continue: 'actiondriver:agent:continue',
   provideInput: 'actiondriver:agent:provide-input',
@@ -19,6 +25,10 @@ export const AGENT_IPC_CHANNELS = {
 
 export type AgentSubmitResult = { taskId: string }
 export type AgentGetResult = { task: TaskProjection | null }
+export type AgentListResult = { tasks: RecentTaskProjection[] }
+export type AgentModelLogListInput = ModelLogQuery
+export type AgentModelLogListResult = { sessions: ModelLogSessionProjection[] }
+export type AgentModelLogGetResult = { session: ModelLogSessionProjection | null }
 export type AgentAcceptedResult = { accepted: true }
 export type AgentSubscriptionResult = { cursor: number }
 export type AgentControlSkillResult = { event: SkillExecutionEvent }

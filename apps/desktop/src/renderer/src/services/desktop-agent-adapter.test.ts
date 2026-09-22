@@ -24,6 +24,9 @@ function harness() {
   const api: AgentDesktopApi = {
     submit: vi.fn(async () => ({ taskId: 'task-1' })),
     get: vi.fn(async () => structuredClone(currentTask)),
+    listTasks: vi.fn(async () => []),
+    listModelLogs: vi.fn(async () => []),
+    getModelLog: vi.fn(async () => null),
     interrupt: vi.fn(async () => undefined),
     continue: vi.fn(async () => undefined),
     provideInput: vi.fn(async () => undefined),
@@ -62,10 +65,14 @@ describe('DesktopAgentAdapter', () => {
     const listener = vi.fn()
     adapter.subscribe(listener)
 
-    const submitted = await adapter.submitGoal('Book a hotel')
+    const request = {
+      goal: 'Book a hotel',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    }
+    const submitted = await adapter.submitGoal(request)
     submitted.title = 'mutated outside the adapter'
 
-    expect(api.submit).toHaveBeenCalledWith('Book a hotel')
+    expect(api.submit).toHaveBeenCalledWith(request)
     expect(api.get).toHaveBeenCalledWith('task-1')
     expect(api.subscribe).toHaveBeenCalledWith('task-1', 0, expect.any(Function))
     expect(adapter.getTask('task-1')?.title).toBe('Book a hotel')
@@ -142,7 +149,12 @@ describe('DesktopAgentAdapter', () => {
       const { adapter, api } = harness()
       vi.mocked(api.get).mockResolvedValue(invalidTask as unknown as TaskProjection)
 
-      await expect(adapter.submitGoal('Book a hotel')).rejects.toMatchObject({
+      await expect(
+        adapter.submitGoal({
+          goal: 'Book a hotel',
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+        })
+      ).rejects.toMatchObject({
         name: 'AgentServiceError',
         code: 'invalid-response'
       })
@@ -162,7 +174,12 @@ describe('DesktopAgentAdapter', () => {
     const { adapter, api } = harness()
     vi.mocked(api.submit).mockRejectedValue({ code: runtimeCode, message: 'runtime failed' })
 
-    const error = await adapter.submitGoal('Book a hotel').catch((caught: unknown) => caught)
+    const error = await adapter
+      .submitGoal({
+        goal: 'Book a hotel',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+      })
+      .catch((caught: unknown) => caught)
 
     expect(error).toBeInstanceOf(AgentServiceError)
     expect(error).toMatchObject({ code: domainCode, message: 'runtime failed' })

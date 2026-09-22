@@ -36,7 +36,10 @@ describe('createDesktopApi', () => {
       'continue',
       'controlSkill',
       'get',
+      'getModelLog',
       'interrupt',
+      'listModelLogs',
+      'listTasks',
       'provideInput',
       'submit',
       'subscribe'
@@ -70,8 +73,14 @@ describe('createDesktopApi', () => {
       'testModels'
     ])
 
-    await api.agent.submit('Book a hotel')
+    await api.agent.submit({
+      goal: 'Book a hotel',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
     await api.agent.get('task-1')
+    await api.agent.listTasks(20)
+    await api.agent.listModelLogs({ status: 'failed' })
+    await api.agent.getModelLog('task-1')
     await api.agent.interrupt('task-1')
     await api.agent.continue('task-1')
     await api.agent.provideInput('task-1', 'confirm')
@@ -106,8 +115,17 @@ describe('createDesktopApi', () => {
       apiKey: 'sk-e2e-secret'
     }
     expect(invocations).toEqual([
-      { channel: 'actiondriver:agent:submit', input: { goal: 'Book a hotel' } },
+      {
+        channel: 'actiondriver:agent:submit',
+        input: {
+          goal: 'Book a hotel',
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+        }
+      },
       { channel: 'actiondriver:agent:get', input: { taskId: 'task-1' } },
+      { channel: 'actiondriver:agent:list', input: { limit: 20 } },
+      { channel: 'actiondriver:agent:model-log-list', input: { status: 'failed' } },
+      { channel: 'actiondriver:agent:model-log-get', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:interrupt', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:continue', input: { taskId: 'task-1' } },
       {
@@ -187,7 +205,12 @@ describe('createDesktopApi', () => {
       off: () => undefined
     })
 
-    await expect(api.agent.submit('Book a hotel')).rejects.toEqual(error)
+    await expect(
+      api.agent.submit({
+        goal: 'Book a hotel',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+      })
+    ).rejects.toEqual(error)
   })
 
   it('uses separate summary and detail log channels', async () => {

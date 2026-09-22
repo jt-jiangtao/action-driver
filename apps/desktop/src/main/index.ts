@@ -124,8 +124,7 @@ app.whenReady().then(async () => {
       createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
     )
     registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions, {
-      getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content,
-      getEnabledSkills: () => agentFileStore.getEnabledExecutors()
+      getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content
     })
     await runtime.runtimeSupervisor.start()
     const serviceUrl = runtime.runtimeSupervisor.serviceUrl

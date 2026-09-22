@@ -1,5 +1,6 @@
 import type {
   AgentCommandService,
+  AgentGoalRequest,
   AgentSessionRepository,
   SkillCapability,
   SkillControlCommand,
@@ -19,9 +20,9 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 
   constructor(private readonly api: AgentDesktopApi) {}
 
-  async submitGoal(goal: string): Promise<TaskProjection> {
+  async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
     try {
-      const { taskId } = await this.api.submit(goal)
+      const { taskId } = await this.api.submit(request)
       await this.ensureSubscription(taskId)
       return await this.refreshTask(taskId)
     } catch (error) {

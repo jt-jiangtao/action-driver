@@ -117,6 +117,32 @@ describe('renderer to service interaction logging', () => {
     expect((await store.list({ limit: 20 })).records).toEqual([])
   })
 
+  it('records model-log queries with task metadata without creating model execution records', async () => {
+    const ipcMain = ipcMainStub()
+    const { interactions, store } = recordingInteractions()
+    registerAgentIpcHandlers(
+      ipcMain as never,
+      {
+        request: async () => ({ session: null }),
+        subscribeEvents: async () => ({ subscriptionId: 's-1', cursor: 0 })
+      } as never,
+      interactions
+    )
+
+    await ipcMain.handlers.get('actiondriver:agent:model-log-get')!(undefined, {
+      taskId: 'task-1'
+    })
+
+    expect((await store.list({ limit: 20 })).records).toEqual([
+      expect.objectContaining({
+        direction: 'renderer->service',
+        operation: 'actiondriver:agent:model-log-get',
+        taskId: 'task-1'
+      })
+    ])
+    expect((await store.list({ search: 'service->model', limit: 20 })).records).toEqual([])
+  })
+
   it('merges summary pages and routes lazy detail reads to the owning source', async () => {
     const ipcMain = ipcMainStub()
     const main = recordingInteractions()

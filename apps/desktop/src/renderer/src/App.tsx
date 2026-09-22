@@ -11,7 +11,7 @@ import { MainPromptPage } from './pages/MainPromptPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
 import type { MainAppRoute } from './models/app-route'
-import { defaultModelSelection } from './models/model-selection'
+import { defaultModelSelection, findSelectedModel } from './models/model-selection'
 
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
   const services = useAppServices()
@@ -48,7 +48,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   const mainRoute: MainAppRoute =
-    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills' || route.kind === 'logs'
+    route.kind === 'settings' ||
+    route.kind === 'main-prompt' ||
+    route.kind === 'skills' ||
+    route.kind === 'logs'
       ? route.returnTo
       : route
 
@@ -135,7 +138,15 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           modelSelection={modelSelection}
           onSelectModel={setSelectedModelId}
           onSubmit={async (goal) => {
-            const projection = await services.agentCommandService.submitGoal(goal)
+            const selected = findSelectedModel(modelSelection)
+            if (!selected) throw new Error('请选择可用模型')
+            const projection = await services.agentCommandService.submitGoal({
+              goal,
+              model: {
+                connectionId: selected.connection.id,
+                modelId: selected.model.id
+              }
+            })
             setTask(projection)
             setRoute({ kind: 'task', taskId: projection.id })
           }}

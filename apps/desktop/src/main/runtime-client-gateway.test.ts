@@ -14,7 +14,13 @@ describe('RuntimeClientGateway', () => {
   it('rejects commands before a local Runtime connection is attached', async () => {
     const gateway = new RuntimeClientGateway()
 
-    await expect(gateway.request('task.submit', { goal: 'Book a hotel' })).rejects.toEqual(
+    await expect(
+      gateway.request('task.submit', {
+        goal: 'Book a hotel',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+        skills: []
+      })
+    ).rejects.toEqual(
       expect.objectContaining<Partial<RuntimeRpcError>>({ code: 'HANDSHAKE_REQUIRED' })
     )
   })
@@ -25,12 +31,24 @@ describe('RuntimeClientGateway', () => {
     const restarted = createClient('task-restarted')
 
     gateway.attach(Promise.resolve(first))
-    await expect(gateway.request('task.submit', { goal: 'First' })).resolves.toEqual({
+    await expect(
+      gateway.request('task.submit', {
+        goal: 'First',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+        skills: []
+      })
+    ).resolves.toEqual({
       taskId: 'task-first'
     })
 
     gateway.attach(Promise.resolve(restarted))
-    await expect(gateway.request('task.submit', { goal: 'After restart' })).resolves.toEqual({
+    await expect(
+      gateway.request('task.submit', {
+        goal: 'After restart',
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+        skills: []
+      })
+    ).resolves.toEqual({
       taskId: 'task-restarted'
     })
   })

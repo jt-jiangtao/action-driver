@@ -64,7 +64,8 @@ export async function startAgentRuntimeProcess(
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
   const server = createLocalRuntimeServer(endpoint, {
     adapters: local.adapters,
-    messages: repositories.messages
+    messages: repositories.messages,
+    modelCalls: repositories.modelCalls
   })
 
   let httpServer: ServiceHttpServer | null = null

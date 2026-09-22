@@ -1,8 +1,8 @@
 import type {
+  ModelLogQuery,
   SkillControlCommand,
   SkillExecutionEvent,
-  SkillExecutionState,
-  TaskProjection
+  SkillExecutionState
 } from '@actiondriver/contracts'
 import {
   RuntimeRpcError,
@@ -11,11 +11,17 @@ import {
   type RuntimeMessageEndpoint
 } from '@actiondriver/runtime-contracts'
 import { createRuntimeContainer, RUNTIME_TYPES } from './composition-root'
+import {
+  buildModelLogSessionProjection,
+  buildRecentTaskProjection,
+  buildTaskProjection
+} from './model-log-projection'
 import type {
   EventRepository,
   GraphRunner,
   IdGenerator,
   MessageRepository,
+  ModelCallRepository,
   RuntimeAdapters,
   RuntimeTaskRecord,
   TaskRepository
@@ -24,6 +30,9 @@ import type {
 const RUNTIME_CAPABILITIES = [
   'task.submit',
   'task.get',
+  'task.list',
+  'model-log.list',
+  'model-log.get',
   'task.interrupt',
   'task.continue',
   'task.provide-input',
@@ -37,7 +46,11 @@ export type LocalRuntimeServer = {
 
 export function createLocalRuntimeServer(
   endpoint: RuntimeMessageEndpoint,
-  options: { adapters: RuntimeAdapters; messages: MessageRepository }
+  options: {
+    adapters: RuntimeAdapters
+    messages: MessageRepository
+    modelCalls: ModelCallRepository
+  }
 ): LocalRuntimeServer {
   const serverRef: { current: RuntimeServer | null } = { current: null }
   function requireServer(): RuntimeServer {
@@ -113,6 +126,14 @@ export function createLocalRuntimeServer(
     }
   }
 
+  async function projectModelLog(task: RuntimeTaskRecord) {
+    const [messages, modelCalls] = await Promise.all([
+      options.messages.listByTask(task.id),
+      options.modelCalls.listByTask(task.id)
+    ])
+    return buildModelLogSessionProjection(task, messages, modelCalls)
+  }
+
   const rpcServer = new RuntimeServer(endpoint, {
     runtimeVersion: '0.1.0',
     capabilities: RUNTIME_CAPABILITIES,
@@ -167,8 +188,26 @@ export function createLocalRuntimeServer(
       if (command === 'task.get') {
         const task = await taskRepository.get((rawInput as { taskId: string }).taskId)
         return {
-          task: task ? toTaskProjection(task, await options.messages.listByTask(task.id)) : null
+          task: task ? buildTaskProjection(task, await options.messages.listByTask(task.id)) : null
         }
+      }
+      if (command === 'task.list') {
+        const requestedLimit = (rawInput as { limit?: number }).limit ?? 20
+        const limit = Math.min(100, Math.max(1, Math.trunc(requestedLimit)))
+        return {
+          tasks: (await taskRepository.listRecent(limit)).map(buildRecentTaskProjection)
+        }
+      }
+      if (command === 'model-log.list') {
+        const query = rawInput as ModelLogQuery
+        const tasks = await taskRepository.listRecent(100)
+        const sessions = await Promise.all(tasks.map(projectModelLog))
+        return { sessions: sessions.filter((session) => matchesModelLog(session, query)) }
+      }
+      if (command === 'model-log.get') {
+        const { taskId } = rawInput as { taskId: string }
+        const task = await taskRepository.get(taskId)
+        return { session: task ? await projectModelLog(task) : null }
       }
       if (command === 'task.interrupt') {
         const { taskId } = rawInput as { taskId: string }
@@ -239,47 +278,19 @@ function toRuntimeEvent(event: {
   }
 }
 
-function toTaskProjection(
-  task: RuntimeTaskRecord,
-  messages: Awaited<ReturnType<MessageRepository['listByTask']>>
-): TaskProjection {
-  const status = toProjectionStatus(task.status)
-  return {
-    id: task.id,
-    title: task.goal,
-    status,
-    messages: messages.flatMap((message) => {
-      if (typeof message.content !== 'string') return []
-      if (message.role !== 'user' && message.role !== 'assistant') return []
-      return [
-        {
-          id: message.id,
-          role: message.role === 'assistant' ? ('agent' as const) : ('user' as const),
-          content: message.content
-        }
-      ]
-    }),
-    steps: [
-      {
-        id: `step:${task.id}:run`,
-        title: '执行任务',
-        detail:
-          status === 'succeeded'
-            ? '任务已完成'
-            : status === 'failed'
-              ? '任务执行失败'
-              : 'Agent 正在执行',
-        state: status === 'succeeded' ? 'success' : status === 'failed' ? 'failed' : 'current'
-      }
-    ],
-    browser: null
-  }
-}
-
-function toProjectionStatus(status: string): SkillExecutionState {
-  if (status === 'completed') return 'succeeded'
-  if (status === 'waiting-user') return 'waiting-user'
-  if (status === 'interrupted') return 'paused'
-  if (status === 'failed') return 'failed'
-  return 'running'
+function matchesModelLog(
+  session: ReturnType<typeof buildModelLogSessionProjection>,
+  query: ModelLogQuery
+): boolean {
+  if (query.status && session.status !== query.status) return false
+  const search = query.query?.trim().toLowerCase()
+  if (!search) return true
+  const task = session.tasks[0]
+  return [
+    session.id,
+    session.name,
+    task?.model.connectionId,
+    task?.model.modelId,
+    ...(task?.calls.flatMap((call) => [call.requestId, call.correlationId]) ?? [])
+  ].some((value) => value?.toLowerCase().includes(search))
 }
