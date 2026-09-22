@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { LogsPage } from './LogsPage'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { MockInteractionLogService } from '../services/desktop-interaction-logs'
-import type { InteractionLogService } from '../models/interaction-logs'
+import type { InteractionLogRecord, InteractionLogService } from '../models/interaction-logs'
 
 function renderPage(service: InteractionLogService = new MockInteractionLogService()) {
   return render(
@@ -79,6 +79,80 @@ describe('LogsPage', () => {
         expect.objectContaining({ search: 'model-connections' })
       )
     )
+  })
+
+  it('clears all interface filters and restores the first page', async () => {
+    const user = userEvent.setup()
+    const records = createRecords(30)
+    renderPage({ list: async () => ({ records, files: [] }) })
+
+    await screen.findByText('operation-0')
+    await user.click(screen.getByTestId('e2e/settings/logs/pagination/next#button'))
+    expect(await screen.findByText('operation-12')).toBeVisible()
+
+    await user.selectOptions(screen.getByTestId('e2e/settings/logs/level#select'), 'warn')
+    await user.selectOptions(
+      screen.getByTestId('e2e/settings/logs/direction#select'),
+      'service->renderer'
+    )
+    await user.type(screen.getByTestId('e2e/settings/logs/search#input'), 'operation')
+    await user.click(screen.getByTestId('e2e/settings/logs/filters/clear#button'))
+
+    expect(screen.getByTestId('e2e/settings/logs/level#select')).toHaveValue('')
+    expect(screen.getByTestId('e2e/settings/logs/direction#select')).toHaveValue('')
+    expect(screen.getByTestId('e2e/settings/logs/search#input')).toHaveValue('')
+    expect(await screen.findByText('operation-0')).toBeVisible()
+  })
+
+  it('paginates interface records without squeezing the log table', async () => {
+    const user = userEvent.setup()
+    renderPage({ list: async () => ({ records: createRecords(30), files: [] }) })
+
+    expect(await screen.findByText('operation-0')).toBeVisible()
+    expect(screen.queryByText('operation-12')).not.toBeInTheDocument()
+    expect(screen.getByText(/第 1 \/ 3 页/)).toBeVisible()
+
+    await user.click(screen.getByTestId('e2e/settings/logs/pagination/next#button'))
+    expect(await screen.findByText('operation-12')).toBeVisible()
+    expect(screen.queryByText('operation-0')).not.toBeInTheDocument()
+    expect(screen.getByText(/第 2 \/ 3 页/)).toBeVisible()
+  })
+
+  it('exposes refresh progress and copy confirmation to assistive technology', async () => {
+    const user = userEvent.setup()
+    let resolveRefresh!: (value: {
+      records: InteractionLogRecord[]
+      files: string[]
+    }) => void
+    const service = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ records: createRecords(1), files: [] })
+        .mockImplementationOnce(
+          () =>
+            new Promise<{ records: InteractionLogRecord[]; files: string[] }>((resolve) => {
+              resolveRefresh = resolve
+            })
+        )
+    }
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: vi.fn(async () => undefined) },
+      configurable: true
+    })
+    renderPage(service)
+
+    await screen.findByText('operation-0')
+    await user.click(screen.getByTestId('e2e/settings/logs/refresh#button'))
+    expect(screen.getByTestId('e2e/settings/logs/refresh#button')).toBeDisabled()
+    expect(screen.getByText('刷新中…')).toBeVisible()
+    resolveRefresh({ records: createRecords(1), files: [] })
+    await waitFor(() => expect(screen.getByTestId('e2e/settings/logs/refresh#button')).toBeEnabled())
+
+    await user.click(screen.getByTestId('e2e/settings/logs/entries/0#button'))
+    const copy = screen.getByTestId('e2e/settings/logs/inspector/copy#button')
+    await user.click(copy)
+    expect(copy).toHaveAccessibleName('已复制')
+    expect(screen.getByRole('status')).toHaveTextContent('已复制')
   })
 
   it('pauses and resumes automatic refresh', async () => {
@@ -251,6 +325,19 @@ describe('LogsPage', () => {
     expect(refresh).toHaveAttribute('aria-pressed', 'false')
   })
 })
+
+function createRecords(count: number): InteractionLogRecord[] {
+  return Array.from({ length: count }, (_, index) => ({
+    level: 30,
+    levelLabel: 'info',
+    time: Date.parse('2026-09-22T02:20:00.000Z') + index,
+    transport: 'ipc',
+    direction: index % 2 === 0 ? 'renderer->service' : 'service->renderer',
+    operation: `operation-${index}`,
+    outcome: 'ok',
+    durationMs: index + 1
+  }))
+}
 
 describe('SettingsSidebar', () => {
   it('keeps model connections and logs with distinct semantic icons', () => {

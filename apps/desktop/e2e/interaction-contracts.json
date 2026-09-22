@@ -476,6 +476,30 @@
     "coverage": "visual-only"
   },
   {
+    "target": "e2e/settings/logs/filters/clear#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "clears all interface filters and restores the first page"
+  },
+  {
+    "target": "e2e/settings/logs/pagination/next#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "paginates interface records without squeezing the log table"
+  },
+  {
+    "target": "e2e/settings/logs/pagination/previous#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "paginates interface records without squeezing the log table"
+  },
+  {
     "target": "e2e/settings/logs/level#select",
     "route": "settings",
     "type": "select",

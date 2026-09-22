@@ -4,6 +4,7 @@ import { e2eId } from '../../testing/e2e-id'
 import { AppIcon } from '../ui/AppIcon'
 
 const LEVELS = ['debug', 'info', 'warn', 'error'] as const
+const PAGE_SIZE = 12
 const DIRECTIONS = [
   { id: '', label: '全部方向' },
   { id: 'renderer->service', label: '页面 → 服务端' },
@@ -20,7 +21,7 @@ export function InterfaceLogsView({
 }) {
   const [records, setRecords] = useState<InteractionLogRecord[]>([])
   const [files, setFiles] = useState<string[]>([])
-  const [level, setLevel] = useState<string>('info')
+  const [level, setLevel] = useState<string>('')
   const [direction, setDirection] = useState<string>('')
   const [search, setSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
@@ -28,11 +29,14 @@ export function InterfaceLogsView({
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
   const requestInFlight = useRef(false)
 
   const load = useCallback(async () => {
     if (requestInFlight.current) return
     requestInFlight.current = true
+    setRefreshing(true)
     try {
       const result = await service.list({
         level,
@@ -51,6 +55,7 @@ export function InterfaceLogsView({
     } finally {
       requestInFlight.current = false
       setLoading(false)
+      setRefreshing(false)
     }
   }, [direction, level, search, service])
 
@@ -68,6 +73,22 @@ export function InterfaceLogsView({
     () => records.find((record) => keyOf(record) === selectedKey) ?? null,
     [records, selectedKey]
   )
+  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE))
+  const visibleRecords = useMemo(
+    () => records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [page, records]
+  )
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages))
+  }, [totalPages])
+
+  const clearFilters = () => {
+    setLevel('')
+    setDirection('')
+    setSearch('')
+    setPage(1)
+  }
 
   const copySelected = async () => {
     if (!selected) return
@@ -85,6 +106,8 @@ export function InterfaceLogsView({
             aria-label="搜索日志"
             data-testid="e2e/settings/logs/search#input"
             placeholder="搜索会话 ID、任务 ID、接口或结果"
+            name="interface-log-search"
+            autoComplete="off"
             type="search"
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
@@ -95,8 +118,12 @@ export function InterfaceLogsView({
             aria-label="日志级别"
             data-testid="e2e/settings/logs/level#select"
             value={level}
-            onChange={(event) => setLevel(event.currentTarget.value)}
+            onChange={(event) => {
+              setLevel(event.currentTarget.value)
+              setPage(1)
+            }}
           >
+            <option value="">全部级别</option>
             {LEVELS.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -110,7 +137,10 @@ export function InterfaceLogsView({
             aria-label="日志方向"
             data-testid="e2e/settings/logs/direction#select"
             value={direction}
-            onChange={(event) => setDirection(event.currentTarget.value)}
+            onChange={(event) => {
+              setDirection(event.currentTarget.value)
+              setPage(1)
+            }}
           >
             {DIRECTIONS.map((option) => (
               <option key={option.id} value={option.id}>
@@ -122,29 +152,41 @@ export function InterfaceLogsView({
         </span>
         <div className="logs-actions">
           <button
+            className="plain-text-action"
+            data-testid="e2e/settings/logs/filters/clear#button"
+            type="button"
+            disabled={!level && !direction && !search}
+            onClick={clearFilters}
+          >
+            清除筛选
+          </button>
+          <button
             className="secondary-button"
             data-testid="e2e/settings/logs/auto-refresh#switch"
             type="button"
             aria-pressed={autoRefresh}
             onClick={() => setAutoRefresh((current) => !current)}
           >
-            <span className={`live-dot ${autoRefresh ? 'is-on' : ''}`} />
-            {autoRefresh ? '自动刷新' : '已暂停'}
+            <span
+              className={`live-dot ${autoRefresh ? 'is-on' : ''} ${error ? 'is-error' : ''}`}
+            />
+            {error && autoRefresh ? '连接中断' : autoRefresh ? '自动刷新' : '已暂停'}
           </button>
           <button
             className="secondary-button"
             data-testid="e2e/settings/logs/refresh#button"
             type="button"
+            disabled={refreshing}
             onClick={() => void load()}
           >
-            <AppIcon name="refresh" />
-            刷新
+            <AppIcon name={refreshing ? 'loader' : 'refresh'} />
+            {refreshing ? '刷新中…' : '刷新'}
           </button>
         </div>
       </div>
 
       {error ? (
-        <div className="logs-state-card is-error" role="alert">
+        <div className="logs-state-card is-error" role="alert" aria-live="polite">
           <AppIcon name="circle-alert" />
           <div>
             <strong>无法读取日志（真实接口数据）</strong>
@@ -185,13 +227,14 @@ export function InterfaceLogsView({
               <span className="is-center">耗时</span>
               <span className="is-end">状态</span>
             </div>
-            {records.map((record, index) => {
+            {visibleRecords.map((record, index) => {
               const key = keyOf(record)
+              const recordIndex = (page - 1) * PAGE_SIZE + index
               return (
                 <button
                   className="logs-entry"
                   data-testid={e2eId('e2e/settings/logs/entries/:entry-index#button', {
-                    'entry-index': String(index)
+                    'entry-index': String(recordIndex)
                   })}
                   data-selected={key === selectedKey}
                   key={key}
@@ -220,6 +263,33 @@ export function InterfaceLogsView({
                 </button>
               )
             })}
+            <footer className="logs-pagination" aria-label="接口日志分页">
+              <span>
+                第 {page} / {totalPages} 页 · 共 {records.length} 条
+              </span>
+              <div>
+                <button
+                  className="plain-icon-action"
+                  data-testid="e2e/settings/logs/pagination/previous#button"
+                  type="button"
+                  aria-label="上一页"
+                  disabled={page === 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  <AppIcon name="chevron-left" />
+                </button>
+                <button
+                  className="plain-icon-action"
+                  data-testid="e2e/settings/logs/pagination/next#button"
+                  type="button"
+                  aria-label="下一页"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                >
+                  <AppIcon name="chevron-right" />
+                </button>
+              </div>
+            </footer>
           </section>
 
           {selected ? (
@@ -267,11 +337,14 @@ function InterfaceLogInspector({
             className="plain-icon-action"
             data-testid="e2e/settings/logs/inspector/copy#button"
             type="button"
-            aria-label="复制条目"
+            aria-label={copyState === 'copied' ? '已复制' : '复制条目'}
             onClick={onCopy}
           >
             <AppIcon name={copyState === 'copied' ? 'check' : 'copy'} />
           </button>
+          <span className="sr-only" role="status" aria-live="polite">
+            {copyState === 'copied' ? '已复制' : ''}
+          </span>
           <button
             className="plain-icon-action"
             data-testid="e2e/settings/logs/inspector/close#button"

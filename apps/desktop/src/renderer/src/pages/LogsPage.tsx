@@ -31,7 +31,6 @@ export function LogsPage({
         <div className="settings-content logs-content">
           <header className="layered-logs-header">
             <div className="logs-heading">
-              <span className="eyebrow">OBSERVABILITY</span>
               <h1>日志</h1>
               <p>从真实接口事件到模型自主决策链，定位每一次运行发生了什么</p>
             </div>
@@ -44,7 +43,6 @@ export function LogsPage({
                 onClick={() => setLayer('interface')}
               >
                 接口层日志
-                <span>真实数据</span>
               </button>
               <button
                 className={layer === 'model' ? 'is-active' : ''}
@@ -54,7 +52,6 @@ export function LogsPage({
                 onClick={() => setLayer('model')}
               >
                 模型层日志
-                <span>Mock 预览</span>
               </button>
             </div>
           </header>
