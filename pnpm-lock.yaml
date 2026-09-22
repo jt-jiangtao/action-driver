@@ -332,10 +332,16 @@ importers:
       slate-react:
         specifier: 0.126.4
         version: 0.126.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
     devDependencies:
       '@types/markdown-it':
         specifier: ^14.2.0
         version: 14.2.0
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       electron:
         specifier: 38.8.6
         version: 38.8.6(supports-color@7.2.0)

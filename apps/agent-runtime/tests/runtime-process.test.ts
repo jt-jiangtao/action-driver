@@ -65,10 +65,20 @@ describe('Agent Runtime process entry', () => {
 
     const readyMessage = parentPort.postMessage.mock.calls.find(
       ([message]) => (message as { type: string }).type === 'runtime.ready'
-    )?.[0] as { type: string; service: { baseUrl: string } }
+    )?.[0] as {
+      type: string
+      service: { baseUrl: string; streamPath: string; streamProtocol: string }
+    }
     expect(readyMessage.service.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    expect(readyMessage.service).toMatchObject({
+      streamPath: '/stream',
+      streamProtocol: 'actiondriver.stream.v1'
+    })
 
-    const socket = new WebSocket(`${readyMessage.service.baseUrl.replace('http:', 'ws:')}/stream`)
+    const socket = new WebSocket(
+      `${readyMessage.service.baseUrl.replace('http:', 'ws:')}${readyMessage.service.streamPath}`,
+      [readyMessage.service.streamProtocol]
+    )
     await new Promise<void>((resolve, reject) => {
       socket.once('open', resolve)
       socket.once('error', reject)

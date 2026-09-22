@@ -346,4 +346,53 @@ describe('StreamSessionService', () => {
     })
     repositories.close()
   })
+
+  it('aborts active model work before service shutdown resolves', async () => {
+    let started!: () => void
+    const active = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    let aborted = false
+    const graphRunner: GraphRunner = {
+      async run(request, signal) {
+        started()
+        await new Promise<void>((resolve) => {
+          signal?.addEventListener(
+            'abort',
+            () => {
+              aborted = true
+              resolve()
+            },
+            { once: true }
+          )
+        })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'interrupted',
+          output: null,
+          error: null,
+          trace: ['acceptGoal', 'plan']
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    await service.handle(createEvent, () => undefined)
+    await active
+
+    await service.close()
+
+    expect(aborted).toBe(true)
+    await expect(
+      repositories.streamRequests.getByRequestId(createEvent.requestId)
+    ).resolves.toMatchObject({ status: 'cancelled' })
+    repositories.close()
+  })
 })

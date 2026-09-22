@@ -10,6 +10,7 @@ import { createCredentialCipher, createCredentialKey } from './model-connections
 import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
 import { StreamSessionService } from './stream-session-service'
+import { SERVICE_STREAM_PATH, SERVICE_STREAM_PROTOCOL } from './service/websocket-service'
 import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
 import {
   createInteractionLogRecorder,
@@ -111,6 +112,12 @@ export async function startAgentRuntimeProcess(
   parentPort.on('message', handleShutdown)
   parentPort.postMessage({
     type: 'runtime.ready',
-    service: httpServer ? { baseUrl: httpServer.url } : null
+    service: httpServer
+      ? {
+          baseUrl: httpServer.url,
+          streamPath: SERVICE_STREAM_PATH,
+          streamProtocol: SERVICE_STREAM_PROTOCOL
+        }
+      : null
   })
 }

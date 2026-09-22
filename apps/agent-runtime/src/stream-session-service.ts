@@ -36,6 +36,14 @@ export class StreamSessionService {
     }
   ) {}
 
+  async close(): Promise<void> {
+    const active = [...this.active.values()]
+    for (const request of active) {
+      request.controller.abort(new DOMException('Service shutting down', 'AbortError'))
+    }
+    await Promise.allSettled(active.map((request) => request.operation))
+  }
+
   async handle(event: StreamClientEvent, emit: Emit): Promise<void> {
     if (event.type === 'request.create') {
       await this.create(event, emit)

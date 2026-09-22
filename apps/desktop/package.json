@@ -28,10 +28,12 @@
     "react-dom": "19.3.0",
     "reflect-metadata": "0.2.2",
     "slate": "0.126.2",
-    "slate-react": "0.126.4"
+    "slate-react": "0.126.4",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.2.0",
+    "@types/ws": "8.18.1",
     "electron": "38.8.6",
     "electron-vite": "3.1.0"
   }

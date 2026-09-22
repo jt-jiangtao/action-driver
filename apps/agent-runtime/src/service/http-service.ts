@@ -12,22 +12,17 @@ import {
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { WebSocket, WebSocketServer } from 'ws'
 import type { Logger } from 'pino'
-import {
-  STREAM_PROTOCOL,
-  parseStreamClientEvent,
-  type StreamClientEvent,
-  type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
 import {
   startBestEffortInteraction,
   type InteractionLogRecorder,
   type InteractionRecorderResult
 } from '@actiondriver/observability'
 import { LOG_LEVELS, readRecentLogRecords } from './logs'
+import { attachServiceWebSocketServer, type ServiceStreamSessionPort } from './websocket-service'
+
+export type { ServiceStreamSessionPort } from './websocket-service'
 
 export const SERVICE_PROTOCOL_VERSION = 1
 
@@ -54,13 +49,8 @@ export type ServiceHttpOptions = {
   bodyLimitBytes?: number
   interactions?: InteractionLogRecorder
   streamSessions?: ServiceStreamSessionPort
-}
-
-export type ServiceStreamSessionPort = {
-  handle(
-    event: StreamClientEvent,
-    emit: (event: StreamServerEvent) => void | Promise<void>
-  ): Promise<void>
+  streamMaxPayloadBytes?: number
+  streamMaxBufferedBytes?: number
 }
 
 export type ServiceHttpServer = {
@@ -90,7 +80,17 @@ export async function startServiceHttpServer(
     void handleRequest(request, response, options, tokenDigest, bodyLimit, logger)
   })
   const webSockets = options.streamSessions
-    ? attachWebSocketServer(server, options.streamSessions, tokenDigest, logger)
+    ? attachServiceWebSocketServer(server, {
+        sessions: options.streamSessions,
+        tokenMatches: (token) => tokenMatches(token, tokenDigest),
+        logger,
+        ...(options.streamMaxPayloadBytes === undefined
+          ? {}
+          : { maxPayloadBytes: options.streamMaxPayloadBytes }),
+        ...(options.streamMaxBufferedBytes === undefined
+          ? {}
+          : { maxBufferedBytes: options.streamMaxBufferedBytes })
+      })
     : null
 
   await new Promise<void>((resolve, reject) => {
@@ -114,105 +114,6 @@ export async function startServiceHttpServer(
       await webSockets?.close()
       await closeServer(server)
     }
-  }
-}
-
-function attachWebSocketServer(
-  server: Server,
-  sessions: ServiceStreamSessionPort,
-  tokenDigest: Buffer,
-  logger: Logger | null
-): { close(): Promise<void> } {
-  const webSockets = new WebSocketServer({ noServer: true })
-  server.on('upgrade', (request, socket, head) => {
-    const url = new URL(request.url ?? '/', 'http://localhost')
-    if (url.pathname !== '/stream' || request.headers.origin) {
-      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
-      socket.destroy()
-      return
-    }
-    webSockets.handleUpgrade(request, socket, head, (webSocket) => {
-      webSockets.emit('connection', webSocket, request)
-    })
-  })
-
-  webSockets.on('connection', (webSocket) => {
-    const connectionId = randomUUID()
-    let authenticated = false
-    const send = async (event: StreamServerEvent) => {
-      if (webSocket.readyState === WebSocket.OPEN) webSocket.send(JSON.stringify(event))
-    }
-    webSocket.on('message', (data, isBinary) => {
-      void (async () => {
-        if (isBinary) {
-          webSocket.close(4400, 'Binary messages are not supported')
-          return
-        }
-        let event: StreamClientEvent
-        try {
-          event = parseStreamClientEvent(JSON.parse(data.toString()) as unknown)
-        } catch {
-          webSocket.close(4400, 'Invalid stream message')
-          return
-        }
-
-        if (!authenticated) {
-          if (event.type !== 'auth' || !tokenMatches(event.payload.token, tokenDigest)) {
-            webSocket.close(4401, 'Unauthorized')
-            return
-          }
-          authenticated = true
-          await send({
-            type: 'session.ready',
-            protocol: STREAM_PROTOCOL,
-            eventId: randomUUID(),
-            connectionId,
-            capabilities: ['request.create', 'request.cancel', 'request.resume'],
-            occurredAt: new Date().toISOString()
-          })
-          return
-        }
-
-        if (event.type === 'auth') {
-          webSocket.close(4400, 'Already authenticated')
-          return
-        }
-        try {
-          await sessions.handle(event, send)
-        } catch (error) {
-          logger?.error(
-            {
-              transport: 'websocket',
-              connectionId,
-              message: error instanceof Error ? error.message : String(error)
-            },
-            'stream command failed'
-          )
-          if ('requestId' in event) {
-            await send({
-              type: 'request.error',
-              protocol: STREAM_PROTOCOL,
-              eventId: randomUUID(),
-              requestId: event.requestId,
-              error: {
-                code: 'stream-command-failed',
-                message: error instanceof Error ? error.message : String(error),
-                retryable: false
-              },
-              occurredAt: new Date().toISOString()
-            })
-          }
-        }
-      })()
-    })
-  })
-
-  return {
-    close: () =>
-      new Promise<void>((resolve) => {
-        for (const client of webSockets.clients) client.terminate()
-        webSockets.close(() => resolve())
-      })
   }
 }
 
