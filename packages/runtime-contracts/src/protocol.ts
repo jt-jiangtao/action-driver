@@ -6,9 +6,14 @@ import type {
 
 export const RUNTIME_PROTOCOL_VERSION = { major: 1, minor: 0 } as const
 
+export type RuntimeSkillDescription = {
+  skillId: string
+  description: string
+}
+
 export type RuntimeCommandMap = {
   'task.submit': {
-    request: { goal: string; systemPrompt?: string }
+    request: { goal: string; systemPrompt?: string; skills?: RuntimeSkillDescription[] }
     response: { taskId: string }
   }
   'task.interrupt': { request: { taskId: string }; response: { accepted: true } }

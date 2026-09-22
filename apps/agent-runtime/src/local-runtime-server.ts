@@ -102,7 +102,11 @@ export function createLocalRuntimeServer(
     capabilities: RUNTIME_CAPABILITIES,
     async onCommand(command, rawInput) {
       if (command === 'task.submit') {
-        const { goal, systemPrompt } = rawInput as { goal: string; systemPrompt?: string }
+        const { goal, systemPrompt, skills } = rawInput as {
+          goal: string
+          systemPrompt?: string
+          skills?: Array<{ skillId: string; description: string }>
+        }
         const taskId = ids.next('task')
         const now = new Date().toISOString()
         const task: RuntimeTaskRecord = {
@@ -120,9 +124,12 @@ export function createLocalRuntimeServer(
           taskId,
           runTask(
             taskId,
-            graphRunner.run(
-              systemPrompt === undefined ? { taskId, goal } : { taskId, goal, systemPrompt }
-            )
+            graphRunner.run({
+              taskId,
+              goal,
+              ...(systemPrompt === undefined ? {} : { systemPrompt }),
+              ...(skills === undefined ? {} : { skills })
+            })
           )
         )
         return { taskId }

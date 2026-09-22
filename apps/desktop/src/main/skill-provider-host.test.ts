@@ -64,6 +64,29 @@ describe('SkillProviderHost', () => {
     ).resolves.toMatchObject({ output: { providerId: 'mock.computer' } })
   })
 
+  it('checks the current Skill authorization before every reverse call', async () => {
+    const host = createMockSkillProviderHost()
+    const authorize = vi.fn(async () => {
+      throw new Error('CAPABILITY_UNAVAILABLE: browser-use')
+    })
+
+    await expect(
+      host.execute(
+        {
+          invocationId: 'browser-disabled',
+          requestedSkillId: 'browser-use',
+          resolvedProviderId: 'mock.browser',
+          providerVersion: '1.0.0',
+          input: {}
+        },
+        Date.now() + 1_000,
+        authorize
+      )
+    ).rejects.toThrow('CAPABILITY_UNAVAILABLE: browser-use')
+    expect(authorize).toHaveBeenCalledWith('browser-use')
+    expect(host.getInvocationState('browser-disabled')).toBeUndefined()
+  })
+
   it('rejects calls after a provider goes offline without affecting other providers', async () => {
     const host = createMockSkillProviderHost()
     expect(host.unregister('mock.browser')).toBe(true)

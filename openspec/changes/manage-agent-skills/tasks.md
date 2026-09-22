@@ -46,3 +46,11 @@
 - [x] 5.2 增加主提示词和 Skill 页面的组件测试（文件列表、编辑、冲突、保存失败与路径拒绝）。
 - [x] 5.3 运行 `pnpm test:e2e`，确认生图还原页面、下拉框、分页、抽屉和唯一设置侧栏在各状态下无视觉回归。
 - [x] 5.4 运行 `pnpm typecheck && pnpm lint && pnpm test`。
+
+## 6. Runtime（Skill 执行器映射与任务约束）
+
+- [x] 6.1 解析 `SKILL.md` 的可选 `executor` frontmatter，并为 `browser-tools → browser-use`、`computer-tools → computer-use` 写入内置声明；缺少、无效或未知执行器的 Skill 返回不可用状态且不隐式使用目录名。
+- [x] 6.2 让 Agent 文件服务基于 `SkillProviderHost` 的已注册执行器计算可用性，并在服务端拒绝启用不可用 Skill；验证自定义声明、内置声明和重启后的 `.disabled` 状态。
+- [x] 6.3 扩展任务提交契约，在任务启动时携带已启用且可用的执行器快照；Runtime 模型规划仅暴露该快照，不再硬编码全部 Skill。
+- [x] 6.4 在实际 Skill 调用前复核当前启用状态与执行器注册状态，验证停用、未知映射和绕过规划的直接调用均返回可诊断的能力不可用错误。
+- [x] 6.5 增加端到端集成测试：内置映射可调用 → 停用后从模型工具列表移除并拒绝调用 → 重启仍停用 → 重新启用后恢复；运行 `pnpm check` 与本地 E2E。

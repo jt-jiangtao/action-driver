@@ -18,7 +18,11 @@ export function createLocalRuntimeServices(
   paths: RuntimePaths,
   appVersion: string,
   skillProviderHost: SkillProviderHost,
-  options: { serviceToken: string; credentialKey: string } = {
+  options: {
+    serviceToken: string
+    credentialKey: string
+    authorizeSkillExecution?: (skillId: string) => Promise<void>
+  } = {
     serviceToken: '',
     credentialKey: ''
   }
@@ -32,7 +36,12 @@ export function createLocalRuntimeServices(
       const client = new RuntimeClient(endpoint, {
         appVersion,
         capabilities: RUNTIME_CAPABILITIES,
-        onSkillExecute: (request) => skillProviderHost.execute(request, Date.now() + 30_000)
+        onSkillExecute: (request) =>
+          skillProviderHost.execute(
+            request,
+            Date.now() + 30_000,
+            options.authorizeSkillExecution
+          )
       })
       runtimeClient.attach(client.connect().then(() => client))
     }

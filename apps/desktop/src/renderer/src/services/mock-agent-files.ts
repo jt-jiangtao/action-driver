@@ -44,6 +44,8 @@ const builtInSkills: AgentSkillSummary[] = [
     description: '通过浏览器搜索、读取并整理网页信息。',
     enabled: true,
     available: true,
+    executorId: 'browser-use',
+    unavailableReason: null,
     protected: true,
     modifiedAt: '2026-09-20T09:30:00.000Z'
   },
@@ -53,6 +55,8 @@ const builtInSkills: AgentSkillSummary[] = [
     description: '将任务结果组织为结构化 Markdown 报告。',
     enabled: true,
     available: true,
+    executorId: 'report-use',
+    unavailableReason: null,
     protected: false,
     modifiedAt: '2026-09-19T14:18:00.000Z'
   },
@@ -62,6 +66,8 @@ const builtInSkills: AgentSkillSummary[] = [
     description: '检查本地数据文件并输出质量摘要。',
     enabled: false,
     available: false,
+    executorId: null,
+    unavailableReason: 'missing-executor',
     protected: false,
     modifiedAt: '2026-09-17T08:42:00.000Z'
   }
@@ -166,6 +172,8 @@ export class MockAgentFilesService implements AgentFilesService {
       description: input.description.trim() || '暂无描述',
       enabled: true,
       available: true,
+      executorId: 'mock-custom-use',
+      unavailableReason: null,
       protected: false,
       modifiedAt: now()
     }

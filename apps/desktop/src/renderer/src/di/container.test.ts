@@ -84,6 +84,8 @@ function createDesktopApi(): DesktopApi {
         description: input.description,
         enabled: true,
         available: true,
+        executorId: 'custom-use',
+        unavailableReason: null,
         protected: false,
         modifiedAt: 'now'
       }),
@@ -93,6 +95,8 @@ function createDesktopApi(): DesktopApi {
         description: '',
         enabled: true,
         available: true,
+        executorId: 'custom-use',
+        unavailableReason: null,
         protected: false,
         modifiedAt: 'now'
       }),
@@ -103,6 +107,8 @@ function createDesktopApi(): DesktopApi {
         description: '',
         enabled,
         available: true,
+        executorId: 'custom-use',
+        unavailableReason: null,
         protected: false,
         modifiedAt: 'now'
       })

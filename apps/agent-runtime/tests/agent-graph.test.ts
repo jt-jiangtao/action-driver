@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   LangGraphRunner,
   MockSkillRegistry,
@@ -18,7 +18,11 @@ describe('minimal agent StateGraph', () => {
     const container = createRuntimeContainer({ mode: 'mock' })
     const runner = container.get<GraphRunner>(RUNTIME_TYPES.graphRunner)
 
-    const result = await runner.run({ taskId: 'task-42', goal: '打开产品主页' })
+    const result = await runner.run({
+      taskId: 'task-42',
+      goal: '打开产品主页',
+      skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
+    })
 
     expect(result).toEqual({
       taskId: 'task-42',
@@ -60,6 +64,38 @@ describe('minimal agent StateGraph', () => {
     ])
   })
 
+  it('rejects a model request for a Skill outside the task snapshot before provider execution', async () => {
+    const execute = vi.fn<SkillProvider['execute']>(async ({ input }) => ({
+      ok: true,
+      providerId: 'mock.browser',
+      input
+    }))
+    const provider: SkillProvider = {
+      providerId: 'mock.browser',
+      providerVersion: '1.0.0',
+      skillId: 'browser-use',
+      contractVersion: 1,
+      execute
+    }
+    const model: ModelGateway = {
+      async complete() {
+        return { kind: 'invoke-skill', skillId: 'browser-use', input: {} }
+      }
+    }
+
+    const result = await new LangGraphRunner(model, { resolve: () => provider }).run({
+      taskId: 'task-disabled-skill',
+      goal: 'bypass the visible tools',
+      skills: []
+    })
+
+    expect(result).toMatchObject({
+      status: 'failed',
+      error: 'CAPABILITY_UNAVAILABLE: browser-use@1'
+    })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('routes provider requests for user input through awaitUser', async () => {
     const provider: SkillProvider = {
       providerId: 'mock.waiting',
@@ -78,7 +114,8 @@ describe('minimal agent StateGraph', () => {
     }
     const result = await new LangGraphRunner(model, registry).run({
       taskId: 'task-waiting',
-      goal: 'ask first'
+      goal: 'ask first',
+      skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
 
     expect(result.status).toBe('waiting-user')

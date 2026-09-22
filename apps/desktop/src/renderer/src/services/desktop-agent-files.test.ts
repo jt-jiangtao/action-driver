@@ -27,6 +27,8 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
       description: input.description,
       enabled: true,
       available: true,
+      executorId: 'custom-use',
+      unavailableReason: null,
       protected: false,
       modifiedAt: 'now'
     }),
@@ -36,6 +38,8 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
       description: '',
       enabled: true,
       available: true,
+      executorId: 'custom-use',
+      unavailableReason: null,
       protected: false,
       modifiedAt: 'now'
     }),
@@ -46,6 +50,8 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
       description: '',
       enabled,
       available: true,
+      executorId: 'custom-use',
+      unavailableReason: null,
       protected: false,
       modifiedAt: 'now'
     }),

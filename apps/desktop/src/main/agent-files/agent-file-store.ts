@@ -25,7 +25,7 @@ import type {
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
-const BUILT_IN_SKILLS = new Set(['browser-tools', 'report-writer'])
+const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'report-writer'])
 
 const DEFAULT_PROMPT = `# ActionDriver 主提示词
 
@@ -41,13 +41,28 @@ const DEFAULT_PROMPT = `# ActionDriver 主提示词
 const DEFAULT_SKILLS = [
   {
     id: 'browser-tools',
-    description: '通过浏览器搜索、读取并整理网页信息。'
+    description: '通过浏览器搜索、读取并整理网页信息。',
+    executorId: 'browser-use'
+  },
+  {
+    id: 'computer-tools',
+    description: '操作桌面应用并完成本地交互。',
+    executorId: 'computer-use'
   },
   {
     id: 'report-writer',
-    description: '将任务结果组织为结构化 Markdown 报告。'
+    description: '将任务结果组织为结构化 Markdown 报告。',
+    executorId: null
   }
 ] as const
+
+type SkillUnavailableReason = AgentSkillSummaryDto['unavailableReason']
+
+type SkillDeclaration = {
+  body: string
+  executorId: string | null
+  unavailableReason: Extract<SkillUnavailableReason, 'missing-executor' | 'invalid-executor'> | null
+}
 
 export class AgentFileStoreError extends Error {
   constructor(
@@ -64,10 +79,18 @@ export class AgentFileStore {
   private readonly managedRoot: string
   private readonly skillsRoot: string
   private managedRootRealPath: string | null = null
+  private readonly isExecutorRegistered: (executorId: string) => boolean
 
-  constructor({ homeDirectory }: { homeDirectory: string }) {
+  constructor({
+    homeDirectory,
+    isExecutorRegistered = () => false
+  }: {
+    homeDirectory: string
+    isExecutorRegistered?: (executorId: string) => boolean
+  }) {
     this.managedRoot = join(homeDirectory, MANAGED_DIRECTORY)
     this.skillsRoot = join(this.managedRoot, 'skills')
+    this.isExecutorRegistered = isExecutorRegistered
   }
 
   async initialize(): Promise<void> {
@@ -80,8 +103,9 @@ export class AgentFileStore {
       await mkdir(directory, { recursive: true })
       await this.writeDefaultIfMissing(
         join(directory, 'SKILL.md'),
-        `# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
+        this.defaultSkillContent(skill)
       )
+      if (skill.executorId) await this.migrateDefaultExecutor(skill)
       const references = join(directory, 'references')
       await mkdir(references, { recursive: true })
       await this.writeDefaultIfMissing(
@@ -152,6 +176,7 @@ export class AgentFileStore {
     }
     const description = input.description.trim() || '暂无描述'
     await this.atomicWrite(join(directory, 'SKILL.md'), `# ${id}\n\n${description}\n`)
+    await this.atomicWrite(join(directory, '.disabled'), 'disabled\n')
     await mkdir(join(directory, 'references'))
     await this.atomicWrite(join(directory, 'references', 'README.md'), '# References\n')
     return this.summarizeSkill(id)
@@ -181,6 +206,13 @@ export class AgentFileStore {
   async setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummaryDto> {
     const id = this.validateSkillId(skillId)
     const directory = await this.resolveExisting(`${SKILLS_PATH}/${id}`)
+    const summary = await this.summarizeSkill(id)
+    if (enabled && !summary.available) {
+      throw new AgentFileStoreError(
+        'VALIDATION',
+        `CAPABILITY_UNAVAILABLE: ${summary.executorId ?? id}`
+      )
+    }
     const marker = join(directory, '.disabled')
     if (enabled)
       await unlink(marker).catch((error: NodeJS.ErrnoException) => {
@@ -190,10 +222,34 @@ export class AgentFileStore {
     return this.summarizeSkill(id)
   }
 
+  async getEnabledExecutors(): Promise<Array<{ skillId: string; description: string }>> {
+    const executors = new Map<string, { skillId: string; description: string }>()
+    for (const skill of await this.listSkills()) {
+      if (!skill.enabled || !skill.available || skill.executorId === null) continue
+      if (!executors.has(skill.executorId)) {
+        executors.set(skill.executorId, {
+          skillId: skill.executorId,
+          description: skill.description
+        })
+      }
+    }
+    return [...executors.values()]
+  }
+
+  async assertExecutorEnabled(executorId: string): Promise<void> {
+    const enabled = (await this.listSkills()).some(
+      (skill) => skill.executorId === executorId && skill.available && skill.enabled
+    )
+    if (!enabled) {
+      throw new AgentFileStoreError('VALIDATION', `CAPABILITY_UNAVAILABLE: ${executorId}`)
+    }
+  }
+
   private async summarizeSkill(id: string): Promise<AgentSkillSummaryDto> {
     const skillFile = await this.readFile(`${SKILLS_PATH}/${id}/SKILL.md`)
+    const declaration = this.parseSkillDeclaration(skillFile.content)
     const description =
-      skillFile.content
+      declaration.body
         .split(/\r?\n/)
         .map((line) => line.trim())
         .find((line) => line.length > 0 && !line.startsWith('#')) ?? '暂无描述'
@@ -203,12 +259,19 @@ export class AgentFileStore {
         if (error.code === 'ENOENT') return false
         throw error
       })
+    const available =
+      declaration.executorId !== null && this.isExecutorRegistered(declaration.executorId)
+    const unavailableReason: SkillUnavailableReason =
+      declaration.unavailableReason ??
+      (declaration.executorId !== null && !available ? 'executor-unregistered' : null)
     return {
       id,
       name: id,
       description,
-      enabled: !disabled,
-      available: true,
+      enabled: available && !disabled,
+      available,
+      executorId: declaration.executorId,
+      unavailableReason,
       protected: BUILT_IN_SKILLS.has(id),
       modifiedAt: skillFile.modifiedAt
     }
@@ -319,6 +382,44 @@ export class AgentFileStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
     }
+  }
+
+  private defaultSkillContent(skill: (typeof DEFAULT_SKILLS)[number]): string {
+    const frontmatter = skill.executorId ? `---\nexecutor: ${skill.executorId}\n---\n` : ''
+    return `${frontmatter}# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
+  }
+
+  private async migrateDefaultExecutor(skill: (typeof DEFAULT_SKILLS)[number]): Promise<void> {
+    if (!skill.executorId) return
+    const path = join(this.skillsRoot, skill.id, 'SKILL.md')
+    const current = await readFile(path, 'utf8')
+    const legacy = `# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
+    if (current === legacy) await this.atomicWrite(path, this.defaultSkillContent(skill))
+  }
+
+  private parseSkillDeclaration(content: string): SkillDeclaration {
+    if (!content.startsWith('---')) {
+      return { body: content, executorId: null, unavailableReason: 'missing-executor' }
+    }
+    const lines = content.split(/\r?\n/)
+    const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---')
+    if (closingIndex < 0) {
+      return { body: content, executorId: null, unavailableReason: 'invalid-executor' }
+    }
+    const executorLine = lines
+      .slice(1, closingIndex)
+      .find((line) => /^executor\s*:/.test(line.trim()))
+    const rawExecutor = executorLine
+      ?.trim()
+      .replace(/^executor\s*:\s*/, '')
+      .replace(/^(['"])(.*)\1$/, '$2')
+      .trim()
+    const body = lines.slice(closingIndex + 1).join('\n')
+    if (!rawExecutor) return { body, executorId: null, unavailableReason: 'missing-executor' }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawExecutor)) {
+      return { body, executorId: null, unavailableReason: 'invalid-executor' }
+    }
+    return { body, executorId: rawExecutor, unavailableReason: null }
   }
 
   private async atomicWrite(path: string, content: string): Promise<void> {

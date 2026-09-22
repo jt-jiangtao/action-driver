@@ -91,7 +91,12 @@ export interface CheckpointStore {
 
 export interface GraphRunner {
   run(
-    request: { taskId: string; goal: string; systemPrompt?: string },
+    request: {
+      taskId: string
+      goal: string
+      systemPrompt?: string
+      skills?: ModelSkillDescription[]
+    },
     signal?: AbortSignal
   ): Promise<AgentGraphResult>
   interrupt(taskId: string): boolean

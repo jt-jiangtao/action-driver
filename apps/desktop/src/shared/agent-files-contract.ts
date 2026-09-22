@@ -31,6 +31,8 @@ export interface AgentSkillSummaryDto {
   description: string
   enabled: boolean
   available: boolean
+  executorId: string | null
+  unavailableReason: 'missing-executor' | 'invalid-executor' | 'executor-unregistered' | null
   protected: boolean
   modifiedAt: string
 }

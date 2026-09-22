@@ -35,7 +35,16 @@ export class SkillProviderHost {
     return this.invocationStates.get(invocationId)
   }
 
-  execute(request: SkillExecuteRequest, deadlineUnixMs: number): Promise<SkillExecuteResult> {
+  hasSkill(skillId: string): boolean {
+    return [...this.providers.values()].some((provider) => provider.skillId === skillId)
+  }
+
+  async execute(
+    request: SkillExecuteRequest,
+    deadlineUnixMs: number,
+    authorize?: (skillId: string) => Promise<void>
+  ): Promise<SkillExecuteResult> {
+    await authorize?.(request.requestedSkillId)
     const provider = this.providers.get(request.resolvedProviderId)
     if (
       !provider ||

@@ -8,7 +8,10 @@ type Handler = (
   input: unknown
 ) => unknown
 
-function createHarness(getSystemPrompt?: () => Promise<string>) {
+function createHarness(
+  getSystemPrompt?: () => Promise<string>,
+  getEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
+) {
   const handlers = new Map<string, Handler>()
   const sent: Array<{ channel: string; payload: unknown }> = []
   let eventListener: ((event: RuntimeEvent) => void) | undefined
@@ -61,7 +64,12 @@ function createHarness(getSystemPrompt?: () => Promise<string>) {
     },
     runtimeClient,
     undefined,
-    getSystemPrompt ? { getSystemPrompt } : undefined
+    getSystemPrompt || getEnabledSkills
+      ? {
+          getSystemPrompt: getSystemPrompt ?? (async () => ''),
+          getEnabledSkills: getEnabledSkills ?? (async () => [])
+        }
+      : undefined
   )
   const sender = {
     send(channel: string, payload: unknown) {
@@ -86,7 +94,24 @@ describe('registerAgentIpcHandlers', () => {
     expect(getSystemPrompt).toHaveBeenCalledOnce()
     expect(request).toHaveBeenCalledWith('task.submit', {
       goal: 'Book a hotel',
-      systemPrompt: '# Current main prompt'
+      systemPrompt: '# Current main prompt',
+      skills: []
+    })
+  })
+
+  it('passes only the enabled and available Skill snapshot when a task is submitted', async () => {
+    const getEnabledSkills = vi.fn(async () => [
+      { skillId: 'browser-use', description: '通过浏览器完成任务' }
+    ])
+    const { invoke, request } = createHarness(async () => '# Prompt', getEnabledSkills)
+
+    await invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })
+
+    expect(getEnabledSkills).toHaveBeenCalledOnce()
+    expect(request).toHaveBeenCalledWith('task.submit', {
+      goal: 'Book a hotel',
+      systemPrompt: '# Prompt',
+      skills: [{ skillId: 'browser-use', description: '通过浏览器完成任务' }]
     })
   })
 

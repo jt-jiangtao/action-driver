@@ -23,10 +23,7 @@ describe('ModelGateway boundary', () => {
       {
         requestId: 'plan:task-context',
         messages: [{ role: 'user', content: 'current goal only' }],
-        skills: [
-          { skillId: 'browser-use', description: 'Operate a browser' },
-          { skillId: 'computer-use', description: 'Operate the desktop' }
-        ],
+        skills: [],
         parameters: { temperature: 0 }
       } satisfies ModelRequest,
       expect.anything()
@@ -52,6 +49,27 @@ describe('ModelGateway boundary', () => {
           { role: 'system', content: '# Main prompt\n\nKeep answers concise.' },
           { role: 'user', content: 'Summarize the report' }
         ]
+      }),
+      expect.anything()
+    )
+  })
+
+  it('exposes only the task Skill snapshot to the model', async () => {
+    const complete = vi.fn<ModelGateway['complete']>(async () => ({
+      kind: 'finish',
+      content: 'done'
+    }))
+    const runner = new LangGraphRunner({ complete }, new MockSkillRegistry())
+
+    await runner.run({
+      taskId: 'task-skill-snapshot',
+      goal: 'Open the website',
+      skills: [{ skillId: 'browser-use', description: '通过浏览器完成任务' }]
+    })
+
+    expect(complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skills: [{ skillId: 'browser-use', description: '通过浏览器完成任务' }]
       }),
       expect.anything()
     )

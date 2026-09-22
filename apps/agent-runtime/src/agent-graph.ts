@@ -37,6 +37,10 @@ const AgentState = Annotation.Root({
   threadId: Annotation<string>(),
   goal: Annotation<string>(),
   systemPrompt: Annotation<string>({ reducer: replace, default: () => '' }),
+  skills: Annotation<Array<{ skillId: string; description: string }>>({
+    reducer: replace,
+    default: () => []
+  }),
   status: Annotation<AgentGraphStatus>(),
   requestedSkillId: Annotation<string | null>({ reducer: replace, default: () => null }),
   resolvedProviderId: Annotation<string | null>({ reducer: replace, default: () => null }),
@@ -69,7 +73,12 @@ export class LangGraphRunner implements GraphRunner {
   }
 
   async run(
-    request: { taskId: string; goal: string; systemPrompt?: string },
+    request: {
+      taskId: string
+      goal: string
+      systemPrompt?: string
+      skills?: Array<{ skillId: string; description: string }>
+    },
     signal?: AbortSignal
   ): Promise<AgentGraphResult> {
     const threadId = threadIdForTask(request.taskId)
@@ -80,6 +89,7 @@ export class LangGraphRunner implements GraphRunner {
         threadId,
         goal: request.goal,
         systemPrompt: request.systemPrompt ?? '',
+        skills: request.skills ?? [],
         status: 'submitted',
         requestedSkillId: null,
         resolvedProviderId: null,
@@ -185,10 +195,7 @@ export class LangGraphRunner implements GraphRunner {
                   : []),
                 { role: 'user' as const, content: state.goal }
               ],
-              skills: [
-                { skillId: 'browser-use', description: 'Operate a browser' },
-                { skillId: 'computer-use', description: 'Operate the desktop' }
-              ],
+              skills: state.skills,
               parameters: { temperature: 0 }
             },
             config.signal
@@ -225,6 +232,14 @@ export class LangGraphRunner implements GraphRunner {
 
         if (!state.requestedSkillId) {
           return { status: 'skill-completed' as const, trace: ['resolveSkill'] }
+        }
+
+        if (!state.skills.some((skill) => skill.skillId === state.requestedSkillId)) {
+          return {
+            status: 'failed' as const,
+            error: `CAPABILITY_UNAVAILABLE: ${state.requestedSkillId}@1`,
+            trace: ['resolveSkill']
+          }
         }
 
         try {

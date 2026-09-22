@@ -77,10 +77,13 @@ app.whenReady().then(async () => {
   if (compositionMode === 'mock') {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
-    const agentFileStore = new AgentFileStore({ homeDirectory: app.getPath('home') })
+    const skillProviderHost = createMockSkillProviderHost()
+    const agentFileStore = new AgentFileStore({
+      homeDirectory: app.getPath('home'),
+      isExecutorRegistered: (executorId) => skillProviderHost.hasSkill(executorId)
+    })
     await agentFileStore.initialize()
     registerAgentFilesIpcHandlers(ipcMain, agentFileStore, logging.interactions)
-    const skillProviderHost = createMockSkillProviderHost()
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
@@ -95,13 +98,15 @@ app.whenReady().then(async () => {
     })
     const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost, {
       serviceToken,
-      credentialKey: credentialKey.toString('base64')
+      credentialKey: credentialKey.toString('base64'),
+      authorizeSkillExecution: (skillId) => agentFileStore.assertExecutorEnabled(skillId)
     })
     services = resolveMainServices(
       createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
     )
     registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions, {
-      getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content
+      getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content,
+      getEnabledSkills: () => agentFileStore.getEnabledExecutors()
     })
     await runtime.runtimeSupervisor.start()
     const serviceUrl = runtime.runtimeSupervisor.serviceUrl

@@ -54,7 +54,11 @@ describe('official SQLite checkpointer integration', () => {
     )
 
     await expect(
-      firstRuntime.run({ taskId: 'task-persisted', goal: 'wait' })
+      firstRuntime.run({
+        taskId: 'task-persisted',
+        goal: 'wait',
+        skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
+      })
     ).resolves.toMatchObject({
       status: 'waiting-user',
       threadId: 'task-persisted'

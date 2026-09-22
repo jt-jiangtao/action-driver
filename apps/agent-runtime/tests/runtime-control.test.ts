@@ -28,7 +28,11 @@ describe('LangGraph runtime control', () => {
     }
     const runner = new LangGraphRunner(model, registryFor(provider))
 
-    const waiting = await runner.run({ taskId: 'task-wait', goal: 'request approval' })
+    const waiting = await runner.run({
+      taskId: 'task-wait',
+      goal: 'request approval',
+      skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
+    })
     expect(waiting.status).toBe('waiting-user')
 
     const resumed = await runner.provideInput('task-wait', { approved: true })
@@ -82,7 +86,11 @@ describe('LangGraph runtime control', () => {
     }
     const runner = new LangGraphRunner(model, registryFor(provider))
 
-    const running = runner.run({ taskId: 'task-abort', goal: 'long model call' })
+    const running = runner.run({
+      taskId: 'task-abort',
+      goal: 'long model call',
+      skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
+    })
     await started
     expect(runner.interrupt('task-abort')).toBe(true)
 

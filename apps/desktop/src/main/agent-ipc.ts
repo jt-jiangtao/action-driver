@@ -1,4 +1,8 @@
-import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
+import {
+  RuntimeRpcError,
+  type RuntimeClient,
+  type RuntimeSkillDescription
+} from '@actiondriver/runtime-contracts'
 import type { InteractionLogger } from '@actiondriver/observability'
 import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
 import type { AgentControlSkillInput } from '../shared/agent-ipc-contract'
@@ -18,6 +22,7 @@ export type AgentRuntimeClient = Pick<RuntimeClient, 'request' | 'subscribeEvent
 
 export interface AgentTaskConfiguration {
   getSystemPrompt(): Promise<string>
+  getEnabledSkills(): Promise<RuntimeSkillDescription[]>
 }
 
 async function asIpcResponse<T>(
@@ -67,11 +72,12 @@ export function registerAgentIpcHandlers(
       AGENT_IPC_CHANNELS.submit,
       async () => {
         const request = input as { goal: string }
-        const systemPrompt = await taskConfiguration?.getSystemPrompt()
-        return runtimeClient.request(
-          'task.submit',
-          systemPrompt === undefined ? request : { ...request, systemPrompt }
-        )
+        if (!taskConfiguration) return runtimeClient.request('task.submit', request)
+        const [systemPrompt, skills] = await Promise.all([
+          taskConfiguration.getSystemPrompt(),
+          taskConfiguration.getEnabledSkills()
+        ])
+        return runtimeClient.request('task.submit', { ...request, systemPrompt, skills })
       },
       interactions
     )

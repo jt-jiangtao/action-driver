@@ -64,7 +64,8 @@ describe('deterministic scenario markers', () => {
 
     const waiting = await runner.run({
       taskId: 'task-confirm',
-      goal: `预订酒店${MOCK_USER_INPUT_MARKER}`
+      goal: `预订酒店${MOCK_USER_INPUT_MARKER}`,
+      skills: [{ skillId: 'browser-use', description: 'Operate a browser' }]
     })
     expect(waiting.status).toBe('waiting-user')
 
