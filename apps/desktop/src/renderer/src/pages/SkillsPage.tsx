@@ -102,11 +102,14 @@ export function SkillsPage({
 
   const loadSkills = useCallback(async () => {
     try {
-      setSkills(await service.listSkills())
+      const nextSkills = await service.listSkills()
+      setSkills(nextSkills)
       setError(null)
+      return nextSkills
     } catch (loadError) {
       setSkills([])
       setError(loadError instanceof Error ? loadError.message : String(loadError))
+      return []
     }
   }, [service])
 
@@ -202,10 +205,10 @@ export function SkillsPage({
                     className="agent-back-link"
                     data-testid="e2e/settings/skills/detail/back#button"
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedSkill(null)
                       setFile(null)
-                      setError(null)
+                      await loadSkills()
                     }}
                   >
                     <AppIcon name="arrow-left" />
@@ -290,8 +293,15 @@ export function SkillsPage({
                           })
                           setFile(saved)
                           setValue(saved.content)
-                          setSaveState('saved')
                           setError(null)
+                          if (saved.path.endsWith('/SKILL.md')) {
+                            const nextSkills = await loadSkills()
+                            const refreshed = nextSkills.find(
+                              (skill) => skill.id === selectedSkill.id
+                            )
+                            if (refreshed) setSelectedSkill(refreshed)
+                          }
+                          setSaveState('saved')
                         } catch (saveError) {
                           setSaveState('error')
                           setError(

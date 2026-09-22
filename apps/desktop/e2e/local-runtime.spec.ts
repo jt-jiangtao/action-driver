@@ -29,6 +29,7 @@ const USER_INPUT_GOAL = '预订杭州酒店（等待确认）'
 
 let application: ElectronApplication | undefined
 let userDataDirectory: string | undefined
+let homeDirectory: string | undefined
 
 test.beforeAll(() => {
   expect(
@@ -46,15 +47,36 @@ test.afterEach(async () => {
   application = undefined
 })
 
-async function launch(): Promise<Page> {
-  userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-local-e2e-'))
+async function launch({ reuseDirectories = false } = {}): Promise<Page> {
+  if (!reuseDirectories || !userDataDirectory || !homeDirectory) {
+    userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-local-e2e-data-'))
+    homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-local-e2e-home-'))
+  }
   application = await electron.launch({
     args: ['.', `--user-data-dir=${userDataDirectory}`],
-    cwd: desktopRoot
+    cwd: desktopRoot,
+    env: {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter((entry): entry is [string, string] =>
+          Boolean(entry[1])
+        )
+      ),
+      HOME: homeDirectory,
+      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
+    }
   })
   const page = await application.firstWindow()
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   return page
+}
+
+function setSkillEnabled(page: Page, skillId: string, enabled: boolean): Promise<void> {
+  return page.evaluate(
+    async ([id, nextEnabled]) => {
+      await window.actionDriverDesktop.agentFiles.setSkillEnabled(id as string, nextEnabled as boolean)
+    },
+    [skillId, enabled] as const
+  )
 }
 
 function taskIdOf(page: Page): Promise<string | null> {
@@ -150,4 +172,53 @@ test('waits for user input and resumes a local Runtime task from its checkpoint'
   await expect(page.getByText('Browser Skill · 已完成')).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => agentStatus(page, taskId)).toBe('succeeded')
   await expect(page.getByText('任务已完成')).toBeVisible()
+})
+
+test('enforces current Skill state across task snapshots and application restart', async () => {
+  let page = await launch()
+  const initialSkills = await page.evaluate(() => window.actionDriverDesktop.agentFiles.listSkills())
+  expect(initialSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
+    enabled: true,
+    available: true,
+    executorId: 'browser-use'
+  })
+  expect(initialSkills.find((skill) => skill.id === 'computer-tools')).toMatchObject({
+    enabled: true,
+    available: true,
+    executorId: 'computer-use'
+  })
+  const taskId = await submitGoal(page, PENDING_PLAN_GOAL)
+  await expect.poll(() => agentStatus(page, taskId)).toBe('running')
+
+  await setSkillEnabled(page, 'browser-tools', false)
+  await setSkillEnabled(page, 'computer-tools', false)
+  const browserSkillPath = join(
+    homeDirectory!,
+    '.action-driver',
+    'skills',
+    'browser-tools',
+    'SKILL.md'
+  )
+  expect(readFileSync(browserSkillPath, 'utf8')).toContain('executor: browser-use')
+  await page.getByTestId('e2e/shared/composer/interrupt#button').click()
+  await expect.poll(() => agentStatus(page, taskId)).toBe('paused')
+  await continueTask(page, taskId)
+  await expect.poll(() => agentStatus(page, taskId), { timeout: 20_000 }).toBe('failed')
+
+  await application!.close()
+  application = undefined
+  expect(readFileSync(browserSkillPath, 'utf8')).toContain('executor: browser-use')
+  page = await launch({ reuseDirectories: true })
+  const persistedSkills = await page.evaluate(() => window.actionDriverDesktop.agentFiles.listSkills())
+  expect(persistedSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
+    enabled: false,
+    available: true,
+    executorId: 'browser-use'
+  })
+
+  await setSkillEnabled(page, 'browser-tools', true)
+  const resumedTaskId = await submitGoal(page, USER_INPUT_GOAL)
+  await expect.poll(() => agentStatus(page, resumedTaskId), { timeout: 20_000 }).toBe(
+    'waiting-user'
+  )
 })

@@ -21,7 +21,12 @@ export interface AgentSkillSummary {
   enabled: boolean
   available: boolean
   executorId: string | null
-  unavailableReason: 'missing-executor' | 'invalid-executor' | 'executor-unregistered' | null
+  unavailableReason:
+    | 'missing-executor'
+    | 'invalid-executor'
+    | 'executor-unregistered'
+    | 'invalid-declaration'
+    | null
   protected: boolean
   modifiedAt: string
 }

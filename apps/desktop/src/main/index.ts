@@ -78,8 +78,12 @@ app.whenReady().then(async () => {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
     const skillProviderHost = createMockSkillProviderHost()
+    const agentHomeDirectory =
+      !app.isPackaged && process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
+        ? process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
+        : app.getPath('home')
     const agentFileStore = new AgentFileStore({
-      homeDirectory: app.getPath('home'),
+      homeDirectory: agentHomeDirectory,
       isExecutorRegistered: (executorId) => skillProviderHost.hasSkill(executorId)
     })
     await agentFileStore.initialize()

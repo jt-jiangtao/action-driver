@@ -130,7 +130,13 @@ export class AgentFileStore {
       entries
         .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
         .sort((left, right) => left.name.localeCompare(right.name))
-        .map((entry) => this.summarizeSkill(entry.name))
+        .map(async (entry) => {
+          try {
+            return await this.summarizeSkill(entry.name)
+          } catch {
+            return this.summarizeInvalidSkill(entry.name)
+          }
+        })
     )
     return skills.sort((left, right) => {
       const builtInDifference = Number(right.protected) - Number(left.protected)
@@ -277,6 +283,21 @@ export class AgentFileStore {
     }
   }
 
+  private async summarizeInvalidSkill(id: string): Promise<AgentSkillSummaryDto> {
+    const directoryStat = await stat(join(this.skillsRoot, id))
+    return {
+      id,
+      name: id,
+      description: 'Skill 声明缺失或无法读取。',
+      enabled: false,
+      available: false,
+      executorId: null,
+      unavailableReason: 'invalid-declaration',
+      protected: BUILT_IN_SKILLS.has(id),
+      modifiedAt: directoryStat.mtime.toISOString()
+    }
+  }
+
   private async readTree(
     absoluteDirectory: string,
     publicDirectory: string
@@ -402,20 +423,29 @@ export class AgentFileStore {
       return { body: content, executorId: null, unavailableReason: 'missing-executor' }
     }
     const lines = content.split(/\r?\n/)
-    const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---')
+    if (lines[0] !== '---') {
+      return { body: content, executorId: null, unavailableReason: 'invalid-executor' }
+    }
+    const closingIndex = lines.findIndex((line, index) => index > 0 && line === '---')
     if (closingIndex < 0) {
       return { body: content, executorId: null, unavailableReason: 'invalid-executor' }
     }
-    const executorLine = lines
-      .slice(1, closingIndex)
-      .find((line) => /^executor\s*:/.test(line.trim()))
-    const rawExecutor = executorLine
-      ?.trim()
-      .replace(/^executor\s*:\s*/, '')
-      .replace(/^(['"])(.*)\1$/, '$2')
-      .trim()
+    const frontmatterLines = lines.slice(1, closingIndex)
+    const nestedExecutorLines = frontmatterLines.filter(
+      (line) => line !== line.trimStart() && /^executor\s*:/.test(line.trimStart())
+    )
+    const executorLines = frontmatterLines.filter((line) => /^executor\s*:/.test(line))
     const body = lines.slice(closingIndex + 1).join('\n')
-    if (!rawExecutor) return { body, executorId: null, unavailableReason: 'missing-executor' }
+    if (nestedExecutorLines.length > 0 || executorLines.length > 1) {
+      return { body, executorId: null, unavailableReason: 'invalid-executor' }
+    }
+    if (executorLines.length === 0) {
+      return { body, executorId: null, unavailableReason: 'missing-executor' }
+    }
+    const scalar = executorLines[0]!.replace(/^executor\s*:\s*/, '').trim()
+    const quoted = scalar.match(/^(['"])(.*?)\1(?:\s+#.*)?$/)
+    const rawExecutor = quoted?.[2] ?? scalar.replace(/\s+#.*$/, '').trim()
+    if (!rawExecutor) return { body, executorId: null, unavailableReason: 'invalid-executor' }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawExecutor)) {
       return { body, executorId: null, unavailableReason: 'invalid-executor' }
     }

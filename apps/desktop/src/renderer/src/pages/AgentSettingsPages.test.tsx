@@ -191,6 +191,44 @@ describe('Agent settings pages', () => {
     expect(screen.getByText('data-inspector')).toBeVisible()
   })
 
+  it('refreshes executor availability after saving SKILL.md before returning to the list', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    const originalSaveFile = service.saveFile.bind(service)
+    const originalSkills = await service.listSkills()
+    let executorSaved = false
+    vi.spyOn(service, 'saveFile').mockImplementation(async (input) => {
+      const saved = await originalSaveFile(input)
+      if (input.path.endsWith('/data-inspector/SKILL.md')) executorSaved = true
+      return saved
+    })
+    vi.spyOn(service, 'listSkills').mockImplementation(async () =>
+      originalSkills.map((skill) =>
+        skill.id === 'data-inspector' && executorSaved
+          ? {
+              ...skill,
+              executorId: 'browser-use',
+              unavailableReason: null,
+              available: true,
+              enabled: false
+            }
+          : { ...skill }
+      )
+    )
+    render(<SkillsPage service={service} onBack={() => undefined} />)
+
+    await user.click(await screen.findByRole('button', { name: /data-inspector/ }))
+    await user.click(await screen.findByRole('button', { name: '源码' }))
+    const source = screen.getByRole('textbox', { name: 'Skill Markdown 源码' })
+    await user.clear(source)
+    await user.type(source, '---\nexecutor: browser-use\n---\n# data-inspector\n')
+    await user.click(screen.getByRole('button', { name: '保存更改' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled())
+    await user.click(await screen.findByRole('button', { name: '返回 Skills' }))
+
+    expect(await screen.findByRole('switch', { name: '启用 data-inspector' })).toBeEnabled()
+  })
+
   it('creates a skill through the validated dialog and exposes protected actions safely', async () => {
     const user = userEvent.setup()
     render(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
