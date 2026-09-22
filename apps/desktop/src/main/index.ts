@@ -83,8 +83,7 @@ app.whenReady().then(async () => {
     })
     const serviceToken = randomBytes(24).toString('base64url')
     const credentialKey = resolveCredentialKey({
-      userDataPath: app.getPath('userData'),
-      cipher: safeStorage
+      userDataPath: app.getPath('userData')
     })
     const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost, {
       serviceToken,
@@ -101,7 +100,14 @@ app.whenReady().then(async () => {
       baseUrl: serviceUrl,
       token: serviceToken
     })
-    await migrateLegacyModelConnections(modelConnectionClient, app.getPath('userData'), safeStorage)
+    try {
+      await migrateLegacyModelConnections(modelConnectionClient, app.getPath('userData'), safeStorage)
+    } catch (error) {
+      console.warn(
+        '[model-connections] legacy migration failed; keeping the old file:',
+        error instanceof Error ? error.message : String(error)
+      )
+    }
     registerModelIpcHandlers(ipcMain, modelConnectionClient, logging.interactions)
   }
 
@@ -126,18 +132,27 @@ async function migrateLegacyModelConnections(
   if (legacy.length === 0) return
 
   const cipher = createSecretCipher(safeStorageLike)
+  let migrated = 0
   for (const connection of legacy) {
-    await client.add({
-      draft: {
-        name: connection.name,
-        protocol: connection.protocol,
-        baseUrl: connection.baseUrl,
-        apiKey: cipher.decrypt(connection.apiKeyCipher)
-      },
-      models: connection.models
-    })
+    try {
+      await client.add({
+        draft: {
+          name: connection.name,
+          protocol: connection.protocol,
+          baseUrl: connection.baseUrl,
+          apiKey: cipher.decrypt(connection.apiKeyCipher)
+        },
+        models: connection.models
+      })
+      migrated += 1
+    } catch (error) {
+      console.warn(
+        `[model-connections] could not migrate "${connection.name}"; keeping the legacy file:`,
+        error instanceof Error ? error.message : String(error)
+      )
+    }
   }
-  unlinkSync(filePath)
+  if (migrated === legacy.length) unlinkSync(filePath)
 }
 
 app.on('window-all-closed', () => app.quit())
