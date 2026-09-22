@@ -4,7 +4,7 @@ import {
   readRecentLogRecords,
   type LogRecord
 } from '@actiondriver/observability'
-import type { InteractionLogger } from '@actiondriver/observability'
+import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type {
   LogIpcResponse,
   LogListRequest,
@@ -12,6 +12,7 @@ import type {
   LogRecordDto
 } from '../shared/log-ipc-contract'
 import { LOG_IPC_CHANNELS } from '../shared/log-ipc-contract'
+import { startIpcInteraction } from './logging'
 
 export interface LogIpcMain {
   handle(channel: string, handler: (event: unknown, input: unknown) => unknown): void
@@ -28,21 +29,17 @@ export type LogSource = {
 export function registerLogIpcHandlers(
   ipcMain: LogIpcMain,
   sources: LogSource[],
-  interactions?: InteractionLogger
+  interactions?: InteractionLogRecorder
 ): void {
-  ipcMain.handle(LOG_IPC_CHANNELS.list, (_event, input) => {
-    const finish = interactions?.start({
-      transport: 'ipc',
-      direction: 'renderer->service',
-      operation: LOG_IPC_CHANNELS.list
-    })
+  ipcMain.handle(LOG_IPC_CHANNELS.list, async (_event, input) => {
+    const finish = await startIpcInteraction(interactions, LOG_IPC_CHANNELS.list, input)
     try {
       const value = readLogs(sources, (input ?? {}) as LogListRequest)
-      finish?.({ outcome: 'ok', payload: value.records })
+      await finish?.({ outcome: 'ok', response: { kind: 'json', value } })
       return { ok: true, value } satisfies LogIpcResponse<LogListResult>
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      finish?.({ outcome: 'error', error: { code: 'storage-error', message } })
+      await finish?.({ outcome: 'error', error: { code: 'storage-error', message } })
       return {
         ok: false,
         error: { code: 'storage-error', message }

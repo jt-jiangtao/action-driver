@@ -14,6 +14,7 @@ import {
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Logger } from 'pino'
+import type { InteractionLogRecorder, InteractionRecorderResult } from '@actiondriver/observability'
 import { LOG_LEVELS, readRecentLogRecords } from './logs'
 
 export const SERVICE_PROTOCOL_VERSION = 1
@@ -39,6 +40,7 @@ export type ServiceHttpOptions = {
   host?: string
   port?: number
   bodyLimitBytes?: number
+  interactions?: InteractionLogRecorder
 }
 
 export type ServiceHttpServer = {
@@ -47,7 +49,9 @@ export type ServiceHttpServer = {
   close(): Promise<void>
 }
 
-type Envelope<T> = { ok: true; value: T } | { ok: false; error: { code: ModelFailureCode; message: string } }
+type Envelope<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: ModelFailureCode; message: string } }
 
 const DEFAULT_BODY_LIMIT = 1_000_000
 
@@ -99,25 +103,79 @@ async function handleRequest(
   const method = request.method ?? 'GET'
   const startedAt = Date.now()
   const requestLog = logger?.child({ transport: 'http', method, path: url.pathname })
+  let requestBody: unknown = null
+  let finishPromise:
+    | Promise<((result: InteractionRecorderResult) => Promise<void>) | null>
+    | undefined
+  const ensureCapture = () => {
+    if (finishPromise) return finishPromise
+    finishPromise =
+      url.pathname === '/logs' || !options.interactions
+        ? Promise.resolve(null)
+        : options.interactions.start({
+            transport: 'http',
+            direction: 'renderer->service',
+            operation: `${method} ${url.pathname}`,
+            request: {
+              kind: 'json',
+              value: {
+                method,
+                path: url.pathname,
+                query: Object.fromEntries(url.searchParams),
+                headers: request.headers,
+                body: requestBody
+              },
+              secretPaths: [
+                'headers.authorization',
+                'headers.proxy-authorization',
+                'headers.cookie',
+                'headers.set-cookie',
+                'headers.x-api-key',
+                'body.apiKey',
+                'body.draft.apiKey'
+              ]
+            }
+          })
+    return finishPromise
+  }
+  const replyJson = async (status: number, payload: Envelope<unknown>) => {
+    const finish = await ensureCapture()
+    await finish?.({
+      outcome: payload.ok ? 'ok' : 'error',
+      status,
+      response: { kind: 'json', value: payload },
+      ...(payload.ok ? {} : { error: payload.error })
+    })
+    sendJson(response, status, payload)
+  }
+  const replyText = async (status: number, text: string, contentType: string) => {
+    const finish = await ensureCapture()
+    await finish?.({
+      outcome: status < 400 ? 'ok' : 'error',
+      status,
+      response: { kind: 'text', text, contentType }
+    })
+    response.writeHead(status, { 'content-type': contentType })
+    response.end(text)
+  }
 
   // Browser origins are rejected, mirroring Codex app-server behaviour, so a rendered page can
   // never drive the local service directly.
   if (request.headers.origin) {
     requestLog?.warn({ status: 403, reason: 'origin-rejected' }, 'service request rejected')
-    sendJson(response, 403, failure('unauthorized', 'Browser origins are not allowed'))
+    await replyJson(403, failure('unauthorized', 'Browser origins are not allowed'))
     return
   }
 
   if (url.pathname === '/readyz' || url.pathname === '/healthz') {
     requestLog?.debug({ status: 200, durationMs: Date.now() - startedAt }, 'service health probe')
-    response.writeHead(200, { 'content-type': 'text/plain' })
-    response.end('ok')
+    await replyText(200, 'ok', 'text/plain')
     return
   }
 
   if (!isAuthorized(request, tokenDigest)) {
     requestLog?.warn({ status: 401, reason: 'unauthorized' }, 'service request rejected')
-    sendJson(response, 401, failure('unauthorized', 'A valid service credential is required'))
+    await replyJson(401, failure('unauthorized', 'A valid service credential is required'))
     return
   }
 
@@ -125,7 +183,7 @@ async function handleRequest(
 
   try {
     if (method === 'GET' && url.pathname === '/version') {
-      sendJson(response, 200, {
+      await replyJson(200, {
         ok: true,
         value: {
           runtimeVersion: options.runtimeVersion,
@@ -146,7 +204,7 @@ async function handleRequest(
             ...(level ? { minLevel: LOG_LEVELS[level] ?? LOG_LEVELS.info! } : {})
           })
         : []
-      sendJson(response, 200, {
+      await replyJson(200, {
         ok: true,
         value: { records, filePath: options.logFilePath ?? null }
       })
@@ -159,7 +217,7 @@ async function handleRequest(
 
     if (method === 'GET' && url.pathname === '/model-connections') {
       const connections = await options.service.list()
-      sendJson(response, 200, { ok: true, value: connections })
+      await replyJson(200, { ok: true, value: connections })
       requestLog?.info(
         { status: 200, connections: connections.length, durationMs: Date.now() - startedAt },
         'service response'
@@ -169,8 +227,9 @@ async function handleRequest(
 
     if (method === 'POST' && url.pathname === '/model-connections') {
       const body = await readJson(request, bodyLimit)
+      requestBody = body
       const created = await options.service.add(body as ModelAddRequestDto)
-      sendJson(response, 200, { ok: true, value: created })
+      await replyJson(200, { ok: true, value: created })
       requestLog?.info(
         { status: 200, connectionId: created.id, durationMs: Date.now() - startedAt },
         'service response'
@@ -180,6 +239,7 @@ async function handleRequest(
 
     if (method === 'POST' && url.pathname === '/model-connections/test') {
       const body = await readJson(request, bodyLimit)
+      requestBody = body
       const request_ = body as ModelConnectionDraftDto
       const childLog = requestLog?.child({
         protocol: request_.protocol,
@@ -187,7 +247,7 @@ async function handleRequest(
         apiKey: '[redacted]'
       })
       const result = await options.service.testConnection(request_)
-      sendJson(response, 200, {
+      await replyJson(200, {
         ok: true,
         value: result
       })
@@ -204,9 +264,10 @@ async function handleRequest(
 
     if (method === 'POST' && url.pathname === '/model-connections/discover') {
       const body = await readJson(request, bodyLimit)
+      requestBody = body
       const request_ = body as ModelConnectionDraftDto
       const models = await options.service.discover(request_)
-      sendJson(response, 200, {
+      await replyJson(200, {
         ok: true,
         value: models
       })
@@ -225,9 +286,10 @@ async function handleRequest(
 
     if (method === 'POST' && url.pathname === '/model-connections/test-models') {
       const body = await readJson(request, bodyLimit)
+      requestBody = body
       const request_ = body as ModelTestRequestDto
       const results = await options.service.testModels(request_)
-      sendJson(response, 200, {
+      await replyJson(200, {
         ok: true,
         value: results
       })
@@ -249,7 +311,7 @@ async function handleRequest(
       const { connectionId, action, modelId } = connectionRoute
       if (method === 'DELETE' && action === undefined) {
         await options.service.delete(connectionId)
-        sendJson(response, 200, { ok: true, value: null })
+        await replyJson(200, { ok: true, value: null })
         requestLog?.info(
           { status: 200, connectionId, durationMs: Date.now() - startedAt },
           'service response'
@@ -258,7 +320,7 @@ async function handleRequest(
       }
       if (method === 'POST' && action === 'refresh') {
         const models = await options.service.refresh(connectionId)
-        sendJson(response, 200, {
+        await replyJson(200, {
           ok: true,
           value: models
         })
@@ -270,10 +332,11 @@ async function handleRequest(
       }
       if (method === 'POST' && action === 'test-models') {
         const body = await readJson(request, bodyLimit)
+        requestBody = body
         const request_ = body as { modelIds?: unknown }
         const modelIds = Array.isArray(request_.modelIds) ? (request_.modelIds as string[]) : []
         const results = await options.service.testConnectionModels({ connectionId, modelIds })
-        sendJson(response, 200, {
+        await replyJson(200, {
           ok: true,
           value: results
         })
@@ -290,9 +353,10 @@ async function handleRequest(
       }
       if (method === 'POST' && action === 'models' && modelId) {
         const body = await readJson(request, bodyLimit)
+        requestBody = body
         const enabled = (body as { enabled?: unknown }).enabled === true
         await options.service.setModelEnabled({ connectionId, modelId, enabled })
-        sendJson(response, 200, { ok: true, value: null })
+        await replyJson(200, { ok: true, value: null })
         requestLog?.info(
           { status: 200, connectionId, modelId, enabled, durationMs: Date.now() - startedAt },
           'service response'
@@ -302,7 +366,7 @@ async function handleRequest(
     }
 
     requestLog?.warn({ status: 404, durationMs: Date.now() - startedAt }, 'service response')
-    sendJson(response, 404, failure('not-found', `Unknown route: ${method} ${url.pathname}`))
+    await replyJson(404, failure('not-found', `Unknown route: ${method} ${url.pathname}`))
   } catch (error) {
     const mapped = toEnvelopeError(error)
     requestLog?.error(
@@ -314,13 +378,17 @@ async function handleRequest(
       },
       'service request failed'
     )
-    sendJson(response, mapped.status, failure(mapped.code, mapped.message))
+    await replyJson(mapped.status, failure(mapped.code, mapped.message))
   }
 }
 
 function matchConnectionRoute(
   pathname: string
-): { connectionId: string; action?: 'refresh' | 'test-models' | 'models'; modelId?: string } | null {
+): {
+  connectionId: string
+  action?: 'refresh' | 'test-models' | 'models'
+  modelId?: string
+} | null {
   const segments = pathname.split('/').filter(Boolean)
   if (segments[0] !== 'model-connections' || segments.length < 2) return null
   const connectionId = decodeURIComponent(segments[1] as string)

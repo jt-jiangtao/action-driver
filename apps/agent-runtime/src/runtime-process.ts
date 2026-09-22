@@ -6,6 +6,12 @@ import { createCredentialCipher, createCredentialKey } from './model-connections
 import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
 import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
+import {
+  createInteractionLogRecorder,
+  createLocalInteractionLogStore
+} from '@actiondriver/observability'
+import { randomUUID } from 'node:crypto'
+import { dirname, join } from 'node:path'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -25,9 +31,23 @@ export async function startAgentRuntimeProcess(
   if (serviceToken) {
     const database = openRuntimeDatabase(databasePath)
     logging = createServiceLogger({ databasePath })
+    const interactionStore = await createLocalInteractionLogStore({
+      rootDirectory: join(dirname(databasePath), '..', 'logs', 'interactions'),
+      source: 'service'
+    })
+    const interactions = createInteractionLogRecorder({
+      store: interactionStore,
+      ids: {
+        eventId: () => `service:${randomUUID()}`,
+        correlationId: randomUUID
+      },
+      logger: logging.logger
+    })
     const service = new ModelConnectionService({
       store: createSqliteModelConnectionStore(database),
-      cipher: createCredentialCipher(createCredentialKey(environment.ACTIONDRIVER_CREDENTIAL_KEY ?? '')),
+      cipher: createCredentialCipher(
+        createCredentialKey(environment.ACTIONDRIVER_CREDENTIAL_KEY ?? '')
+      ),
       transport: createFetchHttpTransport()
     })
     httpServer = await startServiceHttpServer({
@@ -35,7 +55,8 @@ export async function startAgentRuntimeProcess(
       token: serviceToken,
       runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
       logger: logging.logger,
-      logFilePath: logging.logFilePath
+      logFilePath: logging.logFilePath,
+      interactions
     })
   }
 

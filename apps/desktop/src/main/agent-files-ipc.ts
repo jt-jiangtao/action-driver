@@ -1,4 +1,4 @@
-import type { InteractionLogger } from '@actiondriver/observability'
+import type { InteractionLogRecorder } from '@actiondriver/observability'
 import {
   AGENT_FILES_IPC_CHANNELS,
   type AgentFileErrorDto,
@@ -8,6 +8,7 @@ import {
 } from '../shared/agent-files-contract'
 import { AgentFileStoreError } from './agent-files/agent-file-store'
 import type { AgentFileStore } from './agent-files/agent-file-store'
+import { startIpcInteraction } from './logging'
 
 export interface AgentFilesIpcMain {
   handle(channel: string, handler: (event: unknown, input: unknown) => unknown): void
@@ -23,21 +24,18 @@ function serializeError(error: unknown): AgentFileErrorDto {
 
 async function respond<T>(
   channel: string,
+  input: unknown,
   operation: () => Promise<T> | T,
-  interactions?: InteractionLogger
+  interactions?: InteractionLogRecorder
 ): Promise<AgentFileIpcResponse<T>> {
-  const finish = interactions?.start({
-    transport: 'ipc',
-    direction: 'renderer->service',
-    operation: channel
-  })
+  const finish = await startIpcInteraction(interactions, channel, input)
   try {
     const value = await operation()
-    finish?.({ outcome: 'ok', payload: value })
+    await finish?.({ outcome: 'ok', response: { kind: 'json', value } })
     return { ok: true, value }
   } catch (error) {
     const serialized = serializeError(error)
-    finish?.({ outcome: 'error', error: serialized })
+    await finish?.({ outcome: 'error', error: serialized })
     return { ok: false, error: serialized }
   }
 }
@@ -59,11 +57,13 @@ function assertTrustedEvent(event: unknown): void {
 function secureRespond<T>(
   event: unknown,
   channel: string,
+  input: unknown,
   operation: () => Promise<T> | T,
-  interactions?: InteractionLogger
+  interactions?: InteractionLogRecorder
 ): Promise<AgentFileIpcResponse<T>> {
   return respond(
     channel,
+    input,
     () => {
       assertTrustedEvent(event)
       return operation()
@@ -75,12 +75,13 @@ function secureRespond<T>(
 export function registerAgentFilesIpcHandlers(
   ipcMain: AgentFilesIpcMain,
   store: AgentFileStore,
-  interactions?: InteractionLogger
+  interactions?: InteractionLogRecorder
 ): void {
   ipcMain.handle(AGENT_FILES_IPC_CHANNELS.getMainPrompt, (event) =>
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.getMainPrompt,
+      null,
       () => store.getMainPrompt(),
       interactions
     )
@@ -89,6 +90,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.resetMainPrompt,
+      input,
       () => store.resetMainPrompt((input as { expectedDigest: string }).expectedDigest),
       interactions
     )
@@ -97,6 +99,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.listSkills,
+      null,
       () => store.listSkills(),
       interactions
     )
@@ -105,6 +108,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.getSkillTree,
+      input,
       () => store.getSkillTree((input as { skillId: string }).skillId),
       interactions
     )
@@ -113,6 +117,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.readFile,
+      input,
       () => store.readFile((input as { path: string }).path),
       interactions
     )
@@ -121,6 +126,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.saveFile,
+      input,
       () => store.saveFile(input as SaveAgentFileDto),
       interactions
     )
@@ -129,6 +135,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.createSkill,
+      input,
       () => store.createSkill(input as CreateAgentSkillDto),
       interactions
     )
@@ -137,6 +144,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.renameSkill,
+      input,
       () => {
         const request = input as { skillId: string; name: string }
         return store.renameSkill(request.skillId, request.name)
@@ -148,6 +156,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.deleteSkill,
+      input,
       () => store.deleteSkill((input as { skillId: string }).skillId),
       interactions
     )
@@ -156,6 +165,7 @@ export function registerAgentFilesIpcHandlers(
     secureRespond(
       event,
       AGENT_FILES_IPC_CHANNELS.setSkillEnabled,
+      input,
       () => {
         const request = input as { skillId: string; enabled: boolean }
         return store.setSkillEnabled(request.skillId, request.enabled)

@@ -1,28 +1,26 @@
-import type { InteractionLogger, InteractionRecord, InteractionStart } from '@actiondriver/observability'
+import {
+  createInteractionLogRecorder,
+  MemoryInteractionLogStore,
+  type InteractionLogRecorder
+} from '@actiondriver/observability'
+import { ModelConnectionService } from '@actiondriver/model-connections'
 import { describe, expect, it } from 'vitest'
 import { registerAgentIpcHandlers } from './agent-ipc'
+import { registerLogIpcHandlers } from './logs-ipc'
 import { registerModelIpcHandlers } from './model-ipc'
-import { ModelConnectionService } from '@actiondriver/model-connections'
-
-type Recorded = { start: InteractionStart; result?: Parameters<ReturnType<InteractionLogger['start']>>[0] }
 
 function recordingInteractions() {
-  const recorded: Recorded[] = []
-  const interactions: InteractionLogger = {
-    start(entry) {
-      const entry_ = { start: entry } as Recorded
-      recorded.push(entry_)
-      return (result) => {
-        entry_.result = result
-        return { ...entry, ...result, durationMs: 0 } as unknown as InteractionRecord
-      }
+  const store = new MemoryInteractionLogStore()
+  let sequence = 0
+  const interactions: InteractionLogRecorder = createInteractionLogRecorder({
+    store,
+    ids: {
+      eventId: () => `main:event-${++sequence}`,
+      correlationId: () => `correlation-${sequence}`
     },
-    record(entry, result) {
-      recorded.push({ start: entry, result })
-      return { ...entry, ...result, durationMs: 0 } as unknown as InteractionRecord
-    }
-  }
-  return { interactions, recorded }
+    clock: () => 1_000 + sequence
+  })
+  return { interactions, store }
 }
 
 function ipcMainStub() {
@@ -36,9 +34,9 @@ function ipcMainStub() {
 }
 
 describe('renderer to service interaction logging', () => {
-  it('records every agent channel with its outcome', async () => {
+  it('records an agent request and response as one interaction', async () => {
     const ipcMain = ipcMainStub()
-    const { interactions, recorded } = recordingInteractions()
+    const { interactions, store } = recordingInteractions()
     registerAgentIpcHandlers(
       ipcMain as never,
       {
@@ -50,18 +48,21 @@ describe('renderer to service interaction logging', () => {
 
     await ipcMain.handlers.get('actiondriver:agent:submit')!(undefined, { goal: '预订酒店' })
 
-    expect(recorded).toHaveLength(1)
-    expect(recorded[0]!.start).toMatchObject({
+    const records = (await store.list({ limit: 20 })).records
+    expect(records).toHaveLength(1)
+    await expect(store.getDetail(records[0]!.id)).resolves.toMatchObject({
       transport: 'ipc',
       direction: 'renderer->service',
-      operation: 'actiondriver:agent:submit'
+      operation: 'actiondriver:agent:submit',
+      state: 'completed',
+      request: { text: expect.stringContaining('预订酒店') },
+      response: { text: expect.stringContaining('task-1') }
     })
-    expect(recorded[0]!.result?.outcome).toBe('ok')
   })
 
   it('records failures with the serialized error code', async () => {
     const ipcMain = ipcMainStub()
-    const { interactions, recorded } = recordingInteractions()
+    const { interactions, store } = recordingInteractions()
     registerAgentIpcHandlers(
       ipcMain as never,
       {
@@ -75,15 +76,16 @@ describe('renderer to service interaction logging', () => {
 
     await ipcMain.handlers.get('actiondriver:agent:get')!(undefined, { taskId: 'task-1' })
 
-    expect(recorded[0]!.result).toMatchObject({
+    expect((await store.list({ limit: 20 })).records[0]).toMatchObject({
       outcome: 'error',
-      error: { code: 'UNKNOWN', message: 'runtime offline' }
+      errorCode: 'UNKNOWN',
+      errorMessage: 'runtime offline'
     })
   })
 
-  it('records model connection channels without logging the api key', async () => {
+  it('records model connection bodies without persisting the api key', async () => {
     const ipcMain = ipcMainStub()
-    const { interactions, recorded } = recordingInteractions()
+    const { interactions, store } = recordingInteractions()
     const service = new ModelConnectionService({
       store: { read: () => [], write: () => undefined },
       cipher: { isAvailable: () => true, encrypt: (value) => value, decrypt: (value) => value },
@@ -91,7 +93,6 @@ describe('renderer to service interaction logging', () => {
     })
     registerModelIpcHandlers(ipcMain as never, service, interactions)
 
-    await ipcMain.handlers.get('actiondriver:model-connections:list')!(undefined, {})
     await ipcMain.handlers.get('actiondriver:model-connections:test-connection')!(undefined, {
       name: '公司模型网关',
       protocol: 'openai-compatible',
@@ -99,10 +100,19 @@ describe('renderer to service interaction logging', () => {
       apiKey: 'sk-secret-value'
     })
 
-    expect(recorded.map((entry) => entry.start.operation)).toEqual([
-      'actiondriver:model-connections:list',
-      'actiondriver:model-connections:test-connection'
-    ])
-    expect(JSON.stringify(recorded)).not.toContain('sk-secret-value')
+    const record = (await store.list({ limit: 20 })).records[0]!
+    const detail = await store.getDetail(record.id)
+    expect(detail?.request?.text).toContain('公司模型网关')
+    expect(JSON.stringify(detail)).not.toContain('sk-secret-value')
+  })
+
+  it('does not record log control-plane channels', async () => {
+    const ipcMain = ipcMainStub()
+    const { interactions, store } = recordingInteractions()
+    registerLogIpcHandlers(ipcMain, [], interactions)
+
+    await ipcMain.handlers.get('actiondriver:logs:list')!(undefined, {})
+
+    expect((await store.list({ limit: 20 })).records).toEqual([])
   })
 })

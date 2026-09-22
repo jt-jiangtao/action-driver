@@ -3,10 +3,11 @@ import {
   type RuntimeClient,
   type RuntimeSkillDescription
 } from '@actiondriver/runtime-contracts'
-import type { InteractionLogger } from '@actiondriver/observability'
+import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
 import type { AgentControlSkillInput } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
+import { startIpcInteraction } from './logging'
 
 type AgentIpcEvent = {
   sender: { send(channel: string, payload: unknown): void }
@@ -27,21 +28,18 @@ export interface AgentTaskConfiguration {
 
 async function asIpcResponse<T>(
   channel: string,
+  input: unknown,
   operation: () => Promise<T>,
-  interactions?: InteractionLogger
+  interactions?: InteractionLogRecorder
 ): Promise<AgentIpcResponse<T>> {
-  const finish = interactions?.start({
-    transport: 'ipc',
-    direction: 'renderer->service',
-    operation: channel
-  })
+  const finish = await startIpcInteraction(interactions, channel, input)
   try {
     const value = await operation()
-    finish?.({ outcome: 'ok', payload: value })
+    await finish?.({ outcome: 'ok', response: { kind: 'json', value } })
     return { ok: true, value }
   } catch (error) {
     const serialized = serializeError(error)
-    finish?.({
+    await finish?.({
       outcome: 'error',
       error: { code: serialized.code, message: serialized.message }
     })
@@ -64,12 +62,13 @@ function serializeError(error: unknown): AgentIpcError {
 export function registerAgentIpcHandlers(
   ipcMain: AgentIpcMain,
   runtimeClient: AgentRuntimeClient,
-  interactions?: InteractionLogger,
+  interactions?: InteractionLogRecorder,
   taskConfiguration?: AgentTaskConfiguration
 ): void {
   ipcMain.handle(AGENT_IPC_CHANNELS.submit, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.submit,
+      input,
       async () => {
         const request = input as { goal: string }
         if (!taskConfiguration) return runtimeClient.request('task.submit', request)
@@ -85,6 +84,7 @@ export function registerAgentIpcHandlers(
   ipcMain.handle(AGENT_IPC_CHANNELS.get, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.get,
+      input,
       () => runtimeClient.request('task.get', input as { taskId: string }),
       interactions
     )
@@ -92,6 +92,7 @@ export function registerAgentIpcHandlers(
   ipcMain.handle(AGENT_IPC_CHANNELS.interrupt, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.interrupt,
+      input,
       () => runtimeClient.request('task.interrupt', input as { taskId: string }),
       interactions
     )
@@ -99,6 +100,7 @@ export function registerAgentIpcHandlers(
   ipcMain.handle(AGENT_IPC_CHANNELS.continue, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.continue,
+      input,
       () => runtimeClient.request('task.continue', input as { taskId: string }),
       interactions
     )
@@ -106,6 +108,7 @@ export function registerAgentIpcHandlers(
   ipcMain.handle(AGENT_IPC_CHANNELS.provideInput, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.provideInput,
+      input,
       () =>
         runtimeClient.request('task.provide-input', input as { taskId: string; value: unknown }),
       interactions
@@ -114,6 +117,7 @@ export function registerAgentIpcHandlers(
   ipcMain.handle(AGENT_IPC_CHANNELS.controlSkill, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.controlSkill,
+      input,
       () => runtimeClient.request('skill.control', input as AgentControlSkillInput),
       interactions
     )
@@ -126,6 +130,7 @@ export function registerAgentIpcHandlers(
     }
     return asIpcResponse(
       AGENT_IPC_CHANNELS.subscribe,
+      rawInput,
       async () => {
         const subscription = await runtimeClient.subscribeEvents(
           input.taskId,

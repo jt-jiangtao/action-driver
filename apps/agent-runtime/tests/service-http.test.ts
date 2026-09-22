@@ -1,4 +1,9 @@
 import type { ModelConnectionDto, ModelConnectionService } from '@actiondriver/model-connections'
+import {
+  createInteractionLogRecorder,
+  MemoryInteractionLogStore,
+  type InteractionLogRecorder
+} from '@actiondriver/observability'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
 
@@ -35,14 +40,32 @@ function serviceStub(overrides: Record<string, unknown> = {}) {
   return base as unknown as ModelConnectionService & typeof base
 }
 
-async function startService(overrides: Record<string, unknown> = {}) {
+async function startService(
+  overrides: Record<string, unknown> = {},
+  interactions?: InteractionLogRecorder
+) {
   const service = serviceStub(overrides)
   server = await startServiceHttpServer({
     service,
     token: 'service-token',
-    runtimeVersion: '0.1.0'
+    runtimeVersion: '0.1.0',
+    ...(interactions ? { interactions } : {})
   })
   return { service, url: server.url }
+}
+
+function recordingInteractions() {
+  const store = new MemoryInteractionLogStore()
+  let sequence = 0
+  const interactions = createInteractionLogRecorder({
+    store,
+    ids: {
+      eventId: () => `service:event-${++sequence}`,
+      correlationId: () => `correlation-${sequence}`
+    },
+    clock: () => 2_000 + sequence
+  })
+  return { interactions, store }
 }
 
 function authorized(path: string, init: RequestInit = {}): Promise<Response> {
@@ -69,7 +92,10 @@ describe('service HTTP surface', () => {
     })
 
     expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toMatchObject({ ok: false, error: { code: 'unauthorized' } })
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'unauthorized' }
+    })
   })
 
   it('requires the service credential for business routes', async () => {
@@ -167,5 +193,37 @@ describe('service HTTP surface', () => {
       ok: false,
       error: { code: 'invalid-request' }
     })
+  })
+
+  it('records HTTP request/response pairs without credentials and excludes log queries', async () => {
+    const { interactions, store } = recordingInteractions()
+    await startService({}, interactions)
+
+    await fetch(`${server!.url}/model-connections`, {
+      headers: { authorization: 'Bearer wrong-token' }
+    })
+    await authorized('/model-connections/test', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: '公司模型网关',
+        protocol: 'openai-compatible',
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-secret-value'
+      })
+    })
+    await authorized('/logs')
+
+    const records = (await store.list({ limit: 20 })).records
+    expect(records.map((record) => record.operation).sort()).toEqual([
+      'GET /model-connections',
+      'POST /model-connections/test'
+    ])
+    const details = await Promise.all(records.map((record) => store.getDetail(record.id)))
+    expect(JSON.stringify(details)).toContain('公司模型网关')
+    expect(JSON.stringify(details)).not.toContain('service-token')
+    expect(JSON.stringify(details)).not.toContain('wrong-token')
+    expect(JSON.stringify(details)).not.toContain('sk-secret-value')
+    expect(details.every((detail) => detail?.responseAvailable)).toBe(true)
   })
 })

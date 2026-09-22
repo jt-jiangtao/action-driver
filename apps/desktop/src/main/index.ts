@@ -65,7 +65,7 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 
 app.whenReady().then(async () => {
   applyDesktopBranding()
-  logging = createMainLogging({ userDataPath: app.getPath('userData') })
+  logging = await createMainLogging({ userDataPath: app.getPath('userData') })
   registerLogIpcHandlers(
     ipcMain,
     [
