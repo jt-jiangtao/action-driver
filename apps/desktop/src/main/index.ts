@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, nativeImage, safeStorage } from 'electron'
+import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
@@ -17,6 +18,7 @@ import { installNavigationGuards } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
 import { createMockSkillProviderHost } from './skill-provider-host'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
+import { resolveCredentialKey } from './credential-key'
 
 const desktopIconPath = resolveDesktopIconPath(__dirname)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
@@ -87,7 +89,15 @@ app.whenReady().then(async () => {
       platform: process.platform,
       arch: process.arch
     })
-    const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost)
+    const serviceToken = randomBytes(24).toString('base64url')
+    const credentialKey = resolveCredentialKey({
+      userDataPath: app.getPath('userData'),
+      cipher: safeStorage
+    })
+    const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost, {
+      serviceToken,
+      credentialKey: credentialKey.toString('base64')
+    })
     services = resolveMainServices(
       createMainContainer({
         mode: 'local',

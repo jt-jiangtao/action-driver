@@ -17,11 +17,17 @@ const RUNTIME_CAPABILITIES = [
 export function createLocalRuntimeServices(
   paths: RuntimePaths,
   appVersion: string,
-  skillProviderHost: SkillProviderHost
+  skillProviderHost: SkillProviderHost,
+  options: { serviceToken: string; credentialKey: string } = {
+    serviceToken: '',
+    credentialKey: ''
+  }
 ): { runtimeClient: RuntimeClientGateway; runtimeSupervisor: RuntimeSupervisor } {
   const runtimeClient = new RuntimeClientGateway()
   const processFactory = createElectronRuntimeProcessFactory({
     databasePath: paths.databasePath,
+    ...(options.serviceToken ? { serviceToken: options.serviceToken } : {}),
+    ...(options.credentialKey ? { credentialKey: options.credentialKey } : {}),
     onEndpoint(endpoint) {
       const client = new RuntimeClient(endpoint, {
         appVersion,

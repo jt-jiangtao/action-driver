@@ -60,6 +60,20 @@ describe('RuntimeSupervisor', () => {
     await expect(first).resolves.toBeUndefined()
     await expect(second).resolves.toBeUndefined()
     expect(supervisor.state).toBe('ready')
+    expect(supervisor.serviceUrl).toBeNull()
+  })
+
+  it('captures the service base URL from the readiness message', async () => {
+    const { processes, supervisor } = harness()
+
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({
+      type: 'runtime.ready',
+      service: { baseUrl: 'http://127.0.0.1:45123' }
+    })
+    await starting
+
+    expect(supervisor.serviceUrl).toBe('http://127.0.0.1:45123')
   })
 
   it('restarts at most three times inside a 60 second window', async () => {

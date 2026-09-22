@@ -32,6 +32,7 @@ export type RuntimeSupervisorOptions = {
 
 export class RuntimeSupervisor {
   private currentProcess: RuntimeProcess | null = null
+  private serviceBaseUrl: string | null = null
   private readyPromise: Promise<void> | null = null
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: Error) => void) | null = null
@@ -45,6 +46,11 @@ export class RuntimeSupervisor {
   private readonly now: () => number
 
   state: RuntimeSupervisorState = 'stopped'
+
+  /** Base URL of the service HTTP surface reported by the Runtime on readiness. */
+  get serviceUrl(): string | null {
+    return this.serviceBaseUrl
+  }
 
   constructor(
     private readonly processFactory: RuntimeProcessFactory,
@@ -115,6 +121,13 @@ export class RuntimeSupervisor {
       'type' in message &&
       message.type === 'runtime.ready'
     ) {
+      const service = 'service' in message ? message.service : null
+      this.serviceBaseUrl =
+        service !== null &&
+        typeof service === 'object' &&
+        'baseUrl' in service
+          ? String((service as { baseUrl: string }).baseUrl)
+          : null
       this.state = 'ready'
       this.resolveReady?.()
       this.resolveReady = null
@@ -126,6 +139,7 @@ export class RuntimeSupervisor {
     if (this.currentProcess !== process) return
     const preservePendingStart = this.state === 'starting'
     this.currentProcess = null
+    this.serviceBaseUrl = null
 
     if (this.state === 'stopping') {
       this.finishStop()
@@ -154,6 +168,7 @@ export class RuntimeSupervisor {
     if (this.shutdownTimer) clearTimeout(this.shutdownTimer)
     this.shutdownTimer = null
     this.currentProcess = null
+    this.serviceBaseUrl = null
     this.state = 'stopped'
     this.resolveStop?.()
     this.resolveStop = null
@@ -162,6 +177,8 @@ export class RuntimeSupervisor {
 
 export type ElectronRuntimeProcessFactoryOptions = {
   databasePath: string
+  serviceToken?: string
+  credentialKey?: string
   onEndpoint(endpoint: RuntimeMessageEndpoint): void
 }
 
@@ -173,7 +190,13 @@ export function createElectronRuntimeProcessFactory(
       const child = utilityProcess.fork(entryPath, [], {
         env: {
           ...process.env,
-          ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath
+          ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
+          ...(options.serviceToken
+            ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken }
+            : {}),
+          ...(options.credentialKey
+            ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey }
+            : {})
         }
       })
       const messageChannel = new MessageChannelMain()
