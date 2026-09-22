@@ -32,7 +32,7 @@ class FakeRuntimeProcess implements RuntimeProcess {
   }
 }
 
-function harness() {
+function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {}) {
   const processes: FakeRuntimeProcess[] = []
   const factory: RuntimeProcessFactory = {
     fork: vi.fn(() => {
@@ -42,7 +42,8 @@ function harness() {
     })
   }
   const supervisor = new RuntimeSupervisor(factory, '/app/agent-runtime.js', {
-    shutdownTimeoutMs: 1_000
+    shutdownTimeoutMs: 1_000,
+    ...options
   })
   return { factory, processes, supervisor }
 }
@@ -74,6 +75,42 @@ describe('RuntimeSupervisor', () => {
     await starting
 
     expect(supervisor.serviceUrl).toBe('http://127.0.0.1:45123')
+  })
+
+  it('connects the stream before readiness and reconnects it to a restarted Runtime address', async () => {
+    const onServiceReady = vi.fn(async () => undefined)
+    const { processes, supervisor } = harness({ onServiceReady })
+    const firstStart = supervisor.start()
+    processes[0]?.emitMessage({
+      type: 'runtime.ready',
+      service: {
+        baseUrl: 'http://127.0.0.1:45123',
+        streamPath: '/stream',
+        streamProtocol: 'actiondriver.stream.v1'
+      }
+    })
+    await firstStart
+    expect(onServiceReady).toHaveBeenNthCalledWith(1, {
+      baseUrl: 'http://127.0.0.1:45123',
+      streamPath: '/stream',
+      streamProtocol: 'actiondriver.stream.v1'
+    })
+
+    processes[0]?.emitExit(1)
+    processes[1]?.emitMessage({
+      type: 'runtime.ready',
+      service: {
+        baseUrl: 'http://127.0.0.1:45124',
+        streamPath: '/stream',
+        streamProtocol: 'actiondriver.stream.v1'
+      }
+    })
+    await vi.waitFor(() => expect(supervisor.state).toBe('ready'))
+    expect(onServiceReady).toHaveBeenNthCalledWith(2, {
+      baseUrl: 'http://127.0.0.1:45124',
+      streamPath: '/stream',
+      streamProtocol: 'actiondriver.stream.v1'
+    })
   })
 
   it('restarts at most three times inside a 60 second window', async () => {

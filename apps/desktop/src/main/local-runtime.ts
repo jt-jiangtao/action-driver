@@ -3,6 +3,7 @@ import type { RuntimePaths } from './runtime-paths'
 import { RuntimeClientGateway } from './runtime-client-gateway'
 import { RuntimeSupervisor, createElectronRuntimeProcessFactory } from './runtime-supervisor'
 import type { SkillProviderHost } from './skill-provider-host'
+import { RuntimeStreamClient } from './runtime-stream-client'
 
 const RUNTIME_CAPABILITIES = [
   'task.submit',
@@ -29,8 +30,13 @@ export function createLocalRuntimeServices(
     serviceToken: '',
     credentialKey: ''
   }
-): { runtimeClient: RuntimeClientGateway; runtimeSupervisor: RuntimeSupervisor } {
+): {
+  runtimeClient: RuntimeClientGateway
+  runtimeStreamClient: RuntimeStreamClient
+  runtimeSupervisor: RuntimeSupervisor
+} {
   const runtimeClient = new RuntimeClientGateway()
+  const runtimeStreamClient = new RuntimeStreamClient()
   const processFactory = createElectronRuntimeProcessFactory({
     databasePath: paths.databasePath,
     ...(options.serviceToken ? { serviceToken: options.serviceToken } : {}),
@@ -48,6 +54,14 @@ export function createLocalRuntimeServices(
 
   return {
     runtimeClient,
-    runtimeSupervisor: new RuntimeSupervisor(processFactory, paths.runtimeEntryPath)
+    runtimeStreamClient,
+    runtimeSupervisor: new RuntimeSupervisor(processFactory, paths.runtimeEntryPath, {
+      onServiceReady: async (service) => {
+        await runtimeStreamClient.connect({
+          ...service,
+          token: options.serviceToken
+        })
+      }
+    })
   }
 }

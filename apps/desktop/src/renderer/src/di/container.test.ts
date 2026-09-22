@@ -26,7 +26,21 @@ function createDesktopApi(): DesktopApi {
   return {
     getEnvironment: () => ({ platform: 'darwin', version: '0.1.0' }),
     agent: {
-      submit: async () => ({ taskId: 'task-1' }),
+      submit: async () => ({
+        type: 'request.accepted',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'accepted-1',
+        cursor: 1,
+        requestId: 'request-1',
+        sessionId: 'session-1',
+        taskId: 'task-1',
+        responseId: 'response-1',
+        streamId: 'stream-1',
+        messageId: 'message-1',
+        occurredAt: '2026-09-23T00:00:00.000Z'
+      }),
+      cancel: async () => undefined,
+      subscribeStream: () => () => undefined,
       get: async () => null,
       listTasks: async () => [],
       listModelLogs: async () => [],

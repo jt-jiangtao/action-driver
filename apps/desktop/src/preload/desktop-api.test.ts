@@ -33,6 +33,7 @@ describe('createDesktopApi', () => {
       'agentFiles'
     ])
     expect(Object.keys(api.agent).sort()).toEqual([
+      'cancel',
       'continue',
       'controlSkill',
       'get',
@@ -42,7 +43,8 @@ describe('createDesktopApi', () => {
       'listTasks',
       'provideInput',
       'submit',
-      'subscribe'
+      'subscribe',
+      'subscribeStream'
     ])
     expect(api).not.toHaveProperty('ipcRenderer')
     expect(api).not.toHaveProperty('messagePort')
@@ -77,6 +79,14 @@ describe('createDesktopApi', () => {
       goal: 'Book a hotel',
       model: { connectionId: 'connection-1', modelId: 'gpt-real' }
     })
+    await api.agent.cancel('task-1')
+    const streamEvents: unknown[] = []
+    const unsubscribeStream = api.agent.subscribeStream((event) => streamEvents.push(event))
+    for (const listener of listeners.get('actiondriver:agent:stream-event') ?? []) {
+      listener(undefined, { type: 'response.content', eventId: 'content-1' })
+    }
+    expect(streamEvents).toEqual([{ type: 'response.content', eventId: 'content-1' }])
+    unsubscribeStream()
     await api.agent.get('task-1')
     await api.agent.listTasks(20)
     await api.agent.listModelLogs({ status: 'failed' })
@@ -122,6 +132,7 @@ describe('createDesktopApi', () => {
           model: { connectionId: 'connection-1', modelId: 'gpt-real' }
         }
       },
+      { channel: 'actiondriver:agent:cancel', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:get', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:list', input: { limit: 20 } },
       { channel: 'actiondriver:agent:model-log-list', input: { status: 'failed' } },

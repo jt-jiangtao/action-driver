@@ -22,7 +22,21 @@ function harness() {
   let currentTask = task()
   let eventListener: ((event: RuntimeEvent) => void) | undefined
   const api: AgentDesktopApi = {
-    submit: vi.fn(async () => ({ taskId: 'task-1' })),
+    submit: vi.fn(async () => ({
+      type: 'request.accepted' as const,
+      protocol: 'actiondriver.stream.v1' as const,
+      eventId: 'accepted-1',
+      cursor: 1,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt: '2026-09-23T00:00:00.000Z'
+    })),
+    cancel: vi.fn(async () => undefined),
+    subscribeStream: vi.fn(() => () => undefined),
     get: vi.fn(async () => structuredClone(currentTask)),
     listTasks: vi.fn(async () => []),
     listModelLogs: vi.fn(async () => []),

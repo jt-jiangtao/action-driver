@@ -28,11 +28,19 @@ export type RuntimeSupervisorOptions = {
   restartWindowMs?: number
   shutdownTimeoutMs?: number
   now?: () => number
+  onServiceReady?: (service: RuntimeServiceDescriptor) => Promise<void>
+}
+
+export type RuntimeServiceDescriptor = {
+  baseUrl: string
+  streamPath: string
+  streamProtocol: string
 }
 
 export class RuntimeSupervisor {
   private currentProcess: RuntimeProcess | null = null
   private serviceBaseUrl: string | null = null
+  private serviceDescriptorValue: RuntimeServiceDescriptor | null = null
   private readyPromise: Promise<void> | null = null
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: Error) => void) | null = null
@@ -44,12 +52,19 @@ export class RuntimeSupervisor {
   private readonly restartWindowMs: number
   private readonly shutdownTimeoutMs: number
   private readonly now: () => number
+  private readonly onServiceReady:
+    | ((service: RuntimeServiceDescriptor) => Promise<void>)
+    | undefined
 
   state: RuntimeSupervisorState = 'stopped'
 
   /** Base URL of the service HTTP surface reported by the Runtime on readiness. */
   get serviceUrl(): string | null {
     return this.serviceBaseUrl
+  }
+
+  get serviceDescriptor(): RuntimeServiceDescriptor | null {
+    return this.serviceDescriptorValue
   }
 
   constructor(
@@ -61,6 +76,7 @@ export class RuntimeSupervisor {
     this.restartWindowMs = options.restartWindowMs ?? 60_000
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000
     this.now = options.now ?? Date.now
+    this.onServiceReady = options.onServiceReady
   }
 
   start(): Promise<void> {
@@ -108,12 +124,12 @@ export class RuntimeSupervisor {
     }
     const process = this.processFactory.fork(this.entryPath)
     this.currentProcess = process
-    process.on('message', (message: unknown) => this.handleMessage(process, message))
+    process.on('message', (message: unknown) => void this.handleMessage(process, message))
     process.on('exit', (code: number | null) => this.handleExit(process, code))
     return this.readyPromise
   }
 
-  private handleMessage(process: RuntimeProcess, message: unknown): void {
+  private async handleMessage(process: RuntimeProcess, message: unknown): Promise<void> {
     if (this.currentProcess !== process) return
     if (
       typeof message === 'object' &&
@@ -123,11 +139,30 @@ export class RuntimeSupervisor {
     ) {
       const service = 'service' in message ? message.service : null
       this.serviceBaseUrl =
-        service !== null &&
-        typeof service === 'object' &&
-        'baseUrl' in service
+        service !== null && typeof service === 'object' && 'baseUrl' in service
           ? String((service as { baseUrl: string }).baseUrl)
           : null
+      this.serviceDescriptorValue =
+        service !== null &&
+        typeof service === 'object' &&
+        'baseUrl' in service &&
+        'streamPath' in service &&
+        'streamProtocol' in service
+          ? {
+              baseUrl: String(service.baseUrl),
+              streamPath: String(service.streamPath),
+              streamProtocol: String(service.streamProtocol)
+            }
+          : null
+      if (this.serviceDescriptorValue && this.onServiceReady) {
+        try {
+          await this.onServiceReady(this.serviceDescriptorValue)
+        } catch (error) {
+          this.state = 'failed'
+          this.rejectReady?.(error instanceof Error ? error : new Error(String(error)))
+          return
+        }
+      }
       this.state = 'ready'
       this.resolveReady?.()
       this.resolveReady = null
@@ -140,6 +175,7 @@ export class RuntimeSupervisor {
     const preservePendingStart = this.state === 'starting'
     this.currentProcess = null
     this.serviceBaseUrl = null
+    this.serviceDescriptorValue = null
 
     if (this.state === 'stopping') {
       this.finishStop()
@@ -169,6 +205,7 @@ export class RuntimeSupervisor {
     this.shutdownTimer = null
     this.currentProcess = null
     this.serviceBaseUrl = null
+    this.serviceDescriptorValue = null
     this.state = 'stopped'
     this.resolveStop?.()
     this.resolveStop = null
@@ -191,12 +228,8 @@ export function createElectronRuntimeProcessFactory(
         env: {
           ...process.env,
           ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
-          ...(options.serviceToken
-            ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken }
-            : {}),
-          ...(options.credentialKey
-            ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey }
-            : {})
+          ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
+          ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {})
         }
       })
       const messageChannel = new MessageChannelMain()
