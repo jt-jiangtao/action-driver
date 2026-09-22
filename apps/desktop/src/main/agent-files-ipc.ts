@@ -6,7 +6,8 @@ import {
   type CreateAgentSkillDto,
   type SaveAgentFileDto
 } from '../shared/agent-files-contract'
-import { AgentFileStore, AgentFileStoreError } from './agent-files/agent-file-store'
+import { AgentFileStoreError } from './agent-files/agent-file-store'
+import type { AgentFileStore } from './agent-files/agent-file-store'
 
 export interface AgentFilesIpcMain {
   handle(channel: string, handler: (event: unknown, input: unknown) => unknown): void
@@ -77,10 +78,20 @@ export function registerAgentFilesIpcHandlers(
   interactions?: InteractionLogger
 ): void {
   ipcMain.handle(AGENT_FILES_IPC_CHANNELS.getMainPrompt, (event) =>
-    secureRespond(event, AGENT_FILES_IPC_CHANNELS.getMainPrompt, () => store.getMainPrompt(), interactions)
+    secureRespond(
+      event,
+      AGENT_FILES_IPC_CHANNELS.getMainPrompt,
+      () => store.getMainPrompt(),
+      interactions
+    )
   )
   ipcMain.handle(AGENT_FILES_IPC_CHANNELS.listSkills, (event) =>
-    secureRespond(event, AGENT_FILES_IPC_CHANNELS.listSkills, () => store.listSkills(), interactions)
+    secureRespond(
+      event,
+      AGENT_FILES_IPC_CHANNELS.listSkills,
+      () => store.listSkills(),
+      interactions
+    )
   )
   ipcMain.handle(AGENT_FILES_IPC_CHANNELS.getSkillTree, (event, input) =>
     secureRespond(

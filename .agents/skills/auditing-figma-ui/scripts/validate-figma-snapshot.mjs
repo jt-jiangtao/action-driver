@@ -872,3 +872,4 @@ export function runCli(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.exitCode = runCli(process.argv.slice(2))
 }
+/* global process */

@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import Editor from '@monaco-editor/react'
 import { AppIcon } from '../ui/AppIcon'
 import { e2eId } from '../../testing/e2e-id'
+import { MarkdownVisualEditor } from './MarkdownVisualEditor'
 
 export type EditorSaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
@@ -82,18 +84,41 @@ export function AgentMarkdownEditor({
           </button>
         </div>
       </header>
-      <textarea
-        className={`agent-markdown-editor ${sourceMode ? 'is-source' : 'is-edit'}`}
-        data-testid={e2eId('e2e/settings/agent-editors/:editor-id/content#textarea', {
-          'editor-id': editorId
-        })}
-        aria-label={ariaLabel}
-        name={ariaLabel === '主提示词 Markdown' ? 'main-prompt' : 'skill-markdown'}
-        autoComplete="off"
-        spellCheck={!sourceMode}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      {sourceMode ? (
+        <div
+          className="agent-monaco-editor"
+          data-testid={e2eId('e2e/settings/agent-editors/:editor-id/source#section', {
+            'editor-id': editorId
+          })}
+        >
+          <Editor
+            language="markdown"
+            value={value}
+            onChange={(nextValue) => onChange(nextValue ?? '')}
+            options={{
+              automaticLayout: true,
+              ariaLabel: `${ariaLabel} 源码`,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: 13,
+              lineHeight: 22,
+              lineNumbers: 'on',
+              minimap: { enabled: false },
+              padding: { top: 20, bottom: 24 },
+              renderLineHighlight: 'line',
+              scrollBeyondLastLine: false,
+              wordWrap: 'on'
+            }}
+            theme="vs"
+          />
+        </div>
+      ) : (
+        <MarkdownVisualEditor
+          value={value}
+          ariaLabel={ariaLabel}
+          editorId={editorId}
+          onChange={onChange}
+        />
+      )}
     </section>
   )
 }

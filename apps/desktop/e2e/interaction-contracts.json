@@ -778,12 +778,20 @@
     "testName": "loads, edits, and saves the main prompt in one editor panel"
   },
   {
-    "target": "e2e/settings/agent-editors/:editor-id/content#textarea",
+    "target": "e2e/settings/agent-editors/:editor-id/content#input",
     "route": "settings",
-    "type": "textarea",
+    "type": "input",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
     "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/source#section",
+    "route": "settings",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "switches the same main prompt panel into source mode"
   },
   {
     "target": "e2e/settings/main-prompt/reload#button",
@@ -800,6 +808,14 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
     "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "shows an exclusive retry state when the skill repository fails to load"
   },
   {
     "target": "e2e/settings/skills/search#input",

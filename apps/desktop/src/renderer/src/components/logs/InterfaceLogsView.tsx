@@ -90,10 +90,10 @@ export function InterfaceLogsView({
     setPage(1)
   }
 
-  const copySelected = async () => {
+  const copySelected = () => {
     if (!selected) return
-    await globalThis.navigator?.clipboard?.writeText(JSON.stringify(selected, null, 2))
     setCopyState('copied')
+    void globalThis.navigator?.clipboard?.writeText(JSON.stringify(selected, null, 2))
     setTimeout(() => setCopyState('idle'), 1_500)
   }
 
@@ -167,9 +167,7 @@ export function InterfaceLogsView({
             aria-pressed={autoRefresh}
             onClick={() => setAutoRefresh((current) => !current)}
           >
-            <span
-              className={`live-dot ${autoRefresh ? 'is-on' : ''} ${error ? 'is-error' : ''}`}
-            />
+            <span className={`live-dot ${autoRefresh ? 'is-on' : ''} ${error ? 'is-error' : ''}`} />
             {error && autoRefresh ? '连接中断' : autoRefresh ? '自动刷新' : '已暂停'}
           </button>
           <button
@@ -297,7 +295,7 @@ export function InterfaceLogsView({
               record={selected}
               copyState={copyState}
               onClose={() => setSelectedKey(null)}
-              onCopy={() => void copySelected()}
+              onCopy={copySelected}
             />
           ) : null}
         </div>

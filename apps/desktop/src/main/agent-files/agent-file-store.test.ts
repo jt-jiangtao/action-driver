@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -15,14 +15,22 @@ async function createStore() {
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
+  await Promise.all(
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true }))
+  )
 })
 
 describe('AgentFileStore', () => {
   it('seeds missing files once and restores existing content after restart', async () => {
     const { store, homeDirectory } = await createStore()
     const prompt = await store.getMainPrompt()
-    await store.saveFile({ path: prompt.path, content: '# Custom prompt', expectedDigest: prompt.digest })
+    await store.saveFile({
+      path: prompt.path,
+      content: '# Custom prompt',
+      expectedDigest: prompt.digest
+    })
 
     const restarted = new AgentFileStore({ homeDirectory })
     await restarted.initialize()
@@ -38,7 +46,10 @@ describe('AgentFileStore', () => {
     const { store, homeDirectory } = await createStore()
     const outside = join(homeDirectory, 'outside.txt')
     await writeFile(outside, 'secret')
-    await symlink(outside, join(homeDirectory, '.action-driver', 'skills', 'browser-tools', 'escape.md'))
+    await symlink(
+      outside,
+      join(homeDirectory, '.action-driver', 'skills', 'browser-tools', 'escape.md')
+    )
 
     await expect(store.readFile('../outside.txt')).rejects.toMatchObject({ code: 'PATH_REJECTED' })
     await expect(store.readFile(outside)).rejects.toMatchObject({ code: 'PATH_REJECTED' })
@@ -70,7 +81,9 @@ describe('AgentFileStore', () => {
 
     const restarted = new AgentFileStore({ homeDirectory })
     await restarted.initialize()
-    expect((await restarted.listSkills()).find((skill) => skill.id === renamed.id)?.enabled).toBe(false)
+    expect((await restarted.listSkills()).find((skill) => skill.id === renamed.id)?.enabled).toBe(
+      false
+    )
 
     await restarted.deleteSkill(renamed.id)
     expect((await restarted.listSkills()).some((skill) => skill.id === renamed.id)).toBe(false)
@@ -79,7 +92,9 @@ describe('AgentFileStore', () => {
   it('protects built-in skills from destructive operations', async () => {
     const { store } = await createStore()
 
-    await expect(store.renameSkill('browser-tools', 'renamed')).rejects.toBeInstanceOf(AgentFileStoreError)
+    await expect(store.renameSkill('browser-tools', 'renamed')).rejects.toBeInstanceOf(
+      AgentFileStoreError
+    )
     await expect(store.deleteSkill('browser-tools')).rejects.toMatchObject({ code: 'PROTECTED' })
   })
 })

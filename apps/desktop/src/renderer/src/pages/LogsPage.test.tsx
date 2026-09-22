@@ -120,13 +120,11 @@ describe('LogsPage', () => {
 
   it('exposes refresh progress and copy confirmation to assistive technology', async () => {
     const user = userEvent.setup()
-    let resolveRefresh!: (value: {
-      records: InteractionLogRecord[]
-      files: string[]
-    }) => void
+    let resolveRefresh!: (value: { records: InteractionLogRecord[]; files: string[] }) => void
     const service = {
       list: vi
         .fn()
+        .mockResolvedValue({ records: createRecords(1), files: [] })
         .mockResolvedValueOnce({ records: createRecords(1), files: [] })
         .mockImplementationOnce(
           () =>
@@ -146,10 +144,12 @@ describe('LogsPage', () => {
     expect(screen.getByTestId('e2e/settings/logs/refresh#button')).toBeDisabled()
     expect(screen.getByText('刷新中…')).toBeVisible()
     resolveRefresh({ records: createRecords(1), files: [] })
-    await waitFor(() => expect(screen.getByTestId('e2e/settings/logs/refresh#button')).toBeEnabled())
+    await waitFor(() =>
+      expect(screen.getByTestId('e2e/settings/logs/refresh#button')).toBeEnabled()
+    )
 
     await user.click(screen.getByTestId('e2e/settings/logs/entries/0#button'))
-    const copy = screen.getByTestId('e2e/settings/logs/inspector/copy#button')
+    const copy = await screen.findByTestId('e2e/settings/logs/inspector/copy#button')
     await user.click(copy)
     expect(copy).toHaveAccessibleName('已复制')
     expect(screen.getByRole('status')).toHaveTextContent('已复制')
@@ -232,7 +232,9 @@ describe('LogsPage', () => {
 
   it('shows the empty and failure states', async () => {
     const user = userEvent.setup()
-    const { unmount } = renderPage({ list: async () => ({ records: [], files: ['/tmp/logs/renderer-service.log'] }) })
+    const { unmount } = renderPage({
+      list: async () => ({ records: [], files: ['/tmp/logs/renderer-service.log'] })
+    })
     expect(await screen.findByText('还没有交互记录')).toBeVisible()
     unmount()
 
@@ -289,12 +291,8 @@ describe('LogsPage', () => {
     )
     await user.click(screen.getByTestId('e2e/settings/logs/model/tasks/weather-report#button'))
 
-    const systemPrompt = screen.getByTestId(
-      'e2e/settings/logs/model/detail/system-prompt#button'
-    )
-    const modelRequest = screen.getByTestId(
-      'e2e/settings/logs/model/detail/model-request#button'
-    )
+    const systemPrompt = screen.getByTestId('e2e/settings/logs/model/detail/system-prompt#button')
+    const modelRequest = screen.getByTestId('e2e/settings/logs/model/detail/model-request#button')
     expect(systemPrompt).toHaveAttribute('aria-expanded', 'true')
     expect(modelRequest).toHaveAttribute('aria-expanded', 'false')
 

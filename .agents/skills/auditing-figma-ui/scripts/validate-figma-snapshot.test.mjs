@@ -728,3 +728,4 @@ test('CLI returns 0 for clean input, 1 for violations, and 2 for invalid input',
   const jsonRun = run(failingPath, '--json')
   assert.equal(JSON.parse(jsonRun.stdout).summary.errors, 1)
 })
+/* global URL, process */

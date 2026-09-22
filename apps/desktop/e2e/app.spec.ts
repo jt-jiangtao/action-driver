@@ -1,4 +1,10 @@
-import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  _electron as electron,
+  type ElectronApplication,
+  type Page
+} from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { auditRenderedInteractions as auditPageInteractions } from './interaction-audit'
@@ -38,7 +44,10 @@ async function launch(viewport = { width: 1440, height: 900 }) {
 
 async function capture(page: Page, name: string) {
   await page.evaluate(
-    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
   )
   await page.screenshot({ path: artifact(name), scale: 'css' })
 }
@@ -131,7 +140,10 @@ test('captures all Home and Task Figma states through public controls', async ()
   await page.getByText('继续 Agent').click()
 
   await page.getByLabel('放大浏览器').click()
-  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-mode',
+    'browser-expanded'
+  )
   await auditRenderedInteractions(page, contracts, ['e2e/tasks/detail/browser/menu#button'])
   await capture(page, 'task-browser-expanded')
   await expect(page).toHaveScreenshot('task-browser-expanded-1440x900.png', {
@@ -141,7 +153,10 @@ test('captures all Home and Task Figma states through public controls', async ()
 
   await page.getByLabel('缩小浏览器').click()
   await page.getByLabel('折叠浏览器').click()
-  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-collapsed')
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-mode',
+    'browser-collapsed'
+  )
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'task-browser-collapsed')
   await expect(page).toHaveScreenshot('task-browser-collapsed-1440x900.png', {
@@ -175,8 +190,17 @@ test('captures all eight Settings Figma states through public controls', async (
   await expect(page.getByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-main-prompt')
-  await page.getByTestId('e2e/settings/agent-editors/main-prompt/content#textarea').fill('# 更新后的主提示词\n\n保持回答简洁。')
+  await page.getByTestId('e2e/settings/agent-editors/main-prompt/mode/source#button').click()
+  await expect(
+    page.getByTestId('e2e/settings/agent-editors/main-prompt/source#section')
+  ).toBeVisible()
+  await expect(page.locator('.agent-monaco-editor .monaco-editor')).toBeVisible()
+  await page.getByRole('textbox', { name: '主提示词 Markdown 源码' }).focus()
+  await page.keyboard.press('Meta+A')
+  await page.keyboard.insertText('# 更新后的主提示词\n\n保持回答简洁。')
   await expect(page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button')).toBeEnabled()
+  await page.getByTestId('e2e/settings/agent-editors/main-prompt/mode/edit#button').click()
+  await expect(page.getByRole('heading', { name: '更新后的主提示词', level: 1 })).toBeVisible()
   await capture(page, 'settings-main-prompt-dirty')
 
   await page.getByTestId('e2e/settings/sidebar/skills#button').click()
@@ -303,6 +327,10 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
   await page.getByRole('button', { name: '添加模型集' }).click()
   await expectInsideViewport(page, page.getByRole('dialog', { name: '添加模型集' }))
   await auditRenderedInteractions(page, contracts)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    )
+  ).toBe(true)
   await capture(page, 'minimum-window')
 })
