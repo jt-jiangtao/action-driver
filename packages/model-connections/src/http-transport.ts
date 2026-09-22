@@ -1,6 +1,6 @@
 export type HttpRequest = {
   url: string
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'DELETE'
   headers: Record<string, string>
   body?: unknown
   timeoutMs: number

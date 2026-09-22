@@ -24,6 +24,19 @@ export type ModelConnectionServiceOptions = {
   transport: HttpTransport
 }
 
+/** Stable port consumed by the Main process and implemented by both the local service and its HTTP client. */
+export interface ModelConnectionServicePort {
+  list(): Promise<ModelConnectionDto[]>
+  testConnection(draft: ModelConnectionDraftDto): Promise<ModelConnectionTestResultDto>
+  discover(draft: ModelConnectionDraftDto): Promise<ModelOptionDto[]>
+  refresh(connectionId: string): Promise<ModelOptionDto[]>
+  testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
+  testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
+  setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
+  delete(connectionId: string): Promise<void>
+}
+
 export class ModelServiceError extends Error {
   constructor(
     readonly code: ModelFailureCode,
@@ -34,10 +47,10 @@ export class ModelServiceError extends Error {
   }
 }
 
-export class ModelConnectionService {
+export class ModelConnectionService implements ModelConnectionServicePort {
   constructor(private readonly options: ModelConnectionServiceOptions) {}
 
-  list(): ModelConnectionDto[] {
+  async list(): Promise<ModelConnectionDto[]> {
     return this.read().map(toDto)
   }
 

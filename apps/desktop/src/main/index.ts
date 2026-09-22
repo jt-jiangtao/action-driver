@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, nativeImage, safeStorage } from 'electron'
 import { randomBytes } from 'node:crypto'
+import { unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
@@ -11,8 +12,7 @@ import { registerModelIpcHandlers } from './model-ipc'
 import { registerLogIpcHandlers } from './logs-ipc'
 import { createMainLogging, type MainLogging } from './logging'
 import { createModelConnectionStore, createNodeFileSystem } from './model-connections/connection-store'
-import { createFetchHttpTransport } from './model-connections/http-transport'
-import { ModelConnectionService } from './model-connections/model-connection-service'
+import { ModelConnectionHttpClient } from './model-connections/http-client'
 import { createSecretCipher } from './model-connections/secret-cipher'
 import { installNavigationGuards } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
@@ -73,14 +73,6 @@ app.whenReady().then(async () => {
     services = resolveMainServices(createMainContainer({ mode: 'mock' }))
   } else {
     const skillProviderHost = createMockSkillProviderHost()
-    const modelConnectionService = new ModelConnectionService({
-      store: createModelConnectionStore({
-        filePath: join(app.getPath('userData'), 'data', 'model-connections.json'),
-        fs: createNodeFileSystem()
-      }),
-      cipher: createSecretCipher(safeStorage),
-      transport: createFetchHttpTransport()
-    })
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
@@ -99,16 +91,18 @@ app.whenReady().then(async () => {
       credentialKey: credentialKey.toString('base64')
     })
     services = resolveMainServices(
-      createMainContainer({
-        mode: 'local',
-        skillProviderHost,
-        modelConnectionService,
-        ...runtime
-      })
+      createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
     )
     registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions)
-    registerModelIpcHandlers(ipcMain, modelConnectionService, logging.interactions)
     await runtime.runtimeSupervisor.start()
+    const serviceUrl = runtime.runtimeSupervisor.serviceUrl
+    if (!serviceUrl) throw new Error('Local service did not report an HTTP surface')
+    const modelConnectionClient = new ModelConnectionHttpClient({
+      baseUrl: serviceUrl,
+      token: serviceToken
+    })
+    await migrateLegacyModelConnections(modelConnectionClient, app.getPath('userData'), safeStorage)
+    registerModelIpcHandlers(ipcMain, modelConnectionClient, logging.interactions)
   }
 
   createWindow(services)
@@ -118,6 +112,33 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
   })
 })
+
+async function migrateLegacyModelConnections(
+  client: ModelConnectionHttpClient,
+  userDataPath: string,
+  safeStorageLike: Parameters<typeof createSecretCipher>[0]
+): Promise<void> {
+  const filePath = join(userDataPath, 'data', 'model-connections.json')
+  const legacy = createModelConnectionStore({
+    filePath,
+    fs: createNodeFileSystem()
+  }).read()
+  if (legacy.length === 0) return
+
+  const cipher = createSecretCipher(safeStorageLike)
+  for (const connection of legacy) {
+    await client.add({
+      draft: {
+        name: connection.name,
+        protocol: connection.protocol,
+        baseUrl: connection.baseUrl,
+        apiKey: cipher.decrypt(connection.apiKeyCipher)
+      },
+      models: connection.models
+    })
+  }
+  unlinkSync(filePath)
+}
 
 app.on('window-all-closed', () => app.quit())
 app.on('before-quit', (event) => {

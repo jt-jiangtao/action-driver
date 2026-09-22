@@ -30,14 +30,13 @@ export async function startAgentRuntimeProcess(
       cipher: createCredentialCipher(createCredentialKey(environment.ACTIONDRIVER_CREDENTIAL_KEY ?? '')),
       transport: createFetchHttpTransport()
     })
-    const serviceOptions = {
+    httpServer = await startServiceHttpServer({
       service,
       token: serviceToken,
       runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
       logger: logging.logger,
-      ...(logging.logFilePath === null ? {} : { logFilePath: logging.logFilePath })
-    }
-    httpServer = await startServiceHttpServer(serviceOptions)
+      logFilePath: logging.logFilePath
+    })
   }
 
   const handleShutdown = (event: ParentMessageEvent) => {

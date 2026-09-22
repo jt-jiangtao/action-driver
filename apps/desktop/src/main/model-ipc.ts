@@ -13,7 +13,7 @@ import type {
 } from '../shared/model-ipc-contract'
 import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
 import type { InteractionLogger } from '@actiondriver/observability'
-import type { ModelConnectionService } from './model-connections/model-connection-service'
+import type { ModelConnectionServicePort } from '@actiondriver/model-connections'
 import { ModelServiceError } from './model-connections/model-connection-service'
 
 export interface ModelIpcMain {
@@ -53,7 +53,7 @@ export function serializeModelError(error: unknown): ModelIpcError {
 
 export function registerModelIpcHandlers(
   ipcMain: ModelIpcMain,
-  service: ModelConnectionService,
+  service: ModelConnectionServicePort,
   interactions?: InteractionLogger
 ): void {
   ipcMain.handle(MODEL_IPC_CHANNELS.list, () =>

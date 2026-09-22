@@ -34,7 +34,7 @@ export type MainContainerOptions =
       runtimeClient: AgentRuntimeClient
       runtimeSupervisor: RuntimeSupervisor
       skillProviderHost: SkillProviderHost
-      modelConnectionService: ModelConnectionService
+      modelConnectionService?: ModelConnectionService
     }
 
 export function createMainContainer(options: MainContainerOptions): Container {
@@ -55,7 +55,9 @@ export function createMainContainer(options: MainContainerOptions): Container {
     .toConstantValue(options.mode === 'local' ? options.runtimeSupervisor : null)
   container
     .bind<ModelConnectionService | null>(MAIN_TYPES.modelConnectionService)
-    .toConstantValue(options.mode === 'local' ? options.modelConnectionService : null)
+    .toConstantValue(
+      options.mode === 'local' ? (options.modelConnectionService ?? null) : null
+    )
   return container
 }
 

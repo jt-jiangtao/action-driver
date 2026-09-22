@@ -69,7 +69,7 @@ describe('model connection service', () => {
     expect(created).toMatchObject({ name: '公司模型网关', apiKeyHint: '••••alue' })
     expect(JSON.stringify(created)).not.toContain('sk-secret-value')
     expect(JSON.stringify(store.read())).not.toContain('sk-secret-value')
-    expect(service.list()).toEqual([created])
+    await expect(service.list()).resolves.toEqual([created])
   })
 
   it('classifies connection failures for the renderer', async () => {
@@ -104,7 +104,7 @@ describe('model connection service', () => {
     const created = await service.add({ draft, models: discoveredModels })
     const refreshed = await service.refresh(created.id)
     expect(refreshed.map((model) => model.id)).toEqual(['qwen3.7-plus', 'qwen3.8-max'])
-    expect(service.list()[0]!.models.map((model) => model.id)).toEqual([
+    expect((await service.list())[0]!.models.map((model) => model.id)).toEqual([
       'qwen3.7-plus',
       'qwen3.8-max'
     ])
@@ -156,7 +156,7 @@ describe('model connection service', () => {
       modelIds: ['qwen3.7-plus', 'qwen-image-3.0-pro']
     })
 
-    expect(service.list()[0]!.models.map((model) => model.testState)).toEqual([
+    expect((await service.list())[0]!.models.map((model) => model.testState)).toEqual([
       'success',
       'unsupported'
     ])
@@ -171,10 +171,10 @@ describe('model connection service', () => {
       modelId: 'qwen3.7-plus',
       enabled: false
     })
-    expect(service.list()[0]!.models[0]!.enabled).toBe(false)
+    expect((await service.list())[0]!.models[0]!.enabled).toBe(false)
 
     await expect(service.delete(created.id)).resolves.toBeUndefined()
-    expect(service.list()).toEqual([])
+    await expect(service.list()).resolves.toEqual([])
 
     await expect(
       service.testConnectionModels({ connectionId: 'missing-connection', modelIds: ['qwen3.7-plus'] })

@@ -19,7 +19,7 @@ import { LOG_LEVELS, readRecentLogRecords } from './logs'
 export const SERVICE_PROTOCOL_VERSION = 1
 
 export type ServiceModelConnectionPort = {
-  list(): ModelConnectionDto[]
+  list(): Promise<ModelConnectionDto[]>
   testConnection(draft: ModelConnectionDraftDto): Promise<ModelConnectionTestResultDto>
   discover(draft: ModelConnectionDraftDto): Promise<ModelOptionDto[]>
   refresh(connectionId: string): Promise<ModelOptionDto[]>
@@ -35,7 +35,7 @@ export type ServiceHttpOptions = {
   token: string
   runtimeVersion: string
   logger?: Logger
-  logFilePath?: string
+  logFilePath?: string | null
   host?: string
   port?: number
   bodyLimitBytes?: number
@@ -158,7 +158,7 @@ async function handleRequest(
     }
 
     if (method === 'GET' && url.pathname === '/model-connections') {
-      const connections = options.service.list()
+      const connections = await options.service.list()
       sendJson(response, 200, { ok: true, value: connections })
       requestLog?.info(
         { status: 200, connections: connections.length, durationMs: Date.now() - startedAt },
