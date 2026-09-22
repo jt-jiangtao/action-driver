@@ -34,6 +34,24 @@ export type ModelCompletionRequest = {
   parameters: { temperature?: number; maxTokens?: number }
 }
 
+export type ModelUsage = {
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+}
+
+export type ModelCompletionEvent =
+  | { kind: 'content'; delta: string }
+  | {
+      kind: 'end'
+      content: string
+      finishReason: string | null
+      usage: ModelUsage | null
+      requestBody: unknown
+      responseBody: unknown
+      status: number
+    }
+
 export type ModelCompletionOutcome =
   | {
       ok: true

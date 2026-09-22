@@ -1,5 +1,5 @@
 import type { HttpTransport } from './http-transport'
-import type { ProviderFailure } from './provider-adapters'
+import type { OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import type { SecretCipher } from './secret-cipher'
 import { SecretCipherUnavailableError, apiKeyHint } from './secret-cipher'
@@ -12,6 +12,7 @@ import type {
   ModelConnectionTestRequestDto,
   ModelConnectionTestResultDto,
   ModelCompletionOutcome,
+  ModelCompletionEvent,
   ModelCompletionRequest,
   ModelFailureCode,
   ModelOptionDto,
@@ -24,6 +25,7 @@ export type ModelConnectionServiceOptions = {
   store: ModelConnectionStore
   cipher: SecretCipher
   transport: HttpTransport
+  openAiClientFactory?: OpenAiClientFactory
 }
 
 /** Stable port consumed by the Main process and implemented by both the local service and its HTTP client. */
@@ -41,6 +43,7 @@ export interface ModelConnectionServicePort {
 
 export interface ModelCompletionServicePort {
   complete(request: ModelCompletionRequest, signal?: AbortSignal): Promise<ModelCompletionOutcome>
+  stream(request: ModelCompletionRequest, signal?: AbortSignal): AsyncIterable<ModelCompletionEvent>
 }
 
 export class ModelServiceError extends Error {
@@ -87,8 +90,34 @@ export class ModelConnectionService
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
     }
 
-    const adapter = createModelProviderAdapter(connection.protocol, this.options.transport)
+    const adapter = createModelProviderAdapter(
+      connection.protocol,
+      this.options.transport,
+      this.options.openAiClientFactory
+    )
     return await adapter.complete(
+      {
+        baseUrl: connection.baseUrl,
+        apiKey: this.decrypt(connection),
+        modelId: model.id,
+        messages: request.messages,
+        parameters: request.parameters
+      },
+      signal
+    )
+  }
+
+  async *stream(
+    request: ModelCompletionRequest,
+    signal?: AbortSignal
+  ): AsyncIterable<ModelCompletionEvent> {
+    const { connection, model } = this.requireRunnableModel(request)
+    const adapter = createModelProviderAdapter(
+      connection.protocol,
+      this.options.transport,
+      this.options.openAiClientFactory
+    )
+    yield* adapter.stream(
       {
         baseUrl: connection.baseUrl,
         apiKey: this.decrypt(connection),
@@ -248,6 +277,33 @@ export class ModelConnectionService
     } catch (error) {
       throw toServiceError(error)
     }
+  }
+
+  private requireRunnableModel(request: ModelCompletionRequest): {
+    connection: StoredModelConnection
+    model: StoredModelConnection['models'][number]
+  } {
+    const connection = requireConnection(this.read(), request.model.connectionId)
+    const model = connection.models.find((candidate) => candidate.id === request.model.modelId)
+    if (!model) {
+      throw new ModelServiceError('invalid-request', `Unknown model: ${request.model.modelId}`)
+    }
+    if (!model.enabled) {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
+    }
+    if (model.testState === 'unsupported') {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} does not support text`)
+    }
+    if (model.testState !== 'success') {
+      throw new ModelServiceError(
+        'invalid-request',
+        `Model ${model.id} has not passed text testing`
+      )
+    }
+    if (connection.protocol !== 'openai-compatible') {
+      throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
+    }
+    return { connection, model }
   }
 }
 

@@ -1,6 +1,26 @@
+import OpenAI, {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  APIError,
+  APIUserAbortError,
+  AuthenticationError,
+  BadRequestError,
+  InternalServerError,
+  NotFoundError,
+  OpenAIError,
+  PermissionDeniedError,
+  RateLimitError,
+  UnprocessableEntityError
+} from 'openai'
 import type { HttpTransport } from './http-transport'
 import { HttpTransportError } from './http-transport'
-import type { ModelCompletionOutcome, ModelFailureCode, ModelProtocol } from './types'
+import type {
+  ModelCompletionEvent,
+  ModelCompletionOutcome,
+  ModelFailureCode,
+  ModelProtocol,
+  ModelUsage
+} from './types'
 
 export type ProviderFailure = {
   code: ModelFailureCode
@@ -14,11 +34,62 @@ export type ProviderProbeResult =
 
 export type ProviderResult<T> = { ok: true; value: T } | { ok: false; failure: ProviderFailure }
 
+export type OpenAiStreamChunk = {
+  choices: Array<{
+    delta: { content?: string | null }
+    finish_reason: string | null
+    index: number
+  }>
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  } | null
+}
+
+export type OpenAiClientOptions = {
+  apiKey: string
+  baseURL: string
+  maxRetries: 0
+  timeout: number
+  logLevel: 'off'
+}
+
+export type OpenAiClientLike = {
+  chat: {
+    completions: {
+      create(
+        body: Record<string, unknown>,
+        options: { signal?: AbortSignal }
+      ): {
+        withResponse(): Promise<{
+          data: AsyncIterable<OpenAiStreamChunk>
+          response: { status: number }
+          request_id: string | null
+        }>
+      }
+    }
+  }
+}
+
+export type OpenAiClientFactory = (options: OpenAiClientOptions) => OpenAiClientLike
+
+export class ModelStreamError extends Error {
+  constructor(
+    readonly code: ModelFailureCode,
+    message: string
+  ) {
+    super(message)
+    this.name = 'ModelStreamError'
+  }
+}
+
 export interface ModelProviderAdapter {
   discover(input: ModelEndpoint): Promise<ProviderResult<string[]>>
   verifyConnection(input: ModelEndpoint): Promise<ProviderResult<null>>
   probeModel(input: ModelEndpoint & { modelId: string }): Promise<ProviderProbeResult>
   complete(input: ProviderCompletionInput, signal?: AbortSignal): Promise<ModelCompletionOutcome>
+  stream(input: ProviderCompletionInput, signal?: AbortSignal): AsyncIterable<ModelCompletionEvent>
 }
 
 export type ModelEndpoint = {
@@ -42,14 +113,18 @@ const CONNECTION_PROBE_MODEL = 'connection-probe'
 
 export function createModelProviderAdapter(
   protocol: ModelProtocol,
-  transport: HttpTransport
+  transport: HttpTransport,
+  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory
 ): ModelProviderAdapter {
   return protocol === 'anthropic'
     ? createAnthropicAdapter(transport)
-    : createOpenAiCompatibleAdapter(transport)
+    : createOpenAiCompatibleAdapter(transport, openAiClientFactory)
 }
 
-export function createOpenAiCompatibleAdapter(transport: HttpTransport): ModelProviderAdapter {
+export function createOpenAiCompatibleAdapter(
+  transport: HttpTransport,
+  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory
+): ModelProviderAdapter {
   const discover: ModelProviderAdapter['discover'] = async ({ baseUrl, apiKey }) => {
     const response = await send(transport, {
       url: `${normalizeBaseUrl(baseUrl)}/models`,
@@ -74,6 +149,66 @@ export function createOpenAiCompatibleAdapter(transport: HttpTransport): ModelPr
 
   return {
     discover,
+    async *stream({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
+      const requestBody = streamRequestBody(modelId, messages, parameters)
+      if (signal?.aborted) {
+        throw new ModelStreamError('cancelled', 'Model request was cancelled')
+      }
+      const headers = { authorization: `Bearer ${apiKey}` }
+      let stream: AsyncIterable<OpenAiStreamChunk>
+      let status: number
+      let providerRequestId: string | null
+      try {
+        const client = openAiClientFactory({
+          apiKey,
+          baseURL: normalizeBaseUrl(baseUrl),
+          maxRetries: 0,
+          timeout: MODEL_REQUEST_TIMEOUT_MS,
+          logLevel: 'off'
+        })
+        const result = await client.chat.completions
+          .create(requestBody as Record<string, unknown>, { ...(signal ? { signal } : {}) })
+          .withResponse()
+        stream = result.data
+        status = result.response.status
+        providerRequestId = result.request_id
+      } catch (error) {
+        throw toSafeStreamError(error, headers)
+      }
+
+      let content = ''
+      let finishReason: string | null = null
+      let usage: ModelUsage | null = null
+      try {
+        for await (const chunk of stream) {
+          const choice = chunk.choices[0]
+          const delta = choice?.delta.content
+          if (typeof delta === 'string' && delta.length > 0) {
+            content += delta
+            yield { kind: 'content', delta }
+          }
+          if (choice?.finish_reason) finishReason = choice.finish_reason
+          if (chunk.usage) {
+            usage = {
+              inputTokens: chunk.usage.prompt_tokens,
+              outputTokens: chunk.usage.completion_tokens,
+              totalTokens: chunk.usage.total_tokens
+            }
+          }
+        }
+      } catch (error) {
+        throw toSafeStreamError(error, headers)
+      }
+      if (!content.trim()) {
+        throw new ModelStreamError('invalid-response', 'Model stream ended without assistant text')
+      }
+      if (!finishReason) {
+        throw new ModelStreamError('invalid-response', 'Model stream ended without a finish reason')
+      }
+
+      const responseBody = { content, finishReason, usage, providerRequestId }
+      yield { kind: 'end', content, finishReason, usage, requestBody, responseBody, status }
+    },
     async complete({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
       const requestBody = {
         model: modelId,
@@ -169,6 +304,17 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
 
   return {
     discover,
+    stream() {
+      const iterator: AsyncIterator<ModelCompletionEvent> & AsyncIterable<ModelCompletionEvent> = {
+        [Symbol.asyncIterator]() {
+          return iterator
+        },
+        async next(): Promise<IteratorResult<ModelCompletionEvent>> {
+          throw new ModelStreamError('invalid-request', 'Agent 调用暂未接入')
+        }
+      }
+      return iterator
+    },
     async complete(input) {
       return completionFailure(
         failure('invalid-request', 'Agent 调用暂未接入'),
@@ -196,6 +342,59 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
     probeModel
   }
 }
+
+function streamRequestBody(
+  modelId: string,
+  messages: ProviderCompletionInput['messages'],
+  parameters: ProviderCompletionInput['parameters']
+): Record<string, unknown> {
+  return {
+    model: modelId,
+    messages,
+    ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
+    ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
+    stream: true,
+    stream_options: { include_usage: true }
+  }
+}
+
+function toSafeStreamError(error: unknown, headers: Record<string, string>): ModelStreamError {
+  const providerFailure = classifySdkError(error)
+  const redacted = redactProviderFailure(providerFailure, headers)
+  return new ModelStreamError(redacted.code, redacted.message)
+}
+
+function classifySdkError(error: unknown): ProviderFailure {
+  if (error instanceof ModelStreamError) return failure(error.code, error.message)
+  if (error instanceof APIUserAbortError) return failure('cancelled', 'Model request was cancelled')
+  if (error instanceof APIConnectionTimeoutError) return failure('timeout', error.message)
+  if (error instanceof AuthenticationError || error instanceof PermissionDeniedError) {
+    return failure('unauthorized', error.message)
+  }
+  if (error instanceof RateLimitError) return failure('rate-limited', error.message)
+  if (error instanceof NotFoundError) {
+    return failure(
+      isModelMissing(error.error, error.message) ? 'model-not-found' : 'not-found',
+      error.message
+    )
+  }
+  if (error instanceof BadRequestError || error instanceof UnprocessableEntityError) {
+    return failure('invalid-request', error.message)
+  }
+  if (error instanceof InternalServerError) return failure('provider-error', error.message)
+  if (error instanceof APIConnectionError) return failure('network', error.message)
+  if (error instanceof APIError) {
+    return (
+      classifyResponse(error.status ?? 0, error.error, error.message) ??
+      failure('unknown', error.message)
+    )
+  }
+  if (error instanceof OpenAIError) return failure('invalid-response', error.message)
+  return failure('unknown', error instanceof Error ? error.message : String(error))
+}
+
+const defaultOpenAiClientFactory: OpenAiClientFactory = (options) =>
+  new OpenAI(options) as unknown as OpenAiClientLike
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '')

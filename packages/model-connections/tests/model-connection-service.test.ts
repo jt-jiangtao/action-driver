@@ -7,6 +7,8 @@ import {
   type HttpTransport,
   type ModelConnectionStore,
   type ModelOptionDto,
+  type OpenAiClientFactory,
+  type OpenAiStreamChunk,
   type SecretCipher,
   type StoredModelConnection
 } from '../src'
@@ -37,7 +39,10 @@ const draft = {
   apiKey: 'sk-secret-value'
 }
 
-function createService(handler: (request: HttpRequest) => HttpResponse) {
+function createService(
+  handler: (request: HttpRequest) => HttpResponse,
+  openAiClientFactory?: OpenAiClientFactory
+) {
   const requests: HttpRequest[] = []
   const transport: HttpTransport = {
     async request(request) {
@@ -48,7 +53,12 @@ function createService(handler: (request: HttpRequest) => HttpResponse) {
   const store = memoryStore()
   return {
     requests,
-    service: new ModelConnectionService({ store, cipher, transport }),
+    service: new ModelConnectionService({
+      store,
+      cipher,
+      transport,
+      ...(openAiClientFactory ? { openAiClientFactory } : {})
+    }),
     store
   }
 }
@@ -58,6 +68,74 @@ const discoveredModels: ModelOptionDto[] = [
 ]
 
 describe('model connection service', () => {
+  it('streams a duplicate model id through the exact selected connection', async () => {
+    const clientOptions: Array<Record<string, unknown>> = []
+    const chunks: OpenAiStreamChunk[] = [
+      {
+        choices: [{ delta: { content: 'selected ' }, finish_reason: null, index: 0 }]
+      },
+      {
+        choices: [{ delta: { content: 'answer' }, finish_reason: 'stop', index: 0 }],
+        usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 }
+      }
+    ]
+    const openAiClientFactory = ((options: Record<string, unknown>) => {
+      clientOptions.push(options)
+      return {
+        chat: {
+          completions: {
+            create: () => ({
+              withResponse: async () => ({
+                data: {
+                  async *[Symbol.asyncIterator]() {
+                    yield* chunks
+                  }
+                },
+                response: { status: 200 },
+                request_id: 'provider-request-1'
+              })
+            })
+          }
+        }
+      }
+    }) as OpenAiClientFactory
+    const { service, requests } = createService(
+      () => ({ status: 200, body: {}, text: '' }),
+      openAiClientFactory
+    )
+    await service.add({
+      draft: { ...draft, name: 'First', apiKey: 'first-secret' },
+      models: [{ id: 'shared-model', name: 'shared-model', enabled: true, testState: 'success' }]
+    })
+    const second = await service.add({
+      draft: { ...draft, name: 'Second', apiKey: 'second-secret' },
+      models: [{ id: 'shared-model', name: 'shared-model', enabled: true, testState: 'success' }]
+    })
+
+    const events = []
+    for await (const event of service.stream({
+      model: { connectionId: second.id, modelId: 'shared-model' },
+      requestId: 'request-1',
+      taskId: 'task-1',
+      messages: [{ role: 'user', content: 'hello' }],
+      parameters: { temperature: 0 }
+    })) {
+      events.push(event)
+    }
+
+    expect(clientOptions).toEqual([
+      expect.objectContaining({ apiKey: 'second-secret', baseURL: draft.baseUrl })
+    ])
+    expect(requests).toEqual([])
+    expect(events).toMatchObject([
+      { kind: 'content', delta: 'selected ' },
+      { kind: 'content', delta: 'answer' },
+      { kind: 'end', content: 'selected answer' }
+    ])
+    expect(JSON.stringify(events)).not.toContain('second-secret')
+    expect(JSON.stringify(events)).not.toContain(draft.baseUrl)
+  })
+
   it('executes a duplicate model id through the selected connection only', async () => {
     const { service, requests } = createService(() => ({
       status: 200,
@@ -113,15 +191,21 @@ describe('model connection service', () => {
       models: [model]
     })
 
-    await expect(
-      service.complete({
+    const consume = async () => {
+      for await (const event of service.stream({
         model: { connectionId: connection.id, modelId: model.id },
         requestId: 'request-1',
         taskId: 'task-1',
         messages: [{ role: 'user', content: 'hello' }],
         parameters: {}
-      })
-    ).rejects.toMatchObject({ code: 'invalid-request', message: expect.stringContaining(message) })
+      })) {
+        void event
+      }
+    }
+    await expect(consume()).rejects.toMatchObject({
+      code: 'invalid-request',
+      message: expect.stringContaining(message)
+    })
     expect(requests).toEqual([])
   })
 

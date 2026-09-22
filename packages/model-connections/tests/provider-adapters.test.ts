@@ -1,6 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { createServer } from 'node:http'
+import {
+  APIConnectionTimeoutError,
+  APIUserAbortError,
+  AuthenticationError,
+  OpenAIError,
+  RateLimitError
+} from 'openai'
 import { HttpTransportError, type HttpRequest, type HttpResponse, type HttpTransport } from '../src'
-import { classifyResponse, createAnthropicAdapter, createOpenAiCompatibleAdapter } from '../src'
+import {
+  ModelStreamError,
+  classifyResponse,
+  createAnthropicAdapter,
+  createOpenAiCompatibleAdapter,
+  type OpenAiClientFactory,
+  type OpenAiStreamChunk
+} from '../src'
 
 function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTransport & {
   requests: HttpRequest[]
@@ -17,7 +32,403 @@ function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTrans
 
 const endpoint = { baseUrl: 'https://token-plan.example.com/compatible-mode/v1', apiKey: 'sk-x' }
 
+function chunk(value: Partial<OpenAiStreamChunk>): OpenAiStreamChunk {
+  return value as OpenAiStreamChunk
+}
+
+function openAiFactory(
+  chunks: readonly OpenAiStreamChunk[],
+  status = 200
+): {
+  factory: OpenAiClientFactory
+  create: ReturnType<typeof vi.fn>
+  options: Array<Record<string, unknown>>
+} {
+  const options: Array<Record<string, unknown>> = []
+  const create = vi.fn(() => ({
+    async withResponse() {
+      return {
+        data: {
+          async *[Symbol.asyncIterator]() {
+            yield* chunks
+          }
+        },
+        response: { status } as Response,
+        request_id: 'provider-request-1'
+      }
+    }
+  }))
+  const factory = ((input: Record<string, unknown>) => {
+    options.push(input)
+    return { chat: { completions: { create } } }
+  }) as OpenAiClientFactory
+  return { factory, create, options }
+}
+
+function failingOpenAiFactory(error: Error): OpenAiClientFactory {
+  return (() => ({
+    chat: {
+      completions: {
+        create: () => ({
+          withResponse: async () => {
+            throw error
+          }
+        })
+      }
+    }
+  })) as OpenAiClientFactory
+}
+
 describe('OpenAI compatible adapter', () => {
+  it('consumes a real local SSE response through the official SDK', async () => {
+    let capturedBody = ''
+    let capturedAuthorization = ''
+    const server = createServer((request, response) => {
+      request.setEncoding('utf8')
+      request.on('data', (chunk: string) => {
+        capturedBody += chunk
+      })
+      request.on('end', () => {
+        capturedAuthorization = request.headers.authorization ?? ''
+        response.writeHead(200, { 'content-type': 'text/event-stream' })
+        response.write(
+          'data: {"id":"chat-1","object":"chat.completion.chunk","created":1,"model":"gpt-real","choices":[{"index":0,"delta":{"content":"real "},"finish_reason":null}]}\n\n'
+        )
+        response.write(
+          'data: {"id":"chat-1","object":"chat.completion.chunk","created":1,"model":"gpt-real","choices":[{"index":0,"delta":{"content":"stream"},"finish_reason":"stop"}]}\n\n'
+        )
+        response.write(
+          'data: {"id":"chat-1","object":"chat.completion.chunk","created":1,"model":"gpt-real","choices":[],"usage":{"prompt_tokens":2,"completion_tokens":2,"total_tokens":4}}\n\n'
+        )
+        response.end('data: [DONE]\n\n')
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('Expected TCP test server')
+
+    vi.stubGlobal('window', undefined)
+    try {
+      const adapter = createOpenAiCompatibleAdapter(
+        transportOf(() => ({ status: 200, body: {}, text: '' }))
+      )
+      const events = []
+      for await (const event of adapter.stream({
+        baseUrl: `http://127.0.0.1:${address.port}/v1`,
+        apiKey: 'local-test-secret',
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })) {
+        events.push(event)
+      }
+
+      expect(events).toMatchObject([
+        { kind: 'content', delta: 'real ' },
+        { kind: 'content', delta: 'stream' },
+        {
+          kind: 'end',
+          content: 'real stream',
+          finishReason: 'stop',
+          usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 },
+          status: 200
+        }
+      ])
+      expect(capturedAuthorization).toBe('Bearer local-test-secret')
+      expect(JSON.parse(capturedBody)).toMatchObject({
+        model: 'gpt-real',
+        stream: true,
+        stream_options: { include_usage: true }
+      })
+      expect(JSON.stringify(events)).not.toContain('local-test-secret')
+    } finally {
+      vi.unstubAllGlobals()
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      )
+    }
+  })
+
+  it('streams visible SDK chunks and emits one aggregate terminal event', async () => {
+    const sdk = openAiFactory([
+      chunk({ choices: [{ delta: { content: '# 标' }, finish_reason: null, index: 0 }] }),
+      chunk({ choices: [{ delta: { content: '题' }, finish_reason: 'stop', index: 0 }] }),
+      chunk({
+        choices: [],
+        usage: { prompt_tokens: 2, completion_tokens: 2, total_tokens: 4 }
+      })
+    ])
+    const controller = new AbortController()
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+
+    const events = []
+    for await (const event of adapter.stream(
+      {
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [
+          { role: 'system', content: 'system text' },
+          { role: 'user', content: 'user text' }
+        ],
+        parameters: { temperature: 0, maxTokens: 512 }
+      },
+      controller.signal
+    )) {
+      events.push(event)
+    }
+
+    expect(sdk.options).toEqual([
+      {
+        apiKey: 'sk-x',
+        baseURL: 'https://token-plan.example.com/compatible-mode/v1',
+        maxRetries: 0,
+        timeout: 15_000,
+        logLevel: 'off'
+      }
+    ])
+    expect(sdk.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-real',
+        messages: [
+          { role: 'system', content: 'system text' },
+          { role: 'user', content: 'user text' }
+        ],
+        temperature: 0,
+        max_tokens: 512,
+        stream: true,
+        stream_options: { include_usage: true }
+      },
+      { signal: controller.signal }
+    )
+    expect(events).toEqual([
+      { kind: 'content', delta: '# 标' },
+      { kind: 'content', delta: '题' },
+      {
+        kind: 'end',
+        content: '# 标题',
+        finishReason: 'stop',
+        usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 },
+        requestBody: {
+          model: 'gpt-real',
+          messages: [
+            { role: 'system', content: 'system text' },
+            { role: 'user', content: 'user text' }
+          ],
+          temperature: 0,
+          max_tokens: 512,
+          stream: true,
+          stream_options: { include_usage: true }
+        },
+        responseBody: {
+          content: '# 标题',
+          finishReason: 'stop',
+          usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 },
+          providerRequestId: 'provider-request-1'
+        },
+        status: 200
+      }
+    ])
+    expect(JSON.stringify(events)).not.toContain('sk-x')
+    expect(JSON.stringify(events)).not.toContain(endpoint.baseUrl)
+  })
+
+  it.each([
+    {
+      label: 'no visible text',
+      chunks: [chunk({ choices: [{ delta: {}, finish_reason: 'stop', index: 0 }] })],
+      code: 'invalid-response'
+    },
+    {
+      label: 'missing finish reason',
+      chunks: [
+        chunk({ choices: [{ delta: { content: 'partial' }, finish_reason: null, index: 0 }] })
+      ],
+      code: 'invalid-response'
+    }
+  ])('rejects an SDK stream with $label', async ({ chunks, code }) => {
+    const sdk = openAiFactory(chunks)
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+
+    const consume = async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })) {
+        void event
+      }
+    }
+
+    await expect(consume()).rejects.toMatchObject({ code })
+  })
+
+  it('rejects an already aborted call without creating an SDK client', async () => {
+    const sdk = openAiFactory([])
+    const controller = new AbortController()
+    controller.abort()
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+
+    const consume = async () => {
+      for await (const event of adapter.stream(
+        {
+          ...endpoint,
+          modelId: 'gpt-real',
+          messages: [{ role: 'user', content: 'hello' }],
+          parameters: {}
+        },
+        controller.signal
+      )) {
+        void event
+      }
+    }
+
+    await expect(consume()).rejects.toBeInstanceOf(ModelStreamError)
+    await expect(consume()).rejects.toMatchObject({ code: 'cancelled' })
+    expect(sdk.options).toEqual([])
+  })
+
+  it.each([
+    {
+      label: 'authentication',
+      error: new AuthenticationError(
+        401,
+        { error: { message: 'bad key' } },
+        'bad key',
+        new Headers()
+      ),
+      code: 'unauthorized'
+    },
+    {
+      label: 'rate limit',
+      error: new RateLimitError(
+        429,
+        { error: { message: 'slow down' } },
+        'slow down',
+        new Headers()
+      ),
+      code: 'rate-limited'
+    },
+    {
+      label: 'timeout',
+      error: new APIConnectionTimeoutError({ message: 'request timed out' }),
+      code: 'timeout'
+    },
+    {
+      label: 'cancellation',
+      error: new APIUserAbortError({ message: 'aborted' }),
+      code: 'cancelled'
+    },
+    {
+      label: 'malformed SSE chunk',
+      error: new OpenAIError('Could not parse SSE data as JSON'),
+      code: 'invalid-response'
+    }
+  ])('maps SDK $label errors to domain failures', async ({ error, code }) => {
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      failingOpenAiFactory(error)
+    )
+    const consume = async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })) {
+        void event
+      }
+    }
+
+    await expect(consume()).rejects.toMatchObject({ code })
+  })
+
+  it('preserves visible partial output and fails when the SDK stream disconnects', async () => {
+    const factory = (() => ({
+      chat: {
+        completions: {
+          create: () => ({
+            withResponse: async () => ({
+              data: {
+                async *[Symbol.asyncIterator]() {
+                  yield chunk({
+                    choices: [{ delta: { content: 'partial' }, finish_reason: null, index: 0 }]
+                  })
+                  throw new APIConnectionTimeoutError({ message: 'stream idle timeout' })
+                }
+              },
+              response: { status: 200 },
+              request_id: 'provider-request-1'
+            })
+          })
+        }
+      }
+    })) as OpenAiClientFactory
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      factory
+    )
+    const events = []
+    let caught: unknown
+    try {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })) {
+        events.push(event)
+      }
+    } catch (error) {
+      caught = error
+    }
+
+    expect(events).toEqual([{ kind: 'content', delta: 'partial' }])
+    expect(caught).toMatchObject({ code: 'timeout' })
+  })
+
+  it('redacts credentials reflected by an SDK error', async () => {
+    const reflected = new AuthenticationError(
+      401,
+      { error: { message: 'Rejected sk-completion-secret' } },
+      'Rejected sk-completion-secret',
+      new Headers()
+    )
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      failingOpenAiFactory(reflected)
+    )
+    let caught: unknown
+    try {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        apiKey: 'sk-completion-secret',
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })) {
+        void event
+      }
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toMatchObject({
+      code: 'unauthorized',
+      message: expect.stringContaining('[redacted]')
+    })
+    expect((caught as Error).message).not.toContain('sk-completion-secret')
+  })
+
   it('executes a non-streaming chat completion and preserves safe request and response bodies', async () => {
     const transport = transportOf(() => ({
       status: 200,

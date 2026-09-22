@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/contracts": "workspace:*"
+    "@actiondriver/contracts": "workspace:*",
+    "openai": "6.49.0"
   }
 }
