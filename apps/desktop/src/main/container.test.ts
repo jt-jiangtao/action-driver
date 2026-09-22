@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentRuntimeClient } from './agent-ipc'
 import { createMainContainer, resolveMainServices } from './container'
-import { ModelConnectionService } from './model-connections/model-connection-service'
+import { ModelConnectionService } from '@actiondriver/model-connections'
 import type { RuntimeSupervisor } from './runtime-supervisor'
 import { SkillProviderHost } from './skill-provider-host'
 

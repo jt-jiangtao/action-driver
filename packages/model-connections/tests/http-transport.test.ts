@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { HttpTransportError, createFetchHttpTransport } from './http-transport'
+import { HttpTransportError, createFetchHttpTransport } from '../src'
 
 function response(status: number, body: string) {
   return {

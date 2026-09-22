@@ -2,7 +2,7 @@ import type { InteractionLogger, InteractionRecord, InteractionStart } from '@ac
 import { describe, expect, it } from 'vitest'
 import { registerAgentIpcHandlers } from './agent-ipc'
 import { registerModelIpcHandlers } from './model-ipc'
-import { ModelConnectionService } from './model-connections/model-connection-service'
+import { ModelConnectionService } from '@actiondriver/model-connections'
 
 type Recorded = { start: InteractionStart; result?: Parameters<ReturnType<InteractionLogger['start']>>[0] }
 

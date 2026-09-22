@@ -6,7 +6,7 @@ import {
   type FileSystemPort,
   type StoredModelConnection
 } from './connection-store'
-import { SecretCipherUnavailableError, apiKeyHint, createSecretCipher } from './secret-cipher'
+import { SecretCipherUnavailableError, apiKeyHint, createSecretCipher } from '@actiondriver/model-connections'
 
 function memoryFileSystem(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial))

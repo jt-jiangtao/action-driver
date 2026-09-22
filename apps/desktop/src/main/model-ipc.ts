@@ -14,7 +14,7 @@ import type {
 import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
 import type { InteractionLogger } from '@actiondriver/observability'
 import type { ModelConnectionServicePort } from '@actiondriver/model-connections'
-import { ModelServiceError } from './model-connections/model-connection-service'
+import { ModelServiceError } from '@actiondriver/model-connections'
 
 export interface ModelIpcMain {
   handle(channel: string, handler: (event: unknown, input: unknown) => unknown): void

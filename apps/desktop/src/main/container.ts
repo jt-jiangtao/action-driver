@@ -1,7 +1,7 @@
 import type { BrowserWindowConstructorOptions } from 'electron'
 import { Container } from 'inversify'
 import type { AgentRuntimeClient } from './agent-ipc'
-import type { ModelConnectionService } from './model-connections/model-connection-service'
+import type { ModelConnectionService } from '@actiondriver/model-connections'
 import type { RuntimeSupervisor } from './runtime-supervisor'
 import { createMainWindowOptions } from './window-options'
 import { createMockSkillProviderHost, type SkillProviderHost } from './skill-provider-host'

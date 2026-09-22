@@ -1,25 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import type { ModelOptionDto } from '../../shared/model-ipc-contract'
-import { createModelConnectionStore, type FileSystemPort } from './connection-store'
-import type { HttpRequest, HttpResponse, HttpTransport } from './http-transport'
 import {
   ModelConnectionService,
-  ModelServiceError
-} from './model-connection-service'
-import type { SecretCipher } from './secret-cipher'
+  ModelServiceError,
+  type HttpRequest,
+  type HttpResponse,
+  type HttpTransport,
+  type ModelConnectionStore,
+  type ModelOptionDto,
+  type SecretCipher,
+  type StoredModelConnection
+} from '../src'
 
-function memoryFileSystem(): FileSystemPort {
-  const files = new Map<string, string>()
+function memoryStore(): ModelConnectionStore {
+  let connections: StoredModelConnection[] = []
   return {
-    exists: (path) => files.has(path),
-    readFile: (path) => files.get(path) ?? '',
-    writeFile: (path, contents) => {
-      files.set(path, contents)
-    },
-    mkdir: () => undefined,
-    rename: (from, to) => {
-      files.set(to, files.get(from) ?? '')
-      files.delete(from)
+    read: () => connections,
+    write: (next) => {
+      connections = next.map((connection) => ({ ...connection, models: [...connection.models] }))
     }
   }
 }
@@ -45,10 +42,7 @@ function createService(handler: (request: HttpRequest) => HttpResponse) {
       return handler(request)
     }
   }
-  const store = createModelConnectionStore({
-    filePath: '/data/model-connections.json',
-    fs: memoryFileSystem()
-  })
+  const store = memoryStore()
   return {
     requests,
     service: new ModelConnectionService({ store, cipher, transport }),

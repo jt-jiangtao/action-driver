@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { HttpRequest, HttpResponse, HttpTransport } from './http-transport'
+import type { HttpRequest, HttpResponse, HttpTransport } from '../src'
 import {
   classifyResponse,
   createAnthropicAdapter,
   createOpenAiCompatibleAdapter
-} from './provider-adapters'
+} from '../src'
 
 function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTransport & {
   requests: HttpRequest[]

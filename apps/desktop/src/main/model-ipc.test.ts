@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
 import { registerModelIpcHandlers, serializeModelError } from './model-ipc'
-import { ModelServiceError } from './model-connections/model-connection-service'
-import type { ModelConnectionService } from './model-connections/model-connection-service'
+import { ModelServiceError } from '@actiondriver/model-connections'
+import type { ModelConnectionService } from '@actiondriver/model-connections'
 
 function createIpcMain() {
   const handlers = new Map<string, (event: unknown, input: unknown) => unknown>()
