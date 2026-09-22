@@ -9,6 +9,7 @@ import { createSqliteModelConnectionStore } from './model-connections/sqlite-sto
 import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
 import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
+import { StreamSessionService } from './stream-session-service'
 import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
 import {
   createInteractionLogRecorder,
@@ -62,6 +63,12 @@ export async function startAgentRuntimeProcess(
     now: () => new Date().toISOString()
   })
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
+  const streamSessions = new StreamSessionService({
+    repositories,
+    graphRunner: local.adapters.graphRunner,
+    ids: local.adapters.idGenerator,
+    now: () => local.adapters.clock.now()
+  })
   const server = createLocalRuntimeServer(endpoint, {
     adapters: local.adapters,
     messages: repositories.messages,
@@ -77,7 +84,8 @@ export async function startAgentRuntimeProcess(
       runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
       logger: logging.logger,
       logFilePath: logging.logFilePath,
-      interactions
+      interactions,
+      streamSessions
     })
   }
 

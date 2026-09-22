@@ -137,6 +137,42 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         CREATE INDEX model_calls_task_started_idx ON model_calls(task_id, started_at, id);
       `)
     }
+  },
+  {
+    version: 4,
+    name: 'add-recoverable-stream-requests',
+    up(database) {
+      database.exec(`
+        CREATE TABLE stream_requests (
+          request_id TEXT PRIMARY KEY,
+          idempotency_key TEXT NOT NULL UNIQUE,
+          session_id TEXT NOT NULL,
+          task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+          response_id TEXT NOT NULL UNIQUE,
+          stream_id TEXT NOT NULL UNIQUE,
+          message_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL,
+          last_sequence INTEGER NOT NULL DEFAULT -1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX stream_requests_session_created_idx
+          ON stream_requests(session_id, created_at, request_id);
+
+        ALTER TABLE runtime_events ADD COLUMN event_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN request_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN response_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN stream_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN message_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN sequence INTEGER;
+
+        CREATE UNIQUE INDEX runtime_events_event_id_unique
+          ON runtime_events(event_id) WHERE event_id IS NOT NULL;
+        CREATE INDEX runtime_events_request_cursor_idx
+          ON runtime_events(request_id, cursor) WHERE request_id IS NOT NULL;
+      `)
+    }
   }
 ]
 

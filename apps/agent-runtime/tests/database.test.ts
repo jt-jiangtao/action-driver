@@ -46,14 +46,32 @@ describe('runtime SQLite database', () => {
         'schema_migrations',
         'skill_invocations',
         'steps',
+        'stream_requests',
         'tasks'
       ])
     )
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
       { version: 1 },
       { version: 2 },
-      { version: 3 }
+      { version: 3 },
+      { version: 4 }
     ])
+
+    expect(
+      database
+        .prepare("PRAGMA table_info('runtime_events')")
+        .all()
+        .map((row) => (row as { name: string }).name)
+    ).toEqual(
+      expect.arrayContaining([
+        'event_id',
+        'request_id',
+        'response_id',
+        'stream_id',
+        'message_id',
+        'sequence'
+      ])
+    )
 
     database.close()
   })
@@ -70,7 +88,8 @@ describe('runtime SQLite database', () => {
     ).toEqual([
       { version: 1, count: 1 },
       { version: 2, count: 1 },
-      { version: 3, count: 1 }
+      { version: 3, count: 1 },
+      { version: 4, count: 1 }
     ])
 
     database.close()
@@ -79,7 +98,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 4,
+      version: 5,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -89,13 +108,14 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 4 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 5 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
       { version: 1 },
       { version: 2 },
-      { version: 3 }
+      { version: 3 },
+      { version: 4 }
     ])
     expect(
       database

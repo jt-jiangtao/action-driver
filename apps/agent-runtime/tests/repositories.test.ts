@@ -7,6 +7,7 @@ import {
   openRuntimeDatabase,
   type PersistedMessage,
   type PersistedModelCall,
+  type PersistedStreamRequest,
   type PersistedSkillInvocation,
   type PersistedStep,
   type RuntimeEventRecord,
@@ -40,6 +41,156 @@ const task: RuntimeTaskRecord = {
 }
 
 describe('SQLite runtime repositories', () => {
+  it('creates one durable stream task per idempotency key and commits content atomically', async () => {
+    const repositories = createRepositories()
+    const streamTask: RuntimeTaskRecord = {
+      ...task,
+      threadId: 'session-1',
+      lastCheckpointId: null
+    }
+    const request: PersistedStreamRequest = {
+      requestId: 'request-1',
+      idempotencyKey: 'idempotency-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-assistant-1',
+      status: 'running',
+      lastSequence: -1,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    const userMessage: PersistedMessage = {
+      id: 'message-user-1',
+      taskId: streamTask.id,
+      role: 'user',
+      content: { text: streamTask.goal },
+      createdAt: streamTask.createdAt
+    }
+    const assistantMessage: PersistedMessage = {
+      id: request.messageId,
+      taskId: streamTask.id,
+      role: 'assistant',
+      content: { text: '' },
+      createdAt: streamTask.createdAt
+    }
+    const acceptedEvent: Omit<RuntimeEventRecord, 'cursor'> = {
+      taskId: request.taskId,
+      threadId: request.sessionId,
+      checkpointId: request.responseId,
+      eventKey: 'request.accepted',
+      type: 'request.accepted',
+      payload: { requestId: request.requestId },
+      occurredAt: request.createdAt,
+      eventId: 'event-accepted-1',
+      requestId: request.requestId,
+      responseId: request.responseId,
+      streamId: request.streamId,
+      messageId: request.messageId,
+      sequence: null
+    }
+
+    const created = await repositories.createStreamTask({
+      request,
+      task: streamTask,
+      userMessage,
+      assistantMessage,
+      acceptedEvent
+    })
+    expect(created).toMatchObject({ created: true, request })
+
+    const duplicate = await repositories.createStreamTask({
+      request: {
+        ...request,
+        requestId: 'request-duplicate',
+        taskId: 'task-duplicate',
+        responseId: 'response-duplicate',
+        streamId: 'stream-duplicate',
+        messageId: 'message-duplicate'
+      },
+      task: { ...streamTask, id: 'task-duplicate', threadId: 'session-duplicate' },
+      userMessage: { ...userMessage, id: 'user-duplicate', taskId: 'task-duplicate' },
+      assistantMessage: {
+        ...assistantMessage,
+        id: 'message-duplicate',
+        taskId: 'task-duplicate'
+      },
+      acceptedEvent: {
+        ...acceptedEvent,
+        eventId: 'event-duplicate',
+        taskId: 'task-duplicate',
+        threadId: 'session-duplicate'
+      }
+    })
+    expect(duplicate).toEqual({ created: false, request })
+    await expect(repositories.tasks.get('task-duplicate')).resolves.toBeNull()
+
+    const contentEvent: Omit<RuntimeEventRecord, 'cursor'> = {
+      ...acceptedEvent,
+      eventId: 'event-content-1',
+      eventKey: 'response.content:1',
+      type: 'response.content',
+      payload: { delta: 'hello' },
+      sequence: 1
+    }
+    const contentMessage = { ...assistantMessage, content: { text: 'hello' } }
+    await repositories.commitAssistantContentWithEvent(request, contentMessage, contentEvent)
+    await expect(repositories.messages.listByTask(streamTask.id)).resolves.toContainEqual(
+      contentMessage
+    )
+    await expect(
+      repositories.streamRequests.getByRequestId(request.requestId)
+    ).resolves.toMatchObject({ lastSequence: 1 })
+
+    await expect(
+      repositories.commitAssistantContentWithEvent(
+        request,
+        { ...contentMessage, content: { text: 'must roll back' } },
+        contentEvent
+      )
+    ).rejects.toThrow()
+    await expect(repositories.messages.listByTask(streamTask.id)).resolves.toContainEqual(
+      contentMessage
+    )
+
+    const completedRequest: PersistedStreamRequest = {
+      ...request,
+      status: 'completed',
+      lastSequence: 2,
+      updatedAt: '2026-01-01T00:00:01.000Z'
+    }
+    const completedTask: RuntimeTaskRecord = {
+      ...streamTask,
+      status: 'completed',
+      updatedAt: completedRequest.updatedAt
+    }
+    const terminalEvent: Omit<RuntimeEventRecord, 'cursor'> = {
+      ...contentEvent,
+      eventId: 'event-end-1',
+      eventKey: 'response.end:2',
+      type: 'response.end',
+      payload: { status: 'completed', content: 'hello' },
+      occurredAt: completedRequest.updatedAt,
+      sequence: 2
+    }
+    await repositories.finishStreamTask({
+      request: completedRequest,
+      task: completedTask,
+      assistantMessage: contentMessage,
+      event: terminalEvent
+    })
+    await expect(repositories.streamRequests.getByRequestId(request.requestId)).resolves.toEqual(
+      completedRequest
+    )
+    await expect(repositories.tasks.get(streamTask.id)).resolves.toEqual(completedTask)
+    await expect(repositories.events.listAfter(0)).resolves.toContainEqual(
+      expect.objectContaining({ eventId: 'event-end-1', type: 'response.end', sequence: 2 })
+    )
+
+    repositories.close()
+  })
+
   it('stores and reads tasks, messages, steps, skill invocations, and ordered events', async () => {
     const repositories = createRepositories()
     await repositories.tasks.save(task)

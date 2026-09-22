@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type {
+  ModelCompletionEvent,
   ModelCompletionOutcome,
   ModelCompletionServicePort
 } from '@actiondriver/model-connections'
@@ -33,7 +34,13 @@ class MemoryModelCallRepository implements ModelCallRepository {
 }
 
 function completionService(outcome: ModelCompletionOutcome): ModelCompletionServicePort {
-  return { complete: async () => structuredClone(outcome) }
+  return {
+    complete: async () => structuredClone(outcome),
+    async *stream() {
+      yield* [] as ModelCompletionEvent[]
+      throw new Error('stream is not used by this legacy completion fixture')
+    }
+  }
 }
 
 function createGateway(service: ModelCompletionServicePort) {
@@ -64,6 +71,74 @@ const realRequest: ModelRequest = {
 }
 
 describe('ModelGateway boundary', () => {
+  it('forwards content before provider completion and commits one aggregate call at end', async () => {
+    let releaseEnd!: () => void
+    const endGate = new Promise<void>((resolve) => {
+      releaseEnd = resolve
+    })
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('legacy completion must not be used')
+      },
+      async *stream(): AsyncIterable<ModelCompletionEvent> {
+        yield { kind: 'content', delta: '**real' }
+        await endGate
+        yield { kind: 'content', delta: ' answer**' }
+        yield {
+          kind: 'end',
+          content: '**real answer**',
+          finishReason: 'stop',
+          usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 },
+          requestBody: { model: 'gpt-real', stream: true },
+          responseBody: {
+            content: '**real answer**',
+            finishReason: 'stop',
+            usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 }
+          },
+          status: 200
+        }
+      }
+    }
+    const { gateway, modelCalls, interactions } = createGateway(service)
+    const iterator = gateway.stream(realRequest)[Symbol.asyncIterator]()
+
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { kind: 'content', delta: '**real' }
+    })
+    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
+      expect.objectContaining({ status: 'running', response: null })
+    ])
+
+    releaseEnd()
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { kind: 'content', delta: ' answer**' }
+    })
+    await expect(iterator.next()).resolves.toMatchObject({
+      done: false,
+      value: { kind: 'end', content: '**real answer**', finishReason: 'stop' }
+    })
+    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined })
+
+    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
+      expect.objectContaining({
+        status: 'completed',
+        response: {
+          content: '**real answer**',
+          finishReason: 'stop',
+          usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 }
+        }
+      })
+    ])
+    expect((await interactions.list({ limit: 20 })).records).toHaveLength(1)
+    expect((await interactions.list({ limit: 20 })).records[0]).toMatchObject({
+      correlationId: 'correlation-1',
+      outcome: 'ok',
+      status: 200
+    })
+  })
+
   it('persists and logs a completed real model call with one correlation id', async () => {
     const { gateway, modelCalls, interactions } = createGateway(
       completionService({

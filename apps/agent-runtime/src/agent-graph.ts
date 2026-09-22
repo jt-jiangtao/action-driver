@@ -13,7 +13,10 @@ import type { ModelRef } from '@actiondriver/contracts'
 import type {
   AgentGraphResult,
   GraphRunner,
+  ModelEventObserver,
   ModelGateway,
+  ModelGatewayEvent,
+  ModelResult,
   SkillProviderResult,
   SkillRegistry
 } from './ports'
@@ -65,6 +68,7 @@ export function threadIdForTask(taskId: string): string {
 export class LangGraphRunner implements GraphRunner {
   private readonly graph
   private readonly activeControllers = new Map<string, AbortController>()
+  private readonly modelObservers = new Map<string, ModelEventObserver>()
 
   constructor(
     private readonly modelGateway: ModelGateway,
@@ -82,30 +86,38 @@ export class LangGraphRunner implements GraphRunner {
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
     },
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    observer?: ModelEventObserver
   ): Promise<AgentGraphResult> {
     const threadId = threadIdForTask(request.taskId)
-    return this.execute(
-      request.taskId,
-      {
-        taskId: request.taskId,
-        threadId,
-        goal: request.goal,
-        model: request.model,
-        systemPrompt: request.systemPrompt ?? '',
-        skills: request.skills ?? [],
-        status: 'submitted',
-        requestedSkillId: null,
-        resolvedProviderId: null,
-        providerVersion: null,
-        skillInput: null,
-        output: null,
-        error: null,
-        route: 'finish',
-        trace: []
-      },
-      signal
-    )
+    if (observer) this.modelObservers.set(request.taskId, observer)
+    try {
+      return await this.execute(
+        request.taskId,
+        {
+          taskId: request.taskId,
+          threadId,
+          goal: request.goal,
+          model: request.model,
+          systemPrompt: request.systemPrompt ?? '',
+          skills: request.skills ?? [],
+          status: 'submitted',
+          requestedSkillId: null,
+          resolvedProviderId: null,
+          providerVersion: null,
+          skillInput: null,
+          output: null,
+          error: null,
+          route: 'finish',
+          trace: []
+        },
+        signal
+      )
+    } finally {
+      if (observer && this.modelObservers.get(request.taskId) === observer) {
+        this.modelObservers.delete(request.taskId)
+      }
+    }
   }
 
   interrupt(taskId: string): boolean {
@@ -190,22 +202,25 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('plan', async (state, config) => {
         let plan
         try {
-          plan = await this.modelGateway.complete(
-            {
-              taskId: state.taskId,
-              requestId: `plan:${state.taskId}`,
-              model: state.model,
-              messages: [
-                ...(state.systemPrompt.trim()
-                  ? [{ role: 'system' as const, content: state.systemPrompt }]
-                  : []),
-                { role: 'user' as const, content: state.goal }
-              ],
-              skills: state.skills,
-              parameters: { temperature: 0 }
-            },
-            config.signal
-          )
+          const request = {
+            taskId: state.taskId,
+            requestId: `plan:${state.taskId}`,
+            model: state.model,
+            messages: [
+              ...(state.systemPrompt.trim()
+                ? [{ role: 'system' as const, content: state.systemPrompt }]
+                : []),
+              { role: 'user' as const, content: state.goal }
+            ],
+            skills: state.skills,
+            parameters: { temperature: 0 }
+          }
+          plan = this.modelGateway.stream
+            ? await this.consumeModelStream(
+                this.modelGateway.stream(request, config.signal),
+                this.modelObservers.get(state.taskId)
+              )
+            : await this.modelGateway.complete(request, config.signal)
         } catch (error) {
           if (config.signal?.aborted || this.isAbortError(error)) throw error
           return {
@@ -319,6 +334,21 @@ export class LangGraphRunner implements GraphRunner {
       .addEdge('finish', END)
       .addEdge('failed', END)
       .compile({ name: 'actiondriver-agent-runtime', checkpointer: this.checkpointer })
+  }
+
+  private async consumeModelStream(
+    events: AsyncIterable<ModelGatewayEvent>,
+    observer?: ModelEventObserver
+  ): Promise<ModelResult> {
+    let terminal: ModelResult | null = null
+    for await (const event of events) {
+      await observer?.(event)
+      if (event.kind === 'end') {
+        terminal = { kind: 'finish', content: event.content }
+      }
+    }
+    if (!terminal) throw new Error('Model stream ended without a terminal event')
+    return terminal
   }
 
   private routeAfterVerification(output: unknown, error: string | null): AgentGraphRoute {

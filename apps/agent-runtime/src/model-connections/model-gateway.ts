@@ -1,14 +1,6 @@
-import type {
-  ModelCompletionServicePort,
-  ModelFailureCode
-} from '@actiondriver/model-connections'
+import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver/model-connections'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
-import type {
-  ModelCallRepository,
-  ModelGateway,
-  ModelRequest,
-  PersistedModelCall
-} from '../ports'
+import type { ModelCallRepository, ModelGateway, ModelRequest, PersistedModelCall } from '../ports'
 
 export class ModelExecutionError extends Error {
   constructor(
@@ -33,11 +25,112 @@ export class ConnectionModelGateway implements ModelGateway {
     }
   ) {}
 
+  async *stream(request: ModelRequest, signal?: AbortSignal) {
+    const id = this.options.callId()
+    const correlationId = this.options.correlationId()
+    const startedAt = this.options.now()
+    const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, true))
+    const running: PersistedModelCall = {
+      id,
+      taskId: request.taskId,
+      requestId: request.requestId,
+      correlationId,
+      model: request.model,
+      status: 'running',
+      request: requestBody,
+      response: null,
+      error: null,
+      startedAt,
+      completedAt: null
+    }
+    await this.options.modelCalls.save(running)
+    const finishInteraction = await this.options.interactions.start({
+      correlationId,
+      transport: 'http',
+      direction: 'service->model',
+      operation: 'POST /chat/completions',
+      requestId: request.requestId,
+      taskId: request.taskId,
+      request: { kind: 'json', value: requestBody }
+    })
+
+    try {
+      let ended = false
+      for await (const event of this.options.service.stream(
+        {
+          model: request.model,
+          requestId: request.requestId,
+          taskId: request.taskId,
+          messages: request.messages,
+          parameters: request.parameters
+        },
+        signal
+      )) {
+        if (event.kind === 'content') {
+          yield event
+          continue
+        }
+
+        ended = true
+        const completedAt = this.options.now()
+        const safeRequest = sanitizeCredentialFields(event.requestBody)
+        const safeResponse = sanitizeCredentialFields(event.responseBody)
+        await this.options.modelCalls.save({
+          ...running,
+          status: 'completed',
+          request: safeRequest,
+          response: safeResponse,
+          completedAt
+        })
+        await finishInteraction({
+          outcome: 'ok',
+          status: event.status,
+          response: { kind: 'json', value: safeResponse }
+        })
+        yield {
+          kind: 'end' as const,
+          content: event.content,
+          finishReason: event.finishReason,
+          usage: event.usage
+        }
+      }
+
+      if (!ended) {
+        throw new ModelExecutionError(
+          'invalid-response',
+          'Model stream ended without a terminal event',
+          false
+        )
+      }
+    } catch (caught) {
+      const completedAt = this.options.now()
+      const error =
+        caught instanceof ModelExecutionError
+          ? {
+              code: caught.code,
+              message: caught.message,
+              retryable: caught.retryable
+            }
+          : toStructuredError(caught)
+      await this.options.modelCalls.save({
+        ...running,
+        status: 'failed',
+        error,
+        completedAt
+      })
+      await finishInteraction({
+        outcome: 'error',
+        error: { code: error.code, message: error.message }
+      })
+      throw new ModelExecutionError(error.code, error.message, error.retryable)
+    }
+  }
+
   async complete(request: ModelRequest, signal?: AbortSignal) {
     const id = this.options.callId()
     const correlationId = this.options.correlationId()
     const startedAt = this.options.now()
-    const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request))
+    const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, false))
     const running: PersistedModelCall = {
       id,
       taskId: request.taskId,
@@ -135,7 +228,7 @@ export class ConnectionModelGateway implements ModelGateway {
   }
 }
 
-function toOpenAiRequestBody(request: ModelRequest): unknown {
+function toOpenAiRequestBody(request: ModelRequest, stream: boolean): unknown {
   return {
     model: request.model.modelId,
     messages: request.messages,
@@ -145,7 +238,7 @@ function toOpenAiRequestBody(request: ModelRequest): unknown {
     ...(request.parameters.maxTokens === undefined
       ? {}
       : { max_tokens: request.parameters.maxTokens }),
-    stream: false
+    stream
   }
 }
 

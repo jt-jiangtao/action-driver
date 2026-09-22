@@ -1,4 +1,5 @@
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelUsage } from '@actiondriver/model-connections'
 
 export type RuntimeMessage = {
   role: 'system' | 'user' | 'assistant'
@@ -26,9 +27,22 @@ export type ModelResult =
   | { kind: 'finish'; content: string }
   | { kind: 'invoke-skill'; skillId: string; input: unknown }
 
+export type ModelGatewayEvent =
+  | { kind: 'content'; delta: string }
+  | {
+      kind: 'end'
+      content: string
+      finishReason: string | null
+      usage: ModelUsage | null
+    }
+
 export interface ModelGateway {
   complete(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult>
+  /** Transitional compatibility for deterministic Skill fixtures; local production gateways provide it. */
+  stream?(request: ModelRequest, signal?: AbortSignal): AsyncIterable<ModelGatewayEvent>
 }
+
+export type ModelEventObserver = (event: ModelGatewayEvent) => void | Promise<void>
 
 export type SkillProviderResult = {
   ok: true
@@ -102,6 +116,50 @@ export type PersistedMessage = {
   createdAt: string
 }
 
+export type PersistedStreamRequest = {
+  requestId: string
+  idempotencyKey: string
+  sessionId: string
+  taskId: string
+  responseId: string
+  streamId: string
+  messageId: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  lastSequence: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StreamRequestRepository {
+  getByRequestId(requestId: string): Promise<PersistedStreamRequest | null>
+  getByIdempotencyKey(idempotencyKey: string): Promise<PersistedStreamRequest | null>
+}
+
+export interface StreamSessionRepository {
+  readonly tasks: Pick<TaskRepository, 'get'>
+  readonly messages: Pick<MessageRepository, 'listByTask'>
+  readonly events: Pick<EventRepository, 'listAfter'>
+  readonly streamRequests: StreamRequestRepository
+  createStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    userMessage: PersistedMessage
+    assistantMessage: PersistedMessage
+    acceptedEvent: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<{ created: boolean; request: PersistedStreamRequest }>
+  commitAssistantContentWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+  finishStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    assistantMessage: PersistedMessage
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<RuntimeEventRecord>
+}
+
 export interface MessageRepository {
   save(message: PersistedMessage): Promise<void>
   listByTask(taskId: string): Promise<PersistedMessage[]>
@@ -116,6 +174,12 @@ export type RuntimeEventRecord = {
   type: string
   payload: unknown
   occurredAt: string
+  eventId?: string | null
+  requestId?: string | null
+  responseId?: string | null
+  streamId?: string | null
+  messageId?: string | null
+  sequence?: number | null
 }
 
 export interface EventRepository {
@@ -137,7 +201,8 @@ export interface GraphRunner {
       systemPrompt?: string
       skills?: ModelSkillDescription[]
     },
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    observer?: ModelEventObserver
   ): Promise<AgentGraphResult>
   interrupt(taskId: string): boolean
   continue(taskId: string): Promise<AgentGraphResult>

@@ -243,13 +243,13 @@ importers:
         version: link:../../packages/runtime-contracts
       '@langchain/core':
         specifier: 1.2.12
-        version: 1.2.12(ws@8.21.3)
+        version: 1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
       '@langchain/langgraph':
         specifier: 1.4.16
-        version: 1.4.16(@langchain/core@1.2.12(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
+        version: 1.4.16(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
       '@langchain/langgraph-checkpoint-sqlite':
         specifier: 1.0.4
-        version: 1.0.4(@langchain/core@1.2.12(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(ws@8.21.3)))
+        version: 1.0.4(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)))
       better-sqlite3:
         specifier: 12.11.1
         version: 12.11.1
@@ -262,6 +262,9 @@ importers:
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -269,6 +272,9 @@ importers:
       '@types/better-sqlite3':
         specifier: 9.6.0
         version: 9.6.0
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
@@ -1554,6 +1560,9 @@ packages:
 
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -3510,12 +3519,12 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@langchain/core@1.2.12(ws@8.21.3)':
+  '@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       '@standard-schema/spec': 1.1.0
       js-tiktoken: 1.0.21
-      langsmith: 0.10.4(ws@8.21.3)
+      langsmith: 0.10.4(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
       mustache: 4.2.0
       p-queue: 6.6.2
       zod: 4.6.5
@@ -3526,19 +3535,19 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/langgraph-checkpoint-sqlite@1.0.4(@langchain/core@1.2.12(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(ws@8.21.3)))':
+  '@langchain/langgraph-checkpoint-sqlite@1.0.4(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)))':
     dependencies:
-      '@langchain/core': 1.2.12(ws@8.21.3)
-      '@langchain/langgraph-checkpoint': 1.1.5(@langchain/core@1.2.12(ws@8.21.3))
+      '@langchain/core': 1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
+      '@langchain/langgraph-checkpoint': 1.1.5(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))
       better-sqlite3: 12.11.1
 
-  '@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(ws@8.21.3))':
+  '@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))':
     dependencies:
-      '@langchain/core': 1.2.12(ws@8.21.3)
+      '@langchain/core': 1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
 
-  '@langchain/langgraph-sdk@1.11.1(@langchain/core@1.2.12(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@langchain/langgraph-sdk@1.11.1(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@langchain/core': 1.2.12(ws@8.21.3)
+      '@langchain/core': 1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
       '@langchain/protocol': 0.0.19
       '@types/json-schema': 7.0.15
       p-queue: 9.3.3
@@ -3547,11 +3556,11 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@langchain/langgraph@1.4.16(@langchain/core@1.2.12(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)':
+  '@langchain/langgraph@1.4.16(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)':
     dependencies:
-      '@langchain/core': 1.2.12(ws@8.21.3)
-      '@langchain/langgraph-checkpoint': 1.1.5(@langchain/core@1.2.12(ws@8.21.3))
-      '@langchain/langgraph-sdk': 1.11.1(@langchain/core@1.2.12(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@langchain/core': 1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
+      '@langchain/langgraph-checkpoint': 1.1.5(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))
+      '@langchain/langgraph-sdk': 1.11.1(@langchain/core@1.2.12(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@langchain/protocol': 0.0.19
       '@standard-schema/spec': 1.1.0
       zod: 4.6.5
@@ -4126,6 +4135,10 @@ snapshots:
       csstype: 3.2.3
 
   '@types/responselike@1.0.3':
+    dependencies:
+      '@types/node': 24.10.1
+
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 24.10.1
 
@@ -4987,10 +5000,11 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  langsmith@0.10.4(ws@8.21.3):
+  langsmith@0.10.4(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3):
     dependencies:
       p-queue: 6.6.2
     optionalDependencies:
+      openai: 6.49.0(ws@8.21.3)(zod@4.6.5)
       ws: 8.21.3
 
   levn@0.4.1:

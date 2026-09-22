@@ -2,11 +2,12 @@ import type Database from 'better-sqlite3'
 import type {
   PersistedMessage,
   PersistedModelCall,
+  PersistedStreamRequest,
   RuntimeEventRecord,
   RuntimeTaskRecord
 } from './ports'
 
-export type { PersistedMessage, PersistedModelCall } from './ports'
+export type { PersistedMessage, PersistedModelCall, PersistedStreamRequest } from './ports'
 import { assertPersistablePayload } from './persistence-guard'
 
 export type PersistedStep = {
@@ -92,22 +93,7 @@ export class SqliteRuntimeRepositories {
   }
 
   readonly messages = {
-    save: async (message: PersistedMessage): Promise<void> => {
-      assertPersistablePayload(message.content, 'message.content')
-      this.database
-        .prepare(
-          `INSERT INTO messages (id, task_id, role, content_json, created_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET role = excluded.role, content_json = excluded.content_json`
-        )
-        .run(
-          message.id,
-          message.taskId,
-          message.role,
-          JSON.stringify(message.content),
-          message.createdAt
-        )
-    },
+    save: async (message: PersistedMessage): Promise<void> => saveMessage(this.database, message),
     listByTask: async (taskId: string): Promise<PersistedMessage[]> =>
       (
         this.database
@@ -198,7 +184,97 @@ export class SqliteRuntimeRepositories {
       ).map(eventFromRow)
   }
 
+  readonly streamRequests = {
+    getByRequestId: async (requestId: string): Promise<PersistedStreamRequest | null> => {
+      const row = this.database
+        .prepare('SELECT * FROM stream_requests WHERE request_id = ?')
+        .get(requestId) as StreamRequestRow | undefined
+      return row ? streamRequestFromRow(row) : null
+    },
+    getByIdempotencyKey: async (idempotencyKey: string): Promise<PersistedStreamRequest | null> => {
+      const row = this.database
+        .prepare('SELECT * FROM stream_requests WHERE idempotency_key = ?')
+        .get(idempotencyKey) as StreamRequestRow | undefined
+      return row ? streamRequestFromRow(row) : null
+    }
+  }
+
   constructor(private readonly database: Database.Database) {}
+
+  async createStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    userMessage: PersistedMessage
+    assistantMessage: PersistedMessage
+    acceptedEvent: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<{ created: boolean; request: PersistedStreamRequest }> {
+    return this.database
+      .transaction(() => {
+        const existing = this.database
+          .prepare('SELECT * FROM stream_requests WHERE idempotency_key = ?')
+          .get(input.request.idempotencyKey) as StreamRequestRow | undefined
+        if (existing) return { created: false, request: streamRequestFromRow(existing) }
+
+        saveTask(this.database, input.task)
+        saveMessage(this.database, input.userMessage)
+        saveMessage(this.database, input.assistantMessage)
+        saveStreamRequest(this.database, input.request)
+        appendEvent(this.database, input.acceptedEvent)
+        return { created: true, request: input.request }
+      })
+      .immediate()
+  }
+
+  async commitAssistantContentWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord> {
+    return this.database
+      .transaction(() => {
+        saveMessage(this.database, message)
+        const result = this.database
+          .prepare(
+            `UPDATE stream_requests
+             SET last_sequence = ?, updated_at = ?
+             WHERE request_id = ?`
+          )
+          .run(event.sequence ?? request.lastSequence, event.occurredAt, request.requestId)
+        if (result.changes !== 1) throw new Error(`Unknown stream request: ${request.requestId}`)
+        return appendEvent(this.database, event)
+      })
+      .immediate()
+  }
+
+  async finishStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    assistantMessage: PersistedMessage
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<RuntimeEventRecord> {
+    return this.database
+      .transaction(() => {
+        saveMessage(this.database, input.assistantMessage)
+        saveTask(this.database, input.task)
+        const result = this.database
+          .prepare(
+            `UPDATE stream_requests
+             SET status = ?, last_sequence = ?, updated_at = ?
+             WHERE request_id = ?`
+          )
+          .run(
+            input.request.status,
+            input.request.lastSequence,
+            input.request.updatedAt,
+            input.request.requestId
+          )
+        if (result.changes !== 1) {
+          throw new Error(`Unknown stream request: ${input.request.requestId}`)
+        }
+        return appendEvent(this.database, input.event)
+      })
+      .immediate()
+  }
 
   async commitTaskStateWithEvent(
     task: RuntimeTaskRecord,
@@ -284,6 +360,46 @@ function saveTask(database: Database.Database, task: RuntimeTaskRecord): void {
     )
 }
 
+function saveMessage(database: Database.Database, message: PersistedMessage): void {
+  assertPersistablePayload(message.content, 'message.content')
+  database
+    .prepare(
+      `INSERT INTO messages (id, task_id, role, content_json, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET role = excluded.role, content_json = excluded.content_json`
+    )
+    .run(
+      message.id,
+      message.taskId,
+      message.role,
+      JSON.stringify(message.content),
+      message.createdAt
+    )
+}
+
+function saveStreamRequest(database: Database.Database, request: PersistedStreamRequest): void {
+  database
+    .prepare(
+      `INSERT INTO stream_requests
+        (request_id, idempotency_key, session_id, task_id, response_id, stream_id, message_id,
+         status, last_sequence, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      request.requestId,
+      request.idempotencyKey,
+      request.sessionId,
+      request.taskId,
+      request.responseId,
+      request.streamId,
+      request.messageId,
+      request.status,
+      request.lastSequence,
+      request.createdAt,
+      request.updatedAt
+    )
+}
+
 function appendEvent(
   database: Database.Database,
   event: Omit<RuntimeEventRecord, 'cursor'>
@@ -292,8 +408,9 @@ function appendEvent(
   const result = database
     .prepare(
       `INSERT INTO runtime_events
-        (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json, occurred_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+        (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json, occurred_at,
+         event_id, request_id, response_id, stream_id, message_id, sequence)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       event.taskId,
@@ -302,7 +419,13 @@ function appendEvent(
       event.eventKey,
       event.type,
       JSON.stringify(event.payload),
-      event.occurredAt
+      event.occurredAt,
+      event.eventId ?? null,
+      event.requestId ?? null,
+      event.responseId ?? null,
+      event.streamId ?? null,
+      event.messageId ?? null,
+      event.sequence ?? null
     )
   return { ...event, cursor: Number(result.lastInsertRowid) }
 }
@@ -380,7 +503,29 @@ function eventFromRow(row: EventRow): RuntimeEventRecord {
     eventKey: row.event_key,
     type: row.event_type,
     payload: JSON.parse(row.payload_json) as unknown,
-    occurredAt: row.occurred_at
+    occurredAt: row.occurred_at,
+    ...(row.event_id === null ? {} : { eventId: row.event_id }),
+    ...(row.request_id === null ? {} : { requestId: row.request_id }),
+    ...(row.response_id === null ? {} : { responseId: row.response_id }),
+    ...(row.stream_id === null ? {} : { streamId: row.stream_id }),
+    ...(row.message_id === null ? {} : { messageId: row.message_id }),
+    ...(row.sequence === null ? {} : { sequence: row.sequence })
+  }
+}
+
+function streamRequestFromRow(row: StreamRequestRow): PersistedStreamRequest {
+  return {
+    requestId: row.request_id,
+    idempotencyKey: row.idempotency_key,
+    sessionId: row.session_id,
+    taskId: row.task_id,
+    responseId: row.response_id,
+    streamId: row.stream_id,
+    messageId: row.message_id,
+    status: row.status,
+    lastSequence: row.last_sequence,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   }
 }
 
@@ -456,4 +601,23 @@ type EventRow = {
   event_type: string
   payload_json: string
   occurred_at: string
+  event_id: string | null
+  request_id: string | null
+  response_id: string | null
+  stream_id: string | null
+  message_id: string | null
+  sequence: number | null
+}
+type StreamRequestRow = {
+  request_id: string
+  idempotency_key: string
+  session_id: string
+  task_id: string
+  response_id: string
+  stream_id: string
+  message_id: string
+  status: PersistedStreamRequest['status']
+  last_sequence: number
+  created_at: string
+  updated_at: string
 }

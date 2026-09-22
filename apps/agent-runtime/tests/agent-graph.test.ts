@@ -16,6 +16,66 @@ import {
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('publishes model deltas before completion and returns the terminal aggregate', async () => {
+    let releaseEnd!: () => void
+    const endGate = new Promise<void>((resolve) => {
+      releaseEnd = resolve
+    })
+    let sawFirstDelta!: () => void
+    const firstDelta = new Promise<void>((resolve) => {
+      sawFirstDelta = resolve
+    })
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('legacy completion must not be used')
+      },
+      async *stream() {
+        yield { kind: 'content' as const, delta: '# Real' }
+        await endGate
+        yield { kind: 'content' as const, delta: ' answer' }
+        yield {
+          kind: 'end' as const,
+          content: '# Real answer',
+          finishReason: 'stop',
+          usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 }
+        }
+      }
+    }
+    const runner = new LangGraphRunner(model, new MockSkillRegistry())
+    const running = runner.run(
+      {
+        taskId: 'task-streaming',
+        goal: 'stream the answer',
+        model: modelRef
+      },
+      undefined,
+      (event) => {
+        observed.push(event)
+        if (observed.length === 1) sawFirstDelta()
+      }
+    )
+
+    await firstDelta
+    expect(observed).toEqual([{ kind: 'content', delta: '# Real' }])
+
+    releaseEnd()
+    await expect(running).resolves.toMatchObject({
+      status: 'completed',
+      output: '# Real answer'
+    })
+    expect(observed).toEqual([
+      { kind: 'content', delta: '# Real' },
+      { kind: 'content', delta: ' answer' },
+      {
+        kind: 'end',
+        content: '# Real answer',
+        finishReason: 'stop',
+        usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 }
+      }
+    ])
+  })
+
   it('runs the deterministic skill path through explicit graph nodes', async () => {
     const container = createRuntimeContainer({ mode: 'mock' })
     const runner = container.get<GraphRunner>(RUNTIME_TYPES.graphRunner)

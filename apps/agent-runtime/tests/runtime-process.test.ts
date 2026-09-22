@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { WebSocket } from 'ws'
 import { startAgentRuntimeProcess } from '../src/runtime-process'
 
 class FakeParentPort extends EventEmitter {
@@ -66,6 +67,45 @@ describe('Agent Runtime process entry', () => {
       ([message]) => (message as { type: string }).type === 'runtime.ready'
     )?.[0] as { type: string; service: { baseUrl: string } }
     expect(readyMessage.service.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+
+    const socket = new WebSocket(`${readyMessage.service.baseUrl.replace('http:', 'ws:')}/stream`)
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', resolve)
+      socket.once('error', reject)
+    })
+    const nextMessage = () =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        socket.once('message', (data) =>
+          resolve(JSON.parse(data.toString()) as Record<string, unknown>)
+        )
+      })
+    let message = nextMessage()
+    socket.send(
+      JSON.stringify({
+        type: 'auth',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'client-auth',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        payload: { token: 'service-token' }
+      })
+    )
+    await expect(message).resolves.toMatchObject({ type: 'session.ready' })
+    message = nextMessage()
+    socket.send(
+      JSON.stringify({
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'client-resume',
+        createdAt: '2026-09-23T00:00:01.000Z',
+        requestId: 'missing-request',
+        afterCursor: 0
+      })
+    )
+    await expect(message).resolves.toMatchObject({
+      type: 'request.error',
+      requestId: 'missing-request'
+    })
+    socket.close()
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
