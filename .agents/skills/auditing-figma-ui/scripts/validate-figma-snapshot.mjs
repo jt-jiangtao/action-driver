@@ -5,6 +5,19 @@ import { pathToFileURL } from 'node:url'
 
 const SCHEMA_VERSION = 1
 const GLYPH_PATTERN = /^[⌄⌃⌁⌂⌘⌕⌗⌙⌫⌁→←↑↓✓✕×…⋮⋯]+$/u
+const CONFIG_KEYS = new Set([
+  'allowedAbsoluteNodeIds',
+  'contentRegions',
+  'controlProfiles',
+  'dynamicContainerNodeIds',
+  'exceptions',
+  'modalCenterTolerance',
+  'modalWhitespaceThreshold',
+  'pages',
+  'reactionBaselines',
+  'requiredStates',
+  'schemaVersion',
+])
 
 export class SnapshotInputError extends Error {
   constructor(message) {
@@ -41,6 +54,25 @@ function validateInputs(snapshot, config) {
   }
   if (!Array.isArray(config.exceptions ?? [])) {
     throw new SnapshotInputError('config.exceptions must be an array')
+  }
+  for (const key of Object.keys(config)) {
+    if (!CONFIG_KEYS.has(key)) throw new SnapshotInputError(`unknown config key: ${key}`)
+  }
+  for (const [index, exception] of (config.exceptions ?? []).entries()) {
+    assertObject(exception, `config.exceptions[${index}]`)
+    if (
+      typeof exception.nodeId !== 'string' ||
+      exception.nodeId.trim() === '' ||
+      /[*?]/.test(exception.nodeId)
+    ) {
+      throw new SnapshotInputError(`config.exceptions[${index}] must target a single exact nodeId`)
+    }
+    if (typeof exception.ruleId !== 'string' || exception.ruleId.trim() === '') {
+      throw new SnapshotInputError(`config.exceptions[${index}] must include a non-empty ruleId`)
+    }
+    if (typeof exception.reason !== 'string' || exception.reason.trim() === '') {
+      throw new SnapshotInputError(`config.exceptions[${index}] must include a non-empty reason`)
+    }
   }
 
   for (const [index, node] of snapshot.nodes.entries()) {
@@ -230,12 +262,40 @@ function fixedDynamicIssues(snapshot, config, index) {
   return issues
 }
 
+function resolveContentRegion(snapshot, config, modal, index) {
+  const configured = config.contentRegions?.[snapshot.page.id]
+  if (!configured) return null
+  if (configured.mode !== 'snapshot-role') return configured
+
+  if (modal.contentRegionId) {
+    const referenced = index.get(modal.contentRegionId)
+    if (referenced?.semanticRole === 'content-region') return rectFor(referenced, index)
+  }
+  const modalRect = rectFor(modal, index)
+  const center = {
+    x: modalRect.x + modalRect.width / 2,
+    y: modalRect.y + modalRect.height / 2,
+  }
+  const containing = snapshot.nodes
+    .filter((node) => node.semanticRole === 'content-region')
+    .map((node) => rectFor(node, index))
+    .filter(
+      (region) =>
+        center.x >= region.x &&
+        center.x <= region.x + region.width &&
+        center.y >= region.y &&
+        center.y <= region.y + region.height,
+    )
+    .sort((a, b) => a.width * a.height - b.width * b.height)
+  return containing[0] ?? null
+}
+
 function modalIssues(snapshot, config, index) {
   const issues = []
-  const contentRegion = config.contentRegions?.[snapshot.page.id]
   for (const modal of snapshot.nodes.filter(
     (node) => node.semanticRole === 'modal' && isEffectivelyVisible(node, index),
   )) {
+    const contentRegion = resolveContentRegion(snapshot, config, modal, index)
     const modalRect = rectFor(modal, index)
     if (contentRegion) {
       const overflow = {
@@ -494,6 +554,75 @@ function controlProfileIssues(snapshot, config, index) {
   return issues
 }
 
+function reactionIssues(snapshot, config, index) {
+  const issues = []
+  let reactionCount = 0
+  for (const node of snapshot.nodes) {
+    if (!isEffectivelyVisible(node, index) || !Array.isArray(node.reactions)) continue
+    reactionCount += node.reactions.length
+    for (const reaction of node.reactions) {
+      const destinationId = reaction?.action?.destinationId
+      if (typeof destinationId === 'string' && destinationId !== '' && !index.has(destinationId)) {
+        issues.push(
+          createIssue(
+            snapshot,
+            node,
+            'REACTION_TARGET_MISSING',
+            `reaction target ${destinationId} does not exist in the snapshot`,
+            { destinationId },
+          ),
+        )
+      }
+    }
+  }
+
+  const baseline = config.reactionBaselines?.[snapshot.page.id]
+  if (Number.isFinite(baseline) && reactionCount < baseline) {
+    issues.push(
+      createIssue(
+        snapshot,
+        { id: snapshot.page.id },
+        'REACTION_COUNT_REGRESSION',
+        'page reaction count is below its configured baseline',
+        { actual: reactionCount, baseline },
+        'warning',
+      ),
+    )
+  }
+  return issues
+}
+
+function requiredStateIssues(snapshot, config) {
+  const issues = []
+  for (const requirement of config.requiredStates ?? []) {
+    if (requirement.pageId && requirement.pageId !== snapshot.page.id) continue
+    const matching = snapshot.nodes.filter(
+      (node) => node.sourceComponentId === requirement.sourceComponentId,
+    )
+    const actualStates = new Set(
+      matching
+        .map((node) => node.variantProperties?.[requirement.property])
+        .filter((value) => typeof value === 'string'),
+    )
+    const missingStates = (requirement.values ?? []).filter((state) => !actualStates.has(state))
+    if (missingStates.length === 0) continue
+    issues.push(
+      createIssue(
+        snapshot,
+        matching[0] ?? { id: requirement.sourceComponentId },
+        'REQUIRED_STATE_MISSING',
+        `component is missing required ${requirement.property} states: ${missingStates.join(', ')}`,
+        {
+          missingStates,
+          property: requirement.property,
+          sourceComponentId: requirement.sourceComponentId,
+        },
+      ),
+    )
+  }
+  return issues
+}
+
 function textBoundsIssue(snapshot, node, index) {
   if (node.type !== 'TEXT' || !isEffectivelyVisible(node, index)) return null
   const parent = clippingAncestor(node, index)
@@ -620,6 +749,8 @@ export function validateSnapshot(snapshot, config) {
     ...fixedDynamicIssues(snapshot, config, index),
     ...modalIssues(snapshot, config, index),
     ...controlProfileIssues(snapshot, config, index),
+    ...reactionIssues(snapshot, config, index),
+    ...requiredStateIssues(snapshot, config),
   )
 
   const issues = []

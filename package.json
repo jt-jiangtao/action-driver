@@ -16,6 +16,8 @@
     "lint": "pnpm validate:e2e-interactions && eslint .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:figma-audit": "node --test .agents/skills/auditing-figma-ui/scripts/validate-figma-snapshot.test.mjs",
+    "validate:figma-audit": "node .agents/skills/auditing-figma-ui/scripts/validate-figma-snapshot.mjs --config design/figma-ui-audit.config.json",
     "test:watch": "vitest",
     "test:e2e": "pnpm test:e2e:visual && pnpm test:e2e:local",
     "test:e2e:visual": "pnpm --filter @actiondriver/desktop build:visual && playwright test apps/desktop/e2e/app.spec.ts",

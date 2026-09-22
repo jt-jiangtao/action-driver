@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    { "id": "60:2", "name": "01 Components" },
+    { "id": "60:4", "name": "02 Home" },
+    { "id": "60:6", "name": "03 Task" },
+    { "id": "273:5", "name": "Model Configuration" },
+    { "id": "379:2", "name": "Agent Configuration" },
+    { "id": "315:2", "name": "Logs" }
+  ],
+  "contentRegions": {
+    "60:2": { "mode": "snapshot-role" },
+    "60:4": { "mode": "snapshot-role" },
+    "60:6": { "mode": "snapshot-role" },
+    "273:5": { "mode": "snapshot-role" },
+    "379:2": { "mode": "snapshot-role" },
+    "315:2": { "mode": "snapshot-role" }
+  },
+  "modalCenterTolerance": 24,
+  "modalWhitespaceThreshold": 160,
+  "controlProfiles": [
+    {
+      "id": "text-button",
+      "sourceComponentIds": ["175:243"],
+      "labelRole": "label",
+      "dynamicLabel": false,
+      "fixedWidth": false,
+      "allowedHeights": [32, 36, 40],
+      "minPaddingX": 8,
+      "maxPaddingX": 20,
+      "compareStateGeometry": true
+    },
+    {
+      "id": "icon-button",
+      "sourceComponentIds": ["406:1360"],
+      "labelRole": "label",
+      "dynamicLabel": false,
+      "fixedWidth": true,
+      "allowedHeights": [28, 32, 36, 40],
+      "minPaddingX": 6,
+      "maxPaddingX": 12,
+      "compareStateGeometry": true
+    },
+    {
+      "id": "select-v2",
+      "sourceComponentIds": ["351:1296"],
+      "labelRole": "label",
+      "dynamicLabel": true,
+      "fixedWidth": true,
+      "allowedHeights": [32, 36, 40],
+      "minPaddingX": 8,
+      "maxPaddingX": 16,
+      "compareStateGeometry": true
+    },
+    {
+      "id": "model-selector-trigger",
+      "sourceComponentIds": ["197:897"],
+      "labelRole": "label",
+      "dynamicLabel": true,
+      "fixedWidth": true,
+      "allowedHeights": [36, 40],
+      "minPaddingX": 8,
+      "maxPaddingX": 16,
+      "compareStateGeometry": true
+    },
+    {
+      "id": "model-selector-item",
+      "sourceComponentIds": ["197:896"],
+      "labelRole": "label",
+      "dynamicLabel": true,
+      "fixedWidth": true,
+      "allowedHeights": [32, 36, 40],
+      "minPaddingX": 8,
+      "maxPaddingX": 16,
+      "compareStateGeometry": true
+    }
+  ],
+  "requiredStates": [
+    {
+      "pageId": "60:2",
+      "sourceComponentId": "175:243",
+      "property": "State",
+      "values": ["Default", "Hover", "Focus", "Pressed", "Disabled", "Loading"]
+    },
+    {
+      "pageId": "60:2",
+      "sourceComponentId": "406:1360",
+      "property": "State",
+      "values": ["Normal", "Hover", "Pressed", "Focus Visible", "Disabled", "Loading"]
+    },
+    {
+      "pageId": "60:2",
+      "sourceComponentId": "351:1296",
+      "property": "State",
+      "values": ["Normal", "Hover", "Pressed", "Focus Visible", "Open", "Disabled", "Error"]
+    },
+    {
+      "pageId": "60:2",
+      "sourceComponentId": "197:897",
+      "property": "State",
+      "values": ["Normal", "Hover", "Pressed", "Focus Visible", "Open", "Disabled"]
+    },
+    {
+      "pageId": "60:2",
+      "sourceComponentId": "197:896",
+      "property": "State",
+      "values": ["Normal", "Hover", "Pressed", "Focus Visible", "Selected", "Selected Hover"]
+    }
+  ],
+  "reactionBaselines": {
+    "60:2": 0,
+    "60:4": 0,
+    "60:6": 0,
+    "273:5": 0,
+    "379:2": 0,
+    "315:2": 34
+  },
+  "allowedAbsoluteNodeIds": [],
+  "dynamicContainerNodeIds": [],
+  "exceptions": []
+}

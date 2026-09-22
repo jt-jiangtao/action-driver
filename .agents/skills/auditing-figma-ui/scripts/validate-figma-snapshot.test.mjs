@@ -538,6 +538,131 @@ test('reports geometry drift between select states', () => {
   assert.equal(issue?.measurements.state, 'hover')
 })
 
+test('reports a reaction whose internal target is missing but permits external actions', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'internal-trigger',
+        reactions: [{ action: { type: 'NODE', destinationId: 'missing-node' } }],
+      }),
+      figmaNode({
+        id: 'external-trigger',
+        reactions: [{ action: { type: 'URL', url: 'https://example.com/docs' } }],
+      }),
+    ]),
+    validConfig(),
+  )
+
+  assert.deepEqual(
+    result.issues
+      .filter((issue) => issue.ruleId === 'REACTION_TARGET_MISSING')
+      .map(({ nodeId }) => nodeId),
+    ['internal-trigger'],
+  )
+})
+
+test('warns when the page reaction count is below its configured baseline', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'trigger',
+        reactions: [{ action: { type: 'BACK' } }],
+      }),
+    ]),
+    validConfig({ reactionBaselines: { '60:2': 3 } }),
+  )
+
+  const issue = result.issues.find((candidate) => candidate.ruleId === 'REACTION_COUNT_REGRESSION')
+  assert.deepEqual(issue?.measurements, { actual: 1, baseline: 3 })
+})
+
+test('reports missing required component states and accepts a complete state matrix', () => {
+  const requirement = {
+    sourceComponentId: 'component:button',
+    property: 'State',
+    values: ['normal', 'hover', 'pressed', 'disabled'],
+  }
+  const nodes = ['normal', 'hover', 'pressed'].map((state, index) =>
+    figmaNode({
+      id: `button-${state}`,
+      sourceComponentId: 'component:button',
+      variantProperties: { State: state },
+      x: index * 120,
+    }),
+  )
+  const incomplete = validateSnapshot(
+    validSnapshot(nodes),
+    validConfig({ requiredStates: [requirement] }),
+  )
+  const complete = validateSnapshot(
+    validSnapshot([
+      ...nodes,
+      figmaNode({
+        id: 'button-disabled',
+        sourceComponentId: 'component:button',
+        variantProperties: { State: 'disabled' },
+        x: 360,
+      }),
+    ]),
+    validConfig({ requiredStates: [requirement] }),
+  )
+
+  assert.deepEqual(
+    incomplete.issues.find((issue) => issue.ruleId === 'REQUIRED_STATE_MISSING')?.measurements,
+    { missingStates: ['disabled'], property: 'State', sourceComponentId: 'component:button' },
+  )
+  assert.ok(!complete.issues.some((issue) => issue.ruleId === 'REQUIRED_STATE_MISSING'))
+})
+
+test('rejects unknown config keys, wildcard exceptions, and blank exception reasons', () => {
+  assert.throws(
+    () => validateSnapshot(validSnapshot(), validConfig({ surprise: true })),
+    (error) => error instanceof SnapshotInputError && /unknown config key: surprise/.test(error.message),
+  )
+  assert.throws(
+    () =>
+      validateSnapshot(
+        validSnapshot(),
+        validConfig({ exceptions: [{ ruleId: 'TEXT_GLYPH_ICON', nodeId: '*', reason: 'all' }] }),
+      ),
+    (error) => error instanceof SnapshotInputError && /single exact nodeId/.test(error.message),
+  )
+  assert.throws(
+    () =>
+      validateSnapshot(
+        validSnapshot(),
+        validConfig({ exceptions: [{ ruleId: 'TEXT_GLYPH_ICON', nodeId: 'glyph', reason: ' ' }] }),
+      ),
+    (error) => error instanceof SnapshotInputError && /non-empty reason/.test(error.message),
+  )
+})
+
+test('resolves a configured snapshot-role content region for modal checks', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'screen',
+        semanticRole: 'content-region',
+        x: 200,
+        width: 1000,
+        height: 800,
+      }),
+      figmaNode({
+        id: 'modal',
+        semanticRole: 'modal',
+        contentRegionId: 'screen',
+        x: 80,
+        y: 80,
+        width: 500,
+        height: 400,
+      }),
+    ]),
+    validConfig({ contentRegions: { '60:2': { mode: 'snapshot-role' } } }),
+  )
+
+  assert.ok(result.issues.some((issue) => issue.ruleId === 'MODAL_OUTSIDE_CONTENT'))
+})
+
 test('CLI returns 0 for clean input, 1 for violations, and 2 for invalid input', () => {
   const directory = mkdtempSync(join(tmpdir(), 'figma-audit-'))
   const configPath = join(directory, 'config.json')

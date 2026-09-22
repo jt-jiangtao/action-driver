@@ -15,9 +15,9 @@
 
 ## 4. 状态、Reaction 与项目配置
 
-- [ ] 4.1 先补充缺失状态、无效 reaction 目标、reaction 数量回退、外部动作、非法通配例外和空理由配置测试，并确认新测试先失败
-- [ ] 4.2 实现状态/reaction/配置规则，创建 `design/figma-ui-audit.config.json` 登记六个页面、权威组件、动态标签、基线和已复核例外，运行完整 `node:test` 验证通过
-- [ ] 4.3 在根 `package.json` 增加 `test:figma-audit` 与 `validate:figma-audit`，验证两个命令能够分别运行单测和接受快照参数
+- [x] 4.1 先补充缺失状态、无效 reaction 目标、reaction 数量回退、外部动作、非法通配例外和空理由配置测试，并确认新测试先失败
+- [x] 4.2 实现状态/reaction/配置规则，创建 `design/figma-ui-audit.config.json` 登记六个页面、权威组件、动态标签、基线和已复核例外，运行完整 `node:test` 验证通过
+- [x] 4.3 在根 `package.json` 增加 `test:figma-audit` 与 `validate:figma-audit`，验证两个命令能够分别运行单测和接受快照参数
 
 ## 5. 项目 Skill
 
