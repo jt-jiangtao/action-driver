@@ -7,6 +7,6 @@ export interface RecentTaskSummary {
 }
 
 export interface TaskCatalog {
-  listRecentTasks(): readonly RecentTaskSummary[]
-  getTask(taskId: string): TaskProjection | null
+  listRecentTasks(): Promise<readonly RecentTaskSummary[]>
+  getTask(taskId: string): Promise<TaskProjection | null>
 }

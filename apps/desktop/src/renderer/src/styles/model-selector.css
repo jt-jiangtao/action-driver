@@ -110,3 +110,34 @@
   color: var(--ad-color-text-primary);
   background: var(--ad-color-bg-selected);
 }
+.model-option-item:disabled {
+  cursor: not-allowed;
+  color: var(--ad-color-text-tertiary);
+  background: transparent;
+}
+.model-option-reason {
+  flex: 0 1 auto;
+  max-width: 132px;
+  overflow: hidden;
+  color: var(--ad-color-text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-selection-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  color: var(--ad-color-text-secondary);
+  font-size: 12px;
+  background: var(--ad-color-bg-subtle);
+  border-radius: 8px;
+}
+.model-selection-notice button {
+  color: var(--ad-color-text-primary);
+  font-weight: 500;
+}

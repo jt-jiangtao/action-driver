@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowUp, Plus, Square } from 'lucide-react'
 import { createEditor, Node, type Descendant } from 'slate'
 import { Editable, Slate, withReact } from 'slate-react'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import { ModelSelector } from './model-selector/ModelSelector'
+import type { ModelRef } from '@actiondriver/contracts'
 
 type Paragraph = { type: 'paragraph'; children: { text: string }[] }
 
@@ -26,22 +27,24 @@ export function AgentComposer({
   onInterrupt?(): void
   onAdd?(): void
   modelSelection?: ModelSelectionProjection
-  onSelectModel?(modelId: string): void
+  onSelectModel?(model: ModelRef): void
   menuCloseKey?: string
   width?: 480 | 720
 }) {
   const editor = useMemo(() => withReact(createEditor()), [])
+  const editorRootRef = useRef<HTMLDivElement>(null)
   const initialValue: Descendant[] = [
     { type: 'paragraph', children: [{ text: initialText }] } as Paragraph
   ]
   const [hasText, setHasText] = useState(Boolean(initialText.trim()))
   const [draftText, setDraftText] = useState(initialText)
   const readText = () => {
+    const domText = readEditableText(editorRootRef.current)
     const slateText = editor.children
       .map((entry) => Node.string(entry))
       .join('\n')
       .trim()
-    return slateText || draftText.trim()
+    return domText || slateText || draftText.trim()
   }
 
   return (
@@ -50,17 +53,20 @@ export function AgentComposer({
         editor={editor}
         initialValue={initialValue}
         onChange={(nextValue) => {
-          setHasText(nextValue.some((entry) => Node.string(entry).trim().length > 0))
+          const nextText = nextValue.map((entry) => Node.string(entry)).join('\n')
+          setDraftText(nextText)
+          setHasText(Boolean(nextText.trim()))
         }}
       >
         <Editable
+          ref={editorRootRef}
           className="composer-editor"
           aria-label="任务描述"
           data-testid="e2e/shared/composer/editor#input"
           placeholder="随心输入"
           readOnly={disabled}
           onInput={(event) => {
-            const nextText = event.currentTarget.textContent ?? ''
+            const nextText = readEditableText(event.currentTarget)
             setDraftText(nextText)
             setHasText(Boolean(nextText.trim()))
           }}
@@ -118,4 +124,11 @@ export function AgentComposer({
       </div>
     </div>
   )
+}
+
+function readEditableText(element: HTMLElement | null): string {
+  if (!element) return ''
+  const editable = element.cloneNode(true) as HTMLElement
+  editable.querySelectorAll('[data-slate-placeholder]').forEach((node) => node.remove())
+  return (editable.textContent ?? '').replaceAll('\uFEFF', '').trim()
 }

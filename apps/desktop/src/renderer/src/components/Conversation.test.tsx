@@ -32,6 +32,23 @@ describe('conversation components', () => {
     )
 
     expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toHaveClass('user-message')
-    expect(screen.getByText(mockTaskFixture.messages[1]!.content)).toHaveClass('agent-message')
+    expect(screen.getByTestId('markdown-content')).toHaveClass('agent-message')
+  })
+
+  it('renders model Markdown while escaping raw HTML', () => {
+    render(
+      <AgentResponse
+        message={{
+          id: 'markdown-response',
+          role: 'agent',
+          content: '## 结果\n\n- 第一项\n- 第二项\n\n<script>alert(1)</script>'
+        }}
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: '结果' })).toBeVisible()
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(document.querySelector('script')).toBeNull()
+    expect(screen.getByText('<script>alert(1)</script>')).toBeVisible()
   })
 })

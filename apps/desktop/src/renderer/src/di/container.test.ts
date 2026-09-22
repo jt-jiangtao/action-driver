@@ -14,6 +14,7 @@ import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { MockAgentFilesService } from '../services/mock-agent-files'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
+import { DesktopTaskCatalog } from '../services/desktop-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
@@ -216,6 +217,7 @@ describe('renderer composition root', () => {
     expect(services.skillGateway).not.toBeInstanceOf(MockSkillGateway)
     expect(services.modelConnectionsService).toBeInstanceOf(DesktopModelConnectionsService)
     expect(services.agentFilesService).toBeInstanceOf(DesktopAgentFilesService)
+    expect(services.taskCatalog).toBeInstanceOf(DesktopTaskCatalog)
   })
 
   it('binds the mock model connection service for fixture and visual runs', () => {

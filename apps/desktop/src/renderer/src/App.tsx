@@ -1,5 +1,5 @@
-import type { TaskProjection } from '@actiondriver/contracts'
-import { useEffect, useMemo, useState } from 'react'
+import type { ModelRef, TaskProjection } from '@actiondriver/contracts'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import type { TaskLayoutMode } from './components/BrowserPanel'
 import { useAppServices } from './di/services-context'
@@ -11,20 +11,65 @@ import { MainPromptPage } from './pages/MainPromptPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
 import type { MainAppRoute } from './models/app-route'
-import { defaultModelSelection, findSelectedModel } from './models/model-selection'
+import {
+  failedModelSelection,
+  findSelectedModel,
+  loadingModelSelection,
+  toModelSelectionProjection
+} from './models/model-selection'
+import type { ModelSelectionProjection } from './models/model-selection'
+import type { RecentTaskSummary } from './models/task-catalog'
 
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
   const services = useAppServices()
   const [route, setRoute] = useState<AppRoute>(() => initialAppRoute(initialRoute))
-  const [task, setTask] = useState<TaskProjection | null>(() =>
-    initialRoute === 'task' ? services.taskCatalog.getTask('hotel-task') : null
-  )
+  const [task, setTask] = useState<TaskProjection | null>(null)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
-  const [selectedModelId, setSelectedModelId] = useState(defaultModelSelection.selectedModelId)
-  const modelSelection = useMemo(
-    () => ({ ...defaultModelSelection, selectedModelId }),
-    [selectedModelId]
-  )
+  const [modelSelection, setModelSelection] = useState<ModelSelectionProjection>(loadingModelSelection)
+  const [recentTasks, setRecentTasks] = useState<readonly RecentTaskSummary[]>([])
+  const [recentTasksLoading, setRecentTasksLoading] = useState(true)
+  const [recentTasksError, setRecentTasksError] = useState<string | null>(null)
+  const modelRequestId = useRef(0)
+  const taskRequestId = useRef(0)
+
+  const loadModels = useCallback(async (selected: ModelRef | null = null) => {
+    const requestId = ++modelRequestId.current
+    setModelSelection(loadingModelSelection)
+    try {
+      const connections = await services.modelConnectionsService.list()
+      if (requestId !== modelRequestId.current) return
+      setModelSelection(toModelSelectionProjection(connections, selected))
+    } catch (error) {
+      if (requestId !== modelRequestId.current) return
+      setModelSelection(failedModelSelection(error))
+    }
+  }, [services])
+
+  const loadRecentTasks = useCallback(async () => {
+    const requestId = ++taskRequestId.current
+    setRecentTasksLoading(true)
+    try {
+      const recent = await services.taskCatalog.listRecentTasks()
+      if (requestId !== taskRequestId.current) return
+      setRecentTasks(recent)
+      setRecentTasksError(null)
+      if (initialRoute === 'task' && recent[0]) {
+        setTask(await services.taskCatalog.getTask(recent[0].id))
+        setRoute({ kind: 'task', taskId: recent[0].id })
+      }
+    } catch (error) {
+      if (requestId !== taskRequestId.current) return
+      setRecentTasks([])
+      setRecentTasksError(error instanceof Error ? error.message : '任务加载失败')
+    } finally {
+      if (requestId === taskRequestId.current) setRecentTasksLoading(false)
+    }
+  }, [initialRoute, services])
+
+  useEffect(() => {
+    void loadModels()
+    void loadRecentTasks()
+  }, [loadModels, loadRecentTasks])
 
   useEffect(
     () =>
@@ -39,9 +84,9 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setMode('split')
   }
 
-  const openTask = (taskId: string) => {
+  const openTask = async (taskId: string) => {
     const projection =
-      services.taskCatalog.getTask(taskId) ?? services.agentSessionRepository.getTask(taskId)
+      (await services.taskCatalog.getTask(taskId)) ?? services.agentSessionRepository.getTask(taskId)
     if (!projection) return
     setTask(projection)
     setRoute({ kind: 'task', taskId: projection.id })
@@ -79,7 +124,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     return (
       <SettingsPage
         service={services.modelConnectionsService}
-        onBack={() => setRoute(route.returnTo)}
+        onBack={() => {
+          void loadModels(modelSelection.selected)
+          setRoute(route.returnTo)
+        }}
         onOpenLogs={openLogs}
         onOpenMainPrompt={openMainPrompt}
         onOpenSkills={openSkills}
@@ -129,14 +177,20 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         active={route.kind === 'home' ? 'new' : 'task'}
         activeTaskId={route.kind === 'task' ? route.taskId : null}
         onNewTask={openHome}
-        onOpenTask={openTask}
+        onOpenTask={(taskId) => void openTask(taskId)}
         onOpenSettings={openSettings}
-        recentTasks={services.taskCatalog.listRecentTasks()}
+        recentTasks={recentTasks}
+        recentTasksLoading={recentTasksLoading}
+        recentTasksError={recentTasksError}
+        onRetryRecentTasks={() => void loadRecentTasks()}
       />
       {route.kind === 'home' ? (
         <HomePage
           modelSelection={modelSelection}
-          onSelectModel={setSelectedModelId}
+          onSelectModel={(selected) =>
+            setModelSelection((current) => ({ ...current, selected }))
+          }
+          onRetryModels={() => void loadModels(modelSelection.selected)}
           onSubmit={async (goal) => {
             const selected = findSelectedModel(modelSelection)
             if (!selected) throw new Error('请选择可用模型')
@@ -148,6 +202,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
               }
             })
             setTask(projection)
+            setRecentTasks((current) => [
+              { id: projection.id, title: projection.title, state: 'default' },
+              ...current.filter((item) => item.id !== projection.id)
+            ])
             setRoute({ kind: 'task', taskId: projection.id })
           }}
         />
@@ -156,7 +214,9 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           mode={mode}
           task={task}
           modelSelection={modelSelection}
-          onSelectModel={setSelectedModelId}
+          onSelectModel={(selected) =>
+            setModelSelection((current) => ({ ...current, selected }))
+          }
           onModeChange={setMode}
           onPause={() => services.skillGateway.pause('browser-invocation')}
           onResume={() => services.skillGateway.resume('browser-invocation')}

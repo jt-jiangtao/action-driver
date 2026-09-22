@@ -11,7 +11,10 @@ export function Sidebar({
   recentTasks,
   onNewTask,
   onOpenTask,
-  onOpenSettings
+  onOpenSettings,
+  recentTasksError,
+  recentTasksLoading,
+  onRetryRecentTasks
 }: {
   active: 'new' | 'task'
   activeTaskId: string | null
@@ -19,6 +22,9 @@ export function Sidebar({
   onNewTask(): void
   onOpenTask?(taskId: string): void
   onOpenSettings?(): void
+  recentTasksError?: string | null
+  recentTasksLoading?: boolean
+  onRetryRecentTasks?(): void
 }) {
   return (
     <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="248">
@@ -60,6 +66,16 @@ export function Sidebar({
       <section className="sidebar-recents" aria-labelledby="recent-tasks-title">
         <h2 id="recent-tasks-title">最近任务</h2>
         <div className="recent-task-list">
+          {recentTasksLoading ? <p className="sidebar-empty-state">正在加载任务</p> : null}
+          {!recentTasksLoading && recentTasksError ? (
+            <div className="sidebar-empty-state">
+              <span>任务加载失败</span>
+              <button type="button" onClick={onRetryRecentTasks}>重试任务</button>
+            </div>
+          ) : null}
+          {!recentTasksLoading && !recentTasksError && recentTasks.length === 0 ? (
+            <p className="sidebar-empty-state">暂无任务</p>
+          ) : null}
           {recentTasks.map((task) => (
             <RecentTaskItem
               active={active === 'task' && activeTaskId === task.id}

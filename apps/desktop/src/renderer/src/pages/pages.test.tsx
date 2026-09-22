@@ -4,13 +4,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { HomePage } from './HomePage'
 import { TaskPage } from './TaskPage'
 import { mockTaskFixture } from '../services/mock-task-fixture'
-import { defaultModelSelection } from '../models/model-selection'
+import { mockModelSelection } from '../testing/model-selection-fixture'
 
 describe('ActionDriver pages', () => {
   it('renders the Figma home copy and 720px composer contract', () => {
     render(
       <HomePage
-        modelSelection={defaultModelSelection}
+        modelSelection={mockModelSelection}
         onSelectModel={vi.fn()}
         onSubmit={vi.fn()}
       />
@@ -28,7 +28,7 @@ describe('ActionDriver pages', () => {
       <TaskPage
         mode={mode}
         task={mockTaskFixture}
-        modelSelection={defaultModelSelection}
+        modelSelection={mockModelSelection}
         onSelectModel={vi.fn()}
         onModeChange={vi.fn()}
         onPause={vi.fn()}
@@ -47,7 +47,7 @@ describe('ActionDriver pages', () => {
     const user = userEvent.setup()
     const props = {
       task: mockTaskFixture,
-      modelSelection: defaultModelSelection,
+      modelSelection: mockModelSelection,
       onSelectModel: vi.fn(),
       onModeChange: vi.fn(),
       onPause: vi.fn(),
@@ -69,7 +69,7 @@ describe('ActionDriver pages', () => {
     const user = userEvent.setup()
     const props = {
       task: mockTaskFixture,
-      modelSelection: defaultModelSelection,
+      modelSelection: mockModelSelection,
       onSelectModel: vi.fn(),
       onModeChange: vi.fn(),
       onPause: vi.fn(),
@@ -90,5 +90,25 @@ describe('ActionDriver pages', () => {
     expect(
       screen.getByLabelText('任务描述').textContent?.replace(/[\s\uFEFF]/g, '')
     ).toBe(draftBeforeLayoutChange)
+  })
+
+  it('uses the full-width Agent layout when a persisted task has no browser session', () => {
+    render(
+      <TaskPage
+        mode="split"
+        task={{ ...mockTaskFixture, browser: null }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'agent-only')
+    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute('data-width', '1192')
+    expect(screen.queryByTestId('e2e/tasks/detail/browser#section')).not.toBeInTheDocument()
   })
 })

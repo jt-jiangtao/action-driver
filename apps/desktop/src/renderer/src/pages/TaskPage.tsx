@@ -5,6 +5,7 @@ import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import type { ModelSelectionProjection } from '../models/model-selection'
+import type { ModelRef } from '@actiondriver/contracts'
 
 export function TaskPage({
   mode,
@@ -20,21 +21,23 @@ export function TaskPage({
   mode: TaskLayoutMode
   task: TaskProjection
   modelSelection: ModelSelectionProjection
-  onSelectModel(modelId: string): void
+  onSelectModel(model: ModelRef): void
   onModeChange(mode: TaskLayoutMode): void
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
   onTakeOver(): Promise<unknown> | void
   onInterrupt(): void
 }) {
-  const agentWidth = mode === 'split' ? 536 : mode === 'browser-collapsed' ? 1192 : 0
-  const browserWidth = mode === 'split' ? 656 : mode === 'browser-expanded' ? 1192 : 0
-  const flowWidth = mode === 'browser-collapsed' ? 720 : 480
+  const hasBrowser = task.browser !== null
+  const pageMode = hasBrowser ? mode : 'agent-only'
+  const agentWidth = !hasBrowser ? 1192 : mode === 'split' ? 536 : mode === 'browser-collapsed' ? 1192 : 0
+  const browserWidth = !hasBrowser ? 0 : mode === 'split' ? 656 : mode === 'browser-expanded' ? 1192 : 0
+  const flowWidth = !hasBrowser || mode === 'browser-collapsed' ? 720 : 480
   return (
     <main
       className="task-page"
       data-testid="e2e/tasks/detail/page#page"
-      data-mode={mode}
+      data-mode={pageMode}
       data-task-id={task.id}
     >
       <section
@@ -66,7 +69,7 @@ export function TaskPage({
           />
         </div>
       </section>
-      <section
+      {hasBrowser ? <section
         className={`browser-panel-slot ${browserWidth === 0 ? 'is-hidden' : ''}`}
         data-testid="e2e/tasks/detail/browser#section"
         data-width={browserWidth}
@@ -81,7 +84,7 @@ export function TaskPage({
             onTakeOver={onTakeOver}
           />
         ) : null}
-      </section>
+      </section> : null}
     </main>
   )
 }

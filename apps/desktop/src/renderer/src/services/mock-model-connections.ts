@@ -14,8 +14,8 @@ interface MockModelConnectionsOptions {
 }
 
 const discoveredModels: ModelOption[] = [
-  { id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'untested' },
-  { id: 'gpt-5.2-mini', name: 'gpt-5.2-mini', enabled: true, testState: 'untested' },
+  { id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success' },
+  { id: 'gpt-5.2-mini', name: 'gpt-5.2-mini', enabled: true, testState: 'success' },
   { id: 'gpt-4.1', name: 'gpt-4.1', enabled: false, testState: 'untested' }
 ]
 

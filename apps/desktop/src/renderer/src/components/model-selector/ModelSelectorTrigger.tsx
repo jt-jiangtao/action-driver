@@ -7,7 +7,8 @@ export function ModelSelectorTrigger({
   open,
   controls,
   onClick,
-  onKeyDown
+  onKeyDown,
+  disabled
 }: {
   connectionName: string
   modelName: string
@@ -15,14 +16,16 @@ export function ModelSelectorTrigger({
   controls: string
   onClick(): void
   onKeyDown(event: KeyboardEvent<HTMLButtonElement>): void
+  disabled?: boolean
 }) {
   return (
     <button
       aria-controls={controls}
       aria-expanded={open}
       aria-haspopup="listbox"
-      aria-label={`当前模型：${connectionName} / ${modelName}`}
+      aria-label={modelName ? `当前模型：${connectionName} / ${modelName}` : connectionName}
       className="model-selector-trigger"
+      disabled={disabled}
       data-state={open ? 'open' : 'default'}
       data-testid="e2e/shared/model-selector/trigger#button"
       onClick={onClick}
@@ -30,7 +33,7 @@ export function ModelSelectorTrigger({
       type="button"
     >
       <AppIcon name="cpu" />
-      <span>{connectionName} / {modelName}</span>
+      <span>{modelName ? `${connectionName} / ${modelName}` : connectionName}</span>
       <AppIcon name="chevron-down" />
     </button>
   )

@@ -129,6 +129,22 @@
   display: flex;
   flex-direction: column;
 }
+
+.sidebar-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--ad-color-text-tertiary);
+  font-size: 12px;
+}
+
+.sidebar-empty-state button {
+  color: var(--ad-color-text-secondary);
+  font-weight: 500;
+}
 .recent-task {
   justify-content: space-between;
   gap: 8px;

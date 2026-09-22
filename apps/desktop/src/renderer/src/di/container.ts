@@ -19,6 +19,7 @@ import type { TaskCatalog } from '../models/task-catalog'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
+import { DesktopTaskCatalog } from '../services/desktop-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
@@ -97,7 +98,12 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
     )
   container
     .bind<TaskCatalog>(TASK_CATALOG)
-    .toConstantValue(options.taskCatalog ?? new MockTaskCatalog())
+    .toConstantValue(
+      options.taskCatalog ??
+        (options.mode === 'local' && options.desktopApi
+          ? new DesktopTaskCatalog(options.desktopApi.agent)
+          : new MockTaskCatalog())
+    )
   container
     .bind<InteractionLogService>(INTERACTION_LOG_SERVICE)
     .toConstantValue(

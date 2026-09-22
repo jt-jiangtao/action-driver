@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import type { ModelRef } from '@actiondriver/contracts'
 import type { ModelSelectionProjection } from '../../models/model-selection'
 import { findSelectedModel } from '../../models/model-selection'
 import { ModelConnectionItem } from './ModelConnectionItem'
@@ -12,7 +13,7 @@ export function ModelSelector({
   closeKey
 }: {
   projection: ModelSelectionProjection
-  onSelect(modelId: string): void
+  onSelect(model: ModelRef): void
   onOpenChange?(open: boolean): void
   closeKey?: string
 }) {
@@ -26,10 +27,13 @@ export function ModelSelector({
     () => new Set(selectedConnectionId ? [selectedConnectionId] : [])
   )
   const visibleModels = useMemo(
-    () => projection.connections.flatMap((connection) => expanded.has(connection.id) ? connection.models : []),
+    () => projection.connections.flatMap((connection) => expanded.has(connection.id) ? connection.models.map((model) => ({ connection, model })) : []),
     [expanded, projection.connections]
   )
-  const initialIndex = Math.max(0, visibleModels.findIndex((model) => model.id === projection.selectedModelId))
+  const initialIndex = Math.max(0, visibleModels.findIndex(({ model }) =>
+    model.ref.connectionId === projection.selected?.connectionId &&
+    model.ref.modelId === projection.selected?.modelId
+  ))
   const [activeIndex, setActiveIndex] = useState(initialIndex)
 
   const setMenuOpen = (nextOpen: boolean) => {
@@ -51,12 +55,10 @@ export function ModelSelector({
     return () => document.removeEventListener('pointerdown', closeOnOutside)
   }, [open])
 
-  if (!selected) return null
-
   const selectActive = () => {
-    const model = visibleModels[activeIndex]
-    if (!model) return
-    onSelect(model.id)
+    const entry = visibleModels[activeIndex]
+    if (!entry || entry.model.disabled) return
+    onSelect(entry.model.ref)
     setMenuOpen(false)
   }
 
@@ -69,7 +71,11 @@ export function ModelSelector({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       const direction = event.key === 'ArrowDown' ? 1 : -1
-      setActiveIndex((current) => (current + direction + visibleModels.length) % visibleModels.length)
+      if (visibleModels.length === 0) return
+      let next = activeIndex
+      do next = (next + direction + visibleModels.length) % visibleModels.length
+      while (visibleModels[next]?.model.disabled && next !== activeIndex)
+      setActiveIndex(next)
       return
     }
     if (event.key === 'Enter') {
@@ -81,9 +87,10 @@ export function ModelSelector({
   return (
     <div className="model-selector" ref={rootRef}>
       <ModelSelectorTrigger
-        connectionName={selected.connection.name}
+        connectionName={selected?.connection.name ?? modelSelectionLabel(projection)}
         controls={menuId}
-        modelName={selected.model.name}
+        modelName={selected?.model.name ?? ''}
+        disabled={projection.state === 'loading' || projection.state === 'empty'}
         onClick={() => setMenuOpen(!open)}
         onKeyDown={(event) => {
           if (!open && (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ')) {
@@ -122,17 +129,24 @@ export function ModelSelector({
                   }}
                 />
                 {isExpanded ? connection.models.map((model) => {
-                  const modelIndex = visibleModels.findIndex((candidate) => candidate.id === model.id)
+                  const modelIndex = visibleModels.findIndex(({ model: candidate }) =>
+                    candidate.ref.connectionId === model.ref.connectionId &&
+                    candidate.ref.modelId === model.ref.modelId
+                  )
                   return (
                     <ModelOptionItem
                       active={modelIndex === activeIndex}
-                      key={model.id}
+                      key={`${connection.id}:${model.id}`}
                       model={model}
                       onSelect={() => {
-                        onSelect(model.id)
+                        if (model.disabled) return
+                        onSelect(model.ref)
                         setMenuOpen(false)
                       }}
-                      selected={model.id === projection.selectedModelId}
+                      selected={
+                        model.ref.connectionId === projection.selected?.connectionId &&
+                        model.ref.modelId === projection.selected?.modelId
+                      }
                     />
                   )
                 }) : null}
@@ -143,4 +157,11 @@ export function ModelSelector({
       ) : null}
     </div>
   )
+}
+
+function modelSelectionLabel(projection: ModelSelectionProjection): string {
+  if (projection.state === 'loading') return '正在加载模型'
+  if (projection.state === 'error') return '模型加载失败'
+  if (projection.state === 'empty') return '暂无可用模型'
+  return '选择模型'
 }

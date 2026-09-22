@@ -93,11 +93,11 @@ function createProjection(seed: TaskSeed): TaskProjection {
 export class MockTaskCatalog implements TaskCatalog {
   private readonly tasks = new Map(seeds.map((seed) => [seed.id, createProjection(seed)]))
 
-  listRecentTasks(): readonly RecentTaskSummary[] {
+  async listRecentTasks(): Promise<readonly RecentTaskSummary[]> {
     return seeds.map(({ id, title, state }) => ({ id, title, state }))
   }
 
-  getTask(taskId: string): TaskProjection | null {
+  async getTask(taskId: string): Promise<TaskProjection | null> {
     const task = this.tasks.get(taskId)
     return task ? structuredClone(task) : null
   }
