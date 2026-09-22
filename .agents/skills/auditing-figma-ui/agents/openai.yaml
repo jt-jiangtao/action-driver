@@ -1,0 +1,6 @@
+interface:
+  display_name: "Audit Figma UI"
+  short_description: "Validate Figma layout and interaction quality"
+  default_prompt: "Use $auditing-figma-ui to audit this Figma UI and report reproducible findings."
+policy:
+  allow_implicit_invocation: true

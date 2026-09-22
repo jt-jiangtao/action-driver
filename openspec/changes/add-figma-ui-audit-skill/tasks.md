@@ -21,9 +21,9 @@
 
 ## 5. 项目 Skill
 
-- [ ] 5.1 在生产 Skill 之外记录无 Skill 基线，保留“SVG/Hotspot/抽屉被朴素规则误报”和“87px 内容进入 80px 可用空间、动态模型名无省略”的真实失败证据
-- [ ] 5.2 使用官方 initializer 创建 `.agents/skills/auditing-figma-ui/`，编写简洁触发描述、Figma 新鲜快照流程、规则参考、截图复核与诚实报告要求，并删除未使用脚手架文件
-- [ ] 5.3 运行 Skill `quick_validate.py` 与 `pnpm test:figma-audit`，确认结构和脚本通过；在未授权子代理的情况下明确记录独立压力测试未运行
+- [x] 5.1 在生产 Skill 之外记录无 Skill 基线，保留“SVG/Hotspot/抽屉被朴素规则误报”和“87px 内容进入 80px 可用空间、动态模型名无省略”的真实失败证据
+- [x] 5.2 使用官方 initializer 创建 `.agents/skills/auditing-figma-ui/`，编写简洁触发描述、Figma 新鲜快照流程、规则参考、截图复核与诚实报告要求，并删除未使用脚手架文件
+- [x] 5.3 运行 Skill `quick_validate.py` 与 `pnpm test:figma-audit`，确认结构和脚本通过；在未授权子代理的情况下明确记录独立压力测试未运行
 
 ## 6. 真实文件全面审计与交付验证
 
