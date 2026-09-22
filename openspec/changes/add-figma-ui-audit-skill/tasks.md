@@ -27,7 +27,7 @@
 
 ## 6. 真实文件全面审计与交付验证
 
-- [ ] 6.1 使用每页一次的并行 Figma Plugin API 调用提取 Components、Home、Task、Model Configuration、Agent Configuration 与 Logs 新鲜快照，并验证快照页面范围和必要字段完整
-- [ ] 6.2 运行人类与 JSON 两种校验输出，逐项截图复核 modal density、manual flow、icon semantics、control padding 和 geometry drift warning，确认 error 退出 `1` 时仍保留真实失败状态
-- [ ] 6.3 创建 `design/figma-ui-audit-report.md`，按页面记录去重后的规则、node id、测量值、源组件根因、批准例外、截图结论和未修复问题，禁止在仍有 error 时宣告 Figma 通过
-- [ ] 6.4 运行 `pnpm test:figma-audit`、Skill quick validator、`openspec validate add-figma-ui-audit-skill --strict` 与 `git diff --check`，并验证全部工具检查通过且真实设计问题被诚实保留在报告中
+- [x] 6.1 使用每页一次的并行 Figma Plugin API 调用提取 Components、Home、Task、Model Configuration、Agent Configuration 与 Logs 新鲜快照，并验证快照页面范围和必要字段完整
+- [x] 6.2 运行人类与 JSON 两种校验输出，逐项截图复核 modal density、manual flow、icon semantics、control padding 和 geometry drift warning，确认 error 退出 `1` 时仍保留真实失败状态
+- [x] 6.3 创建 `design/figma-ui-audit-report.md`，按页面记录去重后的规则、node id、测量值、源组件根因、批准例外、截图结论和未修复问题，禁止在仍有 error 时宣告 Figma 通过
+- [x] 6.4 运行 `pnpm test:figma-audit`、Skill quick validator、`openspec validate add-figma-ui-audit-skill --strict` 与 `git diff --check`，并验证全部工具检查通过且真实设计问题被诚实保留在报告中
