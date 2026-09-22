@@ -120,15 +120,191 @@ function clippingAncestor(node, index) {
   return null
 }
 
-function createIssue(snapshot, node, ruleId, message, measurements = {}) {
+function createIssue(snapshot, node, ruleId, message, measurements = {}, severity = 'error') {
   return {
-    severity: 'error',
+    severity,
     ruleId,
     pageId: snapshot.page.id,
     nodeId: node.id,
     message,
     measurements,
   }
+}
+
+function childrenOf(parentId, nodes) {
+  return nodes.filter((node) => node.parentId === parentId)
+}
+
+function isAllowedAbsolute(node, config) {
+  if ((config.allowedAbsoluteNodeIds ?? []).includes(node.id)) return true
+  if (['hotspot', 'background', 'target-highlight'].includes(node.semanticRole)) return true
+  return node.semanticRole === 'icon' && node.width <= 24 && node.height <= 24
+}
+
+function manualFlowIssues(snapshot, config, index) {
+  const issues = []
+  for (const parent of snapshot.nodes) {
+    if (!isEffectivelyVisible(parent, index)) continue
+    const children = childrenOf(parent.id, snapshot.nodes).filter(
+      (child) =>
+        isEffectivelyVisible(child, index) &&
+        child.layoutPositioning !== 'ABSOLUTE' &&
+        !['background', 'hotspot', 'overlay', 'target-highlight'].includes(child.semanticRole),
+    )
+
+    if (parent.layoutMode === 'NONE' && children.length >= 3) {
+      const orderedX = [...children].sort((a, b) => a.x - b.x)
+      const orderedY = [...children].sort((a, b) => a.y - b.y)
+      const horizontal = orderedX.every(
+        (child, childIndex) =>
+          childIndex === 0 || orderedX[childIndex - 1].x + orderedX[childIndex - 1].width <= child.x,
+      )
+      const vertical = orderedY.every(
+        (child, childIndex) =>
+          childIndex === 0 || orderedY[childIndex - 1].y + orderedY[childIndex - 1].height <= child.y,
+      )
+      if (horizontal || vertical) {
+        issues.push(
+          createIssue(
+            snapshot,
+            parent,
+            'MANUAL_FLOW_LAYOUT',
+            `${children.length} ordered children rely on manual coordinates`,
+            { axis: vertical ? 'vertical' : 'horizontal', childCount: children.length },
+            'warning',
+          ),
+        )
+      }
+    }
+
+    if (parent.layoutMode && parent.layoutMode !== 'NONE') {
+      for (const child of childrenOf(parent.id, snapshot.nodes)) {
+        if (
+          child.layoutPositioning === 'ABSOLUTE' &&
+          isEffectivelyVisible(child, index) &&
+          !isAllowedAbsolute(child, config)
+        ) {
+          issues.push(
+            createIssue(
+              snapshot,
+              child,
+              'MANUAL_FLOW_LAYOUT',
+              `absolute child is detached from ${parent.layoutMode.toLowerCase()} auto layout`,
+              { parentId: parent.id },
+              'warning',
+            ),
+          )
+        }
+      }
+    }
+  }
+  return issues
+}
+
+function fixedDynamicIssues(snapshot, config, index) {
+  const issues = []
+  for (const nodeId of config.dynamicContainerNodeIds ?? []) {
+    const container = index.get(nodeId)
+    if (!container || !isEffectivelyVisible(container, index)) continue
+    if (container.layoutSizingHorizontal !== 'FIXED') continue
+    const labels = childrenOf(container.id, snapshot.nodes).filter(
+      (node) => node.type === 'TEXT' && isEffectivelyVisible(node, index),
+    )
+    const hasSafeOverflowPolicy =
+      container.overflowDirection === 'HORIZONTAL' ||
+      container.clipsContent === true ||
+      labels.every((label) => label.textTruncation === 'ENDING' && label.maxLines === 1)
+    if (labels.length > 0 && !hasSafeOverflowPolicy) {
+      issues.push(
+        createIssue(
+          snapshot,
+          container,
+          'FIXED_DYNAMIC_CONTAINER',
+          'fixed dynamic container has no clipping, scrolling, or single-line truncation policy',
+          { labelCount: labels.length, width: container.width },
+          'warning',
+        ),
+      )
+    }
+  }
+  return issues
+}
+
+function modalIssues(snapshot, config, index) {
+  const issues = []
+  const contentRegion = config.contentRegions?.[snapshot.page.id]
+  for (const modal of snapshot.nodes.filter(
+    (node) => node.semanticRole === 'modal' && isEffectivelyVisible(node, index),
+  )) {
+    const modalRect = rectFor(modal, index)
+    if (contentRegion) {
+      const overflow = {
+        overflowBottom: Math.max(
+          0,
+          modalRect.y + modalRect.height - (contentRegion.y + contentRegion.height),
+        ),
+        overflowLeft: Math.max(0, contentRegion.x - modalRect.x),
+        overflowRight: Math.max(
+          0,
+          modalRect.x + modalRect.width - (contentRegion.x + contentRegion.width),
+        ),
+        overflowTop: Math.max(0, contentRegion.y - modalRect.y),
+      }
+      if (Object.values(overflow).some((value) => value > 0)) {
+        issues.push(
+          createIssue(
+            snapshot,
+            modal,
+            'MODAL_OUTSIDE_CONTENT',
+            'modal extends outside the configured content region',
+            overflow,
+          ),
+        )
+      }
+
+      const deltaX =
+        modalRect.x + modalRect.width / 2 - (contentRegion.x + contentRegion.width / 2)
+      const deltaY =
+        modalRect.y + modalRect.height / 2 - (contentRegion.y + contentRegion.height / 2)
+      const tolerance = config.modalCenterTolerance ?? 24
+      if (Math.abs(deltaX) > tolerance || Math.abs(deltaY) > tolerance) {
+        issues.push(
+          createIssue(
+            snapshot,
+            modal,
+            'MODAL_NOT_CENTERED',
+            'modal is not centered in the configured content region',
+            { deltaX, deltaY, tolerance },
+            'warning',
+          ),
+        )
+      }
+    }
+
+    const contentChildren = childrenOf(modal.id, snapshot.nodes).filter(
+      (node) =>
+        isEffectivelyVisible(node, index) &&
+        !['background', 'hotspot', 'scroll-region'].includes(node.semanticRole),
+    )
+    if (contentChildren.length > 0) {
+      const contentBottom = Math.max(...contentChildren.map((node) => node.y + node.height))
+      const whitespace = Math.max(0, modal.height - contentBottom)
+      const threshold = config.modalWhitespaceThreshold ?? 160
+      if (whitespace > threshold) {
+        issues.push(
+          createIssue(
+            snapshot,
+            modal,
+            'EXCESSIVE_VERTICAL_WHITESPACE',
+            'modal has excessive unused space below visible content',
+            { threshold, whitespace },
+            'warning',
+          ),
+        )
+      }
+    }
+  }
+  return issues
 }
 
 function textBoundsIssue(snapshot, node, index) {
@@ -253,6 +429,9 @@ export function validateSnapshot(snapshot, config) {
   candidates.push(
     ...overlapIssues(snapshot, snapshot.nodes, index, 'COMPONENT', 'COMPONENT_SET', 'VARIANT_OVERLAP'),
     ...overlapIssues(snapshot, snapshot.nodes, index, 'SECTION', null, 'SECTION_OVERLAP'),
+    ...manualFlowIssues(snapshot, config, index),
+    ...fixedDynamicIssues(snapshot, config, index),
+    ...modalIssues(snapshot, config, index),
   )
 
   const issues = []

@@ -207,6 +207,158 @@ test('sorts issues deterministically and formats a readable report', () => {
   assert.match(formatHumanReport(result), /TEXT_GLYPH_ICON.*node a/)
 })
 
+test('warns for manual sequential flow but permits registered overlays and hotspots', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({ id: 'flow', width: 300, height: 180, layoutMode: 'NONE' }),
+      figmaNode({ id: 'row-a', parentId: 'flow', y: 8, width: 280, height: 40 }),
+      figmaNode({ id: 'row-b', parentId: 'flow', y: 56, width: 280, height: 40 }),
+      figmaNode({ id: 'row-c', parentId: 'flow', y: 104, width: 280, height: 40 }),
+      figmaNode({
+        id: 'menu-overlay',
+        parentId: 'flow',
+        x: 220,
+        y: 12,
+        width: 64,
+        height: 80,
+        layoutPositioning: 'ABSOLUTE',
+        semanticRole: 'overlay',
+      }),
+      figmaNode({
+        id: 'prototype-hotspot',
+        parentId: 'flow',
+        width: 40,
+        height: 40,
+        layoutPositioning: 'ABSOLUTE',
+        semanticRole: 'hotspot',
+      }),
+    ]),
+    validConfig({ allowedAbsoluteNodeIds: ['menu-overlay'] }),
+  )
+
+  assert.ok(result.issues.some((issue) => issue.ruleId === 'MANUAL_FLOW_LAYOUT'))
+  assert.ok(!result.issues.some((issue) => issue.nodeId === 'menu-overlay'))
+  assert.ok(!result.issues.some((issue) => issue.nodeId === 'prototype-hotspot'))
+})
+
+test('warns for an unregistered absolute child in auto layout but permits a small icon', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({ id: 'auto', layoutMode: 'HORIZONTAL', width: 240, height: 48 }),
+      figmaNode({
+        id: 'absolute-label',
+        parentId: 'auto',
+        type: 'TEXT',
+        text: 'Detached',
+        layoutPositioning: 'ABSOLUTE',
+        width: 72,
+        height: 20,
+      }),
+      figmaNode({
+        id: 'icon',
+        parentId: 'auto',
+        semanticRole: 'icon',
+        layoutPositioning: 'ABSOLUTE',
+        x: 208,
+        y: 16,
+        width: 16,
+        height: 16,
+      }),
+    ]),
+    validConfig(),
+  )
+
+  assert.ok(
+    result.issues.some(
+      (issue) => issue.ruleId === 'MANUAL_FLOW_LAYOUT' && issue.nodeId === 'absolute-label',
+    ),
+  )
+  assert.ok(!result.issues.some((issue) => issue.nodeId === 'icon'))
+})
+
+test('warns when a fixed dynamic container has no overflow policy', () => {
+  const result = validateSnapshot(
+    validSnapshot([
+      figmaNode({
+        id: 'dynamic-select',
+        layoutMode: 'HORIZONTAL',
+        layoutSizingHorizontal: 'FIXED',
+        width: 112,
+        height: 32,
+      }),
+      figmaNode({
+        id: 'dynamic-label',
+        parentId: 'dynamic-select',
+        type: 'TEXT',
+        text: 'claude-opus-4-1-20260805',
+        width: 140,
+        height: 20,
+        textTruncation: 'DISABLED',
+        maxLines: null,
+      }),
+    ]),
+    validConfig({ dynamicContainerNodeIds: ['dynamic-select'] }),
+  )
+
+  assert.ok(
+    result.issues.some(
+      (issue) => issue.ruleId === 'FIXED_DYNAMIC_CONTAINER' && issue.nodeId === 'dynamic-select',
+    ),
+  )
+})
+
+test('checks modal bounds and centering against the configured content region', () => {
+  const config = validConfig({
+    contentRegions: { '60:2': { x: 200, y: 0, width: 1000, height: 800 } },
+    modalCenterTolerance: 24,
+  })
+  const centered = validateSnapshot(
+    validSnapshot([
+      figmaNode({ id: 'modal', semanticRole: 'modal', x: 450, y: 200, width: 500, height: 400 }),
+    ]),
+    config,
+  )
+  const outside = validateSnapshot(
+    validSnapshot([
+      figmaNode({ id: 'modal', semanticRole: 'modal', x: 80, y: 80, width: 500, height: 400 }),
+    ]),
+    config,
+  )
+
+  assert.ok(!centered.issues.some((issue) => issue.ruleId.startsWith('MODAL_')))
+  assert.ok(outside.issues.some((issue) => issue.ruleId === 'MODAL_OUTSIDE_CONTENT'))
+  assert.ok(outside.issues.some((issue) => issue.ruleId === 'MODAL_NOT_CENTERED'))
+})
+
+test('warns for excessive modal whitespace but ignores drawer scroll space', () => {
+  const snapshot = validSnapshot([
+    figmaNode({ id: 'modal', semanticRole: 'modal', x: 300, y: 100, width: 500, height: 600 }),
+    figmaNode({ id: 'modal-content', parentId: 'modal', x: 24, y: 24, width: 452, height: 120 }),
+    figmaNode({ id: 'drawer', semanticRole: 'drawer', x: 900, width: 300, height: 800 }),
+    figmaNode({
+      id: 'drawer-scroll',
+      parentId: 'drawer',
+      semanticRole: 'scroll-region',
+      width: 300,
+      height: 300,
+    }),
+  ])
+  const result = validateSnapshot(
+    snapshot,
+    validConfig({
+      contentRegions: { '60:2': { x: 0, y: 0, width: 1200, height: 800 } },
+      modalWhitespaceThreshold: 160,
+    }),
+  )
+
+  assert.ok(
+    result.issues.some(
+      (issue) => issue.ruleId === 'EXCESSIVE_VERTICAL_WHITESPACE' && issue.nodeId === 'modal',
+    ),
+  )
+  assert.ok(!result.issues.some((issue) => issue.nodeId === 'drawer'))
+})
+
 test('CLI returns 0 for clean input, 1 for violations, and 2 for invalid input', () => {
   const directory = mkdtempSync(join(tmpdir(), 'figma-audit-'))
   const configPath = join(directory, 'config.json')
