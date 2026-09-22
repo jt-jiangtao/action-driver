@@ -1,4 +1,5 @@
 import type { Logger } from 'pino'
+import { encodeInteractionPayload } from './interaction-payload'
 
 export type InteractionTransport = 'ipc' | 'http' | 'websocket'
 export type InteractionState = 'pending' | 'completed' | 'incomplete'
@@ -162,7 +163,7 @@ export function createInteractionLogRecorder(options: {
         operation: input.operation,
         ...(input.requestId ? { requestId: input.requestId } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
-        request: payloadView(input.request)
+        request: encodeInteractionPayload(input.request)
       }
       await options.store.begin(event)
       return async (result) => {
@@ -171,7 +172,7 @@ export function createInteractionLogRecorder(options: {
           completedAt,
           outcome: result.outcome,
           ...(result.status === undefined ? {} : { status: result.status }),
-          response: result.response ? payloadView(result.response) : null,
+          response: result.response ? encodeInteractionPayload(result.response) : null,
           ...(result.error ? { error: result.error } : {})
         })
         const record = {
@@ -202,7 +203,7 @@ export function createInteractionLogRecorder(options: {
         operation: input.operation,
         ...(input.requestId ? { requestId: input.requestId } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
-        payload: payloadView(input.payload)
+        payload: encodeInteractionPayload(input.payload)
       })
     }
   }
@@ -339,35 +340,6 @@ function summaryBase(
     ...(event.requestId ? { requestId: event.requestId } : {}),
     ...(event.taskId ? { taskId: event.taskId } : {})
   }
-}
-
-function payloadView(input: InteractionPayloadInput): InteractionPayloadView {
-  if (input.kind === 'empty') {
-    return emptyPayload('empty', null, 0)
-  }
-  if (input.kind === 'binary-metadata') {
-    return {
-      ...emptyPayload('binary-metadata', input.contentType ?? 'application/octet-stream', input.byteLength),
-      text: input.summary ?? null
-    }
-  }
-  const text = input.kind === 'json' ? JSON.stringify(input.value, null, 2) : input.text
-  return {
-    kind: input.kind,
-    contentType: input.contentType ?? (input.kind === 'json' ? 'application/json' : 'text/plain'),
-    byteLength: Buffer.byteLength(text, 'utf8'),
-    truncated: false,
-    text,
-    unavailableReason: null
-  }
-}
-
-function emptyPayload(
-  kind: InteractionPayloadKind,
-  contentType: string | null,
-  byteLength: number
-): InteractionPayloadView {
-  return { kind, contentType, byteLength, truncated: false, text: null, unavailableReason: null }
 }
 
 function withoutPayloads(record: InteractionLogDetail): InteractionLogSummary {

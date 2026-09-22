@@ -1,5 +1,7 @@
 export * from './interactions'
+export * from './interaction-payload'
 export * from './interaction-store'
+export * from './local-interaction-store'
 export * from './logger'
 export * from './logs'
 export * from './redaction'
