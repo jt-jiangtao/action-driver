@@ -1,7 +1,7 @@
 import type { Logger } from 'pino'
+import type { InteractionDirection, InteractionTransport } from './interaction-store'
 
-export type InteractionTransport = 'http' | 'websocket' | 'ipc'
-export type InteractionDirection = 'renderer->service' | 'service->renderer' | 'service->skill'
+export type { InteractionDirection, InteractionTransport } from './interaction-store'
 
 export type InteractionStart = {
   transport: InteractionTransport
