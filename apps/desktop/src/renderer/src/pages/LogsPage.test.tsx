@@ -5,6 +5,7 @@ import { LogsPage } from './LogsPage'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { MockInteractionLogService } from '../services/desktop-interaction-logs'
 import type { InteractionLogRecord, InteractionLogService } from '../models/interaction-logs'
+import type { InteractionLogDetail } from '@actiondriver/observability'
 
 function renderPage(service: InteractionLogService = new MockInteractionLogService()) {
   return render(
@@ -79,6 +80,131 @@ describe('LogsPage', () => {
         expect.objectContaining({ search: 'model-connections' })
       )
     )
+  })
+
+  it('filters by one or more real transport protocols', async () => {
+    const user = userEvent.setup()
+    const list = vi.fn(async () => ({ records: [], nextCursor: null, files: [] }))
+    renderPage({ list })
+
+    await user.click(screen.getByTestId('e2e/settings/logs/transport#button'))
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'IPC' }))
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'WebSocket' }))
+
+    await waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transports: ['ipc', 'websocket'] })
+      )
+    )
+    expect(screen.queryByText('OpenAI')).not.toBeInTheDocument()
+    expect(screen.queryByText('Anthropic')).not.toBeInTheDocument()
+  })
+
+  it('loads request and response lazily for the selected event', async () => {
+    const user = userEvent.setup()
+    const record = { ...createRecords(1)[0]!, id: 'main:event-1' }
+    const detail = createDetail(record, {
+      requestText: '{"goal":"检查日志"}',
+      responseText: '{"taskId":"task-1"}'
+    })
+    const service = {
+      list: vi.fn(async () => ({ records: [record], nextCursor: null, files: [] })),
+      detail: vi.fn(async () => detail)
+    }
+    renderPage(service)
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+
+    expect(service.detail).toHaveBeenCalledWith('main:event-1')
+    await user.click(await screen.findByTestId('e2e/settings/logs/inspector/request#button'))
+    expect(await screen.findByText('{"goal":"检查日志"}')).toBeVisible()
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
+    expect(screen.getByText('{"taskId":"task-1"}')).toBeVisible()
+  })
+
+  it('ignores a stale detail response after another event is selected', async () => {
+    const user = userEvent.setup()
+    const records = createRecords(2).map((record, index) => ({
+      ...record,
+      id: `main:event-${index + 1}`
+    }))
+    let resolveFirst!: (detail: InteractionLogDetail) => void
+    const detail = vi.fn((eventId: string) =>
+      eventId === 'main:event-1'
+        ? new Promise<InteractionLogDetail>((resolve) => {
+            resolveFirst = resolve
+          })
+        : Promise.resolve(createDetail(records[1]!, { requestText: 'second request' }))
+    )
+    renderPage({
+      list: async () => ({ records, nextCursor: null, files: [] }),
+      detail
+    })
+
+    const entries = await screen.findAllByTestId(/e2e\/settings\/logs\/entries\/\d+#button/)
+    await user.click(entries[0]!)
+    await user.click(entries[1]!)
+    await user.click(await screen.findByTestId('e2e/settings/logs/inspector/request#button'))
+    expect(await screen.findByText('second request')).toBeVisible()
+
+    resolveFirst(createDetail(records[0]!, { requestText: 'stale first request' }))
+    await waitFor(() => expect(screen.queryByText('stale first request')).not.toBeInTheDocument())
+    expect(screen.getByText('second request')).toBeVisible()
+  })
+
+  it('renders unavailable, binary, truncated and pending payload states truthfully', async () => {
+    const user = userEvent.setup()
+    const record = {
+      ...createRecords(1)[0]!,
+      id: 'main:event-states',
+      state: 'pending' as const,
+      requestTruncated: true
+    }
+    const detail = createDetail(record, { requestText: 'partial request' })
+    detail.state = 'pending'
+    detail.request = { ...detail.request!, truncated: true }
+    detail.response = null
+    const first = renderPage({
+      list: async () => ({ records: [record], nextCursor: null, files: [] }),
+      detail: async () => detail
+    })
+
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+    const request = await screen.findByTestId('e2e/settings/logs/inspector/request#button')
+    expect(within(request).getByText('已截断')).toBeVisible()
+    await user.click(request)
+    expect(screen.getByText('partial request')).toBeVisible()
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
+    expect(screen.getByText('等待响应')).toBeVisible()
+    first.unmount()
+
+    detail.request = {
+      kind: 'json',
+      contentType: 'application/json',
+      byteLength: 100,
+      truncated: false,
+      text: null,
+      unavailableReason: 'expired'
+    }
+    detail.response = {
+      kind: 'binary-metadata',
+      contentType: 'application/octet-stream',
+      byteLength: 2_048,
+      truncated: false,
+      text: null,
+      unavailableReason: null
+    }
+    const secondRecord = { ...record, id: 'main:event-states-2', state: 'completed' as const }
+    const secondDetail = { ...detail, id: secondRecord.id, state: 'completed' as const }
+    renderPage({
+      list: async () => ({ records: [secondRecord], nextCursor: null, files: [] }),
+      detail: async () => secondDetail
+    })
+    await user.click(await screen.findByTestId('e2e/settings/logs/entries/0#button'))
+    await user.click(await screen.findByTestId('e2e/settings/logs/inspector/request#button'))
+    expect(screen.getByText('载荷已过期')).toBeVisible()
+    await user.click(screen.getByTestId('e2e/settings/logs/inspector/response#button'))
+    expect(screen.getByText(/二进制载荷，仅保存元数据/)).toBeVisible()
   })
 
   it('clears all interface filters and restores the first page', async () => {
@@ -218,7 +344,7 @@ describe('LogsPage', () => {
     await user.click(entries[0]!)
 
     const toggle = screen.getByTestId('e2e/settings/logs/raw#button')
-    const request = screen.getByTestId('e2e/settings/logs/inspector/request#button')
+    const request = await screen.findByTestId('e2e/settings/logs/inspector/request#button')
     const response = screen.getByTestId('e2e/settings/logs/inspector/response#button')
     expect(toggle.closest('details')).toHaveAttribute('open')
     expect(request.closest('details')).not.toHaveAttribute('open')
@@ -335,6 +461,46 @@ function createRecords(count: number): InteractionLogRecord[] {
     outcome: 'ok',
     durationMs: index + 1
   }))
+}
+
+function createDetail(
+  record: InteractionLogRecord,
+  payloads: { requestText?: string; responseText?: string }
+): InteractionLogDetail {
+  const payload = (text: string | undefined) =>
+    text === undefined
+      ? null
+      : {
+          kind: 'json' as const,
+          contentType: 'application/json',
+          byteLength: Buffer.byteLength(text),
+          truncated: false,
+          text,
+          unavailableReason: null
+        }
+  return {
+    id: record.id!,
+    correlationId: record.correlationId ?? record.id!,
+    time: record.time,
+    completedAt: record.time + (record.durationMs ?? 0),
+    transport: 'ipc',
+    direction: 'renderer->service',
+    kind: 'request-response',
+    state: 'completed',
+    operation: record.operation ?? 'operation',
+    level: record.level,
+    levelLabel: record.levelLabel,
+    outcome: 'ok',
+    durationMs: record.durationMs ?? 0,
+    requestBytes: payloads.requestText?.length ?? 0,
+    responseBytes: payloads.responseText?.length ?? 0,
+    requestAvailable: payloads.requestText !== undefined,
+    responseAvailable: payloads.responseText !== undefined,
+    requestTruncated: false,
+    responseTruncated: false,
+    request: payload(payloads.requestText),
+    response: payload(payloads.responseText)
+  }
 }
 
 describe('SettingsSidebar', () => {

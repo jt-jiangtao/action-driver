@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type {
+  InteractionLogDetail,
+  InteractionPayloadView,
+  InteractionTransport
+} from '@actiondriver/observability'
 import type { InteractionLogRecord, InteractionLogService } from '../../models/interaction-logs'
 import { e2eId } from '../../testing/e2e-id'
 import { AppIcon } from '../ui/AppIcon'
 
 const LEVELS = ['debug', 'info', 'warn', 'error'] as const
 const PAGE_SIZE = 12
+const TRANSPORTS: Array<{ id: InteractionTransport; label: string }> = [
+  { id: 'ipc', label: 'IPC' },
+  { id: 'http', label: 'HTTP' },
+  { id: 'websocket', label: 'WebSocket' }
+]
 const DIRECTIONS = [
   { id: '', label: '全部方向' },
   { id: 'renderer->service', label: '页面 → 服务端' },
@@ -23,15 +33,24 @@ export function InterfaceLogsView({
   const [files, setFiles] = useState<string[]>([])
   const [level, setLevel] = useState<string>('')
   const [direction, setDirection] = useState<string>('')
+  const [transports, setTransports] = useState<InteractionTransport[]>([])
+  const [transportOpen, setTransportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [selected, setSelected] = useState<InteractionLogRecord | null>(null)
+  const [detailState, setDetailState] = useState<{
+    eventId: string
+    state: 'loading' | 'ready' | 'error'
+    detail: InteractionLogDetail | null
+    error: string | null
+  } | null>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const requestInFlight = useRef(false)
+  const detailRequest = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     if (requestInFlight.current) return
@@ -42,14 +61,12 @@ export function InterfaceLogsView({
         level,
         ...(direction ? { direction } : {}),
         ...(search ? { search } : {}),
+        ...(transports.length ? { transports } : {}),
         limit: 200
       })
       setRecords(result.records)
       setFiles(result.files)
       setError(null)
-      setSelectedKey((current) =>
-        current && result.records.some((record) => keyOf(record) === current) ? current : null
-      )
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -57,7 +74,7 @@ export function InterfaceLogsView({
       setLoading(false)
       setRefreshing(false)
     }
-  }, [direction, level, search, service])
+  }, [direction, level, search, service, transports])
 
   useEffect(() => {
     void load()
@@ -69,10 +86,6 @@ export function InterfaceLogsView({
     return () => clearInterval(timer)
   }, [autoRefresh, autoRefreshMs, load])
 
-  const selected = useMemo(
-    () => records.find((record) => keyOf(record) === selectedKey) ?? null,
-    [records, selectedKey]
-  )
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE))
   const visibleRecords = useMemo(
     () => records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -86,14 +99,60 @@ export function InterfaceLogsView({
   const clearFilters = () => {
     setLevel('')
     setDirection('')
+    setTransports([])
     setSearch('')
     setPage(1)
+  }
+
+  const requestDetail = (record: InteractionLogRecord) => {
+    const eventId = keyOf(record)
+    if (!service.detail) {
+      setDetailState({ eventId, state: 'ready', detail: null, error: null })
+      return
+    }
+    detailRequest.current = eventId
+    setDetailState({ eventId, state: 'loading', detail: null, error: null })
+    void service.detail(eventId).then(
+      (detail) => {
+        if (detailRequest.current !== eventId) return
+        setDetailState({ eventId, state: 'ready', detail, error: null })
+      },
+      (cause) => {
+        if (detailRequest.current !== eventId) return
+        setDetailState({
+          eventId,
+          state: 'error',
+          detail: null,
+          error: cause instanceof Error ? cause.message : String(cause)
+        })
+      }
+    )
+  }
+
+  const selectRecord = (record: InteractionLogRecord) => {
+    const eventId = keyOf(record)
+    if (selected && keyOf(selected) === eventId) {
+      detailRequest.current = null
+      setSelected(null)
+      setDetailState(null)
+      return
+    }
+    setSelected(record)
+    requestDetail(record)
+  }
+
+  const closeDetail = () => {
+    detailRequest.current = null
+    setSelected(null)
+    setDetailState(null)
   }
 
   const copySelected = () => {
     if (!selected) return
     setCopyState('copied')
-    void globalThis.navigator?.clipboard?.writeText(JSON.stringify(selected, null, 2))
+    void globalThis.navigator?.clipboard?.writeText(
+      JSON.stringify(detailState?.detail ?? selected, null, 2)
+    )
     setTimeout(() => setCopyState('idle'), 1_500)
   }
 
@@ -113,6 +172,48 @@ export function InterfaceLogsView({
             onChange={(event) => setSearch(event.currentTarget.value)}
           />
         </label>
+        <div className="logs-transport-filter">
+          <button
+            className="secondary-button"
+            data-testid="e2e/settings/logs/transport#button"
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={transportOpen}
+            onClick={() => setTransportOpen((current) => !current)}
+          >
+            {transportLabel(transports)}
+            <AppIcon name="chevron-down" />
+          </button>
+          {transportOpen ? (
+            <div className="logs-transport-menu" role="menu" aria-label="传输协议">
+              {TRANSPORTS.map((transport) => {
+                const checked = transports.includes(transport.id)
+                return (
+                  <button
+                    key={transport.id}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={checked}
+                    data-testid={e2eId('e2e/settings/logs/transport/:transport#option', {
+                      transport: transport.id
+                    })}
+                    onClick={() => {
+                      setTransports((current) =>
+                        current.includes(transport.id)
+                          ? current.filter((item) => item !== transport.id)
+                          : [...current, transport.id]
+                      )
+                      setPage(1)
+                    }}
+                  >
+                    <span>{transport.label}</span>
+                    {checked ? <AppIcon name="check" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
         <span className="logs-select">
           <select
             aria-label="日志级别"
@@ -155,7 +256,7 @@ export function InterfaceLogsView({
             className="plain-text-action"
             data-testid="e2e/settings/logs/filters/clear#button"
             type="button"
-            disabled={!level && !direction && !search}
+            disabled={!level && !direction && !search && transports.length === 0}
             onClick={clearFilters}
           >
             清除筛选
@@ -234,10 +335,10 @@ export function InterfaceLogsView({
                   data-testid={e2eId('e2e/settings/logs/entries/:entry-index#button', {
                     'entry-index': String(recordIndex)
                   })}
-                  data-selected={key === selectedKey}
+                  data-selected={selected ? key === keyOf(selected) : false}
                   key={key}
                   type="button"
-                  onClick={() => setSelectedKey((current) => (current === key ? null : key))}
+                  onClick={() => selectRecord(record)}
                 >
                   <span className="logs-entry-time">{formatTime(record.time)}</span>
                   <span
@@ -293,9 +394,11 @@ export function InterfaceLogsView({
           {selected ? (
             <InterfaceLogInspector
               record={selected}
+              detailState={detailState}
               copyState={copyState}
-              onClose={() => setSelectedKey(null)}
+              onClose={closeDetail}
               onCopy={copySelected}
+              onRetry={() => requestDetail(selected)}
             />
           ) : null}
         </div>
@@ -314,15 +417,25 @@ export function InterfaceLogsView({
 
 function InterfaceLogInspector({
   record,
+  detailState,
   copyState,
   onClose,
-  onCopy
+  onCopy,
+  onRetry
 }: {
   record: InteractionLogRecord
+  detailState: {
+    eventId: string
+    state: 'loading' | 'ready' | 'error'
+    detail: InteractionLogDetail | null
+    error: string | null
+  } | null
   copyState: 'idle' | 'copied'
   onClose(): void
   onCopy(): void
+  onRetry(): void
 }) {
+  const detail = detailState?.detail
   return (
     <aside className="logs-inspector" data-testid="e2e/settings/logs/inspector#section">
       <header>
@@ -368,11 +481,15 @@ function InterfaceLogInspector({
           {record.durationMs === undefined ? '—' : `${record.durationMs}ms`}
         </InspectorRow>
         <InspectorRow label="载荷">
-          {record.payloadBytes === undefined
-            ? '—'
-            : `${formatBytes(record.payloadBytes)}${
-                record.payloadItems === undefined ? '' : ` · ${record.payloadItems} 项`
-              }`}
+          {record.requestBytes !== undefined || record.responseBytes !== undefined
+            ? `请求 ${formatBytes(record.requestBytes ?? 0)} · 响应 ${formatBytes(
+                record.responseBytes ?? 0
+              )}`
+            : record.payloadBytes === undefined
+              ? '—'
+              : `${formatBytes(record.payloadBytes)}${
+                  record.payloadItems === undefined ? '' : ` · ${record.payloadItems} 项`
+                }`}
         </InspectorRow>
         {record.status !== undefined ? (
           <InspectorRow label="状态码">{String(record.status)}</InspectorRow>
@@ -382,29 +499,93 @@ function InterfaceLogInspector({
         ) : null}
       </div>
 
-      <details className="logs-inspector-raw">
-        <summary data-testid="e2e/settings/logs/inspector/request#button">
-          <AppIcon name="chevron-right" />
-          请求（Request）
-        </summary>
-        <p>当前真实日志源记录操作、方向与载荷摘要，未记录完整请求正文。</p>
-      </details>
-      <details className="logs-inspector-raw">
-        <summary data-testid="e2e/settings/logs/inspector/response#button">
-          <AppIcon name="chevron-right" />
-          响应（Response）
-        </summary>
-        <p>当前真实日志源记录状态、结果与耗时，未记录完整响应正文。</p>
-      </details>
+      {detailState?.state === 'loading' ? (
+        <p className="logs-detail-state">正在读取 Request / Response…</p>
+      ) : detailState?.state === 'error' ? (
+        <div className="logs-detail-state is-error" role="alert">
+          <span>{detailState.error ?? '详情读取失败'}</span>
+          <button
+            className="plain-text-action"
+            data-testid="e2e/settings/logs/inspector/retry#button"
+            type="button"
+            onClick={onRetry}
+          >
+            重试
+          </button>
+        </div>
+      ) : null}
+      <PayloadSection
+        label="请求（Request）"
+        side="request"
+        payload={detail?.request ?? null}
+        absentLabel="无请求载荷"
+      />
+      <PayloadSection
+        label="响应（Response）"
+        side="response"
+        payload={detail?.response ?? null}
+        absentLabel={record.state === 'pending' ? '等待响应' : '无响应载荷'}
+      />
       <details className="logs-inspector-raw" open>
         <summary data-testid="e2e/settings/logs/raw#button">
           <AppIcon name="chevron-right" />
           原始记录
         </summary>
-        <pre>{JSON.stringify(record, null, 2)}</pre>
+        <pre>{JSON.stringify(detail ?? record, null, 2)}</pre>
       </details>
     </aside>
   )
+}
+
+function PayloadSection({
+  label,
+  side,
+  payload,
+  absentLabel
+}: {
+  label: string
+  side: 'request' | 'response'
+  payload: InteractionPayloadView | null
+  absentLabel: string
+}) {
+  const unavailable = payloadUnavailableLabel(payload)
+  return (
+    <details className="logs-inspector-raw">
+      <summary data-testid={e2eId('e2e/settings/logs/inspector/:side#button', { side })}>
+        <AppIcon name="chevron-right" />
+        {label}
+        {payload?.truncated ? <span className="logs-payload-badge">已截断</span> : null}
+      </summary>
+      {!payload ? (
+        <p>{absentLabel}</p>
+      ) : unavailable ? (
+        <p>{unavailable}</p>
+      ) : payload.kind === 'binary-metadata' ? (
+        <p>二进制载荷，仅保存元数据 · {formatBytes(payload.byteLength)}</p>
+      ) : payload.text === null ? (
+        <p>无可显示正文</p>
+      ) : (
+        <div className="logs-payload-body">
+          <button
+            className="plain-text-action"
+            data-testid={e2eId('e2e/settings/logs/inspector/:side/copy#button', { side })}
+            type="button"
+            onClick={() => void globalThis.navigator?.clipboard?.writeText(payload.text ?? '')}
+          >
+            复制正文
+          </button>
+          <pre className={payload.kind === 'text' ? 'is-text' : ''}>{payload.text}</pre>
+        </div>
+      )}
+    </details>
+  )
+}
+
+function payloadUnavailableLabel(payload: InteractionPayloadView | null): string | null {
+  if (payload?.unavailableReason === 'expired') return '载荷已过期'
+  if (payload?.unavailableReason === 'missing') return '载荷不可用'
+  if (payload?.unavailableReason === 'unsafe-to-persist') return '载荷因凭据边界未安全保存'
+  return null
 }
 
 function InspectorRow({
@@ -472,6 +653,14 @@ function directionShort(direction: string | undefined): string {
   return '前端'
 }
 
+function transportLabel(transports: InteractionTransport[]): string {
+  if (transports.length === 0) return '全部传输'
+  if (transports.length === 1) {
+    return TRANSPORTS.find((transport) => transport.id === transports[0])?.label ?? '全部传输'
+  }
+  return `已选 ${transports.length} 项`
+}
+
 function keyOf(record: InteractionLogRecord): string {
-  return `${record.time}-${record.operation ?? record.msg ?? 'entry'}`
+  return record.id ?? `${record.time}-${record.operation ?? record.msg ?? 'entry'}`
 }

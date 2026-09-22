@@ -516,6 +516,22 @@
     "testName": "filters by level, direction and search"
   },
   {
+    "target": "e2e/settings/logs/transport#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters by one or more real transport protocols"
+  },
+  {
+    "target": "e2e/settings/logs/transport/:transport#option",
+    "route": "settings",
+    "type": "option",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters by one or more real transport protocols"
+  },
+  {
     "target": "e2e/settings/logs/search#input",
     "route": "settings",
     "type": "input",
@@ -586,7 +602,7 @@
     "testName": "selects an entry and shows its details"
   },
   {
-    "target": "e2e/settings/logs/inspector/request#button",
+    "target": "e2e/settings/logs/inspector/:side#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
@@ -594,12 +610,18 @@
     "testName": "expands and collapses the raw record"
   },
   {
-    "target": "e2e/settings/logs/inspector/response#button",
+    "target": "e2e/settings/logs/inspector/:side/copy#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
-    "testName": "expands and collapses the raw record"
+    "testName": "loads request and response lazily for the selected event"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "visual-only"
   },
   {
     "target": "e2e/settings/logs/layer/interface#button",
