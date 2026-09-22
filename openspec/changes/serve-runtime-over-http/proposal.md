@@ -82,3 +82,4 @@
 - 范围后置：Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制及与最小闭环无关的横向 HTTP/WS 迁移均不阻塞本轮验收。
 - 用户覆盖：Agent 曾推荐首版本地形态复用既有 Runtime 事件通道以降低连接治理成本；用户明确选择独立 WebSocket，以便后续远程 Runtime 复用同一协议。接受的已知风险是新增鉴权、连接生命周期、幂等、重放、背压和断线恢复复杂度。
 - 成功标准：真实上游按流返回内容时，页面从 `start` 进入生成态、随 `content` 持续显示 Markdown、在 `end` 后进入准确终态；刷新或重连不会重复文本；任务列表、会话详情和请求/响应日志均来自真实持久化数据且能用标识串联；整个流程不出现 Mock 降级、Browser/Computer 面板或日志递归记录。
+- 上游 SDK 裁决：用户确认采用官方 `openai` Node SDK 处理 OpenAI-compatible HTTP/SSE、取消、超时和结构化 chunk；ActionDriver 保留业务生命周期、持久化、幂等重放、聚合日志和凭据过滤。比较过继续自研 Fetch/SSE 与仅引入 `eventsource-parser` 的方案，前者维护面过大，后者仍需自研大部分上游适配。SDK 自动重试和 debug logging 必须关闭，避免一次请求产生隐藏重试、重复日志或敏感正文旁路。

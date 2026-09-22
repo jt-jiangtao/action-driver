@@ -4,7 +4,7 @@
 
 **Goal:** Deliver one real Agent flow that selects a persisted OpenAI-compatible model, creates a real session over WebSocket, renders streamed Markdown, persists the terminal result, and exposes one correlated Request/Response log.
 
-**Architecture:** Keep configuration and queries on the existing typed bridge, but add a single Main-process WebSocket client connected directly to the Runtime HTTP service. The Runtime owns a versioned stream protocol, an OpenAI SSE adapter, durable stream events, assistant-message reconciliation, and aggregate model-call logging. Renderer receives typed stream events through the narrow Preload bridge, updates one cached assistant message, and reconciles with the persisted terminal snapshot.
+**Architecture:** Keep configuration and queries on the existing typed bridge, but add a single Main-process WebSocket client connected directly to the Runtime HTTP service. The Runtime owns a versioned stream protocol, an official OpenAI Node SDK adapter for the provider hop, durable stream events, assistant-message reconciliation, and aggregate model-call logging. Renderer receives typed stream events through the narrow Preload bridge, updates one cached assistant message, and reconciles with the persisted terminal snapshot.
 
 **Tech Stack:** TypeScript 5.9, Electron 38, React 19, Vitest 3, Playwright 1.63, SQLite/better-sqlite3, LangGraph, Fetch/ReadableStream, `ws` 8, Zod 4, markdown-it 15, pnpm workspaces.
 
@@ -44,8 +44,7 @@
 
 ### Provider streaming
 
-- Modify `packages/model-connections/src/http-transport.ts`: add a streaming Fetch response that exposes status and an async byte iterable without buffering the body.
-- Create `packages/model-connections/src/openai-sse.ts`: incremental UTF-8/SSE parser with `[DONE]`, split-line, malformed-frame, error-frame, usage, and finish-reason handling.
+- Add the latest Node 20-compatible major of the official `openai` package to `packages/model-connections`; configure `baseURL`, `maxRetries: 0`, `logLevel: 'off'`, a 15-second timeout, and request-level cancellation.
 - Modify `packages/model-connections/src/types.ts`, `provider-adapters.ts`, `service.ts`, and `index.ts`: replace completion-only execution with a credential-free streaming port.
 - Modify focused tests under `packages/model-connections/tests/`.
 
@@ -189,57 +188,38 @@ git commit -m "feat: define agent streaming protocol"
 
 **Files:**
 
-- Modify: `packages/model-connections/src/http-transport.ts`
-- Create: `packages/model-connections/src/openai-sse.ts`
+- Modify: `packages/model-connections/package.json`
 - Modify: `packages/model-connections/src/types.ts`
 - Modify: `packages/model-connections/src/provider-adapters.ts`
 - Modify: `packages/model-connections/src/service.ts`
 - Modify: `packages/model-connections/src/index.ts`
-- Modify: `packages/model-connections/tests/http-transport.test.ts`
-- Create: `packages/model-connections/tests/openai-sse.test.ts`
 - Modify: `packages/model-connections/tests/provider-adapters.test.ts`
 - Modify: `packages/model-connections/tests/model-connection-service.test.ts`
+- Modify: `pnpm-lock.yaml`
 
 **Interfaces:**
 
-- Produces: `HttpTransport.stream(request): Promise<HttpStreamResponse>`.
 - Produces: `ModelCompletionEvent = { kind: 'content'; delta: string } | { kind: 'end'; content: string; finishReason: string | null; usage: ModelUsage | null; requestBody: unknown; responseBody: unknown; status: number }`.
 - Produces: `ModelCompletionServicePort.stream(request, signal): AsyncIterable<ModelCompletionEvent>`.
 - Consumes: exact `ModelRef`, persisted connection validation, provider error classification.
 
-- [ ] **Step 1: Write failing SSE parser tests**
+- [ ] **Step 1: Write failing SDK adapter tests**
 
-Feed byte chunks that split `data:` lines and multibyte UTF-8 characters:
-
-```ts
-const frames = [
-  'data: {"choices":[{"delta":{"content":"# 标"}}]}\n\n',
-  'data: {"choices":[{"delta":{"content":"题"}}]}\n\n',
-  'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"total_tokens":4}}\n\n',
-  'data: [DONE]\n\n'
-]
-expect(await collect(parseOpenAiSse(bytes(frames)))).toEqual([
-  { kind: 'content', delta: '# 标' },
-  { kind: 'content', delta: '题' },
-  expect.objectContaining({ kind: 'end', content: '# 标题', finishReason: 'stop' })
-])
-```
-
-Add malformed JSON, provider `error`, blank-content, missing `[DONE]`, and aborted-stream cases.
+Inject a fake OpenAI client factory whose `chat.completions.create({ stream: true })` result yields split visible deltas, a finish reason, and a final usage-only chunk. Assert that the adapter emits visible content events followed by one aggregate terminal event, configures the exact saved `baseURL`, sets `maxRetries: 0`, `logLevel: 'off'`, and the 15-second timeout, and forwards the caller `AbortSignal`. Add authentication, rate-limit, timeout, cancellation, blank-content, and early-end cases using SDK-shaped errors and streams.
 
 - [ ] **Step 2: Run and verify failure**
 
-Run: `corepack pnpm exec vitest run packages/model-connections/tests/openai-sse.test.ts packages/model-connections/tests/provider-adapters.test.ts`
+Run: `corepack pnpm exec vitest run packages/model-connections/tests/provider-adapters.test.ts packages/model-connections/tests/model-connection-service.test.ts`
 
-Expected: FAIL because streaming transport/parser APIs do not exist.
+Expected: FAIL because the SDK streaming adapter APIs do not exist.
 
-- [ ] **Step 3: Extend Fetch transport without buffering**
+- [ ] **Step 3: Add and configure the official SDK**
 
-`stream()` must combine caller cancellation with the 15-second connect/idle deadline, return status/headers plus an async iterable over `Response.body`, and classify cancelled, timeout, and network failures with `HttpTransportError`. Keep `request()` unchanged for model discovery and connection tests.
+Install the latest official `openai` major compatible with the repository's Node 20 baseline. Create the client only after connection/model validation and decryption. Configure `apiKey`, normalized `baseURL`, `maxRetries: 0`, `logLevel: 'off'`, and `timeout: 15_000`; pass the caller `AbortSignal` to the request. Keep the existing `HttpTransport.request()` path unchanged for discovery, connection tests, and model probes.
 
-- [ ] **Step 4: Implement the incremental SSE parser**
+- [ ] **Step 4: Implement the SDK chunk adapter**
 
-Use one `TextDecoder` with `stream: true`, retain an incomplete line/frame buffer, join all `data:` lines in one event, ignore comments, stop on `[DONE]`, and throw `ModelStreamError` containing only safe provider payloads. Build one aggregate response object from visible content, finish reason, and usage.
+Iterate the SDK stream exactly once. Emit only non-empty `choices[0].delta.content`, aggregate visible content, record the last non-null `finish_reason`, normalize final usage, and produce one terminal event only after the iterator ends normally with a finish reason. Map SDK authentication, not-found/model-not-found, rate-limit, provider, connection, timeout, abort, malformed-stream, blank-content, and early-end failures into credential-free domain errors.
 
 - [ ] **Step 5: Replace completion execution with streaming**
 
@@ -260,7 +240,7 @@ Keep Anthropic execution rejected before network I/O. Resolve the selected conne
 
 - [ ] **Step 6: Run focused tests**
 
-Run: `corepack pnpm exec vitest run packages/model-connections/tests/http-transport.test.ts packages/model-connections/tests/openai-sse.test.ts packages/model-connections/tests/provider-adapters.test.ts packages/model-connections/tests/model-connection-service.test.ts`
+Run: `corepack pnpm exec vitest run packages/model-connections/tests/http-transport.test.ts packages/model-connections/tests/provider-adapters.test.ts packages/model-connections/tests/model-connection-service.test.ts`
 
 Expected: PASS.
 

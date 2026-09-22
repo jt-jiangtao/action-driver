@@ -145,13 +145,15 @@ type RequestCreate = {
 
 ## 真实模型流
 
-OpenAI-compatible adapter 发起真实流式 `/chat/completions` 请求，并把供应商分片转换为内部可取消的异步流。适配器负责：
+OpenAI-compatible adapter 使用官方 `openai` Node SDK 发起真实流式 `/chat/completions` 请求，并把 SDK 的结构化 chunk 转换为内部可取消的异步流。SDK 按已保存连接设置 `baseURL`，关闭自动重试与 debug logging，显式传入 15 秒超时和调用级 `AbortSignal`。适配器负责：
 
 - 解析 assistant 文本增量；
 - 聚合最终全文、用量和结束原因；
 - 映射认证、限流、超时、网络、中途断流、畸形分片和无文本错误；
 - 在取消时中止上游请求；
 - 绝不发布隐藏推理内容，只发布用户可见 assistant 输出。
+
+SDK 只承担 Runtime 到供应商这一跳的 HTTP/SSE、UTF-8 分帧、取消和基础错误解析；桌面端到 Runtime 仍只使用 `actiondriver.stream.v1` WebSocket。ActionDriver 自己维护事件生命周期、幂等、重放、持久化和聚合日志，不把 SDK 类型传播到公共协议。
 
 不得用非流式响应加定时器模拟逐字输出。真实服务不可用时任务进入明确失败态，不回退到假服务或 Mock。
 

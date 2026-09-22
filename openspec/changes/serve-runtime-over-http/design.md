@@ -149,6 +149,14 @@
 
 替代方案 A 是同时实现 OpenAI 与 Anthropic 的执行路径；替代方案 B 是页面直连供应商；替代方案 C 是保留非流式上游并在客户端用定时器伪造逐字显示。前两者分别扩大首个切片和破坏凭据边界，方案 C 无法验证真实背压、取消、错误和日志终态。裁决状态：**已裁决（2026-09-23）：采用 OpenAI-compatible 真实流式垂直切片，Anthropic 暂只配置不可执行，所有可见任务与日志使用真实数据。**
 
+### 10. OpenAI-compatible 上游 SDK：采用官方 `openai` Node SDK
+
+Runtime 使用官方 `openai` Node SDK 调用已保存连接的 `/chat/completions` 流式接口。每次调用以连接的 `baseUrl` 和服务端解密出的 API Key 创建受限客户端，设置 `maxRetries: 0`，并显式传入 15 秒超时与调用级 `AbortSignal`；请求固定携带 `stream: true` 和 `stream_options.include_usage: true`。适配器只向领域层暴露可见文本 delta、最终全文、`finish_reason`、usage、HTTP 状态和安全的聚合响应，不暴露客户端实例、地址、请求头或凭据。
+
+SDK 负责 HTTP、SSE 分帧、UTF-8 边界、结构化 chunk、取消与供应商错误；ActionDriver 继续负责模型引用校验、`start → content* → end` 生命周期、无 `[DONE]`/非完整终态判定、事件持久化、幂等与重放、单条聚合 Request/Response 日志以及凭据过滤。SDK 的 debug logging 必须关闭，避免请求正文或供应商响应绕过现有日志边界；自动重试关闭，避免一次用户请求产生不可见的多次供应商调用和重复日志。
+
+替代方案 A：继续维护自研 Fetch + SSE 解析器。优势是完全掌控 wire format，代价是需要长期处理 UTF-8 分片、多行 `data:`、畸形帧、取消竞态、超时和供应商兼容差异。替代方案 B：只使用 `eventsource-parser`。它能可靠分帧，但 HTTP、错误分类、OpenAI chunk 类型和取消仍需自研。用户确认采用官方 SDK，以最小化协议层维护成本；若已配置兼容网关无法被 SDK 正确解析，则以该网关的可复现响应作为新证据重新 Battle，而不是静默退回自研解析器。裁决状态：**已裁决（2026-09-23）：采用官方 `openai` Node SDK。**
+
 ## Risks / Trade-offs
 
 - [重做传输层产生返工] → 复用既有领域类型与错误分类，只替换传输与装配；任务按"服务端 → 客户端 → 下线"顺序推进，每步保持可运行。
@@ -166,6 +174,7 @@
 - [大载荷拖慢列表刷新或跨进程传输] → 摘要与载荷物理分离，列表永不返回正文，详情按事件 ID 单独读取；文本超过 4 MiB 标记截断，二进制仅记录元数据。
 - [摘要存在但载荷缺失或清理中断] → 详情返回结构化 `payload-unavailable` 状态，列表仍可读取；写入使用原子提交，清理以事件为单位且可重复执行。
 - [首个闭环暂不支持 Anthropic 执行] → 保留连接配置与测试能力，在模型选择器明确禁用并说明原因；后续以独立增量接入，不伪装兼容。
+- [OpenAI-compatible 网关实现可能偏离官方流协议] → 先用已保存真实连接做 live smoke；出现可复现兼容差异时记录原始状态与安全化响应，再决定增加窄适配层或切换解析方案，不允许静默降级到 Mock。
 - [真实数据为空时暴露旧 Mock 降级] → 本地生产组合根禁止注入 Mock catalog/gateway/log projection，并用重启恢复与空数据测试守卫。
 
 ## Migration Plan
