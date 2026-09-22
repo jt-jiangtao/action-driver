@@ -1,6 +1,6 @@
 import type { HttpTransport } from './http-transport'
 import { HttpTransportError } from './http-transport'
-import type { ModelFailureCode, ModelProtocol } from './types'
+import type { ModelCompletionOutcome, ModelFailureCode, ModelProtocol } from './types'
 
 export type ProviderFailure = {
   code: ModelFailureCode
@@ -18,11 +18,18 @@ export interface ModelProviderAdapter {
   discover(input: ModelEndpoint): Promise<ProviderResult<string[]>>
   verifyConnection(input: ModelEndpoint): Promise<ProviderResult<null>>
   probeModel(input: ModelEndpoint & { modelId: string }): Promise<ProviderProbeResult>
+  complete(input: ProviderCompletionInput, signal?: AbortSignal): Promise<ModelCompletionOutcome>
 }
 
 export type ModelEndpoint = {
   baseUrl: string
   apiKey: string
+}
+
+export type ProviderCompletionInput = ModelEndpoint & {
+  modelId: string
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  parameters: { temperature?: number; maxTokens?: number }
 }
 
 export const CONNECTION_TEST_TIMEOUT_MS = 10_000
@@ -67,6 +74,56 @@ export function createOpenAiCompatibleAdapter(transport: HttpTransport): ModelPr
 
   return {
     discover,
+    async complete({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
+      const requestBody = {
+        model: modelId,
+        messages,
+        ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
+        ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
+        stream: false
+      }
+      if (signal?.aborted) {
+        return completionFailure(
+          failure('cancelled', 'Model request was cancelled'),
+          requestBody,
+          null,
+          null
+        )
+      }
+      const response = await sendCompletion(
+        transport,
+        {
+          url: `${normalizeBaseUrl(baseUrl)}/chat/completions`,
+          method: 'POST',
+          headers: { authorization: `Bearer ${apiKey}` },
+          body: requestBody,
+          timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
+          ...(signal ? { signal } : {})
+        },
+        requestBody
+      )
+      if (!response.ok) return response
+
+      const content = readAssistantContent(response.value.body)
+      if (!content) {
+        return completionFailure(
+          failure('invalid-response', 'Model response is missing assistant text'),
+          requestBody,
+          response.value.body,
+          response.value.status
+        )
+      }
+      return {
+        ok: true,
+        value: {
+          content,
+          providerProtocol: 'openai-compatible',
+          requestBody,
+          responseBody: response.value.body,
+          status: response.value.status
+        }
+      }
+    },
     async verifyConnection(input) {
       const result = await discover(input)
       return result.ok ? { ok: true, value: null } : result
@@ -112,6 +169,19 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
 
   return {
     discover,
+    async complete(input) {
+      return completionFailure(
+        failure('invalid-request', 'Agent 调用暂未接入'),
+        {
+          model: input.modelId,
+          messages: input.messages,
+          ...input.parameters,
+          stream: false
+        },
+        null,
+        null
+      )
+    },
     async verifyConnection({ baseUrl, apiKey }) {
       const result = await probeModel({
         baseUrl,
@@ -163,26 +233,100 @@ async function send(
   }
 }
 
+async function sendCompletion(
+  transport: HttpTransport,
+  request: Parameters<HttpTransport['request']>[0],
+  requestBody: unknown
+): Promise<
+  | { ok: true; value: { status: number; body: unknown; text: string } }
+  | Extract<ModelCompletionOutcome, { ok: false }>
+> {
+  try {
+    const response = await transport.request(request)
+    const classification = classifyResponse(response.status, response.body, response.text)
+    if (classification) {
+      return completionFailure(
+        redactProviderFailure(classification, request.headers),
+        requestBody,
+        redactProviderPayload(response.body, request.headers),
+        response.status
+      )
+    }
+    return {
+      ok: true,
+      value: { ...response, body: redactProviderPayload(response.body, request.headers) }
+    }
+  } catch (error) {
+    const providerFailure =
+      error instanceof HttpTransportError
+        ? failure(error.code, error.message)
+        : failure('unknown', error instanceof Error ? error.message : String(error))
+    return completionFailure(
+      redactProviderFailure(providerFailure, request.headers),
+      requestBody,
+      null,
+      null
+    )
+  }
+}
+
+function completionFailure(
+  providerFailure: ProviderFailure,
+  requestBody: unknown,
+  responseBody: unknown | null,
+  status: number | null
+): Extract<ModelCompletionOutcome, { ok: false }> {
+  return {
+    ok: false,
+    failure: { ...providerFailure, retryable: isRetryable(providerFailure.code) },
+    requestBody,
+    responseBody,
+    status
+  }
+}
+
+function isRetryable(code: ModelFailureCode): boolean {
+  return ['rate-limited', 'provider-error', 'network', 'timeout'].includes(code)
+}
+
 function redactProviderFailure(
   providerFailure: ProviderFailure,
   headers: Record<string, string>
 ): ProviderFailure {
-  const secrets = Object.entries(headers).flatMap(([name, value]) => {
+  const secrets = credentialSecrets(headers)
+  return {
+    ...providerFailure,
+    message: redactString(providerFailure.message, secrets)
+  }
+}
+
+function credentialSecrets(headers: Record<string, string>): string[] {
+  return Object.entries(headers).flatMap(([name, value]) => {
     if (name.toLowerCase() === 'x-api-key') return [value]
     if (name.toLowerCase() === 'authorization') {
       return [value, value.replace(/^Bearer\s+/i, '')]
     }
     return []
   })
-  return {
-    ...providerFailure,
-    message: secrets
-      .filter(Boolean)
-      .reduce(
-        (message, secret) => message.split(secret).join('[redacted]'),
-        providerFailure.message
-      )
-  }
+}
+
+function redactProviderPayload(value: unknown, headers: Record<string, string>): unknown {
+  const secrets = credentialSecrets(headers)
+  if (typeof value === 'string') return redactString(value, secrets)
+  if (Array.isArray(value)) return value.map((item) => redactProviderPayload(item, headers))
+  if (typeof value !== 'object' || value === null) return value
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      redactString(key, secrets),
+      redactProviderPayload(item, headers)
+    ])
+  )
+}
+
+function redactString(value: string, secrets: readonly string[]): string {
+  return secrets
+    .filter(Boolean)
+    .reduce((result, secret) => result.split(secret).join('[redacted]'), value)
 }
 
 function probeResult(response: SendResult): ProviderProbeResult {
@@ -235,6 +379,18 @@ function readModelIds(body: unknown): string[] | null {
     )
     .filter((id): id is string => typeof id === 'string' && id.length > 0)
   return ids
+}
+
+function readAssistantContent(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null
+  const choices = (body as { choices?: unknown }).choices
+  if (!Array.isArray(choices) || choices.length === 0) return null
+  const first = choices[0]
+  if (typeof first !== 'object' || first === null) return null
+  const message = (first as { message?: unknown }).message
+  if (typeof message !== 'object' || message === null) return null
+  const content = (message as { content?: unknown }).content
+  return typeof content === 'string' && content.trim() ? content : null
 }
 
 function readCode(body: unknown): string | null {

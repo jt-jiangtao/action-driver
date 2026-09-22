@@ -40,9 +40,16 @@ describe('fetch HTTP transport', () => {
       failing.request({ url: 'https://api.example.com', method: 'GET', headers: {}, timeoutMs: 10 })
     ).rejects.toMatchObject({ code: 'network' })
 
-    const htmlError = createFetchHttpTransport(async () => response(502, '<html>bad gateway</html>'))
+    const htmlError = createFetchHttpTransport(async () =>
+      response(502, '<html>bad gateway</html>')
+    )
     await expect(
-      htmlError.request({ url: 'https://api.example.com', method: 'GET', headers: {}, timeoutMs: 10 })
+      htmlError.request({
+        url: 'https://api.example.com',
+        method: 'GET',
+        headers: {},
+        timeoutMs: 10
+      })
     ).resolves.toMatchObject({ status: 502, body: null, text: '<html>bad gateway</html>' })
   })
 
@@ -64,6 +71,27 @@ describe('fetch HTTP transport', () => {
         timeoutMs: 5
       })
     ).rejects.toBeInstanceOf(HttpTransportError)
+  })
+
+  it('cancels an in-flight request when the caller aborts', async () => {
+    const transport = createFetchHttpTransport(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('caller cancelled')))
+        })
+    )
+    const controller = new AbortController()
+    const pending = transport.request({
+      url: 'https://api.example.com',
+      method: 'GET',
+      headers: {},
+      timeoutMs: 1_000,
+      signal: controller.signal
+    })
+
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ code: 'cancelled' })
   })
 
   it('retries without a signal when the fetch implementation rejects a foreign AbortSignal', async () => {

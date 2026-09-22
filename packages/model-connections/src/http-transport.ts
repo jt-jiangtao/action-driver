@@ -4,6 +4,7 @@ export type HttpRequest = {
   headers: Record<string, string>
   body?: unknown
   timeoutMs: number
+  signal?: AbortSignal
 }
 
 export type HttpResponse = {
@@ -12,7 +13,7 @@ export type HttpResponse = {
   text: string
 }
 
-export type HttpTransportFailureCode = 'network' | 'timeout'
+export type HttpTransportFailureCode = 'network' | 'timeout' | 'cancelled'
 
 export class HttpTransportError extends Error {
   constructor(
@@ -39,6 +40,11 @@ export function createFetchHttpTransport(fetchImplementation?: FetchLike): HttpT
       }
 
       const controller = new AbortController()
+      if (request.signal?.aborted) {
+        throw new HttpTransportError('cancelled', `Request to ${request.url} was cancelled`)
+      }
+      const abortFromCaller = () => controller.abort(request.signal?.reason)
+      request.signal?.addEventListener('abort', abortFromCaller, { once: true })
       const timeout = setTimeout(() => controller.abort(), request.timeoutMs)
       const init: RequestInit = {
         method: request.method,
@@ -69,6 +75,9 @@ export function createFetchHttpTransport(fetchImplementation?: FetchLike): HttpT
         return { status: response.status, body: parseJson(text), text }
       } catch (error) {
         if (controller.signal.aborted) {
+          if (request.signal?.aborted) {
+            throw new HttpTransportError('cancelled', `Request to ${request.url} was cancelled`)
+          }
           throw new HttpTransportError('timeout', `Request to ${request.url} timed out`)
         }
         throw new HttpTransportError(
@@ -77,6 +86,7 @@ export function createFetchHttpTransport(fetchImplementation?: FetchLike): HttpT
         )
       } finally {
         clearTimeout(timeout)
+        request.signal?.removeEventListener('abort', abortFromCaller)
       }
     }
   }

@@ -11,6 +11,8 @@ import type {
   ModelConnectionDraftDto,
   ModelConnectionTestRequestDto,
   ModelConnectionTestResultDto,
+  ModelCompletionOutcome,
+  ModelCompletionRequest,
   ModelFailureCode,
   ModelOptionDto,
   ModelSetEnabledRequestDto,
@@ -37,6 +39,10 @@ export interface ModelConnectionServicePort {
   delete(connectionId: string): Promise<void>
 }
 
+export interface ModelCompletionServicePort {
+  complete(request: ModelCompletionRequest, signal?: AbortSignal): Promise<ModelCompletionOutcome>
+}
+
 export class ModelServiceError extends Error {
   constructor(
     readonly code: ModelFailureCode,
@@ -47,11 +53,51 @@ export class ModelServiceError extends Error {
   }
 }
 
-export class ModelConnectionService implements ModelConnectionServicePort {
+export class ModelConnectionService
+  implements ModelConnectionServicePort, ModelCompletionServicePort
+{
   constructor(private readonly options: ModelConnectionServiceOptions) {}
 
   async list(): Promise<ModelConnectionDto[]> {
     return this.read().map(toDto)
+  }
+
+  async complete(
+    request: ModelCompletionRequest,
+    signal?: AbortSignal
+  ): Promise<ModelCompletionOutcome> {
+    const connection = requireConnection(this.read(), request.model.connectionId)
+    const model = connection.models.find((candidate) => candidate.id === request.model.modelId)
+    if (!model) {
+      throw new ModelServiceError('invalid-request', `Unknown model: ${request.model.modelId}`)
+    }
+    if (!model.enabled) {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
+    }
+    if (model.testState === 'unsupported') {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} does not support text`)
+    }
+    if (model.testState !== 'success') {
+      throw new ModelServiceError(
+        'invalid-request',
+        `Model ${model.id} has not passed text testing`
+      )
+    }
+    if (connection.protocol !== 'openai-compatible') {
+      throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
+    }
+
+    const adapter = createModelProviderAdapter(connection.protocol, this.options.transport)
+    return await adapter.complete(
+      {
+        baseUrl: connection.baseUrl,
+        apiKey: this.decrypt(connection),
+        modelId: model.id,
+        messages: request.messages,
+        parameters: request.parameters
+      },
+      signal
+    )
   }
 
   async testConnection(draft: ModelConnectionDraftDto): Promise<ModelConnectionTestResultDto> {

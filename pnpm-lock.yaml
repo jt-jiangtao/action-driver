@@ -335,7 +335,11 @@ importers:
 
   packages/design-tokens: {}
 
-  packages/model-connections: {}
+  packages/model-connections:
+    dependencies:
+      '@actiondriver/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/observability:
     dependencies:

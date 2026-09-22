@@ -58,6 +58,99 @@ const discoveredModels: ModelOptionDto[] = [
 ]
 
 describe('model connection service', () => {
+  it('executes a duplicate model id through the selected connection only', async () => {
+    const { service, requests } = createService(() => ({
+      status: 200,
+      body: { choices: [{ message: { content: 'selected connection answer' } }] },
+      text: ''
+    }))
+    await service.add({
+      draft: { ...draft, name: 'First', apiKey: 'first-secret' },
+      models: [{ id: 'shared-model', name: 'shared-model', enabled: true, testState: 'success' }]
+    })
+    const second = await service.add({
+      draft: { ...draft, name: 'Second', apiKey: 'second-secret' },
+      models: [{ id: 'shared-model', name: 'shared-model', enabled: true, testState: 'success' }]
+    })
+
+    const result = await service.complete({
+      model: { connectionId: second.id, modelId: 'shared-model' },
+      requestId: 'request-1',
+      taskId: 'task-1',
+      messages: [{ role: 'user', content: 'hello' }],
+      parameters: { temperature: 0 }
+    })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.headers.authorization).toBe('Bearer second-secret')
+    expect(result).toMatchObject({ ok: true, value: { content: 'selected connection answer' } })
+    expect(JSON.stringify(result)).not.toContain('second-secret')
+  })
+
+  it.each([
+    {
+      label: 'disabled',
+      protocol: 'openai-compatible' as const,
+      model: { id: 'blocked', name: 'blocked', enabled: false, testState: 'success' as const },
+      message: 'is disabled'
+    },
+    {
+      label: 'unsupported',
+      protocol: 'openai-compatible' as const,
+      model: { id: 'blocked', name: 'blocked', enabled: true, testState: 'unsupported' as const },
+      message: 'does not support text'
+    },
+    {
+      label: 'anthropic',
+      protocol: 'anthropic' as const,
+      model: { id: 'blocked', name: 'blocked', enabled: true, testState: 'success' as const },
+      message: 'Agent 调用暂未接入'
+    }
+  ])('rejects a $label model before network I/O', async ({ protocol, model, message }) => {
+    const { service, requests } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft: { ...draft, protocol },
+      models: [model]
+    })
+
+    await expect(
+      service.complete({
+        model: { connectionId: connection.id, modelId: model.id },
+        requestId: 'request-1',
+        taskId: 'task-1',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).rejects.toMatchObject({ code: 'invalid-request', message: expect.stringContaining(message) })
+    expect(requests).toEqual([])
+  })
+
+  it('rejects a missing connection or model before network I/O', async () => {
+    const { service, requests } = createService(() => ({ status: 200, body: {}, text: '' }))
+
+    await expect(
+      service.complete({
+        model: { connectionId: 'missing', modelId: 'shared-model' },
+        requestId: 'request-1',
+        taskId: 'task-1',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).rejects.toBeInstanceOf(ModelServiceError)
+
+    const connection = await service.add({ draft, models: discoveredModels })
+    await expect(
+      service.complete({
+        model: { connectionId: connection.id, modelId: 'missing' },
+        requestId: 'request-2',
+        taskId: 'task-2',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).rejects.toBeInstanceOf(ModelServiceError)
+    expect(requests).toEqual([])
+  })
+
   it('stores a connection with an encrypted key and only exposes a hint', async () => {
     const { service, store } = createService(() => ({ status: 200, body: {}, text: '' }))
 

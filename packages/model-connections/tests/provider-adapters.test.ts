@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HttpRequest, HttpResponse, HttpTransport } from '../src'
+import { HttpTransportError, type HttpRequest, type HttpResponse, type HttpTransport } from '../src'
 import { classifyResponse, createAnthropicAdapter, createOpenAiCompatibleAdapter } from '../src'
 
 function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTransport & {
@@ -18,6 +18,163 @@ function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTrans
 const endpoint = { baseUrl: 'https://token-plan.example.com/compatible-mode/v1', apiKey: 'sk-x' }
 
 describe('OpenAI compatible adapter', () => {
+  it('executes a non-streaming chat completion and preserves safe request and response bodies', async () => {
+    const transport = transportOf(() => ({
+      status: 200,
+      body: { choices: [{ message: { role: 'assistant', content: 'real answer' } }] },
+      text: ''
+    }))
+    const adapter = createOpenAiCompatibleAdapter(transport)
+
+    await expect(
+      adapter.complete({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [
+          { role: 'system', content: 'system text' },
+          { role: 'user', content: 'user text' }
+        ],
+        parameters: { temperature: 0 }
+      })
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        content: 'real answer',
+        providerProtocol: 'openai-compatible',
+        requestBody: {
+          model: 'gpt-real',
+          messages: [
+            { role: 'system', content: 'system text' },
+            { role: 'user', content: 'user text' }
+          ],
+          temperature: 0,
+          stream: false
+        },
+        responseBody: {
+          choices: [{ message: { role: 'assistant', content: 'real answer' } }]
+        },
+        status: 200
+      }
+    })
+    expect(transport.requests[0]).toMatchObject({
+      url: 'https://token-plan.example.com/compatible-mode/v1/chat/completions',
+      method: 'POST',
+      headers: { authorization: 'Bearer sk-x' },
+      body: {
+        model: 'gpt-real',
+        messages: [
+          { role: 'system', content: 'system text' },
+          { role: 'user', content: 'user text' }
+        ],
+        temperature: 0,
+        stream: false
+      }
+    })
+  })
+
+  it.each([
+    {
+      name: 'blank successful response',
+      response: { status: 200, body: { choices: [{ message: { content: '   ' } }] }, text: '' },
+      failure: { code: 'invalid-response', retryable: false },
+      status: 200
+    },
+    {
+      name: 'unauthorized response',
+      response: { status: 401, body: { error: { message: 'bad key' } }, text: '' },
+      failure: { code: 'unauthorized', retryable: false },
+      status: 401
+    },
+    {
+      name: 'rate limited response',
+      response: { status: 429, body: { error: { message: 'slow down' } }, text: '' },
+      failure: { code: 'rate-limited', retryable: true },
+      status: 429
+    }
+  ])('returns a diagnosable outcome for $name', async ({ response, failure, status }) => {
+    const adapter = createOpenAiCompatibleAdapter(transportOf(() => response))
+
+    await expect(
+      adapter.complete({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      failure,
+      requestBody: { model: 'gpt-real', stream: false },
+      responseBody: response.body,
+      status
+    })
+  })
+
+  it('maps timeout and cancellation without inventing a response', async () => {
+    const timedOut = createOpenAiCompatibleAdapter(
+      transportOf(() => {
+        throw new HttpTransportError('timeout', 'request timed out')
+      })
+    )
+    await expect(
+      timedOut.complete({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      failure: { code: 'timeout', retryable: true },
+      responseBody: null,
+      status: null
+    })
+
+    const transport = transportOf(() => ({ status: 200, body: {}, text: '' }))
+    const cancelled = createOpenAiCompatibleAdapter(transport)
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      cancelled.complete(
+        {
+          ...endpoint,
+          modelId: 'gpt-real',
+          messages: [{ role: 'user', content: 'hello' }],
+          parameters: {}
+        },
+        controller.signal
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      failure: { code: 'cancelled', retryable: false },
+      responseBody: null,
+      status: null
+    })
+    expect(transport.requests).toEqual([])
+  })
+
+  it('removes reflected credentials from completion response bodies', async () => {
+    const transport = transportOf((request) => ({
+      status: 401,
+      body: { error: { message: `Rejected ${request.headers.authorization}` } },
+      text: ''
+    }))
+
+    const result = await createOpenAiCompatibleAdapter(transport).complete({
+      ...endpoint,
+      apiKey: 'sk-completion-secret',
+      modelId: 'gpt-real',
+      messages: [{ role: 'user', content: 'hello' }],
+      parameters: {}
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      responseBody: { error: { message: 'Rejected [redacted]' } }
+    })
+    expect(JSON.stringify(result)).not.toContain('sk-completion-secret')
+  })
+
   it('discovers models from the model list endpoint', async () => {
     const transport = transportOf(() => ({
       status: 200,
@@ -172,6 +329,25 @@ describe('Anthropic compatible adapter', () => {
     await expect(
       createAnthropicAdapter(transport).verifyConnection(anthEndpoint)
     ).resolves.toMatchObject({ ok: false, failure: { code: 'unauthorized' } })
+  })
+
+  it('does not execute Agent completions in the first vertical slice', async () => {
+    const transport = transportOf(() => ({ status: 200, body: {}, text: '' }))
+
+    await expect(
+      createAnthropicAdapter(transport).complete({
+        ...anthEndpoint,
+        modelId: 'claude',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      failure: { code: 'invalid-request', message: 'Agent 调用暂未接入', retryable: false },
+      responseBody: null,
+      status: null
+    })
+    expect(transport.requests).toEqual([])
   })
 })
 

@@ -1,3 +1,5 @@
+import type { ModelRef } from '@actiondriver/contracts'
+
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
 export type ModelTestState = 'untested' | 'testing' | 'success' | 'failed' | 'unsupported'
@@ -12,6 +14,7 @@ export type ModelFailureCode =
   | 'provider-error'
   | 'network'
   | 'timeout'
+  | 'cancelled'
   | 'invalid-request'
   | 'invalid-response'
   | 'secret-unavailable'
@@ -22,6 +25,33 @@ export type ModelFailure = {
   code: ModelFailureCode
   message: string
 }
+
+export type ModelCompletionRequest = {
+  model: ModelRef
+  requestId: string
+  taskId: string
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  parameters: { temperature?: number; maxTokens?: number }
+}
+
+export type ModelCompletionOutcome =
+  | {
+      ok: true
+      value: {
+        content: string
+        providerProtocol: 'openai-compatible'
+        requestBody: unknown
+        responseBody: unknown
+        status: number
+      }
+    }
+  | {
+      ok: false
+      failure: ModelFailure & { retryable: boolean }
+      requestBody: unknown
+      responseBody: unknown | null
+      status: number | null
+    }
 
 /**
  * Transport DTOs never carry the plaintext API key. `apiKeyHint` is the only credential derived
