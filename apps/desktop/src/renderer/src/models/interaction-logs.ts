@@ -1,6 +1,14 @@
+import type {
+  InteractionLogDetail,
+  InteractionLogQuery,
+  InteractionLogSummary
+} from '@actiondriver/observability'
+
 export type LogDirection = 'renderer->service' | 'service->renderer' | 'service->skill'
 
 export interface InteractionLogRecord {
+  id?: string
+  correlationId?: string
   level: number
   levelLabel: string
   time: number
@@ -16,20 +24,26 @@ export interface InteractionLogRecord {
   payloadItems?: number
   errorCode?: string
   errorMessage?: string
+  requestBytes?: number
+  responseBytes?: number
+  requestAvailable?: boolean
+  responseAvailable?: boolean
+  requestTruncated?: boolean
+  responseTruncated?: boolean
+  completedAt?: number | null
+  kind?: InteractionLogSummary['kind']
+  state?: InteractionLogSummary['state']
 }
 
-export interface InteractionLogRequest {
-  level?: string
-  direction?: string
-  search?: string
-  limit?: number
-}
+export type InteractionLogRequest = InteractionLogQuery
 
 export interface InteractionLogResult {
   records: InteractionLogRecord[]
+  nextCursor?: string | null
   files: string[]
 }
 
 export interface InteractionLogService {
   list(request: InteractionLogRequest): Promise<InteractionLogResult>
+  detail?(eventId: string): Promise<InteractionLogDetail>
 }

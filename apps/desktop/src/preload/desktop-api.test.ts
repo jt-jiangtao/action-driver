@@ -45,7 +45,7 @@ describe('createDesktopApi', () => {
     expect(api).not.toHaveProperty('messagePort')
     expect(api).not.toHaveProperty('utilityProcess')
     expect(api).not.toHaveProperty('databasePath')
-    expect(Object.keys(api.logs)).toEqual(['list'])
+    expect(Object.keys(api.logs)).toEqual(['list', 'detail'])
     expect(Object.keys(api.agentFiles).sort()).toEqual([
       'createSkill',
       'deleteSkill',
@@ -188,6 +188,32 @@ describe('createDesktopApi', () => {
     })
 
     await expect(api.agent.submit('Book a hotel')).rejects.toEqual(error)
+  })
+
+  it('uses separate summary and detail log channels', async () => {
+    const invoke = vi.fn((channel: string) =>
+      Promise.resolve(
+        channel === 'actiondriver:logs:list'
+          ? { ok: true, value: { records: [], nextCursor: null, files: [] } }
+          : { ok: true, value: { id: 'service:event-1' } }
+      )
+    )
+    const api = createDesktopApi('darwin', '0.1.0', {
+      invoke,
+      on: () => undefined,
+      off: () => undefined
+    })
+
+    await api.logs.list({ transports: ['http'], limit: 50 })
+    await api.logs.detail('service:event-1')
+
+    expect(invoke).toHaveBeenNthCalledWith(1, 'actiondriver:logs:list', {
+      transports: ['http'],
+      limit: 50
+    })
+    expect(invoke).toHaveBeenNthCalledWith(2, 'actiondriver:logs:detail', {
+      eventId: 'service:event-1'
+    })
   })
 
   it.each([

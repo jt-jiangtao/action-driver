@@ -1,36 +1,32 @@
-export const LOG_IPC_CHANNELS = {
-  list: 'actiondriver:logs:list'
-} as const
+import type {
+  InteractionLogDetail,
+  InteractionLogSummary,
+  InteractionTransport
+} from '@actiondriver/observability'
 
-export type LogRecordDto = {
-  level: number
-  levelLabel: string
-  time: number
-  name?: string
-  msg?: string
-  transport?: string
-  direction?: string
-  operation?: string
-  outcome?: string
-  status?: number
-  durationMs?: number
-  payloadBytes?: number
-  payloadItems?: number
-  errorCode?: string
-  errorMessage?: string
-}
+export const LOG_IPC_CHANNELS = {
+  list: 'actiondriver:logs:list',
+  detail: 'actiondriver:logs:detail'
+} as const
 
 export type LogListRequest = {
   level?: string
   direction?: string
+  transports?: InteractionTransport[]
   search?: string
+  cursor?: string | null
   limit?: number
 }
 
 export type LogListResult = {
-  records: LogRecordDto[]
+  records: InteractionLogSummary[]
+  nextCursor: string | null
   files: string[]
-  readable: boolean
 }
 
-export type LogIpcResponse<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string } }
+export type LogDetailRequest = { eventId: string }
+export type LogDetailResult = InteractionLogDetail
+
+export type LogIpcResponse<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: string; message: string } }

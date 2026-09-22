@@ -24,6 +24,7 @@ import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { registerAgentFilesIpcHandlers } from './agent-files-ipc'
+import { createLocalInteractionLogStore } from '@actiondriver/observability'
 
 const desktopIconPath = resolveDesktopIconPath(__dirname)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
@@ -66,11 +67,25 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 app.whenReady().then(async () => {
   applyDesktopBranding()
   logging = await createMainLogging({ userDataPath: app.getPath('userData') })
+  const interactionRoot = join(app.getPath('userData'), 'logs', 'interactions')
   registerLogIpcHandlers(
     ipcMain,
     [
-      { filePath: join(app.getPath('userData'), 'logs', 'renderer-service.log') },
-      { filePath: join(app.getPath('userData'), 'logs', 'service.log') }
+      {
+        prefix: 'main',
+        filePath: join(interactionRoot, 'main', 'index.ndjson'),
+        store: async () => logging!.interactionStore
+      },
+      {
+        prefix: 'service',
+        filePath: join(interactionRoot, 'service', 'index.ndjson'),
+        store: () =>
+          createLocalInteractionLogStore({
+            rootDirectory: interactionRoot,
+            source: 'service',
+            readOnly: true
+          })
+      }
     ],
     logging.interactions
   )

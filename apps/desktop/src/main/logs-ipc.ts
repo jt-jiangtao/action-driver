@@ -1,103 +1,132 @@
-import {
-  LOG_LEVELS,
-  logLevelLabel,
-  readRecentLogRecords,
-  type LogRecord
-} from '@actiondriver/observability'
-import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type {
+  InteractionLogRecorder,
+  InteractionLogStore,
+  InteractionLogSummary
+} from '@actiondriver/observability'
+import type {
+  LogDetailRequest,
+  LogDetailResult,
   LogIpcResponse,
   LogListRequest,
-  LogListResult,
-  LogRecordDto
+  LogListResult
 } from '../shared/log-ipc-contract'
 import { LOG_IPC_CHANNELS } from '../shared/log-ipc-contract'
-import { startIpcInteraction } from './logging'
 
 export interface LogIpcMain {
   handle(channel: string, handler: (event: unknown, input: unknown) => unknown): void
 }
 
 export type LogSource = {
+  prefix: 'main' | 'service'
   filePath: string
+  store(): Promise<InteractionLogStore>
 }
 
-/**
- * Serves the interaction log to the log page. Until the service HTTP surface owns this data, Main
- * reads the same files the service writes, so the page works in both assemblies.
- */
 export function registerLogIpcHandlers(
   ipcMain: LogIpcMain,
   sources: LogSource[],
   interactions?: InteractionLogRecorder
 ): void {
+  void interactions
   ipcMain.handle(LOG_IPC_CHANNELS.list, async (_event, input) => {
-    const finish = await startIpcInteraction(interactions, LOG_IPC_CHANNELS.list, input)
     try {
-      const value = readLogs(sources, (input ?? {}) as LogListRequest)
-      await finish?.({ outcome: 'ok', response: { kind: 'json', value } })
+      const value = await listLogs(sources, (input ?? {}) as LogListRequest)
       return { ok: true, value } satisfies LogIpcResponse<LogListResult>
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await finish?.({ outcome: 'error', error: { code: 'storage-error', message } })
-      return {
-        ok: false,
-        error: { code: 'storage-error', message }
-      } satisfies LogIpcResponse<LogListResult>
+      return failure('storage-error', error)
+    }
+  })
+
+  ipcMain.handle(LOG_IPC_CHANNELS.detail, async (_event, input) => {
+    const eventId = (input as LogDetailRequest | undefined)?.eventId
+    const source = sources.find((candidate) => eventId?.startsWith(`${candidate.prefix}:`))
+    if (!eventId || !source) {
+      return failure('invalid-event-id', new Error('Unknown interaction event source'))
+    }
+    try {
+      const detail = await (await source.store()).getDetail(eventId)
+      if (!detail) return failure('not-found', new Error('Interaction event was not found'))
+      return { ok: true, value: detail } satisfies LogIpcResponse<LogDetailResult>
+    } catch (error) {
+      return failure('storage-error', error)
     }
   })
 }
 
-export function readLogs(sources: LogSource[], request: LogListRequest): LogListResult {
-  const minLevel = request.level ? (LOG_LEVELS[request.level] ?? LOG_LEVELS.info!) : undefined
-  const limit = request.limit && request.limit > 0 ? Math.min(request.limit, 1_000) : 200
-  const records: LogRecordDto[] = []
+export async function listLogs(
+  sources: LogSource[],
+  request: LogListRequest
+): Promise<LogListResult> {
+  const records = (
+    await Promise.all(
+      sources.map(async (source) => collectSummaries(await source.store(), request))
+    )
+  )
+    .flat()
+    .sort((left, right) => right.time - left.time || right.id.localeCompare(left.id))
+  const after = decodeCursor(request.cursor)
+  const eligible = after
+    ? records.filter(
+        (record) => record.time < after.time || (record.time === after.time && record.id < after.id)
+      )
+    : records
+  const limit = Math.max(1, Math.min(request.limit ?? 200, 1_000))
+  const page = eligible.slice(0, limit)
+  return {
+    records: page,
+    nextCursor:
+      page.length < eligible.length
+        ? encodeCursor(page[page.length - 1] as InteractionLogSummary)
+        : null,
+    files: sources.map((source) => source.filePath)
+  }
+}
 
-  for (const source of sources) {
-    for (const record of readRecentLogRecords({
-      filePath: source.filePath,
-      limit,
-      ...(minLevel === undefined ? {} : { minLevel })
-    })) {
-      const dto = toDto(record)
-      if (request.direction && dto.direction !== request.direction) continue
-      if (request.search && !matchesSearch(dto, request.search)) continue
-      records.push(dto)
+async function collectSummaries(
+  store: InteractionLogStore,
+  request: LogListRequest
+): Promise<InteractionLogSummary[]> {
+  const records: InteractionLogSummary[] = []
+  let cursor: string | null = null
+  do {
+    const page = await store.list({
+      ...(request.level ? { level: request.level } : {}),
+      ...(request.direction ? { direction: request.direction } : {}),
+      ...(request.transports ? { transports: request.transports } : {}),
+      ...(request.search ? { search: request.search } : {}),
+      cursor,
+      limit: 1_000
+    })
+    records.push(...page.records)
+    cursor = page.nextCursor
+  } while (cursor)
+  return records
+}
+
+function encodeCursor(record: Pick<InteractionLogSummary, 'time' | 'id'>): string {
+  return Buffer.from(JSON.stringify({ time: record.time, id: record.id }), 'utf8').toString(
+    'base64url'
+  )
+}
+
+function decodeCursor(cursor: string | null | undefined): { time: number; id: string } | null {
+  if (!cursor) return null
+  try {
+    const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+      time?: unknown
+      id?: unknown
     }
-  }
-
-  records.sort((left, right) => left.time - right.time)
-  return {
-    records: records.slice(-limit),
-    files: sources.map((source) => source.filePath),
-    readable: true
+    return typeof value.time === 'number' && typeof value.id === 'string'
+      ? { time: value.time, id: value.id }
+      : null
+  } catch {
+    return null
   }
 }
 
-function toDto(record: LogRecord): LogRecordDto {
+function failure<T>(code: string, error: unknown): LogIpcResponse<T> {
   return {
-    level: record.level,
-    levelLabel: logLevelLabel(record.level),
-    time: record.time,
-    ...(typeof record.name === 'string' ? { name: record.name } : {}),
-    ...(typeof record.msg === 'string' ? { msg: record.msg } : {}),
-    ...(typeof record.transport === 'string' ? { transport: record.transport } : {}),
-    ...(typeof record.direction === 'string' ? { direction: record.direction } : {}),
-    ...(typeof record.operation === 'string' ? { operation: record.operation } : {}),
-    ...(typeof record.outcome === 'string' ? { outcome: record.outcome } : {}),
-    ...(typeof record.status === 'number' ? { status: record.status } : {}),
-    ...(typeof record.durationMs === 'number' ? { durationMs: record.durationMs } : {}),
-    ...(typeof record.payloadBytes === 'number' ? { payloadBytes: record.payloadBytes } : {}),
-    ...(typeof record.payloadItems === 'number' ? { payloadItems: record.payloadItems } : {}),
-    ...(typeof record.errorCode === 'string' ? { errorCode: record.errorCode } : {}),
-    ...(typeof record.errorMessage === 'string' ? { errorMessage: record.errorMessage } : {})
+    ok: false,
+    error: { code, message: error instanceof Error ? error.message : String(error) }
   }
-}
-
-function matchesSearch(record: LogRecordDto, search: string): boolean {
-  const needle = search.trim().toLowerCase()
-  if (!needle) return true
-  return [record.operation, record.outcome, record.errorCode, record.msg, record.direction]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(needle))
 }

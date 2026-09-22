@@ -1,13 +1,4 @@
-import {
-  appendFile,
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  rename,
-  rm,
-  stat
-} from 'node:fs/promises'
+import { appendFile, mkdir, open, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { gzip, gunzip } from 'node:zlib'
@@ -39,12 +30,14 @@ export async function createLocalInteractionLogStore(options: {
   source: string
   retention?: Retention
   clock?: () => number
+  readOnly?: boolean
 }): Promise<InteractionLogStore> {
   const store = new LocalInteractionLogStore(
     options.rootDirectory,
     options.source,
     options.retention ?? DEFAULT_INTERACTION_RETENTION,
-    options.clock ?? Date.now
+    options.clock ?? Date.now,
+    options.readOnly ?? false
   )
   await store.initialize()
   return store
@@ -61,7 +54,8 @@ class LocalInteractionLogStore implements InteractionLogStore {
     rootDirectory: string,
     private readonly source: string,
     private readonly retention: Retention,
-    private readonly clock: () => number
+    private readonly clock: () => number,
+    private readonly readOnly: boolean
   ) {
     this.sourceDirectory = join(rootDirectory, source)
     this.payloadDirectory = join(this.sourceDirectory, 'payloads')
@@ -84,8 +78,10 @@ class LocalInteractionLogStore implements InteractionLogStore {
     } catch (error) {
       if (!isMissing(error)) throw error
     }
-    await this.removeOrphanPayloads()
-    await this.pruneDirect(this.clock())
+    if (!this.readOnly) {
+      await this.removeOrphanPayloads()
+      await this.pruneDirect(this.clock())
+    }
   }
 
   begin(event: InteractionBeginRecord): Promise<void> {
@@ -101,7 +97,8 @@ class LocalInteractionLogStore implements InteractionLogStore {
         levelLabel: 'info',
         requestBytes: event.request.byteLength,
         responseBytes: 0,
-        requestAvailable: event.request.kind !== 'empty' && event.request.unavailableReason === null,
+        requestAvailable:
+          event.request.kind !== 'empty' && event.request.unavailableReason === null,
         responseAvailable: false,
         requestTruncated: event.request.truncated,
         responseTruncated: false
@@ -128,8 +125,8 @@ class LocalInteractionLogStore implements InteractionLogStore {
         responseBytes: completion.response?.byteLength ?? 0,
         responseAvailable: Boolean(
           completion.response &&
-            completion.response.kind !== 'empty' &&
-            completion.response.unavailableReason === null
+          completion.response.kind !== 'empty' &&
+          completion.response.unavailableReason === null
         ),
         responseTruncated: completion.response?.truncated ?? false,
         ...(completion.error
@@ -162,7 +159,8 @@ class LocalInteractionLogStore implements InteractionLogStore {
         durationMs: 0,
         requestBytes: event.payload.byteLength,
         responseBytes: 0,
-        requestAvailable: event.payload.kind !== 'empty' && event.payload.unavailableReason === null,
+        requestAvailable:
+          event.payload.kind !== 'empty' && event.payload.unavailableReason === null,
         responseAvailable: false,
         requestTruncated: event.payload.truncated,
         responseTruncated: false
@@ -220,7 +218,12 @@ class LocalInteractionLogStore implements InteractionLogStore {
         ? await this.readPayload(eventId, 'request', summary.requestBytes, summary.requestTruncated)
         : null,
       response: summary.responseAvailable
-        ? await this.readPayload(eventId, 'response', summary.responseBytes, summary.responseTruncated)
+        ? await this.readPayload(
+            eventId,
+            'response',
+            summary.responseBytes,
+            summary.responseTruncated
+          )
         : null
     }
   }

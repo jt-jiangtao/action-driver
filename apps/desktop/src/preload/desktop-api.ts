@@ -13,7 +13,12 @@ import type {
   ModelTestResultDto
 } from '../shared/model-ipc-contract'
 import { MODEL_IPC_CHANNELS } from '../shared/model-ipc-contract'
-import type { LogIpcResponse, LogListRequest, LogListResult } from '../shared/log-ipc-contract'
+import type {
+  LogDetailResult,
+  LogIpcResponse,
+  LogListRequest,
+  LogListResult
+} from '../shared/log-ipc-contract'
 import { LOG_IPC_CHANNELS } from '../shared/log-ipc-contract'
 import type {
   AgentAcceptedResult,
@@ -77,6 +82,7 @@ export interface ModelConnectionsDesktopApi {
 
 export interface LogsDesktopApi {
   list(request: LogListRequest): Promise<LogListResult>
+  detail(eventId: string): Promise<LogDetailResult>
 }
 
 export interface AgentFilesDesktopApi {
@@ -246,6 +252,13 @@ export function createDesktopApi(
           LOG_IPC_CHANNELS.list,
           request
         )) as LogIpcResponse<LogListResult>
+        if (!response.ok) return Promise.reject(response.error)
+        return response.value
+      },
+      async detail(eventId) {
+        const response = (await ipc.invoke(LOG_IPC_CHANNELS.detail, {
+          eventId
+        })) as LogIpcResponse<LogDetailResult>
         if (!response.ok) return Promise.reject(response.error)
         return response.value
       }

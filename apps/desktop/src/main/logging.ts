@@ -4,6 +4,7 @@ import {
   createLogger,
   type ActionDriverLogger,
   type InteractionLogRecorder,
+  type InteractionLogStore,
   type InteractionPayloadInput
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
@@ -12,6 +13,7 @@ import { join } from 'node:path'
 export type MainLogging = {
   logger: ActionDriverLogger
   interactions: InteractionLogRecorder
+  interactionStore: InteractionLogStore
 }
 
 /**
@@ -29,6 +31,7 @@ export async function createMainLogging(options: { userDataPath: string }): Prom
   })
   return {
     logger,
+    interactionStore: store,
     interactions: createInteractionLogRecorder({
       store,
       ids: {

@@ -59,7 +59,10 @@ function createDesktopApi(): DesktopApi {
       delete: async () => undefined
     },
     logs: {
-      list: async () => ({ records: [], files: [], readable: true })
+      list: async () => ({ records: [], nextCursor: null, files: [] }),
+      detail: async () => {
+        throw new Error('not implemented in container test')
+      }
     },
     agentFiles: {
       getMainPrompt: async () => ({

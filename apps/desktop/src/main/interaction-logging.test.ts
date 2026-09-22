@@ -9,13 +9,13 @@ import { registerAgentIpcHandlers } from './agent-ipc'
 import { registerLogIpcHandlers } from './logs-ipc'
 import { registerModelIpcHandlers } from './model-ipc'
 
-function recordingInteractions() {
+function recordingInteractions(source = 'main') {
   const store = new MemoryInteractionLogStore()
   let sequence = 0
   const interactions: InteractionLogRecorder = createInteractionLogRecorder({
     store,
     ids: {
-      eventId: () => `main:event-${++sequence}`,
+      eventId: () => `${source}:event-${++sequence}`,
       correlationId: () => `correlation-${sequence}`
     },
     clock: () => 1_000 + sequence
@@ -114,5 +114,58 @@ describe('renderer to service interaction logging', () => {
     await ipcMain.handlers.get('actiondriver:logs:list')!(undefined, {})
 
     expect((await store.list({ limit: 20 })).records).toEqual([])
+  })
+
+  it('merges summary pages and routes lazy detail reads to the owning source', async () => {
+    const ipcMain = ipcMainStub()
+    const main = recordingInteractions()
+    const service = recordingInteractions('service')
+    const finishMain = await main.interactions.start({
+      transport: 'ipc',
+      direction: 'renderer->service',
+      operation: 'main-operation',
+      request: { kind: 'json', value: { body: 'main request' } }
+    })
+    await finishMain({ outcome: 'ok', response: { kind: 'json', value: { ok: true } } })
+    const finishService = await service.interactions.start({
+      transport: 'http',
+      direction: 'renderer->service',
+      operation: 'service-operation',
+      request: { kind: 'json', value: { body: 'service request' } }
+    })
+    await finishService({ outcome: 'ok', response: { kind: 'json', value: { ok: true } } })
+    registerLogIpcHandlers(ipcMain, [
+      { prefix: 'main', filePath: '/logs/main', store: async () => main.store },
+      { prefix: 'service', filePath: '/logs/service', store: async () => service.store }
+    ])
+
+    const listed = (await ipcMain.handlers.get('actiondriver:logs:list')!(undefined, {
+      transports: ['ipc', 'http'],
+      limit: 1
+    })) as { ok: true; value: { records: Array<Record<string, unknown>>; nextCursor: string } }
+    expect(listed.value.records).toHaveLength(1)
+    expect(listed.value.records[0]).not.toHaveProperty('request')
+    expect(listed.value.nextCursor).toEqual(expect.any(String))
+
+    const secondPage = (await ipcMain.handlers.get('actiondriver:logs:list')!(undefined, {
+      transports: ['ipc', 'http'],
+      cursor: listed.value.nextCursor,
+      limit: 1
+    })) as { ok: true; value: { records: Array<{ id: string }>; nextCursor: string | null } }
+    expect(secondPage.value.records).toHaveLength(1)
+    expect(secondPage.value.records[0]?.id).not.toBe(listed.value.records[0]?.id)
+    expect(secondPage.value.nextCursor).toBeNull()
+
+    const detail = (await ipcMain.handlers.get('actiondriver:logs:detail')!(undefined, {
+      eventId: 'service:event-1'
+    })) as { ok: true; value: { id: string; request: { text: string } } }
+    expect(detail.value).toMatchObject({
+      id: 'service:event-1',
+      request: { text: expect.stringContaining('service request') }
+    })
+
+    await expect(
+      ipcMain.handlers.get('actiondriver:logs:detail')!(undefined, { eventId: 'unknown:event-1' })
+    ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-event-id' } })
   })
 })
