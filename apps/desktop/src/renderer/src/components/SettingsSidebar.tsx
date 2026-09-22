@@ -41,7 +41,7 @@ export function SettingsSidebar({
           type="button"
           onClick={active === 'model-connections' ? undefined : onOpenConnections}
         >
-          <AppIcon name="network" />
+          <AppIcon name="cable" />
           模型连接
         </button>
         {onOpenLogs ? (
@@ -51,7 +51,7 @@ export function SettingsSidebar({
             type="button"
             onClick={onOpenLogs}
           >
-            <AppIcon name="task" />
+            <AppIcon name="scroll-text" />
             日志
           </button>
         ) : null}

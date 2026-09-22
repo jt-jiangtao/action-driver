@@ -544,5 +544,157 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "expands and collapses the raw record"
+  },
+  {
+    "target": "e2e/settings/logs/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "shows the empty and failure states"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/close#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "selects an entry and shows its details"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/request#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands and collapses the raw record"
+  },
+  {
+    "target": "e2e/settings/logs/inspector/response#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands and collapses the raw record"
+  },
+  {
+    "target": "e2e/settings/logs/layer/interface#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "switches between real interface logs and mock model sessions"
+  },
+  {
+    "target": "e2e/settings/logs/layer/model#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "switches between real interface logs and mock model sessions"
+  },
+  {
+    "target": "e2e/settings/logs/model/view/sessions#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/view/tasks#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/status#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/auto-refresh#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/task-cards/:task-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/sessions/:session-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/session-details/:session-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/tasks/:task-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/detail/back#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/calls/:call-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/task-switcher/:task-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "expands a model session and opens a full session detail view"
+  },
+  {
+    "target": "e2e/settings/logs/model/detail/:section-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "opens and closes independent model detail sections"
   }
 ]

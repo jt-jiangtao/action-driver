@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Blocks,
   Boxes,
+  Cable,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -41,6 +42,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  ScrollText,
   Server,
   Settings,
   Trash2,
@@ -95,6 +97,8 @@ export type AppIconName =
   | 'network'
   | 'cpu'
   | 'boxes'
+  | 'cable'
+  | 'scroll-text'
 
 const iconByName: Record<AppIconName, LucideIcon> = {
   'arrow-left': ArrowLeft,
@@ -142,7 +146,9 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   trash: Trash2,
   network: Network,
   cpu: Cpu,
-  boxes: Boxes
+  boxes: Boxes,
+  cable: Cable,
+  'scroll-text': ScrollText
 }
 
 export function AppIcon({ name, size = 16, className }: { name: AppIconName; size?: number; className?: string }) {
