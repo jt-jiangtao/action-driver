@@ -8,7 +8,7 @@ type Handler = (
   input: unknown
 ) => unknown
 
-function createHarness() {
+function createHarness(getSystemPrompt?: () => Promise<string>) {
   const handlers = new Map<string, Handler>()
   const sent: Array<{ channel: string; payload: unknown }> = []
   let eventListener: ((event: RuntimeEvent) => void) | undefined
@@ -59,7 +59,9 @@ function createHarness() {
         handlers.set(channel, handler)
       }
     },
-    runtimeClient
+    runtimeClient,
+    undefined,
+    getSystemPrompt ? { getSystemPrompt } : undefined
   )
   const sender = {
     send(channel: string, payload: unknown) {
@@ -72,6 +74,22 @@ function createHarness() {
 }
 
 describe('registerAgentIpcHandlers', () => {
+  it('loads the latest main prompt when a task is submitted', async () => {
+    const getSystemPrompt = vi.fn(async () => '# Current main prompt')
+    const { invoke, request } = createHarness(getSystemPrompt)
+
+    await expect(invoke('actiondriver:agent:submit', { goal: 'Book a hotel' })).resolves.toEqual({
+      ok: true,
+      value: { taskId: 'task-1' }
+    })
+
+    expect(getSystemPrompt).toHaveBeenCalledOnce()
+    expect(request).toHaveBeenCalledWith('task.submit', {
+      goal: 'Book a hotel',
+      systemPrompt: '# Current main prompt'
+    })
+  })
+
   it('registers only the seven explicitly named Agent command handlers', async () => {
     const { handlers, invoke, request } = createHarness()
 

@@ -11,7 +11,10 @@ import { createLocalRuntimeServices } from './local-runtime'
 import { registerModelIpcHandlers } from './model-ipc'
 import { registerLogIpcHandlers } from './logs-ipc'
 import { createMainLogging, type MainLogging } from './logging'
-import { createModelConnectionStore, createNodeFileSystem } from './model-connections/connection-store'
+import {
+  createModelConnectionStore,
+  createNodeFileSystem
+} from './model-connections/connection-store'
 import { ModelConnectionHttpClient } from './model-connections/http-client'
 import { createSecretCipher } from '@actiondriver/model-connections'
 import { installNavigationGuards } from './navigation-security'
@@ -97,7 +100,9 @@ app.whenReady().then(async () => {
     services = resolveMainServices(
       createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
     )
-    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions)
+    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions, {
+      getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content
+    })
     await runtime.runtimeSupervisor.start()
     const serviceUrl = runtime.runtimeSupervisor.serviceUrl
     if (!serviceUrl) throw new Error('Local service did not report an HTTP surface')
@@ -106,7 +111,11 @@ app.whenReady().then(async () => {
       token: serviceToken
     })
     try {
-      await migrateLegacyModelConnections(modelConnectionClient, app.getPath('userData'), safeStorage)
+      await migrateLegacyModelConnections(
+        modelConnectionClient,
+        app.getPath('userData'),
+        safeStorage
+      )
     } catch (error) {
       console.warn(
         '[model-connections] legacy migration failed; keeping the old file:',

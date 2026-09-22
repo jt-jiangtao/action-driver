@@ -33,6 +33,30 @@ describe('ModelGateway boundary', () => {
     )
   })
 
+  it('places the task main prompt before the user goal in the model request', async () => {
+    const complete = vi.fn<ModelGateway['complete']>(async () => ({
+      kind: 'finish',
+      content: 'done'
+    }))
+    const runner = new LangGraphRunner({ complete }, new MockSkillRegistry())
+
+    await runner.run({
+      taskId: 'task-system-prompt',
+      goal: 'Summarize the report',
+      systemPrompt: '# Main prompt\n\nKeep answers concise.'
+    })
+
+    expect(complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          { role: 'system', content: '# Main prompt\n\nKeep answers concise.' },
+          { role: 'user', content: 'Summarize the report' }
+        ]
+      }),
+      expect.anything()
+    )
+  })
+
   it('turns remote failures into diagnostic task state without losing local history', async () => {
     const container = createRuntimeContainer({ mode: 'mock' })
     const tasks = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)

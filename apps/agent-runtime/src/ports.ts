@@ -90,7 +90,10 @@ export interface CheckpointStore {
 }
 
 export interface GraphRunner {
-  run(request: { taskId: string; goal: string }, signal?: AbortSignal): Promise<AgentGraphResult>
+  run(
+    request: { taskId: string; goal: string; systemPrompt?: string },
+    signal?: AbortSignal
+  ): Promise<AgentGraphResult>
   interrupt(taskId: string): boolean
   continue(taskId: string): Promise<AgentGraphResult>
   provideInput(taskId: string, value: unknown): Promise<AgentGraphResult>

@@ -36,6 +36,7 @@ const AgentState = Annotation.Root({
   taskId: Annotation<string>(),
   threadId: Annotation<string>(),
   goal: Annotation<string>(),
+  systemPrompt: Annotation<string>({ reducer: replace, default: () => '' }),
   status: Annotation<AgentGraphStatus>(),
   requestedSkillId: Annotation<string | null>({ reducer: replace, default: () => null }),
   resolvedProviderId: Annotation<string | null>({ reducer: replace, default: () => null }),
@@ -68,7 +69,7 @@ export class LangGraphRunner implements GraphRunner {
   }
 
   async run(
-    request: { taskId: string; goal: string },
+    request: { taskId: string; goal: string; systemPrompt?: string },
     signal?: AbortSignal
   ): Promise<AgentGraphResult> {
     const threadId = threadIdForTask(request.taskId)
@@ -78,6 +79,7 @@ export class LangGraphRunner implements GraphRunner {
         taskId: request.taskId,
         threadId,
         goal: request.goal,
+        systemPrompt: request.systemPrompt ?? '',
         status: 'submitted',
         requestedSkillId: null,
         resolvedProviderId: null,
@@ -177,7 +179,12 @@ export class LangGraphRunner implements GraphRunner {
           plan = await this.modelGateway.complete(
             {
               requestId: `plan:${state.taskId}`,
-              messages: [{ role: 'user', content: state.goal }],
+              messages: [
+                ...(state.systemPrompt.trim()
+                  ? [{ role: 'system' as const, content: state.systemPrompt }]
+                  : []),
+                { role: 'user' as const, content: state.goal }
+              ],
               skills: [
                 { skillId: 'browser-use', description: 'Operate a browser' },
                 { skillId: 'computer-use', description: 'Operate the desktop' }

@@ -16,6 +16,10 @@ export interface AgentIpcMain {
 
 export type AgentRuntimeClient = Pick<RuntimeClient, 'request' | 'subscribeEvents'>
 
+export interface AgentTaskConfiguration {
+  getSystemPrompt(): Promise<string>
+}
+
 async function asIpcResponse<T>(
   channel: string,
   operation: () => Promise<T>,
@@ -55,12 +59,20 @@ function serializeError(error: unknown): AgentIpcError {
 export function registerAgentIpcHandlers(
   ipcMain: AgentIpcMain,
   runtimeClient: AgentRuntimeClient,
-  interactions?: InteractionLogger
+  interactions?: InteractionLogger,
+  taskConfiguration?: AgentTaskConfiguration
 ): void {
   ipcMain.handle(AGENT_IPC_CHANNELS.submit, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.submit,
-      () => runtimeClient.request('task.submit', input as { goal: string }),
+      async () => {
+        const request = input as { goal: string }
+        const systemPrompt = await taskConfiguration?.getSystemPrompt()
+        return runtimeClient.request(
+          'task.submit',
+          systemPrompt === undefined ? request : { ...request, systemPrompt }
+        )
+      },
       interactions
     )
   )
@@ -106,17 +118,21 @@ export function registerAgentIpcHandlers(
       taskId: string
       afterCursor: number
     }
-    return asIpcResponse(AGENT_IPC_CHANNELS.subscribe, async () => {
-      const subscription = await runtimeClient.subscribeEvents(
-        input.taskId,
-        input.afterCursor,
-        (runtimeEvent) =>
-          event.sender.send(AGENT_IPC_CHANNELS.event, {
-            subscriptionId: input.subscriptionId,
-            event: runtimeEvent
-          })
-      )
-      return { cursor: subscription.cursor }
-    }, interactions)
+    return asIpcResponse(
+      AGENT_IPC_CHANNELS.subscribe,
+      async () => {
+        const subscription = await runtimeClient.subscribeEvents(
+          input.taskId,
+          input.afterCursor,
+          (runtimeEvent) =>
+            event.sender.send(AGENT_IPC_CHANNELS.event, {
+              subscriptionId: input.subscriptionId,
+              event: runtimeEvent
+            })
+        )
+        return { cursor: subscription.cursor }
+      },
+      interactions
+    )
   })
 }

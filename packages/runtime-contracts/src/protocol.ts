@@ -7,7 +7,10 @@ import type {
 export const RUNTIME_PROTOCOL_VERSION = { major: 1, minor: 0 } as const
 
 export type RuntimeCommandMap = {
-  'task.submit': { request: { goal: string }; response: { taskId: string } }
+  'task.submit': {
+    request: { goal: string; systemPrompt?: string }
+    response: { taskId: string }
+  }
   'task.interrupt': { request: { taskId: string }; response: { accepted: true } }
   'task.continue': { request: { taskId: string }; response: { accepted: true } }
   'task.provide-input': {

@@ -102,7 +102,7 @@ export function createLocalRuntimeServer(
     capabilities: RUNTIME_CAPABILITIES,
     async onCommand(command, rawInput) {
       if (command === 'task.submit') {
-        const { goal } = rawInput as { goal: string }
+        const { goal, systemPrompt } = rawInput as { goal: string; systemPrompt?: string }
         const taskId = ids.next('task')
         const now = new Date().toISOString()
         const task: RuntimeTaskRecord = {
@@ -116,7 +116,15 @@ export function createLocalRuntimeServer(
         }
         await taskRepository.save(task)
         await publishTask(task, 'task.submitted')
-        track(taskId, runTask(taskId, graphRunner.run({ taskId, goal })))
+        track(
+          taskId,
+          runTask(
+            taskId,
+            graphRunner.run(
+              systemPrompt === undefined ? { taskId, goal } : { taskId, goal, systemPrompt }
+            )
+          )
+        )
         return { taskId }
       }
       if (command === 'task.get') {
