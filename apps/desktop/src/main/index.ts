@@ -17,7 +17,7 @@ import {
 } from './model-connections/connection-store'
 import { ModelConnectionHttpClient } from './model-connections/http-client'
 import { createSecretCipher } from '@actiondriver/model-connections'
-import { installNavigationGuards } from './navigation-security'
+import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
 import { createMockSkillProviderHost } from './skill-provider-host'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
@@ -30,6 +30,9 @@ import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 
 const moduleDirectory = resolveModuleDirectory(import.meta.url)
 const desktopIconPath = resolveDesktopIconPath(moduleDirectory)
+const rendererPath = join(moduleDirectory, '../renderer/index.html')
+const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
+const trustedRendererOrigin = resolveTrustedRendererOrigin(rendererEntryUrl)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
 let logging: MainLogging | undefined
@@ -51,8 +54,6 @@ function applyDesktopBranding(): void {
 }
 
 function createWindow(mainServices: MainServices): BrowserWindow {
-  const rendererPath = join(moduleDirectory, '../renderer/index.html')
-  const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
   const window = new BrowserWindow(
     mainServices.windowOptionsFactory(
       join(moduleDirectory, '../preload/index.cjs'),
@@ -124,6 +125,7 @@ app.whenReady().then(async () => {
     const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost, {
       serviceToken,
       credentialKey: credentialKey.toString('base64'),
+      ...(trustedRendererOrigin ? { trustedRendererOrigin } : {}),
       authorizeSkillExecution: (skillId) => agentFileStore.assertExecutorEnabled(skillId)
     })
     services = resolveMainServices(

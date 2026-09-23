@@ -46,7 +46,7 @@ export class StreamTaskProjection {
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content
         })),
-        tools: event.tools?.map((tool) => ({ ...tool })) ?? this.task.tools ?? []
+        tools: event.tools?.map((tool) => ({ callId: tool.callId, toolId: tool.toolId, modelName: tool.modelName, summary: tool.summary, argumentsHash: tool.argumentsHash, status: tool.status, durationMs: tool.durationMs, ...(tool.resultSummary === undefined ? {} : { resultSummary: tool.resultSummary }), ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary }) })) ?? this.task.tools ?? []
       }
       this.flush()
       return
@@ -64,11 +64,12 @@ export class StreamTaskProjection {
           modelName: toolEvent.modelName,
           summary: toolEvent.summary,
           argumentsHash: toolEvent.argumentsHash,
-          status
+          status,
+          ...(toolEvent.type === 'tool.completed' ? { durationMs: toolEvent.durationMs, resultSummary: toolEvent.resultSummary } : toolEvent.type === 'tool.failed' || toolEvent.type === 'tool.cancelled' ? { errorSummary: toolEvent.error?.message ?? '工具已取消' } : {})
         }
         this.task = {
           ...this.task,
-          tools: [...(this.task.tools ?? []).filter((tool) => tool.callId !== next.callId), next]
+          tools: (this.task.tools ?? []).some((tool) => tool.callId === next.callId) ? (this.task.tools ?? []).map((tool) => tool.callId === next.callId ? next : tool) : [...(this.task.tools ?? []), next]
         }
         this.flush()
       }

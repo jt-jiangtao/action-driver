@@ -2896,9 +2896,14 @@
 .model-call-nav,
 .model-call-detail {
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border-radius: 12px;
   background: #fff;
+}
+
+.model-call-nav {
+  display: flex;
+  flex-direction: column;
 }
 
 .model-call-nav > header,
@@ -2917,7 +2922,10 @@
 }
 
 .model-call-list {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 8px;
+  overflow-y: auto;
 }
 
 .model-call-list button {
@@ -3076,13 +3084,76 @@
 
 .model-detail-sections {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
   padding: 12px;
-  overflow: auto;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+}
+
+.logs-console,
+.logs-inspector,
+.model-session-table,
+.model-task-grid,
+.model-call-list,
+.model-detail-sections,
+.model-detail-section pre {
+  scrollbar-color: #a8adb6 transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.logs-console::-webkit-scrollbar,
+.logs-inspector::-webkit-scrollbar,
+.model-session-table::-webkit-scrollbar,
+.model-task-grid::-webkit-scrollbar,
+.model-call-list::-webkit-scrollbar,
+.model-detail-sections::-webkit-scrollbar,
+.model-detail-section pre::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.logs-console::-webkit-scrollbar-track,
+.logs-inspector::-webkit-scrollbar-track,
+.model-session-table::-webkit-scrollbar-track,
+.model-task-grid::-webkit-scrollbar-track,
+.model-call-list::-webkit-scrollbar-track,
+.model-detail-sections::-webkit-scrollbar-track,
+.model-detail-section pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.logs-console::-webkit-scrollbar-thumb,
+.logs-inspector::-webkit-scrollbar-thumb,
+.model-session-table::-webkit-scrollbar-thumb,
+.model-task-grid::-webkit-scrollbar-thumb,
+.model-call-list::-webkit-scrollbar-thumb,
+.model-detail-sections::-webkit-scrollbar-thumb,
+.model-detail-section pre::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  min-height: 36px;
+  background: #a8adb6;
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+.logs-console::-webkit-scrollbar-thumb:hover,
+.logs-inspector::-webkit-scrollbar-thumb:hover,
+.model-session-table::-webkit-scrollbar-thumb:hover,
+.model-task-grid::-webkit-scrollbar-thumb:hover,
+.model-call-list::-webkit-scrollbar-thumb:hover,
+.model-detail-sections::-webkit-scrollbar-thumb:hover,
+.model-detail-section pre::-webkit-scrollbar-thumb:hover {
+  background: #858b96;
+  background-clip: content-box;
 }
 
 .model-detail-section {
+  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid #e5e8ee;
   border-radius: 9px;

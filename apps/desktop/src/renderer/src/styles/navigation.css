@@ -110,7 +110,11 @@
   color: currentColor;
 }
 .sidebar-recents {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -127,7 +131,32 @@
 }
 .recent-task-list {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #a8adb6 transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  -webkit-app-region: no-drag;
+}
+.recent-task-list::-webkit-scrollbar {
+  width: 8px;
+}
+.recent-task-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.recent-task-list::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  background: #a8adb6;
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+.recent-task-list::-webkit-scrollbar-thumb:hover {
+  background: #858b96;
+  background-clip: content-box;
 }
 
 .sidebar-empty-state {
@@ -146,6 +175,7 @@
   font-weight: 500;
 }
 .recent-task {
+  flex: 0 0 36px;
   justify-content: space-between;
   gap: 8px;
   padding: 0 8px;

@@ -486,20 +486,34 @@
     "coverage": "visual-only"
   },
   {
-    "target": "e2e/tasks/detail/tool-approval/approve#button",
+    "target": "e2e/tasks/detail/tool-activity/:state#section",
     "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
-    "testName": "shows the complete command accessibly and disables duplicate decisions while pending"
+    "type": "section",
+    "coverage": "visual-only"
   },
   {
-    "target": "e2e/tasks/detail/tool-approval/reject#button",
+    "target": "e2e/tasks/detail/tool-activity/card-toggle#button",
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
-    "testName": "rejects a waiting call without invoking approval"
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "groups active and completed tool cards in the conversation, keeping only the latest active card open"
+  },
+  {
+    "target": "e2e/tasks/detail/tool-activity/approve#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
+    "testName": "waits for one-time shell approval before executing and answering"
+  },
+  {
+    "target": "e2e/tasks/detail/tool-activity/reject#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
+    "testName": "rejects a shell call without running the command"
   },
   {
     "target": "e2e/settings/sidebar/logs#button",

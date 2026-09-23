@@ -238,6 +238,10 @@ const responseSnapshotEventSchema = z
               'failed',
               'cancelled'
             ])
+            ,
+            durationMs: z.number().nonnegative(),
+            resultSummary: z.string().optional(),
+            errorSummary: z.string().optional()
           })
           .strict()
       )
@@ -269,7 +273,7 @@ const toolStreamEventSchemas = [
       delta: z.string()
     })
     .strict(),
-  z.object({ type: z.literal('tool.completed'), ...toolStreamBase, output: z.json() }).strict(),
+  z.object({ type: z.literal('tool.completed'), ...toolStreamBase, durationMs: z.number().nonnegative(), resultSummary: z.string() }).strict(),
   z
     .object({ type: z.literal('tool.failed'), ...toolStreamBase, error: streamErrorSchema })
     .strict(),

@@ -4,6 +4,7 @@ import { ConversationMessages, TaskHeader } from './Conversation'
 import { AgentResponse } from './agent/AgentResponse'
 import { UserMessage } from './agent/UserMessage'
 import { mockTaskFixture } from '../services/mock-task-fixture'
+import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
   it('renders the task title without extra time, skill, or more controls', () => {
@@ -33,6 +34,26 @@ describe('conversation components', () => {
 
     expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toHaveClass('user-message')
     expect(screen.getByTestId('e2e/tasks/detail/markdown#section')).toHaveClass('agent-message')
+  })
+
+  it('lets short user messages hug their content instead of forcing a fixed bubble', () => {
+    const style = document.createElement('style')
+    style.textContent = agentStyles
+    document.head.append(style)
+
+    render(
+      <UserMessage
+        message={{ id: 'short-user-message', role: 'user', content: '帮我生成一个表格' }}
+      />
+    )
+
+    const computedStyle = getComputedStyle(screen.getByText('帮我生成一个表格'))
+    expect(computedStyle.width).toBe('fit-content')
+    expect(computedStyle.maxWidth).toBe('78%')
+    expect(computedStyle.minHeight).toBe('0')
+    expect(computedStyle.whiteSpace).toBe('pre-wrap')
+
+    style.remove()
   })
 
   it('renders model Markdown while escaping raw HTML', () => {

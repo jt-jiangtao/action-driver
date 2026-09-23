@@ -18,6 +18,11 @@ import type {
   RuntimeTaskRecord
 } from './ports'
 import { ToolApprovalError, type ToolInvocationService } from './tool-invocation-service'
+import {
+  persistedToolActivity,
+  toolActivityErrorSummary,
+  toolActivityResultSummary
+} from './tool-activity'
 
 type Emit = (event: StreamServerEvent) => void | Promise<void>
 
@@ -414,7 +419,7 @@ export class StreamSessionService {
         callId: invocation.id,
         toolId: invocation.toolId,
         modelName: invocation.toolId,
-        summary: `${invocation.toolId} ${JSON.stringify(invocation.input)}`,
+        ...persistedToolActivity(invocation),
         argumentsHash: invocation.argumentsHash,
         status: invocation.status
       })),
@@ -519,6 +524,7 @@ export class StreamSessionService {
         delta?: string
         output?: unknown
         error?: unknown
+        durationMs?: unknown
       }
       return parseStreamServerEvent({
         type: record.type,
@@ -529,10 +535,12 @@ export class StreamSessionService {
         modelName: tool.modelName,
         summary: tool.summary,
         argumentsHash: tool.argumentsHash,
-        ...(record.type === 'tool.content' ? { stream: tool.stream, delta: tool.delta } : {}),
-        ...(record.type === 'tool.completed' ? { output: tool.output } : {}),
+        ...(record.type === 'tool.content' ? { stream: tool.stream, delta: '工具输出已接收' } : {}),
+        ...(record.type === 'tool.completed'
+          ? { durationMs: typeof tool.durationMs === 'number' ? tool.durationMs : 0, resultSummary: toolActivityResultSummary(tool.toolId, tool.output) }
+          : {}),
         ...(record.type === 'tool.failed' || record.type === 'tool.cancelled'
-          ? { error: tool.error }
+          ? { error: { code: 'tool-failed', message: toolActivityErrorSummary(tool.error), retryable: false } }
           : {})
       })
     }

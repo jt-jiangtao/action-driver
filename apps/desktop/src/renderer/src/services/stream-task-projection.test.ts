@@ -92,7 +92,8 @@ describe('StreamTaskProjection', () => {
           modelName: 'sandbox_shell_run',
           summary: 'rg TODO README.md',
           argumentsHash: 'sha256:abc',
-          status: 'waiting_approval'
+          status: 'waiting_approval',
+          durationMs: 0
         }
       ],
       error: null

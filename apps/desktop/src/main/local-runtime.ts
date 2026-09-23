@@ -25,6 +25,7 @@ export function createLocalRuntimeServices(
   options: {
     serviceToken: string
     credentialKey: string
+    trustedRendererOrigin?: string
     authorizeSkillExecution?: (skillId: string) => Promise<void>
   } = {
     serviceToken: '',
@@ -44,6 +45,9 @@ export function createLocalRuntimeServices(
     workspaceRoot,
     ...(options.serviceToken ? { serviceToken: options.serviceToken } : {}),
     ...(options.credentialKey ? { credentialKey: options.credentialKey } : {}),
+    ...(options.trustedRendererOrigin
+      ? { trustedRendererOrigin: options.trustedRendererOrigin }
+      : {}),
     onEndpoint(endpoint) {
       const client = new RuntimeClient(endpoint, {
         appVersion,

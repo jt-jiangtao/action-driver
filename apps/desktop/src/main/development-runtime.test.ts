@@ -3,6 +3,16 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('desktop development runtime', () => {
+  it('builds the Agent Runtime from the root development command before Electron starts', () => {
+    const packageJson = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, '../../../../package.json'), 'utf8')
+    ) as { scripts: Record<string, string> }
+
+    expect(packageJson.scripts.dev).toBe(
+      'pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop dev'
+    )
+  })
+
   it('rebuilds the Agent Runtime before starting Electron development mode', () => {
     const packageJson = JSON.parse(
       readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf8')

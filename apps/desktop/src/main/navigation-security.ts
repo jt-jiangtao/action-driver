@@ -6,6 +6,13 @@ export interface NavigationGuardTarget {
   ): void
 }
 
+export function resolveTrustedRendererOrigin(rendererEntryUrl: string): string | null {
+  const rendererEntry = new URL(rendererEntryUrl)
+  return rendererEntry.protocol === 'http:' || rendererEntry.protocol === 'https:'
+    ? rendererEntry.origin
+    : null
+}
+
 export function installNavigationGuards(
   target: NavigationGuardTarget,
   rendererEntryUrl: string

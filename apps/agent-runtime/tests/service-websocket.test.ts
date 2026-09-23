@@ -147,6 +147,30 @@ describe('service WebSocket surface', () => {
     await expect(waitForOpen(socket)).rejects.toThrow('Unexpected server response: 403')
   })
 
+  it('accepts only an explicitly configured development renderer origin', async () => {
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      streamSessions: { async handle() {} },
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      trustedRendererOrigins: ['http://localhost:5173']
+    })
+    socket = new WebSocket(
+      `${server.url.replace('http:', 'ws:')}/stream`,
+      ['actiondriver.stream.v1'],
+      { origin: 'http://localhost:5173' }
+    )
+    await waitForOpen(socket)
+    socket.close()
+
+    socket = new WebSocket(
+      `${server.url.replace('http:', 'ws:')}/stream`,
+      ['actiondriver.stream.v1'],
+      { origin: 'http://localhost:5174' }
+    )
+    await expect(waitForOpen(socket)).rejects.toThrow('Unexpected server response: 403')
+  })
+
   it('authenticates once and forwards stream commands over the same native WebSocket', async () => {
     const received: StreamClientEvent[] = []
     const sessions: ServiceStreamSessionPort = {

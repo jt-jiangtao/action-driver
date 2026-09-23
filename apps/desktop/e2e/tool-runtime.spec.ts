@@ -189,7 +189,7 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
 test('waits for one-time shell approval before executing and answering', async () => {
   const page = await launch('shell')
   await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')).toBeVisible({
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')).toBeVisible({
     timeout: 15_000
   })
   expect(provider!.completions).toHaveLength(1)
@@ -200,7 +200,7 @@ test('waits for one-time shell approval before executing and answering', async (
         .map((record) => ({ state: record.state, responseAvailable: record.responseAvailable }))
     )
   ).toEqual([{ state: 'pending', responseAvailable: false }])
-  await page.getByTestId('e2e/tasks/detail/tool-approval/approve#button').click()
+  await page.getByTestId('e2e/tasks/detail/tool-activity/approve#button').click()
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
   await expect.poll(() => provider!.completions.length).toBe(2)
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('needle is present')
@@ -211,16 +211,16 @@ test('waits for one-time shell approval before executing and answering', async (
       )
     )
   ).toHaveLength(1)
-  await expect(page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')).toHaveCount(0)
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')).toHaveCount(0)
 })
 
 test('rejects a shell call without running the command', async () => {
   const page = await launch('shell')
   await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/tool-approval/reject#button')).toBeVisible({
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/reject#button')).toBeVisible({
     timeout: 15_000
   })
-  await page.getByTestId('e2e/tasks/detail/tool-approval/reject#button').click()
+  await page.getByTestId('e2e/tasks/detail/tool-activity/reject#button').click()
   await expect(page.getByRole('heading', { name: '已拒绝' })).toBeVisible({ timeout: 15_000 })
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_REJECTED')
   expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
@@ -231,7 +231,7 @@ test('times out an approved shell process and reports the terminal error', async
   test.setTimeout(30_000)
   const page = await launch('shell-timeout')
   await sendGoal(page, '在阻塞文件中查找 needle')
-  const approve = page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')
+  const approve = page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')
   await expect(approve).toBeVisible({ timeout: 15_000 })
   await approve.click()
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
@@ -249,11 +249,11 @@ test('times out an approved shell process and reports the terminal error', async
 test('cancels a shell call while approval is pending', async () => {
   const page = await launch('shell')
   const taskId = await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')).toBeVisible({
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')).toBeVisible({
     timeout: 15_000
   })
   await page.getByLabel('中断任务').click()
-  await expect(page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')).toHaveCount(0)
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')).toHaveCount(0)
   await expect
     .poll(async () =>
       page.evaluate(async (id) => (await window.actionDriverDesktop.agent.get(id))?.status, taskId)
@@ -276,7 +276,7 @@ test('keeps a pending approval actionable after WebSocket reconnect', async () =
     }
   })
   await sendGoal(page, '在 README 中查找 needle')
-  const approve = page.getByTestId('e2e/tasks/detail/tool-approval/approve#button')
+  const approve = page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')
   await expect(approve).toBeVisible({ timeout: 15_000 })
   await page.evaluate(() => {
     const target = window as Window & { toolTestSockets?: WebSocket[] }

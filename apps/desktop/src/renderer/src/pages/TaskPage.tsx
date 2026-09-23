@@ -4,7 +4,7 @@ import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ConversationViewport } from '../components/ConversationViewport'
-import { ToolApprovalBar } from '../components/ToolApprovalBar'
+import { ToolActivityCards } from '../components/ToolActivityCards'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -86,16 +86,9 @@ export function TaskPage({
                 messages={task.messages}
                 generating={task.status === 'running'}
               />
+              <ToolActivityCards tools={task.tools ?? []} {...(onApproveTool ? { onApprove: onApproveTool } : {})} {...(onRejectTool ? { onReject: onRejectTool } : {})} />
             </div>
           </ConversationViewport>
-          {onApproveTool && onRejectTool ? (
-            <ToolApprovalBar
-              tools={task.tools ?? []}
-              onApprove={onApproveTool}
-              onReject={onRejectTool}
-              width={flowWidth}
-            />
-          ) : null}
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}

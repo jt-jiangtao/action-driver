@@ -20,6 +20,7 @@ import {
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { createSandboxTools } from './sandbox'
+import { registerSearxngTool } from './searxng/runtime-tools'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -35,6 +36,7 @@ export async function startAgentRuntimeProcess(
   const sandboxTools = await createSandboxTools({ workspaceRoot })
   const endpoint = await endpointPromise
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
+  const trustedRendererOrigin = environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
   const database = openRuntimeDatabase(databasePath)
   const repositories = new SqliteRuntimeRepositories(database)
   const checkpointer = createSqliteCheckpointer(databasePath)
@@ -73,6 +75,7 @@ export async function startAgentRuntimeProcess(
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
+  registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
   const streamSessions = new StreamSessionService({
     repositories,
     graphRunner: local.adapters.graphRunner,
@@ -97,7 +100,8 @@ export async function startAgentRuntimeProcess(
       logger: logging.logger,
       logFilePath: logging.logFilePath,
       interactions,
-      streamSessions
+      streamSessions,
+      ...(trustedRendererOrigin ? { trustedRendererOrigins: [trustedRendererOrigin] } : {})
     })
   }
 

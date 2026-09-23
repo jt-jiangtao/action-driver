@@ -60,13 +60,10 @@
     box-shadow var(--ad-motion-fast) var(--ad-ease-standard);
 }
 .agent-composer:hover {
-  border-color: var(--ad-color-border-strong);
+  border-color: transparent;
 }
 .agent-composer:focus-within {
-  border-color: var(--ad-color-text-secondary);
-  box-shadow:
-    0 10px 28px rgb(20 24 33 / 10%),
-    0 0 0 1px rgb(20 24 33 / 5%);
+  border-color: transparent;
 }
 .agent-composer[data-state='disabled'] {
   background: var(--ad-color-bg-subtle);
@@ -203,10 +200,21 @@
 }
 .conversation-body {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   overflow: hidden;
 }
+.tool-activity-list { display: grid; gap: 16px; margin: 8px 0 20px; }
+.tool-activity-group { display: grid; gap: 6px; }
+.tool-activity-group h2 { margin: 0; color: var(--ad-color-text-secondary); font-size: 12px; }
+.tool-activity-card { overflow: hidden; border: 1px solid var(--ad-color-border-default); border-radius: 10px; background: var(--ad-color-bg-surface); }
+.tool-activity-toggle { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 9px; width: 100%; min-height: 40px; padding: 8px 11px; color: var(--ad-color-text-primary); text-align: left; }
+.tool-activity-title { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.tool-activity-state, .tool-activity-duration { color: var(--ad-color-text-secondary); font-size: 12px; }
+.tool-activity-detail { padding: 0 12px 12px; color: var(--ad-color-text-secondary); font-size: 13px; }
+.tool-activity-detail p { margin: 0 0 8px; }
+.tool-activity-actions { display: flex; gap: 8px; }
+.tool-activity-actions button { min-height: 31px; padding: 0 10px; border-radius: 7px; }
 .tool-approval-list {
   display: grid;
   gap: 8px;
@@ -279,18 +287,38 @@
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
+.conversation-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.conversation-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.conversation-scroll::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  background: #a8adb6;
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+.conversation-scroll::-webkit-scrollbar-thumb:hover {
+  background: #858b96;
+  background-clip: content-box;
+}
 .conversation-stream {
   flex: 0 0 auto;
   align-self: flex-start;
 }
 .user-message {
-  width: 390px;
-  min-height: 66px;
+  width: fit-content;
+  max-width: 78%;
+  min-width: 0;
+  min-height: 0;
   margin-left: auto;
-  padding: 13px 14px;
+  padding: 10px 14px;
   background: var(--ad-color-bg-subtle);
   border-radius: 16px;
   line-height: 20px;
+  white-space: pre-wrap;
 }
 .agent-message {
   margin: 10px 0 20px;

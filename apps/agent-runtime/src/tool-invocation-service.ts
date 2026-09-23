@@ -20,6 +20,7 @@ import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
 import { isLogControlPlaneOperation } from './service/logs'
+import { toolActivityDurationMs, toolActivitySummary } from './tool-activity'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -144,7 +145,8 @@ export class ToolInvocationService {
           ...event,
           toolId: definition.id,
           modelName: definition.modelName,
-          summary: `${definition.modelName} ${JSON.stringify(call.arguments)}`,
+          summary: toolActivitySummary(definition.id, call.arguments),
+          durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
           argumentsHash: invocation.argumentsHash
         },
         occurredAt: invocation.updatedAt,

@@ -56,6 +56,9 @@ export interface ToolInvocationProjection {
   modelName: string
   summary: string
   argumentsHash: string
+  durationMs?: number
+  resultSummary?: string
+  errorSummary?: string
   status:
     | 'proposed'
     | 'waiting_approval'
