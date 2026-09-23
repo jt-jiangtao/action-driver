@@ -285,4 +285,38 @@ describe('ActionDriver pages', () => {
     ).toBeTruthy()
     expect(screen.queryByText('未完成的过程正文')).toBeNull()
   })
+
+  it('does not offer approval after a task has been cancelled', () => {
+    render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'paused',
+          browser: null,
+          tools: [
+            {
+              callId: 'pending',
+              toolId: 'sandbox.shell.run',
+              modelName: 'shell',
+              summary: '运行命令',
+              argumentsHash: 'hash',
+              status: 'waiting_approval'
+            }
+          ]
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+        onApproveTool={vi.fn(async () => undefined)}
+        onRejectTool={vi.fn(async () => undefined)}
+      />
+    )
+    expect(screen.queryByTestId('e2e/tasks/detail/activity/approve#button')).toBeNull()
+  })
 })

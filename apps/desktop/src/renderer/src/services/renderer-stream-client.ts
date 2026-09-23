@@ -54,6 +54,7 @@ export class RendererStreamClient {
   private readonly cursors = new Map<string, number>()
   private readonly activeRequests = new Set<string>()
   private readonly lifecycleGuards = new Map<string, StreamLifecycleGuard>()
+  private readonly pendingByCursor = new Map<string, Map<number, StreamServerEvent>>()
   private readonly seenEventIds = new Set<string>()
   private readonly seenOrder: string[] = []
 
@@ -271,6 +272,53 @@ export class RendererStreamClient {
       for (const requestId of this.activeRequests) this.resume(requestId)
       return
     }
+    if ('cursor' in event) {
+      this.queueByCursor(event)
+      return
+    }
+    this.deliver(event)
+  }
+
+  private queueByCursor(
+    event: Extract<StreamServerEvent, { cursor: number; requestId: string }>
+  ): void {
+    const current = this.cursors.get(event.requestId)
+    if (current !== undefined && event.cursor <= current) return
+    if (event.type === 'response.snapshot') {
+      this.deliver(event)
+      const pending = this.pendingByCursor.get(event.requestId)
+      if (pending) {
+        for (const cursor of pending.keys()) if (cursor <= event.cursor) pending.delete(cursor)
+      }
+      this.drainCursor(event.requestId)
+      return
+    }
+    if (current === undefined && event.type === 'request.accepted') {
+      this.deliver(event)
+      this.drainCursor(event.requestId)
+      return
+    }
+    const pending =
+      this.pendingByCursor.get(event.requestId) ?? new Map<number, StreamServerEvent>()
+    pending.set(event.cursor, event)
+    this.pendingByCursor.set(event.requestId, pending)
+    this.drainCursor(event.requestId)
+  }
+
+  private drainCursor(requestId: string): void {
+    const pending = this.pendingByCursor.get(requestId)
+    if (!pending) return
+    let next = (this.cursors.get(requestId) ?? 0) + 1
+    while (pending.has(next)) {
+      const event = pending.get(next)!
+      pending.delete(next)
+      this.deliver(event)
+      next = (this.cursors.get(requestId) ?? next) + 1
+    }
+    if (pending.size === 0) this.pendingByCursor.delete(requestId)
+  }
+
+  private deliver(event: StreamServerEvent): void {
     if (this.seenEventIds.has(event.eventId)) return
     if (
       event.type === 'response.start' ||

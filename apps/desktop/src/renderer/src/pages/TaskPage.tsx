@@ -107,7 +107,7 @@ export function TaskPage({
             </div>
           </ConversationViewport>
           <ToolApprovalBar
-            tools={task.tools ?? []}
+            tools={task.status === 'running' ? (task.tools ?? []) : []}
             {...(onApproveTool ? { onApprove: onApproveTool } : {})}
             {...(onRejectTool ? { onReject: onRejectTool } : {})}
           />

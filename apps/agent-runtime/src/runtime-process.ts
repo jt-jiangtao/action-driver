@@ -91,7 +91,8 @@ export async function startAgentRuntimeProcess(
   const server = createLocalRuntimeServer(endpoint, {
     adapters: local.adapters,
     messages: repositories.messages,
-    modelCalls: repositories.modelCalls
+    modelCalls: repositories.modelCalls,
+    streamSnapshots: streamSessions
   })
   parentPort.postMessage({ type: 'runtime.rpc-ready' })
 

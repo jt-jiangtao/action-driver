@@ -248,6 +248,12 @@ export class SqliteRuntimeRepositories {
         .get(requestId) as StreamRequestRow | undefined
       return row ? streamRequestFromRow(row) : null
     },
+    getByTaskId: async (taskId: string): Promise<PersistedStreamRequest | null> => {
+      const row = this.database
+        .prepare('SELECT * FROM stream_requests WHERE task_id = ?')
+        .get(taskId) as StreamRequestRow | undefined
+      return row ? streamRequestFromRow(row) : null
+    },
     getByIdempotencyKey: async (idempotencyKey: string): Promise<PersistedStreamRequest | null> => {
       const row = this.database
         .prepare('SELECT * FROM stream_requests WHERE idempotency_key = ?')

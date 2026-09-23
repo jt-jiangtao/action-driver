@@ -60,6 +60,12 @@ function call(
 }
 
 describe('repository-backed task and model-log projections', () => {
+  it('retains the persisted start time when reopening a running task', () => {
+    expect(buildTaskProjection(task('task-running', 'running'), []).activityStartedAt).toBe(
+      '2026-09-23T01:00:00.000Z'
+    )
+  })
+
   it('projects a cancelled stream as paused rather than perpetually running', () => {
     const cancelled = task('task-cancelled', 'cancelled', {
       code: 'cancelled',

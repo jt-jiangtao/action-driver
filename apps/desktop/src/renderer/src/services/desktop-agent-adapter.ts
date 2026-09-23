@@ -69,7 +69,8 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 
   async interrupt(taskId: string): Promise<void> {
     try {
-      await this.api.interrupt(taskId)
+      if (this.streamProjections.has(taskId)) await this.streamClient.cancel(taskId)
+      else await this.api.interrupt(taskId)
     } catch (error) {
       throw mapAgentError(error)
     }

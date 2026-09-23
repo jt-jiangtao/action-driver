@@ -117,6 +117,8 @@ export interface TaskProjection {
   activityTimeline?: TaskTimelineProjectionItem[]
   activityStartedAt?: string
   activityDurationMs?: number
+  streamCursor?: number
+  streamSequence?: number
   browser: BrowserSkillProjection | null
 }
 

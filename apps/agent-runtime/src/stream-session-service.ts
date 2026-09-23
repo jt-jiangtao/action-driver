@@ -27,6 +27,7 @@ import {
 } from './tool-activity'
 
 type Emit = (event: StreamServerEvent) => void | Promise<void>
+type SnapshotEvent = Extract<StreamServerEvent, { type: 'response.snapshot' }>
 
 type ActiveRequest = {
   sessionId: string
@@ -58,6 +59,11 @@ export class StreamSessionService {
       request.controller.abort(new DOMException('Service shutting down', 'AbortError'))
     }
     await Promise.allSettled(active.map((request) => request.operation))
+  }
+
+  async getTaskSnapshot(taskId: string): Promise<SnapshotEvent | null> {
+    const request = await this.options.repositories.streamRequests.getByTaskId(taskId)
+    return request ? await this.snapshot(request.requestId) : null
   }
 
   async handle(event: StreamClientEvent, emit: Emit): Promise<void> {
@@ -440,7 +446,7 @@ export class StreamSessionService {
     for (const event of events) await emit(this.toServerEvent(request, event))
   }
 
-  private async snapshot(requestId: string): Promise<StreamServerEvent> {
+  private async snapshot(requestId: string): Promise<SnapshotEvent> {
     const {
       request,
       cursor,
@@ -453,6 +459,8 @@ export class StreamSessionService {
       .map((event) => this.toServerEvent(request, event))
       .reduce(reduceActivityProjection, emptyActivityTimelineState())
     const error = toStreamError(task?.error)
+    const end = [...events].reverse().find((event) => event.type === 'response.end')
+    const durationMs = (end?.payload as { durationMs?: unknown } | undefined)?.durationMs
     return parseStreamServerEvent({
       type: 'response.snapshot',
       protocol: STREAM_PROTOCOL,
@@ -497,8 +505,9 @@ export class StreamSessionService {
       }),
       ...(activity.activities.length ? { activities: activity.activities } : {}),
       ...(activity.timeline.length ? { activityTimeline: activity.timeline } : {}),
+      ...(typeof durationMs === 'number' ? { durationMs } : {}),
       error
-    })
+    }) as SnapshotEvent
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {

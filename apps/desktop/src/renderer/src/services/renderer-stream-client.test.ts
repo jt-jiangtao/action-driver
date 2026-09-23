@@ -288,6 +288,201 @@ describe('RendererStreamClient', () => {
     )
   })
 
+  it('delivers replayed activity events in cursor order when realtime events arrive first', async () => {
+    const wsUrl = await listen()
+    server!.on('connection', (socket) => {
+      socket.on('message', (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; requestId?: string }
+        if (frame.type === 'auth')
+          send(socket, {
+            type: 'session.ready',
+            protocol: 'actiondriver.stream.v1',
+            eventId: 'ready-order',
+            connectionId: 'connection-1',
+            capabilities: ['request.create'],
+            occurredAt: '2026-09-23T00:00:00.000Z'
+          })
+        if (frame.type === 'request.create') {
+          send(socket, {
+            type: 'request.accepted',
+            ...identity,
+            requestId: frame.requestId!,
+            eventId: 'accepted-order',
+            cursor: 1,
+            occurredAt: '2026-09-23T00:00:01.000Z'
+          })
+          send(socket, {
+            type: 'response.start',
+            ...identity,
+            requestId: frame.requestId!,
+            eventId: 'start-order',
+            cursor: 2,
+            occurredAt: '2026-09-23T00:00:02.000Z',
+            sequence: 0,
+            model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+          })
+          send(socket, {
+            type: 'tool.completed',
+            ...identity,
+            requestId: frame.requestId!,
+            eventId: 'tool-order',
+            cursor: 4,
+            occurredAt: '2026-09-23T00:00:04.000Z',
+            callId: 'call-order',
+            callSequence: 3,
+            toolId: 'sandbox.fs.read',
+            modelName: 'sandbox_fs_read',
+            summary: '读取文件',
+            argumentsHash: '',
+            activityId: 'activity-order',
+            durationMs: 1,
+            resultSummary: '工具已完成'
+          })
+          send(socket, {
+            type: 'activity.started',
+            ...identity,
+            requestId: frame.requestId!,
+            eventId: 'activity-order',
+            cursor: 3,
+            occurredAt: '2026-09-23T00:00:03.000Z',
+            activityId: 'activity-order',
+            title: '调研现有实现',
+            titleRevision: 1
+          })
+        }
+      })
+    })
+    client = new RendererStreamClient({
+      getConnection: async () => ({
+        wsUrl,
+        protocol: 'actiondriver.stream.v1',
+        accessToken: 'token'
+      }),
+      createWebSocket: (url, protocols) => new WebSocket(url, protocols)
+    })
+    const received: string[] = []
+    const complete = new Promise<void>((resolve) =>
+      client!.subscribe((event) => {
+        if ('cursor' in event) received.push(event.type)
+        if (event.type === 'tool.completed') resolve()
+      })
+    )
+    await client.create({
+      goal: 'order',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
+    await complete
+    expect(received).toEqual([
+      'request.accepted',
+      'response.start',
+      'activity.started',
+      'tool.completed'
+    ])
+  })
+
+  it('uses an expired-history snapshot as a new cursor high-water mark', async () => {
+    const wsUrl = await listen()
+    server!.on('connection', (socket) => {
+      socket.on('message', (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; requestId?: string }
+        if (frame.type === 'auth')
+          send(socket, {
+            type: 'session.ready',
+            protocol: 'actiondriver.stream.v1',
+            eventId: 'ready-snapshot',
+            connectionId: 'connection-1',
+            capabilities: ['request.create'],
+            occurredAt: '2026-09-23T00:00:00.000Z'
+          })
+        if (frame.type === 'request.create') {
+          const requestId = frame.requestId!
+          send(socket, {
+            type: 'request.accepted',
+            ...identity,
+            requestId,
+            eventId: 'accepted-snapshot',
+            cursor: 1,
+            occurredAt: '2026-09-23T00:00:01.000Z'
+          })
+          send(socket, {
+            type: 'activity.completed',
+            ...identity,
+            requestId,
+            eventId: 'after-snapshot',
+            cursor: 8,
+            occurredAt: '2026-09-23T00:00:08.000Z',
+            activityId: 'activity-snapshot'
+          })
+          send(socket, {
+            type: 'response.snapshot',
+            ...identity,
+            requestId,
+            eventId: 'snapshot-high-water',
+            cursor: 6,
+            occurredAt: '2026-09-23T00:00:06.000Z',
+            sequence: 2,
+            status: 'running',
+            messages: [],
+            activities: [],
+            activityTimeline: [],
+            error: null
+          })
+          send(socket, {
+            type: 'activity.started',
+            ...identity,
+            requestId,
+            eventId: 'before-completed',
+            cursor: 7,
+            occurredAt: '2026-09-23T00:00:07.000Z',
+            activityId: 'activity-snapshot',
+            title: '读取文件',
+            titleRevision: 1
+          })
+          send(socket, {
+            type: 'activity.started',
+            ...identity,
+            requestId,
+            eventId: 'duplicate-old',
+            cursor: 5,
+            occurredAt: '2026-09-23T00:00:05.000Z',
+            activityId: 'old',
+            title: '旧标题',
+            titleRevision: 1
+          })
+        }
+      })
+    })
+    client = new RendererStreamClient({
+      getConnection: async () => ({
+        wsUrl,
+        protocol: 'actiondriver.stream.v1',
+        accessToken: 'token'
+      }),
+      createWebSocket: (url, protocols) => new WebSocket(url, protocols)
+    })
+    const received: string[] = []
+    const completed = new Promise<void>((resolve) =>
+      client!.subscribe((event) => {
+        if ('cursor' in event) received.push(`${event.type}:${event.cursor}`)
+        if (event.type === 'activity.completed') resolve()
+      })
+    )
+    await client.create({
+      goal: 'snapshot',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
+    await Promise.race([
+      completed,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('snapshot stalled')), 500))
+    ])
+    expect(received).toEqual([
+      'request.accepted:1',
+      'response.snapshot:6',
+      'activity.started:7',
+      'activity.completed:8'
+    ])
+  })
+
   it('does not expose the launch token through authentication errors', async () => {
     const wsUrl = await listen()
     server!.on('connection', (socket) => {

@@ -19,6 +19,7 @@ export function buildTaskProjection(
     title: task.goal,
     status,
     model: task.model,
+    activityStartedAt: task.createdAt,
     messages: messages.flatMap((message) => {
       const content = messageText(message.content)
       if (content === null) return []

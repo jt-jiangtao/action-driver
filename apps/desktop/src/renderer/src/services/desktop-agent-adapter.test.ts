@@ -258,6 +258,14 @@ describe('DesktopAgentAdapter', () => {
     expect(api.provideInput).toHaveBeenCalledWith('task-1', { approved: true })
   })
 
+  it('cancels an active streamed task through its stream request', async () => {
+    const { adapter, api, streamClient } = harness()
+    await adapter.submitGoal({ goal: 'Book a hotel', model: task().model })
+    await adapter.interrupt('task-1')
+    expect(streamClient.cancel).toHaveBeenCalledWith('task-1')
+    expect(api.interrupt).not.toHaveBeenCalled()
+  })
+
   it('controls Skill lifecycle through Preload and publishes the persisted events', async () => {
     const { api, skillGateway } = harness()
     const listener = vi.fn()

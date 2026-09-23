@@ -15,6 +15,7 @@ export class StreamTaskProjection {
   private readonly toolSequences = new Map<string, number>()
   private activityState: ActivityTimelineState = emptyActivityTimelineState()
   private lastSequence = -1
+  private lastCursor = 0
   private scheduled: ScheduledHandle | null = null
 
   constructor(
@@ -27,7 +28,9 @@ export class StreamTaskProjection {
 
   attach(task: TaskProjection): void {
     this.task = structuredClone(task)
-    this.activityState = activityStateFromTask(task)
+    this.lastCursor = task.streamCursor ?? 0
+    this.lastSequence = task.streamSequence ?? -1
+    this.activityState = activityStateFromTask(task, this.lastCursor)
     const events = this.buffered.splice(0)
     for (const event of events) this.apply(event)
   }
@@ -39,11 +42,14 @@ export class StreamTaskProjection {
     }
     if (!('taskId' in event) || event.taskId !== this.task.id) return
     if (this.seenEventIds.has(event.eventId)) return
+    if ('cursor' in event && event.type !== 'response.snapshot' && event.cursor <= this.lastCursor)
+      return
 
     if (event.type === 'response.snapshot') {
       if (event.sequence < this.lastSequence) return
       this.seenEventIds.add(event.eventId)
       this.lastSequence = event.sequence
+      this.lastCursor = event.cursor
       this.toolSequences.clear()
       this.activityState = activityStateFromTask(
         {
@@ -57,12 +63,15 @@ export class StreamTaskProjection {
       this.task = {
         ...this.task,
         status: toTaskStatus(event.status),
+        streamCursor: event.cursor,
+        streamSequence: event.sequence,
         messages: event.messages.map((message) => ({
           id: message.id,
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content
         })),
         tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? [],
+        ...(event.durationMs === undefined ? {} : { activityDurationMs: event.durationMs }),
         ...(event.activities ? { activities: event.activities } : {}),
         ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {})
       }
@@ -73,6 +82,7 @@ export class StreamTaskProjection {
       if (event.cursor <= this.activityState.cursor) return
       this.seenEventIds.add(event.eventId)
       this.applyActivityProjection(event)
+      this.recordCursor(event.cursor)
       this.flush()
       return
     }
@@ -80,6 +90,7 @@ export class StreamTaskProjection {
       const toolEvent = event as Extract<StreamServerEvent, { type: `tool.${string}` }>
       if (toolEvent.cursor <= this.activityState.cursor) return
       this.applyActivityProjection(toolEvent)
+      this.recordCursor(toolEvent.cursor)
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
       this.seenEventIds.add(event.eventId)
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
@@ -128,12 +139,19 @@ export class StreamTaskProjection {
 
     this.seenEventIds.add(event.eventId)
     this.lastSequence = event.sequence
+    this.recordCursor(event.cursor)
     if (event.type === 'response.start') {
-      this.task = { ...this.task, status: 'running', activityStartedAt: event.occurredAt }
+      this.task = {
+        ...this.task,
+        status: 'running',
+        activityStartedAt: event.occurredAt,
+        streamSequence: event.sequence
+      }
       this.scheduleEmit()
       return
     }
     if (event.type === 'response.content') {
+      this.task = { ...this.task, streamSequence: event.sequence }
       this.replaceAssistantContent(
         event.messageId,
         `${this.assistantMessage(event.messageId)?.content ?? ''}${event.delta}`
@@ -150,6 +168,7 @@ export class StreamTaskProjection {
     this.task = {
       ...this.task,
       status: toTaskStatus(event.status),
+      streamSequence: event.sequence,
       ...(event.type === 'response.end' ? { activityDurationMs: event.durationMs } : {}),
       steps: [
         ...this.task.steps.map((step) =>
@@ -200,6 +219,11 @@ export class StreamTaskProjection {
       this.scheduled = null
       if (this.task) this.options.onChange(this.snapshot()!)
     }, 75)
+  }
+
+  private recordCursor(cursor: number): void {
+    this.lastCursor = cursor
+    if (this.task) this.task = { ...this.task, streamCursor: cursor }
   }
 
   private applyActivityProjection(event: StreamServerEvent): void {

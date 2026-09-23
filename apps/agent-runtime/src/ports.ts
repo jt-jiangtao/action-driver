@@ -190,6 +190,7 @@ export type PersistedStreamRequest = {
 
 export interface StreamRequestRepository {
   getByRequestId(requestId: string): Promise<PersistedStreamRequest | null>
+  getByTaskId(taskId: string): Promise<PersistedStreamRequest | null>
   getByIdempotencyKey(idempotencyKey: string): Promise<PersistedStreamRequest | null>
 }
 

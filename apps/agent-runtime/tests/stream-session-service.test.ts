@@ -938,6 +938,15 @@ describe('StreamSessionService', () => {
       })
     ])
 
+    const reopened = await service.getTaskSnapshot(accepted.taskId)
+    expect(reopened).toMatchObject({
+      type: 'response.snapshot',
+      taskId: accepted.taskId,
+      status: 'completed',
+      activities: [expect.objectContaining({ activityId: 'activity-snapshot' })],
+      activityTimeline: [expect.objectContaining({ kind: 'activity' })]
+    })
+
     repositories.close()
   })
 

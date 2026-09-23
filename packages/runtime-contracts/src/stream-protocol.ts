@@ -290,6 +290,7 @@ const responseSnapshotEventSchema = z
         ])
       )
       .optional(),
+    durationMs: z.number().nonnegative().optional(),
     error: streamErrorSchema.nullable()
   })
   .strict()

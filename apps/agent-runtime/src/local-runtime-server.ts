@@ -8,7 +8,8 @@ import {
   RuntimeRpcError,
   RuntimeServer,
   type RuntimeEvent,
-  type RuntimeMessageEndpoint
+  type RuntimeMessageEndpoint,
+  type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
 import { createRuntimeContainer, RUNTIME_TYPES } from './composition-root'
 import {
@@ -50,6 +51,11 @@ export function createLocalRuntimeServer(
     adapters: RuntimeAdapters
     messages: MessageRepository
     modelCalls: ModelCallRepository
+    streamSnapshots?: {
+      getTaskSnapshot(
+        taskId: string
+      ): Promise<Extract<StreamServerEvent, { type: 'response.snapshot' }> | null>
+    }
   }
 ): LocalRuntimeServer {
   const serverRef: { current: RuntimeServer | null } = { current: null }
@@ -191,10 +197,45 @@ export function createLocalRuntimeServer(
       }
       if (command === 'task.get') {
         const task = await taskRepository.get((rawInput as { taskId: string }).taskId)
+        if (!task) return { task: null }
+        const projection = buildTaskProjection(
+          task,
+          await options.messages.listBySession(task.sessionId)
+        )
+        const snapshot = await options.streamSnapshots?.getTaskSnapshot(task.id)
         return {
-          task: task
-            ? buildTaskProjection(task, await options.messages.listBySession(task.sessionId))
-            : null
+          task: snapshot
+            ? {
+                ...projection,
+                activities: snapshot.activities ?? [],
+                activityTimeline: snapshot.activityTimeline ?? [],
+                streamCursor: snapshot.cursor,
+                streamSequence: snapshot.sequence,
+                tools:
+                  snapshot.tools?.map((tool) => ({
+                    callId: tool.callId,
+                    toolId: tool.toolId,
+                    modelName: tool.modelName,
+                    summary: tool.summary,
+                    argumentsHash: tool.argumentsHash,
+                    status: tool.status,
+                    durationMs: tool.durationMs,
+                    ...(tool.activityId === undefined ? {} : { activityId: tool.activityId }),
+                    ...(tool.resultSummary === undefined
+                      ? {}
+                      : { resultSummary: tool.resultSummary }),
+                    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary }),
+                    ...(tool.rawInput === undefined ? {} : { rawInput: tool.rawInput }),
+                    ...(tool.rawOutput === undefined ? {} : { rawOutput: tool.rawOutput }),
+                    ...(tool.rawOutputTruncated === undefined
+                      ? {}
+                      : { rawOutputTruncated: tool.rawOutputTruncated })
+                  })) ?? [],
+                ...(snapshot.durationMs === undefined
+                  ? {}
+                  : { activityDurationMs: snapshot.durationMs })
+              }
+            : projection
         }
       }
       if (command === 'task.list') {

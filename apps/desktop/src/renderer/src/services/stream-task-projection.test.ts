@@ -52,6 +52,41 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('does not replay buffered events already included in the task.get high-water snapshot', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.apply({
+      type: 'activity.text',
+      ...identity,
+      eventId: 'already-text',
+      cursor: 3,
+      activityId: 'research',
+      textId: 'plan:task',
+      delta: '正文 A'
+    })
+    projection.apply({ ...content(1, '正文 A'), cursor: 4 })
+    projection.attach({
+      ...task(),
+      streamCursor: 4,
+      streamSequence: 1,
+      messages: [
+        { id: 'user-1', role: 'user', content: '写代码' },
+        { id: 'assistant-1', role: 'agent', content: '正文 A' }
+      ],
+      activities: [
+        {
+          activityId: 'research',
+          title: '调研',
+          titleRevision: 1,
+          status: 'running',
+          items: [{ id: 'text:plan:task', kind: 'text', content: '正文 A', phase: 'process' }]
+        }
+      ],
+      activityTimeline: [{ id: 'activity:research', kind: 'activity', activityId: 'research' }]
+    })
+    expect(projection.snapshot()?.activities?.[0]?.items[0]).toMatchObject({ content: '正文 A' })
+    expect(projection.snapshot()?.messages.at(-1)?.content).toBe('正文 A')
+  })
+
   it('matches a cursor-consistent snapshot for interleaved process text and tool calls', () => {
     const events: StreamServerEvent[] = [
       {

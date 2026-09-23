@@ -1,4 +1,4 @@
-import type { RuntimeMessageEndpoint } from '@actiondriver/runtime-contracts'
+import type { RuntimeMessageEndpoint, StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { RuntimeClient } from '@actiondriver/runtime-contracts'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,7 +35,14 @@ function linkedEndpoints(): [RuntimeMessageEndpoint, RuntimeMessageEndpoint] {
   return [endpoint(0), endpoint(1)]
 }
 
-function createHarness(modelGateway: ModelGateway) {
+function createHarness(
+  modelGateway: ModelGateway,
+  streamSnapshots?: {
+    getTaskSnapshot(
+      taskId: string
+    ): Promise<Extract<StreamServerEvent, { type: 'response.snapshot' }> | null>
+  }
+) {
   const [clientEndpoint, serverEndpoint] = linkedEndpoints()
   const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-server-')), 'actiondriver.db')
   const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
@@ -44,7 +51,8 @@ function createHarness(modelGateway: ModelGateway) {
   const server = createLocalRuntimeServer(serverEndpoint, {
     adapters: local.adapters,
     messages: repositories.messages,
-    modelCalls: repositories.modelCalls
+    modelCalls: repositories.modelCalls,
+    ...(streamSnapshots ? { streamSnapshots } : {})
   })
   const client = new RuntimeClient(clientEndpoint, {
     appVersion: '0.1.0',
@@ -59,6 +67,74 @@ function createHarness(modelGateway: ModelGateway) {
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('local Runtime server composition', () => {
+  it('restores activity order, tool I/O and duration through task.get', async () => {
+    const snapshots = {
+      async getTaskSnapshot(taskId: string) {
+        return {
+          type: 'response.snapshot',
+          taskId,
+          cursor: 8,
+          sequence: 3,
+          durationMs: 2800,
+          activities: [
+            {
+              activityId: 'activity',
+              title: '读取文件',
+              titleRevision: 2,
+              status: 'completed',
+              items: [
+                { id: 'text:plan', kind: 'text', content: '正文 A', phase: 'process' },
+                { id: 'tool:call', kind: 'tool', callId: 'call' }
+              ]
+            }
+          ],
+          activityTimeline: [{ id: 'activity:activity', kind: 'activity', activityId: 'activity' }],
+          tools: [
+            {
+              callId: 'call',
+              toolId: 'sandbox.fs.read',
+              modelName: 'sandbox_fs_read',
+              summary: 'README',
+              argumentsHash: 'hash',
+              status: 'completed',
+              durationMs: 3,
+              activityId: 'activity',
+              rawInput: '{"path":"README.md"}',
+              rawOutput: 'ok'
+            }
+          ]
+        } as Extract<StreamServerEvent, { type: 'response.snapshot' }>
+      }
+    }
+    const harness = createHarness(
+      {
+        async complete() {
+          return { kind: 'finish', content: '结论' }
+        }
+      },
+      snapshots
+    )
+    await harness.client.connect()
+    const { taskId } = await harness.client.request('task.submit', {
+      goal: '读取 README',
+      model,
+      skills: []
+    })
+    await vi.waitFor(async () => {
+      const { task } = await harness.client.request('task.get', { taskId })
+      expect(task).toMatchObject({
+        streamCursor: 8,
+        streamSequence: 3,
+        activityDurationMs: 2800,
+        activities: [{ items: [{ content: '正文 A' }, { callId: 'call' }] }],
+        tools: [{ callId: 'call', rawOutput: 'ok' }]
+      })
+    })
+    await harness.server.close()
+    harness.checkpointer.close()
+    harness.repositories.close()
+  })
+
   it('persists the real user input and assistant result', async () => {
     const harness = createHarness({
       async complete() {

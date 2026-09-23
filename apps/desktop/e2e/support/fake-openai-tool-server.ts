@@ -46,7 +46,7 @@ export class FakeOpenAiToolServer {
         'cache-control': 'no-cache',
         connection: 'keep-alive'
       })
-      if (turn === 1) {
+      if (turn === 1 || (this.mode === 'activity' && turn === 2)) {
         const toolName =
           this.mode === 'read' || this.mode === 'activity'
             ? 'sandbox_fs_read'
@@ -62,13 +62,16 @@ export class FakeOpenAiToolServer {
                 ? '{"command":"rg","args":["needle","BLOCKING_FIFO"]}'
                 : '{"command":"rg","args":["needle","README.md"]}'
         const midpoint = Math.ceil(argumentsJson.length / 2)
+        if (this.mode === 'activity') {
+          response.write(sseChunk({ content: turn === 1 ? '正文 A' : '正文 B' }, null))
+        }
         response.write(
           sseChunk(
             {
               tool_calls: [
                 {
                   index: 0,
-                  id: 'provider-tool-1',
+                  id: `provider-tool-${turn}`,
                   type: 'function',
                   function: { name: toolName, arguments: argumentsJson.slice(0, midpoint) }
                 }
