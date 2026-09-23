@@ -3,6 +3,7 @@ import { AgentComposer } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
+import { ConversationViewport } from '../components/ConversationViewport'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -54,6 +55,8 @@ export function TaskPage({
         model.ref.modelId === task.model.modelId
     )
   const inheritedModelUnavailable = !inheritedModel || inheritedModel.disabled
+  const latestMessage = task.messages.at(-1)
+  const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}`
   return (
     <main
       className="task-page"
@@ -72,14 +75,14 @@ export function TaskPage({
           onExpandBrowser={() => onModeChange('split')}
         />
         <div className="conversation-body">
-          <div className="conversation-scroll">
+          <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
               <ConversationMessages
                 messages={task.messages}
                 generating={task.status === 'running'}
               />
             </div>
-          </div>
+          </ConversationViewport>
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}

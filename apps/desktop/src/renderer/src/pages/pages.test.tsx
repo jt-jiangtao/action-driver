@@ -155,4 +155,26 @@ describe('ActionDriver pages', () => {
     expect(onSubmit).toHaveBeenCalledWith('继续解释')
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
+
+  it('keeps the message viewport before the bottom composer in the document layout', () => {
+    const { container } = render(
+      <TaskPage
+        mode="split"
+        task={{ ...mockTaskFixture, browser: null }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const body = container.querySelector('.conversation-body')!
+    expect(body.children[0]).toHaveClass('conversation-scroll')
+    expect(body.children[1]).toHaveClass('agent-composer')
+    expect(body.querySelector('.conversation-scroll .agent-composer')).toBeNull()
+    expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
+  })
 })
