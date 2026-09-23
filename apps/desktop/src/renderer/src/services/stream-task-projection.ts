@@ -1,9 +1,10 @@
-import type {
-  ActivityProjection,
-  TaskProjection,
-  ToolInvocationProjection
-} from '@actiondriver/contracts'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import {
+  emptyActivityTimelineState,
+  reduceActivityProjection,
+  type ActivityTimelineState,
+  type StreamServerEvent
+} from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
 
@@ -12,6 +13,7 @@ export class StreamTaskProjection {
   private readonly buffered: StreamServerEvent[] = []
   private readonly seenEventIds = new Set<string>()
   private readonly toolSequences = new Map<string, number>()
+  private activityState: ActivityTimelineState = emptyActivityTimelineState()
   private lastSequence = -1
   private scheduled: ScheduledHandle | null = null
 
@@ -25,6 +27,7 @@ export class StreamTaskProjection {
 
   attach(task: TaskProjection): void {
     this.task = structuredClone(task)
+    this.activityState = activityStateFromTask(task)
     const events = this.buffered.splice(0)
     for (const event of events) this.apply(event)
   }
@@ -42,6 +45,15 @@ export class StreamTaskProjection {
       this.seenEventIds.add(event.eventId)
       this.lastSequence = event.sequence
       this.toolSequences.clear()
+      this.activityState = activityStateFromTask(
+        {
+          ...this.task,
+          activities: event.activities ?? [],
+          activityTimeline: event.activityTimeline ?? [],
+          tools: event.tools?.map(toToolProjection) ?? []
+        },
+        event.cursor
+      )
       this.task = {
         ...this.task,
         status: toTaskStatus(event.status),
@@ -50,19 +62,24 @@ export class StreamTaskProjection {
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content
         })),
-        tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? []
+        tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? [],
+        ...(event.activities ? { activities: event.activities } : {}),
+        ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {})
       }
       this.flush()
       return
     }
     if (event.type.startsWith('activity.')) {
+      if (event.cursor <= this.activityState.cursor) return
       this.seenEventIds.add(event.eventId)
-      this.applyActivity(event as Extract<StreamServerEvent, { type: `activity.${string}` }>)
+      this.applyActivityProjection(event)
       this.flush()
       return
     }
     if (event.type.startsWith('tool.')) {
       const toolEvent = event as Extract<StreamServerEvent, { type: `tool.${string}` }>
+      if (toolEvent.cursor <= this.activityState.cursor) return
+      this.applyActivityProjection(toolEvent)
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
       this.seenEventIds.add(event.eventId)
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
@@ -95,7 +112,6 @@ export class StreamTaskProjection {
             ? (this.task.tools ?? []).map((tool) => (tool.callId === next.callId ? next : tool))
             : [...(this.task.tools ?? []), next]
         }
-        if (toolEvent.activityId) this.attachToolToActivity(toolEvent.activityId, next.callId)
         this.flush()
       }
       return
@@ -113,7 +129,7 @@ export class StreamTaskProjection {
     this.seenEventIds.add(event.eventId)
     this.lastSequence = event.sequence
     if (event.type === 'response.start') {
-      this.task = { ...this.task, status: 'running' }
+      this.task = { ...this.task, status: 'running', activityStartedAt: event.occurredAt }
       this.scheduleEmit()
       return
     }
@@ -186,74 +202,29 @@ export class StreamTaskProjection {
     }, 75)
   }
 
-  private applyActivity(event: Extract<StreamServerEvent, { type: `activity.${string}` }>): void {
+  private applyActivityProjection(event: StreamServerEvent): void {
     if (!this.task) return
-    const activities = this.task.activities ?? []
-    if (event.type === 'activity.text' && event.activityId === null) {
-      this.task = {
-        ...this.task,
-        activityTimeline: [
-          ...(this.task.activityTimeline ?? []),
-          { id: event.eventId, kind: 'text', content: event.delta }
-        ]
-      }
-      return
-    }
-    if (event.type === 'activity.started') {
-      if (activities.some((activity) => activity.activityId === event.activityId)) return
-      const activity: ActivityProjection = {
-        activityId: event.activityId,
-        title: event.title,
-        titleRevision: event.titleRevision,
-        status: 'running',
-        items: []
-      }
-      this.task = {
-        ...this.task,
-        activities: [...activities, activity],
-        activityTimeline: [
-          ...(this.task.activityTimeline ?? []),
-          { id: `activity:${event.activityId}`, kind: 'activity', activityId: event.activityId }
-        ]
-      }
-      return
-    }
-    const current = activities.find((activity) => activity.activityId === event.activityId)
-    if (!current) return
-    if (event.type === 'activity.updated') {
-      if (event.titleRevision <= current.titleRevision) return
-      this.replaceActivity({ ...current, title: event.title, titleRevision: event.titleRevision })
-      return
-    }
-    if (event.type === 'activity.text') {
-      this.replaceActivity({
-        ...current,
-        items: [...current.items, { id: event.eventId, kind: 'text', content: event.delta }]
-      })
-      return
-    }
-    this.replaceActivity({ ...current, status: 'completed' })
-  }
-
-  private attachToolToActivity(activityId: string, callId: string): void {
-    const activity = this.task?.activities?.find((candidate) => candidate.activityId === activityId)
-    if (!activity || activity.items.some((item) => item.kind === 'tool' && item.callId === callId))
-      return
-    this.replaceActivity({
-      ...activity,
-      items: [...activity.items, { id: `tool:${callId}`, kind: 'tool', callId }]
-    })
-  }
-
-  private replaceActivity(next: ActivityProjection): void {
-    if (!this.task) return
+    this.activityState = reduceActivityProjection(this.activityState, event)
     this.task = {
       ...this.task,
-      activities: (this.task.activities ?? []).map((activity) =>
-        activity.activityId === next.activityId ? next : activity
-      )
+      activities: this.activityState.activities,
+      activityTimeline: this.activityState.timeline
     }
   }
+}
+
+function activityStateFromTask(task: TaskProjection, cursor = 0): ActivityTimelineState {
+  const state = emptyActivityTimelineState(cursor)
+  state.activities = structuredClone(task.activities ?? [])
+  state.timeline = structuredClone(task.activityTimeline ?? [])
+  for (const tool of task.tools ?? []) state.toolActivityIds[tool.callId] = tool.activityId ?? null
+  for (const activity of state.activities) {
+    for (const item of activity.items) {
+      if (item.kind === 'text')
+        state.textPhases[item.id.replace(/^text:/, '')] = item.phase ?? 'pending'
+    }
+  }
+  return state
 }
 
 function toToolProjection(
@@ -268,7 +239,13 @@ function toToolProjection(
     status: tool.status,
     durationMs: tool.durationMs,
     ...(tool.resultSummary === undefined ? {} : { resultSummary: tool.resultSummary }),
-    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary })
+    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary }),
+    ...(tool.activityId === undefined ? {} : { activityId: tool.activityId }),
+    ...(tool.rawInput === undefined ? {} : { rawInput: tool.rawInput }),
+    ...(tool.rawOutput === undefined ? {} : { rawOutput: tool.rawOutput }),
+    ...(tool.rawOutputTruncated === undefined
+      ? {}
+      : { rawOutputTruncated: tool.rawOutputTruncated })
   }
 }
 

@@ -178,7 +178,7 @@ describe('ActionDriver pages', () => {
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
 
-  it('groups active and completed tool cards in the conversation, keeping only the latest active card open', () => {
+  it('keeps one cursor-ordered process below the running clock and approvals above the composer', () => {
     const { container } = render(
       <TaskPage
         mode="split"
@@ -218,21 +218,71 @@ describe('ActionDriver pages', () => {
         onRejectTool={vi.fn(async () => undefined)}
       />
     )
-    expect(screen.getByTestId('e2e/tasks/detail/tool-activity/running#section')).toHaveTextContent(
-      '正在运行中'
-    )
-    expect(screen.getByTestId('e2e/tasks/detail/tool-activity/completed#section')).toHaveTextContent(
-      '运行结束'
-    )
-    expect(screen.getByRole('button', { name: /sandbox.shell.run/ })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    )
-    expect(screen.getByRole('button', { name: /web.search@1/ })).toHaveAttribute(
-      'aria-expanded',
-      'false'
+    expect(screen.queryByTestId('e2e/tasks/detail/tool-activity/running#section')).toBeNull()
+    expect(screen.queryByTestId('e2e/tasks/detail/tool-activity/completed#section')).toBeNull()
+    const timeline = screen.getByRole('region', { name: '任务过程' })
+    expect(timeline).toHaveTextContent('已处理')
+    expect(timeline).toHaveTextContent('rg TODO README.md')
+    expect(timeline).toHaveTextContent('搜索 “ActionDriver”')
+    expect(timeline.textContent!.indexOf('已处理')).toBeLessThan(
+      timeline.textContent!.indexOf('rg TODO')
     )
     expect(screen.getByRole('button', { name: '允许一次' })).toBeVisible()
-    expect(container.querySelector('.conversation-scroll .tool-activity-list')).not.toBeNull()
+    expect(container.querySelector('.conversation-scroll .tool-activity-list')).toBeNull()
+    expect(container.querySelector('.tool-approval-bar')).not.toBeNull()
+  })
+
+  it('shows the final answer only after the completed duration archive', () => {
+    const { container } = render(
+      <TaskPage
+        mode="split"
+        task={{ ...mockTaskFixture, status: 'succeeded', browser: null, activityDurationMs: 2800 }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const archive = screen.getByText('用时 2.8 秒')
+    const answer = screen.getByText(/我会在内嵌浏览器中查找/)
+    expect(archive.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelectorAll('.agent-message')).toHaveLength(1)
+  })
+
+  it('preserves previous conversation turns and does not show failed process text as a conclusion', () => {
+    render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'failed',
+          browser: null,
+          messages: [
+            { id: 'old-user', role: 'user', content: '之前的问题' },
+            { id: 'old-agent', role: 'agent', content: '之前的回答' },
+            { id: 'new-user', role: 'user', content: '当前的问题' },
+            { id: 'new-agent', role: 'agent', content: '未完成的过程正文' }
+          ]
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const previous = screen.getByText('之前的回答')
+    const current = screen.getByText('当前的问题')
+    expect(
+      previous.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(screen.queryByText('未完成的过程正文')).toBeNull()
   })
 })

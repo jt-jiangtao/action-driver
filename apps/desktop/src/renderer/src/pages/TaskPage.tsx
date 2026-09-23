@@ -4,7 +4,6 @@ import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ConversationViewport } from '../components/ConversationViewport'
-import { ToolActivityCards } from '../components/ToolActivityCards'
 import { ActivityTimeline } from '../components/ActivityTimeline'
 import { ToolApprovalBar } from '../components/ToolApprovalBar'
 import type { ModelSelectionProjection } from '../models/model-selection'
@@ -63,13 +62,19 @@ export function TaskPage({
     )
   const inheritedModelUnavailable = !inheritedModel || inheritedModel.disabled
   const latestMessage = task.messages.at(-1)
-  const archived = task.activityTimeline !== undefined && task.status !== 'running'
-  const processMessages = archived
-    ? task.messages.filter((message) => message.role === 'user')
-    : task.messages
-  const conclusionMessages = archived
-    ? task.messages.filter((message) => message.role === 'agent')
-    : []
+  let currentUserIndex = -1
+  for (let index = task.messages.length - 1; index >= 0; index -= 1) {
+    if (task.messages[index]?.role === 'user') {
+      currentUserIndex = index
+      break
+    }
+  }
+  const precedingMessages = task.messages.slice(0, Math.max(0, currentUserIndex))
+  const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
+  const conclusionMessages =
+    task.status === 'succeeded'
+      ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
+      : []
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}`
   return (
     <main
@@ -91,31 +96,21 @@ export function TaskPage({
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
-              <ConversationMessages
-                messages={processMessages}
-                generating={task.status === 'running'}
-              />
-              {task.activityTimeline ? (
-                <ActivityTimeline task={task} />
-              ) : (
-                <ToolActivityCards
-                  tools={task.tools ?? []}
-                  {...(onApproveTool ? { onApprove: onApproveTool } : {})}
-                  {...(onRejectTool ? { onReject: onRejectTool } : {})}
-                />
-              )}
+              {precedingMessages.length > 0 ? (
+                <ConversationMessages messages={precedingMessages} generating={false} />
+              ) : null}
+              <ConversationMessages messages={processMessages} generating={false} />
+              <ActivityTimeline task={task} />
               {conclusionMessages.length > 0 ? (
                 <ConversationMessages messages={conclusionMessages} generating={false} />
               ) : null}
             </div>
           </ConversationViewport>
-          {task.activityTimeline ? (
-            <ToolApprovalBar
-              tools={task.tools ?? []}
-              {...(onApproveTool ? { onApprove: onApproveTool } : {})}
-              {...(onRejectTool ? { onReject: onRejectTool } : {})}
-            />
-          ) : null}
+          <ToolApprovalBar
+            tools={task.tools ?? []}
+            {...(onApproveTool ? { onApprove: onApproveTool } : {})}
+            {...(onRejectTool ? { onReject: onRejectTool } : {})}
+          />
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}
