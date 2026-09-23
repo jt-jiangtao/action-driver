@@ -87,6 +87,101 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('publishes concurrent activity callbacks in persisted cursor order', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        await Promise.all([
+          observer?.({
+            kind: 'activity',
+            event: { type: 'started', activityId: 'activity', title: '开始', titleRevision: 1 }
+          } as never),
+          observer?.({
+            kind: 'activity',
+            event: { type: 'updated', activityId: 'activity', title: '读取', titleRevision: 2 }
+          } as never)
+        ])
+        await observer?.({ kind: 'end', content: '', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const published: StreamServerEvent[] = []
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const ended = new Promise<void>((resolve) => {
+      void service.handle(createEvent, async (event) => {
+        if (event.type === 'activity.started') await firstGate
+        published.push(event)
+        if (event.type === 'response.end') resolve()
+      })
+    })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    releaseFirst()
+    await ended
+    expect(published.filter((event) => 'cursor' in event).map((event) => event.cursor)).toEqual(
+      [...published.filter((event) => 'cursor' in event).map((event) => event.cursor)].sort(
+        (a, b) => a - b
+      )
+    )
+    repositories.close()
+  })
+
+  it('reads a snapshot at one high-water cursor', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request) {
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const events = await runToEnd(service, createEvent)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('expected accepted')
+    const read = await repositories.readStreamSnapshot(accepted.requestId)
+    expect(read.events.every((event) => event.cursor <= read.cursor)).toBe(true)
+    await repositories.events.append({
+      taskId: accepted.taskId,
+      threadId: accepted.taskId,
+      checkpointId: 'later',
+      eventKey: 'later',
+      type: 'activity.updated',
+      payload: { activityId: 'activity', title: 'later', titleRevision: 2 },
+      occurredAt: '2026-09-24T00:00:00.000Z',
+      requestId: accepted.requestId
+    })
+    expect(read.events.some((event) => event.eventKey === 'later')).toBe(false)
+    repositories.close()
+  })
+
   it('publishes and replays an ordered activity lifecycle with title revisions', async () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
@@ -831,7 +926,10 @@ describe('StreamSessionService', () => {
           expect.objectContaining({
             activityId: 'activity-snapshot',
             title: '正在读取文件',
-            status: 'completed'
+            status: 'completed',
+            items: [
+              expect.objectContaining({ kind: 'text', content: '已准备读取。', phase: 'pending' })
+            ]
           })
         ],
         activityTimeline: [

@@ -5,7 +5,8 @@ import type {
   PersistedStreamRequest,
   PersistedToolInvocation,
   RuntimeEventRecord,
-  RuntimeTaskRecord
+  RuntimeTaskRecord,
+  StreamSnapshotRead
 } from './ports'
 
 export type {
@@ -256,6 +257,55 @@ export class SqliteRuntimeRepositories {
   }
 
   constructor(private readonly database: Database.Database) {}
+
+  async readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead> {
+    return this.database
+      .transaction(() => {
+        const requestRow = this.database
+          .prepare('SELECT * FROM stream_requests WHERE request_id = ?')
+          .get(requestId) as StreamRequestRow | undefined
+        if (!requestRow) throw new Error(`Unknown stream request: ${requestId}`)
+        const request = streamRequestFromRow(requestRow)
+        const highWater = this.database
+          .prepare('SELECT MAX(cursor) AS cursor FROM runtime_events WHERE request_id = ?')
+          .get(requestId) as { cursor: number | null }
+        const cursor = highWater.cursor ?? 0
+        const events = (
+          this.database
+            .prepare(
+              'SELECT * FROM runtime_events WHERE request_id = ? AND cursor <= ? ORDER BY cursor'
+            )
+            .all(requestId, cursor) as EventRow[]
+        ).map(eventFromRow)
+        const taskRow = this.database
+          .prepare('SELECT * FROM tasks WHERE id = ?')
+          .get(request.taskId) as TaskRow | undefined
+        const messages = (
+          this.database
+            .prepare(
+              `SELECT messages.* FROM messages
+          JOIN tasks ON tasks.id = messages.task_id
+          WHERE tasks.session_id = ?
+          ORDER BY tasks.created_at, tasks.id, messages.created_at, messages.rowid`
+            )
+            .all(request.sessionId) as MessageRow[]
+        ).map(messageFromRow)
+        const tools = (
+          this.database
+            .prepare('SELECT * FROM tool_invocations WHERE task_id = ? ORDER BY created_at, id')
+            .all(request.taskId) as ToolInvocationRow[]
+        ).map(toolInvocationFromRow)
+        return {
+          request,
+          cursor,
+          events,
+          task: taskRow ? taskFromRow(taskRow) : null,
+          messages,
+          tools
+        }
+      })
+      .deferred()
+  }
 
   async createStreamTask(input: {
     request: PersistedStreamRequest

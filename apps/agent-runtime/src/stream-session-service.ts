@@ -1,6 +1,8 @@
 import {
   STREAM_PROTOCOL,
+  emptyActivityTimelineState,
   parseStreamServerEvent,
+  reduceActivityProjection,
   type RequestCreateEvent,
   type StreamClientEvent,
   type StreamServerEvent,
@@ -27,6 +29,7 @@ import {
 type Emit = (event: StreamServerEvent) => void | Promise<void>
 
 type ActiveRequest = {
+  sessionId: string
   controller: AbortController
   operation: Promise<void>
   delivery: { emit: Emit }
@@ -35,6 +38,8 @@ type ActiveRequest = {
 export class StreamSessionService {
   private readonly active = new Map<string, ActiveRequest>()
   private readonly activeSessions = new Set<string>()
+  private readonly publicationTails = new Map<string, Promise<void>>()
+  private readonly publishedCursors = new Map<string, number>()
 
   constructor(
     private readonly options: {
@@ -220,6 +225,7 @@ export class StreamSessionService {
     const storedRequest = created.request
     const acceptedRecord = await this.findEvent(storedRequest.requestId, 'request.accepted')
     await emit(this.toServerEvent(storedRequest, acceptedRecord))
+    this.publishedCursors.set(storedRequest.requestId, acceptedRecord.cursor)
 
     if (!created.created) {
       this.activeSessions.delete(sessionId)
@@ -240,10 +246,21 @@ export class StreamSessionService {
     ).finally(() => {
       if (this.active.get(storedRequest.requestId)?.operation === operation) {
         this.active.delete(storedRequest.requestId)
-        this.activeSessions.delete(storedRequest.sessionId)
+        if (
+          ![...this.active.values()].some((active) => active.sessionId === storedRequest.sessionId)
+        ) {
+          this.activeSessions.delete(storedRequest.sessionId)
+        }
+        this.publicationTails.delete(storedRequest.requestId)
+        this.publishedCursors.delete(storedRequest.requestId)
       }
     })
-    this.active.set(storedRequest.requestId, { controller, operation, delivery })
+    this.active.set(storedRequest.requestId, {
+      sessionId: storedRequest.sessionId,
+      controller,
+      operation,
+      delivery
+    })
     void operation.catch(() => undefined)
   }
 
@@ -266,7 +283,7 @@ export class StreamSessionService {
       initialAssistant,
       this.runtimeEvent(request, 'response.start', sequence, { model: initialTask.model })
     )
-    await emit(this.toServerEvent(request, startRecord))
+    await this.publishThrough(request, startRecord.cursor, emit)
 
     let result: AgentGraphResult | null = null
     let thrown: unknown = null
@@ -296,7 +313,7 @@ export class StreamSessionService {
                 `activity.${activity.type}:${activity.activityId}:${activitySequence++}`
               )
             )
-            await emit(this.toServerEvent(request, record))
+            await this.publishThrough(request, record.cursor, emit)
             return
           }
           if (event.kind === 'end') {
@@ -313,11 +330,11 @@ export class StreamSessionService {
               contentIndex: 0
             })
           )
-          await emit(this.toServerEvent(request, record))
+          await this.publishThrough(request, record.cursor, emit)
         },
         async (record) => {
           if (record.requestId === request.requestId) {
-            await emit(this.toServerEvent(request, record))
+            await this.publishThrough(request, record.cursor, emit)
           }
         }
       )
@@ -366,7 +383,31 @@ export class StreamSessionService {
         error
       })
     })
-    await emit(this.toServerEvent(persistedRequest, endRecord))
+    this.activeSessions.delete(request.sessionId)
+    await this.publishThrough(persistedRequest, endRecord.cursor, emit)
+  }
+
+  private async publishThrough(
+    request: PersistedStreamRequest,
+    cursor: number,
+    emit: Emit
+  ): Promise<void> {
+    const previous = this.publicationTails.get(request.requestId) ?? Promise.resolve()
+    const current = previous.then(async () => {
+      const last = this.publishedCursors.get(request.requestId) ?? 0
+      const records = (await this.options.repositories.events.listAfter(last)).filter(
+        (record) => record.requestId === request.requestId && record.cursor <= cursor
+      )
+      for (const record of records) {
+        await emit(this.toServerEvent(request, record))
+        this.publishedCursors.set(request.requestId, record.cursor)
+      }
+    })
+    this.publicationTails.set(
+      request.requestId,
+      current.catch(() => undefined)
+    )
+    await current
   }
 
   private async replay(requestId: string, afterCursor: number, emit: Emit): Promise<void> {
@@ -392,26 +433,25 @@ export class StreamSessionService {
       (!first && request.lastSequence >= 0) ||
       (first !== undefined && first.type !== 'request.accepted' && afterCursor < first.cursor - 1)
     if (replayExpired) {
-      await emit(await this.snapshot(request, retained.at(-1)?.cursor ?? afterCursor))
+      await emit(await this.snapshot(request.requestId))
       return
     }
     const events = retained.filter((event) => event.cursor > afterCursor)
     for (const event of events) await emit(this.toServerEvent(request, event))
   }
 
-  private async snapshot(
-    request: PersistedStreamRequest,
-    cursor: number
-  ): Promise<StreamServerEvent> {
-    const [task, messages, toolInvocations, events] = await Promise.all([
-      this.options.repositories.tasks.get(request.taskId),
-      this.options.repositories.messages.listBySession(request.sessionId),
-      this.options.repositories.toolInvocations?.listByTask(request.taskId) ?? Promise.resolve([]),
-      this.options.repositories.events.listAfter(0)
-    ])
-    const activity = projectSnapshotActivity(
-      events.filter((event) => event.requestId === request.requestId)
-    )
+  private async snapshot(requestId: string): Promise<StreamServerEvent> {
+    const {
+      request,
+      cursor,
+      task,
+      messages,
+      tools: toolInvocations,
+      events
+    } = await this.options.repositories.readStreamSnapshot(requestId)
+    const activity = events
+      .map((event) => this.toServerEvent(request, event))
+      .reduce(reduceActivityProjection, emptyActivityTimelineState())
     const error = toStreamError(task?.error)
     return parseStreamServerEvent({
       type: 'response.snapshot',
@@ -435,14 +475,26 @@ export class StreamSessionService {
           content: messageText(message.content),
           createdAt: message.createdAt
         })),
-      tools: toolInvocations.map((invocation) => ({
-        callId: invocation.id,
-        toolId: invocation.toolId,
-        modelName: invocation.toolId,
-        ...persistedToolActivity(invocation),
-        argumentsHash: invocation.argumentsHash,
-        status: invocation.status
-      })),
+      tools: toolInvocations.map((invocation) => {
+        const persisted = persistedToolActivity(invocation)
+        const activityId = activity.toolActivityIds[invocation.id] ?? null
+        const rawToolIO = this.options.rawToolIO?.enabled === true
+        const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
+        const rawInput = rawToolIO ? boundedJson(invocation.input, maxRawBytes) : null
+        const rawOutput = rawToolIO ? boundedJson(invocation.output, maxRawBytes) : null
+        return {
+          callId: invocation.id,
+          toolId: invocation.toolId,
+          modelName: invocation.toolId,
+          ...persisted,
+          argumentsHash: invocation.argumentsHash,
+          status: invocation.status,
+          activityId,
+          ...(rawInput ? { rawInput: rawInput.value } : {}),
+          ...(rawOutput ? { rawOutput: rawOutput.value } : {}),
+          ...(rawInput?.truncated || rawOutput?.truncated ? { rawOutputTruncated: true } : {})
+        }
+      }),
       ...(activity.activities.length ? { activities: activity.activities } : {}),
       ...(activity.timeline.length ? { activityTimeline: activity.timeline } : {}),
       error
@@ -624,42 +676,6 @@ export class StreamSessionService {
       ...payload
     })
   }
-}
-
-function projectSnapshotActivity(events: RuntimeEventRecord[]) {
-  const activities = new Map<
-    string,
-    { activityId: string; title: string; titleRevision: number; status: 'running' | 'completed'; items: Array<{ id: string; kind: 'text'; content: string } | { id: string; kind: 'tool'; callId: string }> }
-  >()
-  const timeline: Array<{ id: string; kind: 'activity'; activityId: string } | { id: string; kind: 'text'; content: string }> = []
-  for (const event of events) {
-    const payload = event.payload as Record<string, unknown>
-    if (event.type === 'activity.started' && typeof payload.activityId === 'string' && typeof payload.title === 'string') {
-      activities.set(payload.activityId, { activityId: payload.activityId, title: payload.title, titleRevision: Number(payload.titleRevision) || 1, status: 'running', items: [] })
-      timeline.push({ id: `activity:${payload.activityId}`, kind: 'activity', activityId: payload.activityId })
-      continue
-    }
-    if (event.type === 'activity.updated' && typeof payload.activityId === 'string') {
-      const activity = activities.get(payload.activityId)
-      if (activity && typeof payload.title === 'string' && Number(payload.titleRevision) > activity.titleRevision) {
-        activity.title = payload.title
-        activity.titleRevision = Number(payload.titleRevision)
-      }
-      continue
-    }
-    if (event.type === 'activity.text' && typeof payload.activityId === 'string') {
-      const activity = activities.get(payload.activityId)
-      if (activity && typeof payload.delta === 'string') {
-        activity.items.push({ id: String(event.eventId), kind: 'text', content: String(payload.delta) })
-      }
-      continue
-    }
-    if (event.type === 'activity.completed' && typeof payload.activityId === 'string') {
-      const activity = activities.get(payload.activityId)
-      if (activity) activity.status = 'completed'
-    }
-  }
-  return { activities: [...activities.values()], timeline }
 }
 
 function boundedJson(value: unknown, maxBytes: number): { value: string; truncated: boolean } {

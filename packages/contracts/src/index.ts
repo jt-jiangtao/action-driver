@@ -77,6 +77,7 @@ export interface ActivityTextProjection {
   id: string
   kind: 'text'
   content: string
+  phase?: 'pending' | 'process' | 'final'
 }
 
 export interface ActivityToolProjection {
@@ -95,7 +96,8 @@ export interface ActivityProjection {
 
 export type TaskTimelineProjectionItem =
   | { id: string; kind: 'activity'; activityId: string }
-  | { id: string; kind: 'text'; content: string }
+  | { id: string; kind: 'tool'; callId: string }
+  | { id: string; kind: 'text'; content: string; phase?: 'pending' | 'process' | 'final' }
 
 export interface TaskProjection {
   id: string
@@ -108,6 +110,7 @@ export interface TaskProjection {
   tools?: ToolInvocationProjection[]
   activities?: ActivityProjection[]
   activityTimeline?: TaskTimelineProjectionItem[]
+  activityStartedAt?: string
   activityDurationMs?: number
   browser: BrowserSkillProjection | null
 }

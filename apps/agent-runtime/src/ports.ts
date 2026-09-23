@@ -199,6 +199,7 @@ export interface StreamSessionRepository {
   readonly events: Pick<EventRepository, 'append' | 'listAfter'>
   readonly streamRequests: StreamRequestRepository
   readonly toolInvocations?: Pick<ToolInvocationRepository, 'listByTask'>
+  readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead>
   createStreamTask(input: {
     request: PersistedStreamRequest
     task: RuntimeTaskRecord
@@ -217,6 +218,15 @@ export interface StreamSessionRepository {
     assistantMessage: PersistedMessage
     event: Omit<RuntimeEventRecord, 'cursor'>
   }): Promise<RuntimeEventRecord>
+}
+
+export type StreamSnapshotRead = {
+  request: PersistedStreamRequest
+  cursor: number
+  events: RuntimeEventRecord[]
+  task: RuntimeTaskRecord | null
+  messages: PersistedMessage[]
+  tools: PersistedToolInvocation[]
 }
 
 export interface MessageRepository {

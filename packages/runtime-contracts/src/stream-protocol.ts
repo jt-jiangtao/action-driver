@@ -259,7 +259,14 @@ const responseSnapshotEventSchema = z
             status: z.enum(['running', 'completed']),
             items: z.array(
               z.union([
-                z.object({ id: idSchema, kind: z.literal('text'), content: z.string() }).strict(),
+                z
+                  .object({
+                    id: idSchema,
+                    kind: z.literal('text'),
+                    content: z.string(),
+                    phase: z.enum(['pending', 'process', 'final']).optional()
+                  })
+                  .strict(),
                 z.object({ id: idSchema, kind: z.literal('tool'), callId: idSchema }).strict()
               ])
             )
@@ -272,7 +279,14 @@ const responseSnapshotEventSchema = z
         z.union([
           z.object({ id: idSchema, kind: z.literal('activity'), activityId: idSchema }).strict(),
           z.object({ id: idSchema, kind: z.literal('tool'), callId: idSchema }).strict(),
-          z.object({ id: idSchema, kind: z.literal('text'), content: z.string() }).strict()
+          z
+            .object({
+              id: idSchema,
+              kind: z.literal('text'),
+              content: z.string(),
+              phase: z.enum(['pending', 'process', 'final']).optional()
+            })
+            .strict()
         ])
       )
       .optional(),
