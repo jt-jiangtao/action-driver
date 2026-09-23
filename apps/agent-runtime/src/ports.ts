@@ -140,8 +140,8 @@ export interface StreamRequestRepository {
 }
 
 export interface StreamSessionRepository {
-  readonly tasks: Pick<TaskRepository, 'get'>
-  readonly messages: Pick<MessageRepository, 'listByTask'>
+  readonly tasks: Pick<TaskRepository, 'get' | 'getLatestBySession' | 'listBySession'>
+  readonly messages: Pick<MessageRepository, 'listByTask' | 'listBySession'>
   readonly events: Pick<EventRepository, 'listAfter'>
   readonly streamRequests: StreamRequestRepository
   createStreamTask(input: {
@@ -203,6 +203,7 @@ export interface GraphRunner {
       taskId: string
       goal: string
       model: ModelRef
+      messages?: RuntimeMessage[]
       systemPrompt?: string
       skills?: ModelSkillDescription[]
     },

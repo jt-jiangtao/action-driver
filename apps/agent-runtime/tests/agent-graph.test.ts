@@ -16,6 +16,35 @@ import {
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('sends persisted conversation history before the new user turn', async () => {
+    const requests: Parameters<ModelGateway['complete']>[0][] = []
+    const model: ModelGateway = {
+      async complete(request) {
+        requests.push(request)
+        return { kind: 'finish', content: '第二答' }
+      }
+    }
+
+    await new LangGraphRunner(model, new MockSkillRegistry()).run({
+      taskId: 'task-2',
+      goal: '第二问',
+      model: modelRef,
+      systemPrompt: 'system',
+      messages: [
+        { role: 'user', content: '第一问' },
+        { role: 'assistant', content: '第一答' }
+      ],
+      skills: []
+    })
+
+    expect(requests[0]?.messages).toEqual([
+      { role: 'system', content: 'system' },
+      { role: 'user', content: '第一问' },
+      { role: 'assistant', content: '第一答' },
+      { role: 'user', content: '第二问' }
+    ])
+  })
+
   it('publishes model deltas before completion and returns the terminal aggregate', async () => {
     let releaseEnd!: () => void
     const endGate = new Promise<void>((resolve) => {

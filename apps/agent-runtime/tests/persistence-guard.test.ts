@@ -28,6 +28,7 @@ afterEach(() => {
 const task: RuntimeTaskRecord = {
   id: 'task-guard',
   threadId: 'task-guard',
+  sessionId: 'task-guard',
   goal: 'guard payloads',
   model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',

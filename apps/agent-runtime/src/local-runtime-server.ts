@@ -127,11 +127,14 @@ export function createLocalRuntimeServer(
   }
 
   async function projectModelLog(task: RuntimeTaskRecord) {
+    const tasks = await taskRepository.listBySession(task.sessionId)
     const [messages, modelCalls] = await Promise.all([
-      options.messages.listByTask(task.id),
-      options.modelCalls.listByTask(task.id)
+      options.messages.listBySession(task.sessionId),
+      Promise.all(tasks.map((sessionTask) => options.modelCalls.listByTask(sessionTask.id))).then(
+        (calls) => calls.flat()
+      )
     ])
-    return buildModelLogSessionProjection(task, messages, modelCalls)
+    return buildModelLogSessionProjection(tasks, messages, modelCalls)
   }
 
   const rpcServer = new RuntimeServer(endpoint, {
@@ -153,6 +156,7 @@ export function createLocalRuntimeServer(
         const task: RuntimeTaskRecord = {
           id: taskId,
           threadId: taskId,
+          sessionId: taskId,
           goal,
           model,
           status: 'running',
@@ -188,19 +192,26 @@ export function createLocalRuntimeServer(
       if (command === 'task.get') {
         const task = await taskRepository.get((rawInput as { taskId: string }).taskId)
         return {
-          task: task ? buildTaskProjection(task, await options.messages.listByTask(task.id)) : null
+          task: task
+            ? buildTaskProjection(task, await options.messages.listBySession(task.sessionId))
+            : null
         }
       }
       if (command === 'task.list') {
         const requestedLimit = (rawInput as { limit?: number }).limit ?? 20
         const limit = Math.min(100, Math.max(1, Math.trunc(requestedLimit)))
         return {
-          tasks: (await taskRepository.listRecent(limit)).map(buildRecentTaskProjection)
+          tasks: await Promise.all(
+            (await taskRepository.listRecentSessions(limit)).map(async (task) => {
+              const first = (await taskRepository.listBySession(task.sessionId))[0]
+              return buildRecentTaskProjection(task, first?.goal ?? task.goal)
+            })
+          )
         }
       }
       if (command === 'model-log.list') {
         const query = rawInput as ModelLogQuery
-        const tasks = await taskRepository.listRecent(100)
+        const tasks = await taskRepository.listRecentSessions(100)
         const sessions = await Promise.all(tasks.map(projectModelLog))
         return { sessions: sessions.filter((session) => matchesModelLog(session, query)) }
       }

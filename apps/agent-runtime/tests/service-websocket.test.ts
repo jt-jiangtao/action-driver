@@ -241,6 +241,7 @@ describe('service WebSocket surface', () => {
     const sessions: ServiceStreamSessionPort = {
       async handle(event, emit) {
         if (event.type !== 'request.create') return
+        if (event.sessionId !== null) throw new Error('expected a new-session request')
         const identity = {
           protocol: 'actiondriver.stream.v1' as const,
           requestId: event.requestId,

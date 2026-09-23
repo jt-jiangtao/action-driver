@@ -278,6 +278,7 @@ describe('ModelGateway boundary', () => {
     const localTask = {
       id: 'task-model-error',
       threadId: 'task-model-error',
+      sessionId: 'task-model-error',
       goal: 'saved locally',
       model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       status: 'submitted',

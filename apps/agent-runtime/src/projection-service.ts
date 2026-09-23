@@ -61,6 +61,7 @@ export class ProjectionService {
     return {
       id: taskId,
       threadId,
+      sessionId: threadId,
       goal,
       model,
       status,

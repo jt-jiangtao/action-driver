@@ -26,6 +26,7 @@ type ActiveRequest = {
 
 export class StreamSessionService {
   private readonly active = new Map<string, ActiveRequest>()
+  private readonly activeSessions = new Set<string>()
 
   constructor(
     private readonly options: {
@@ -60,13 +61,50 @@ export class StreamSessionService {
   }
 
   private async create(event: RequestCreateEvent, emit: Emit): Promise<void> {
+    const existing = await this.options.repositories.streamRequests.getByIdempotencyKey(
+      event.idempotencyKey
+    )
+    if (existing) {
+      const acceptedRecord = await this.findEvent(existing.requestId, 'request.accepted')
+      await emit(this.toServerEvent(existing, acceptedRecord))
+      await this.replay(existing.requestId, acceptedRecord.cursor, emit)
+      return
+    }
+
+    const previous = event.sessionId
+      ? await this.options.repositories.tasks.getLatestBySession(event.sessionId)
+      : null
+    if (event.sessionId && !previous) {
+      await this.emitRequestError(event.requestId, 'session-not-found', 'Unknown session', emit)
+      return
+    }
+    if (
+      previous &&
+      (previous.status === 'running' || this.activeSessions.has(previous.sessionId))
+    ) {
+      await this.emitRequestError(
+        event.requestId,
+        'session-busy',
+        'Another task is running in this session',
+        emit
+      )
+      return
+    }
+
     const now = this.options.now()
+    const sessionId = previous?.sessionId ?? this.options.ids.next('session')
+    const model = previous?.model ?? (event.sessionId === null ? event.payload.model : null)
+    if (!model) {
+      await this.emitRequestError(event.requestId, 'session-not-found', 'Unknown session', emit)
+      return
+    }
+    const history = previous ? await this.sessionHistory(previous.sessionId) : []
     const userMessageId = this.options.ids.next('message')
     const assistantMessageId = this.options.ids.next('message')
     const request: PersistedStreamRequest = {
       requestId: event.requestId,
       idempotencyKey: event.idempotencyKey,
-      sessionId: event.sessionId ?? this.options.ids.next('session'),
+      sessionId,
       taskId: this.options.ids.next('task'),
       responseId: this.options.ids.next('response'),
       streamId: this.options.ids.next('stream'),
@@ -78,9 +116,10 @@ export class StreamSessionService {
     }
     const task: RuntimeTaskRecord = {
       id: request.taskId,
-      threadId: request.sessionId,
+      threadId: request.taskId,
+      sessionId: request.sessionId,
       goal: event.payload.input.content,
-      model: event.payload.model,
+      model,
       status: 'running',
       error: null,
       lastCheckpointId: null,
@@ -102,18 +141,26 @@ export class StreamSessionService {
       createdAt: now
     }
     const acceptedEvent = this.runtimeEvent(request, 'request.accepted', null, {})
-    const created = await this.options.repositories.createStreamTask({
-      request,
-      task,
-      userMessage,
-      assistantMessage,
-      acceptedEvent
-    })
+    this.activeSessions.add(sessionId)
+    let created
+    try {
+      created = await this.options.repositories.createStreamTask({
+        request,
+        task,
+        userMessage,
+        assistantMessage,
+        acceptedEvent
+      })
+    } catch (error) {
+      this.activeSessions.delete(sessionId)
+      throw error
+    }
     const storedRequest = created.request
     const acceptedRecord = await this.findEvent(storedRequest.requestId, 'request.accepted')
     await emit(this.toServerEvent(storedRequest, acceptedRecord))
 
     if (!created.created) {
+      this.activeSessions.delete(sessionId)
       await this.replay(storedRequest.requestId, acceptedRecord.cursor, emit)
       return
     }
@@ -124,11 +171,13 @@ export class StreamSessionService {
       storedRequest,
       task,
       assistantMessage,
+      history,
       controller.signal,
       emit
     ).finally(() => {
       if (this.active.get(storedRequest.requestId)?.operation === operation) {
         this.active.delete(storedRequest.requestId)
+        this.activeSessions.delete(storedRequest.sessionId)
       }
     })
     this.active.set(storedRequest.requestId, { controller, operation })
@@ -140,6 +189,7 @@ export class StreamSessionService {
     request: PersistedStreamRequest,
     initialTask: RuntimeTaskRecord,
     initialAssistant: PersistedMessage,
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
     signal: AbortSignal,
     emit: Emit
   ): Promise<void> {
@@ -162,6 +212,7 @@ export class StreamSessionService {
           taskId: request.taskId,
           goal: initialTask.goal,
           model: initialTask.model,
+          messages: history,
           ...(createEvent.payload.systemPrompt === undefined
             ? {}
             : { systemPrompt: createEvent.payload.systemPrompt }),
@@ -268,7 +319,7 @@ export class StreamSessionService {
   ): Promise<StreamServerEvent> {
     const [task, messages] = await Promise.all([
       this.options.repositories.tasks.get(request.taskId),
-      this.options.repositories.messages.listByTask(request.taskId)
+      this.options.repositories.messages.listBySession(request.sessionId)
     ])
     const error = toStreamError(task?.error)
     return parseStreamServerEvent({
@@ -303,6 +354,41 @@ export class StreamSessionService {
     )
     if (!event) throw new Error(`Missing persisted ${type} event for ${requestId}`)
     return event
+  }
+
+  private async sessionHistory(
+    sessionId: string
+  ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+    const [tasks, messages] = await Promise.all([
+      this.options.repositories.tasks.listBySession(sessionId),
+      this.options.repositories.messages.listBySession(sessionId)
+    ])
+    const terminalTaskIds = new Set(
+      tasks.filter((task) => task.status !== 'running').map((task) => task.id)
+    )
+    return messages.flatMap((message) => {
+      if (!terminalTaskIds.has(message.taskId)) return []
+      if (message.role !== 'user' && message.role !== 'assistant') return []
+      return [{ role: message.role, content: messageText(message.content) }]
+    })
+  }
+
+  private async emitRequestError(
+    requestId: string,
+    code: string,
+    message: string,
+    emit: Emit
+  ): Promise<void> {
+    await emit(
+      parseStreamServerEvent({
+        type: 'request.error',
+        protocol: STREAM_PROTOCOL,
+        eventId: this.options.ids.next('event'),
+        requestId,
+        error: { code, message, retryable: false },
+        occurredAt: this.options.now()
+      })
+    )
   }
 
   private runtimeEvent(

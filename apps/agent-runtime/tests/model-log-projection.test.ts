@@ -17,6 +17,7 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
   return {
     id,
     threadId: id,
+    sessionId: 'session-1',
     goal: id === 'task-success' ? 'Summarize the report' : 'Fail safely',
     model,
     status,
@@ -59,6 +60,27 @@ function call(
 }
 
 describe('repository-backed task and model-log projections', () => {
+  it('projects one session with multiple task calls and complete conversation messages', () => {
+    const first = task('task-1', 'completed')
+    const second = {
+      ...task('task-2', 'completed'),
+      goal: 'Continue',
+      createdAt: '2026-09-23T01:01:00.000Z',
+      updatedAt: '2026-09-23T01:01:02.000Z'
+    }
+    const projection = buildModelLogSessionProjection(
+      [first, second],
+      [],
+      [call(first.id, 'completed', {}, null), call(second.id, 'completed', {}, null)]
+    )
+
+    expect(projection).toMatchObject({
+      id: 'session-1',
+      sessionId: 'session-1',
+      tasks: [{ id: 'task-1' }, { id: 'task-2' }]
+    })
+  })
+
   it('projects structured text messages written by the streaming session', () => {
     const projection = buildTaskProjection(task('task-success', 'running'), [
       {

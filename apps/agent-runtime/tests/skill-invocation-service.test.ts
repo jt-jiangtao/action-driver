@@ -28,6 +28,7 @@ afterEach(() => {
 const task: RuntimeTaskRecord = {
   id: 'task-skill',
   threadId: 'task-skill',
+  sessionId: 'task-skill',
   goal: 'invoke browser capability',
   model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',

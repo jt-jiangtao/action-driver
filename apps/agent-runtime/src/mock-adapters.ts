@@ -122,6 +122,21 @@ class InMemoryTaskRepository implements TaskRepository {
     return this.tasks.get(taskId) ?? null
   }
 
+  async getLatestBySession(sessionId: string): Promise<RuntimeTaskRecord | null> {
+    return (await this.listBySession(sessionId)).at(-1) ?? null
+  }
+
+  async listBySession(sessionId: string): Promise<RuntimeTaskRecord[]> {
+    return [...this.tasks.values()]
+      .filter((task) => task.sessionId === sessionId)
+      .sort((left, right) =>
+        left.createdAt === right.createdAt
+          ? left.id.localeCompare(right.id)
+          : left.createdAt.localeCompare(right.createdAt)
+      )
+      .map((task) => structuredClone(task))
+  }
+
   async listRecent(limit: number): Promise<RuntimeTaskRecord[]> {
     return [...this.tasks.values()]
       .sort((left, right) =>
@@ -131,6 +146,14 @@ class InMemoryTaskRepository implements TaskRepository {
       )
       .slice(0, limit)
       .map((task) => structuredClone(task))
+  }
+
+  async listRecentSessions(limit: number): Promise<RuntimeTaskRecord[]> {
+    const latest = new Map<string, RuntimeTaskRecord>()
+    for (const task of await this.listRecent(this.tasks.size)) {
+      if (!latest.has(task.sessionId)) latest.set(task.sessionId, task)
+    }
+    return [...latest.values()].slice(0, limit)
   }
 
   async save(task: RuntimeTaskRecord): Promise<void> {

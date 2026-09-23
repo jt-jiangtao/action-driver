@@ -17,6 +17,7 @@ import type {
   ModelGateway,
   ModelGatewayEvent,
   ModelResult,
+  RuntimeMessage,
   SkillProviderResult,
   SkillRegistry
 } from './ports'
@@ -42,6 +43,7 @@ const AgentState = Annotation.Root({
   goal: Annotation<string>(),
   model: Annotation<ModelRef>(),
   systemPrompt: Annotation<string>({ reducer: replace, default: () => '' }),
+  messages: Annotation<RuntimeMessage[]>({ reducer: replace, default: () => [] }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
     reducer: replace,
     default: () => []
@@ -83,6 +85,7 @@ export class LangGraphRunner implements GraphRunner {
       taskId: string
       goal: string
       model: ModelRef
+      messages?: RuntimeMessage[]
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
     },
@@ -100,6 +103,7 @@ export class LangGraphRunner implements GraphRunner {
           goal: request.goal,
           model: request.model,
           systemPrompt: request.systemPrompt ?? '',
+          messages: request.messages ?? [],
           skills: request.skills ?? [],
           status: 'submitted',
           requestedSkillId: null,
@@ -210,6 +214,7 @@ export class LangGraphRunner implements GraphRunner {
               ...(state.systemPrompt.trim()
                 ? [{ role: 'system' as const, content: state.systemPrompt }]
                 : []),
+              ...state.messages,
               { role: 'user' as const, content: state.goal }
             ],
             skills: state.skills,

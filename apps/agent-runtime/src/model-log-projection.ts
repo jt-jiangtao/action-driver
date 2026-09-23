@@ -15,8 +15,10 @@ export function buildTaskProjection(
   const status = toTaskStatus(task.status)
   return {
     id: task.id,
+    sessionId: task.sessionId,
     title: task.goal,
     status,
+    model: task.model,
     messages: messages.flatMap((message) => {
       const content = messageText(message.content)
       if (content === null) return []
@@ -41,11 +43,14 @@ export function buildTaskProjection(
   }
 }
 
-export function buildRecentTaskProjection(task: RuntimeTaskRecord): RecentTaskProjection {
+export function buildRecentTaskProjection(
+  task: RuntimeTaskRecord,
+  title = task.goal
+): RecentTaskProjection {
   return {
     id: task.id,
-    sessionId: task.threadId,
-    title: task.goal,
+    sessionId: task.sessionId,
+    title,
     status: toTaskStatus(task.status),
     model: task.model,
     createdAt: task.createdAt,
@@ -54,35 +59,60 @@ export function buildRecentTaskProjection(task: RuntimeTaskRecord): RecentTaskPr
 }
 
 export function buildModelLogSessionProjection(
-  task: RuntimeTaskRecord,
+  taskOrTasks: RuntimeTaskRecord | readonly RuntimeTaskRecord[],
   messages: readonly PersistedMessage[],
   modelCalls: readonly PersistedModelCall[]
 ): ModelLogSessionProjection {
-  const status = toModelStatus(task.status)
-  const calls = modelCalls.map((call) => buildCallProjection(task, messages, call))
-  const startTime = modelCalls[0]?.startedAt ?? task.createdAt
-  const endTime = terminalEndTime(status, modelCalls.at(-1)?.completedAt ?? task.updatedAt)
-  const projectedTask = {
-    id: task.id,
-    sessionId: task.threadId,
-    name: task.goal,
+  const tasks = (Array.isArray(taskOrTasks) ? taskOrTasks : [taskOrTasks]).slice().sort(taskOrder)
+  const first = tasks[0]
+  const latest = tasks.at(-1)
+  if (!first || !latest) throw new Error('At least one task is required for a model log session')
+  const projectedTasks = tasks.map((task) => {
+    const calls = modelCalls
+      .filter((call) => call.taskId === task.id)
+      .sort(
+        (left, right) =>
+          left.startedAt.localeCompare(right.startedAt) || left.id.localeCompare(right.id)
+      )
+      .map((call) =>
+        buildCallProjection(
+          task,
+          messages.filter((message) => message.taskId === task.id),
+          call
+        )
+      )
+    const status = toModelStatus(task.status)
+    const startTime = calls[0]?.time ?? task.createdAt
+    const endTime = terminalEndTime(status, calls.at(-1)?.time ? task.updatedAt : task.updatedAt)
+    return {
+      id: task.id,
+      sessionId: task.sessionId,
+      name: task.goal,
+      startTime,
+      ...(endTime ? { endTime } : {}),
+      status,
+      durationMs: durationBetween(startTime, endTime),
+      model: task.model,
+      calls
+    }
+  })
+  const status = toModelStatus(latest.status)
+  const startTime = projectedTasks[0]?.startTime ?? first.createdAt
+  const endTime = terminalEndTime(status, projectedTasks.at(-1)?.endTime ?? latest.updatedAt)
+  return {
+    id: first.sessionId,
+    sessionId: first.sessionId,
+    name: first.goal,
     startTime,
     ...(endTime ? { endTime } : {}),
     status,
     durationMs: durationBetween(startTime, endTime),
-    model: task.model,
-    calls
+    tasks: projectedTasks
   }
-  return {
-    id: task.threadId,
-    sessionId: task.threadId,
-    name: task.goal,
-    startTime,
-    ...(endTime ? { endTime } : {}),
-    status,
-    durationMs: projectedTask.durationMs,
-    tasks: [projectedTask]
-  }
+}
+
+function taskOrder(left: RuntimeTaskRecord, right: RuntimeTaskRecord): number {
+  return left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id)
 }
 
 function buildCallProjection(

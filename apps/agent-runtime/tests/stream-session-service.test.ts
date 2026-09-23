@@ -58,7 +58,159 @@ const createEvent: RequestCreateEvent = {
   }
 }
 
+async function runToEnd(
+  service: StreamSessionService,
+  event: RequestCreateEvent
+): Promise<StreamServerEvent[]> {
+  const published: StreamServerEvent[] = []
+  await new Promise<void>((resolve) => {
+    void service.handle(event, (serverEvent) => {
+      published.push(serverEvent)
+      if (serverEvent.type === 'response.end' || serverEvent.type === 'request.error') resolve()
+    })
+  })
+  return published
+}
+
 describe('StreamSessionService', () => {
+  it('creates a new task in the same session and inherits model with complete history', async () => {
+    const requests: Parameters<GraphRunner['run']>[0][] = []
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        requests.push(request)
+        const answer = requests.length === 1 ? '第一答' : '第二答'
+        await observer?.({ kind: 'end', content: answer, finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: answer,
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const first = await runToEnd(service, {
+      ...createEvent,
+      payload: { ...createEvent.payload, input: { role: 'user', content: '第一问' } }
+    })
+    const acceptedFirst = first.find((event) => event.type === 'request.accepted')
+    if (!acceptedFirst || acceptedFirst.type !== 'request.accepted')
+      throw new Error('missing first')
+
+    const continuation: RequestCreateEvent = {
+      type: 'request.create',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'client-event-2',
+      createdAt: '2026-09-23T00:01:00.000Z',
+      requestId: 'request-client-2',
+      idempotencyKey: 'idempotency-2',
+      sessionId: acceptedFirst.sessionId,
+      payload: { input: { role: 'user', content: '第二问' }, skills: [] }
+    }
+    const second = await runToEnd(service, continuation)
+    const acceptedSecond = second.find((event) => event.type === 'request.accepted')
+    if (!acceptedSecond || acceptedSecond.type !== 'request.accepted') {
+      throw new Error('missing second')
+    }
+
+    expect(acceptedSecond.sessionId).toBe(acceptedFirst.sessionId)
+    expect(acceptedSecond.taskId).not.toBe(acceptedFirst.taskId)
+    expect(requests[1]).toMatchObject({
+      goal: '第二问',
+      model: createEvent.payload.model,
+      messages: [
+        { role: 'user', content: '第一问' },
+        { role: 'assistant', content: '第一答' }
+      ]
+    })
+    await expect(repositories.tasks.listBySession(acceptedFirst.sessionId)).resolves.toHaveLength(2)
+
+    const replay = await runToEnd(service, { ...continuation, eventId: 'client-event-retry' })
+    expect(replay[0]).toMatchObject({ type: 'request.accepted', taskId: acceptedSecond.taskId })
+    expect(requests).toHaveLength(2)
+    repositories.close()
+  })
+
+  it('rejects unknown or busy sessions before writing a task', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const graphRunner: GraphRunner = {
+      async run(request, signal, observer) {
+        await Promise.race([
+          gate,
+          new Promise<void>((resolve) => signal?.addEventListener('abort', () => resolve()))
+        ])
+        await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: signal?.aborted ? 'interrupted' : 'completed',
+          output: 'done',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const unknown = await runToEnd(service, {
+      ...createEvent,
+      requestId: 'unknown-request',
+      idempotencyKey: 'unknown-idempotency',
+      sessionId: 'missing-session',
+      payload: { input: { role: 'user', content: '继续' }, skills: [] }
+    })
+    expect(unknown).toEqual([
+      expect.objectContaining({
+        type: 'request.error',
+        error: expect.objectContaining({ code: 'session-not-found' })
+      })
+    ])
+    await expect(repositories.tasks.listRecent(20)).resolves.toHaveLength(0)
+
+    const initialEvents: StreamServerEvent[] = []
+    await service.handle(createEvent, (event) => {
+      initialEvents.push(event)
+    })
+    const accepted = initialEvents.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing accepted')
+    const busy = await runToEnd(service, {
+      ...createEvent,
+      eventId: 'busy-event',
+      requestId: 'busy-request',
+      idempotencyKey: 'busy-idempotency',
+      sessionId: accepted.sessionId,
+      payload: { input: { role: 'user', content: '不要并发' }, skills: [] }
+    })
+    expect(busy).toEqual([
+      expect.objectContaining({
+        type: 'request.error',
+        error: expect.objectContaining({ code: 'session-busy' })
+      })
+    ])
+    await expect(repositories.tasks.listBySession(accepted.sessionId)).resolves.toHaveLength(1)
+    release()
+    await service.close()
+    repositories.close()
+  })
+
   it('persists accepted/start/content/end before publishing and never re-executes an idempotent request', async () => {
     let graphRuns = 0
     const graphRunner: GraphRunner = {

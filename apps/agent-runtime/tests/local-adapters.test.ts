@@ -44,6 +44,7 @@ describe('local runtime adapters', () => {
     await tasks.save({
       id: 'task-local',
       threadId: 'task-local',
+      sessionId: 'task-local',
       goal: 'Persist locally',
       model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       status: 'running',
