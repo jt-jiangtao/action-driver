@@ -20,6 +20,7 @@ import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
 import { isLogControlPlaneOperation } from './service/logs'
+import { toolActivityDurationMs, toolActivitySummary } from './tool-activity'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -27,6 +28,7 @@ export type ToolInvocationContext = {
   checkpointId: string
   requestId: string
   grants: string[]
+  activityId?: string | null
   onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
 }
 
@@ -144,8 +146,11 @@ export class ToolInvocationService {
           ...event,
           toolId: definition.id,
           modelName: definition.modelName,
-          summary: `${definition.modelName} ${JSON.stringify(call.arguments)}`,
-          argumentsHash: invocation.argumentsHash
+          summary: toolActivitySummary(definition.id, call.arguments),
+          durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
+          argumentsHash: invocation.argumentsHash,
+          activityId: context.activityId ?? null,
+          input: call.arguments
         },
         occurredAt: invocation.updatedAt,
         eventId: `${call.callId}.${event.sequence}`,

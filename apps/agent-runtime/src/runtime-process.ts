@@ -20,6 +20,7 @@ import {
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { createSandboxTools } from './sandbox'
+import { registerSearxngTool } from './searxng/runtime-tools'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -68,17 +69,24 @@ export async function startAgentRuntimeProcess(
     correlationId: randomUUID,
     now: () => new Date().toISOString()
   })
-  const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway, interactions })
+  const local = createLocalRuntimeAdapters({
+    repositories,
+    checkpointer,
+    modelGateway,
+    interactions
+  })
   for (const tool of sandboxTools) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
+  registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
   const streamSessions = new StreamSessionService({
     repositories,
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),
-    approvals: local.toolRuntime.invocations
+    approvals: local.toolRuntime.invocations,
+    rawToolIO: { enabled: true }
   })
   const server = createLocalRuntimeServer(endpoint, {
     adapters: local.adapters,
@@ -97,7 +105,10 @@ export async function startAgentRuntimeProcess(
       logger: logging.logger,
       logFilePath: logging.logFilePath,
       interactions,
-      streamSessions
+      streamSessions,
+      ...(environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
+        ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
+        : {})
     })
   }
 

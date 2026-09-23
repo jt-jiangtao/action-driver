@@ -1,4 +1,8 @@
-import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import type {
+  ActivityProjection,
+  TaskProjection,
+  ToolInvocationProjection
+} from '@actiondriver/contracts'
 import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
@@ -46,8 +50,14 @@ export class StreamTaskProjection {
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content
         })),
-        tools: event.tools?.map((tool) => ({ ...tool })) ?? this.task.tools ?? []
+        tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? []
       }
+      this.flush()
+      return
+    }
+    if (event.type.startsWith('activity.')) {
+      this.seenEventIds.add(event.eventId)
+      this.applyActivity(event as Extract<StreamServerEvent, { type: `activity.${string}` }>)
       this.flush()
       return
     }
@@ -64,12 +74,28 @@ export class StreamTaskProjection {
           modelName: toolEvent.modelName,
           summary: toolEvent.summary,
           argumentsHash: toolEvent.argumentsHash,
-          status
+          activityId: toolEvent.activityId,
+          ...(toolEvent.rawInput === undefined ? {} : { rawInput: toolEvent.rawInput }),
+          ...(toolEvent.type === 'tool.completed' && toolEvent.rawOutput !== undefined
+            ? { rawOutput: toolEvent.rawOutput }
+            : {}),
+          ...(toolEvent.rawOutputTruncated === undefined
+            ? {}
+            : { rawOutputTruncated: toolEvent.rawOutputTruncated }),
+          status,
+          ...(toolEvent.type === 'tool.completed'
+            ? { durationMs: toolEvent.durationMs, resultSummary: toolEvent.resultSummary }
+            : toolEvent.type === 'tool.failed' || toolEvent.type === 'tool.cancelled'
+              ? { errorSummary: toolEvent.error?.message ?? '工具已取消' }
+              : {})
         }
         this.task = {
           ...this.task,
-          tools: [...(this.task.tools ?? []).filter((tool) => tool.callId !== next.callId), next]
+          tools: (this.task.tools ?? []).some((tool) => tool.callId === next.callId)
+            ? (this.task.tools ?? []).map((tool) => (tool.callId === next.callId ? next : tool))
+            : [...(this.task.tools ?? []), next]
         }
+        if (toolEvent.activityId) this.attachToolToActivity(toolEvent.activityId, next.callId)
         this.flush()
       }
       return
@@ -108,6 +134,7 @@ export class StreamTaskProjection {
     this.task = {
       ...this.task,
       status: toTaskStatus(event.status),
+      ...(event.type === 'response.end' ? { activityDurationMs: event.durationMs } : {}),
       steps: [
         ...this.task.steps.map((step) =>
           step.state === 'current'
@@ -157,6 +184,91 @@ export class StreamTaskProjection {
       this.scheduled = null
       if (this.task) this.options.onChange(this.snapshot()!)
     }, 75)
+  }
+
+  private applyActivity(event: Extract<StreamServerEvent, { type: `activity.${string}` }>): void {
+    if (!this.task) return
+    const activities = this.task.activities ?? []
+    if (event.type === 'activity.text' && event.activityId === null) {
+      this.task = {
+        ...this.task,
+        activityTimeline: [
+          ...(this.task.activityTimeline ?? []),
+          { id: event.eventId, kind: 'text', content: event.delta }
+        ]
+      }
+      return
+    }
+    if (event.type === 'activity.started') {
+      if (activities.some((activity) => activity.activityId === event.activityId)) return
+      const activity: ActivityProjection = {
+        activityId: event.activityId,
+        title: event.title,
+        titleRevision: event.titleRevision,
+        status: 'running',
+        items: []
+      }
+      this.task = {
+        ...this.task,
+        activities: [...activities, activity],
+        activityTimeline: [
+          ...(this.task.activityTimeline ?? []),
+          { id: `activity:${event.activityId}`, kind: 'activity', activityId: event.activityId }
+        ]
+      }
+      return
+    }
+    const current = activities.find((activity) => activity.activityId === event.activityId)
+    if (!current) return
+    if (event.type === 'activity.updated') {
+      if (event.titleRevision <= current.titleRevision) return
+      this.replaceActivity({ ...current, title: event.title, titleRevision: event.titleRevision })
+      return
+    }
+    if (event.type === 'activity.text') {
+      this.replaceActivity({
+        ...current,
+        items: [...current.items, { id: event.eventId, kind: 'text', content: event.delta }]
+      })
+      return
+    }
+    this.replaceActivity({ ...current, status: 'completed' })
+  }
+
+  private attachToolToActivity(activityId: string, callId: string): void {
+    const activity = this.task?.activities?.find((candidate) => candidate.activityId === activityId)
+    if (!activity || activity.items.some((item) => item.kind === 'tool' && item.callId === callId))
+      return
+    this.replaceActivity({
+      ...activity,
+      items: [...activity.items, { id: `tool:${callId}`, kind: 'tool', callId }]
+    })
+  }
+
+  private replaceActivity(next: ActivityProjection): void {
+    if (!this.task) return
+    this.task = {
+      ...this.task,
+      activities: (this.task.activities ?? []).map((activity) =>
+        activity.activityId === next.activityId ? next : activity
+      )
+    }
+  }
+}
+
+function toToolProjection(
+  tool: NonNullable<Extract<StreamServerEvent, { type: 'response.snapshot' }>['tools']>[number]
+): ToolInvocationProjection {
+  return {
+    callId: tool.callId,
+    toolId: tool.toolId,
+    modelName: tool.modelName,
+    summary: tool.summary,
+    argumentsHash: tool.argumentsHash,
+    status: tool.status,
+    durationMs: tool.durationMs,
+    ...(tool.resultSummary === undefined ? {} : { resultSummary: tool.resultSummary }),
+    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary })
   }
 }
 

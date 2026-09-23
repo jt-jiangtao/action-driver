@@ -140,9 +140,113 @@ describe('agent stream protocol', () => {
         toolId: 'sandbox.shell.run',
         modelName: 'sandbox_shell_run',
         summary: 'rg TODO README.md',
-        argumentsHash: 'sha256:abc'
+        argumentsHash: 'sha256:abc',
+        activityId: null
       })
     ).toMatchObject({ type: 'tool.waiting_approval', cursor: 4, callSequence: 1 })
+  })
+
+  it('accepts bounded raw tool I/O only when the runtime explicitly includes it', () => {
+    expect(
+      parseStreamServerEvent({
+        type: 'tool.completed',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'event-tool-raw',
+        cursor: 5,
+        requestId: 'request-1',
+        sessionId: 'session-1',
+        taskId: 'task-1',
+        responseId: 'response-1',
+        streamId: 'stream-1',
+        messageId: 'message-1',
+        occurredAt,
+        callId: 'call-raw',
+        callSequence: 2,
+        toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run',
+        summary: '执行命令',
+        argumentsHash: 'sha256:raw',
+        activityId: 'activity-research',
+        durationMs: 2,
+        resultSummary: '工具已完成',
+        rawInput: '{"command":"pwd"}',
+        rawOutput: '/workspace',
+        rawOutputTruncated: false
+      })
+    ).toMatchObject({ type: 'tool.completed', rawOutput: '/workspace' })
+  })
+
+  it('accepts activity title updates with a stable identity and revision', () => {
+    const identity = {
+      protocol: STREAM_PROTOCOL,
+      eventId: 'event-activity',
+      cursor: 5,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt
+    }
+
+    expect(
+      parseStreamServerEvent({
+        type: 'activity.updated',
+        ...identity,
+        activityId: 'activity-research',
+        title: '已完成 Codex 事件模型调研',
+        titleRevision: 2
+      })
+    ).toMatchObject({
+      type: 'activity.updated',
+      activityId: 'activity-research',
+      titleRevision: 2
+    })
+  })
+
+  it('accepts ordered activity lifecycle and standalone text events', () => {
+    const identity = {
+      protocol: STREAM_PROTOCOL,
+      eventId: 'event-activity-lifecycle',
+      cursor: 6,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt
+    }
+
+    expect(
+      parseStreamServerEvent({
+        type: 'activity.started',
+        ...identity,
+        activityId: 'activity-research',
+        title: '正在调研',
+        titleRevision: 1
+      }).type
+    ).toBe('activity.started')
+    expect(
+      parseStreamServerEvent({
+        type: 'activity.text',
+        ...identity,
+        eventId: 'event-activity-text',
+        cursor: 7,
+        activityId: null,
+        delta: '已确认事件边界。'
+      }).type
+    ).toBe('activity.text')
+    expect(
+      parseStreamServerEvent({
+        type: 'activity.completed',
+        ...identity,
+        eventId: 'event-activity-completed',
+        cursor: 8,
+        activityId: 'activity-research'
+      }).type
+    ).toBe('activity.completed')
   })
 
   it('requires a model only when creating a new session', () => {

@@ -18,6 +18,11 @@ import type {
   RuntimeTaskRecord
 } from './ports'
 import { ToolApprovalError, type ToolInvocationService } from './tool-invocation-service'
+import {
+  persistedToolActivity,
+  toolActivityErrorSummary,
+  toolActivityResultSummary
+} from './tool-activity'
 
 type Emit = (event: StreamServerEvent) => void | Promise<void>
 
@@ -38,6 +43,7 @@ export class StreamSessionService {
       ids: IdGenerator
       now(): string
       approvals?: Pick<ToolInvocationService, 'approve' | 'reject'>
+      rawToolIO?: { enabled: boolean; maxBytes?: number }
     }
   ) {}
 
@@ -251,6 +257,7 @@ export class StreamSessionService {
     emit: Emit
   ): Promise<void> {
     let sequence = 0
+    let activitySequence = 0
     let content = ''
     let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
     const startedAt = Date.parse(request.createdAt)
@@ -278,6 +285,20 @@ export class StreamSessionService {
         },
         signal,
         async (event) => {
+          if (event.kind === 'activity') {
+            const activity = event.event
+            const record = await this.options.repositories.events.append(
+              this.runtimeEvent(
+                request,
+                `activity.${activity.type}`,
+                null,
+                activity,
+                `activity.${activity.type}:${activity.activityId}:${activitySequence++}`
+              )
+            )
+            await emit(this.toServerEvent(request, record))
+            return
+          }
           if (event.kind === 'end') {
             if (event.result?.kind !== 'tool-calls') terminal = event
             return
@@ -382,11 +403,15 @@ export class StreamSessionService {
     request: PersistedStreamRequest,
     cursor: number
   ): Promise<StreamServerEvent> {
-    const [task, messages, toolInvocations] = await Promise.all([
+    const [task, messages, toolInvocations, events] = await Promise.all([
       this.options.repositories.tasks.get(request.taskId),
       this.options.repositories.messages.listBySession(request.sessionId),
-      this.options.repositories.toolInvocations?.listByTask(request.taskId) ?? Promise.resolve([])
+      this.options.repositories.toolInvocations?.listByTask(request.taskId) ?? Promise.resolve([]),
+      this.options.repositories.events.listAfter(0)
     ])
+    const activity = projectSnapshotActivity(
+      events.filter((event) => event.requestId === request.requestId)
+    )
     const error = toStreamError(task?.error)
     return parseStreamServerEvent({
       type: 'response.snapshot',
@@ -414,10 +439,12 @@ export class StreamSessionService {
         callId: invocation.id,
         toolId: invocation.toolId,
         modelName: invocation.toolId,
-        summary: `${invocation.toolId} ${JSON.stringify(invocation.input)}`,
+        ...persistedToolActivity(invocation),
         argumentsHash: invocation.argumentsHash,
         status: invocation.status
       })),
+      ...(activity.activities.length ? { activities: activity.activities } : {}),
+      ...(activity.timeline.length ? { activityTimeline: activity.timeline } : {}),
       error
     })
   }
@@ -469,13 +496,14 @@ export class StreamSessionService {
     request: PersistedStreamRequest,
     type: string,
     sequence: number | null,
-    payload: unknown
+    payload: unknown,
+    eventKey?: string
   ): Omit<RuntimeEventRecord, 'cursor'> {
     return {
       taskId: request.taskId,
       threadId: request.sessionId,
       checkpointId: request.responseId,
-      eventKey: sequence === null ? type : `${type}:${sequence}`,
+      eventKey: eventKey ?? (sequence === null ? type : `${type}:${sequence}`),
       type,
       payload,
       occurredAt: this.options.now(),
@@ -508,6 +536,23 @@ export class StreamSessionService {
     if (record.type === 'request.accepted') {
       return parseStreamServerEvent({ type: record.type, ...identity })
     }
+    if (record.type.startsWith('activity.')) {
+      const activity = payload as {
+        activityId: string
+        title?: string
+        titleRevision?: number
+        delta?: string
+      }
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        activityId: activity.activityId,
+        ...(record.type === 'activity.started' || record.type === 'activity.updated'
+          ? { title: activity.title, titleRevision: activity.titleRevision }
+          : {}),
+        ...(record.type === 'activity.text' ? { delta: activity.delta } : {})
+      })
+    }
     if (record.type.startsWith('tool.')) {
       const tool = payload as {
         callId: string
@@ -515,11 +560,19 @@ export class StreamSessionService {
         modelName: string
         summary: string
         argumentsHash: string
+        activityId?: string | null
+        input?: unknown
         stream?: string
         delta?: string
         output?: unknown
         error?: unknown
+        durationMs?: unknown
       }
+      const rawToolIO = this.options.rawToolIO?.enabled === true
+      const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
+      const rawInput = rawToolIO ? boundedJson(tool.input, maxRawBytes) : null
+      const rawOutput =
+        rawToolIO && record.type === 'tool.completed' ? boundedJson(tool.output, maxRawBytes) : null
       return parseStreamServerEvent({
         type: record.type,
         ...identity,
@@ -529,10 +582,31 @@ export class StreamSessionService {
         modelName: tool.modelName,
         summary: tool.summary,
         argumentsHash: tool.argumentsHash,
-        ...(record.type === 'tool.content' ? { stream: tool.stream, delta: tool.delta } : {}),
-        ...(record.type === 'tool.completed' ? { output: tool.output } : {}),
+        activityId: tool.activityId ?? null,
+        ...(rawInput ? { rawInput: rawInput.value, rawOutputTruncated: rawInput.truncated } : {}),
+        ...(record.type === 'tool.content'
+          ? {
+              stream: tool.stream,
+              delta: rawToolIO ? boundedText(tool.delta, maxRawBytes).value : '工具输出已接收'
+            }
+          : {}),
+        ...(record.type === 'tool.completed'
+          ? {
+              durationMs: typeof tool.durationMs === 'number' ? tool.durationMs : 0,
+              resultSummary: toolActivityResultSummary(tool.toolId, tool.output),
+              ...(rawOutput
+                ? { rawOutput: rawOutput.value, rawOutputTruncated: rawOutput.truncated }
+                : {})
+            }
+          : {}),
         ...(record.type === 'tool.failed' || record.type === 'tool.cancelled'
-          ? { error: tool.error }
+          ? {
+              error: {
+                code: 'tool-failed',
+                message: toolActivityErrorSummary(tool.error),
+                retryable: false
+              }
+            }
           : {})
       })
     }
@@ -543,6 +617,53 @@ export class StreamSessionService {
       ...payload
     })
   }
+}
+
+function projectSnapshotActivity(events: RuntimeEventRecord[]) {
+  const activities = new Map<
+    string,
+    { activityId: string; title: string; titleRevision: number; status: 'running' | 'completed'; items: Array<{ id: string; kind: 'text'; content: string } | { id: string; kind: 'tool'; callId: string }> }
+  >()
+  const timeline: Array<{ id: string; kind: 'activity'; activityId: string } | { id: string; kind: 'text'; content: string }> = []
+  for (const event of events) {
+    const payload = event.payload as Record<string, unknown>
+    if (event.type === 'activity.started' && typeof payload.activityId === 'string' && typeof payload.title === 'string') {
+      activities.set(payload.activityId, { activityId: payload.activityId, title: payload.title, titleRevision: Number(payload.titleRevision) || 1, status: 'running', items: [] })
+      timeline.push({ id: `activity:${payload.activityId}`, kind: 'activity', activityId: payload.activityId })
+      continue
+    }
+    if (event.type === 'activity.updated' && typeof payload.activityId === 'string') {
+      const activity = activities.get(payload.activityId)
+      if (activity && typeof payload.title === 'string' && Number(payload.titleRevision) > activity.titleRevision) {
+        activity.title = payload.title
+        activity.titleRevision = Number(payload.titleRevision)
+      }
+      continue
+    }
+    if (event.type === 'activity.text' && typeof payload.activityId === 'string') {
+      const activity = activities.get(payload.activityId)
+      if (activity && typeof payload.delta === 'string') activity.items.push({ id: event.eventId, kind: 'text', content: payload.delta })
+      continue
+    }
+    if (event.type === 'activity.completed' && typeof payload.activityId === 'string') {
+      const activity = activities.get(payload.activityId)
+      if (activity) activity.status = 'completed'
+    }
+  }
+  return { activities: [...activities.values()], timeline }
+}
+
+function boundedJson(value: unknown, maxBytes: number): { value: string; truncated: boolean } {
+  return boundedText(JSON.stringify(value), maxBytes)
+}
+
+function boundedText(value: unknown, maxBytes: number): { value: string; truncated: boolean } {
+  const text = typeof value === 'string' ? value : ''
+  const bytes = Buffer.byteLength(text, 'utf8')
+  if (bytes <= maxBytes) return { value: text, truncated: false }
+  let end = Math.min(text.length, maxBytes)
+  while (Buffer.byteLength(text.slice(0, end), 'utf8') > maxBytes) end -= 1
+  return { value: text.slice(0, end), truncated: true }
 }
 
 function messageText(content: unknown): string {

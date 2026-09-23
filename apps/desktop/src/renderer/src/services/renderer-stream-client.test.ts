@@ -87,7 +87,8 @@ describe('RendererStreamClient', () => {
             toolId: 'sandbox.shell.run',
             modelName: 'sandbox_shell_run',
             summary: 'rg TODO README.md',
-            argumentsHash: 'sha256:abc'
+            argumentsHash: 'sha256:abc',
+            activityId: null
           })
       })
     })

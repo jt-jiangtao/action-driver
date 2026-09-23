@@ -7,6 +7,7 @@ import type {
   StreamServerEvent,
   ToolApprovalCommand
 } from '@actiondriver/runtime-contracts'
+import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
 import {
   SqliteRuntimeRepositories,
   StreamSessionService,
@@ -22,7 +23,8 @@ function createHarness(
   approvals?: {
     approve(command: ToolApprovalCommand): Promise<void>
     reject(command: ToolApprovalCommand): Promise<void>
-  }
+  },
+  rawToolIO?: { enabled: boolean; maxBytes?: number }
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
@@ -42,7 +44,8 @@ function createHarness(
     graphRunner,
     ids,
     now: () => new Date(now++).toISOString(),
-    ...(approvals ? { approvals } : {})
+    ...(approvals ? { approvals } : {}),
+    ...(rawToolIO ? { rawToolIO } : {})
   })
   return { database, repositories, service }
 }
@@ -84,6 +87,117 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('publishes and replays an ordered activity lifecycle with title revisions', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        await observer?.({
+          kind: 'activity',
+          event: {
+            type: 'started',
+            activityId: 'activity-research',
+            title: '正在调研',
+            titleRevision: 1
+          }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'text', activityId: 'activity-research', delta: '已读取 README。' }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'text', activityId: 'activity-research', delta: '正在核对配置。' }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: {
+            type: 'updated',
+            activityId: 'activity-research',
+            title: '已完成调研',
+            titleRevision: 2
+          }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'completed', activityId: 'activity-research' }
+        } as never)
+        await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: 'done',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const published = await runToEnd(service, createEvent)
+    const accepted = published[0]
+    if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
+    const started = published[1]
+    if (started?.type !== 'response.start') throw new Error('expected response.start')
+
+    expect(published.map((event) => event.type)).toEqual([
+      'request.accepted',
+      'response.start',
+      'activity.started',
+      'activity.text',
+      'activity.text',
+      'activity.updated',
+      'activity.completed',
+      'response.end'
+    ])
+    expect(published[3]).toMatchObject({
+      type: 'activity.text',
+      activityId: 'activity-research',
+      delta: '已读取 README。'
+    })
+    expect(published[4]).toMatchObject({
+      type: 'activity.text',
+      activityId: 'activity-research',
+      delta: '正在核对配置。'
+    })
+    expect(published[5]).toMatchObject({
+      type: 'activity.updated',
+      activityId: 'activity-research',
+      title: '已完成调研',
+      titleRevision: 2
+    })
+
+    const replayed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'resume-activity',
+        createdAt: '2026-09-23T00:00:10.000Z',
+        requestId: accepted.requestId,
+        afterCursor: started.cursor
+      },
+      (event) => {
+        replayed.push(event)
+      }
+    )
+    expect(replayed.map((event) => event.type)).toEqual([
+      'activity.started',
+      'activity.text',
+      'activity.text',
+      'activity.updated',
+      'activity.completed',
+      'response.end'
+    ])
+
+    repositories.close()
+  })
+
   it('publishes future events to a resumed connection instead of a closed emitter', async () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => {
@@ -587,6 +701,23 @@ describe('StreamSessionService', () => {
   it('returns one authoritative snapshot when the requested replay cursor has expired', async () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
+        await observer?.({
+          kind: 'activity',
+          event: {
+            type: 'started',
+            activityId: 'activity-snapshot',
+            title: '正在读取文件',
+            titleRevision: 1
+          }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'text', activityId: 'activity-snapshot', delta: '已准备读取。' }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'completed', activityId: 'activity-snapshot' }
+        } as never)
         await observer?.({ kind: 'content', delta: 'final answer' })
         await observer?.({
           kind: 'end',
@@ -667,9 +798,173 @@ describe('StreamSessionService', () => {
           expect.objectContaining({ role: 'assistant', content: 'final answer' })
         ],
         tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed' })]
+        ,
+        activities: [
+          expect.objectContaining({
+            activityId: 'activity-snapshot',
+            title: '正在读取文件',
+            status: 'completed'
+          })
+        ],
+        activityTimeline: [
+          { id: 'activity:activity-snapshot', kind: 'activity', activityId: 'activity-snapshot' }
+        ]
       })
     ])
 
+    repositories.close()
+  })
+
+  it('projects terminal tool activity without streaming raw output or error details', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request) {
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const initial = await runToEnd(service, createEvent)
+    const accepted = initial[0]
+    if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
+    const record = await repositories.events.append({
+      taskId: accepted.taskId,
+      threadId: accepted.sessionId,
+      checkpointId: accepted.responseId,
+      eventKey: 'call-safe.2',
+      type: 'tool.completed',
+      payload: {
+        callId: 'call-safe',
+        toolId: 'web.search@1',
+        modelName: 'web_search',
+        summary: '搜索 “privacy news”',
+        argumentsHash: '',
+        output: {
+          stdout: 'secret stdout',
+          stderr: 'secret stderr',
+          content: '',
+          result: { results: [{ title: 'Safe result title' }], token: 'secret' },
+          byteLength: 1,
+          truncated: false
+        }
+      },
+      occurredAt: '2026-09-23T00:00:03.000Z',
+      eventId: 'tool-safe',
+      requestId: accepted.requestId,
+      sequence: 2
+    })
+    const replayed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'resume-safe',
+        createdAt: '2026-09-23T00:00:04.000Z',
+        requestId: accepted.requestId,
+        afterCursor: record.cursor - 1
+      },
+      (event) => {
+        replayed.push(event)
+      }
+    )
+    expect(replayed).toContainEqual(
+      expect.objectContaining({
+        type: 'tool.completed',
+        resultSummary: 'Safe result title',
+        durationMs: 0
+      })
+    )
+    expect(JSON.stringify(replayed)).not.toContain('secret stdout')
+    expect(JSON.stringify(replayed)).not.toContain('secret')
+    repositories.close()
+  })
+
+  it('exposes bounded raw tool I/O when the local runtime enables it', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request) {
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner, undefined, {
+      enabled: true,
+      maxBytes: 12
+    })
+    const initial = await runToEnd(service, createEvent)
+    const accepted = initial[0]
+    if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
+    const record = await repositories.events.append({
+      taskId: accepted.taskId,
+      threadId: accepted.sessionId,
+      checkpointId: accepted.responseId,
+      eventKey: 'call-raw.1',
+      type: 'tool.completed',
+      payload: {
+        callId: 'call-raw',
+        toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run',
+        summary: '执行命令',
+        argumentsHash: '',
+        input: { command: 'printf long-output' },
+        output: 'this output is deliberately long',
+        durationMs: 1
+      },
+      occurredAt: '2026-09-23T00:00:03.000Z',
+      eventId: 'tool-raw',
+      requestId: accepted.requestId,
+      sequence: 1
+    })
+    const replayed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'resume-raw',
+        createdAt: '2026-09-23T00:00:04.000Z',
+        requestId: accepted.requestId,
+        afterCursor: record.cursor - 1
+      },
+      (event) => {
+        replayed.push(event)
+      }
+    )
+    expect(replayed).toContainEqual(
+      expect.objectContaining({
+        type: 'tool.completed',
+        rawInput: expect.any(String),
+        rawOutput: expect.any(String),
+        rawOutputTruncated: true
+      })
+    )
+    const raw = replayed.find((event) => event.type === 'tool.completed')
+    if (raw?.type !== 'tool.completed') throw new Error('expected raw tool event')
+    expect(Buffer.byteLength(raw.rawInput ?? '', 'utf8')).toBeLessThanOrEqual(12)
+    expect(Buffer.byteLength(raw.rawOutput ?? '', 'utf8')).toBeLessThanOrEqual(12)
     repositories.close()
   })
 

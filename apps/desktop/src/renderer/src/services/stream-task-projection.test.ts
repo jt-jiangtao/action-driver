@@ -64,12 +64,119 @@ describe('StreamTaskProjection', () => {
       toolId: 'sandbox.shell.run',
       modelName: 'sandbox_shell_run',
       summary: 'rg TODO README.md',
-      argumentsHash: 'sha256:abc'
+      argumentsHash: 'sha256:abc',
+      activityId: null
     })
     expect(projection.snapshot()?.tools).toEqual([
       expect.objectContaining({ callId: 'call-1', status: 'waiting_approval' })
     ])
     expect(projection.snapshot()?.messages.at(-1)?.content).toBe('')
+  })
+
+  it('projects a dynamic activity with ordered text and tools without grouping by tool type', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'activity.started',
+      ...identity,
+      eventId: 'activity-start',
+      activityId: 'research',
+      title: '调研并核对现有实现',
+      titleRevision: 1
+    })
+    projection.apply({
+      type: 'activity.text',
+      ...identity,
+      eventId: 'activity-text',
+      activityId: 'research',
+      delta: '已读取协议。'
+    })
+    projection.apply({
+      type: 'tool.completed',
+      ...identity,
+      eventId: 'activity-tool',
+      callId: 'call-research',
+      callSequence: 1,
+      toolId: 'web.search',
+      modelName: 'web_search',
+      summary: '搜索活动协议',
+      argumentsHash: 'sha256:research',
+      activityId: 'research',
+      durationMs: 42,
+      resultSummary: '已找到规范'
+    })
+    projection.apply({
+      type: 'activity.updated',
+      ...identity,
+      eventId: 'activity-update',
+      activityId: 'research',
+      title: '已核对现有实现',
+      titleRevision: 2
+    })
+    projection.apply({
+      type: 'activity.completed',
+      ...identity,
+      eventId: 'activity-complete',
+      activityId: 'research'
+    })
+
+    expect(projection.snapshot()?.activityTimeline).toEqual([
+      { id: 'activity:research', kind: 'activity', activityId: 'research' }
+    ])
+    expect(projection.snapshot()?.activities).toEqual([
+      expect.objectContaining({
+        activityId: 'research',
+        title: '已核对现有实现',
+        titleRevision: 2,
+        status: 'completed',
+        items: [
+          { id: 'activity-text', kind: 'text', content: '已读取协议。' },
+          { id: 'tool:call-research', kind: 'tool', callId: 'call-research' }
+        ]
+      })
+    ])
+  })
+
+  it('keeps activity-less text between activities as a standalone timeline item', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'activity.text',
+      ...identity,
+      eventId: 'between-activities',
+      activityId: null,
+      delta: '已完成第一阶段，开始下一阶段。'
+    })
+    expect(projection.snapshot()?.activityTimeline).toEqual([
+      { id: 'between-activities', kind: 'text', content: '已完成第一阶段，开始下一阶段。' }
+    ])
+  })
+
+  it('keeps a terminal tool summary and duration for the completed activity card', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'tool.completed',
+      ...identity,
+      eventId: 'tool-completed',
+      callId: 'call-1',
+      callSequence: 1,
+      toolId: 'web.search',
+      modelName: 'web_search',
+      summary: 'ActionDriver',
+      argumentsHash: 'sha256:abc',
+      activityId: null,
+      durationMs: 42,
+      resultSummary: 'A safe title'
+    })
+    expect(projection.snapshot()?.tools).toEqual([
+      expect.objectContaining({
+        callId: 'call-1',
+        status: 'completed',
+        resultSummary: 'A safe title',
+        durationMs: 42
+      })
+    ])
   })
 
   it('restores pending tool approval from an authoritative snapshot after a page reload', () => {
@@ -92,7 +199,8 @@ describe('StreamTaskProjection', () => {
           modelName: 'sandbox_shell_run',
           summary: 'rg TODO README.md',
           argumentsHash: 'sha256:abc',
-          status: 'waiting_approval'
+          status: 'waiting_approval',
+          durationMs: 0
         }
       ],
       error: null

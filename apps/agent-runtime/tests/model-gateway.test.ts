@@ -267,14 +267,17 @@ describe('ModelGateway boundary', () => {
     })
 
     expect(complete).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         taskId: 'task-context',
         requestId: 'plan:task-context',
         model: { connectionId: 'connection-1', modelId: 'gpt-real' },
         messages: [{ role: 'user', content: 'current goal only' }],
         skills: [],
-        parameters: { temperature: 0 }
-      } satisfies ModelRequest,
+        parameters: { temperature: 0 },
+        tools: [
+          expect.objectContaining({ id: 'internal.activity.update', modelName: 'activity_update' })
+        ]
+      }),
       expect.anything()
     )
   })

@@ -1,0 +1,17 @@
+## 1. 安全活动投影与 Runtime 事件
+
+- [x] 1.1 扩展共享工具调用投影，表达稳定调用顺序、生命周期、受限参数摘要、终态耗时及受限结果/错误摘要；通过 contracts 单元测试验证序列化与秘密字段排除。
+- [x] 1.2 在 Tool Invocation、运行事件和恢复快照中构造并传递安全活动投影；通过 Runtime/Stream 测试验证 `waiting_approval → running → completed|failed|cancelled` 的同一 call id 更新、乱序去重和重连快照恢复。
+- [x] 1.3 为 Web Search、文件读取和 Shell 结果实现固定长度展示摘要；通过测试验证原始 stdout/stderr、HTTP 原始响应、密钥、Cookie 与认证头不进入活动投影。
+
+## 2. Renderer 工具活动卡
+
+- [x] 2.1 将 `StreamTaskProjection` 改为保留活动卡所需的安全字段与调用顺序；通过投影单元测试验证运行区/完成区迁移、默认展开目标和重连后的确定排序。
+- [x] 2.2 新增可复用的内联工具活动区与卡片组件，渲染运行中、终态、展开/折叠、耗时、摘要及错误；通过组件测试验证最新运行卡默认展开、终态卡默认折叠和布局宽度适配。
+- [x] 2.3 将等待批准的允许/拒绝操作迁入对应活动卡并移除重复的独立 ApprovalBar；通过组件测试验证防重复点击、批准后的状态转换、拒绝和陈旧批准错误展示。
+
+## 3. 任务页与端到端验证
+
+- [x] 3.1 将内联工具活动区接入任务对话视口，保持最终 Assistant Markdown 与工具过程分离；通过任务页测试验证 Agent-only、分栏及浏览器折叠布局。
+- [x] 3.2 扩展 fake OpenAI/工具 Runtime 桌面 E2E，覆盖文件、Shell 与 Web Search 的批准、运行、成功、失败、拒绝、超时与重连恢复；断言对话正文不混入工具进度且工具卡不泄漏秘密。
+- [x] 3.3 运行受影响 workspace 的类型检查、单元测试、完整工具 Runtime E2E、`corepack pnpm validate:e2e-interactions` 与 `openspec validate add-inline-tool-activity-cards --strict`，记录结果。

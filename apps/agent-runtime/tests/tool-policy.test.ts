@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolCall, ToolDefinition } from '@actiondriver/runtime-contracts'
 import { RuntimeToolPolicy, hashToolArguments } from '../src/tool-policy'
+import { createSearxngSearchTool } from '../src/searxng/search-tool'
 
 const readTool: ToolDefinition = {
   id: 'sandbox.fs.read',
@@ -57,6 +58,20 @@ describe('RuntimeToolPolicy', () => {
       argumentsHash: hashToolArguments({ command: 'rg', args: ['x'] })
     })
     expect(changed).not.toEqual(first)
+  })
+
+  it('requires a separately bound approval for every local SearXNG search', () => {
+    const definition = createSearxngSearchTool({ endpoint: 'http://127.0.0.1:8080' }).definition
+    const policy = new RuntimeToolPolicy()
+    const first = policy.decide(definition, call(definition, { query: 'first' }), {
+      grants: ['web.search@1']
+    })
+    const second = policy.decide(definition, call(definition, { query: 'second' }), {
+      grants: ['web.search@1']
+    })
+    expect(first).toMatchObject({ kind: 'require_approval' })
+    expect(second).toMatchObject({ kind: 'require_approval' })
+    expect(first).not.toEqual(second)
   })
 })
 

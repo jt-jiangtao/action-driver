@@ -49,6 +49,7 @@ export type ServiceHttpOptions = {
   bodyLimitBytes?: number
   interactions?: InteractionLogRecorder
   streamSessions?: ServiceStreamSessionPort
+  rendererOrigin?: string
   streamMaxPayloadBytes?: number
   streamMaxBufferedBytes?: number
 }
@@ -84,6 +85,7 @@ export async function startServiceHttpServer(
         sessions: options.streamSessions,
         tokenMatches: (token) => tokenMatches(token, tokenDigest),
         logger,
+        ...(options.rendererOrigin ? { rendererOrigin: options.rendererOrigin } : {}),
         ...(options.streamMaxPayloadBytes === undefined
           ? {}
           : { maxPayloadBytes: options.streamMaxPayloadBytes }),
