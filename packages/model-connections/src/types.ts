@@ -1,4 +1,5 @@
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
@@ -30,9 +31,25 @@ export type ModelCompletionRequest = {
   model: ModelRef
   requestId: string
   taskId: string
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  messages: ModelInputMessage[]
+  tools?: ToolDefinition[]
   parameters: { temperature?: number; maxTokens?: number }
 }
+
+export type ProviderToolCall = {
+  providerCallId: string
+  modelName: string
+  arguments: Record<string, unknown>
+}
+
+export type ModelInputMessage =
+  | { role: 'system' | 'user' | 'assistant'; content: string }
+  | { role: 'assistant'; toolCalls: ProviderToolCall[] }
+  | { role: 'tool'; toolCallId: string; name: string; content: string }
+
+export type ModelTerminal =
+  | { kind: 'final-text'; content: string }
+  | { kind: 'tool-calls'; calls: ProviderToolCall[] }
 
 export type ModelUsage = {
   inputTokens?: number
@@ -44,6 +61,7 @@ export type ModelCompletionEvent =
   | { kind: 'content'; delta: string }
   | {
       kind: 'end'
+      result?: ModelTerminal
       content: string
       finishReason: string | null
       usage: ModelUsage | null

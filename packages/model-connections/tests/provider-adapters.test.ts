@@ -208,6 +208,7 @@ describe('OpenAI compatible adapter', () => {
       { kind: 'content', delta: '题' },
       {
         kind: 'end',
+        result: { kind: 'final-text', content: '# 标题' },
         content: '# 标题',
         finishReason: 'stop',
         usage: { inputTokens: 2, outputTokens: 2, totalTokens: 4 },
@@ -233,6 +234,148 @@ describe('OpenAI compatible adapter', () => {
     ])
     expect(JSON.stringify(events)).not.toContain('sk-x')
     expect(JSON.stringify(events)).not.toContain(endpoint.baseUrl)
+  })
+
+  it('aggregates interleaved tool call deltas and sends only explicitly provided tools', async () => {
+    const sdk = openAiFactory([
+      chunk({
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  index: 1,
+                  id: 'provider-2',
+                  function: { name: 'sandbox_fs_list', arguments: '{"pa' }
+                },
+                {
+                  index: 0,
+                  id: 'provider-1',
+                  function: { name: 'sandbox_fs_read', arguments: '{"pa' }
+                }
+              ]
+            },
+            finish_reason: null
+          }
+        ]
+      } as unknown as Partial<OpenAiStreamChunk>),
+      chunk({
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                { index: 0, function: { arguments: 'th":"README.md"}' } },
+                { index: 1, function: { arguments: 'th":"src"}' } }
+              ]
+            },
+            finish_reason: 'tool_calls'
+          }
+        ]
+      } as unknown as Partial<OpenAiStreamChunk>)
+    ])
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+    const events = []
+
+    for await (const event of adapter.stream({
+      ...endpoint,
+      modelId: 'gpt-real',
+      messages: [{ role: 'user', content: 'read files' }],
+      tools: [
+        {
+          id: 'sandbox.fs.read',
+          version: 1,
+          modelName: 'sandbox_fs_read',
+          description: 'Read a workspace file',
+          inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
+          risk: 'low',
+          sideEffects: { filesystem: 'read', network: false },
+          timeoutMs: 10_000
+        }
+      ],
+      parameters: {}
+    })) {
+      events.push(event)
+    }
+
+    expect(sdk.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'sandbox_fs_read',
+              description: 'Read a workspace file',
+              parameters: { type: 'object', properties: { path: { type: 'string' } } }
+            }
+          }
+        ],
+        tool_choice: 'auto'
+      }),
+      expect.anything()
+    )
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'end',
+        result: {
+          kind: 'tool-calls',
+          calls: [
+            {
+              providerCallId: 'provider-1',
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            },
+            {
+              providerCallId: 'provider-2',
+              modelName: 'sandbox_fs_list',
+              arguments: { path: 'src' }
+            }
+          ]
+        }
+      })
+    ])
+  })
+
+  it('rejects malformed tool arguments without guessing a tool result', async () => {
+    const sdk = openAiFactory([
+      chunk({
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'provider-1',
+                  function: { name: 'sandbox_fs_read', arguments: '{invalid' }
+                }
+              ]
+            },
+            finish_reason: 'tool_calls'
+          }
+        ]
+      } as unknown as Partial<OpenAiStreamChunk>)
+    ])
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+    const consume = async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'gpt-real',
+        messages: [{ role: 'user', content: 'read' }],
+        parameters: {}
+      })) {
+        void event
+      }
+    }
+
+    await expect(consume()).rejects.toMatchObject({ code: 'invalid-response' })
   })
 
   it.each([

@@ -244,6 +244,14 @@ export class LangGraphRunner implements GraphRunner {
           }
         }
 
+        if (plan.kind === 'tool-calls') {
+          return {
+            status: 'failed' as const,
+            error: 'TOOL_CALLS_NOT_CONFIGURED',
+            trace: ['plan']
+          }
+        }
+
         return {
           status: 'planned' as const,
           requestedSkillId: plan.skillId,

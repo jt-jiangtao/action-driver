@@ -358,6 +358,9 @@ importers:
       '@actiondriver/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@actiondriver/runtime-contracts':
+        specifier: workspace:*
+        version: link:../runtime-contracts
       openai:
         specifier: 6.49.0
         version: 6.49.0(ws@8.21.3)(zod@4.6.5)

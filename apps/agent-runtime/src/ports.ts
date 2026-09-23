@@ -1,10 +1,13 @@
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ModelUsage } from '@actiondriver/model-connections'
+import type {
+  ModelInputMessage,
+  ModelTerminal,
+  ProviderToolCall
+} from '@actiondriver/model-connections'
+import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 
-export type RuntimeMessage = {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
+export type RuntimeMessage = ModelInputMessage
 
 export type ModelSkillDescription = {
   skillId: string
@@ -16,6 +19,7 @@ export type ModelRequest = {
   requestId: string
   model: ModelRef
   messages: RuntimeMessage[]
+  tools?: ToolDefinition[]
   skills: ModelSkillDescription[]
   parameters: {
     temperature?: number
@@ -26,11 +30,13 @@ export type ModelRequest = {
 export type ModelResult =
   | { kind: 'finish'; content: string }
   | { kind: 'invoke-skill'; skillId: string; input: unknown }
+  | { kind: 'tool-calls'; calls: ProviderToolCall[] }
 
 export type ModelGatewayEvent =
   | { kind: 'content'; delta: string }
   | {
       kind: 'end'
+      result?: ModelTerminal
       content: string
       finishReason: string | null
       usage: ModelUsage | null

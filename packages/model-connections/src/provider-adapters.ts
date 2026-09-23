@@ -15,12 +15,14 @@ import OpenAI, {
 import type { HttpTransport } from './http-transport'
 import { HttpTransportError } from './http-transport'
 import type {
+  ModelInputMessage,
   ModelCompletionEvent,
   ModelCompletionOutcome,
   ModelFailureCode,
   ModelProtocol,
   ModelUsage
 } from './types'
+import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ProviderFailure = {
   code: ModelFailureCode
@@ -36,7 +38,14 @@ export type ProviderResult<T> = { ok: true; value: T } | { ok: false; failure: P
 
 export type OpenAiStreamChunk = {
   choices: Array<{
-    delta: { content?: string | null }
+    delta: {
+      content?: string | null
+      tool_calls?: Array<{
+        index: number
+        id?: string
+        function?: { name?: string; arguments?: string }
+      }>
+    }
     finish_reason: string | null
     index: number
   }>
@@ -99,7 +108,8 @@ export type ModelEndpoint = {
 
 export type ProviderCompletionInput = ModelEndpoint & {
   modelId: string
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  messages: ModelInputMessage[]
+  tools?: ToolDefinition[]
   parameters: { temperature?: number; maxTokens?: number }
 }
 
@@ -149,8 +159,8 @@ export function createOpenAiCompatibleAdapter(
 
   return {
     discover,
-    async *stream({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
-      const requestBody = streamRequestBody(modelId, messages, parameters)
+    async *stream({ baseUrl, apiKey, modelId, messages, tools = [], parameters }, signal) {
+      const requestBody = streamRequestBody(modelId, messages, tools, parameters)
       if (signal?.aborted) {
         throw new ModelStreamError('cancelled', 'Model request was cancelled')
       }
@@ -179,6 +189,10 @@ export function createOpenAiCompatibleAdapter(
       let content = ''
       let finishReason: string | null = null
       let usage: ModelUsage | null = null
+      const pendingToolCalls = new Map<
+        number,
+        { providerCallId: string; modelName: string; argumentsText: string }
+      >()
       try {
         for await (const chunk of stream) {
           const choice = chunk.choices[0]
@@ -186,6 +200,19 @@ export function createOpenAiCompatibleAdapter(
           if (typeof delta === 'string' && delta.length > 0) {
             content += delta
             yield { kind: 'content', delta }
+          }
+          for (const toolCall of choice?.delta.tool_calls ?? []) {
+            const current = pendingToolCalls.get(toolCall.index) ?? {
+              providerCallId: '',
+              modelName: '',
+              argumentsText: ''
+            }
+            if (toolCall.id) current.providerCallId = toolCall.id
+            if (toolCall.function?.name) current.modelName = toolCall.function.name
+            if (toolCall.function?.arguments) {
+              current.argumentsText += toolCall.function.arguments
+            }
+            pendingToolCalls.set(toolCall.index, current)
           }
           if (choice?.finish_reason) finishReason = choice.finish_reason
           if (chunk.usage) {
@@ -199,20 +226,33 @@ export function createOpenAiCompatibleAdapter(
       } catch (error) {
         throw toSafeStreamError(error, headers)
       }
-      if (!content.trim()) {
+      const result =
+        finishReason === 'tool_calls'
+          ? {
+              kind: 'tool-calls' as const,
+              calls: parsePendingToolCalls(pendingToolCalls)
+            }
+          : { kind: 'final-text' as const, content }
+      if (result.kind === 'final-text' && !content.trim()) {
         throw new ModelStreamError('invalid-response', 'Model stream ended without assistant text')
       }
       if (!finishReason) {
         throw new ModelStreamError('invalid-response', 'Model stream ended without a finish reason')
       }
 
-      const responseBody = { content, finishReason, usage, providerRequestId }
-      yield { kind: 'end', content, finishReason, usage, requestBody, responseBody, status }
+      const responseBody = {
+        content,
+        finishReason,
+        usage,
+        providerRequestId,
+        ...(result.kind === 'tool-calls' ? { toolCalls: result.calls } : {})
+      }
+      yield { kind: 'end', result, content, finishReason, usage, requestBody, responseBody, status }
     },
     async complete({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
       const requestBody = {
         model: modelId,
-        messages,
+        messages: toOpenAiMessages(messages),
         ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
         ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
         stream: false
@@ -346,16 +386,84 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
 function streamRequestBody(
   modelId: string,
   messages: ProviderCompletionInput['messages'],
+  tools: ToolDefinition[],
   parameters: ProviderCompletionInput['parameters']
 ): Record<string, unknown> {
   return {
     model: modelId,
-    messages,
+    messages: toOpenAiMessages(messages),
     ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
     ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
     stream: true,
-    stream_options: { include_usage: true }
+    stream_options: { include_usage: true },
+    ...(tools.length === 0
+      ? {}
+      : {
+          tools: tools.map((tool) => ({
+            type: 'function',
+            function: {
+              name: tool.modelName,
+              description: tool.description,
+              parameters: tool.inputSchema
+            }
+          })),
+          tool_choice: 'auto'
+        })
   }
+}
+
+function toOpenAiMessages(messages: ModelInputMessage[]): Array<Record<string, unknown>> {
+  return messages.map((message) => {
+    if ('toolCalls' in message) {
+      return {
+        role: 'assistant',
+        content: null,
+        tool_calls: message.toolCalls.map((call) => ({
+          id: call.providerCallId,
+          type: 'function',
+          function: { name: call.modelName, arguments: JSON.stringify(call.arguments) }
+        }))
+      }
+    }
+    if (message.role === 'tool') {
+      return {
+        role: 'tool',
+        tool_call_id: message.toolCallId,
+        name: message.name,
+        content: message.content
+      }
+    }
+    return message
+  })
+}
+
+function parsePendingToolCalls(
+  pending: Map<number, { providerCallId: string; modelName: string; argumentsText: string }>
+) {
+  if (pending.size === 0) {
+    throw new ModelStreamError('invalid-response', 'Tool-call finish reason contained no calls')
+  }
+  return [...pending.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, call]) => {
+      if (!call.providerCallId || !call.modelName) {
+        throw new ModelStreamError('invalid-response', 'Tool call is missing id or function name')
+      }
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(call.argumentsText)
+      } catch {
+        throw new ModelStreamError('invalid-response', 'Tool call arguments are not valid JSON')
+      }
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+        throw new ModelStreamError('invalid-response', 'Tool call arguments must be an object')
+      }
+      return {
+        providerCallId: call.providerCallId,
+        modelName: call.modelName,
+        arguments: parsed as Record<string, unknown>
+      }
+    })
 }
 
 function toSafeStreamError(error: unknown, headers: Record<string, string>): ModelStreamError {

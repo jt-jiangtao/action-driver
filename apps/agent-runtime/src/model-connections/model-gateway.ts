@@ -62,6 +62,7 @@ export class ConnectionModelGateway implements ModelGateway {
           requestId: request.requestId,
           taskId: request.taskId,
           messages: request.messages,
+          ...(request.tools === undefined ? {} : { tools: request.tools }),
           parameters: request.parameters
         },
         signal
@@ -89,6 +90,7 @@ export class ConnectionModelGateway implements ModelGateway {
         })
         yield {
           kind: 'end' as const,
+          result: event.result ?? { kind: 'final-text', content: event.content },
           content: event.content,
           finishReason: event.finishReason,
           usage: event.usage
@@ -162,6 +164,7 @@ export class ConnectionModelGateway implements ModelGateway {
           requestId: request.requestId,
           taskId: request.taskId,
           messages: request.messages,
+          ...(request.tools === undefined ? {} : { tools: request.tools }),
           parameters: request.parameters
         },
         signal
@@ -232,6 +235,7 @@ function toOpenAiRequestBody(request: ModelRequest, stream: boolean): unknown {
   return {
     model: request.model.modelId,
     messages: request.messages,
+    ...(request.tools === undefined ? {} : { tools: request.tools }),
     ...(request.parameters.temperature === undefined
       ? {}
       : { temperature: request.parameters.temperature }),

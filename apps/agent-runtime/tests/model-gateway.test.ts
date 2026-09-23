@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type {
   ModelCompletionEvent,
   ModelCompletionOutcome,
+  ModelCompletionRequest,
   ModelCompletionServicePort
 } from '@actiondriver/model-connections'
 import {
@@ -137,6 +138,62 @@ describe('ModelGateway boundary', () => {
       outcome: 'ok',
       status: 200
     })
+  })
+
+  it('persists a streamed tool-call terminal without turning it into assistant text', async () => {
+    const stream = vi.fn(async function* (
+      _request: ModelCompletionRequest
+    ): AsyncIterable<ModelCompletionEvent> {
+      yield {
+        kind: 'end',
+        result: {
+          kind: 'tool-calls',
+          calls: [
+            {
+              providerCallId: 'provider-call-1',
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            }
+          ]
+        },
+        content: '',
+        finishReason: 'tool_calls',
+        usage: null,
+        requestBody: { model: 'gpt-real', tools: [{ type: 'function' }] },
+        responseBody: { toolCalls: [{ id: 'provider-call-1' }] },
+        status: 200
+      }
+    })
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('legacy completion must not be used')
+      },
+      stream
+    }
+    const { gateway, modelCalls } = createGateway(service)
+    const events = []
+
+    for await (const event of gateway.stream({
+      ...realRequest,
+      tools: []
+    })) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'end',
+        result: expect.objectContaining({ kind: 'tool-calls' })
+      })
+    ])
+    expect(stream).toHaveBeenCalledWith(expect.objectContaining({ tools: [] }), undefined)
+    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
+      expect.objectContaining({
+        status: 'completed',
+        request: { model: 'gpt-real', tools: [{ type: 'function' }] },
+        response: { toolCalls: [{ id: 'provider-call-1' }] }
+      })
+    ])
   })
 
   it('persists and logs a completed real model call with one correlation id', async () => {

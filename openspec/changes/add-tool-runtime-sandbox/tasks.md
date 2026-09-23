@@ -6,10 +6,10 @@
 
 ## 2. OpenAI-compatible 工具调用协议
 
-- [ ] 2.1 扩展模型领域消息、请求和终态类型以表达 assistant tool calls 与 tool results，运行 TypeScript 类型检查和协议单元测试验证 wire 类型不会泄漏到 Agent 领域。
-- [ ] 2.2 扩展 OpenAI-compatible 请求构造，按本轮允许工具生成 `tools` 与 `tool_choice: auto`，验证纯文本请求在无工具时保持现有请求体不变。
-- [ ] 2.3 聚合流式 `delta.tool_calls` 的 id、index、name 和 arguments，验证 arguments 跨分片、多调用乱序片段、缺失 id、非法 JSON 和不兼容 finish reason 的成功与失败行为。
-- [ ] 2.4 更新模型调用持久化与模型层日志，使每个真实模型轮次保留安全化请求/响应且凭据继续被过滤，运行 model gateway 与日志测试验证工具 schema、tool result 和错误可追踪。
+- [x] 2.1 扩展模型领域消息、请求和终态类型以表达 assistant tool calls 与 tool results，运行 TypeScript 类型检查和协议单元测试验证 wire 类型不会泄漏到 Agent 领域。
+- [x] 2.2 扩展 OpenAI-compatible 请求构造，按本轮允许工具生成 `tools` 与 `tool_choice: auto`，验证纯文本请求在无工具时保持现有请求体不变。
+- [x] 2.3 聚合流式 `delta.tool_calls` 的 id、index、name 和 arguments，验证 arguments 跨分片、多调用乱序片段、缺失 id、非法 JSON 和不兼容 finish reason 的成功与失败行为。
+- [x] 2.4 更新模型调用持久化与模型层日志，使每个真实模型轮次保留安全化请求/响应且凭据继续被过滤，运行 model gateway 与日志测试验证工具 schema、tool result 和错误可追踪。
 
 ## 3. 通用 Tool Runtime
 

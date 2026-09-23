@@ -32,8 +32,10 @@ export class DeterministicModelGateway implements ModelGateway {
     request: Parameters<ModelGateway['complete']>[0],
     signal?: AbortSignal
   ): Promise<ModelResult> {
-    const goal =
-      [...request.messages].reverse().find((message) => message.role === 'user')?.content ?? ''
+    const lastUserMessage = [...request.messages]
+      .reverse()
+      .find((message) => message.role === 'user' && 'content' in message)
+    const goal = lastUserMessage && 'content' in lastUserMessage ? lastUserMessage.content : ''
     const skill = request.skills[0]
 
     if (!skill) return { kind: 'finish', content: goal }

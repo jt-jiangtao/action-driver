@@ -101,6 +101,7 @@ export class ModelConnectionService
         apiKey: this.decrypt(connection),
         modelId: model.id,
         messages: request.messages,
+        ...(request.tools === undefined ? {} : { tools: request.tools }),
         parameters: request.parameters
       },
       signal
@@ -123,6 +124,7 @@ export class ModelConnectionService
         apiKey: this.decrypt(connection),
         modelId: model.id,
         messages: request.messages,
+        ...(request.tools === undefined ? {} : { tools: request.tools }),
         parameters: request.parameters
       },
       signal
