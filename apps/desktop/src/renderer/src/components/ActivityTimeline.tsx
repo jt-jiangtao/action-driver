@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ChevronDown, FileText, Globe2, Terminal, Wrench } from 'lucide-react'
+import { BookOpen, ChevronDown, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
 import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
 
 export function ActivityTimeline({ task }: { task: TaskProjection }) {
@@ -32,7 +32,7 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
     now - (Number.isFinite(startedAt) ? startedAt : fallbackStartedAt.current)
   )
   const toolIsActive = (task.tools ?? []).some((tool) =>
-    ['proposed', 'waiting_approval', 'queued', 'running'].includes(tool.status)
+    ['proposed', 'queued', 'running'].includes(tool.status)
   )
 
   const body = (
@@ -52,7 +52,12 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
         return (
           <details key={item.id} className="activity-group" open={task.status === 'running'}>
             <summary data-testid="e2e/tasks/detail/activity/toggle#button">
-              <ActivityIcon title={activity.title} />
+              <ActivityIcon
+                title={activity.title}
+                toolIds={activity.items.flatMap((child) =>
+                  child.kind === 'tool' ? [tools.get(child.callId)?.toolId ?? ''] : []
+                )}
+              />
               <span className={activity.status === 'running' ? 'activity-active-title' : undefined}>
                 {activity.title}
               </span>
@@ -110,26 +115,44 @@ function formatRunningDuration(value: number): string {
 
 function formatDuration(value?: number): string {
   if (value === undefined) return '—'
-  return value < 1_000 ? `${value} 毫秒` : `${Math.round(value / 100) / 10} 秒`
+  if (value < 1_000) return `${value} 毫秒`
+  if (value < 60_000) return `${Math.round(value / 100) / 10} 秒`
+  const seconds = Math.round(value / 1_000)
+  return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
 }
 
-function ActivityIcon({ title }: { title: string }) {
+function ActivityIcon({ title, toolIds }: { title: string; toolIds: string[] }) {
+  const toolKinds = new Set(
+    toolIds.filter(Boolean).map((toolId) => {
+      if (/web/.test(toolId)) return 'web'
+      if (/shell|command/.test(toolId)) return 'shell'
+      if (/search|find|grep|rg/.test(toolId)) return 'search'
+      if (/fs|file/.test(toolId)) return 'file'
+      return 'other'
+    })
+  )
+  if (toolKinds.size > 1) return <Wrench aria-hidden="true" size={17} />
+  if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={18} />
+  if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={18} />
+  if (toolKinds.has('search')) return <Search aria-hidden="true" size={18} />
+  if (toolKinds.has('file')) return <BookOpen aria-hidden="true" size={18} />
   if (/搜索|网页/.test(title)) return <Globe2 aria-hidden="true" size={18} />
   if (/文件|读取/.test(title)) return <BookOpen aria-hidden="true" size={18} />
-  if (/命令|脚本/.test(title)) return <Terminal aria-hidden="true" size={18} />
+  if (/命令|脚本/.test(title)) return <SquareTerminal aria-hidden="true" size={18} />
   return <Wrench aria-hidden="true" size={18} />
 }
 
 function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   if (!tool) return null
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
-  const active = ['proposed', 'waiting_approval', 'queued', 'running'].includes(tool.status)
+  const shellTranscript = shellToolTranscript(tool)
+  const active = ['proposed', 'queued', 'running'].includes(tool.status)
   const row = (
     <>
       <ToolIcon tool={tool} />
       <span className={`activity-tool-label${active ? ' activity-active-title' : ''}`}>
         <span>{toolAction(tool)}</span>
-        <span>{tool.summary}</span>
+        <span>{toolSummary(tool)}</span>
       </span>
       {hasRawIO ? <ChevronDown aria-hidden="true" className="activity-chevron" size={17} /> : null}
     </>
@@ -146,20 +169,37 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
       <summary className="activity-tool-line" data-testid="e2e/tasks/detail/activity/raw-io#button">
         {row}
       </summary>
-      <div className="activity-tool-io">
+      <div className={`activity-tool-io${shellTranscript ? ' is-terminal' : ''}`}>
         <div className="activity-tool-io-title">{toolTitle(tool)}</div>
-        {tool.rawInput !== undefined ? (
-          <pre className={tool.rawInput.length > 900 ? 'is-long' : undefined}>{tool.rawInput}</pre>
-        ) : null}
-        {tool.rawOutput !== undefined ? (
+        {shellTranscript ? (
           <pre
             className={
-              tool.rawOutputTruncated || tool.rawOutput.length > 900 ? 'is-long' : undefined
+              tool.rawOutputTruncated || shellTranscript.text.length > 900 ? 'is-long' : undefined
             }
           >
-            {tool.rawOutput}
-            {tool.rawOutputTruncated ? '\n…输出已截断' : ''}
+            {shellTranscript.text}
           </pre>
+        ) : (
+          <>
+            {tool.rawInput !== undefined ? (
+              <pre className={tool.rawInput.length > 900 ? 'is-long' : undefined}>
+                {tool.rawInput}
+              </pre>
+            ) : null}
+            {tool.rawOutput !== undefined ? (
+              <pre
+                className={
+                  tool.rawOutputTruncated || tool.rawOutput.length > 900 ? 'is-long' : undefined
+                }
+              >
+                {tool.rawOutput}
+                {tool.rawOutputTruncated ? '\n…输出已截断' : ''}
+              </pre>
+            ) : null}
+          </>
+        )}
+        {shellTranscript?.exitCode !== null && shellTranscript?.exitCode !== undefined ? (
+          <div className="activity-tool-status">退出码 {shellTranscript.exitCode}</div>
         ) : null}
         {tool.errorSummary ? (
           <div className="activity-tool-status is-error">{tool.errorSummary}</div>
@@ -169,20 +209,92 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   )
 }
 
+function toolSummary(tool: ToolInvocationProjection) {
+  if (!/fs|file/.test(tool.toolId) || !tool.rawInput) return tool.summary
+  const path = parseObject(tool.rawInput)?.path
+  if (typeof path !== 'string') return tool.summary
+  const fileName = path.split(/[\\/]/).filter(Boolean).at(-1)
+  if (!fileName) return tool.summary
+  const start = tool.summary.indexOf(fileName)
+  if (start < 0) return tool.summary
+  return (
+    <>
+      {tool.summary.slice(0, start)}
+      <span className="activity-tool-path">{fileName}</span>
+      {tool.summary.slice(start + fileName.length)}
+    </>
+  )
+}
+
+function shellToolTranscript(
+  tool: ToolInvocationProjection
+): { text: string; exitCode: number | null } | null {
+  if (!/shell|command/.test(tool.toolId) || !tool.rawInput) return null
+  const input = parseObject(tool.rawInput)
+  if (
+    typeof input?.command !== 'string' ||
+    !Array.isArray(input.args) ||
+    !input.args.every((arg) => typeof arg === 'string')
+  )
+    return null
+  const command = [
+    input.command,
+    ...input.args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
+  ].join(' ')
+  const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
+  const chunks = output
+    ? [output.stdout, output.stderr, output.content].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0
+      )
+    : []
+  const response = chunks.length
+    ? chunks.join('\n').trimEnd()
+    : tool.rawOutput && !output
+      ? tool.rawOutput
+      : ''
+  const result = output?.result
+  const exitCode =
+    result &&
+    typeof result === 'object' &&
+    'exitCode' in result &&
+    typeof result.exitCode === 'number'
+      ? result.exitCode
+      : null
+  return {
+    text: [`$ ${command}`, response, tool.rawOutputTruncated ? '…输出已截断' : '']
+      .filter(Boolean)
+      .join('\n'),
+    exitCode
+  }
+}
+
+function parseObject(value: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
-  if (/web|search/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={18} />
-  if (/shell|command/.test(tool.toolId)) return <Terminal aria-hidden="true" size={18} />
-  if (/fs|file/.test(tool.toolId)) return <FileText aria-hidden="true" size={18} />
+  if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={18} />
+  if (/shell|command/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={18} />
+  if (/search|find|grep|rg/.test(tool.toolId)) return <Search aria-hidden="true" size={18} />
+  if (/fs|file/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={18} />
   return <Wrench aria-hidden="true" size={18} />
 }
 
 function toolAction(tool: ToolInvocationProjection): string {
   if (tool.status === 'failed') return '执行失败：'
   if (tool.status === 'cancelled') return '已取消：'
-  if (tool.status === 'waiting_approval') return '等待审批：'
+  if (tool.status === 'waiting_approval') return '旧审批记录：'
   if (tool.status === 'running' || tool.status === 'queued' || tool.status === 'proposed')
     return '正在运行 '
-  if (/web|search/.test(tool.toolId)) return '已搜索网页：'
+  if (/web/.test(tool.toolId)) return '已搜索网页：'
+  if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
   if (/shell|command/.test(tool.toolId)) return '已运行 '
   if (/fs|file/.test(tool.toolId)) return '已读取 '
   return '已调用 '
@@ -190,7 +302,8 @@ function toolAction(tool: ToolInvocationProjection): string {
 
 function toolTitle(tool: ToolInvocationProjection): string {
   if (/shell|command/.test(tool.toolId)) return 'Shell'
-  if (/web|search/.test(tool.toolId)) return 'Web Search'
+  if (/web/.test(tool.toolId)) return 'Web Search'
+  if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   if (/fs|file/.test(tool.toolId)) return '文件'
   return '工具'
 }

@@ -90,22 +90,16 @@ async function launch(
   return page
 }
 
-test('requires approval for local SearXNG, records only normalized results, then returns final Markdown', async () => {
+test('runs local SearXNG without approval, records only normalized results, and restores history', async () => {
   const page = await launch('web')
-  await sendGoal(page, '搜索 ActionDriver')
+  const taskId = await sendGoal(page, '搜索 ActionDriver')
   await expect(page.getByRole('region', { name: '任务过程' })).toBeVisible({
     timeout: 15_000
   })
-  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toBeVisible({
-    timeout: 15_000
-  })
-  expect(search!.requests).toEqual([])
-  expect(provider!.completions).toHaveLength(1)
+  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
     'web_search'
   )
-
-  await page.getByTestId('e2e/tasks/detail/activity/approve#button').click()
   await expect(page.getByRole('heading', { name: '搜索完成' })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
   await expect(page.getByRole('region', { name: '任务过程' })).not.toContainText(
@@ -132,18 +126,14 @@ test('requires approval for local SearXNG, records only normalized results, then
   expect(JSON.stringify(detail)).toContain('normalized searchable summary')
   expect(JSON.stringify(detail)).not.toContain('searxng-raw-response-must-not-be-recorded')
   expect(JSON.stringify(detail)).not.toContain(apiKey)
-})
-
-test('rejects local SearXNG without making a search request', async () => {
-  const page = await launch('web')
-  await sendGoal(page, '搜索 ActionDriver')
-  await expect(page.getByTestId('e2e/tasks/detail/activity/reject#button')).toBeVisible({
-    timeout: 15_000
-  })
-  await page.getByTestId('e2e/tasks/detail/activity/reject#button').click()
-  await expect(page.getByRole('heading', { name: '已拒绝' })).toBeVisible({ timeout: 15_000 })
-  expect(search!.requests).toEqual([])
-  expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_REJECTED')
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-task-id',
+    taskId
+  )
+  await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
+  await expect(page.locator('.activity-tool')).toHaveCount(1)
+  await expect(page.locator('.activity-tool')).toContainText('ActionDriver')
 })
 
 async function sendGoal(page: Page, goal: string): Promise<string> {
@@ -275,13 +265,39 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await expect(page.getByTestId('e2e/tasks/detail/activity/raw-io#button')).toHaveCount(2)
   await page.getByTestId('e2e/tasks/detail/activity/raw-io#button').first().click()
   await expect(group).toContainText('README.md')
+  const groupIcon = await group.locator(':scope > summary svg').first().boundingBox()
+  const groupTitle = await group.locator(':scope > summary span').boundingBox()
+  const groupChevron = await group.locator(':scope > summary svg').last().boundingBox()
+  const childIcon = await group.locator('.activity-tool-line svg').first().boundingBox()
+  const ioPanel = await group.locator('.activity-tool-io').first().boundingBox()
+  expect(groupIcon).not.toBeNull()
+  expect(groupTitle).not.toBeNull()
+  expect(groupChevron).not.toBeNull()
+  expect(childIcon).not.toBeNull()
+  expect(ioPanel).not.toBeNull()
+  expect(Math.abs(childIcon!.x - groupIcon!.x)).toBeLessThanOrEqual(2)
+  expect(Math.abs(ioPanel!.x - groupIcon!.x)).toBeLessThanOrEqual(2)
+  expect(groupChevron!.x - (groupTitle!.x + groupTitle!.width)).toBeLessThanOrEqual(12)
+  expect(groupChevron!.x - groupTitle!.x).toBeLessThan(180)
+  await expect(group.locator(':scope > summary svg').last()).toHaveCSS('transform', 'none')
+  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+    await page.screenshot({ path: test.info().outputPath('activity-expanded.png') })
+  }
   expect(provider!.completions).toHaveLength(3)
   expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).not.toContain(
     'activity_update'
   )
 
   await page.reload()
-  await page.getByTestId(`e2e/shared/sidebar/tasks/${taskId}#button`).click()
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-task-id',
+    taskId
+  )
+  await expect(page.locator('.task-header strong')).toHaveText('调研 README')
+  await expect(page.getByTestId(`e2e/shared/sidebar/tasks/${taskId}#button`)).toHaveAttribute(
+    'aria-current',
+    'page'
+  )
   await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
   const restoredGroup = page.locator('.activity-group')
@@ -289,33 +305,24 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   const restoredItems = restoredGroup.locator('.activity-items > *')
   await expect(restoredItems).toHaveCount(4)
   expect(await restoredItems.allTextContents()).toEqual(live)
+  await expect(page.getByTestId('e2e/tasks/detail/activity/raw-io#button')).toHaveCount(2)
+  await page.getByTestId('e2e/tasks/detail/activity/raw-io#button').first().click()
+  await expect(restoredGroup).toContainText('README.md')
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible()
 })
 
-test('waits for one-time shell approval before executing and answering', async () => {
+test('runs a granted shell command without approval and answers', async () => {
   const page = await launch('shell')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toBeVisible({
-    timeout: 15_000
-  })
-  await expect(page.locator('.activity-active-title').first()).toBeVisible()
-  expect(
-    await page
-      .locator('.activity-active-title')
-      .first()
-      .evaluate((element) => getComputedStyle(element).animationName)
-  ).toBe('none')
-  expect(provider!.completions).toHaveLength(1)
-  expect(
-    await page.evaluate(async () =>
-      (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
-        .filter((record) => record.operation === 'sandbox.shell.run')
-        .map((record) => ({ state: record.state, responseAvailable: record.responseAvailable }))
-    )
-  ).toEqual([{ state: 'pending', responseAvailable: false }])
-  await page.getByTestId('e2e/tasks/detail/activity/approve#button').click()
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
+  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+    await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
+    await page.locator('.activity-group > summary').click()
+    await page.locator('.activity-tool > summary').first().click()
+    await page.screenshot({ path: test.info().outputPath('shell-expanded.png') })
+  }
   await expect.poll(() => provider!.completions.length).toBe(2)
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('needle is present')
   expect(
@@ -328,26 +335,12 @@ test('waits for one-time shell approval before executing and answering', async (
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
 })
 
-test('rejects a shell call without running the command', async () => {
-  const page = await launch('shell')
-  await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/activity/reject#button')).toBeVisible({
-    timeout: 15_000
-  })
-  await page.getByTestId('e2e/tasks/detail/activity/reject#button').click()
-  await expect(page.getByRole('heading', { name: '已拒绝' })).toBeVisible({ timeout: 15_000 })
-  expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_REJECTED')
-  expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
-})
-
-test('times out an approved shell process and reports the terminal error', async () => {
+test('times out a granted shell process and reports the terminal error', async () => {
   test.skip(process.platform === 'win32', 'This POSIX test uses a named pipe')
   test.setTimeout(30_000)
   const page = await launch('shell-timeout')
   await sendGoal(page, '在阻塞文件中查找 needle')
-  const approve = page.getByTestId('e2e/tasks/detail/activity/approve#button')
-  await expect(approve).toBeVisible({ timeout: 15_000 })
-  await approve.click()
+  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_TIMEOUT')
   expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
@@ -360,52 +353,17 @@ test('times out an approved shell process and reports the terminal error', async
   ).toEqual(['error'])
 })
 
-test('cancels a shell call while approval is pending', async () => {
-  const page = await launch('shell')
-  const taskId = await sendGoal(page, '在 README 中查找 needle')
-  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toBeVisible({
-    timeout: 15_000
-  })
-  await page.getByLabel('中断任务').click()
+test('cancels a running granted shell command without an approval step', async () => {
+  test.skip(process.platform === 'win32', 'This POSIX test uses a named pipe')
+  const page = await launch('shell-timeout')
+  const taskId = await sendGoal(page, '在阻塞文件中查找 needle')
+  await expect(page.locator('.activity-tool.is-running')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
+  await page.getByLabel('中断任务').click()
   await expect
     .poll(async () =>
       page.evaluate(async (id) => (await window.actionDriverDesktop.agent.get(id))?.status, taskId)
     )
     .toBe('paused')
   expect(provider!.completions).toHaveLength(1)
-})
-
-test('keeps a pending approval actionable after WebSocket reconnect', async () => {
-  const page = await launch('shell')
-  await page.evaluate(() => {
-    const NativeWebSocket = window.WebSocket
-    const target = window as Window & { toolTestSockets?: WebSocket[] }
-    target.toolTestSockets = []
-    window.WebSocket = class extends NativeWebSocket {
-      constructor(url: string | URL, protocols?: string | string[]) {
-        super(url, protocols)
-        target.toolTestSockets!.push(this)
-      }
-    }
-  })
-  await sendGoal(page, '在 README 中查找 needle')
-  const approve = page.getByTestId('e2e/tasks/detail/activity/approve#button')
-  await expect(approve).toBeVisible({ timeout: 15_000 })
-  await page.evaluate(() => {
-    const target = window as Window & { toolTestSockets?: WebSocket[] }
-    target.toolTestSockets?.[0]?.close(3001, 'test reconnect')
-  })
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const target = window as Window & { toolTestSockets?: WebSocket[] }
-        return target.toolTestSockets?.length ?? 0
-      })
-    )
-    .toBe(2)
-  await expect(approve).toBeVisible()
-  await approve.click()
-  await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
-  expect(provider!.completions).toHaveLength(2)
 })

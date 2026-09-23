@@ -20,9 +20,16 @@ import {
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
 
+const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
+
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
   const services = useAppServices()
-  const [route, setRoute] = useState<AppRoute>(() => initialAppRoute(initialRoute))
+  const restoredTaskId = useRef(initialRoute === 'home' ? readActiveTaskId() : null)
+  const [route, setRoute] = useState<AppRoute>(() =>
+    restoredTaskId.current
+      ? { kind: 'task', taskId: restoredTaskId.current }
+      : initialAppRoute(initialRoute)
+  )
   const [task, setTask] = useState<TaskProjection | null>(null)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
   const [modelSelection, setModelSelection] =
@@ -58,8 +65,13 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       setRecentTasks(recent)
       setRecentTasksError(null)
       if (initialRoute === 'task' && recent[0]) {
-        setTask(await services.taskCatalog.getTask(recent[0].id))
-        setRoute({ kind: 'task', taskId: recent[0].id })
+        const restored = await services.taskCatalog.getTask(recent[0].id)
+        if (requestId !== taskRequestId.current) return
+        if (restored) {
+          setTask(restored)
+          setRoute({ kind: 'task', taskId: restored.id })
+          rememberActiveTaskId(restored.id)
+        }
       }
     } catch (error) {
       if (requestId !== taskRequestId.current) return
@@ -75,6 +87,31 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     void loadRecentTasks()
   }, [loadModels, loadRecentTasks])
 
+  useEffect(() => {
+    const taskId = restoredTaskId.current
+    if (!taskId) return
+    let cancelled = false
+    void services.taskCatalog
+      .getTask(taskId)
+      .then((restored) => {
+        if (cancelled || restoredTaskId.current !== taskId) return
+        if (restored) {
+          setTask(restored)
+          setRoute({ kind: 'task', taskId: restored.id })
+        } else {
+          restoredTaskId.current = null
+          rememberActiveTaskId(null)
+          setRoute({ kind: 'home' })
+        }
+      })
+      .catch(() => {
+        if (!cancelled && restoredTaskId.current === taskId) setRoute({ kind: 'home' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [services])
+
   useEffect(
     () =>
       services.agentSessionRepository.subscribe((projection) =>
@@ -84,6 +121,8 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
 
   const openHome = () => {
+    restoredTaskId.current = null
+    rememberActiveTaskId(null)
     setRoute({ kind: 'home' })
     setMode('split')
   }
@@ -93,12 +132,16 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       services.agentSessionRepository.getTask(taskId) ??
       (await services.taskCatalog.getTask(taskId))
     if (!projection) return
+    restoredTaskId.current = projection.id
+    rememberActiveTaskId(projection.id)
     setTask(projection)
     setRoute({ kind: 'task', taskId: projection.id })
   }
 
   const presentSubmittedTask = useCallback(
     (projection: TaskProjection, previousTaskId?: string) => {
+      restoredTaskId.current = projection.id
+      rememberActiveTaskId(projection.id)
       setTask(projection)
       setRecentTasks((current) => [
         { id: projection.id, title: projection.title, state: 'default' },
@@ -250,16 +293,25 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
           onSubmit={submitContinuation}
-          onApproveTool={(callId, argumentsHash) =>
-            services.agentCommandService.approveTool?.(task.id, callId, argumentsHash) ??
-            Promise.reject(new Error('当前模式不支持工具审批'))
-          }
-          onRejectTool={(callId, argumentsHash) =>
-            services.agentCommandService.rejectTool?.(task.id, callId, argumentsHash) ??
-            Promise.reject(new Error('当前模式不支持工具审批'))
-          }
         />
       ) : null}
     </div>
   )
+}
+
+function readActiveTaskId(): string | null {
+  try {
+    return globalThis.sessionStorage.getItem(ACTIVE_TASK_ID_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberActiveTaskId(taskId: string | null): void {
+  try {
+    if (taskId) globalThis.sessionStorage.setItem(ACTIVE_TASK_ID_KEY, taskId)
+    else globalThis.sessionStorage.removeItem(ACTIVE_TASK_ID_KEY)
+  } catch {
+    // Navigation still works when session storage is unavailable.
+  }
 }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { createRendererContainer, resolveAppServices } from './di/container'
 import { AppServicesProvider } from './di/services-context'
@@ -16,6 +16,50 @@ function renderApp(initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 
 }
 
 describe('App', () => {
+  beforeEach(() => sessionStorage.clear())
+  afterEach(() => sessionStorage.clear())
+
+  it('restores the current task, title and messages after the renderer remounts', async () => {
+    const first = renderApp('task')
+    await screen.findByTestId('e2e/tasks/detail/page#page')
+    first.unmount()
+
+    renderApp()
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-task-id',
+      'hotel-task'
+    )
+    expect(screen.getByRole('button', { name: /预订周末去杭州的酒店/ })).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+    expect(screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')).toBeVisible()
+  })
+
+  it('restores the active task even when the recent-task list fails to load', async () => {
+    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const getTask = services.taskCatalog.getTask.bind(services.taskCatalog)
+    services.taskCatalog = {
+      listRecentTasks: async () => {
+        throw new Error('recent list unavailable')
+      },
+      getTask
+    }
+    sessionStorage.setItem('actiondriver.active-task-id', 'hotel-task')
+
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-task-id',
+      'hotel-task'
+    )
+    expect(screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')).toBeVisible()
+  })
+
   it('submits the home goal into the mock task without adding extra pages', async () => {
     const user = userEvent.setup()
     renderApp()

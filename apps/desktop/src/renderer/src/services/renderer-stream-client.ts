@@ -40,16 +40,6 @@ export class RendererStreamClient {
       timer: ReturnType<typeof setTimeout>
     }
   >()
-  private readonly pendingDecisions = new Map<
-    string,
-    {
-      requestId: string
-      type: 'tool.approve' | 'tool.reject'
-      resolve(): void
-      reject(error: Error): void
-      timer: ReturnType<typeof setTimeout>
-    }
-  >()
   private readonly acceptedByTask = new Map<string, RuntimeStreamAccepted>()
   private readonly cursors = new Map<string, number>()
   private readonly activeRequests = new Set<string>()
@@ -129,60 +119,6 @@ export class RendererStreamClient {
     })
   }
 
-  async approveTool(taskId: string, callId: string, argumentsHash: string): Promise<void> {
-    await this.sendToolDecision('tool.approve', taskId, callId, argumentsHash)
-  }
-
-  async rejectTool(taskId: string, callId: string, argumentsHash: string): Promise<void> {
-    await this.sendToolDecision('tool.reject', taskId, callId, argumentsHash)
-  }
-
-  private async sendToolDecision(
-    type: 'tool.approve' | 'tool.reject',
-    taskId: string,
-    callId: string,
-    argumentsHash: string
-  ): Promise<void> {
-    await this.requireReady()
-    const accepted = this.acceptedByTask.get(taskId)
-    if (!accepted) throw new Error(`Unknown active task: ${taskId}`)
-    if (this.pendingDecisions.has(callId))
-      throw new Error(`Tool decision is already pending: ${callId}`)
-    const completed = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pendingDecisions.delete(callId)
-        reject(new Error('Tool decision timed out'))
-      }, this.options.commandTimeoutMs ?? 15_000)
-      this.pendingDecisions.set(callId, {
-        requestId: accepted.requestId,
-        type,
-        resolve,
-        reject,
-        timer
-      })
-    })
-    try {
-      this.send({
-        type,
-        protocol: STREAM_PROTOCOL,
-        eventId: this.nextId(),
-        createdAt: new Date().toISOString(),
-        requestId: accepted.requestId,
-        taskId,
-        callId,
-        argumentsHash
-      })
-    } catch (error) {
-      const pending = this.pendingDecisions.get(callId)
-      if (pending) {
-        clearTimeout(pending.timer)
-        this.pendingDecisions.delete(callId)
-        pending.reject(error instanceof Error ? error : new Error(String(error)))
-      }
-    }
-    await completed
-  }
-
   subscribe(listener: RuntimeStreamListener): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
@@ -202,11 +138,6 @@ export class RendererStreamClient {
       pending.reject(new Error('Runtime stream client closed'))
     }
     this.pendingCreates.clear()
-    for (const pending of this.pendingDecisions.values()) {
-      clearTimeout(pending.timer)
-      pending.reject(new Error('Runtime stream client closed'))
-    }
-    this.pendingDecisions.clear()
     if (!socket || socket.readyState === 3) return
     await new Promise<void>((resolve) => {
       socket.addEventListener('close', () => resolve())
@@ -336,27 +267,6 @@ export class RendererStreamClient {
     }
     if (event.type === 'response.snapshot') this.lifecycleGuards.delete(event.responseId)
 
-    if (event.type.startsWith('tool.') && 'callId' in event) {
-      const pending = this.pendingDecisions.get(event.callId)
-      if (
-        pending &&
-        event.requestId === pending.requestId &&
-        (pending.type === 'tool.approve'
-          ? [
-              'tool.queued',
-              'tool.running',
-              'tool.completed',
-              'tool.failed',
-              'tool.cancelled'
-            ].includes(event.type)
-          : ['tool.cancelled', 'tool.failed'].includes(event.type))
-      ) {
-        clearTimeout(pending.timer)
-        this.pendingDecisions.delete(event.callId)
-        pending.resolve()
-      }
-    }
-
     for (const listener of this.listeners) listener(event)
     this.remember(event.eventId)
     if ('cursor' in event) this.cursors.set(event.requestId, event.cursor)
@@ -371,12 +281,6 @@ export class RendererStreamClient {
       }
     }
     if (event.type === 'request.error') {
-      for (const [callId, decision] of this.pendingDecisions) {
-        if (decision.requestId !== event.requestId) continue
-        clearTimeout(decision.timer)
-        this.pendingDecisions.delete(callId)
-        decision.reject(new Error(event.error.message))
-      }
       const pending = this.pendingCreates.get(event.requestId)
       if (pending) {
         clearTimeout(pending.timer)
@@ -402,11 +306,6 @@ export class RendererStreamClient {
         pending.reject(error)
       }
       this.pendingCreates.clear()
-      for (const pending of this.pendingDecisions.values()) {
-        clearTimeout(pending.timer)
-        pending.reject(error)
-      }
-      this.pendingDecisions.clear()
       return
     }
     this.connectPromise = null

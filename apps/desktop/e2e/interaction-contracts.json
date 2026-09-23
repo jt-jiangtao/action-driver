@@ -510,22 +510,6 @@
     "testName": "keeps interleaved process and tool calls ordered live and after reopening"
   },
   {
-    "target": "e2e/tasks/detail/activity/approve#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
-    "testName": "shows only a pending approval and sends its stable identity"
-  },
-  {
-    "target": "e2e/tasks/detail/activity/reject#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
-    "testName": "shows only a pending approval and sends its stable identity"
-  },
-  {
     "target": "e2e/settings/sidebar/logs#button",
     "route": "settings",
     "type": "button",

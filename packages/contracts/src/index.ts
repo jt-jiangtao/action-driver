@@ -235,8 +235,6 @@ export interface AgentCommandService {
   submitGoal(request: AgentGoalRequest): Promise<TaskProjection>
   interrupt(taskId: string): Promise<void>
   continueTask(taskId: string): Promise<void>
-  approveTool?(taskId: string, callId: string, argumentsHash: string): Promise<void>
-  rejectTool?(taskId: string, callId: string, argumentsHash: string): Promise<void>
 }
 
 export interface TaskQueryService {

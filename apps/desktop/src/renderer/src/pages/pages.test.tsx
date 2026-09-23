@@ -178,7 +178,7 @@ describe('ActionDriver pages', () => {
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
 
-  it('keeps one cursor-ordered process below the running clock and approvals above the composer', () => {
+  it('keeps one cursor-ordered process without a live approval control', () => {
     const { container } = render(
       <TaskPage
         mode="split"
@@ -214,8 +214,6 @@ describe('ActionDriver pages', () => {
         onTakeOver={vi.fn()}
         onInterrupt={vi.fn()}
         onSubmit={vi.fn()}
-        onApproveTool={vi.fn(async () => undefined)}
-        onRejectTool={vi.fn(async () => undefined)}
       />
     )
     expect(screen.queryByTestId('e2e/tasks/detail/tool-activity/running#section')).toBeNull()
@@ -227,9 +225,10 @@ describe('ActionDriver pages', () => {
     expect(timeline.textContent!.indexOf('已处理')).toBeLessThan(
       timeline.textContent!.indexOf('rg TODO')
     )
-    expect(screen.getByRole('button', { name: '允许一次' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: '允许一次' })).toBeNull()
     expect(container.querySelector('.conversation-scroll .tool-activity-list')).toBeNull()
-    expect(container.querySelector('.tool-approval-bar')).not.toBeNull()
+    expect(container.querySelector('.tool-approval-bar')).toBeNull()
+    expect(container.querySelector('.agent-composer')).not.toBeNull()
   })
 
   it('shows the final answer only after the completed duration archive', () => {
@@ -286,7 +285,7 @@ describe('ActionDriver pages', () => {
     expect(screen.queryByText('未完成的过程正文')).toBeNull()
   })
 
-  it('does not offer approval after a task has been cancelled', () => {
+  it('keeps legacy waiting approval records read-only after a task has been cancelled', () => {
     render(
       <TaskPage
         mode="split"
@@ -313,8 +312,6 @@ describe('ActionDriver pages', () => {
         onTakeOver={vi.fn()}
         onInterrupt={vi.fn()}
         onSubmit={vi.fn()}
-        onApproveTool={vi.fn(async () => undefined)}
-        onRejectTool={vi.fn(async () => undefined)}
       />
     )
     expect(screen.queryByTestId('e2e/tasks/detail/activity/approve#button')).toBeNull()

@@ -5,7 +5,6 @@ import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ConversationViewport } from '../components/ConversationViewport'
 import { ActivityTimeline } from '../components/ActivityTimeline'
-import { ToolApprovalBar } from '../components/ToolApprovalBar'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -19,9 +18,7 @@ export function TaskPage({
   onResume,
   onTakeOver,
   onInterrupt,
-  onSubmit,
-  onApproveTool,
-  onRejectTool
+  onSubmit
 }: {
   mode: TaskLayoutMode
   task: TaskProjection
@@ -33,8 +30,6 @@ export function TaskPage({
   onTakeOver(): Promise<unknown> | void
   onInterrupt(): void
   onSubmit(goal: string): Promise<unknown> | void
-  onApproveTool?(callId: string, argumentsHash: string): Promise<void>
-  onRejectTool?(callId: string, argumentsHash: string): Promise<void>
 }) {
   const hasBrowser = task.browser !== null
   const pageMode = hasBrowser ? mode : 'agent-only'
@@ -106,11 +101,6 @@ export function TaskPage({
               ) : null}
             </div>
           </ConversationViewport>
-          <ToolApprovalBar
-            tools={task.status === 'running' ? (task.tools ?? []) : []}
-            {...(onApproveTool ? { onApprove: onApproveTool } : {})}
-            {...(onRejectTool ? { onReject: onRejectTool } : {})}
-          />
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}

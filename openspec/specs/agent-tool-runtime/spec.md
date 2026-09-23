@@ -40,19 +40,31 @@
 - **THEN** Runtime 停止继续调用并以 `TOOL_BUDGET_EXCEEDED` 失败，不进入无限模型循环
 
 ### Requirement: 统一工具调用生命周期
-系统 SHALL 以 `proposed`、`waiting_approval`、`queued`、`running`、`completed`、`failed`、`cancelled` 表达工具调用，并为每次状态变化发布可序列化事件。
+系统 SHALL 对本轮已授予且通过工具定义、名称与参数校验的调用自动执行，并以 `proposed`、`queued`、`running`、`completed`、`failed`、`cancelled` 表达新工具调用，为每次状态变化发布可序列化事件。系统 MUST NOT 为新调用产生 `waiting_approval` 或等待人工批准；未授予、未注册、名称不匹配或输入无效的调用 MUST 在执行器运行前失败。旧 `waiting_approval` 历史事件 SHALL 可只读解析，且不得因升级自动执行仍悬挂的旧调用。
+
+#### Scenario: 已授权 Shell 与 Web Search 自动运行
+- **WHEN** 模型请求本轮已授予的受限 Shell 或 Web Search，且参数通过校验
+- **THEN** 调用无需人工操作，按 `proposed → queued → running → completed|failed` 转移，结果继续交回模型
 
 #### Scenario: 自动允许的只读工具
-- **WHEN** 只读工具通过策略校验且不需要用户批准
-- **THEN** 调用按 `proposed → queued → running → completed|failed` 转移并发布对应事件
+- **WHEN** 本轮已授予的只读文件工具通过定义与参数校验
+- **THEN** 调用无需人工操作，按 `proposed → queued → running → completed|failed` 转移
 
 #### Scenario: 需要批准的工具
-- **WHEN** 策略判定工具需要明确用户批准
-- **THEN** 调用进入 `waiting_approval`，在收到匹配 call id 的批准前不得进入 `queued`
+- **WHEN** 旧策略原本要求逐次批准的 Shell 或网络工具已获本轮授权并通过校验
+- **THEN** 新策略不再产生 `waiting_approval`，调用直接进入 `queued`
 
 #### Scenario: 用户拒绝工具
-- **WHEN** 用户拒绝处于 `waiting_approval` 的调用
-- **THEN** 调用进入 `cancelled`，执行器不得运行，拒绝结果作为结构化工具结果交回模型
+- **WHEN** Runtime 回放旧任务中已经持久化的用户拒绝事件
+- **THEN** 该事件只作为历史终态显示，不能重新触发执行或审批
+
+#### Scenario: 未授权或无效调用
+- **WHEN** 模型请求未授予工具、名称不匹配的工具或无效参数
+- **THEN** Runtime 记录失败且不得运行执行器
+
+#### Scenario: 旧审批记录恢复
+- **WHEN** Runtime 读取历史 `waiting_approval` 事件或升级时发现仍悬挂的旧审批
+- **THEN** 历史顺序仍可读取，悬挂调用安全结束且执行器不得运行
 
 ### Requirement: 传播取消和超时
 系统 MUST 将任务取消、用户取消和工具超时传播给当前执行器，且不得把“已请求取消”记录成“已取消完成”。
@@ -66,7 +78,7 @@
 - **THEN** Runtime 中止执行并记录 `TOOL_TIMEOUT`，随后按失败结果继续或终止模型循环
 
 ### Requirement: 分离正文、运行事件和聚合日志
-系统 MUST 将工具执行进度记录为运行事件，将单次工具调用记录为一条可关联请求与结果的聚合日志，并禁止把工具进度文字混入助手正文或把每个输出分片记录成独立接口日志。Runtime MUST 以可回放的有序活动事件关联正文、工具和文件变更：活动事件包含稳定 `activityId`，工具与文件事件可选关联该 id，标题更新包含单调递增的 `titleRevision`。Agent Graph MUST 拦截仅内部可见且无外部副作用的 `activity.update` 元操作，并将其转换为活动事件，而不得将它交给外部工具执行器或作为普通工具项呈现。本地 Runtime 原始 I/O SHALL 允许该聚合记录向任务活动界面提供输入输出，且不得以 `NODE_ENV` 改变该行为；完整模型调用日志的保留、脱敏与展示策略不在本 requirement 中定义。
+系统 MUST 将工具执行进度记录为运行事件，将单次工具调用记录为一条可关联请求与结果的聚合日志，并禁止把工具进度文字混入助手正文或把每个输出分片记录成独立接口日志。Runtime MUST 以持久化 `cursor` 排列的活动事件关联正文、工具和文件变更：活动事件包含稳定 `activityId`，每个实际工具调用 MUST 关联执行时的活动 id 和稳定 `callId`，标题更新包含单调递增的 `titleRevision`。Agent Graph MUST 在运行流程中创建和按规则更新活动标题，不得向模型暴露 `activity_update` 元工具或为活动更新生成合成工具结果。Runtime MUST 在首个外部工具调用前创建受控活动事件，并将后续连续工具调用及关联正文绑定到该活动，直到下一活动或 Turn 结束。事件 MUST 在持久化后广播；首个工具事件决定其展示位置，后续工具输出 MUST 更新同一调用项。本地 Runtime 原始 I/O SHALL 允许该聚合记录向任务活动界面提供输入输出，且不得以 `NODE_ENV` 改变该行为。Runtime 的恢复快照 MUST 包含一致高水位 cursor、活动、关联工具、正文顺序和原始 I/O 边界；完整模型调用日志的保留、脱敏与展示策略不在本 requirement 中定义。
 
 #### Scenario: 工具流式输出
 - **WHEN** 执行器产生多个内容分片
@@ -79,6 +91,14 @@
 #### Scenario: 活动任务内的工具调用
 - **WHEN** Agent Graph 为当前工作目标创建活动任务后发起工具调用
 - **THEN** 工具生命周期事件携带该活动任务的 `activityId`，且重连回放保持原有 cursor 顺序
+
+#### Scenario: 没有显式活动更新的工具调用
+- **WHEN** 模型只返回一个或多个外部工具调用
+- **THEN** Runtime 在发布首条工具生命周期事件前发布受控活动开始事件，并为该批次工具提供相同 `activityId`
+
+#### Scenario: 正文与工具交错
+- **WHEN** 模型先后产生正文 A、工具 A、正文 B 和工具 B
+- **THEN** 实时流、重连回放与快照恢复均按持久化 cursor 保持该顺序，工具结果仅更新对应 `callId` 的原位置
 
 #### Scenario: 查询日志页面
 - **WHEN** 客户端调用日志查询控制面
