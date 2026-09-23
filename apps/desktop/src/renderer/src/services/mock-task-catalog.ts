@@ -69,17 +69,39 @@ const seeds: readonly TaskSeed[] = [
 function createProjection(seed: TaskSeed): TaskProjection {
   return {
     id: seed.id,
+    sessionId: `${seed.id}-session`,
     title: seed.title,
     status: 'running',
+    model: { connectionId: 'company-gateway', modelId: 'gpt-5.2' },
     messages: [
       { id: `${seed.id}-user`, role: 'user', content: seed.goal },
       { id: `${seed.id}-agent`, role: 'agent', content: seed.response }
     ],
     steps: [
-      { id: `${seed.id}-observe`, title: '观察资料', detail: '已识别任务输入与可用来源', state: 'success' },
-      { id: `${seed.id}-plan`, title: '制定计划', detail: '已确定处理顺序和验收条件', state: 'success' },
-      { id: `${seed.id}-current`, title: seed.currentStep, detail: '正在执行当前步骤', state: 'current' },
-      { id: `${seed.id}-confirm`, title: '等待用户确认', detail: '提交最终结果前请求确认', state: 'waiting' }
+      {
+        id: `${seed.id}-observe`,
+        title: '观察资料',
+        detail: '已识别任务输入与可用来源',
+        state: 'success'
+      },
+      {
+        id: `${seed.id}-plan`,
+        title: '制定计划',
+        detail: '已确定处理顺序和验收条件',
+        state: 'success'
+      },
+      {
+        id: `${seed.id}-current`,
+        title: seed.currentStep,
+        detail: '正在执行当前步骤',
+        state: 'current'
+      },
+      {
+        id: `${seed.id}-confirm`,
+        title: '等待用户确认',
+        detail: '提交最终结果前请求确认',
+        state: 'waiting'
+      }
     ],
     browser: {
       ...mockBrowserSkillProjection,

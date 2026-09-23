@@ -5,7 +5,7 @@ type ScheduledHandle = unknown
 
 export class StreamTaskProjection {
   private task: TaskProjection | null = null
-  private readonly buffered: AgentStreamEvent[] = []
+  private readonly buffered: StreamServerEvent[] = []
   private readonly seenEventIds = new Set<string>()
   private lastSequence = -1
   private scheduled: ScheduledHandle | null = null
@@ -55,7 +55,7 @@ export class StreamTaskProjection {
     ) {
       return
     }
-    if (event.messageId !== this.assistantMessage()?.id) return
+    if (event.messageId !== this.assistantMessage(event.messageId)?.id) return
     if (event.sequence <= this.lastSequence || event.sequence !== this.lastSequence + 1) return
 
     this.seenEventIds.add(event.eventId)
@@ -66,12 +66,15 @@ export class StreamTaskProjection {
       return
     }
     if (event.type === 'response.content') {
-      this.replaceAssistantContent(`${this.assistantMessage()?.content ?? ''}${event.delta}`)
+      this.replaceAssistantContent(
+        event.messageId,
+        `${this.assistantMessage(event.messageId)?.content ?? ''}${event.delta}`
+      )
       this.scheduleEmit()
       return
     }
 
-    this.replaceAssistantContent(event.content)
+    this.replaceAssistantContent(event.messageId, event.content)
     const completed = event.status === 'completed'
     const detail = completed
       ? '模型响应已完成'
@@ -103,13 +106,15 @@ export class StreamTaskProjection {
     return this.task ? structuredClone(this.task) : null
   }
 
-  private assistantMessage() {
-    return this.task?.messages.find((message) => message.role === 'agent')
+  private assistantMessage(messageId: string) {
+    return this.task?.messages.find(
+      (message) => message.id === messageId && message.role === 'agent'
+    )
   }
 
-  private replaceAssistantContent(content: string): void {
+  private replaceAssistantContent(messageId: string, content: string): void {
     if (!this.task) return
-    const assistant = this.assistantMessage()
+    const assistant = this.assistantMessage(messageId)
     if (!assistant) return
     this.task = {
       ...this.task,

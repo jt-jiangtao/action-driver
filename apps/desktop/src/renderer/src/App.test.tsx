@@ -24,7 +24,10 @@ describe('App', () => {
     await user.type(screen.getByLabelText('任务描述'), '预订杭州酒店')
     await user.click(screen.getByLabelText('发送'))
 
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'split'
+    )
     expect(screen.getAllByText('预订周末去杭州的酒店')).toHaveLength(2)
   })
 
@@ -33,11 +36,17 @@ describe('App', () => {
     renderApp('task')
 
     await user.click(await screen.findByLabelText('放大浏览器'))
-    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-expanded'
+    )
     await user.click(screen.getByLabelText('缩小浏览器'))
     expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
     await user.click(screen.getByLabelText('折叠浏览器'))
-    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-collapsed')
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-collapsed'
+    )
     await user.click(screen.getByLabelText('展开浏览器'))
     expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
   })
@@ -119,8 +128,10 @@ describe('App', () => {
     const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
     const completedTask = {
       id: 'real-task',
+      sessionId: 'real-session',
       title: '真实模型回答',
       status: 'succeeded' as const,
+      model: { connectionId: 'real-gateway', modelId: 'real-model' },
       messages: [
         { id: 'real-user', role: 'user' as const, content: 'return result' },
         { id: 'real-agent', role: 'agent' as const, content: '## 已完成\n\n这是**真实响应**。' }
@@ -131,18 +142,22 @@ describe('App', () => {
     const submitGoal = vi.fn(async () => completedTask)
     services.modelConnectionsService = new MockModelConnectionsService({
       delayMs: 0,
-      seed: [{
-        id: 'real-gateway',
-        name: '真实网关',
-        protocol: 'openai-compatible',
-        baseUrl: 'https://real.example/v1',
-        apiKeyHint: '••••real',
-        expanded: true,
-        models: [{ id: 'real-model', name: 'real-model', enabled: true, testState: 'success' }]
-      }]
+      seed: [
+        {
+          id: 'real-gateway',
+          name: '真实网关',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://real.example/v1',
+          apiKeyHint: '••••real',
+          expanded: true,
+          models: [{ id: 'real-model', name: 'real-model', enabled: true, testState: 'success' }]
+        }
+      ]
     })
     services.taskCatalog = {
-      listRecentTasks: async () => [{ id: 'persisted-task', title: '持久化任务', state: 'default' }],
+      listRecentTasks: async () => [
+        { id: 'persisted-task', title: '持久化任务', state: 'default' }
+      ],
       getTask: async () => null
     }
     services.agentCommandService = {
@@ -170,7 +185,19 @@ describe('App', () => {
     })
     expect(await screen.findByRole('heading', { name: '已完成' })).toBeVisible()
     expect(screen.queryByTestId('e2e/tasks/detail/browser#section')).not.toBeInTheDocument()
-    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'agent-only')
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'agent-only'
+    )
+
+    const continuationEditor = screen.getByLabelText('任务描述')
+    continuationEditor.textContent = '继续解释'
+    fireEvent.input(continuationEditor)
+    await user.click(screen.getByLabelText('发送'))
+    expect(submitGoal).toHaveBeenLastCalledWith({
+      goal: '继续解释',
+      sessionId: 'real-session'
+    })
   })
 
   it('shows retryable errors without falling back to production mock labels', async () => {
@@ -181,15 +208,19 @@ describe('App', () => {
     services.modelConnectionsService = Object.assign(services.modelConnectionsService, {
       list: async () => {
         if (rejectModels) throw new Error('model query failed')
-        return [{
-          id: 'retry-gateway',
-          name: '重试网关',
-          protocol: 'openai-compatible',
-          baseUrl: 'https://retry.example/v1',
-          apiKeyHint: '••••retry',
-          expanded: true,
-          models: [{ id: 'retry-model', name: 'retry-model', enabled: true, testState: 'success' }]
-        }]
+        return [
+          {
+            id: 'retry-gateway',
+            name: '重试网关',
+            protocol: 'openai-compatible',
+            baseUrl: 'https://retry.example/v1',
+            apiKeyHint: '••••retry',
+            expanded: true,
+            models: [
+              { id: 'retry-model', name: 'retry-model', enabled: true, testState: 'success' }
+            ]
+          }
+        ]
       }
     })
     services.taskCatalog = {
@@ -225,22 +256,28 @@ describe('App', () => {
     let enabled = true
     const source = new MockModelConnectionsService({
       delayMs: 0,
-      seed: [{
-        id: 'mutable-gateway',
-        name: '可变网关',
-        protocol: 'openai-compatible',
-        baseUrl: 'https://mutable.example/v1',
-        apiKeyHint: '••••mutable',
-        expanded: true,
-        models: [{ id: 'mutable-model', name: 'mutable-model', enabled: true, testState: 'success' }]
-      }]
+      seed: [
+        {
+          id: 'mutable-gateway',
+          name: '可变网关',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://mutable.example/v1',
+          apiKeyHint: '••••mutable',
+          expanded: true,
+          models: [
+            { id: 'mutable-model', name: 'mutable-model', enabled: true, testState: 'success' }
+          ]
+        }
+      ]
     })
     const listSource = source.list.bind(source)
     services.modelConnectionsService = Object.assign(source, {
-      list: async () => [{
-        ...(await listSource())[0]!,
-        models: [{ id: 'mutable-model', name: 'mutable-model', enabled, testState: 'success' }]
-      }]
+      list: async () => [
+        {
+          ...(await listSource())[0]!,
+          models: [{ id: 'mutable-model', name: 'mutable-model', enabled, testState: 'success' }]
+        }
+      ]
     })
 
     render(

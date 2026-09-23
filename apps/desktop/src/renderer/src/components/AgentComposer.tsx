@@ -33,9 +33,10 @@ export function AgentComposer({
 }) {
   const editor = useMemo(() => withReact(createEditor()), [])
   const editorRootRef = useRef<HTMLDivElement>(null)
-  const initialValue: Descendant[] = [
-    { type: 'paragraph', children: [{ text: initialText }] } as Paragraph
-  ]
+  const initialValue = useMemo<Descendant[]>(
+    () => [{ type: 'paragraph', children: [{ text: initialText }] } as Paragraph],
+    [initialText]
+  )
   const [hasText, setHasText] = useState(Boolean(initialText.trim()))
   const [draftText, setDraftText] = useState(initialText)
   const readText = () => {
@@ -48,7 +49,12 @@ export function AgentComposer({
   }
 
   return (
-    <div className="agent-composer" data-width={width}>
+    <div
+      className="agent-composer"
+      data-testid="e2e/shared/composer/root#section"
+      data-state={running ? 'running' : disabled ? 'disabled' : 'idle'}
+      data-width={width}
+    >
       <Slate
         editor={editor}
         initialValue={initialValue}
@@ -64,7 +70,7 @@ export function AgentComposer({
           aria-label="任务描述"
           data-testid="e2e/shared/composer/editor#input"
           placeholder="随心输入"
-          readOnly={disabled}
+          readOnly={running || disabled}
           onInput={(event) => {
             const nextText = readEditableText(event.currentTarget)
             setDraftText(nextText)

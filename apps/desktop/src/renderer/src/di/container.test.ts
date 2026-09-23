@@ -235,8 +235,10 @@ describe('renderer composition root', () => {
   it('keeps explicit local port overrides replaceable without changing consumers', () => {
     const projection: TaskProjection = {
       id: 'replacement',
+      sessionId: 'replacement-session',
       title: 'Replacement',
       status: 'running',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
       messages: [],
       steps: [],
       browser: null

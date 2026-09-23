@@ -11,11 +11,18 @@ import { mockBrowserSkillProjection } from './mock-task-fixture'
 
 const BROWSER_INVOCATION_ID = 'browser-invocation'
 
-const initialTask = (goal: string): TaskProjection => ({
-  id: 'hotel-task',
+const initialTask = (
+  goal: string,
+  id = 'hotel-task',
+  sessionId = 'hotel-session',
+  messages?: TaskProjection['messages']
+): TaskProjection => ({
+  id,
+  sessionId,
   title: '预订周末去杭州的酒店',
   status: 'running',
-  messages: [
+  model: { connectionId: 'company-gateway', modelId: 'gpt-5.2' },
+  messages: messages ?? [
     { id: 'message-user', role: 'user', content: goal },
     {
       id: 'message-agent',
@@ -40,6 +47,7 @@ const initialTask = (goal: string): TaskProjection => ({
 export class MockAgentRuntime implements AgentCommandService, AgentSessionRepository {
   private task = initialTask('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')
   private readonly listeners = new Set<(task: TaskProjection) => void>()
+  private turn = 1
 
   constructor(private readonly skillGateway: SkillGateway) {
     this.skillGateway.subscribe((event) => this.applySkillEvent(event))
@@ -52,7 +60,23 @@ export class MockAgentRuntime implements AgentCommandService, AgentSessionReposi
   }
 
   async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
-    this.task = initialTask(request.goal)
+    if ('sessionId' in request) {
+      this.turn += 1
+      this.task = initialTask(request.goal, `hotel-task-${this.turn}`, request.sessionId, [
+        ...this.task.messages,
+        { id: `message-user-${this.turn}`, role: 'user', content: request.goal },
+        {
+          id: `message-agent-${this.turn}`,
+          role: 'agent',
+          content: '我会继续处理这个会话。'
+        }
+      ])
+    } else {
+      this.task = {
+        ...initialTask(request.goal),
+        model: request.model
+      }
+    }
     await this.skillGateway.invoke({
       id: BROWSER_INVOCATION_ID,
       taskId: this.task.id,

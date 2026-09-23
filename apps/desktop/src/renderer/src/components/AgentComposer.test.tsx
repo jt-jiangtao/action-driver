@@ -32,6 +32,11 @@ describe('AgentComposer', () => {
     const user = userEvent.setup()
     const onInterrupt = vi.fn()
     render(<AgentComposer running onSubmit={vi.fn()} onInterrupt={onInterrupt} />)
+    expect(screen.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+      'data-state',
+      'running'
+    )
+    expect(screen.getByLabelText('任务描述')).toHaveAttribute('contenteditable', 'false')
     expect(screen.getByLabelText('中断任务')).toBeVisible()
     expect(screen.queryByLabelText('发送')).not.toBeInTheDocument()
     await user.click(screen.getByLabelText('中断任务'))
@@ -42,6 +47,11 @@ describe('AgentComposer', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<AgentComposer disabled onSubmit={onSubmit} />)
+
+    expect(screen.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+      'data-state',
+      'disabled'
+    )
 
     const editor = screen.getByLabelText('任务描述')
     expect(editor).toHaveAttribute('contenteditable', 'false')

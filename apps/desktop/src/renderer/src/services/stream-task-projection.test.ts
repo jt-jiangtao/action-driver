@@ -17,8 +17,10 @@ const identity = {
 
 const task = (): TaskProjection => ({
   id: 'task-1',
+  sessionId: 'session-1',
   title: '写代码',
   status: 'running',
+  model: { connectionId: 'connection-1', modelId: 'qwen3.7-max' },
   messages: [
     { id: 'user-1', role: 'user', content: '写代码' },
     { id: 'assistant-1', role: 'agent', content: '' }

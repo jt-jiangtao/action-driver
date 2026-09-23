@@ -9,8 +9,10 @@ export const mockBrowserSkillProjection: BrowserSkillProjection = {
 
 export const mockTaskFixture: TaskProjection = {
   id: 'hotel-task',
+  sessionId: 'hotel-session',
   title: '预订周末去杭州的酒店',
   status: 'running',
+  model: { connectionId: 'company-gateway', modelId: 'gpt-5.2' },
   messages: [
     {
       id: 'message-user',

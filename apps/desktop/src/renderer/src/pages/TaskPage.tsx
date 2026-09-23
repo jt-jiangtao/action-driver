@@ -15,7 +15,8 @@ export function TaskPage({
   onPause,
   onResume,
   onTakeOver,
-  onInterrupt
+  onInterrupt,
+  onSubmit
 }: {
   mode: TaskLayoutMode
   task: TaskProjection
@@ -26,6 +27,7 @@ export function TaskPage({
   onResume(): Promise<unknown> | void
   onTakeOver(): Promise<unknown> | void
   onInterrupt(): void
+  onSubmit(goal: string): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
   const pageMode = hasBrowser ? mode : 'agent-only'
@@ -44,6 +46,14 @@ export function TaskPage({
         ? 1192
         : 0
   const flowWidth = !hasBrowser || mode === 'browser-collapsed' ? 720 : 480
+  const inheritedModel = modelSelection.connections
+    .flatMap((connection) => connection.models)
+    .find(
+      (model) =>
+        model.ref.connectionId === task.model.connectionId &&
+        model.ref.modelId === task.model.modelId
+    )
+  const inheritedModelUnavailable = !inheritedModel || inheritedModel.disabled
   return (
     <main
       className="task-page"
@@ -73,11 +83,11 @@ export function TaskPage({
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}
-            disabled={task.status !== 'running'}
+            disabled={task.status !== 'running' && inheritedModelUnavailable}
             menuCloseKey={mode}
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
-            onSubmit={() => undefined}
+            onSubmit={(goal) => void onSubmit(goal)}
             onInterrupt={onInterrupt}
             width={flowWidth}
           />

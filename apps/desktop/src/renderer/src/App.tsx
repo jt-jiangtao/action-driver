@@ -25,25 +25,29 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const [route, setRoute] = useState<AppRoute>(() => initialAppRoute(initialRoute))
   const [task, setTask] = useState<TaskProjection | null>(null)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
-  const [modelSelection, setModelSelection] = useState<ModelSelectionProjection>(loadingModelSelection)
+  const [modelSelection, setModelSelection] =
+    useState<ModelSelectionProjection>(loadingModelSelection)
   const [recentTasks, setRecentTasks] = useState<readonly RecentTaskSummary[]>([])
   const [recentTasksLoading, setRecentTasksLoading] = useState(true)
   const [recentTasksError, setRecentTasksError] = useState<string | null>(null)
   const modelRequestId = useRef(0)
   const taskRequestId = useRef(0)
 
-  const loadModels = useCallback(async (selected: ModelRef | null = null) => {
-    const requestId = ++modelRequestId.current
-    setModelSelection(loadingModelSelection)
-    try {
-      const connections = await services.modelConnectionsService.list()
-      if (requestId !== modelRequestId.current) return
-      setModelSelection(toModelSelectionProjection(connections, selected))
-    } catch (error) {
-      if (requestId !== modelRequestId.current) return
-      setModelSelection(failedModelSelection(error))
-    }
-  }, [services])
+  const loadModels = useCallback(
+    async (selected: ModelRef | null = null) => {
+      const requestId = ++modelRequestId.current
+      setModelSelection(loadingModelSelection)
+      try {
+        const connections = await services.modelConnectionsService.list()
+        if (requestId !== modelRequestId.current) return
+        setModelSelection(toModelSelectionProjection(connections, selected))
+      } catch (error) {
+        if (requestId !== modelRequestId.current) return
+        setModelSelection(failedModelSelection(error))
+      }
+    },
+    [services]
+  )
 
   const loadRecentTasks = useCallback(async () => {
     const requestId = ++taskRequestId.current
@@ -86,11 +90,53 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
 
   const openTask = async (taskId: string) => {
     const projection =
-      (await services.taskCatalog.getTask(taskId)) ?? services.agentSessionRepository.getTask(taskId)
+      (await services.taskCatalog.getTask(taskId)) ??
+      services.agentSessionRepository.getTask(taskId)
     if (!projection) return
     setTask(projection)
     setRoute({ kind: 'task', taskId: projection.id })
   }
+
+  const presentSubmittedTask = useCallback(
+    (projection: TaskProjection, previousTaskId?: string) => {
+      setTask(projection)
+      setRecentTasks((current) => [
+        { id: projection.id, title: projection.title, state: 'default' },
+        ...current.filter((item) => item.id !== projection.id && item.id !== previousTaskId)
+      ])
+      setRoute({ kind: 'task', taskId: projection.id })
+    },
+    []
+  )
+
+  const submitNewSession = useCallback(
+    async (goal: string) => {
+      const selected = findSelectedModel(modelSelection)
+      if (!selected) throw new Error('请选择可用模型')
+      const projection = await services.agentCommandService.submitGoal({
+        goal,
+        model: {
+          connectionId: selected.connection.id,
+          modelId: selected.model.id
+        }
+      })
+      presentSubmittedTask(projection)
+    },
+    [modelSelection, presentSubmittedTask, services]
+  )
+
+  const submitContinuation = useCallback(
+    async (goal: string) => {
+      if (!task) return
+      const previousTaskId = task.id
+      const projection = await services.agentCommandService.submitGoal({
+        goal,
+        sessionId: task.sessionId
+      })
+      presentSubmittedTask(projection, previousTaskId)
+    },
+    [presentSubmittedTask, services, task]
+  )
 
   const mainRoute: MainAppRoute =
     route.kind === 'settings' ||
@@ -187,41 +233,22 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       {route.kind === 'home' ? (
         <HomePage
           modelSelection={modelSelection}
-          onSelectModel={(selected) =>
-            setModelSelection((current) => ({ ...current, selected }))
-          }
+          onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
           onRetryModels={() => void loadModels(modelSelection.selected)}
-          onSubmit={async (goal) => {
-            const selected = findSelectedModel(modelSelection)
-            if (!selected) throw new Error('请选择可用模型')
-            const projection = await services.agentCommandService.submitGoal({
-              goal,
-              model: {
-                connectionId: selected.connection.id,
-                modelId: selected.model.id
-              }
-            })
-            setTask(projection)
-            setRecentTasks((current) => [
-              { id: projection.id, title: projection.title, state: 'default' },
-              ...current.filter((item) => item.id !== projection.id)
-            ])
-            setRoute({ kind: 'task', taskId: projection.id })
-          }}
+          onSubmit={submitNewSession}
         />
       ) : task ? (
         <TaskPage
           mode={mode}
           task={task}
           modelSelection={modelSelection}
-          onSelectModel={(selected) =>
-            setModelSelection((current) => ({ ...current, selected }))
-          }
+          onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
           onModeChange={setMode}
           onPause={() => services.skillGateway.pause('browser-invocation')}
           onResume={() => services.skillGateway.resume('browser-invocation')}
           onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
+          onSubmit={submitContinuation}
         />
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HomePage } from './HomePage'
@@ -34,6 +34,7 @@ describe('ActionDriver pages', () => {
         onResume={vi.fn()}
         onTakeOver={vi.fn()}
         onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
       />
     )
 
@@ -58,7 +59,8 @@ describe('ActionDriver pages', () => {
       onPause: vi.fn(),
       onResume: vi.fn(),
       onTakeOver: vi.fn(),
-      onInterrupt: vi.fn()
+      onInterrupt: vi.fn(),
+      onSubmit: vi.fn()
     }
     const { rerender } = render(<TaskPage {...props} mode="split" />)
 
@@ -80,7 +82,8 @@ describe('ActionDriver pages', () => {
       onPause: vi.fn(),
       onResume: vi.fn(),
       onTakeOver: vi.fn(),
-      onInterrupt: vi.fn()
+      onInterrupt: vi.fn(),
+      onSubmit: vi.fn()
     }
     const { rerender } = render(<TaskPage {...props} mode="split" />)
     await user.type(screen.getByLabelText('任务描述'), 'draft')
@@ -109,6 +112,7 @@ describe('ActionDriver pages', () => {
         onResume={vi.fn()}
         onTakeOver={vi.fn()}
         onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
       />
     )
 
@@ -122,6 +126,33 @@ describe('ActionDriver pages', () => {
     )
     expect(screen.queryByTestId('e2e/tasks/detail/browser#section')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '展开浏览器' })).not.toBeInTheDocument()
+    expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
+  })
+
+  it('keeps terminal task input editable and submits a continuation for the same session', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <TaskPage
+        mode="split"
+        task={{ ...mockTaskFixture, status: 'succeeded', browser: null }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={onSubmit}
+      />
+    )
+
+    expect(screen.getByLabelText('任务描述')).toHaveAttribute('contenteditable', 'true')
+    const editor = screen.getByLabelText('任务描述')
+    editor.textContent = '继续解释'
+    fireEvent.input(editor)
+    await user.click(screen.getByLabelText('发送'))
+    expect(onSubmit).toHaveBeenCalledWith('继续解释')
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
 })

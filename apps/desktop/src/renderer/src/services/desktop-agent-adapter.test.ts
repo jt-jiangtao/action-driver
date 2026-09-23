@@ -11,8 +11,10 @@ import { DesktopAgentAdapter, DesktopSkillGateway } from './desktop-agent-adapte
 
 const task = (status: TaskProjection['status'] = 'running'): TaskProjection => ({
   id: 'task-1',
+  sessionId: 'session-1',
   title: 'Book a hotel',
   status,
+  model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   messages: [
     { id: 'message-1', role: 'user', content: 'Book a hotel' },
     { id: 'assistant-1', role: 'agent', content: '' }
@@ -26,26 +28,6 @@ function harness() {
   let eventListener: ((event: RuntimeEvent) => void) | undefined
   let streamListener: ((event: StreamServerEvent) => void) | undefined
   const api: AgentDesktopApi = {
-    submit: vi.fn(async () => ({
-      type: 'request.accepted' as const,
-      protocol: 'actiondriver.stream.v1' as const,
-      eventId: 'accepted-1',
-      cursor: 1,
-      requestId: 'request-1',
-      sessionId: 'session-1',
-      taskId: 'task-1',
-      responseId: 'response-1',
-      streamId: 'stream-1',
-      messageId: 'assistant-1',
-      occurredAt: '2026-09-23T00:00:00.000Z'
-    })),
-    cancel: vi.fn(async () => undefined),
-    subscribeStream: vi.fn((listener) => {
-      streamListener = listener
-      return () => {
-        streamListener = undefined
-      }
-    }),
     get: vi.fn(async () => structuredClone(currentTask)),
     listTasks: vi.fn(async () => []),
     listModelLogs: vi.fn(async () => []),
@@ -69,10 +51,33 @@ function harness() {
       }
     })
   }
+  const streamClient = {
+    create: vi.fn(async () => ({
+      type: 'request.accepted' as const,
+      protocol: 'actiondriver.stream.v1' as const,
+      eventId: 'accepted-1',
+      cursor: 1,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:00.000Z'
+    })),
+    cancel: vi.fn(async () => undefined),
+    subscribe: vi.fn((listener: (event: StreamServerEvent) => void) => {
+      streamListener = listener
+      return () => {
+        streamListener = undefined
+      }
+    })
+  }
   return {
-    adapter: new DesktopAgentAdapter(api),
+    adapter: new DesktopAgentAdapter(api, streamClient),
     skillGateway: new DesktopSkillGateway(api),
     api,
+    streamClient,
     emit(event: RuntimeEvent) {
       eventListener?.(event)
     },
@@ -87,7 +92,7 @@ function harness() {
 
 describe('DesktopAgentAdapter', () => {
   it('subscribes before submit and projects the live stream without the legacy subscription', async () => {
-    const { adapter, api, emitStream } = harness()
+    const { adapter, api, streamClient, emitStream } = harness()
     const listener = vi.fn()
     adapter.subscribe(listener)
 
@@ -98,12 +103,12 @@ describe('DesktopAgentAdapter', () => {
     const submitted = await adapter.submitGoal(request)
     submitted.title = 'mutated outside the adapter'
 
-    expect(api.submit).toHaveBeenCalledWith(request)
+    expect(streamClient.create).toHaveBeenCalledWith(request)
     expect(api.get).toHaveBeenCalledWith('task-1')
-    expect(api.subscribeStream).toHaveBeenCalledOnce()
+    expect(streamClient.subscribe).toHaveBeenCalledOnce()
     expect(api.subscribe).not.toHaveBeenCalled()
-    expect(vi.mocked(api.subscribeStream).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(api.submit).mock.invocationCallOrder[0]!
+    expect(vi.mocked(streamClient.subscribe).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(streamClient.create).mock.invocationCallOrder[0]!
     )
     expect(adapter.getTask('task-1')?.title).toBe('Book a hotel')
     expect(listener).toHaveBeenLastCalledWith(task())
@@ -143,6 +148,102 @@ describe('DesktopAgentAdapter', () => {
     await vi.waitFor(() =>
       expect(adapter.getTask('task-1')?.messages.at(-1)?.content).toBe('**real**')
     )
+  })
+
+  it('continues the same session with a new task and preserves the full transcript', async () => {
+    const { adapter, api, streamClient, emitStream, setTask } = harness()
+    await adapter.submitGoal({
+      goal: '第一问',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
+    setTask({
+      ...task('running'),
+      id: 'task-2',
+      messages: [
+        { id: 'message-1', role: 'user', content: '第一问' },
+        { id: 'assistant-1', role: 'agent', content: '第一答' },
+        { id: 'message-2', role: 'user', content: '第二问' },
+        { id: 'assistant-2', role: 'agent', content: '' }
+      ]
+    })
+    vi.mocked(streamClient.create).mockResolvedValueOnce({
+      type: 'request.accepted',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'accepted-2',
+      cursor: 4,
+      requestId: 'request-2',
+      sessionId: 'session-1',
+      taskId: 'task-2',
+      responseId: 'response-2',
+      streamId: 'stream-2',
+      messageId: 'assistant-2',
+      occurredAt: '2026-09-23T00:01:00.000Z'
+    })
+
+    await adapter.submitGoal({ goal: '第二问', sessionId: 'session-1' })
+    emitStream({
+      type: 'response.start',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'start-2',
+      cursor: 5,
+      requestId: 'request-2',
+      sessionId: 'session-1',
+      taskId: 'task-2',
+      responseId: 'response-2',
+      streamId: 'stream-2',
+      messageId: 'assistant-2',
+      occurredAt: '2026-09-23T00:01:01.000Z',
+      sequence: 0,
+      model: task().model
+    })
+    emitStream({
+      type: 'response.content',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'content-2',
+      cursor: 6,
+      requestId: 'request-2',
+      sessionId: 'session-1',
+      taskId: 'task-2',
+      responseId: 'response-2',
+      streamId: 'stream-2',
+      messageId: 'assistant-2',
+      occurredAt: '2026-09-23T00:01:02.000Z',
+      sequence: 1,
+      delta: '第二答',
+      contentIndex: 0
+    })
+    emitStream({
+      type: 'response.end',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'end-2',
+      cursor: 7,
+      requestId: 'request-2',
+      sessionId: 'session-1',
+      taskId: 'task-2',
+      responseId: 'response-2',
+      streamId: 'stream-2',
+      messageId: 'assistant-2',
+      occurredAt: '2026-09-23T00:01:03.000Z',
+      sequence: 2,
+      status: 'completed',
+      content: '第二答',
+      finishReason: 'stop',
+      usage: null,
+      durationMs: 2,
+      error: null
+    })
+
+    expect(streamClient.create).toHaveBeenLastCalledWith({
+      goal: '第二问',
+      sessionId: 'session-1'
+    })
+    expect(api.get).toHaveBeenLastCalledWith('task-2')
+    expect(adapter.getTask('task-2')?.messages.map((message) => message.content)).toEqual([
+      '第一问',
+      '第一答',
+      '第二问',
+      '第二答'
+    ])
   })
 
   it('delegates interrupt, continue, and user input commands to the whitelisted API', async () => {
@@ -225,8 +326,11 @@ describe('DesktopAgentAdapter', () => {
     ['REMOTE_ERROR', 'runtime-error'],
     ['LATE_RESPONSE', 'invalid-response']
   ] as const)('maps %s to the %s domain error', async (runtimeCode, domainCode) => {
-    const { adapter, api } = harness()
-    vi.mocked(api.submit).mockRejectedValue({ code: runtimeCode, message: 'runtime failed' })
+    const { adapter, streamClient } = harness()
+    vi.mocked(streamClient.create).mockRejectedValue({
+      code: runtimeCode,
+      message: 'runtime failed'
+    })
 
     const error = await adapter
       .submitGoal({
