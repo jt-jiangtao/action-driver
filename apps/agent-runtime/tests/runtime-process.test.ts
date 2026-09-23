@@ -139,13 +139,16 @@ describe('Agent Runtime process entry', () => {
 
   it('rejects startup without a configured workspace root', async () => {
     const parentPort = new FakeParentPort()
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-')), 'runtime.db')
+    const databasePath = join(
+      mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-')),
+      'runtime.db'
+    )
     await expect(startAgentRuntimeProcess(parentPort, databasePath, vi.fn(), {})).rejects.toThrow(
       'SANDBOX_ROOT_INVALID'
     )
   })
 
-  it('registers file tools for automatic use while shell requires approval', async () => {
+  it('registers file and shell tools for automatic use within the grant', async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-policy-workspace-'))
     const registry = new RuntimeToolRegistry()
     const policy = new RuntimeToolPolicy()
@@ -153,18 +156,36 @@ describe('Agent Runtime process entry', () => {
     for (const tool of tools) registry.register(tool.definition, tool.executor)
     const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
     expect(registry.list().map((tool) => tool.id)).toEqual([
-      'sandbox.fs.list', 'sandbox.fs.read', 'sandbox.shell.run'
+      'sandbox.fs.list',
+      'sandbox.fs.read',
+      'sandbox.shell.run'
     ])
     const read = registry.resolveModelName('sandbox_fs_read').definition
     const shell = registry.resolveModelName('sandbox_shell_run').definition
-    expect(policy.decide(read, {
-      callId: 'read', providerCallId: 'provider-read', modelName: read.modelName,
-      arguments: { path: 'README.md' }
-    }, { grants })).toEqual({ kind: 'allow' })
-    expect(policy.decide(shell, {
-      callId: 'shell', providerCallId: 'provider-shell', modelName: shell.modelName,
-      arguments: { command: 'rg', args: ['needle', '.'] }
-    }, { grants })).toMatchObject({ kind: 'require_approval' })
+    expect(
+      policy.decide(
+        read,
+        {
+          callId: 'read',
+          providerCallId: 'provider-read',
+          modelName: read.modelName,
+          arguments: { path: 'README.md' }
+        },
+        { grants }
+      )
+    ).toEqual({ kind: 'allow' })
+    expect(
+      policy.decide(
+        shell,
+        {
+          callId: 'shell',
+          providerCallId: 'provider-shell',
+          modelName: shell.modelName,
+          arguments: { command: 'rg', args: ['needle', '.'] }
+        },
+        { grants }
+      )
+    ).toEqual({ kind: 'allow' })
     expect(() => registry.resolveModelName('unknown_tool')).toThrow('TOOL_UNAVAILABLE')
   })
 })

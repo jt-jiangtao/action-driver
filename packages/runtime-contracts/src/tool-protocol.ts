@@ -31,15 +31,6 @@ export const toolCallSchema = z
   })
   .strict()
 
-export const toolApprovalCommandSchema = z
-  .object({
-    action: z.enum(['approve', 'reject']),
-    taskId: idSchema,
-    callId: idSchema,
-    argumentsHash: idSchema
-  })
-  .strict()
-
 const toolEventBase = {
   callId: idSchema,
   taskId: idSchema,
@@ -92,7 +83,6 @@ export const toolEventSchema = z.discriminatedUnion('type', [
 
 export type ToolDefinition = z.infer<typeof toolDefinitionSchema>
 export type ToolCall = z.infer<typeof toolCallSchema>
-export type ToolApprovalCommand = z.infer<typeof toolApprovalCommandSchema>
 export type ToolEvent = z.infer<typeof toolEventSchema>
 export type ToolError = z.infer<typeof toolErrorSchema>
 export type ToolDecision = { kind: 'allow' } | { kind: 'deny'; error: ToolError }
@@ -111,10 +101,6 @@ export function parseToolDefinition(value: unknown): ToolDefinition {
 
 export function parseToolCall(value: unknown): ToolCall {
   return toolCallSchema.parse(value)
-}
-
-export function parseToolApprovalCommand(value: unknown): ToolApprovalCommand {
-  return toolApprovalCommandSchema.parse(value)
 }
 
 export function parseToolEvent(value: unknown): ToolEvent {

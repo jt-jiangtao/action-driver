@@ -93,7 +93,7 @@ function auth(ws: WebSocket, token = 'service-token'): void {
 }
 
 describe('service WebSocket surface', () => {
-  it('requires authentication before forwarding tool decisions and advertises approval support', async () => {
+  it('rejects obsolete tool decisions before and after authentication', async () => {
     const handle = vi.fn(async () => undefined)
     server = await startServiceHttpServer({
       service: serviceStub(),
@@ -101,25 +101,51 @@ describe('service WebSocket surface', () => {
       token: 'service-token',
       runtimeVersion: '0.1.0'
     })
-    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, ['actiondriver.stream.v1'])
+    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
+      'actiondriver.stream.v1'
+    ])
     await waitForOpen(socket)
     const closed = waitForClose(socket)
-    socket.send(JSON.stringify({
-      type: 'tool.approve', protocol: 'actiondriver.stream.v1', eventId: 'decision-1',
-      createdAt: '2026-09-23T00:00:00.000Z', requestId: 'request-1', taskId: 'task-1',
-      callId: 'call-1', argumentsHash: 'sha256:abc'
-    }))
+    socket.send(
+      JSON.stringify({
+        type: 'tool.approve',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'decision-1',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        requestId: 'request-1',
+        taskId: 'task-1',
+        callId: 'call-1',
+        argumentsHash: 'sha256:abc'
+      })
+    )
     await expect(closed).resolves.toMatchObject({ code: 1008 })
     expect(handle).not.toHaveBeenCalled()
 
-    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, ['actiondriver.stream.v1'])
+    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
+      'actiondriver.stream.v1'
+    ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
     auth(socket)
     await expect(ready).resolves.toMatchObject({
       type: 'session.ready',
-      capabilities: expect.arrayContaining(['tool.approve', 'tool.reject'])
+      capabilities: ['request.create', 'request.cancel', 'request.resume']
     })
+    const invalidDecision = waitForClose(socket)
+    socket.send(
+      JSON.stringify({
+        type: 'tool.approve',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'decision-2',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        requestId: 'request-1',
+        taskId: 'task-1',
+        callId: 'call-1',
+        argumentsHash: 'sha256:abc'
+      })
+    )
+    await expect(invalidDecision).resolves.toMatchObject({ code: 1002 })
+    expect(handle).not.toHaveBeenCalled()
   })
   it('accepts the Electron file origin and rejects ordinary browser origins', async () => {
     server = await startServiceHttpServer({

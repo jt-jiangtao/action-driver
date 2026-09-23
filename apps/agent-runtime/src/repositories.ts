@@ -264,6 +264,116 @@ export class SqliteRuntimeRepositories {
 
   constructor(private readonly database: Database.Database) {}
 
+  async cancelLegacyPendingApprovals(code: string): Promise<void> {
+    this.database
+      .transaction(() => {
+        const pending = this.database
+          .prepare(
+            `SELECT tool_invocations.* FROM tool_invocations
+             JOIN tasks ON tasks.id = tool_invocations.task_id
+             WHERE tool_invocations.status = 'waiting_approval' AND tasks.status = 'running'
+             ORDER BY tool_invocations.created_at, tool_invocations.id`
+          )
+          .all() as ToolInvocationRow[]
+        const changedTasks = new Map<
+          string,
+          {
+            task: RuntimeTaskRecord
+            request: PersistedStreamRequest | null
+            occurredAt: string
+            error: { code: string; message: string; retryable: false }
+          }
+        >()
+        for (const row of pending) {
+          const invocation = toolInvocationFromRow(row)
+          const taskRow = this.database
+            .prepare('SELECT * FROM tasks WHERE id = ?')
+            .get(invocation.taskId) as TaskRow
+          const task = taskFromRow(taskRow)
+          const requestRow = this.database
+            .prepare('SELECT * FROM stream_requests WHERE task_id = ?')
+            .get(task.id) as StreamRequestRow | undefined
+          const request = requestRow ? streamRequestFromRow(requestRow) : null
+          const occurredAt = new Date().toISOString()
+          const error = {
+            code,
+            message: 'Legacy tool approval cannot be resumed',
+            retryable: false as const
+          }
+          saveToolInvocation(this.database, {
+            ...invocation,
+            status: 'cancelled',
+            error,
+            updatedAt: occurredAt
+          })
+          appendEvent(this.database, {
+            taskId: task.id,
+            threadId: request?.sessionId ?? task.threadId,
+            checkpointId: request?.responseId ?? task.lastCheckpointId ?? task.id,
+            eventKey: `legacy-approval-cancel:${invocation.id}`,
+            type: 'tool.cancelled',
+            payload: {
+              callId: invocation.id,
+              toolId: invocation.toolId,
+              modelName: invocation.toolId,
+              summary: invocation.toolId,
+              argumentsHash: invocation.argumentsHash,
+              activityId: null,
+              input: invocation.input,
+              error
+            },
+            occurredAt,
+            eventId: `legacy-approval-cancel:${invocation.id}`,
+            ...(request
+              ? {
+                  requestId: request.requestId,
+                  responseId: request.responseId,
+                  streamId: request.streamId,
+                  messageId: request.messageId
+                }
+              : {}),
+            sequence: 1
+          })
+          if (!changedTasks.has(task.id))
+            changedTasks.set(task.id, { task, request, occurredAt, error })
+        }
+        for (const { task, request, occurredAt, error } of changedTasks.values()) {
+          saveTask(this.database, { ...task, status: 'failed', error, updatedAt: occurredAt })
+          if (!request) continue
+          const sequence = Math.max(0, request.lastSequence + 1)
+          this.database
+            .prepare(
+              `UPDATE stream_requests SET status = 'failed', last_sequence = ?, updated_at = ?
+               WHERE request_id = ? AND status = 'running'`
+            )
+            .run(sequence, occurredAt, request.requestId)
+          appendEvent(this.database, {
+            taskId: task.id,
+            threadId: request.sessionId,
+            checkpointId: request.responseId,
+            eventKey: 'legacy-approval:response.end',
+            type: 'response.end',
+            payload: {
+              status: 'failed',
+              content: '',
+              finishReason: null,
+              usage: null,
+              durationMs: Math.max(0, Date.parse(occurredAt) - Date.parse(task.createdAt)),
+              error
+            },
+            occurredAt,
+            eventId: `legacy-approval-end:${request.requestId}`,
+            requestId: request.requestId,
+            responseId: request.responseId,
+            streamId: request.streamId,
+            messageId: request.messageId,
+            sequence
+          })
+        }
+      })
+      .immediate()
+  }
+
   async readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead> {
     return this.database
       .transaction(() => {

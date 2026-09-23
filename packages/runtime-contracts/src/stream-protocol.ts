@@ -123,23 +123,11 @@ const requestResumeEventSchema = z
   })
   .strict()
 
-const toolDecisionEventSchema = z
-  .object({
-    type: z.enum(['tool.approve', 'tool.reject']),
-    ...clientBase,
-    requestId: idSchema,
-    taskId: idSchema,
-    callId: idSchema,
-    argumentsHash: idSchema
-  })
-  .strict()
-
 export const streamClientEventSchema = z.union([
   authEventSchema,
   requestCreateEventSchema,
   requestCancelEventSchema,
-  requestResumeEventSchema,
-  toolDecisionEventSchema
+  requestResumeEventSchema
 ])
 
 const sessionReadyEventSchema = z

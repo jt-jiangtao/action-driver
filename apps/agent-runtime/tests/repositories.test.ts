@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
   SqliteRuntimeRepositories,
+  StreamSessionService,
   openRuntimeDatabase,
+  type GraphRunner,
   type PersistedMessage,
   type PersistedModelCall,
   type PersistedStreamRequest,
@@ -43,6 +45,118 @@ const task: RuntimeTaskRecord = {
 }
 
 describe('SQLite runtime repositories', () => {
+  it('cancels only legacy pending approvals and never reopens a completed task', async () => {
+    const repositories = createRepositories()
+    const request: PersistedStreamRequest = {
+      requestId: 'request-legacy',
+      idempotencyKey: 'idempotency-legacy',
+      sessionId: task.sessionId,
+      taskId: task.id,
+      responseId: 'response-legacy',
+      streamId: 'stream-legacy',
+      messageId: 'message-assistant-legacy',
+      status: 'running',
+      lastSequence: 1,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    await repositories.createStreamTask({
+      request,
+      task,
+      userMessage: {
+        id: 'message-user-legacy',
+        taskId: task.id,
+        role: 'user',
+        content: { text: task.goal },
+        createdAt: task.createdAt
+      },
+      assistantMessage: {
+        id: request.messageId,
+        taskId: task.id,
+        role: 'assistant',
+        content: { text: '' },
+        createdAt: task.createdAt
+      },
+      acceptedEvent: {
+        taskId: task.id,
+        threadId: task.threadId,
+        checkpointId: request.responseId,
+        eventKey: 'request.accepted',
+        type: 'request.accepted',
+        payload: { requestId: request.requestId },
+        occurredAt: task.createdAt,
+        eventId: 'event-legacy-accepted',
+        requestId: request.requestId,
+        responseId: request.responseId,
+        streamId: request.streamId,
+        messageId: request.messageId,
+        sequence: null
+      }
+    })
+    const pending: PersistedToolInvocation = {
+      id: 'call-legacy',
+      providerCallId: 'provider-legacy',
+      taskId: task.id,
+      toolId: 'sandbox.shell.run',
+      toolVersion: 1,
+      argumentsHash: 'sha256:legacy',
+      decision: 'require_approval',
+      status: 'waiting_approval',
+      input: { command: 'rg', args: ['needle'] },
+      output: null,
+      error: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    await repositories.toolInvocations.save(pending)
+    await repositories.toolInvocations.save({
+      ...pending,
+      id: 'call-legacy-2',
+      providerCallId: 'provider-legacy-2'
+    })
+    await repositories.tasks.save({
+      ...task,
+      id: 'task-complete',
+      threadId: 'task-complete',
+      sessionId: 'session-complete',
+      status: 'completed'
+    })
+    await repositories.toolInvocations.save({
+      ...pending,
+      id: 'call-complete',
+      taskId: 'task-complete'
+    })
+
+    await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
+    expect(await repositories.toolInvocations.listByTask(task.id)).toMatchObject([
+      { id: 'call-legacy', status: 'cancelled', error: { code: 'TOOL_APPROVAL_REMOVED' } },
+      { id: 'call-legacy-2', status: 'cancelled', error: { code: 'TOOL_APPROVAL_REMOVED' } }
+    ])
+    expect(await repositories.tasks.get(task.id)).toMatchObject({ status: 'failed' })
+    expect(await repositories.streamRequests.getByRequestId(request.requestId)).toMatchObject({
+      status: 'failed'
+    })
+    expect(await repositories.toolInvocations.listByTask('task-complete')).toMatchObject([
+      { id: 'call-complete', status: 'waiting_approval' }
+    ])
+    const events = await repositories.events.listAfter(0)
+    expect(
+      events.filter((event) => event.type !== 'request.accepted').map((event) => event.type)
+    ).toEqual(['tool.cancelled', 'tool.cancelled', 'response.end'])
+    const snapshot = await new StreamSessionService({
+      repositories,
+      graphRunner: {} as GraphRunner,
+      ids: { next: () => 'event-legacy-snapshot' },
+      now: () => '2026-01-01T00:00:02.000Z'
+    }).getTaskSnapshot(task.id)
+    expect(snapshot?.status).toBe('failed')
+    expect(snapshot?.tools?.map((tool) => tool.status)).toEqual(['cancelled', 'cancelled'])
+    expect(snapshot?.activityTimeline?.filter((item) => item.kind === 'tool')).toHaveLength(2)
+    await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
+    expect(await repositories.events.listAfter(0)).toHaveLength(events.length)
+    repositories.close()
+  })
+
   it('commits a tool transition and event atomically and ignores an identical replay', async () => {
     const repositories = createRepositories()
     await repositories.tasks.save(task)

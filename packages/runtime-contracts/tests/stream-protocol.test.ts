@@ -90,9 +90,9 @@ describe('agent stream protocol', () => {
   })
 
   it.each(['tool.approve', 'tool.reject'] as const)(
-    'accepts %s with an exact call identity',
+    'rejects obsolete %s control frames',
     (type) => {
-      expect(
+      expect(() =>
         parseStreamClientEvent({
           type,
           protocol: STREAM_PROTOCOL,
@@ -102,17 +102,6 @@ describe('agent stream protocol', () => {
           taskId: 'task-1',
           callId: 'call-1',
           argumentsHash: 'sha256:abc'
-        })
-      ).toMatchObject({ type, callId: 'call-1' })
-      expect(() =>
-        parseStreamClientEvent({
-          type,
-          protocol: STREAM_PROTOCOL,
-          eventId: 'decision-1',
-          createdAt: occurredAt,
-          requestId: 'request-1',
-          taskId: 'task-1',
-          callId: 'call-1'
         })
       ).toThrow()
     }

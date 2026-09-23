@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  parseToolCall,
-  parseToolApprovalCommand,
-  parseToolDefinition,
-  parseToolEvent,
-  type ToolDefinition
-} from '../src'
+import { parseToolCall, parseToolDefinition, parseToolEvent, type ToolDefinition } from '../src'
 
 const definition: ToolDefinition = {
   id: 'sandbox.fs.read',
@@ -70,30 +64,6 @@ describe('tool protocol', () => {
         callId: 'call-1',
         taskId: 'task-1',
         sequence: 2
-      })
-    ).toThrow()
-  })
-
-  it('parses approval commands bound to task, call, and arguments hash', () => {
-    expect(
-      parseToolApprovalCommand({
-        action: 'approve',
-        taskId: 'task-1',
-        callId: 'call-1',
-        argumentsHash: 'sha256:test'
-      })
-    ).toEqual({
-      action: 'approve',
-      taskId: 'task-1',
-      callId: 'call-1',
-      argumentsHash: 'sha256:test'
-    })
-    expect(() =>
-      parseToolApprovalCommand({
-        action: 'approve',
-        taskId: 'task-1',
-        callId: 'call-1',
-        argumentsHash: ''
       })
     ).toThrow()
   })

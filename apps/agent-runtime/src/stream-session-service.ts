@@ -5,8 +5,7 @@ import {
   reduceActivityProjection,
   type RequestCreateEvent,
   type StreamClientEvent,
-  type StreamServerEvent,
-  type ToolApprovalCommand
+  type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
 import type {
   AgentGraphResult,
@@ -19,7 +18,6 @@ import type {
   StreamSessionRepository,
   RuntimeTaskRecord
 } from './ports'
-import { ToolApprovalError, type ToolInvocationService } from './tool-invocation-service'
 import {
   persistedToolActivity,
   toolActivityErrorSummary,
@@ -48,7 +46,6 @@ export class StreamSessionService {
       graphRunner: GraphRunner
       ids: IdGenerator
       now(): string
-      approvals?: Pick<ToolInvocationService, 'approve' | 'reject'>
       rawToolIO?: { enabled: boolean; maxBytes?: number }
     }
   ) {}
@@ -79,57 +76,6 @@ export class StreamSessionService {
     if (event.type === 'request.resume') {
       await this.replay(event.requestId, event.afterCursor, emit)
       return
-    }
-    if (event.type === 'tool.approve' || event.type === 'tool.reject') {
-      await this.decideTool(event, emit)
-    }
-  }
-
-  private async decideTool(
-    event: Extract<StreamClientEvent, { type: 'tool.approve' | 'tool.reject' }>,
-    emit: Emit
-  ): Promise<void> {
-    const request = await this.options.repositories.streamRequests.getByRequestId(event.requestId)
-    if (!request || request.taskId !== event.taskId) {
-      await this.emitRequestError(
-        event.requestId,
-        'tool-approval-stale',
-        'Tool request does not match this task',
-        emit
-      )
-      return
-    }
-    if (!this.options.approvals) {
-      await this.emitRequestError(
-        event.requestId,
-        'tool-approval-unavailable',
-        'Tool approval is unavailable',
-        emit
-      )
-      return
-    }
-    const command: ToolApprovalCommand = {
-      action: event.type === 'tool.approve' ? 'approve' : 'reject',
-      taskId: event.taskId,
-      callId: event.callId,
-      argumentsHash: event.argumentsHash
-    }
-    try {
-      if (command.action === 'approve') await this.options.approvals.approve(command)
-      else await this.options.approvals.reject(command)
-    } catch (error) {
-      const code =
-        error instanceof ToolApprovalError
-          ? error.code === 'TOOL_APPROVAL_STALE'
-            ? 'tool-approval-stale'
-            : 'tool-approval-not-pending'
-          : 'tool-approval-failed'
-      await this.emitRequestError(
-        event.requestId,
-        code,
-        error instanceof Error ? error.message : String(error),
-        emit
-      )
     }
   }
 

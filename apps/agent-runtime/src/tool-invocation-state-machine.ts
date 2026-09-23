@@ -3,8 +3,8 @@ import type { PersistedToolInvocation } from './ports'
 export type ToolInvocationState = PersistedToolInvocation['status']
 
 const ALLOWED_TRANSITIONS: Record<ToolInvocationState, readonly ToolInvocationState[]> = {
-  proposed: ['waiting_approval', 'queued', 'failed', 'cancelled'],
-  waiting_approval: ['queued', 'cancelled'],
+  proposed: ['queued', 'failed', 'cancelled'],
+  waiting_approval: [],
   queued: ['running', 'cancelled'],
   running: ['completed', 'failed', 'cancelled'],
   completed: [],

@@ -38,6 +38,7 @@ export async function startAgentRuntimeProcess(
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
   const database = openRuntimeDatabase(databasePath)
   const repositories = new SqliteRuntimeRepositories(database)
+  await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
   const checkpointer = createSqliteCheckpointer(databasePath)
   const logging = createServiceLogger({ databasePath })
   const interactionStore = await createLocalInteractionLogStore({
@@ -85,7 +86,6 @@ export async function startAgentRuntimeProcess(
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),
-    approvals: local.toolRuntime.invocations,
     rawToolIO: { enabled: true }
   })
   const server = createLocalRuntimeServer(endpoint, {

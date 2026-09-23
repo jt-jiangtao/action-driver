@@ -106,7 +106,7 @@ export function attachServiceWebSocketServer(
             protocol: SERVICE_STREAM_PROTOCOL,
             eventId: randomUUID(),
             connectionId,
-            capabilities: ['request.create', 'request.cancel', 'request.resume', 'tool.approve', 'tool.reject'],
+            capabilities: ['request.create', 'request.cancel', 'request.resume'],
             occurredAt: new Date().toISOString()
           })
           return

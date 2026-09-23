@@ -1,12 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import type {
-  RequestCreateEvent,
-  StreamServerEvent,
-  ToolApprovalCommand
-} from '@actiondriver/runtime-contracts'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { RequestCreateEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
 import {
   SqliteRuntimeRepositories,
@@ -20,10 +16,6 @@ const temporaryDirectories: string[] = []
 
 function createHarness(
   graphRunner: GraphRunner,
-  approvals?: {
-    approve(command: ToolApprovalCommand): Promise<void>
-    reject(command: ToolApprovalCommand): Promise<void>
-  },
   rawToolIO?: { enabled: boolean; maxBytes?: number }
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
@@ -44,7 +36,6 @@ function createHarness(
     graphRunner,
     ids,
     now: () => new Date(now++).toISOString(),
-    ...(approvals ? { approvals } : {}),
     ...(rawToolIO ? { rawToolIO } : {})
   })
   return { database, repositories, service }
@@ -393,7 +384,7 @@ describe('StreamSessionService', () => {
     await service.close()
     repositories.close()
   })
-  it('validates approval identity, delegates the decision, and replays persisted tool status', async () => {
+  it('replays persisted legacy approval events without requiring a live decision', async () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => {
       release = resolve
@@ -419,60 +410,13 @@ describe('StreamSessionService', () => {
         throw new Error('not used')
       }
     }
-    const approvals = {
-      approve: vi.fn(async () => undefined),
-      reject: vi.fn(async () => undefined)
-    }
-    const { repositories, service } = createHarness(graphRunner, approvals)
+    const { repositories, service } = createHarness(graphRunner)
     const published: StreamServerEvent[] = []
     await service.handle(createEvent, (event) => {
       published.push(event)
     })
     const accepted = published.find((event) => event.type === 'request.accepted')
     if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing accepted')
-    await service.handle(
-      {
-        type: 'tool.approve',
-        protocol: 'actiondriver.stream.v1',
-        eventId: 'decision-1',
-        createdAt: '2026-09-23T00:00:00.000Z',
-        requestId: accepted.requestId,
-        taskId: 'wrong-task',
-        callId: 'call-1',
-        argumentsHash: 'sha256:abc'
-      },
-      (event) => {
-        published.push(event)
-      }
-    )
-    expect(published.at(-1)).toMatchObject({
-      type: 'request.error',
-      error: { code: 'tool-approval-stale' }
-    })
-    expect(approvals.approve).not.toHaveBeenCalled()
-
-    await service.handle(
-      {
-        type: 'tool.approve',
-        protocol: 'actiondriver.stream.v1',
-        eventId: 'decision-2',
-        createdAt: '2026-09-23T00:00:00.000Z',
-        requestId: accepted.requestId,
-        taskId: accepted.taskId,
-        callId: 'call-1',
-        argumentsHash: 'sha256:abc'
-      },
-      (event) => {
-        published.push(event)
-      }
-    )
-    expect(approvals.approve).toHaveBeenCalledWith({
-      action: 'approve',
-      taskId: accepted.taskId,
-      callId: 'call-1',
-      argumentsHash: 'sha256:abc'
-    })
-
     await repositories.events.append({
       taskId: accepted.taskId,
       threadId: accepted.sessionId,
@@ -1046,7 +990,7 @@ describe('StreamSessionService', () => {
         throw new Error('not used')
       }
     }
-    const { repositories, service } = createHarness(graphRunner, undefined, {
+    const { repositories, service } = createHarness(graphRunner, {
       enabled: true,
       maxBytes: 12
     })

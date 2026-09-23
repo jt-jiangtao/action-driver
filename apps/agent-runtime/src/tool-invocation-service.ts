@@ -1,8 +1,6 @@
 import { z } from 'zod'
 import {
-  parseToolApprovalCommand,
   parseToolCall,
-  type ToolApprovalCommand,
   type ToolCall,
   type ToolError,
   type ToolEvent
@@ -31,27 +29,7 @@ export type ToolInvocationContext = {
   onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
 }
 
-type ApprovalWaiter = {
-  taskId: string
-  argumentsHash: string
-  decision: 'approve' | 'reject' | null
-  release(decision: 'approve' | 'reject'): void
-  promise: Promise<'approve' | 'reject'>
-}
-
-export class ToolApprovalError extends Error {
-  constructor(readonly code: 'TOOL_APPROVAL_STALE' | 'TOOL_APPROVAL_NOT_PENDING') {
-    super(code)
-    this.name = 'ToolApprovalError'
-  }
-}
-
 export class ToolInvocationService {
-  private readonly pending = new Map<string, ApprovalWaiter>()
-  private readonly resolved = new Map<
-    string,
-    { taskId: string; argumentsHash: string; action: 'approve' | 'reject' }
-  >()
   private readonly maxOutputBytes: number
 
   constructor(
@@ -65,45 +43,6 @@ export class ToolInvocationService {
     }
   ) {
     this.maxOutputBytes = options.maxOutputBytes ?? 1024 * 1024
-  }
-
-  async approve(command: ToolApprovalCommand): Promise<void> {
-    this.decide(command, 'approve')
-  }
-
-  async reject(command: ToolApprovalCommand): Promise<void> {
-    this.decide(command, 'reject')
-  }
-
-  private decide(command: ToolApprovalCommand, action: 'approve' | 'reject'): void {
-    const parsed = parseToolApprovalCommand(command)
-    if (parsed.action !== action) throw new ToolApprovalError('TOOL_APPROVAL_STALE')
-    const waiter = this.pending.get(parsed.callId)
-    if (!waiter) {
-      const resolved = this.resolved.get(parsed.callId)
-      if (
-        resolved?.taskId === parsed.taskId &&
-        resolved.argumentsHash === parsed.argumentsHash &&
-        resolved.action === action
-      )
-        return
-      throw new ToolApprovalError(resolved ? 'TOOL_APPROVAL_STALE' : 'TOOL_APPROVAL_NOT_PENDING')
-    }
-    if (waiter.taskId !== parsed.taskId || waiter.argumentsHash !== parsed.argumentsHash) {
-      throw new ToolApprovalError('TOOL_APPROVAL_STALE')
-    }
-    if (waiter.decision !== null) {
-      if (waiter.decision !== action) throw new ToolApprovalError('TOOL_APPROVAL_STALE')
-      return
-    }
-    waiter.decision = action
-    this.resolved.set(parsed.callId, {
-      taskId: parsed.taskId,
-      argumentsHash: parsed.argumentsHash,
-      action
-    })
-    if (this.resolved.size > 1000) this.resolved.delete(this.resolved.keys().next().value!)
-    waiter.release(action)
   }
 
   async *execute(
