@@ -9,14 +9,13 @@ import { mockModelSelection } from '../testing/model-selection-fixture'
 describe('ActionDriver pages', () => {
   it('renders the Figma home copy and 720px composer contract', () => {
     render(
-      <HomePage
-        modelSelection={mockModelSelection}
-        onSelectModel={vi.fn()}
-        onSubmit={vi.fn()}
-      />
+      <HomePage modelSelection={mockModelSelection} onSelectModel={vi.fn()} onSubmit={vi.fn()} />
     )
     expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
-    expect(screen.getByTestId('e2e/home/main/composer#section')).toHaveAttribute('data-width', '720')
+    expect(screen.getByTestId('e2e/home/main/composer#section')).toHaveAttribute(
+      'data-width',
+      '720'
+    )
   })
 
   it.each([
@@ -39,8 +38,14 @@ describe('ActionDriver pages', () => {
     )
 
     expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', mode)
-    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute('data-width', agentWidth)
-    expect(screen.getByTestId('e2e/tasks/detail/browser#section')).toHaveAttribute('data-width', browserWidth)
+    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute(
+      'data-width',
+      agentWidth
+    )
+    expect(screen.getByTestId('e2e/tasks/detail/browser#section')).toHaveAttribute(
+      'data-width',
+      browserWidth
+    )
   })
 
   it('closes the model menu when the task layout changes without resetting the task', async () => {
@@ -87,9 +92,9 @@ describe('ActionDriver pages', () => {
     rerender(<TaskPage {...props} mode="browser-expanded" />)
     rerender(<TaskPage {...props} mode="split" />)
 
-    expect(
-      screen.getByLabelText('任务描述').textContent?.replace(/[\s\uFEFF]/g, '')
-    ).toBe(draftBeforeLayoutChange)
+    expect(screen.getByLabelText('任务描述').textContent?.replace(/[\s\uFEFF]/g, '')).toBe(
+      draftBeforeLayoutChange
+    )
   })
 
   it('uses the full-width Agent layout when a persisted task has no browser session', () => {
@@ -107,8 +112,15 @@ describe('ActionDriver pages', () => {
       />
     )
 
-    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'agent-only')
-    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute('data-width', '1192')
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'agent-only'
+    )
+    expect(screen.getByTestId('e2e/tasks/detail/agent#section')).toHaveAttribute(
+      'data-width',
+      '1192'
+    )
     expect(screen.queryByTestId('e2e/tasks/detail/browser#section')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '展开浏览器' })).not.toBeInTheDocument()
   })
 })

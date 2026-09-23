@@ -7,9 +7,12 @@
 }
 
 .task-page[data-mode='browser-expanded'],
-.task-page[data-mode='browser-collapsed'],
-.task-page[data-mode='agent-only'] {
+.task-page[data-mode='browser-collapsed'] {
   grid-template-columns: minmax(0, 1192px);
+}
+
+.task-page[data-mode='agent-only'] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .agent-panel,
@@ -25,6 +28,10 @@
 .user-message,
 .agent-message {
   overflow-wrap: anywhere;
+}
+
+.agent-generating {
+  color: var(--ad-color-text-secondary);
 }
 
 @media (max-width: 1199px) {

@@ -59,6 +59,30 @@ function call(
 }
 
 describe('repository-backed task and model-log projections', () => {
+  it('projects structured text messages written by the streaming session', () => {
+    const projection = buildTaskProjection(task('task-success', 'running'), [
+      {
+        id: 'stream-user',
+        taskId: 'task-success',
+        role: 'user',
+        content: { text: 'Stream request' },
+        createdAt: '2026-09-23T01:00:00.000Z'
+      },
+      {
+        id: 'stream-assistant',
+        taskId: 'task-success',
+        role: 'assistant',
+        content: { text: '' },
+        createdAt: '2026-09-23T01:00:00.000Z'
+      }
+    ])
+
+    expect(projection.messages).toEqual([
+      { id: 'stream-user', role: 'user', content: 'Stream request' },
+      { id: 'stream-assistant', role: 'agent', content: '' }
+    ])
+  })
+
   it('projects completed and failed records after reopening storage', async () => {
     const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-')), 'runtime.db')
     const first = new SqliteRuntimeRepositories(openRuntimeDatabase(path))

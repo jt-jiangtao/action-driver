@@ -30,8 +30,20 @@ export function TaskPage({
 }) {
   const hasBrowser = task.browser !== null
   const pageMode = hasBrowser ? mode : 'agent-only'
-  const agentWidth = !hasBrowser ? 1192 : mode === 'split' ? 536 : mode === 'browser-collapsed' ? 1192 : 0
-  const browserWidth = !hasBrowser ? 0 : mode === 'split' ? 656 : mode === 'browser-expanded' ? 1192 : 0
+  const agentWidth = !hasBrowser
+    ? 1192
+    : mode === 'split'
+      ? 536
+      : mode === 'browser-collapsed'
+        ? 1192
+        : 0
+  const browserWidth = !hasBrowser
+    ? 0
+    : mode === 'split'
+      ? 656
+      : mode === 'browser-expanded'
+        ? 1192
+        : 0
   const flowWidth = !hasBrowser || mode === 'browser-collapsed' ? 720 : 480
   return (
     <main
@@ -47,12 +59,12 @@ export function TaskPage({
       >
         <TaskHeader
           title={task.title}
-          browserCollapsed={mode === 'browser-collapsed'}
+          browserCollapsed={hasBrowser && mode === 'browser-collapsed'}
           onExpandBrowser={() => onModeChange('split')}
         />
         <div className="conversation-body">
           <div className="conversation-stream" data-width={flowWidth}>
-            <ConversationMessages messages={task.messages} />
+            <ConversationMessages messages={task.messages} generating={task.status === 'running'} />
             <ExecutionTimeline steps={task.steps} />
           </div>
           <div className="conversation-spacer" />
@@ -69,22 +81,24 @@ export function TaskPage({
           />
         </div>
       </section>
-      {hasBrowser ? <section
-        className={`browser-panel-slot ${browserWidth === 0 ? 'is-hidden' : ''}`}
-        data-testid="e2e/tasks/detail/browser#section"
-        data-width={browserWidth}
-      >
-        {task.browser ? (
-          <BrowserPanel
-            mode={mode === 'browser-expanded' ? 'browser-expanded' : 'split'}
-            projection={task.browser}
-            onModeChange={onModeChange}
-            onPause={onPause}
-            onResume={onResume}
-            onTakeOver={onTakeOver}
-          />
-        ) : null}
-      </section> : null}
+      {hasBrowser ? (
+        <section
+          className={`browser-panel-slot ${browserWidth === 0 ? 'is-hidden' : ''}`}
+          data-testid="e2e/tasks/detail/browser#section"
+          data-width={browserWidth}
+        >
+          {task.browser ? (
+            <BrowserPanel
+              mode={mode === 'browser-expanded' ? 'browser-expanded' : 'split'}
+              projection={task.browser}
+              onModeChange={onModeChange}
+              onPause={onPause}
+              onResume={onResume}
+              onTakeOver={onTakeOver}
+            />
+          ) : null}
+        </section>
+      ) : null}
     </main>
   )
 }

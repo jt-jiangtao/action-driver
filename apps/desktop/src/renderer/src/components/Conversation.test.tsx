@@ -51,4 +51,17 @@ describe('conversation components', () => {
     expect(document.querySelector('script')).toBeNull()
     expect(screen.getByText('<script>alert(1)</script>')).toBeVisible()
   })
+
+  it('announces an empty running response until the first stream content arrives', () => {
+    const { rerender } = render(
+      <AgentResponse message={{ id: 'live', role: 'agent', content: '' }} generating />
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent('正在生成')
+    rerender(
+      <AgentResponse message={{ id: 'live', role: 'agent', content: '**完成**' }} generating />
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText('完成')).toBeVisible()
+  })
 })

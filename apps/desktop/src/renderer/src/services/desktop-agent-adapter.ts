@@ -12,19 +12,47 @@ import type {
 } from '@actiondriver/contracts'
 import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
+import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import { StreamTaskProjection } from './stream-task-projection'
 
 export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
   private readonly tasks = new Map<string, TaskProjection>()
   private readonly listeners = new Set<(task: TaskProjection) => void>()
-  private readonly subscriptions = new Map<string, () => void>()
+  private readonly streamProjections = new Map<string, StreamTaskProjection>()
+  private readonly pendingStreamEvents = new Map<string, StreamServerEvent[]>()
 
-  constructor(private readonly api: AgentDesktopApi) {}
+  constructor(private readonly api: AgentDesktopApi) {
+    this.api.subscribeStream((event) => this.handleStreamEvent(event))
+  }
 
   async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
     try {
-      const { taskId } = await this.api.submit(request)
-      await this.ensureSubscription(taskId)
-      return await this.refreshTask(taskId)
+      const accepted = await this.api.submit(request)
+      const projection = new StreamTaskProjection({
+        onChange: (task) => {
+          this.tasks.set(task.id, task)
+          this.emit(task)
+        }
+      })
+      this.streamProjections.set(accepted.taskId, projection)
+      for (const event of this.pendingStreamEvents.get(accepted.taskId) ?? []) {
+        projection.apply(event)
+      }
+      this.pendingStreamEvents.delete(accepted.taskId)
+
+      const task = await this.api.get(accepted.taskId)
+      if (!task) {
+        throw new AgentServiceError(
+          'invalid-response',
+          `Runtime returned no task for ${accepted.taskId}`
+        )
+      }
+      const mapped = mapTaskProjection(task)
+      projection.attach(mapped)
+      const snapshot = projection.snapshot() ?? mapped
+      this.tasks.set(accepted.taskId, snapshot)
+      this.emit(snapshot)
+      return structuredClone(snapshot)
     } catch (error) {
       throw mapAgentError(error)
     }
@@ -64,24 +92,16 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
     return () => this.listeners.delete(listener)
   }
 
-  private async ensureSubscription(taskId: string): Promise<void> {
-    if (this.subscriptions.has(taskId)) return
-    const unsubscribe = await this.api.subscribe(taskId, 0, (event) => {
-      if (event.taskId !== taskId) return
-      void this.refreshTask(taskId).catch(() => undefined)
-    })
-    this.subscriptions.set(taskId, unsubscribe)
-  }
-
-  private async refreshTask(taskId: string): Promise<TaskProjection> {
-    const task = await this.api.get(taskId)
-    if (!task) {
-      throw new AgentServiceError('invalid-response', `Runtime returned no task for ${taskId}`)
+  private handleStreamEvent(event: StreamServerEvent): void {
+    if (!('taskId' in event)) return
+    const projection = this.streamProjections.get(event.taskId)
+    if (projection) {
+      projection.apply(event)
+      return
     }
-    const projection = mapTaskProjection(task)
-    this.tasks.set(taskId, projection)
-    this.emit(projection)
-    return structuredClone(projection)
+    const pending = this.pendingStreamEvents.get(event.taskId) ?? []
+    pending.push(structuredClone(event))
+    this.pendingStreamEvents.set(event.taskId, pending)
   }
 
   private emit(task: TaskProjection): void {

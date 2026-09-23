@@ -4,7 +4,7 @@ import type {
   TaskProjection
 } from '@actiondriver/contracts'
 import { AgentServiceError, SKILL_IDS } from '@actiondriver/contracts'
-import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
+import type { RuntimeEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from './desktop-agent-adapter'
@@ -13,7 +13,10 @@ const task = (status: TaskProjection['status'] = 'running'): TaskProjection => (
   id: 'task-1',
   title: 'Book a hotel',
   status,
-  messages: [{ id: 'message-1', role: 'user', content: 'Book a hotel' }],
+  messages: [
+    { id: 'message-1', role: 'user', content: 'Book a hotel' },
+    { id: 'assistant-1', role: 'agent', content: '' }
+  ],
   steps: [{ id: 'step-1', title: 'Plan', detail: 'Planning', state: 'current' }],
   browser: null
 })
@@ -21,6 +24,7 @@ const task = (status: TaskProjection['status'] = 'running'): TaskProjection => (
 function harness() {
   let currentTask = task()
   let eventListener: ((event: RuntimeEvent) => void) | undefined
+  let streamListener: ((event: StreamServerEvent) => void) | undefined
   const api: AgentDesktopApi = {
     submit: vi.fn(async () => ({
       type: 'request.accepted' as const,
@@ -32,11 +36,16 @@ function harness() {
       taskId: 'task-1',
       responseId: 'response-1',
       streamId: 'stream-1',
-      messageId: 'message-1',
+      messageId: 'assistant-1',
       occurredAt: '2026-09-23T00:00:00.000Z'
     })),
     cancel: vi.fn(async () => undefined),
-    subscribeStream: vi.fn(() => () => undefined),
+    subscribeStream: vi.fn((listener) => {
+      streamListener = listener
+      return () => {
+        streamListener = undefined
+      }
+    }),
     get: vi.fn(async () => structuredClone(currentTask)),
     listTasks: vi.fn(async () => []),
     listModelLogs: vi.fn(async () => []),
@@ -67,6 +76,9 @@ function harness() {
     emit(event: RuntimeEvent) {
       eventListener?.(event)
     },
+    emitStream(event: StreamServerEvent) {
+      streamListener?.(event)
+    },
     setTask(next: TaskProjection) {
       currentTask = next
     }
@@ -74,8 +86,8 @@ function harness() {
 }
 
 describe('DesktopAgentAdapter', () => {
-  it('submits through Preload, caches an immutable projection, and refreshes it from events', async () => {
-    const { adapter, api, emit, setTask } = harness()
+  it('subscribes before submit and projects the live stream without the legacy subscription', async () => {
+    const { adapter, api, emitStream } = harness()
     const listener = vi.fn()
     adapter.subscribe(listener)
 
@@ -88,21 +100,49 @@ describe('DesktopAgentAdapter', () => {
 
     expect(api.submit).toHaveBeenCalledWith(request)
     expect(api.get).toHaveBeenCalledWith('task-1')
-    expect(api.subscribe).toHaveBeenCalledWith('task-1', 0, expect.any(Function))
+    expect(api.subscribeStream).toHaveBeenCalledOnce()
+    expect(api.subscribe).not.toHaveBeenCalled()
+    expect(vi.mocked(api.subscribeStream).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(api.submit).mock.invocationCallOrder[0]!
+    )
     expect(adapter.getTask('task-1')?.title).toBe('Book a hotel')
     expect(listener).toHaveBeenLastCalledWith(task())
 
-    setTask(task('waiting-user'))
-    emit({
-      cursor: 7,
+    emitStream({
+      type: 'response.start',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'start-1',
+      cursor: 2,
+      requestId: 'request-1',
+      sessionId: 'session-1',
       taskId: 'task-1',
-      type: 'task.updated',
-      payload: { status: 'waiting-user' },
-      occurredAt: '2026-09-22T00:00:00.000Z'
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:00.000Z',
+      sequence: 0,
+      model: request.model
+    })
+    emitStream({
+      type: 'response.content',
+      protocol: 'actiondriver.stream.v1',
+      eventId: 'content-1',
+      cursor: 3,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:01.000Z',
+      sequence: 1,
+      delta: '**real**',
+      contentIndex: 0
     })
 
-    await vi.waitFor(() => expect(adapter.getTask('task-1')?.status).toBe('waiting-user'))
-    expect(listener).toHaveBeenLastCalledWith(task('waiting-user'))
+    await vi.waitFor(() =>
+      expect(adapter.getTask('task-1')?.messages.at(-1)?.content).toBe('**real**')
+    )
   })
 
   it('delegates interrupt, continue, and user input commands to the whitelisted API', async () => {

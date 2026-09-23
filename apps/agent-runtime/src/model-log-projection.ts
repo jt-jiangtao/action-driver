@@ -18,13 +18,14 @@ export function buildTaskProjection(
     title: task.goal,
     status,
     messages: messages.flatMap((message) => {
-      if (typeof message.content !== 'string') return []
+      const content = messageText(message.content)
+      if (content === null) return []
       if (message.role !== 'user' && message.role !== 'assistant') return []
       return [
         {
           id: message.id,
           role: message.role === 'assistant' ? ('agent' as const) : ('user' as const),
-          content: message.content
+          content
         }
       ]
     }),
@@ -91,9 +92,11 @@ function buildCallProjection(
 ): ModelLogCallProjection {
   const requestMessages = readRequestMessages(call.request)
   const systemPrompt = requestMessages.find((message) => message.role === 'system')?.content ?? ''
+  const storedUserMessage = messages.find(
+    (message) => message.role === 'user' && messageText(message.content) !== null
+  )
   const userInput =
-    messages.find((message) => message.role === 'user' && typeof message.content === 'string')
-      ?.content ??
+    messageText(storedUserMessage?.content) ??
     requestMessages.find((message) => message.role === 'user')?.content ??
     task.goal
   const metadata = {
@@ -218,4 +221,10 @@ function errorMessage(error: unknown): string | null {
 
 function prettyJson(value: unknown): string {
   return JSON.stringify(value, null, 2)
+}
+
+function messageText(content: unknown): string | null {
+  if (typeof content === 'string') return content
+  if (!content || typeof content !== 'object' || !('text' in content)) return null
+  return typeof content.text === 'string' ? content.text : null
 }
