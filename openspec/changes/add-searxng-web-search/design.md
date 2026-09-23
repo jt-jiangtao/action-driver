@@ -1,5 +1,7 @@
 ## Context
 
+> 后续决策：`remove-interactive-tool-approval` 取代本设计中的逐次批准路径。保留以下文字作为 Web Search 初次接入时的历史设计记录；当前自动执行方案以新变更为准。
+
 现有 `RuntimeToolRegistry`、`RuntimeToolPolicy` 和 `ToolInvocationService` 已提供版本化发现、参数校验、一次性批准、取消、事件持久化与交互日志。`RuntimeToolPolicy` 已将所有网络副作用判为 `require_approval`，而 `runtime-process` 当前仅注册 Sandbox 工具。Sandbox 规范刻意禁止网络，因此 SearXNG 必须作为独立网络执行器，而不是扩大 Sandbox 权限。详见 proposal.md 与本变更的 specs。
 
 ## Goals / Non-Goals

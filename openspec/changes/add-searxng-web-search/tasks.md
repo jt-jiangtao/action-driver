@@ -1,3 +1,5 @@
+> 后续决策：`remove-interactive-tool-approval` 将移除新调用的逐次审批。已勾选任务保留初次接入的历史验收事实，新变更另有迁移与回归任务。
+
 ## 1. 搜索工具契约与本机目标校验
 
 - [x] 1.1 在 Agent Runtime 新增 SearXNG provider / executor 与 `web.search@1` 定义，校验查询和筛选输入 schema；通过单元测试验证合法输入、空查询、未知字段和结果数量上限。
