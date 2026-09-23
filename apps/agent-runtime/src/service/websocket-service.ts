@@ -26,21 +26,20 @@ export function attachServiceWebSocketServer(
     sessions: ServiceStreamSessionPort
     tokenMatches(token: string): boolean
     logger: Logger | null
-    trustedRendererOrigins?: readonly string[]
+    rendererOrigin?: string
     maxPayloadBytes?: number
     maxBufferedBytes?: number
   }
 ): { close(): Promise<void> } {
   const maxPayloadBytes = options.maxPayloadBytes ?? 1_000_000
   const maxBufferedBytes = options.maxBufferedBytes ?? 1_000_000
-  const trustedRendererOrigins = new Set(options.trustedRendererOrigins ?? [])
   const webSockets = new WebSocketServer({ noServer: true, maxPayload: maxPayloadBytes })
 
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url ?? '/', 'http://localhost')
     const origin = request.headers.origin
     const trustedRendererOrigin =
-      origin === undefined || origin === 'file://' || trustedRendererOrigins.has(origin)
+      origin === undefined || origin === 'file://' || origin === options.rendererOrigin
     if (url.pathname !== SERVICE_STREAM_PATH || !trustedRendererOrigin) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
       socket.destroy()

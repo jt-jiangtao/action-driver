@@ -5,6 +5,8 @@ import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ConversationViewport } from '../components/ConversationViewport'
 import { ToolActivityCards } from '../components/ToolActivityCards'
+import { ActivityTimeline } from '../components/ActivityTimeline'
+import { ToolApprovalBar } from '../components/ToolApprovalBar'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -61,6 +63,13 @@ export function TaskPage({
     )
   const inheritedModelUnavailable = !inheritedModel || inheritedModel.disabled
   const latestMessage = task.messages.at(-1)
+  const archived = task.activityTimeline !== undefined && task.status !== 'running'
+  const processMessages = archived
+    ? task.messages.filter((message) => message.role === 'user')
+    : task.messages
+  const conclusionMessages = archived
+    ? task.messages.filter((message) => message.role === 'agent')
+    : []
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}`
   return (
     <main
@@ -83,12 +92,30 @@ export function TaskPage({
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
               <ConversationMessages
-                messages={task.messages}
+                messages={processMessages}
                 generating={task.status === 'running'}
               />
-              <ToolActivityCards tools={task.tools ?? []} {...(onApproveTool ? { onApprove: onApproveTool } : {})} {...(onRejectTool ? { onReject: onRejectTool } : {})} />
+              {task.activityTimeline ? (
+                <ActivityTimeline task={task} />
+              ) : (
+                <ToolActivityCards
+                  tools={task.tools ?? []}
+                  {...(onApproveTool ? { onApprove: onApproveTool } : {})}
+                  {...(onRejectTool ? { onReject: onRejectTool } : {})}
+                />
+              )}
+              {conclusionMessages.length > 0 ? (
+                <ConversationMessages messages={conclusionMessages} generating={false} />
+              ) : null}
             </div>
           </ConversationViewport>
+          {task.activityTimeline ? (
+            <ToolApprovalBar
+              tools={task.tools ?? []}
+              {...(onApproveTool ? { onApprove: onApproveTool } : {})}
+              {...(onRejectTool ? { onReject: onRejectTool } : {})}
+            />
+          ) : null}
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}

@@ -62,4 +62,3 @@ Runtime 读取 `ACTIONDRIVER_SEARXNG_ENDPOINT`；只接受以 `http://127.0.0.1:
 2. 完成真实工具循环、批准、WebSocket 事件及 L1 双层日志的集成与端到端测试。
 3. 添加外部 Docker Compose、设置样例和使用文档；由用户手动启动后，使用配置的 loopback endpoint 做真实 smoke。
 4. 回滚时移除 `ACTIONDRIVER_SEARXNG_ENDPOINT` 或停用注册；模型恢复为没有 Web Search 的既有工具列表，已有本地审计记录保留且不会被伪装为成功搜索。
-

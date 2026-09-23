@@ -24,4 +24,3 @@
 
 - [x] 5.1 运行受影响 workspace 的类型检查、单元测试和工具 Runtime E2E；记录命令及结果，并确认现有 Sandbox 默认禁网测试和模型文本流测试保持通过。
 - [x] 5.2 在已配置本机 SearXNG 与真实模型的环境执行一次搜索 smoke，确认实际双层日志和一次性批准可观察；若环境不可用，记录阻塞原因并保留 fake 服务端到端证据（当前未配置用户的真实模型连接；本机 Docker JSON health check 与 fake OpenAI/SearXNG E2E 均已通过）。
-

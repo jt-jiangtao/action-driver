@@ -22,4 +22,3 @@ describe('SearXNG runtime registration', () => {
     )).toThrow('SEARXNG_ENDPOINT_INVALID')
   })
 })
-

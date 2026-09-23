@@ -28,6 +28,7 @@ export type ToolInvocationContext = {
   checkpointId: string
   requestId: string
   grants: string[]
+  activityId?: string | null
   onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
 }
 
@@ -147,7 +148,9 @@ export class ToolInvocationService {
           modelName: definition.modelName,
           summary: toolActivitySummary(definition.id, call.arguments),
           durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
-          argumentsHash: invocation.argumentsHash
+          argumentsHash: invocation.argumentsHash,
+          activityId: context.activityId ?? null,
+          input: call.arguments
         },
         occurredAt: invocation.updatedAt,
         eventId: `${call.callId}.${event.sequence}`,

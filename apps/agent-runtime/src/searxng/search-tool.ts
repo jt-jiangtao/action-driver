@@ -198,4 +198,3 @@ function truncate(value: string, maxLength: number): string {
   const characters = Array.from(value)
   return characters.length > maxLength ? `${characters.slice(0, maxLength - 1).join('')}…` : value
 }
-

@@ -14,4 +14,3 @@ server:
   secret_key: "replace-this-local-development-secret-before-sharing"
   limiter: false
   image_proxy: false
-

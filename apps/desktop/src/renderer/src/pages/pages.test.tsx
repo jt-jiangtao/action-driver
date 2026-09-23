@@ -178,7 +178,7 @@ describe('ActionDriver pages', () => {
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
 
-  it('places a waiting tool approval between the scrollable conversation and anchored composer', () => {
+  it('groups active and completed tool cards in the conversation, keeping only the latest active card open', () => {
     const { container } = render(
       <TaskPage
         mode="split"
@@ -193,6 +193,16 @@ describe('ActionDriver pages', () => {
               summary: 'rg TODO README.md',
               argumentsHash: 'sha256:abc',
               status: 'waiting_approval'
+            },
+            {
+              callId: 'call-2',
+              toolId: 'web.search@1',
+              modelName: 'web_search',
+              summary: '搜索 “ActionDriver”',
+              argumentsHash: '',
+              status: 'completed',
+              durationMs: 42,
+              resultSummary: 'ActionDriver Documentation'
             }
           ]
         }}
@@ -208,11 +218,21 @@ describe('ActionDriver pages', () => {
         onRejectTool={vi.fn(async () => undefined)}
       />
     )
-    const body = container.querySelector('.conversation-body')!
-    expect([...body.children].map((child) => child.className)).toEqual([
-      'conversation-scroll',
-      'tool-approval-list',
-      'agent-composer'
-    ])
+    expect(screen.getByTestId('e2e/tasks/detail/tool-activity/running#section')).toHaveTextContent(
+      '正在运行中'
+    )
+    expect(screen.getByTestId('e2e/tasks/detail/tool-activity/completed#section')).toHaveTextContent(
+      '运行结束'
+    )
+    expect(screen.getByRole('button', { name: /sandbox.shell.run/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: /web.search@1/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
+    expect(screen.getByRole('button', { name: '允许一次' })).toBeVisible()
+    expect(container.querySelector('.conversation-scroll .tool-activity-list')).not.toBeNull()
   })
 })

@@ -27,4 +27,3 @@
 - 影响 `apps/agent-runtime` 的工具注册、配置装配和 HTTP 执行器，以及对应单元和真实工具闭环 E2E。
 - 影响 `packages/runtime-contracts` 的 Tool Definition / 结果协议（仅在现有契约无法表达搜索输入或结果限制时）。
 - 新增应用外的 Docker Compose、SearXNG 设置样例和本地部署文档；不新增模型协议、不迁移至 OpenAI Responses API，也不加入 Browser Use、网页抓取或任意网络访问。
-

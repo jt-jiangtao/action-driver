@@ -20,6 +20,215 @@ import {
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('intercepts activity.update without delegating it to an external tool', async () => {
+    let round = 0
+    const observed: unknown[] = []
+    const toolRecords: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        round += 1
+        if (round === 1) {
+          return {
+            kind: 'tool-calls',
+            calls: [
+              {
+                providerCallId: 'activity-start',
+                modelName: 'activity_update',
+                arguments: {
+                  action: 'start',
+                  activityId: 'activity-research',
+                  title: '正在调研',
+                  titleRevision: 1
+                }
+              },
+              {
+                providerCallId: 'provider-read-activity',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'README.md' }
+              }
+            ]
+          }
+        }
+        return { kind: 'finish', content: 'done' }
+      }
+    }
+    const { runner, commits } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'README' }
+      }
+    })
+
+    await runner.run(
+      { taskId: 'task-activity', goal: 'research', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      },
+      (record) => {
+        toolRecords.push(record)
+      }
+    )
+
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'started',
+        activityId: 'activity-research',
+        title: '正在调研',
+        titleRevision: 1
+      }
+    })
+    expect(toolRecords).toContainEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({ activityId: 'activity-research' })
+      })
+    )
+    expect(commits).toEqual(['proposed', 'queued', 'running', 'completed'])
+  })
+
+  it('creates one fallback activity for a normal multi-tool batch', async () => {
+    let round = 0
+    const observed: unknown[] = []
+    const toolRecords: Array<{ payload?: { activityId?: string | null } }> = []
+    const model: ModelGateway = {
+      async complete() {
+        round += 1
+        if (round === 1) {
+          return {
+            kind: 'tool-calls' as const,
+            calls: [
+              {
+                providerCallId: 'provider-read-first',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'README.md' }
+              },
+              {
+                providerCallId: 'provider-read-second',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'package.json' }
+              }
+            ]
+          }
+        }
+        return { kind: 'finish' as const, content: 'done' }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'file content' }
+      }
+    })
+
+    await runner.run(
+      { taskId: 'task-fallback-activity', goal: 'read files', model: modelRef },
+      undefined,
+      (event) => observed.push(event),
+      (record) => toolRecords.push(record)
+    )
+
+    const activityEvents = observed.filter(
+      (event): event is { kind: 'activity'; event: { type: string; activityId: string } } =>
+        typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'activity'
+    )
+    expect(activityEvents.map((event) => event.event.type)).toEqual(['started', 'completed'])
+    expect(activityEvents[0]?.event.activityId).toBe('activity:task-fallback-activity:1')
+    expect(toolRecords).toHaveLength(8)
+    expect(
+      toolRecords
+        .filter((record) => record.payload?.activityId !== undefined)
+        .map((record) => record.payload?.activityId)
+    ).toEqual([
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1',
+      'activity:task-fallback-activity:1'
+    ])
+  })
+
+  it('attributes streamed progress text to the active activity instead of final assistant content', async () => {
+    let round = 0
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('stream path expected')
+      },
+      async *stream() {
+        round += 1
+        if (round === 1) {
+          yield {
+            kind: 'end' as const,
+            content: '',
+            finishReason: 'tool_calls',
+            usage: null,
+            result: {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: 'activity-start',
+                  modelName: 'activity_update',
+                  arguments: {
+                    action: 'start',
+                    activityId: 'activity-research',
+                    title: '调研现有实现',
+                    titleRevision: 1
+                  }
+                }
+              ]
+            }
+          }
+          return
+        }
+        if (round === 2) {
+          yield { kind: 'content' as const, delta: '已读取现有协议。' }
+          yield {
+            kind: 'end' as const,
+            content: '已读取现有协议。',
+            finishReason: 'tool_calls',
+            usage: null,
+            result: {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: 'activity-complete',
+                  modelName: 'activity_update',
+                  arguments: { action: 'complete', activityId: 'activity-research' }
+                }
+              ]
+            }
+          }
+          return
+        }
+        yield { kind: 'content' as const, delta: '最终结论' }
+        yield {
+          kind: 'end' as const,
+          content: '最终结论',
+          finishReason: 'stop',
+          usage: null,
+          result: { kind: 'final-text' as const, content: '最终结论' }
+        }
+      }
+    }
+
+    const result = await new LangGraphRunner(model, new MockSkillRegistry()).run(
+      { taskId: 'task-activity-text', goal: 'research', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      }
+    )
+
+    expect(result).toMatchObject({ status: 'completed', output: '最终结论' })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: { type: 'text', activityId: 'activity-research', delta: '已读取现有协议。' }
+    })
+    expect(observed).toContainEqual({ kind: 'content', delta: '最终结论' })
+  })
+
   it('runs a model tool request and returns only the final model answer', async () => {
     const requests: Parameters<ModelGateway['complete']>[0][] = []
     const model: ModelGateway = {
@@ -53,7 +262,10 @@ describe('minimal agent StateGraph', () => {
 
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual([
+      'sandbox_fs_read',
+      'activity_update'
+    ])
     expect(requests[1]?.messages.at(-2)).toMatchObject({
       role: 'assistant',
       toolCalls: [{ providerCallId: 'provider-read-1' }]
@@ -149,7 +361,7 @@ describe('minimal agent StateGraph', () => {
       async complete(request) {
         round += 1
         if (round === 1) {
-          expect(request.tools).toBeUndefined()
+          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['activity_update'])
           return {
             kind: 'tool-calls',
             calls: [

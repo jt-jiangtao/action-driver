@@ -1,8 +1,14 @@
 import type { PersistedToolInvocation } from './ports'
 
+type ToolErrorLike = { code?: unknown }
+
 export function toolActivitySummary(toolId: string, input: unknown): string {
-  if (toolId === 'web.search@1' && isRecord(input) && typeof input.query === 'string') return `搜索 “${truncate(input.query, 120)}”`
-  if (toolId.startsWith('sandbox.fs.') && isRecord(input) && typeof input.path === 'string') return `访问文件 ${truncate(input.path, 120)}`
+  if (toolId === 'web.search@1' && isRecord(input) && typeof input.query === 'string') {
+    return `搜索 “${truncate(input.query, 120)}”`
+  }
+  if (toolId.startsWith('sandbox.fs.') && isRecord(input) && typeof input.path === 'string') {
+    return `访问文件 ${truncate(input.path, 120)}`
+  }
   if (toolId === 'sandbox.shell.run') return '执行命令'
   return `运行 ${toolId}`
 }
@@ -19,7 +25,9 @@ export function toolActivityResultSummary(toolId: string, output: unknown): stri
 }
 
 export function toolActivityErrorSummary(error: unknown): string {
-  const code = isRecord(error) && typeof error.code === 'string' ? error.code : ''
+  const code = isRecord(error) && typeof (error as ToolErrorLike).code === 'string'
+    ? (error as { code: string }).code
+    : ''
   if (code === 'TOOL_REJECTED') return '已被拒绝'
   if (code === 'TOOL_CANCELLED') return '已取消'
   if (code === 'TOOL_TIMEOUT') return '执行超时'
@@ -37,9 +45,18 @@ export function persistedToolActivity(invocation: PersistedToolInvocation) {
   return {
     summary: toolActivitySummary(invocation.toolId, invocation.input),
     durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
-    ...(invocation.status === 'completed' ? { resultSummary: toolActivityResultSummary(invocation.toolId, invocation.output) } : invocation.status === 'failed' || invocation.status === 'cancelled' ? { errorSummary: toolActivityErrorSummary(invocation.error) } : {})
+    ...(invocation.status === 'completed'
+      ? { resultSummary: toolActivityResultSummary(invocation.toolId, invocation.output) }
+      : invocation.status === 'failed' || invocation.status === 'cancelled'
+        ? { errorSummary: toolActivityErrorSummary(invocation.error) }
+        : {})
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' }
-function truncate(value: string, maximum: number): string { return value.length <= maximum ? value : `${value.slice(0, maximum - 1)}…` }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+}
+
+function truncate(value: string, maximum: number): string {
+  return value.length <= maximum ? value : `${value.slice(0, maximum - 1)}…`
+}

@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
+import { FakeOpenAiToolServer, FakeSearxngServer } from './support/fake-openai-tool-server'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const runtimeEntry = fileURLToPath(new URL('../../agent-runtime/dist/index.js', import.meta.url))
@@ -19,6 +19,7 @@ const apiKey = 'sk-e2e-tool-secret'
 
 let application: ElectronApplication | undefined
 let provider: FakeOpenAiToolServer | undefined
+let search: FakeSearxngServer | undefined
 let userDataDirectory: string
 let homeDirectory: string
 
@@ -32,13 +33,21 @@ test.afterEach(async () => {
   application = undefined
   await provider?.close()
   provider = undefined
+  await search?.close()
+  search = undefined
   if (userDataDirectory) rmSync(userDataDirectory, { recursive: true, force: true })
   if (homeDirectory) rmSync(homeDirectory, { recursive: true, force: true })
 })
 
-async function launch(mode: 'read' | 'shell' | 'shell-timeout'): Promise<Page> {
+async function launch(
+  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'web'
+): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
+  if (mode === 'web') {
+    search = new FakeSearxngServer()
+    await search.start()
+  }
   userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-data-'))
   homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-home-'))
   const workspace = join(userDataDirectory, 'workspace')
@@ -53,7 +62,8 @@ async function launch(mode: 'read' | 'shell' | 'shell-timeout'): Promise<Page> {
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
+      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
+      ...(search ? { ACTIONDRIVER_SEARXNG_ENDPOINT: search.endpoint } : {})
     }
   })
   const page = await application.firstWindow()
@@ -79,6 +89,62 @@ async function launch(mode: 'read' | 'shell' | 'shell-timeout'): Promise<Page> {
   )
   return page
 }
+
+test('requires approval for local SearXNG, records only normalized results, then returns final Markdown', async () => {
+  const page = await launch('web')
+  await sendGoal(page, '搜索 ActionDriver')
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/running#section')).toBeVisible({
+    timeout: 15_000
+  })
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/approve#button')).toBeVisible({
+    timeout: 15_000
+  })
+  expect(search!.requests).toEqual([])
+  expect(provider!.completions).toHaveLength(1)
+  expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
+    'web_search'
+  )
+
+  await page.getByTestId('e2e/tasks/detail/tool-activity/approve#button').click()
+  await expect(page.getByRole('heading', { name: '搜索完成' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/completed#section')).toBeVisible()
+  await expect(
+    page.getByTestId('e2e/tasks/detail/tool-activity/completed#section')
+  ).not.toContainText('searxng-raw-response-must-not-be-recorded')
+  expect(search!.requests).toEqual(['/search?q=ActionDriver&format=json'])
+  expect(JSON.stringify(provider!.completions[1]?.messages)).toContain(
+    'normalized searchable summary'
+  )
+  expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain(
+    'searxng-raw-response-must-not-be-recorded'
+  )
+  const markdown = page.getByTestId('e2e/tasks/detail/markdown#section').last()
+  await expect(markdown).not.toContainText('正在搜索')
+  const records = await page.evaluate(
+    async () => (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
+  )
+  const record = records.find((item) => item.operation === 'web.search')
+  expect(record).toBeDefined()
+  const detail = await page.evaluate(
+    async (id) => window.actionDriverDesktop.logs.detail(id),
+    record!.id
+  )
+  expect(JSON.stringify(detail)).toContain('normalized searchable summary')
+  expect(JSON.stringify(detail)).not.toContain('searxng-raw-response-must-not-be-recorded')
+  expect(JSON.stringify(detail)).not.toContain(apiKey)
+})
+
+test('rejects local SearXNG without making a search request', async () => {
+  const page = await launch('web')
+  await sendGoal(page, '搜索 ActionDriver')
+  await expect(page.getByTestId('e2e/tasks/detail/tool-activity/reject#button')).toBeVisible({
+    timeout: 15_000
+  })
+  await page.getByTestId('e2e/tasks/detail/tool-activity/reject#button').click()
+  await expect(page.getByRole('heading', { name: '已拒绝' })).toBeVisible({ timeout: 15_000 })
+  expect(search!.requests).toEqual([])
+  expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_REJECTED')
+})
 
 async function sendGoal(page: Page, goal: string): Promise<string> {
   await page.getByLabel('任务描述').fill(goal)
@@ -184,6 +250,21 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
       )
     )
     .toBe(1)
+})
+
+test('archives a dynamic activity and keeps the final conclusion outside its process', async () => {
+  const page = await launch('activity')
+  await sendGoal(page, '调研 README')
+  const archive = page.getByTestId('e2e/tasks/detail/activity/archive#button')
+  await expect(archive).toBeVisible({ timeout: 15_000 })
+  await expect(archive).toContainText('用时')
+  const archiveDetails = archive.locator('..')
+  await expect(archiveDetails).not.toHaveAttribute('open', '')
+  await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible()
+  await archive.click()
+  await expect(page.getByText('调研现有实现')).toBeVisible()
+  await page.getByTestId('e2e/tasks/detail/activity/toggle#button').click()
+  await expect(page.getByTestId('e2e/tasks/detail/activity/raw-io#button')).toBeVisible()
 })
 
 test('waits for one-time shell approval before executing and answering', async () => {

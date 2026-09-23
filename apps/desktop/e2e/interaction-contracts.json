@@ -486,12 +486,6 @@
     "coverage": "visual-only"
   },
   {
-    "target": "e2e/tasks/detail/tool-activity/:state#section",
-    "route": "tasks",
-    "type": "section",
-    "coverage": "visual-only"
-  },
-  {
     "target": "e2e/tasks/detail/tool-activity/card-toggle#button",
     "route": "tasks",
     "type": "button",
@@ -504,8 +498,8 @@
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
-    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
-    "testName": "waits for one-time shell approval before executing and answering"
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "groups active and completed tool cards in the conversation, keeping only the latest active card open"
   },
   {
     "target": "e2e/tasks/detail/tool-activity/reject#button",
@@ -513,7 +507,47 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
-    "testName": "rejects a shell call without running the command"
+    "testName": "rejects local SearXNG without making a search request"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/toggle#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "shows raw I/O in an expandable item and a thinking tail while running"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/archive#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "archives completed process closed under an elapsed-time summary"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/raw-io#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "shows raw I/O in an expandable item and a thinking tail while running"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/approve#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
+    "testName": "shows only a pending approval and sends its stable identity"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/reject#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
+    "testName": "shows only a pending approval and sends its stable identity"
   },
   {
     "target": "e2e/settings/sidebar/logs#button",

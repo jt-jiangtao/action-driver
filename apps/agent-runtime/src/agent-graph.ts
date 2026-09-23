@@ -51,6 +51,28 @@ export type GraphToolRuntime = {
 
 const replace = <T>(_current: T, update: T): T => update
 
+const activityUpdateTool: ToolDefinition = {
+  id: 'internal.activity.update',
+  version: 1,
+  modelName: 'activity_update',
+  description:
+    'Update the user-visible title of the current activity without performing an external action.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['start', 'update', 'complete'] },
+      activityId: { type: 'string' },
+      title: { type: 'string' },
+      titleRevision: { type: 'integer' }
+    },
+    required: ['action', 'activityId'],
+    additionalProperties: false
+  },
+  risk: 'low',
+  sideEffects: { filesystem: 'none', network: false },
+  timeoutMs: 1_000
+}
+
 const AgentState = Annotation.Root({
   taskId: Annotation<string>(),
   threadId: Annotation<string>(),
@@ -62,6 +84,8 @@ const AgentState = Annotation.Root({
   toolGrants: Annotation<string[]>({ reducer: replace, default: () => [] }),
   toolRound: Annotation<number>({ reducer: replace, default: () => 0 }),
   toolCallCount: Annotation<number>({ reducer: replace, default: () => 0 }),
+  activeActivityId: Annotation<string | null>({ reducer: replace, default: () => null }),
+  fallbackActivityId: Annotation<string | null>({ reducer: replace, default: () => null }),
   pendingToolCalls: Annotation<ProviderToolCall[]>({ reducer: replace, default: () => [] }),
   planRoute: Annotation<PlanRoute>({ reducer: replace, default: () => 'skill' }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
@@ -142,6 +166,7 @@ export class LangGraphRunner implements GraphRunner {
           toolGrants: request.toolGrants ?? this.toolRuntime?.grants ?? [],
           toolRound: 0,
           toolCallCount: 0,
+          activeActivityId: null,
           pendingToolCalls: [],
           planRoute: 'skill',
           skills: request.skills ?? [],
@@ -250,11 +275,12 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('plan', async (state, config) => {
         let plan
         try {
-          const tools: ToolDefinition[] = this.toolRuntime
+          const discoveredTools: ToolDefinition[] = this.toolRuntime
             ? this.toolRuntime.policy.discover(this.toolRuntime.registry.list(), {
                 grants: state.toolGrants
               })
             : []
+          const tools = [...discoveredTools, activityUpdateTool]
           const request = {
             taskId: state.taskId,
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
@@ -267,7 +293,8 @@ export class LangGraphRunner implements GraphRunner {
           plan = this.modelGateway.stream
             ? await this.consumeModelStream(
                 this.modelGateway.stream(request, config.signal),
-                this.modelObservers.get(state.taskId)
+                this.modelObservers.get(state.taskId),
+                state.activeActivityId
               )
             : await this.modelGateway.complete(request, config.signal)
         } catch (error) {
@@ -281,17 +308,25 @@ export class LangGraphRunner implements GraphRunner {
         }
 
         if (plan.kind === 'finish') {
+          if (state.activeActivityId) {
+            await this.modelObservers.get(state.taskId)?.({
+              kind: 'activity',
+              event: { type: 'completed', activityId: state.activeActivityId }
+            })
+          }
           return {
             status: 'planned' as const,
             output: plan.content,
             requestedSkillId: null,
             planRoute: 'skill' as const,
+            activeActivityId: null,
             trace: ['plan']
           }
         }
 
         if (plan.kind === 'tool-calls') {
-          if (!this.toolRuntime) {
+          const externalCalls = plan.calls.filter((call) => !toActivityEvent(call))
+          if (externalCalls.length > 0 && !this.toolRuntime) {
             return {
               status: 'failed' as const,
               error: 'TOOL_CALLS_NOT_CONFIGURED',
@@ -299,7 +334,7 @@ export class LangGraphRunner implements GraphRunner {
               trace: ['plan']
             }
           }
-          if (state.toolRound >= 8 || state.toolCallCount + plan.calls.length > 16) {
+          if (state.toolRound >= 8 || state.toolCallCount + externalCalls.length > 16) {
             return {
               status: 'failed' as const,
               error: 'TOOL_BUDGET_EXCEEDED',
@@ -312,7 +347,7 @@ export class LangGraphRunner implements GraphRunner {
             pendingToolCalls: plan.calls,
             planRoute: 'tools' as const,
             toolRound: state.toolRound + 1,
-            toolCallCount: state.toolCallCount + plan.calls.length,
+            toolCallCount: state.toolCallCount + externalCalls.length,
             trace: ['plan']
           }
         }
@@ -326,12 +361,49 @@ export class LangGraphRunner implements GraphRunner {
         }
       })
       .addNode('executeTools', async (state, config) => {
-        if (!this.toolRuntime) {
-          return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
-        }
         const results: RuntimeMessage[] = []
+        let activeActivityId = state.activeActivityId
+        let fallbackActivityId = state.fallbackActivityId
+        const externalCalls = state.pendingToolCalls.filter((call) => !toActivityEvent(call))
+        const includesExplicitActivity = state.pendingToolCalls.some((call) => toActivityEvent(call))
+        if (!activeActivityId && externalCalls.length > 0 && !includesExplicitActivity) {
+          activeActivityId = `activity:${state.taskId}:${state.toolRound}`
+          fallbackActivityId = activeActivityId
+          await this.modelObservers.get(state.taskId)?.({
+            kind: 'activity',
+            event: {
+              type: 'started',
+              activityId: activeActivityId,
+              title: '正在执行工具',
+              titleRevision: 1
+            }
+          })
+        }
         for (const [index, providerCall] of state.pendingToolCalls.entries()) {
           if (config.signal?.aborted) throw config.signal.reason
+          const activityEvent = toActivityEvent(providerCall)
+          if (activityEvent) {
+            await this.modelObservers.get(state.taskId)?.({
+              kind: 'activity',
+              event: activityEvent
+            })
+            activeActivityId =
+              activityEvent.type === 'completed'
+                ? activityEvent.activityId === activeActivityId
+                  ? null
+                  : activeActivityId
+                : activityEvent.activityId
+            results.push({
+              role: 'tool',
+              toolCallId: providerCall.providerCallId,
+              name: providerCall.modelName,
+              content: JSON.stringify({ ok: true })
+            })
+            continue
+          }
+          if (!this.toolRuntime) {
+            return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
+          }
           const call = parseToolCall({
             callId: `tool:${state.taskId}:${state.toolRound}:${index}`,
             providerCallId: providerCall.providerCallId,
@@ -353,6 +425,7 @@ export class LangGraphRunner implements GraphRunner {
                   this.streamRequestIds.get(state.taskId) ??
                   `plan:${state.taskId}:${state.toolRound}`,
                 grants: state.toolGrants,
+                activityId: activeActivityId,
                 ...(this.toolObservers.get(state.taskId)
                   ? { onEvent: this.toolObservers.get(state.taskId)! }
                   : {})
@@ -401,6 +474,14 @@ export class LangGraphRunner implements GraphRunner {
             )
           })
         }
+        if (fallbackActivityId && fallbackActivityId === activeActivityId) {
+          await this.modelObservers.get(state.taskId)?.({
+            kind: 'activity',
+            event: { type: 'completed', activityId: fallbackActivityId }
+          })
+          activeActivityId = null
+          fallbackActivityId = null
+        }
         return {
           modelMessages: [
             ...state.modelMessages,
@@ -408,6 +489,8 @@ export class LangGraphRunner implements GraphRunner {
             ...results
           ],
           pendingToolCalls: [],
+          activeActivityId,
+          fallbackActivityId,
           trace: ['executeTools']
         }
       })
@@ -507,11 +590,16 @@ export class LangGraphRunner implements GraphRunner {
 
   private async consumeModelStream(
     events: AsyncIterable<ModelGatewayEvent>,
-    observer?: ModelEventObserver
+    observer?: ModelEventObserver,
+    activityId: string | null = null
   ): Promise<ModelResult> {
     let terminal: ModelResult | null = null
     for await (const event of events) {
-      await observer?.(event)
+      await observer?.(
+        event.kind === 'content' && activityId !== null
+          ? { kind: 'activity', event: { type: 'text', activityId, delta: event.delta } }
+          : event
+      )
       if (event.kind === 'end') {
         terminal =
           event.result?.kind === 'tool-calls'
@@ -540,5 +628,29 @@ export class LangGraphRunner implements GraphRunner {
 
   private isAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError'
+  }
+}
+
+function toActivityEvent(call: ProviderToolCall) {
+  if (call.modelName !== activityUpdateTool.modelName) return null
+  const input = call.arguments
+  if (!input || typeof input !== 'object') return null
+  const value = input as Record<string, unknown>
+  if (typeof value.activityId !== 'string' || !value.activityId.trim()) return null
+  if (value.action === 'complete')
+    return { type: 'completed' as const, activityId: value.activityId }
+  if (
+    (value.action !== 'start' && value.action !== 'update') ||
+    typeof value.title !== 'string' ||
+    !value.title.trim() ||
+    !Number.isInteger(value.titleRevision) ||
+    (value.titleRevision as number) < 1
+  )
+    return null
+  return {
+    type: value.action === 'start' ? ('started' as const) : ('updated' as const),
+    activityId: value.activityId,
+    title: value.title,
+    titleRevision: value.titleRevision as number
   }
 }

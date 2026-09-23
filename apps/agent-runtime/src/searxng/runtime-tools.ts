@@ -10,4 +10,3 @@ export function registerSearxngTool(
   runtime.registry.register(search.definition, search.executor)
   runtime.grants.push(`${search.definition.id}@${search.definition.version}`)
 }
-

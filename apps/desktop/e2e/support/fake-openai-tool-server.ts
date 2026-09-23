@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 
-type ToolMode = 'read' | 'shell' | 'shell-timeout'
+type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'web'
 
 export type CapturedToolCompletion = {
   model: string
@@ -47,13 +47,49 @@ export class FakeOpenAiToolServer {
         connection: 'keep-alive'
       })
       if (turn === 1) {
-        const toolName = this.mode === 'read' ? 'sandbox_fs_read' : 'sandbox_shell_run'
+        const toolName =
+          this.mode === 'read' || this.mode === 'activity'
+            ? 'sandbox_fs_read'
+            : this.mode === 'web'
+              ? 'web_search'
+              : 'sandbox_shell_run'
         const argumentsJson =
-          this.mode === 'read'
+          this.mode === 'read' || this.mode === 'activity'
             ? '{"path":"README.md"}'
-            : this.mode === 'shell-timeout'
-              ? '{"command":"rg","args":["needle","BLOCKING_FIFO"]}'
-              : '{"command":"rg","args":["needle","README.md"]}'
+            : this.mode === 'web'
+              ? '{"query":"ActionDriver","maxResults":1}'
+              : this.mode === 'shell-timeout'
+                ? '{"command":"rg","args":["needle","BLOCKING_FIFO"]}'
+                : '{"command":"rg","args":["needle","README.md"]}'
+        if (this.mode === 'activity') {
+          response.write(
+            sseChunk(
+              {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: 'activity-start',
+                    type: 'function',
+                    function: {
+                      name: 'activity_update',
+                      arguments:
+                        '{"action":"start","activityId":"research","title":"调研现有实现","titleRevision":1}'
+                    }
+                  },
+                  {
+                    index: 1,
+                    id: 'provider-tool-1',
+                    type: 'function',
+                    function: { name: toolName, arguments: argumentsJson }
+                  }
+                ]
+              },
+              'tool_calls'
+            )
+          )
+          response.end('data: [DONE]\n\n')
+          return
+        }
         const midpoint = Math.ceil(argumentsJson.length / 2)
         response.write(
           sseChunk(
@@ -81,6 +117,28 @@ export class FakeOpenAiToolServer {
         response.end('data: [DONE]\n\n')
         return
       }
+      if (this.mode === 'activity' && turn === 2) {
+        response.write(
+          sseChunk(
+            {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'activity-complete',
+                  type: 'function',
+                  function: {
+                    name: 'activity_update',
+                    arguments: '{"action":"complete","activityId":"research"}'
+                  }
+                }
+              ]
+            },
+            'tool_calls'
+          )
+        )
+        response.end('data: [DONE]\n\n')
+        return
+      }
       const toolResult = completion.messages.find((message) => message.role === 'tool')
       const rejected = String(toolResult?.content ?? '').includes('TOOL_REJECTED')
       const timedOut = String(toolResult?.content ?? '').includes('TOOL_TIMEOUT')
@@ -88,7 +146,9 @@ export class FakeOpenAiToolServer {
         ? '## 已超时\n\n命令超时，未获得文件内容。'
         : rejected
           ? '## 已拒绝\n\n未执行命令。'
-          : '## 已读取\n\n已根据工具结果完成回答。'
+          : this.mode === 'web'
+            ? '## 搜索完成\n\n已根据搜索结果完成回答。'
+            : '## 已读取\n\n已根据工具结果完成回答。'
       response.write(sseChunk({ content: reply.slice(0, 6) }, null))
       response.write(sseChunk({ content: reply.slice(6) }, null))
       response.write(sseChunk({}, 'stop'))
@@ -99,6 +159,50 @@ export class FakeOpenAiToolServer {
     const address = this.server.address()
     if (!address || typeof address === 'string') throw new Error('Fake provider did not bind')
     this.baseUrl = `http://127.0.0.1:${address.port}/v1`
+  }
+
+  async close(): Promise<void> {
+    if (!this.server) return
+    const server = this.server
+    this.server = null
+    server.close()
+    await once(server, 'close')
+  }
+}
+
+export class FakeSearxngServer {
+  private server: Server | null = null
+  readonly requests: string[] = []
+  endpoint = ''
+
+  async start(): Promise<void> {
+    this.server = createServer((request, response) => {
+      this.requests.push(request.url ?? '')
+      if (request.method !== 'GET' || !request.url?.startsWith('/search?')) {
+        response.writeHead(404).end()
+        return
+      }
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(
+        JSON.stringify({
+          results: [
+            {
+              title: 'ActionDriver result',
+              url: 'https://example.test/actiondriver',
+              content: 'A normalized searchable summary',
+              engines: ['fake'],
+              category: 'general'
+            }
+          ],
+          rawSecret: 'searxng-raw-response-must-not-be-recorded'
+        })
+      )
+    })
+    this.server.listen(0, '127.0.0.1')
+    await once(this.server, 'listening')
+    const address = this.server.address()
+    if (!address || typeof address === 'string') throw new Error('Fake SearXNG did not bind')
+    this.endpoint = `http://127.0.0.1:${address.port}`
   }
 
   async close(): Promise<void> {

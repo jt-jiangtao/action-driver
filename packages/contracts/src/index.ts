@@ -56,6 +56,10 @@ export interface ToolInvocationProjection {
   modelName: string
   summary: string
   argumentsHash: string
+  activityId?: string | null
+  rawInput?: string
+  rawOutput?: string
+  rawOutputTruncated?: boolean
   durationMs?: number
   resultSummary?: string
   errorSummary?: string
@@ -69,6 +73,30 @@ export interface ToolInvocationProjection {
     | 'cancelled'
 }
 
+export interface ActivityTextProjection {
+  id: string
+  kind: 'text'
+  content: string
+}
+
+export interface ActivityToolProjection {
+  id: string
+  kind: 'tool'
+  callId: string
+}
+
+export interface ActivityProjection {
+  activityId: string
+  title: string
+  titleRevision: number
+  status: 'running' | 'completed'
+  items: Array<ActivityTextProjection | ActivityToolProjection>
+}
+
+export type TaskTimelineProjectionItem =
+  | { id: string; kind: 'activity'; activityId: string }
+  | { id: string; kind: 'text'; content: string }
+
 export interface TaskProjection {
   id: string
   sessionId: string
@@ -78,6 +106,9 @@ export interface TaskProjection {
   messages: AgentMessageProjection[]
   steps: ExecutionStepProjection[]
   tools?: ToolInvocationProjection[]
+  activities?: ActivityProjection[]
+  activityTimeline?: TaskTimelineProjectionItem[]
+  activityDurationMs?: number
   browser: BrowserSkillProjection | null
 }
 

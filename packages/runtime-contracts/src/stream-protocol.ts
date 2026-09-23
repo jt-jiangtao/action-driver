@@ -237,8 +237,7 @@ const responseSnapshotEventSchema = z
               'completed',
               'failed',
               'cancelled'
-            ])
-            ,
+            ]),
             durationMs: z.number().nonnegative(),
             resultSummary: z.string().optional(),
             errorSummary: z.string().optional()
@@ -246,9 +245,68 @@ const responseSnapshotEventSchema = z
           .strict()
       )
       .optional(),
+    activities: z
+      .array(
+        z
+          .object({
+            activityId: idSchema,
+            title: z.string(),
+            titleRevision: z.number().int().nonnegative(),
+            status: z.enum(['running', 'completed']),
+            items: z.array(
+              z.union([
+                z.object({ id: idSchema, kind: z.literal('text'), content: z.string() }).strict(),
+                z.object({ id: idSchema, kind: z.literal('tool'), callId: idSchema }).strict()
+              ])
+            )
+          })
+          .strict()
+      )
+      .optional(),
+    activityTimeline: z
+      .array(
+        z.union([
+          z.object({ id: idSchema, kind: z.literal('activity'), activityId: idSchema }).strict(),
+          z.object({ id: idSchema, kind: z.literal('text'), content: z.string() }).strict()
+        ])
+      )
+      .optional(),
     error: streamErrorSchema.nullable()
   })
   .strict()
+
+const activityStreamBase = {
+  ...streamIdentity,
+  activityId: idSchema
+} as const
+
+const activityStreamEventSchemas = [
+  z
+    .object({
+      type: z.literal('activity.started'),
+      ...activityStreamBase,
+      title: z.string().trim().min(1),
+      titleRevision: z.number().int().positive()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('activity.updated'),
+      ...activityStreamBase,
+      title: z.string().trim().min(1),
+      titleRevision: z.number().int().positive()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('activity.text'),
+      ...streamIdentity,
+      activityId: idSchema.nullable(),
+      delta: z.string()
+    })
+    .strict(),
+  z.object({ type: z.literal('activity.completed'), ...activityStreamBase }).strict()
+] as const
 
 const toolStreamBase = {
   ...streamIdentity,
@@ -257,7 +315,10 @@ const toolStreamBase = {
   toolId: idSchema,
   modelName: idSchema,
   summary: z.string(),
-  argumentsHash: z.string()
+  argumentsHash: z.string(),
+  activityId: idSchema.nullable(),
+  rawInput: z.string().optional(),
+  rawOutputTruncated: z.boolean().optional()
 } as const
 
 const toolStreamEventSchemas = [
@@ -273,7 +334,15 @@ const toolStreamEventSchemas = [
       delta: z.string()
     })
     .strict(),
-  z.object({ type: z.literal('tool.completed'), ...toolStreamBase, durationMs: z.number().nonnegative(), resultSummary: z.string() }).strict(),
+  z
+    .object({
+      type: z.literal('tool.completed'),
+      ...toolStreamBase,
+      durationMs: z.number().nonnegative(),
+      resultSummary: z.string(),
+      rawOutput: z.string().optional()
+    })
+    .strict(),
   z
     .object({ type: z.literal('tool.failed'), ...toolStreamBase, error: streamErrorSchema })
     .strict(),
@@ -294,6 +363,7 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   responseContentEventSchema,
   responseEndEventSchema,
   responseSnapshotEventSchema,
+  ...activityStreamEventSchemas,
   ...toolStreamEventSchemas
 ])
 
@@ -306,6 +376,7 @@ export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
 export type StreamResponseEvent = ResponseStartEvent | ResponseContentEvent | ResponseEndEvent
+export type ActivityStreamEvent = Extract<StreamServerEvent, { type: `activity.${string}` }>
 export type ToolStreamEvent = Extract<StreamServerEvent, { type: `tool.${string}` }>
 
 export function parseStreamClientEvent(value: unknown): StreamClientEvent {

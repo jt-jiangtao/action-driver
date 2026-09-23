@@ -42,13 +42,24 @@ export type ModelGatewayEvent =
       usage: ModelUsage | null
     }
 
+export type ActivityGraphEvent = {
+  kind: 'activity'
+  event:
+    | { type: 'started'; activityId: string; title: string; titleRevision: number }
+    | { type: 'updated'; activityId: string; title: string; titleRevision: number }
+    | { type: 'text'; activityId: string | null; delta: string }
+    | { type: 'completed'; activityId: string }
+}
+
+export type AgentGraphEvent = ModelGatewayEvent | ActivityGraphEvent
+
 export interface ModelGateway {
   complete(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult>
   /** Transitional compatibility for deterministic Skill fixtures; local production gateways provide it. */
   stream?(request: ModelRequest, signal?: AbortSignal): AsyncIterable<ModelGatewayEvent>
 }
 
-export type ModelEventObserver = (event: ModelGatewayEvent) => void | Promise<void>
+export type ModelEventObserver = (event: AgentGraphEvent) => void | Promise<void>
 export type ToolEventObserver = (event: RuntimeEventRecord) => void | Promise<void>
 
 export type SkillProviderResult = {
@@ -184,7 +195,7 @@ export interface StreamRequestRepository {
 export interface StreamSessionRepository {
   readonly tasks: Pick<TaskRepository, 'get' | 'getLatestBySession' | 'listBySession'>
   readonly messages: Pick<MessageRepository, 'listByTask' | 'listBySession'>
-  readonly events: Pick<EventRepository, 'listAfter'>
+  readonly events: Pick<EventRepository, 'append' | 'listAfter'>
   readonly streamRequests: StreamRequestRepository
   readonly toolInvocations?: Pick<ToolInvocationRepository, 'listByTask'>
   createStreamTask(input: {

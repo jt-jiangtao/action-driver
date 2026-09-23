@@ -50,4 +50,3 @@
 #### Scenario: 用户启动本地搜索服务
 - **WHEN** 用户按部署文档在应用外启动 SearXNG 并配置有效 endpoint
 - **THEN** ActionDriver 可调用其 JSON 搜索接口，但容器的生命周期仍完全由用户管理
-
