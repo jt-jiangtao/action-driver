@@ -6,10 +6,21 @@ import { SettingsSidebar } from '../components/SettingsSidebar'
 import { MockInteractionLogService } from '../services/desktop-interaction-logs'
 import type { InteractionLogRecord, InteractionLogService } from '../models/interaction-logs'
 import type { InteractionLogDetail } from '@actiondriver/observability'
+import { MockModelLogService } from '../services/desktop-model-logs'
+import type { ModelLogService } from '../models/model-log-service'
 
-function renderPage(service: InteractionLogService = new MockInteractionLogService()) {
+function renderPage(
+  service: InteractionLogService = new MockInteractionLogService(),
+  modelLogService: ModelLogService = new MockModelLogService()
+) {
   return render(
-    <LogsPage service={service} onBack={() => {}} onOpenConnections={() => {}} autoRefreshMs={50} />
+    <LogsPage
+      service={service}
+      modelLogService={modelLogService}
+      onBack={() => {}}
+      onOpenConnections={() => {}}
+      autoRefreshMs={50}
+    />
   )
 }
 
@@ -18,7 +29,7 @@ describe('LogsPage', () => {
     localStorage.clear()
   })
 
-  it('switches between real interface logs and mock model sessions', async () => {
+  it('switches between interface logs and the configured model-log source', async () => {
     const user = userEvent.setup()
     const service = new MockInteractionLogService()
     const listSpy = vi.spyOn(service, 'list')
@@ -46,6 +57,21 @@ describe('LogsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('real source unavailable')
     expect(screen.queryByText('日常办公助手')).not.toBeInTheDocument()
+  })
+
+  it('retries the real model-log source after a read failure', async () => {
+    const user = userEvent.setup()
+    const list = vi
+      .fn<ModelLogService['list']>()
+      .mockRejectedValueOnce(new Error('model logs unavailable'))
+      .mockResolvedValueOnce([])
+    renderPage(new MockInteractionLogService(), { list })
+
+    await user.click(screen.getByTestId('e2e/settings/logs/layer/model#button'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('model logs unavailable')
+    await user.click(screen.getByTestId('e2e/settings/logs/model/retry#button'))
+    expect(await screen.findByText('没有匹配的模型运行记录')).toBeVisible()
+    expect(list).toHaveBeenCalledTimes(2)
   })
 
   it('renders interaction records and refreshes on demand', async () => {

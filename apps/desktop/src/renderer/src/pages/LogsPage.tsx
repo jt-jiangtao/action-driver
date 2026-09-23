@@ -3,11 +3,13 @@ import { InterfaceLogsView } from '../components/logs/InterfaceLogsView'
 import { ModelLogsView } from '../components/logs/ModelLogsView'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import type { InteractionLogService } from '../models/interaction-logs'
+import type { ModelLogService } from '../models/model-log-service'
 
 type LogLayer = 'interface' | 'model'
 
 export function LogsPage({
   service,
+  modelLogService,
   onBack,
   onOpenConnections,
   onOpenMainPrompt,
@@ -15,6 +17,7 @@ export function LogsPage({
   autoRefreshMs = 2_000
 }: {
   service: InteractionLogService
+  modelLogService: ModelLogService
   onBack(): void
   onOpenConnections(): void
   onOpenMainPrompt?(): void
@@ -65,7 +68,7 @@ export function LogsPage({
           {layer === 'interface' ? (
             <InterfaceLogsView service={service} autoRefreshMs={autoRefreshMs} />
           ) : (
-            <ModelLogsView />
+            <ModelLogsView service={modelLogService} autoRefreshMs={autoRefreshMs} />
           )}
         </div>
       </main>

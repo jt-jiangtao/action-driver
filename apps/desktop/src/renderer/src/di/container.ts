@@ -16,6 +16,7 @@ import type { DesktopApi } from '../../../preload/desktop-api'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
+import type { ModelLogService } from '../models/model-log-service'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
@@ -29,6 +30,7 @@ import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-ag
 import { MockAgentFilesService } from '../services/mock-agent-files'
 import { DesktopAgentFilesService } from '../services/desktop-agent-files'
 import { RendererStreamClient } from '../services/renderer-stream-client'
+import { DesktopModelLogService, MockModelLogService } from '../services/desktop-model-logs'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -38,12 +40,14 @@ export interface AppServices {
   interactionLogService: InteractionLogService
   agentFilesService: AgentFilesService
   taskCatalog: TaskCatalog
+  modelLogService: ModelLogService
 }
 
 const MODEL_CONNECTIONS_SERVICE = Symbol('MODEL_CONNECTIONS_SERVICE')
 const INTERACTION_LOG_SERVICE = Symbol('INTERACTION_LOG_SERVICE')
 const AGENT_FILES_SERVICE = Symbol('AGENT_FILES_SERVICE')
 const TASK_CATALOG = Symbol('TASK_CATALOG')
+const MODEL_LOG_SERVICE = Symbol('MODEL_LOG_SERVICE')
 
 interface RendererOverrides extends Partial<AppServices> {
   browserCapability?: SkillCapability<typeof SKILL_IDS.browser>
@@ -113,6 +117,14 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
           : new MockTaskCatalog())
     )
   container
+    .bind<ModelLogService>(MODEL_LOG_SERVICE)
+    .toConstantValue(
+      options.modelLogService ??
+        (options.mode === 'local' && options.desktopApi
+          ? new DesktopModelLogService(options.desktopApi.agent)
+          : new MockModelLogService())
+    )
+  container
     .bind<InteractionLogService>(INTERACTION_LOG_SERVICE)
     .toConstantValue(
       options.interactionLogService ??
@@ -139,6 +151,7 @@ export function resolveAppServices(container: Container): AppServices {
     modelConnectionsService: container.get(MODEL_CONNECTIONS_SERVICE),
     interactionLogService: container.get(INTERACTION_LOG_SERVICE),
     agentFilesService: container.get(AGENT_FILES_SERVICE),
-    taskCatalog: container.get(TASK_CATALOG)
+    taskCatalog: container.get(TASK_CATALOG),
+    modelLogService: container.get(MODEL_LOG_SERVICE)
   }
 }

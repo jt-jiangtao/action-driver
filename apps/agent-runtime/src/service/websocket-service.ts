@@ -36,7 +36,9 @@ export function attachServiceWebSocketServer(
 
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url ?? '/', 'http://localhost')
-    if (url.pathname !== SERVICE_STREAM_PATH || request.headers.origin) {
+    const origin = request.headers.origin
+    const trustedRendererOrigin = origin === undefined || origin === 'file://'
+    if (url.pathname !== SERVICE_STREAM_PATH || !trustedRendererOrigin) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
       socket.destroy()
       return

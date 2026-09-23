@@ -209,6 +209,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     return (
       <LogsPage
         service={services.interactionLogService}
+        modelLogService={services.modelLogService}
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenMainPrompt={openMainPrompt}

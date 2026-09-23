@@ -331,6 +331,35 @@ describe('SQLite runtime repositories', () => {
     repositories.close()
   })
 
+  it('preserves message insertion order when one task writes user and assistant in the same millisecond', async () => {
+    const repositories = createRepositories()
+    await repositories.tasks.save(task)
+    await repositories.messages.save({
+      id: 'z-user',
+      taskId: task.id,
+      role: 'user',
+      content: { text: 'first question' },
+      createdAt: task.createdAt
+    })
+    await repositories.messages.save({
+      id: 'a-assistant',
+      taskId: task.id,
+      role: 'assistant',
+      content: { text: 'first answer' },
+      createdAt: task.createdAt
+    })
+
+    await expect(repositories.messages.listByTask(task.id)).resolves.toMatchObject([
+      { id: 'z-user', role: 'user' },
+      { id: 'a-assistant', role: 'assistant' }
+    ])
+    await expect(repositories.messages.listBySession(task.sessionId)).resolves.toMatchObject([
+      { id: 'z-user', role: 'user' },
+      { id: 'a-assistant', role: 'assistant' }
+    ])
+    repositories.close()
+  })
+
   it('commits a task state change and its event atomically', async () => {
     const repositories = createRepositories()
     await repositories.tasks.save(task)

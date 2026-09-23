@@ -31,13 +31,20 @@ describe('renderer dependency boundary', () => {
     }
   })
 
-  it('does not import Runtime transport or expose its private paths and ports', async () => {
+  it('limits the public Runtime stream contract to the Renderer stream adapters', async () => {
     const rendererRoot = join(import.meta.dirname, '..')
     const files = await sourceFiles(rendererRoot)
 
     for (const file of files) {
       const source = await readFile(file, 'utf8')
-      expect(source).not.toMatch(/@actiondriver\/runtime-contracts/)
+      if (
+        file.endsWith('services/renderer-stream-client.ts') ||
+        file.endsWith('services/stream-task-projection.ts')
+      ) {
+        expect(source).toMatch(/@actiondriver\/runtime-contracts/)
+      } else {
+        expect(source).not.toMatch(/@actiondriver\/runtime-contracts/)
+      }
       expect(source).not.toMatch(/runtime-message-port|parent-port-endpoint|MessagePortMain/)
       expect(source).not.toMatch(/actiondriver\.db|databasePath|runtimeEntryPath/)
     }

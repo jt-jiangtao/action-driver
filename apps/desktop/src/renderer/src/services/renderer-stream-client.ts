@@ -181,9 +181,7 @@ export class RendererStreamClient {
     })
     socket.addEventListener('message', (event) => this.receive(String(event.data ?? '')))
     socket.addEventListener('error', () => undefined)
-    socket.addEventListener('close', (event) =>
-      this.handleClose(socket, event.code ?? 1006, event.reason ?? '')
-    )
+    socket.addEventListener('close', (event) => this.handleClose(socket, event.code ?? 1006))
   }
 
   private receive(raw: string): void {
@@ -245,7 +243,7 @@ export class RendererStreamClient {
     if (event.type === 'response.end') this.activeRequests.delete(event.requestId)
   }
 
-  private handleClose(socket: RendererWebSocket, code: number, _reason: string): void {
+  private handleClose(socket: RendererWebSocket, code: number): void {
     if (this.socket !== socket) return
     this.socket = null
     if (this.intentionallyClosed) return

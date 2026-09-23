@@ -7,6 +7,11 @@ export type CapturedCompletion = {
   stream: boolean
 }
 
+export const firstTurnPrompt = '第一轮：请返回两项 Markdown 清单'
+export const firstTurnReply = '# 第一轮结果\n\n- Alpha\n- Beta'
+export const secondTurnPrompt = '第二轮：请基于上文给出一句总结'
+export const secondTurnReply = '# 第二轮结果\n\nAlpha 与 Beta 已汇总完成。'
+
 export class FakeOpenAiStreamServer {
   private server: Server | null = null
   readonly completions: CapturedCompletion[] = []
@@ -42,7 +47,16 @@ export class FakeOpenAiStreamServer {
         'cache-control': 'no-cache',
         connection: 'keep-alive'
       })
-      const chunks = ['# 流式', '结果\n\n- 第一条\n', '- 第二条\n\n`流式', '完成`']
+      const lastUserMessage = [...captured.messages]
+        .reverse()
+        .find((message) => message.role === 'user')
+      const reply =
+        lastUserMessage?.content === firstTurnPrompt
+          ? firstTurnReply
+          : lastUserMessage?.content === secondTurnPrompt
+            ? secondTurnReply
+            : '# 未知请求\n\n测试上游未配置此输入。'
+      const chunks = splitReply(reply)
       for (const [index, content] of chunks.entries()) {
         response.write(
           `data: ${JSON.stringify({
@@ -53,7 +67,7 @@ export class FakeOpenAiStreamServer {
             choices: [{ index: 0, delta: { content }, finish_reason: null }]
           })}\n\n`
         )
-        await delay(index === 0 ? 350 : 220)
+        await delay(index === 0 ? 650 : 240)
       }
       response.write(
         `data: ${JSON.stringify({
@@ -91,4 +105,13 @@ async function readJson(request: NodeJS.ReadableStream): Promise<unknown> {
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function splitReply(reply: string): string[] {
+  const headingEnd = reply.indexOf('\n\n')
+  if (headingEnd < 0) return [reply]
+  const heading = reply.slice(0, headingEnd)
+  const body = reply.slice(headingEnd)
+  const bodyMidpoint = Math.max(2, Math.ceil(body.length / 2))
+  return [heading, body.slice(0, bodyMidpoint), body.slice(bodyMidpoint)]
 }

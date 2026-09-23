@@ -10,7 +10,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
-import { FakeOpenAiStreamServer } from './support/fake-openai-stream-server'
+import {
+  FakeOpenAiStreamServer,
+  firstTurnPrompt,
+  firstTurnReply,
+  secondTurnPrompt
+} from './support/fake-openai-stream-server'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const runtimeEntry = fileURLToPath(new URL('../../agent-runtime/dist/index.js', import.meta.url))
@@ -55,6 +60,12 @@ async function launch(reuseDirectories = false): Promise<Page> {
     }
   })
   const page = await application.firstWindow()
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      console.error(`[renderer:${message.type()}] ${message.text()}`)
+    }
+  })
+  page.on('pageerror', (error) => console.error(`[renderer:pageerror] ${error.message}`))
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   return page
 }
@@ -101,69 +112,130 @@ function readInteractionFiles(directory: string): string {
     .join('\n')
 }
 
-test('streams one real local Agent task, persists it, and exposes one aggregate model log', async () => {
+test('streams two real turns in one persisted session with aggregate model logs', async () => {
   let page = await launch()
   await configureProvider(page)
 
-  await page.getByLabel('任务描述').fill('返回 Markdown 流式结果')
+  await page.getByLabel('任务描述').fill(firstTurnPrompt)
   await page.getByLabel('发送').click()
   const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
   await expect(taskPage).toBeVisible()
-  const taskId = await taskPage.getAttribute('data-task-id')
-  expect(taskId).toMatch(/^task-/)
+  const firstTaskId = await taskPage.getAttribute('data-task-id')
+  expect(firstTaskId).toMatch(/^task-/)
   await expect(page.getByTestId('e2e/tasks/detail/browser#section')).toHaveCount(0)
 
-  const markdown = page.getByTestId('e2e/tasks/detail/markdown#section')
-  await expect(markdown).toContainText('流式', { timeout: 10_000 })
-  await expect(page.getByRole('heading', { name: '流式结果' })).toBeVisible()
+  const markdown = page.getByTestId('e2e/tasks/detail/markdown#section').last()
+  const composer = page.getByTestId('e2e/shared/composer/root#section')
+  const editor = page.getByLabel('任务描述')
+  await expect(page.getByRole('heading', { name: '第一轮结果' })).toBeVisible({ timeout: 10_000 })
+  await expect(markdown).not.toContainText('Beta')
+  await expect(editor).toHaveAttribute('contenteditable', 'false')
+  const composerWhileStreaming = await composer.boundingBox()
+  expect(composerWhileStreaming).not.toBeNull()
   await expect(markdown.getByRole('listitem')).toHaveCount(2)
-  await expect(markdown).toContainText('流式完成')
+  await expect(markdown).toContainText('Beta')
+  await expect(editor).toHaveAttribute('contenteditable', 'true')
+  const composerAfterFirstTurn = await composer.boundingBox()
+  expect(composerAfterFirstTurn).not.toBeNull()
+  expect(Math.abs(composerAfterFirstTurn!.y - composerWhileStreaming!.y)).toBeLessThan(2)
 
   expect(provider.completions).toHaveLength(1)
   expect(provider.completions[0]).toMatchObject({
     model: 'e2e-stream-model',
     stream: true,
     messages: expect.arrayContaining([
-      expect.objectContaining({ role: 'user', content: '返回 Markdown 流式结果' })
+      expect.objectContaining({ role: 'user', content: firstTurnPrompt })
     ])
   })
 
+  await editor.fill(secondTurnPrompt)
+  await page.getByLabel('发送').click()
+  await expect.poll(() => taskPage.getAttribute('data-task-id')).not.toBe(firstTaskId)
+  const secondTaskId = await taskPage.getAttribute('data-task-id')
+  expect(secondTaskId).toMatch(/^task-/)
+  await expect(page.getByRole('heading', { name: '第二轮结果' })).toBeVisible({ timeout: 10_000 })
+  await expect(markdown).toContainText('Alpha 与 Beta 已汇总完成。')
+  await expect(editor).toHaveAttribute('contenteditable', 'true')
+
+  expect(provider.completions).toHaveLength(2)
+  expect(provider.completions[1]?.model).toBe(provider.completions[0]?.model)
+  expect(provider.completions[1]?.messages.filter(({ role }) => role !== 'system')).toEqual([
+    { role: 'user', content: firstTurnPrompt },
+    { role: 'assistant', content: firstTurnReply },
+    { role: 'user', content: secondTurnPrompt }
+  ])
+
+  const persistedTasks = await page.evaluate(
+    async ([firstId, secondId]) =>
+      Promise.all([
+        window.actionDriverDesktop.agent.get(firstId),
+        window.actionDriverDesktop.agent.get(secondId)
+      ]),
+    [firstTaskId!, secondTaskId!] as const
+  )
+  expect(persistedTasks[0]?.sessionId).toBe(persistedTasks[1]?.sessionId)
+  expect(persistedTasks[0]?.model).toEqual(persistedTasks[1]?.model)
+  await expect(page.locator('[data-testid^="e2e/shared/sidebar/tasks/"]')).toHaveCount(1)
+
   await expect
     .poll(
-      async () => {
-        const modelLog = await page.evaluate(
-          (id) => window.actionDriverDesktop.agent.getModelLog(id),
-          taskId!
-        )
-        return modelLog?.tasks[0]?.calls[0] ?? null
-      },
+      async () =>
+        page.evaluate(async () => {
+          const sessions = await window.actionDriverDesktop.agent.listModelLogs()
+          return sessions.map((session) => ({
+            sessionId: session.sessionId,
+            tasks: session.tasks.map((task) => ({
+              id: task.id,
+              calls: task.calls.map((call) => call.status)
+            }))
+          }))
+        }),
       { timeout: 10_000 }
     )
-    .toMatchObject({
-      status: 'completed',
-      requestId: `plan:${taskId}`,
-      sections: expect.arrayContaining([
-        expect.objectContaining({
-          id: 'model-response',
-          content: expect.stringContaining('流式完成')
-        })
-      ])
-    })
+    .toEqual([
+      {
+        sessionId: persistedTasks[0]?.sessionId,
+        tasks: [
+          { id: firstTaskId, calls: ['completed'] },
+          { id: secondTaskId, calls: ['completed'] }
+        ]
+      }
+    ])
+
+  await page.getByTestId('e2e/shared/sidebar/settings#button').click()
+  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
+  await page.getByTestId('e2e/settings/logs/layer/model#button').click()
+  await expect(page.getByText(firstTurnPrompt, { exact: true })).toBeVisible()
+  await page.getByTestId('e2e/settings/logs/model/view/tasks#button').click()
+  const realTaskCards = page.locator('[data-testid^="e2e/settings/logs/model/task-cards/"]')
+  await expect(realTaskCards).toHaveCount(2)
+  await expect(realTaskCards.nth(0)).toContainText(firstTurnPrompt)
+  await expect(realTaskCards.nth(1)).toContainText(secondTurnPrompt)
 
   await application!.close()
   application = undefined
   page = await launch(true)
-  await expect(page.getByRole('button', { name: '返回 Markdown 流式结果' })).toBeVisible()
-  const persisted = await page.evaluate((id) => window.actionDriverDesktop.agent.get(id), taskId!)
-  expect(persisted).toMatchObject({ status: 'succeeded' })
-  expect(persisted?.messages.find((message) => message.role === 'agent')?.content).toContain(
-    '流式完成'
-  )
+  const recentSession = page.locator('[data-testid^="e2e/shared/sidebar/tasks/"]')
+  await expect(recentSession).toHaveCount(1)
+  await expect(recentSession).toContainText(firstTurnPrompt)
+  await recentSession.click()
+  const restoredUserMessages = page.locator('.conversation-stream .user-message')
+  const restoredAgentMessages = page.locator('.conversation-stream .agent-message')
+  await expect(restoredUserMessages).toHaveCount(2)
+  await expect(restoredUserMessages.nth(0)).toHaveText(firstTurnPrompt)
+  await expect(restoredUserMessages.nth(1)).toHaveText(secondTurnPrompt)
+  await expect(restoredAgentMessages).toHaveCount(2)
+  await expect(page.getByRole('heading', { name: '第一轮结果' })).toBeVisible()
+  await expect(page.getByText('Beta', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '第二轮结果' })).toBeVisible()
+  await expect(page.getByText('Alpha 与 Beta 已汇总完成。', { exact: true })).toBeVisible()
 
   await application!.close()
   application = undefined
   const interactionText = readInteractionFiles(join(userDataDirectory, 'logs', 'interactions'))
   expect(interactionText).not.toContain(apiKey)
+  expect(interactionText).not.toContain('"type":"auth"')
   expect(interactionText).not.toContain('actiondriver:log:list')
-  expect(interactionText.match(/POST \/chat\/completions/g)).toHaveLength(2)
+  expect(interactionText).not.toContain('response.content')
+  expect(interactionText.match(/POST \/chat\/completions/g)).toHaveLength(4)
 })

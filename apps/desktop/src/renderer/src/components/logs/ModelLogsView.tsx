@@ -1,28 +1,55 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  mockModelLogSessions,
   type ModelLogCall,
   type ModelLogDetailSection,
   type ModelLogSession,
   type ModelLogTask,
   type ModelRunStatus
 } from '../../models/model-logs'
+import type { ModelLogService } from '../../models/model-log-service'
 import { e2eId } from '../../testing/e2e-id'
 import { AppIcon, type AppIconName } from '../ui/AppIcon'
 
 type ModelListMode = 'sessions' | 'tasks'
 
-export function ModelLogsView() {
+export function ModelLogsView({
+  service,
+  autoRefreshMs = 2_000
+}: {
+  service: ModelLogService
+  autoRefreshMs?: number
+}) {
   const [mode, setMode] = useState<ModelListMode>('sessions')
   const [status, setStatus] = useState<ModelRunStatus | ''>('')
   const [search, setSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [sessions, setSessions] = useState<ModelLogSession[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => new Set())
   const [selected, setSelected] = useState<{ sessionId: string; taskId: string } | null>(null)
 
+  const load = useCallback(async () => {
+    try {
+      setSessions(await service.list())
+      setError(null)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '模型日志读取失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [service])
+
+  useEffect(() => {
+    void load()
+    if (!autoRefresh) return
+    const timer = window.setInterval(() => void load(), autoRefreshMs)
+    return () => window.clearInterval(timer)
+  }, [autoRefresh, autoRefreshMs, load])
+
   const filteredSessions = useMemo(() => {
     const keyword = search.trim().toLowerCase()
-    return mockModelLogSessions
+    return sessions
       .map((session) => ({
         ...session,
         tasks: session.tasks.filter(
@@ -36,10 +63,10 @@ export function ModelLogsView() {
         )
       }))
       .filter((session) => session.tasks.length > 0)
-  }, [search, status])
+  }, [search, sessions, status])
 
   if (selected) {
-    const session = mockModelLogSessions.find((item) => item.id === selected.sessionId)
+    const session = sessions.find((item) => item.id === selected.sessionId)
     const task = session?.tasks.find((item) => item.id === selected.taskId)
     if (session && task) {
       return (
@@ -51,6 +78,26 @@ export function ModelLogsView() {
         />
       )
     }
+  }
+
+  if (loading) {
+    return <p className="model-log-state">正在读取模型日志</p>
+  }
+
+  if (error) {
+    return (
+      <div className="model-log-state" role="alert">
+        <span>{error}</span>
+        <button
+          className="secondary-button"
+          data-testid="e2e/settings/logs/model/retry#button"
+          type="button"
+          onClick={() => void load()}
+        >
+          重试
+        </button>
+      </div>
+    )
   }
 
   const toggleSession = (sessionId: string) => {
@@ -177,8 +224,8 @@ export function ModelLogsView() {
       )}
 
       <footer className="model-log-summary">
-        <span>共 {mockModelLogSessions.length} 个会话</span>
-        <span>模型层当前使用稳定 Mock 数据，用于确认信息结构与交互状态</span>
+        <span>共 {sessions.length} 个会话</span>
+        <span>数据来自本地 Runtime 聚合日志，每轮任务保留一条完整模型调用</span>
       </footer>
     </section>
   )
@@ -369,10 +416,9 @@ function ModelSessionDetail({
             <span>本次会话任务</span>
             {session.tasks.map((item) => (
               <button
-                data-testid={e2eId(
-                  'e2e/settings/logs/model/task-switcher/:task-id#button',
-                  { 'task-id': item.id }
-                )}
+                data-testid={e2eId('e2e/settings/logs/model/task-switcher/:task-id#button', {
+                  'task-id': item.id
+                })}
                 key={item.id}
                 type="button"
                 disabled={item.id === task.id}

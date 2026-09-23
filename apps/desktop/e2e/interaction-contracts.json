@@ -669,7 +669,7 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
-    "testName": "switches between real interface logs and mock model sessions"
+    "testName": "switches between interface logs and the configured model-log source"
   },
   {
     "target": "e2e/settings/logs/layer/model#button",
@@ -677,7 +677,7 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
-    "testName": "switches between real interface logs and mock model sessions"
+    "testName": "switches between interface logs and the configured model-log source"
   },
   {
     "target": "e2e/settings/logs/model/view/sessions#button",
@@ -686,6 +686,14 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
     "testName": "filters model records and switches between session and task views"
+  },
+  {
+    "target": "e2e/settings/logs/model/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/LogsPage.test.tsx",
+    "testName": "retries the real model-log source after a read failure"
   },
   {
     "target": "e2e/settings/logs/model/view/tasks#button",

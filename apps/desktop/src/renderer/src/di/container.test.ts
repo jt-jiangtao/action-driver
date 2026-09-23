@@ -15,6 +15,7 @@ import { MockAgentFilesService } from '../services/mock-agent-files'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
 import { DesktopTaskCatalog } from '../services/desktop-task-catalog'
+import { DesktopModelLogService, MockModelLogService } from '../services/desktop-model-logs'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
@@ -139,12 +140,14 @@ describe('renderer composition root', () => {
     expect(services.agentFilesService).toBeInstanceOf(MockAgentFilesService)
     expect(services.skillGateway).not.toBe(services.agentCommandService)
     expect(services.taskCatalog).toBeInstanceOf(MockTaskCatalog)
+    expect(services.modelLogService).toBeInstanceOf(MockModelLogService)
     expect(Object.keys(services).sort()).toEqual([
       'agentCommandService',
       'agentFilesService',
       'agentSessionRepository',
       'interactionLogService',
       'modelConnectionsService',
+      'modelLogService',
       'skillGateway',
       'taskCatalog'
     ])
@@ -168,7 +171,8 @@ describe('renderer composition root', () => {
       'modelConnectionsService',
       'interactionLogService',
       'agentFilesService',
-      'taskCatalog'
+      'taskCatalog',
+      'modelLogService'
     ])
   })
 
@@ -224,6 +228,7 @@ describe('renderer composition root', () => {
     expect(services.modelConnectionsService).toBeInstanceOf(DesktopModelConnectionsService)
     expect(services.agentFilesService).toBeInstanceOf(DesktopAgentFilesService)
     expect(services.taskCatalog).toBeInstanceOf(DesktopTaskCatalog)
+    expect(services.modelLogService).toBeInstanceOf(DesktopModelLogService)
   })
 
   it('binds the mock model connection service for fixture and visual runs', () => {

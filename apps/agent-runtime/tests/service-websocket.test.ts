@@ -93,6 +93,32 @@ function auth(ws: WebSocket, token = 'service-token'): void {
 }
 
 describe('service WebSocket surface', () => {
+  it('accepts the Electron file origin and rejects ordinary browser origins', async () => {
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      streamSessions: { async handle() {} },
+      token: 'service-token',
+      runtimeVersion: '0.1.0'
+    })
+    socket = new WebSocket(
+      `${server.url.replace('http:', 'ws:')}/stream`,
+      ['actiondriver.stream.v1'],
+      { origin: 'file://' }
+    )
+    await waitForOpen(socket)
+    const ready = nextMessage(socket)
+    auth(socket)
+    await expect(ready).resolves.toMatchObject({ type: 'session.ready' })
+    socket.close()
+
+    socket = new WebSocket(
+      `${server.url.replace('http:', 'ws:')}/stream`,
+      ['actiondriver.stream.v1'],
+      { origin: 'https://untrusted.example' }
+    )
+    await expect(waitForOpen(socket)).rejects.toThrow('Unexpected server response: 403')
+  })
+
   it('authenticates once and forwards stream commands over the same native WebSocket', async () => {
     const received: StreamClientEvent[] = []
     const sessions: ServiceStreamSessionPort = {

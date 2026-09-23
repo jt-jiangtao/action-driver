@@ -129,7 +129,7 @@ export class SqliteRuntimeRepositories {
     listByTask: async (taskId: string): Promise<PersistedMessage[]> =>
       (
         this.database
-          .prepare('SELECT * FROM messages WHERE task_id = ? ORDER BY created_at, id')
+          .prepare('SELECT * FROM messages WHERE task_id = ? ORDER BY created_at, rowid')
           .all(taskId) as MessageRow[]
       ).map(messageFromRow),
     listBySession: async (sessionId: string): Promise<PersistedMessage[]> =>
@@ -140,7 +140,7 @@ export class SqliteRuntimeRepositories {
              FROM messages
              JOIN tasks ON tasks.id = messages.task_id
              WHERE tasks.session_id = ?
-             ORDER BY tasks.created_at, tasks.id, messages.created_at, messages.id`
+             ORDER BY tasks.created_at, tasks.id, messages.created_at, messages.rowid`
           )
           .all(sessionId) as MessageRow[]
       ).map(messageFromRow)

@@ -35,9 +35,9 @@ function ipcMainStub() {
 }
 
 describe('renderer to service interaction logging', () => {
-  it('records an agent request and response as one interaction', async () => {
+  it('does not register the legacy agent submit IPC after Renderer owns the stream', async () => {
     const ipcMain = ipcMainStub()
-    const { interactions, store } = recordingInteractions()
+    const { interactions } = recordingInteractions()
     registerAgentIpcHandlers(
       ipcMain as never,
       {
@@ -47,18 +47,7 @@ describe('renderer to service interaction logging', () => {
       interactions
     )
 
-    await ipcMain.handlers.get('actiondriver:agent:submit')!(undefined, { goal: '预订酒店' })
-
-    const records = (await store.list({ limit: 20 })).records
-    expect(records).toHaveLength(1)
-    await expect(store.getDetail(records[0]!.id)).resolves.toMatchObject({
-      transport: 'ipc',
-      direction: 'renderer->service',
-      operation: 'actiondriver:agent:submit',
-      state: 'completed',
-      request: { text: expect.stringContaining('预订酒店') },
-      response: { text: expect.stringContaining('task-1') }
-    })
+    expect(ipcMain.handlers.has('actiondriver:agent:submit')).toBe(false)
   })
 
   it('records failures with the serialized error code', async () => {
