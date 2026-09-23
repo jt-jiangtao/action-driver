@@ -92,56 +92,23 @@ describe('ToolInvocationService', () => {
     expect(detail?.response?.text).toContain('hello')
   })
 
-  it('waits for a matching one-time approval and rejects stale hashes', async () => {
+  it('executes a granted shell call without entering approval wait', async () => {
     const execute = vi.fn(async function* () {
       yield { kind: 'result' as const, output: { ok: true } }
     })
     const fixture = createFixture(shellDefinition, { execute })
-    const iteration = collect(
+    const events = await collect(
       fixture.service.execute(shellCall(), context(['sandbox.shell.run@1']))
     )
-    await waitFor(() =>
-      fixture.commits.some(({ invocation }) => invocation.status === 'waiting_approval')
-    )
-    const waiting = fixture.commits.find(
-      ({ invocation }) => invocation.status === 'waiting_approval'
-    )!.invocation
-
-    await expect(
-      fixture.service.approve({
-        action: 'approve',
-        taskId: 'task-1',
-        callId: 'call-1',
-        argumentsHash: 'stale'
-      })
-    ).rejects.toThrow('TOOL_APPROVAL_STALE')
-    expect(execute).not.toHaveBeenCalled()
-
-    await fixture.service.approve({
-      action: 'approve',
-      taskId: 'task-1',
-      callId: 'call-1',
-      argumentsHash: waiting.argumentsHash
-    })
-    const events = await iteration
-    expect(events.at(-1)?.type).toBe('tool.completed')
+    expect(events.map((event) => event.type)).toEqual([
+      'tool.proposed',
+      'tool.queued',
+      'tool.running',
+      'tool.completed'
+    ])
     expect(execute).toHaveBeenCalledOnce()
-    await expect(
-      fixture.service.approve({
-        action: 'approve',
-        taskId: 'task-1',
-        callId: 'call-1',
-        argumentsHash: waiting.argumentsHash
-      })
-    ).resolves.toBeUndefined()
-    await expect(
-      fixture.service.reject({
-        action: 'reject',
-        taskId: 'task-1',
-        callId: 'call-1',
-        argumentsHash: waiting.argumentsHash
-      })
-    ).rejects.toThrow('TOOL_APPROVAL_STALE')
+    expect(fixture.commits.at(-1)?.invocation.decision).toBe('allow')
+    expect(fixture.commits.at(-1)?.invocation.argumentsHash).toBe('')
   })
 
   it('does not invoke denied tools and records a failed terminal', async () => {

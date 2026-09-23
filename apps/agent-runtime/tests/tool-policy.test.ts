@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolCall, ToolDefinition } from '@actiondriver/runtime-contracts'
-import { RuntimeToolPolicy, hashToolArguments } from '../src/tool-policy'
+import { RuntimeToolPolicy } from '../src/tool-policy'
 import { createSearxngSearchTool } from '../src/searxng/search-tool'
 
 const readTool: ToolDefinition = {
@@ -34,33 +34,28 @@ describe('RuntimeToolPolicy', () => {
     expect(denied).toMatchObject({ kind: 'deny', error: { code: 'TOOL_DENIED' } })
   })
 
-  it('allows low-risk reads and binds shell approval to canonical arguments', () => {
+  it('allows granted reads and shell calls without per-call approval', () => {
     const policy = new RuntimeToolPolicy()
     const grants = ['sandbox.fs.read@1', 'sandbox.shell.run@1']
     expect(policy.decide(readTool, call(readTool, { path: 'README.md' }), { grants })).toEqual({
       kind: 'allow'
     })
 
-    const first = policy.decide(shellTool, call(shellTool, { args: ['x'], command: 'rg' }), {
-      grants
+    expect(
+      policy.decide(shellTool, call(shellTool, { command: 'rg', args: ['x'] }), { grants })
+    ).toEqual({ kind: 'allow' })
+    expect(
+      policy.decide(shellTool, call(shellTool, { command: 'rg', args: ['y'] }), { grants })
+    ).toEqual({ kind: 'allow' })
+    expect(
+      policy.decide(shellTool, { ...call(shellTool, {}), modelName: 'wrong' }, { grants })
+    ).toMatchObject({
+      kind: 'deny',
+      error: { code: 'TOOL_DEFINITION_MISMATCH' }
     })
-    const reordered = policy.decide(
-      shellTool,
-      call(shellTool, { command: 'rg', args: ['x'] }),
-      { grants }
-    )
-    const changed = policy.decide(shellTool, call(shellTool, { command: 'rg', args: ['y'] }), {
-      grants
-    })
-    expect(first).toEqual(reordered)
-    expect(first).toEqual({
-      kind: 'require_approval',
-      argumentsHash: hashToolArguments({ command: 'rg', args: ['x'] })
-    })
-    expect(changed).not.toEqual(first)
   })
 
-  it('requires a separately bound approval for every local SearXNG search', () => {
+  it('allows each granted local SearXNG search without an approval state', () => {
     const definition = createSearxngSearchTool({ endpoint: 'http://127.0.0.1:8080' }).definition
     const policy = new RuntimeToolPolicy()
     const first = policy.decide(definition, call(definition, { query: 'first' }), {
@@ -69,9 +64,8 @@ describe('RuntimeToolPolicy', () => {
     const second = policy.decide(definition, call(definition, { query: 'second' }), {
       grants: ['web.search@1']
     })
-    expect(first).toMatchObject({ kind: 'require_approval' })
-    expect(second).toMatchObject({ kind: 'require_approval' })
-    expect(first).not.toEqual(second)
+    expect(first).toEqual({ kind: 'allow' })
+    expect(second).toEqual({ kind: 'allow' })
   })
 })
 

@@ -1,9 +1,4 @@
-import { createHash } from 'node:crypto'
-import type {
-  ToolCall,
-  ToolDecision,
-  ToolDefinition
-} from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolDecision, ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ToolPolicyContext = {
   grants: readonly string[]
@@ -17,11 +12,7 @@ export class RuntimeToolPolicy {
       .map((definition) => structuredClone(definition))
   }
 
-  decide(
-    definition: ToolDefinition,
-    call: ToolCall,
-    context: ToolPolicyContext
-  ): ToolDecision {
+  decide(definition: ToolDefinition, call: ToolCall, context: ToolPolicyContext): ToolDecision {
     if (!context.grants.includes(toolGrantKey(definition))) {
       return {
         kind: 'deny',
@@ -42,31 +33,10 @@ export class RuntimeToolPolicy {
         }
       }
     }
-    if (
-      definition.id === 'sandbox.shell.run' ||
-      definition.risk !== 'low' ||
-      definition.sideEffects.filesystem === 'write' ||
-      definition.sideEffects.network
-    ) {
-      return { kind: 'require_approval', argumentsHash: hashToolArguments(call.arguments) }
-    }
     return { kind: 'allow' }
   }
 }
 
-export function hashToolArguments(value: ToolCall['arguments']): string {
-  return `sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`
-}
-
 function toolGrantKey(definition: Pick<ToolDefinition, 'id' | 'version'>): string {
   return `${definition.id}@${definition.version}`
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
-  return `{${Object.entries(value)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
-    .join(',')}}`
 }

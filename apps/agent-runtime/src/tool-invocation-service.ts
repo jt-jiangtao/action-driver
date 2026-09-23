@@ -1,4 +1,3 @@
-import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod'
 import {
   parseToolApprovalCommand,
@@ -123,7 +122,7 @@ export class ToolInvocationService {
       taskId: context.taskId,
       toolId: definition.id,
       toolVersion: definition.version,
-      argumentsHash: decision.kind === 'require_approval' ? decision.argumentsHash : '',
+      argumentsHash: '',
       decision: decision.kind === 'deny' ? 'deny' : decision.kind,
       status: 'proposed',
       input: call.arguments,
@@ -231,41 +230,8 @@ export class ToolInvocationService {
       () => controller.abort(new Error('TOOL_TIMEOUT')),
       definition.timeoutMs
     )
-    let waiter: ApprovalWaiter | null = null
     const collector = new ToolOutputCollector(this.maxOutputBytes)
     try {
-      if (decision.kind === 'require_approval') {
-        if (this.pending.has(call.callId)) throw new Error('TOOL_CALL_ALREADY_PENDING')
-        let release!: ApprovalWaiter['release']
-        const promise = new Promise<'approve' | 'reject'>((resolve) => {
-          release = resolve
-        })
-        waiter = {
-          taskId: context.taskId,
-          argumentsHash: decision.argumentsHash,
-          decision: null,
-          release,
-          promise
-        }
-        this.pending.set(call.callId, waiter)
-        yield await transition('waiting_approval')
-        const approval = await Promise.race([
-          promise,
-          delay(definition.timeoutMs, 'timeout' as const, { signal: controller.signal }).catch(
-            () => 'cancelled' as const
-          )
-        ])
-        if (approval === 'reject') {
-          const error = toolError('TOOL_REJECTED', 'Tool call was rejected')
-          invocation.error = error
-          yield await transition('cancelled', { error })
-          await completeLog('error', error)
-          return
-        }
-        if (approval !== 'approve')
-          throw new Error(approval === 'timeout' ? 'TOOL_TIMEOUT' : 'AbortError')
-      }
-
       if (controller.signal.aborted) throw controller.signal.reason
       yield await transition('queued')
       yield await transition('running')
@@ -307,7 +273,6 @@ export class ToolInvocationService {
     } finally {
       clearTimeout(timeout)
       signal?.removeEventListener('abort', onAbort)
-      if (waiter) this.pending.delete(call.callId)
     }
   }
 }

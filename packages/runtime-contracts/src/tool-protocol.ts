@@ -95,10 +95,7 @@ export type ToolCall = z.infer<typeof toolCallSchema>
 export type ToolApprovalCommand = z.infer<typeof toolApprovalCommandSchema>
 export type ToolEvent = z.infer<typeof toolEventSchema>
 export type ToolError = z.infer<typeof toolErrorSchema>
-export type ToolDecision =
-  | { kind: 'allow' }
-  | { kind: 'require_approval'; argumentsHash: string }
-  | { kind: 'deny'; error: ToolError }
+export type ToolDecision = { kind: 'allow' } | { kind: 'deny'; error: ToolError }
 
 export type ToolExecutorEvent =
   | { kind: 'content'; stream: 'stdout' | 'stderr' | 'result'; delta: string }
