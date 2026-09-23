@@ -61,35 +61,6 @@ export class FakeOpenAiToolServer {
               : this.mode === 'shell-timeout'
                 ? '{"command":"rg","args":["needle","BLOCKING_FIFO"]}'
                 : '{"command":"rg","args":["needle","README.md"]}'
-        if (this.mode === 'activity') {
-          response.write(
-            sseChunk(
-              {
-                tool_calls: [
-                  {
-                    index: 0,
-                    id: 'activity-start',
-                    type: 'function',
-                    function: {
-                      name: 'activity_update',
-                      arguments:
-                        '{"action":"start","activityId":"research","title":"调研现有实现","titleRevision":1}'
-                    }
-                  },
-                  {
-                    index: 1,
-                    id: 'provider-tool-1',
-                    type: 'function',
-                    function: { name: toolName, arguments: argumentsJson }
-                  }
-                ]
-              },
-              'tool_calls'
-            )
-          )
-          response.end('data: [DONE]\n\n')
-          return
-        }
         const midpoint = Math.ceil(argumentsJson.length / 2)
         response.write(
           sseChunk(
@@ -110,28 +81,6 @@ export class FakeOpenAiToolServer {
           sseChunk(
             {
               tool_calls: [{ index: 0, function: { arguments: argumentsJson.slice(midpoint) } }]
-            },
-            'tool_calls'
-          )
-        )
-        response.end('data: [DONE]\n\n')
-        return
-      }
-      if (this.mode === 'activity' && turn === 2) {
-        response.write(
-          sseChunk(
-            {
-              tool_calls: [
-                {
-                  index: 0,
-                  id: 'activity-complete',
-                  type: 'function',
-                  function: {
-                    name: 'activity_update',
-                    arguments: '{"action":"complete","activityId":"research"}'
-                  }
-                }
-              ]
             },
             'tool_calls'
           )

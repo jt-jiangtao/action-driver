@@ -273,13 +273,11 @@ describe('ModelGateway boundary', () => {
         model: { connectionId: 'connection-1', modelId: 'gpt-real' },
         messages: [{ role: 'user', content: 'current goal only' }],
         skills: [],
-        parameters: { temperature: 0 },
-        tools: [
-          expect.objectContaining({ id: 'internal.activity.update', modelName: 'activity_update' })
-        ]
+        parameters: { temperature: 0 }
       }),
       expect.anything()
     )
+    expect(complete.mock.calls[0]?.[0].tools).toBeUndefined()
   })
 
   it('places the task main prompt before the user goal in the model request', async () => {

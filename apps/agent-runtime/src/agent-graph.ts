@@ -51,28 +51,6 @@ export type GraphToolRuntime = {
 
 const replace = <T>(_current: T, update: T): T => update
 
-const activityUpdateTool: ToolDefinition = {
-  id: 'internal.activity.update',
-  version: 1,
-  modelName: 'activity_update',
-  description:
-    'Update the user-visible title of the current activity without performing an external action.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      action: { type: 'string', enum: ['start', 'update', 'complete'] },
-      activityId: { type: 'string' },
-      title: { type: 'string' },
-      titleRevision: { type: 'integer' }
-    },
-    required: ['action', 'activityId'],
-    additionalProperties: false
-  },
-  risk: 'low',
-  sideEffects: { filesystem: 'none', network: false },
-  timeoutMs: 1_000
-}
-
 const AgentState = Annotation.Root({
   taskId: Annotation<string>(),
   threadId: Annotation<string>(),
@@ -85,7 +63,8 @@ const AgentState = Annotation.Root({
   toolRound: Annotation<number>({ reducer: replace, default: () => 0 }),
   toolCallCount: Annotation<number>({ reducer: replace, default: () => 0 }),
   activeActivityId: Annotation<string | null>({ reducer: replace, default: () => null }),
-  fallbackActivityId: Annotation<string | null>({ reducer: replace, default: () => null }),
+  activityTitleRevision: Annotation<number>({ reducer: replace, default: () => 0 }),
+  activityCapturesProgress: Annotation<boolean>({ reducer: replace, default: () => false }),
   pendingToolCalls: Annotation<ProviderToolCall[]>({ reducer: replace, default: () => [] }),
   planRoute: Annotation<PlanRoute>({ reducer: replace, default: () => 'skill' }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
@@ -147,6 +126,16 @@ export class LangGraphRunner implements GraphRunner {
     if (toolObserver) this.toolObservers.set(request.taskId, toolObserver)
     if (request.streamRequestId) this.streamRequestIds.set(request.taskId, request.streamRequestId)
     try {
+      const initialActivityId = defaultActivityId(request.taskId)
+      await observer?.({
+        kind: 'activity',
+        event: {
+          type: 'started',
+          activityId: initialActivityId,
+          title: '正在处理请求',
+          titleRevision: 1
+        }
+      })
       return await this.execute(
         request.taskId,
         {
@@ -166,7 +155,9 @@ export class LangGraphRunner implements GraphRunner {
           toolGrants: request.toolGrants ?? this.toolRuntime?.grants ?? [],
           toolRound: 0,
           toolCallCount: 0,
-          activeActivityId: null,
+          activeActivityId: initialActivityId,
+          activityTitleRevision: 1,
+          activityCapturesProgress: false,
           pendingToolCalls: [],
           planRoute: 'skill',
           skills: request.skills ?? [],
@@ -280,7 +271,7 @@ export class LangGraphRunner implements GraphRunner {
                 grants: state.toolGrants
               })
             : []
-          const tools = [...discoveredTools, activityUpdateTool]
+          const tools = discoveredTools
           const request = {
             taskId: state.taskId,
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
@@ -294,7 +285,7 @@ export class LangGraphRunner implements GraphRunner {
             ? await this.consumeModelStream(
                 this.modelGateway.stream(request, config.signal),
                 this.modelObservers.get(state.taskId),
-                state.activeActivityId
+                state.activityCapturesProgress ? state.activeActivityId : null
               )
             : await this.modelGateway.complete(request, config.signal)
         } catch (error) {
@@ -325,8 +316,7 @@ export class LangGraphRunner implements GraphRunner {
         }
 
         if (plan.kind === 'tool-calls') {
-          const externalCalls = plan.calls.filter((call) => !toActivityEvent(call))
-          if (externalCalls.length > 0 && !this.toolRuntime) {
+          if (plan.calls.length > 0 && !this.toolRuntime) {
             return {
               status: 'failed' as const,
               error: 'TOOL_CALLS_NOT_CONFIGURED',
@@ -334,7 +324,7 @@ export class LangGraphRunner implements GraphRunner {
               trace: ['plan']
             }
           }
-          if (state.toolRound >= 8 || state.toolCallCount + externalCalls.length > 16) {
+          if (state.toolRound >= 8 || state.toolCallCount + plan.calls.length > 16) {
             return {
               status: 'failed' as const,
               error: 'TOOL_BUDGET_EXCEEDED',
@@ -347,7 +337,7 @@ export class LangGraphRunner implements GraphRunner {
             pendingToolCalls: plan.calls,
             planRoute: 'tools' as const,
             toolRound: state.toolRound + 1,
-            toolCallCount: state.toolCallCount + externalCalls.length,
+            toolCallCount: state.toolCallCount + plan.calls.length,
             trace: ['plan']
           }
         }
@@ -363,46 +353,38 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('executeTools', async (state, config) => {
         const results: RuntimeMessage[] = []
         let activeActivityId = state.activeActivityId
-        let fallbackActivityId = state.fallbackActivityId
-        const externalCalls = state.pendingToolCalls.filter((call) => !toActivityEvent(call))
-        const includesExplicitActivity = state.pendingToolCalls.some((call) => toActivityEvent(call))
-        if (!activeActivityId && externalCalls.length > 0 && !includesExplicitActivity) {
-          activeActivityId = `activity:${state.taskId}:${state.toolRound}`
-          fallbackActivityId = activeActivityId
-          await this.modelObservers.get(state.taskId)?.({
-            kind: 'activity',
-            event: {
-              type: 'started',
-              activityId: activeActivityId,
-              title: '正在执行工具',
-              titleRevision: 1
-            }
-          })
-        }
+        let activityTitleRevision = state.activityTitleRevision
+        let activityCapturesProgress = state.activityCapturesProgress
         for (const [index, providerCall] of state.pendingToolCalls.entries()) {
           if (config.signal?.aborted) throw config.signal.reason
-          const activityEvent = toActivityEvent(providerCall)
-          if (activityEvent) {
-            await this.modelObservers.get(state.taskId)?.({
-              kind: 'activity',
-              event: activityEvent
-            })
-            activeActivityId =
-              activityEvent.type === 'completed'
-                ? activityEvent.activityId === activeActivityId
-                  ? null
-                  : activeActivityId
-                : activityEvent.activityId
-            results.push({
-              role: 'tool',
-              toolCallId: providerCall.providerCallId,
-              name: providerCall.modelName,
-              content: JSON.stringify({ ok: true })
-            })
-            continue
-          }
           if (!this.toolRuntime) {
             return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
+          }
+          const toolTitle = activityTitleForTool(providerCall.modelName)
+          if (activeActivityId) {
+            activityTitleRevision += 1
+            await this.modelObservers.get(state.taskId)?.({
+              kind: 'activity',
+              event: {
+                type: 'updated',
+                activityId: activeActivityId,
+                title: toolTitle,
+                titleRevision: activityTitleRevision
+              }
+            })
+          } else {
+            activeActivityId = nextActivityId(state.taskId, state.toolRound, index)
+            activityTitleRevision = 1
+            activityCapturesProgress = false
+            await this.modelObservers.get(state.taskId)?.({
+              kind: 'activity',
+              event: {
+                type: 'started',
+                activityId: activeActivityId,
+                title: toolTitle,
+                titleRevision: activityTitleRevision
+              }
+            })
           }
           const call = parseToolCall({
             callId: `tool:${state.taskId}:${state.toolRound}:${index}`,
@@ -474,14 +456,6 @@ export class LangGraphRunner implements GraphRunner {
             )
           })
         }
-        if (fallbackActivityId && fallbackActivityId === activeActivityId) {
-          await this.modelObservers.get(state.taskId)?.({
-            kind: 'activity',
-            event: { type: 'completed', activityId: fallbackActivityId }
-          })
-          activeActivityId = null
-          fallbackActivityId = null
-        }
         return {
           modelMessages: [
             ...state.modelMessages,
@@ -490,7 +464,8 @@ export class LangGraphRunner implements GraphRunner {
           ],
           pendingToolCalls: [],
           activeActivityId,
-          fallbackActivityId,
+          activityTitleRevision,
+          activityCapturesProgress,
           trace: ['executeTools']
         }
       })
@@ -631,26 +606,20 @@ export class LangGraphRunner implements GraphRunner {
   }
 }
 
-function toActivityEvent(call: ProviderToolCall) {
-  if (call.modelName !== activityUpdateTool.modelName) return null
-  const input = call.arguments
-  if (!input || typeof input !== 'object') return null
-  const value = input as Record<string, unknown>
-  if (typeof value.activityId !== 'string' || !value.activityId.trim()) return null
-  if (value.action === 'complete')
-    return { type: 'completed' as const, activityId: value.activityId }
-  if (
-    (value.action !== 'start' && value.action !== 'update') ||
-    typeof value.title !== 'string' ||
-    !value.title.trim() ||
-    !Number.isInteger(value.titleRevision) ||
-    (value.titleRevision as number) < 1
-  )
-    return null
-  return {
-    type: value.action === 'start' ? ('started' as const) : ('updated' as const),
-    activityId: value.activityId,
-    title: value.title,
-    titleRevision: value.titleRevision as number
+function defaultActivityId(taskId: string): string {
+  return `activity:${taskId}:default`
+}
+
+function nextActivityId(taskId: string, toolRound: number, index: number): string {
+  return `activity:${taskId}:tools:${toolRound}:${index}`
+}
+
+function activityTitleForTool(modelName: string): string {
+  const normalized = modelName.toLowerCase()
+  if (normalized.includes('web') || normalized.includes('search')) return '正在搜索网页'
+  if (normalized.includes('shell') || normalized.includes('command')) return '正在执行命令'
+  if (normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')) {
+    return '正在读取文件'
   }
+  return '正在调用工具'
 }

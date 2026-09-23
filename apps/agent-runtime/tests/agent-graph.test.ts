@@ -20,35 +20,37 @@ import {
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
-  it('intercepts activity.update without delegating it to an external tool', async () => {
+  it('keeps activity titles and tool associations in the runtime without a model activity tool', async () => {
     let round = 0
     const observed: unknown[] = []
-    const toolRecords: unknown[] = []
+    const toolRecords: Array<{ payload: { activityId?: string | null; callId?: string } }> = []
     const model: ModelGateway = {
-      async complete() {
+      async complete(request) {
         round += 1
         if (round === 1) {
+          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
           return {
             kind: 'tool-calls',
             calls: [
               {
-                providerCallId: 'activity-start',
-                modelName: 'activity_update',
-                arguments: {
-                  action: 'start',
-                  activityId: 'activity-research',
-                  title: '正在调研',
-                  titleRevision: 1
-                }
-              },
-              {
-                providerCallId: 'provider-read-activity',
+                providerCallId: 'provider-read-first',
                 modelName: 'sandbox_fs_read',
                 arguments: { path: 'README.md' }
+              },
+              {
+                providerCallId: 'provider-read-second',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'package.json' }
               }
             ]
           }
         }
+        expect(request.messages.filter((message) => message.role === 'tool')).toHaveLength(2)
+        expect(
+          request.messages.some(
+            (message) => message.role === 'tool' && message.name === 'activity_update'
+          )
+        ).toBe(false)
         return { kind: 'finish', content: 'done' }
       }
     }
@@ -65,28 +67,71 @@ describe('minimal agent StateGraph', () => {
         observed.push(event)
       },
       (record) => {
-        toolRecords.push(record)
+        toolRecords.push(record as { payload: { activityId?: string | null; callId?: string } })
       }
     )
 
-    expect(observed).toContainEqual({
-      kind: 'activity',
-      event: {
-        type: 'started',
-        activityId: 'activity-research',
-        title: '正在调研',
-        titleRevision: 1
+    expect(
+      observed.filter(
+        (event) =>
+          typeof event === 'object' &&
+          event !== null &&
+          'kind' in event &&
+          event.kind === 'activity'
+      )
+    ).toEqual([
+      {
+        kind: 'activity',
+        event: {
+          type: 'started',
+          activityId: 'activity:task-activity:default',
+          title: '正在处理请求',
+          titleRevision: 1
+        }
+      },
+      {
+        kind: 'activity',
+        event: {
+          type: 'updated',
+          activityId: 'activity:task-activity:default',
+          title: '正在读取文件',
+          titleRevision: 2
+        }
+      },
+      {
+        kind: 'activity',
+        event: {
+          type: 'updated',
+          activityId: 'activity:task-activity:default',
+          title: '正在读取文件',
+          titleRevision: 3
+        }
+      },
+      {
+        kind: 'activity',
+        event: { type: 'completed', activityId: 'activity:task-activity:default' }
       }
-    })
-    expect(toolRecords).toContainEqual(
-      expect.objectContaining({
-        payload: expect.objectContaining({ activityId: 'activity-research' })
-      })
-    )
-    expect(commits).toEqual(['proposed', 'queued', 'running', 'completed'])
+    ])
+    expect(
+      toolRecords.every(
+        (record) =>
+          record.payload.activityId === 'activity:task-activity:default' &&
+          typeof record.payload.callId === 'string'
+      )
+    ).toBe(true)
+    expect(commits).toEqual([
+      'proposed',
+      'queued',
+      'running',
+      'completed',
+      'proposed',
+      'queued',
+      'running',
+      'completed'
+    ])
   })
 
-  it('creates one fallback activity for a normal multi-tool batch', async () => {
+  it('creates one default activity and assigns unlabelled tools to it', async () => {
     let round = 0
     const observed: unknown[] = []
     const toolRecords: Array<{ payload?: { activityId?: string | null } }> = []
@@ -130,90 +175,60 @@ describe('minimal agent StateGraph', () => {
       }
     )
 
-    const activityEvents = observed.filter(
-      (event): event is { kind: 'activity'; event: { type: string; activityId: string } } =>
-        typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'activity'
-    )
-    expect(activityEvents.map((event) => event.event.type)).toEqual(['started', 'completed'])
-    expect(activityEvents[0]?.event.activityId).toBe('activity:task-fallback-activity:1')
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'started',
+        activityId: 'activity:task-fallback-activity:default',
+        title: '正在处理请求',
+        titleRevision: 1
+      }
+    })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: { type: 'completed', activityId: 'activity:task-fallback-activity:default' }
+    })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: 'activity:task-fallback-activity:default',
+        title: '正在读取文件',
+        titleRevision: 2
+      }
+    })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: 'activity:task-fallback-activity:default',
+        title: '正在读取文件',
+        titleRevision: 3
+      }
+    })
     expect(toolRecords).toHaveLength(8)
     expect(
       toolRecords
         .filter((record) => record.payload?.activityId !== undefined)
         .map((record) => record.payload?.activityId)
     ).toEqual([
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1',
-      'activity:task-fallback-activity:1'
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default',
+      'activity:task-fallback-activity:default'
     ])
   })
 
-  it('attributes streamed progress text to the active activity instead of final assistant content', async () => {
-    let round = 0
+  it('starts and completes a default activity even without tools', async () => {
     const observed: unknown[] = []
     const model: ModelGateway = {
-      async complete() {
-        throw new Error('stream path expected')
-      },
-      async *stream() {
-        round += 1
-        if (round === 1) {
-          yield {
-            kind: 'end' as const,
-            content: '',
-            finishReason: 'tool_calls',
-            usage: null,
-            result: {
-              kind: 'tool-calls' as const,
-              calls: [
-                {
-                  providerCallId: 'activity-start',
-                  modelName: 'activity_update',
-                  arguments: {
-                    action: 'start',
-                    activityId: 'activity-research',
-                    title: '调研现有实现',
-                    titleRevision: 1
-                  }
-                }
-              ]
-            }
-          }
-          return
-        }
-        if (round === 2) {
-          yield { kind: 'content' as const, delta: '已读取现有协议。' }
-          yield {
-            kind: 'end' as const,
-            content: '已读取现有协议。',
-            finishReason: 'tool_calls',
-            usage: null,
-            result: {
-              kind: 'tool-calls' as const,
-              calls: [
-                {
-                  providerCallId: 'activity-complete',
-                  modelName: 'activity_update',
-                  arguments: { action: 'complete', activityId: 'activity-research' }
-                }
-              ]
-            }
-          }
-          return
-        }
-        yield { kind: 'content' as const, delta: '最终结论' }
-        yield {
-          kind: 'end' as const,
-          content: '最终结论',
-          finishReason: 'stop',
-          usage: null,
-          result: { kind: 'final-text' as const, content: '最终结论' }
-        }
+      async complete(request) {
+        expect(request.tools).toBeUndefined()
+        return { kind: 'finish', content: '最终结论' }
       }
     }
 
@@ -226,11 +241,21 @@ describe('minimal agent StateGraph', () => {
     )
 
     expect(result).toMatchObject({ status: 'completed', output: '最终结论' })
-    expect(observed).toContainEqual({
-      kind: 'activity',
-      event: { type: 'text', activityId: 'activity-research', delta: '已读取现有协议。' }
-    })
-    expect(observed).toContainEqual({ kind: 'content', delta: '最终结论' })
+    expect(observed).toEqual([
+      {
+        kind: 'activity',
+        event: {
+          type: 'started',
+          activityId: 'activity:task-activity-text:default',
+          title: '正在处理请求',
+          titleRevision: 1
+        }
+      },
+      {
+        kind: 'activity',
+        event: { type: 'completed', activityId: 'activity:task-activity-text:default' }
+      }
+    ])
   })
 
   it('runs a model tool request and returns only the final model answer', async () => {
@@ -266,10 +291,7 @@ describe('minimal agent StateGraph', () => {
 
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual([
-      'sandbox_fs_read',
-      'activity_update'
-    ])
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
     expect(requests[1]?.messages.at(-2)).toMatchObject({
       role: 'assistant',
       toolCalls: [{ providerCallId: 'provider-read-1' }]
@@ -365,7 +387,7 @@ describe('minimal agent StateGraph', () => {
       async complete(request) {
         round += 1
         if (round === 1) {
-          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['activity_update'])
+          expect(request.tools).toBeUndefined()
           return {
             kind: 'tool-calls',
             calls: [
@@ -589,12 +611,32 @@ describe('minimal agent StateGraph', () => {
       undefined,
       (event) => {
         observed.push(event)
-        if (observed.length === 1) sawFirstDelta()
+        if (
+          typeof event === 'object' &&
+          event !== null &&
+          'kind' in event &&
+          event.kind === 'content' &&
+          'delta' in event &&
+          event.delta === '# Real'
+        ) {
+          sawFirstDelta()
+        }
       }
     )
 
     await firstDelta
-    expect(observed).toEqual([{ kind: 'content', delta: '# Real' }])
+    expect(observed).toEqual([
+      {
+        kind: 'activity',
+        event: {
+          type: 'started',
+          activityId: 'activity:task-streaming:default',
+          title: '正在处理请求',
+          titleRevision: 1
+        }
+      },
+      { kind: 'content', delta: '# Real' }
+    ])
 
     releaseEnd()
     await expect(running).resolves.toMatchObject({
@@ -602,6 +644,15 @@ describe('minimal agent StateGraph', () => {
       output: '# Real answer'
     })
     expect(observed).toEqual([
+      {
+        kind: 'activity',
+        event: {
+          type: 'started',
+          activityId: 'activity:task-streaming:default',
+          title: '正在处理请求',
+          titleRevision: 1
+        }
+      },
       { kind: 'content', delta: '# Real' },
       { kind: 'content', delta: ' answer' },
       {
@@ -609,6 +660,10 @@ describe('minimal agent StateGraph', () => {
         content: '# Real answer',
         finishReason: 'stop',
         usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 }
+      },
+      {
+        kind: 'activity',
+        event: { type: 'completed', activityId: 'activity:task-streaming:default' }
       }
     ])
   })
