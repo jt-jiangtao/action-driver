@@ -43,6 +43,44 @@ const task: RuntimeTaskRecord = {
 }
 
 describe('SQLite runtime repositories', () => {
+  it('commits a tool transition and event atomically and ignores an identical replay', async () => {
+    const repositories = createRepositories()
+    await repositories.tasks.save(task)
+    const invocation: PersistedToolInvocation = {
+      id: 'call-atomic',
+      providerCallId: 'provider-atomic',
+      taskId: task.id,
+      toolId: 'sandbox.fs.read',
+      toolVersion: 1,
+      argumentsHash: '',
+      decision: 'allow',
+      status: 'proposed',
+      input: { path: 'README.md' },
+      output: null,
+      error: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    const event: Omit<RuntimeEventRecord, 'cursor'> = {
+      taskId: task.id,
+      threadId: task.threadId,
+      checkpointId: 'checkpoint-1',
+      eventKey: 'call-atomic.0',
+      type: 'tool.proposed',
+      payload: { callId: invocation.id },
+      occurredAt: task.createdAt
+    }
+    const first = await repositories.commitToolInvocationWithEvent(invocation, event)
+    const replay = await repositories.commitToolInvocationWithEvent(
+      { ...invocation, status: 'completed' },
+      event
+    )
+    expect(replay.cursor).toBe(first.cursor)
+    expect(await repositories.events.listAfter(0)).toHaveLength(1)
+    expect(await repositories.toolInvocations.listByTask(task.id)).toEqual([invocation])
+    repositories.close()
+  })
+
   it('creates one durable stream task per idempotency key and commits content atomically', async () => {
     const repositories = createRepositories()
     const streamTask: RuntimeTaskRecord = {

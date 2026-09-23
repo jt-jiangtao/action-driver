@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { LOG_LEVELS, readRecentLogRecords } from '../src/service/logs'
+import { LOG_LEVELS, isLogControlPlaneOperation, readRecentLogRecords } from '../src/service/logs'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
 
 let server: ServiceHttpServer | undefined
@@ -44,6 +44,11 @@ const records = [
 ]
 
 describe('service log records', () => {
+  it('excludes interaction-log queries from recursive recording', () => {
+    expect(isLogControlPlaneOperation('actiondriver:log:list')).toBe(true)
+    expect(isLogControlPlaneOperation('actiondriver:log:get-detail')).toBe(true)
+    expect(isLogControlPlaneOperation('sandbox.fs.read')).toBe(false)
+  })
   it('returns the newest records and filters by level', () => {
     const filePath = logFile(records)
 

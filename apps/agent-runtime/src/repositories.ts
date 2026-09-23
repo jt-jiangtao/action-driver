@@ -384,6 +384,25 @@ export class SqliteRuntimeRepositories {
       .immediate()
   }
 
+  async commitToolInvocationWithEvent(
+    invocation: PersistedToolInvocation,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord> {
+    return this.database
+      .transaction(() => {
+        const existing = this.database
+          .prepare(
+            `SELECT * FROM runtime_events
+             WHERE thread_id = ? AND checkpoint_id = ? AND event_key = ?`
+          )
+          .get(event.threadId, event.checkpointId, event.eventKey) as EventRow | undefined
+        if (existing) return eventFromRow(existing)
+        saveToolInvocation(this.database, invocation)
+        return appendEvent(this.database, event)
+      })
+      .immediate()
+  }
+
   close(): void {
     this.database.close()
   }

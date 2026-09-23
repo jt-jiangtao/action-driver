@@ -13,10 +13,10 @@
 
 ## 3. 通用 Tool Runtime
 
-- [ ] 3.1 实现 Tool Policy 的 discover/call 双阶段判断与 `allow | require_approval | deny` 结果，验证隐藏工具不会进入模型请求、参数变化使旧批准失效、拒绝不会调用执行器。
-- [ ] 3.2 实现 Tool Invocation 状态机与服务，覆盖 `proposed → waiting_approval|queued → running → completed|failed|cancelled`、非法转移、AbortSignal 和 timeout，并验证每次转移持久化一条幂等运行事件。
-- [ ] 3.3 实现有界工具输出聚合器，验证有序 `tool.content`、stdout/stderr 总上限、截断元数据和单调用聚合结果，禁止为每个分片创建接口日志。
-- [ ] 3.4 将单次 Tool Invocation 记录到接口层日志并沿用日志控制面排除规则，验证 `actiondriver:log:list` 不递归出现且 request/response/error 可在详情中读取。
+- [x] 3.1 实现 Tool Policy 的 discover/call 双阶段判断与 `allow | require_approval | deny` 结果，验证隐藏工具不会进入模型请求、参数变化使旧批准失效、拒绝不会调用执行器。
+- [x] 3.2 实现 Tool Invocation 状态机与服务，覆盖 `proposed → waiting_approval|queued → running → completed|failed|cancelled`、非法转移、AbortSignal 和 timeout，并验证每次转移持久化一条幂等运行事件。
+- [x] 3.3 实现有界工具输出聚合器，验证有序 `tool.content`、stdout/stderr 总上限、截断元数据和单调用聚合结果，禁止为每个分片创建接口日志。
+- [x] 3.4 将单次 Tool Invocation 记录到接口层日志并沿用日志控制面排除规则，验证 `actiondriver:log:list` 不递归出现且 request/response/error 可在详情中读取。
 
 ## 4. LangGraph 模型—工具循环
 

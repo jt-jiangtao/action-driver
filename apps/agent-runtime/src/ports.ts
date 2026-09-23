@@ -146,6 +146,13 @@ export interface ToolInvocationRepository {
   listByTask(taskId: string): Promise<PersistedToolInvocation[]>
 }
 
+export interface ToolInvocationPersistence {
+  commitToolInvocationWithEvent(
+    invocation: PersistedToolInvocation,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+}
+
 export type PersistedMessage = {
   id: string
   taskId: string
