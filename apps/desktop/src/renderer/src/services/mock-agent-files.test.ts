@@ -3,6 +3,15 @@ import { AgentFileConflictError, AgentFilePathError } from '../models/agent-file
 import { MockAgentFilesService } from './mock-agent-files'
 
 describe('MockAgentFilesService', () => {
+  it('uses the same concise execution semantics as the real default prompt', async () => {
+    const prompt = (await new MockAgentFilesService().getMainPrompt()).content
+
+    expect(prompt).toContain('在当前可用能力范围内完成任务')
+    expect(prompt).toContain('不得虚构工具调用、外部结果或完成状态')
+    expect(prompt).toContain('不输出内部执行进度')
+    expect(prompt).not.toContain('记录每一次模型与工具调用')
+  })
+
   it('lists mock skills and persists edits in memory', async () => {
     const service = new MockAgentFilesService()
     const skills = await service.listSkills()

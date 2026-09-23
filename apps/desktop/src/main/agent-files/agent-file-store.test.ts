@@ -26,6 +26,19 @@ afterEach(async () => {
 })
 
 describe('AgentFileStore', () => {
+  it('seeds the concise execution prompt without claiming unavailable capabilities', async () => {
+    const { store } = await createStore()
+    const prompt = (await store.getMainPrompt()).content
+
+    expect(prompt).toContain('在当前可用能力范围内完成任务')
+    expect(prompt).toContain('不得虚构工具调用、外部结果或完成状态')
+    expect(prompt).toContain('不输出内部执行进度')
+    expect(prompt).toContain('优先给出结果')
+    expect(prompt).not.toContain('记录每一次模型与工具调用')
+    expect(prompt).not.toContain('Browser Use')
+    expect(prompt).not.toContain('Computer Use')
+  })
+
   it('seeds missing files once and restores existing content after restart', async () => {
     const { store, homeDirectory } = await createStore()
     const prompt = await store.getMainPrompt()
