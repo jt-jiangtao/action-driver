@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, nativeImage, safeStorage } from 'electron'
 import { randomBytes } from 'node:crypto'
-import type { RuntimeStreamClient } from './runtime-stream-client'
 import { unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -27,6 +26,7 @@ import { AgentFileStore } from './agent-files/agent-file-store'
 import { registerAgentFilesIpcHandlers } from './agent-files-ipc'
 import { createLocalInteractionLogStore } from '@actiondriver/observability'
 import { resolveModuleDirectory } from './module-directory'
+import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 
 const moduleDirectory = resolveModuleDirectory(import.meta.url)
 const desktopIconPath = resolveDesktopIconPath(moduleDirectory)
@@ -34,7 +34,6 @@ const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
 let logging: MainLogging | undefined
 let quitting = false
-let runtimeStreamClient: RuntimeStreamClient | null = null
 
 applyApplicationName(app)
 
@@ -130,15 +129,11 @@ app.whenReady().then(async () => {
     services = resolveMainServices(
       createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
     )
-    runtimeStreamClient = runtime.runtimeStreamClient
     await runtime.runtimeSupervisor.start()
-    registerAgentIpcHandlers(
-      ipcMain,
-      runtime.runtimeClient,
-      logging.interactions,
-      { getSystemPrompt: async () => (await agentFileStore.getMainPrompt()).content },
-      runtime.runtimeStreamClient
-    )
+    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions)
+    const serviceDescriptor = runtime.runtimeSupervisor.serviceDescriptor
+    if (!serviceDescriptor) throw new Error('Local service did not report a stream surface')
+    registerRuntimeConnectionIpc(ipcMain, serviceDescriptor, serviceToken)
     const serviceUrl = runtime.runtimeSupervisor.serviceUrl
     if (!serviceUrl) throw new Error('Local service did not report an HTTP surface')
     const modelConnectionClient = new ModelConnectionHttpClient({
@@ -211,11 +206,8 @@ app.on('before-quit', (event) => {
   quitting = true
   // Never leave a lingering Dock tile: quit even if the supervisor shutdown stalls.
   const forceQuit = setTimeout(() => app.exit(0), 3_000)
-  const closeStream = runtimeStreamClient
-    ? runtimeStreamClient.close().catch(() => undefined)
-    : Promise.resolve()
-  void closeStream
-    .then(() => services?.runtimeSupervisor?.stop())
+  void services?.runtimeSupervisor
+    ?.stop()
     .catch(() => undefined)
     .then(() => logging?.logger.close())
     .finally(() => {

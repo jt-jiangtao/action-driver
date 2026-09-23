@@ -28,6 +28,7 @@ import {
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 import { MockAgentFilesService } from '../services/mock-agent-files'
 import { DesktopAgentFilesService } from '../services/desktop-agent-files'
+import { RendererStreamClient } from '../services/renderer-stream-client'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -63,7 +64,14 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
   if (options.mode === 'local') {
     if (!options.desktopApi) throw new Error('Local renderer services require DesktopApi')
 
-    const agentAdapter = new DesktopAgentAdapter(options.desktopApi.agent)
+    const streamClient = new RendererStreamClient({
+      getConnection: () => options.desktopApi!.runtimeConnection.get()
+    })
+    const agentAdapter = new DesktopAgentAdapter(
+      options.desktopApi.agent,
+      streamClient,
+      async () => (await options.desktopApi!.agentFiles.getMainPrompt()).content
+    )
     agentCommandService = options.agentCommandService ?? agentAdapter
     agentSessionRepository = options.agentSessionRepository ?? agentAdapter
     skillGateway = options.skillGateway ?? new DesktopSkillGateway(options.desktopApi.agent)

@@ -1,12 +1,10 @@
 import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
-import type { AgentGoalRequest, ModelLogQuery } from '@actiondriver/contracts'
+import type { ModelLogQuery } from '@actiondriver/contracts'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type { AgentIpcError, AgentIpcResponse } from '../shared/agent-ipc-contract'
 import type { AgentControlSkillInput } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
 import { startIpcInteraction } from './logging'
-import type { RuntimeStreamAccepted } from './runtime-stream-client'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type AgentIpcEvent = {
   sender: { send(channel: string, payload: unknown): void }
@@ -19,16 +17,6 @@ export interface AgentIpcMain {
 }
 
 export type AgentRuntimeClient = Pick<RuntimeClient, 'request' | 'subscribeEvents'>
-
-export interface AgentTaskConfiguration {
-  getSystemPrompt(): Promise<string>
-}
-
-export interface AgentRuntimeStreamClient {
-  create(request: AgentGoalRequest & { systemPrompt?: string }): Promise<RuntimeStreamAccepted>
-  cancel(taskId: string): Promise<void>
-  subscribe(listener: (event: StreamServerEvent) => void): () => void
-}
 
 async function asIpcResponse<T>(
   channel: string,
@@ -66,53 +54,8 @@ function serializeError(error: unknown): AgentIpcError {
 export function registerAgentIpcHandlers(
   ipcMain: AgentIpcMain,
   runtimeClient: AgentRuntimeClient,
-  interactions?: InteractionLogRecorder,
-  taskConfiguration?: AgentTaskConfiguration,
-  streamClient?: AgentRuntimeStreamClient
+  interactions?: InteractionLogRecorder
 ): void {
-  const subscribedSenders = new WeakSet<object>()
-  ipcMain.handle(AGENT_IPC_CHANNELS.submit, (event, input) =>
-    asIpcResponse(
-      AGENT_IPC_CHANNELS.submit,
-      input,
-      async () => {
-        const request = input as AgentGoalRequest
-        const systemPrompt = taskConfiguration
-          ? await taskConfiguration.getSystemPrompt()
-          : undefined
-        if (streamClient) {
-          if (!subscribedSenders.has(event.sender)) {
-            subscribedSenders.add(event.sender)
-            streamClient.subscribe((streamEvent) =>
-              event.sender.send(AGENT_IPC_CHANNELS.streamEvent, streamEvent)
-            )
-          }
-          return await streamClient.create({
-            ...request,
-            ...(systemPrompt === undefined ? {} : { systemPrompt })
-          })
-        }
-        return runtimeClient.request('task.submit', {
-          ...request,
-          ...(systemPrompt === undefined ? {} : { systemPrompt }),
-          skills: []
-        })
-      },
-      interactions
-    )
-  )
-  ipcMain.handle(AGENT_IPC_CHANNELS.cancel, (_event, input) =>
-    asIpcResponse(
-      AGENT_IPC_CHANNELS.cancel,
-      input,
-      async () => {
-        if (!streamClient) throw new Error('Runtime stream is not connected')
-        await streamClient.cancel((input as { taskId: string }).taskId)
-        return { accepted: true as const }
-      },
-      interactions
-    )
-  )
   ipcMain.handle(AGENT_IPC_CHANNELS.get, (_event, input) =>
     asIpcResponse(
       AGENT_IPC_CHANNELS.get,

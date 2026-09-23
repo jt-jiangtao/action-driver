@@ -1,4 +1,4 @@
-import type { RuntimeEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import { RuntimeRpcError, type RuntimeClient } from '@actiondriver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import { registerAgentIpcHandlers } from './agent-ipc'
@@ -8,19 +8,18 @@ type Handler = (
   input: unknown
 ) => unknown
 
-function createHarness(getSystemPrompt?: () => Promise<string>) {
+function createHarness() {
   const handlers = new Map<string, Handler>()
   const sent: Array<{ channel: string; payload: unknown }> = []
   let eventListener: ((event: RuntimeEvent) => void) | undefined
-  let streamListener: ((event: StreamServerEvent) => void) | undefined
   const request = vi.fn(async (command: string, input: unknown) => {
     void input
     if (
-      command === 'task.submit' &&
+      command === 'task.get' &&
       typeof input === 'object' &&
       input !== null &&
-      'goal' in input &&
-      input.goal === 'timeout'
+      'taskId' in input &&
+      input.taskId === 'timeout'
     ) {
       throw new RuntimeRpcError('DEADLINE_EXCEEDED', 'Runtime request timed out', { timeoutMs: 50 })
     }
@@ -35,13 +34,14 @@ function createHarness(getSystemPrompt?: () => Promise<string>) {
         }
       }
     }
-    if (command === 'task.submit') return { taskId: 'task-1' }
     if (command === 'task.get') {
       return {
         task: {
           id: 'task-1',
+          sessionId: 'session-1',
           title: 'Book a hotel',
           status: 'running',
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' },
           messages: [],
           steps: [],
           browser: null
@@ -63,47 +63,13 @@ function createHarness(getSystemPrompt?: () => Promise<string>) {
     request: request as RuntimeClient['request'],
     subscribeEvents: subscribeEvents as RuntimeClient['subscribeEvents']
   }
-  const streamCreate = vi.fn(async (input: { goal: string }) => {
-    if (input.goal === 'timeout') {
-      throw new RuntimeRpcError('DEADLINE_EXCEEDED', 'Runtime request timed out', {
-        timeoutMs: 50
-      })
-    }
-    return {
-      type: 'request.accepted' as const,
-      protocol: 'actiondriver.stream.v1' as const,
-      eventId: 'stream-accepted',
-      cursor: 1,
-      requestId: 'request-1',
-      sessionId: 'session-1',
-      taskId: 'task-1',
-      responseId: 'response-1',
-      streamId: 'stream-1',
-      messageId: 'message-1',
-      occurredAt: '2026-09-23T00:00:00.000Z'
-    }
-  })
-  const streamCancel = vi.fn(async () => undefined)
-  const streamClient = {
-    create: streamCreate,
-    cancel: streamCancel,
-    subscribe(listener: (event: StreamServerEvent) => void) {
-      streamListener = listener
-      return () => {
-        streamListener = undefined
-      }
-    }
-  }
   registerAgentIpcHandlers(
     {
       handle(channel, handler) {
         handlers.set(channel, handler)
       }
     },
-    runtimeClient,
-    undefined,
-    getSystemPrompt ? { getSystemPrompt } : undefined,
-    streamClient
+    runtimeClient
   )
   const sender = {
     send(channel: string, payload: unknown) {
@@ -114,46 +80,19 @@ function createHarness(getSystemPrompt?: () => Promise<string>) {
 
   return {
     eventListener: () => eventListener,
-    streamListener: () => streamListener,
     handlers,
     invoke,
     request,
     sent,
-    streamCancel,
-    streamCreate,
     subscribeEvents
   }
 }
 
 describe('registerAgentIpcHandlers', () => {
-  it('loads the latest main prompt when a task is submitted', async () => {
-    const getSystemPrompt = vi.fn(async () => '# Current main prompt')
-    const { invoke, request, streamCreate } = createHarness(getSystemPrompt)
-
-    await expect(
-      invoke('actiondriver:agent:submit', {
-        goal: 'Book a hotel',
-        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
-      })
-    ).resolves.toMatchObject({
-      ok: true,
-      value: { taskId: 'task-1' }
-    })
-
-    expect(getSystemPrompt).toHaveBeenCalledOnce()
-    expect(streamCreate).toHaveBeenCalledWith({
-      goal: 'Book a hotel',
-      model: { connectionId: 'connection-1', modelId: 'gpt-real' },
-      systemPrompt: '# Current main prompt'
-    })
-    expect(request).not.toHaveBeenCalledWith('task.submit', expect.anything())
-  })
-
   it('registers and forwards the typed task and model-log query handlers', async () => {
     const { handlers, invoke, request } = createHarness()
 
     expect([...handlers.keys()].sort()).toEqual([
-      'actiondriver:agent:cancel',
       'actiondriver:agent:continue',
       'actiondriver:agent:control-skill',
       'actiondriver:agent:get',
@@ -162,26 +101,17 @@ describe('registerAgentIpcHandlers', () => {
       'actiondriver:agent:model-log-get',
       'actiondriver:agent:model-log-list',
       'actiondriver:agent:provide-input',
-      'actiondriver:agent:submit',
       'actiondriver:agent:subscribe'
     ])
-
-    await expect(
-      invoke('actiondriver:agent:submit', {
-        goal: 'Book a hotel',
-        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
-      })
-    ).resolves.toMatchObject({
-      ok: true,
-      value: { taskId: 'task-1' }
-    })
     await expect(invoke('actiondriver:agent:get', { taskId: 'task-1' })).resolves.toEqual({
       ok: true,
       value: {
         task: {
           id: 'task-1',
+          sessionId: 'session-1',
           title: 'Book a hotel',
           status: 'running',
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' },
           messages: [],
           steps: [],
           browser: null
@@ -237,35 +167,6 @@ describe('registerAgentIpcHandlers', () => {
     ])
   })
 
-  it('installs stream forwarding before create and routes cancel through WebSocket', async () => {
-    const { invoke, sent, streamCancel, streamListener } = createHarness()
-    await invoke('actiondriver:agent:submit', {
-      goal: 'stream',
-      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
-    })
-    const event = {
-      type: 'response.content' as const,
-      protocol: 'actiondriver.stream.v1' as const,
-      eventId: 'content-1',
-      cursor: 2,
-      requestId: 'request-1',
-      sessionId: 'session-1',
-      taskId: 'task-1',
-      responseId: 'response-1',
-      streamId: 'stream-1',
-      messageId: 'message-1',
-      occurredAt: '2026-09-23T00:00:01.000Z',
-      sequence: 1,
-      delta: 'hello',
-      contentIndex: 0
-    }
-    streamListener()?.(event)
-    await invoke('actiondriver:agent:cancel', { taskId: 'task-1' })
-
-    expect(sent).toContainEqual({ channel: 'actiondriver:agent:stream-event', payload: event })
-    expect(streamCancel).toHaveBeenCalledWith('task-1')
-  })
-
   it('projects subscribed Runtime events over one fixed renderer event channel', async () => {
     const { eventListener, invoke, sent, subscribeEvents } = createHarness()
 
@@ -297,12 +198,10 @@ describe('registerAgentIpcHandlers', () => {
 
   it('returns structured-clone-safe Runtime errors instead of throwing through Electron IPC', async () => {
     const { handlers } = createHarness()
-    const handler = handlers.get('actiondriver:agent:submit')
+    const handler = handlers.get('actiondriver:agent:get')
     const sender = { send: vi.fn() }
 
-    await expect(
-      handler?.({ sender }, { goal: 'timeout', model: { connectionId: 'c', modelId: 'm' } })
-    ).resolves.toEqual({
+    await expect(handler?.({ sender }, { taskId: 'timeout' })).resolves.toEqual({
       ok: false,
       error: {
         code: 'DEADLINE_EXCEEDED',

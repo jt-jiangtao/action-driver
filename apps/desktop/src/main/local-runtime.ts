@@ -3,7 +3,6 @@ import type { RuntimePaths } from './runtime-paths'
 import { RuntimeClientGateway } from './runtime-client-gateway'
 import { RuntimeSupervisor, createElectronRuntimeProcessFactory } from './runtime-supervisor'
 import type { SkillProviderHost } from './skill-provider-host'
-import { RuntimeStreamClient } from './runtime-stream-client'
 
 const RUNTIME_CAPABILITIES = [
   'task.submit',
@@ -32,11 +31,9 @@ export function createLocalRuntimeServices(
   }
 ): {
   runtimeClient: RuntimeClientGateway
-  runtimeStreamClient: RuntimeStreamClient
   runtimeSupervisor: RuntimeSupervisor
 } {
   const runtimeClient = new RuntimeClientGateway()
-  const runtimeStreamClient = new RuntimeStreamClient()
   let connectRuntimeRpc: (() => Promise<void>) | null = null
   const processFactory = createElectronRuntimeProcessFactory({
     databasePath: paths.databasePath,
@@ -68,19 +65,12 @@ export function createLocalRuntimeServices(
 
   return {
     runtimeClient,
-    runtimeStreamClient,
     runtimeSupervisor: new RuntimeSupervisor(processFactory, paths.runtimeEntryPath, {
       onRuntimeRpcReady: async () => {
         if (!connectRuntimeRpc) throw new Error('Runtime RPC endpoint is unavailable')
         const connect = connectRuntimeRpc
         connectRuntimeRpc = null
         await connect()
-      },
-      onServiceReady: async (service) => {
-        await runtimeStreamClient.connect({
-          ...service,
-          token: options.serviceToken
-        })
       }
     })
   }

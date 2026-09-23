@@ -1,5 +1,4 @@
 import type {
-  AgentGoalRequest,
   ModelLogQuery,
   ModelLogSessionProjection,
   RecentTaskProjection,
@@ -7,7 +6,7 @@ import type {
   SkillExecutionEvent,
   TaskProjection
 } from '@actiondriver/contracts'
-import type { RuntimeEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
 import type {
   ModelConnectionDraftDto,
   ModelConnectionDto,
@@ -33,10 +32,14 @@ import type {
   AgentListResult,
   AgentModelLogGetResult,
   AgentModelLogListResult,
-  AgentSubmitResult,
   AgentSubscriptionResult
 } from '../shared/agent-ipc-contract'
 import { AGENT_IPC_CHANNELS } from '../shared/agent-ipc-contract'
+import {
+  RUNTIME_CONNECTION_IPC_CHANNEL,
+  type RuntimeConnectionDesktopApi,
+  type RuntimeConnectionInfo
+} from '../shared/runtime-connection-contract'
 import {
   AGENT_FILES_IPC_CHANNELS,
   type AgentFileIpcResponse,
@@ -53,12 +56,7 @@ export interface DesktopIpcBridge {
   off(channel: string, listener: (event: unknown, payload: unknown) => void): void
 }
 
-export type AgentStreamEvent = StreamServerEvent
-
 export interface AgentDesktopApi {
-  submit(request: AgentGoalRequest): Promise<AgentSubmitResult>
-  cancel(taskId: string): Promise<void>
-  subscribeStream(listener: (event: StreamServerEvent) => void): () => void
   get(taskId: string): Promise<TaskProjection | null>
   listTasks(limit?: number): Promise<RecentTaskProjection[]>
   listModelLogs(query?: ModelLogQuery): Promise<ModelLogSessionProjection[]>
@@ -77,6 +75,7 @@ export interface AgentDesktopApi {
 export interface DesktopApi {
   getEnvironment(): { platform: NodeJS.Platform; version: string }
   agent: AgentDesktopApi
+  runtimeConnection: RuntimeConnectionDesktopApi
   modelConnections: ModelConnectionsDesktopApi
   logs: LogsDesktopApi
   agentFiles: AgentFilesDesktopApi
@@ -176,17 +175,6 @@ export function createDesktopApi(
   return {
     getEnvironment: () => ({ platform, version }),
     agent: {
-      submit: (request) => invokeAgent<AgentSubmitResult>(ipc, AGENT_IPC_CHANNELS.submit, request),
-      async cancel(taskId) {
-        await invokeAgent<AgentAcceptedResult>(ipc, AGENT_IPC_CHANNELS.cancel, { taskId })
-      },
-      subscribeStream(listener) {
-        const handleEvent = (_event: unknown, payload: unknown) => {
-          listener(payload as StreamServerEvent)
-        }
-        ipc.on(AGENT_IPC_CHANNELS.streamEvent, handleEvent)
-        return () => ipc.off(AGENT_IPC_CHANNELS.streamEvent, handleEvent)
-      },
       async get(taskId) {
         const result = await invokeAgent<AgentGetResult>(ipc, AGENT_IPC_CHANNELS.get, { taskId })
         return result.task
@@ -261,6 +249,10 @@ export function createDesktopApi(
         }
         return () => ipc.off(AGENT_IPC_CHANNELS.event, handleEvent)
       }
+    },
+    runtimeConnection: {
+      get: async () =>
+        (await ipc.invoke(RUNTIME_CONNECTION_IPC_CHANNEL, {})) as RuntimeConnectionInfo
     },
     modelConnections: {
       list: () => invokeModel<ModelConnectionDto[]>(ipc, MODEL_IPC_CHANNELS.list, {}),

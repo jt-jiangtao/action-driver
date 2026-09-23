@@ -25,22 +25,14 @@ import { createRendererContainer, resolveAppServices } from './container'
 function createDesktopApi(): DesktopApi {
   return {
     getEnvironment: () => ({ platform: 'darwin', version: '0.1.0' }),
-    agent: {
-      submit: async () => ({
-        type: 'request.accepted',
+    runtimeConnection: {
+      get: async () => ({
+        wsUrl: 'ws://127.0.0.1:4321/stream',
         protocol: 'actiondriver.stream.v1',
-        eventId: 'accepted-1',
-        cursor: 1,
-        requestId: 'request-1',
-        sessionId: 'session-1',
-        taskId: 'task-1',
-        responseId: 'response-1',
-        streamId: 'stream-1',
-        messageId: 'message-1',
-        occurredAt: '2026-09-23T00:00:00.000Z'
-      }),
-      cancel: async () => undefined,
-      subscribeStream: () => () => undefined,
+        accessToken: 'launch-token'
+      })
+    },
+    agent: {
       get: async () => null,
       listTasks: async () => [],
       listModelLogs: async () => [],

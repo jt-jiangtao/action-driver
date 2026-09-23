@@ -1,5 +1,5 @@
 import type { TaskProjection } from '@actiondriver/contracts'
-import type { AgentStreamEvent } from '../../../preload/desktop-api'
+import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
 
@@ -24,7 +24,7 @@ export class StreamTaskProjection {
     for (const event of events) this.apply(event)
   }
 
-  apply(event: AgentStreamEvent): void {
+  apply(event: StreamServerEvent): void {
     if (!this.task) {
       this.buffered.push(structuredClone(event))
       return

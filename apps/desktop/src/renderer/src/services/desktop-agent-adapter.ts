@@ -11,22 +11,31 @@ import type {
   TaskProjection
 } from '@actiondriver/contracts'
 import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
-import type { AgentDesktopApi, AgentStreamEvent } from '../../../preload/desktop-api'
+import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import { StreamTaskProjection } from './stream-task-projection'
+import type { RendererStreamClient, RuntimeStreamListener } from './renderer-stream-client'
 
 export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
   private readonly tasks = new Map<string, TaskProjection>()
   private readonly listeners = new Set<(task: TaskProjection) => void>()
   private readonly streamProjections = new Map<string, StreamTaskProjection>()
-  private readonly pendingStreamEvents = new Map<string, AgentStreamEvent[]>()
+  private readonly pendingStreamEvents = new Map<string, Parameters<RuntimeStreamListener>[0][]>()
 
-  constructor(private readonly api: AgentDesktopApi) {
-    this.api.subscribeStream((event) => this.handleStreamEvent(event))
+  constructor(
+    private readonly api: AgentDesktopApi,
+    private readonly streamClient: Pick<RendererStreamClient, 'create' | 'cancel' | 'subscribe'>,
+    private readonly getSystemPrompt?: () => Promise<string>
+  ) {
+    this.streamClient.subscribe((event) => this.handleStreamEvent(event))
   }
 
   async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
     try {
-      const accepted = await this.api.submit(request)
+      const systemPrompt = await this.getSystemPrompt?.()
+      const accepted = await this.streamClient.create({
+        ...request,
+        ...(systemPrompt === undefined ? {} : { systemPrompt })
+      })
       const projection = new StreamTaskProjection({
         onChange: (task) => {
           this.tasks.set(task.id, task)
@@ -91,7 +100,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
     return () => this.listeners.delete(listener)
   }
 
-  private handleStreamEvent(event: AgentStreamEvent): void {
+  private handleStreamEvent(event: Parameters<RuntimeStreamListener>[0]): void {
     if (!('taskId' in event)) return
     const projection = this.streamProjections.get(event.taskId)
     if (projection) {

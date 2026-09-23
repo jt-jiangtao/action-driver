@@ -8,6 +8,13 @@ describe('createDesktopApi', () => {
     const bridge = {
       invoke(channel: string, input: unknown) {
         invocations.push({ channel, input })
+        if (channel === 'actiondriver:runtime-connection:get') {
+          return Promise.resolve({
+            wsUrl: 'ws://127.0.0.1:4321/stream',
+            protocol: 'actiondriver.stream.v1',
+            accessToken: 'launch-token'
+          })
+        }
         return Promise.resolve({
           ok: true,
           value: channel.endsWith(':subscribe') ? { cursor: 4 } : { accepted: true }
@@ -28,12 +35,12 @@ describe('createDesktopApi', () => {
     expect(Object.keys(api)).toEqual([
       'getEnvironment',
       'agent',
+      'runtimeConnection',
       'modelConnections',
       'logs',
       'agentFiles'
     ])
     expect(Object.keys(api.agent).sort()).toEqual([
-      'cancel',
       'continue',
       'controlSkill',
       'get',
@@ -42,9 +49,7 @@ describe('createDesktopApi', () => {
       'listModelLogs',
       'listTasks',
       'provideInput',
-      'submit',
-      'subscribe',
-      'subscribeStream'
+      'subscribe'
     ])
     expect(api).not.toHaveProperty('ipcRenderer')
     expect(api).not.toHaveProperty('messagePort')
@@ -75,18 +80,11 @@ describe('createDesktopApi', () => {
       'testModels'
     ])
 
-    await api.agent.submit({
-      goal: 'Book a hotel',
-      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    await expect(api.runtimeConnection.get()).resolves.toEqual({
+      wsUrl: 'ws://127.0.0.1:4321/stream',
+      protocol: 'actiondriver.stream.v1',
+      accessToken: 'launch-token'
     })
-    await api.agent.cancel('task-1')
-    const streamEvents: unknown[] = []
-    const unsubscribeStream = api.agent.subscribeStream((event) => streamEvents.push(event))
-    for (const listener of listeners.get('actiondriver:agent:stream-event') ?? []) {
-      listener(undefined, { type: 'response.content', eventId: 'content-1' })
-    }
-    expect(streamEvents).toEqual([{ type: 'response.content', eventId: 'content-1' }])
-    unsubscribeStream()
     await api.agent.get('task-1')
     await api.agent.listTasks(20)
     await api.agent.listModelLogs({ status: 'failed' })
@@ -126,13 +124,9 @@ describe('createDesktopApi', () => {
     }
     expect(invocations).toEqual([
       {
-        channel: 'actiondriver:agent:submit',
-        input: {
-          goal: 'Book a hotel',
-          model: { connectionId: 'connection-1', modelId: 'gpt-real' }
-        }
+        channel: 'actiondriver:runtime-connection:get',
+        input: {}
       },
-      { channel: 'actiondriver:agent:cancel', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:get', input: { taskId: 'task-1' } },
       { channel: 'actiondriver:agent:list', input: { limit: 20 } },
       { channel: 'actiondriver:agent:model-log-list', input: { status: 'failed' } },
@@ -216,12 +210,7 @@ describe('createDesktopApi', () => {
       off: () => undefined
     })
 
-    await expect(
-      api.agent.submit({
-        goal: 'Book a hotel',
-        model: { connectionId: 'connection-1', modelId: 'gpt-real' }
-      })
-    ).rejects.toEqual(error)
+    await expect(api.agent.get('task-1')).rejects.toEqual(error)
   })
 
   it('uses separate summary and detail log channels', async () => {
