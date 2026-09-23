@@ -49,6 +49,7 @@ export interface ModelGateway {
 }
 
 export type ModelEventObserver = (event: ModelGatewayEvent) => void | Promise<void>
+export type ToolEventObserver = (event: RuntimeEventRecord) => void | Promise<void>
 
 export type SkillProviderResult = {
   ok: true
@@ -185,6 +186,7 @@ export interface StreamSessionRepository {
   readonly messages: Pick<MessageRepository, 'listByTask' | 'listBySession'>
   readonly events: Pick<EventRepository, 'listAfter'>
   readonly streamRequests: StreamRequestRepository
+  readonly toolInvocations?: Pick<ToolInvocationRepository, 'listByTask'>
   createStreamTask(input: {
     request: PersistedStreamRequest
     task: RuntimeTaskRecord
@@ -248,9 +250,11 @@ export interface GraphRunner {
       systemPrompt?: string
       skills?: ModelSkillDescription[]
       toolGrants?: string[]
+      streamRequestId?: string
     },
     signal?: AbortSignal,
-    observer?: ModelEventObserver
+    observer?: ModelEventObserver,
+    toolObserver?: ToolEventObserver
   ): Promise<AgentGraphResult>
   interrupt(taskId: string): boolean
   continue(taskId: string): Promise<AgentGraphResult>

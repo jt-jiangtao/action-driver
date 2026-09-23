@@ -14,26 +14,47 @@ describe('sandbox shell tool', () => {
     const root = await mkdtemp(join(tmpdir(), 'actiondriver-shell-'))
     await writeFile(join(root, 'a.txt'), 'first\nsecond\n')
     const spawnProcess = vi.fn((file: string, args: string[], options: SpawnOptions) =>
-      spawn(file, args, options))
+      spawn(file, args, options)
+    )
     const tool = createSandboxShellTool(await SandboxPathGuard.create(root), {
-      executables: { wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail', rg: '/usr/bin/rg' },
+      executables: {
+        wc: '/usr/bin/wc',
+        head: '/usr/bin/head',
+        tail: '/usr/bin/tail',
+        rg: '/usr/bin/rg'
+      },
       spawnProcess
     })
     const events = await collect(tool.executor.execute(call('wc', ['-l', 'a.txt'])))
     expect(events.at(-1)).toMatchObject({ kind: 'result', output: { exitCode: 0 } })
-    expect(spawnProcess).toHaveBeenCalledWith('/usr/bin/wc', ['-l', '--', expect.stringContaining('a.txt')],
-      expect.objectContaining({ shell: false, cwd: await realpath(root), env: {
-        PATH: '/usr/bin:/bin', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8'
-      } }))
+    expect(spawnProcess).toHaveBeenCalledWith(
+      '/usr/bin/wc',
+      ['-l', '--', expect.stringContaining('a.txt')],
+      expect.objectContaining({
+        shell: false,
+        cwd: await realpath(root),
+        env: {
+          PATH: '/usr/bin:/bin',
+          LANG: 'C.UTF-8',
+          LC_ALL: 'C.UTF-8'
+        }
+      })
+    )
   })
 
   it('rejects unknown commands, flags, shell syntax and escaping paths before spawn', async () => {
     const root = await mkdtemp(join(tmpdir(), 'actiondriver-shell-deny-'))
     await writeFile(join(root, 'a.txt'), 'text')
     const spawnProcess = vi.fn((file: string, args: string[], options: SpawnOptions) =>
-      spawn(file, args, options))
+      spawn(file, args, options)
+    )
     const tool = createSandboxShellTool(await SandboxPathGuard.create(root), {
-      executables: { wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail', rg: '/usr/bin/rg' },
+      executables: {
+        wc: '/usr/bin/wc',
+        head: '/usr/bin/head',
+        tail: '/usr/bin/tail',
+        rg: '/usr/bin/rg'
+      },
       spawnProcess
     })
     for (const input of [
@@ -53,12 +74,17 @@ describe('sandbox shell tool', () => {
     const root = await mkdtemp(join(tmpdir(), 'actiondriver-shell-limit-'))
     await writeFile(join(root, 'large.txt'), 'line\n'.repeat(100))
     const tool = createSandboxShellTool(await SandboxPathGuard.create(root), {
-      executables: { wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail', rg: '/usr/bin/rg' },
+      executables: {
+        wc: '/usr/bin/wc',
+        head: '/usr/bin/head',
+        tail: '/usr/bin/tail',
+        rg: '/usr/bin/rg'
+      },
       maxOutputBytes: 16
     })
-    await expect(collect(tool.executor.execute(call('head', ['-n', '100', 'large.txt'])))).rejects.toThrow(
-      'SANDBOX_OUTPUT_LIMIT'
-    )
+    await expect(
+      collect(tool.executor.execute(call('head', ['-n', '100', 'large.txt'])))
+    ).rejects.toThrow('SANDBOX_OUTPUT_LIMIT')
   })
 
   it('waits for process close after a timeout before reporting failure', async () => {
@@ -77,7 +103,12 @@ describe('sandbox shell tool', () => {
     }
     const pending = new PendingProcess()
     const tool = createSandboxShellTool(await SandboxPathGuard.create(root), {
-      executables: { wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail', rg: '/usr/bin/rg' },
+      executables: {
+        wc: '/usr/bin/wc',
+        head: '/usr/bin/head',
+        tail: '/usr/bin/tail',
+        rg: '/usr/bin/rg'
+      },
       timeoutMs: 5,
       spawnProcess: () => pending as unknown as ReturnType<typeof spawn>
     })
@@ -94,20 +125,33 @@ describe('sandbox shell tool', () => {
       readonly stdout = new PassThrough()
       readonly stderr = new PassThrough()
       readonly pid = undefined
-      kill() { return true }
+      kill() {
+        return true
+      }
     }
     const child = new CompletedProcess()
-    const spawnProcess = vi.fn((_file: string, _args: string[], _options: SpawnOptions) => {
+    const spawnProcess = vi.fn((file: string, args: string[], options: SpawnOptions) => {
+      void file
+      void args
+      void options
       queueMicrotask(() => child.emit('close', 0))
       return child as unknown as ReturnType<typeof spawn>
     })
     const tool = createSandboxShellTool(await SandboxPathGuard.create(root), {
-      executables: { wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail', rg: '/usr/bin/rg' },
+      executables: {
+        wc: '/usr/bin/wc',
+        head: '/usr/bin/head',
+        tail: '/usr/bin/tail',
+        rg: '/usr/bin/rg'
+      },
       spawnProcess
     })
     await collect(tool.executor.execute(call('rg', ['-n', 'needle', 'a.txt'])))
     expect(spawnProcess.mock.calls[0]?.[1]).toEqual([
-      '-n', '--', 'needle', expect.stringContaining('a.txt')
+      '-n',
+      '--',
+      'needle',
+      expect.stringContaining('a.txt')
     ])
   })
 
@@ -117,16 +161,22 @@ describe('sandbox shell tool', () => {
     const tools = await createSandboxTools({ workspaceRoot: root })
     const shell = tools.find((tool) => tool.definition.id === 'sandbox.shell.run')!
     const events = await collect(shell.executor.execute(call('rg', ['-n', 'needle', 'a.txt'])))
-    expect(events).toContainEqual(expect.objectContaining({
-      kind: 'content', stream: 'stdout', delta: expect.stringContaining('needle')
-    }))
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: 'content',
+        stream: 'stdout',
+        delta: expect.stringContaining('needle')
+      })
+    )
     expect(events.at(-1)).toMatchObject({ kind: 'result', output: { exitCode: 0 } })
   })
 })
 
 function call(command: string, args: string[]) {
   return {
-    callId: 'call-1', providerCallId: 'provider-1', modelName: 'sandbox_shell_run',
+    callId: 'call-1',
+    providerCallId: 'provider-1',
+    modelName: 'sandbox_shell_run',
     arguments: { command, args }
   }
 }

@@ -1,6 +1,7 @@
 import { copyFile, chmod, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import process from 'node:process'
 import { rgPath } from '@vscode/ripgrep'
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')

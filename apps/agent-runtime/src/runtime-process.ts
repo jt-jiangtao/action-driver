@@ -77,7 +77,8 @@ export async function startAgentRuntimeProcess(
     repositories,
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
-    now: () => local.adapters.clock.now()
+    now: () => local.adapters.clock.now(),
+    approvals: local.toolRuntime.invocations
   })
   const server = createLocalRuntimeServer(endpoint, {
     adapters: local.adapters,

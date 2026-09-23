@@ -1,6 +1,6 @@
 import { open, readdir } from 'node:fs/promises'
 import type { ToolCall, ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
-import { SandboxPathGuard } from './path-guard'
+import type { SandboxPathGuard } from './path-guard'
 
 type SandboxTool = { definition: ToolDefinition; executor: ToolExecutor }
 

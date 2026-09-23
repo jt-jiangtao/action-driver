@@ -1,8 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import type { RequestCreateEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type {
+  RequestCreateEvent,
+  StreamServerEvent,
+  ToolApprovalCommand
+} from '@actiondriver/runtime-contracts'
 import {
   SqliteRuntimeRepositories,
   StreamSessionService,
@@ -13,7 +17,13 @@ import {
 
 const temporaryDirectories: string[] = []
 
-function createHarness(graphRunner: GraphRunner) {
+function createHarness(
+  graphRunner: GraphRunner,
+  approvals?: {
+    approve(command: ToolApprovalCommand): Promise<void>
+    reject(command: ToolApprovalCommand): Promise<void>
+  }
+) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
   const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
@@ -31,7 +41,8 @@ function createHarness(graphRunner: GraphRunner) {
     repositories,
     graphRunner,
     ids,
-    now: () => new Date(now++).toISOString()
+    now: () => new Date(now++).toISOString(),
+    ...(approvals ? { approvals } : {})
   })
   return { database, repositories, service }
 }
@@ -73,6 +84,129 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('validates approval identity, delegates the decision, and replays persisted tool status', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        await gate
+        await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: 'done',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const approvals = {
+      approve: vi.fn(async () => undefined),
+      reject: vi.fn(async () => undefined)
+    }
+    const { repositories, service } = createHarness(graphRunner, approvals)
+    const published: StreamServerEvent[] = []
+    await service.handle(createEvent, (event) => {
+      published.push(event)
+    })
+    const accepted = published.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing accepted')
+    await service.handle(
+      {
+        type: 'tool.approve',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'decision-1',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        requestId: accepted.requestId,
+        taskId: 'wrong-task',
+        callId: 'call-1',
+        argumentsHash: 'sha256:abc'
+      },
+      (event) => {
+        published.push(event)
+      }
+    )
+    expect(published.at(-1)).toMatchObject({
+      type: 'request.error',
+      error: { code: 'tool-approval-stale' }
+    })
+    expect(approvals.approve).not.toHaveBeenCalled()
+
+    await service.handle(
+      {
+        type: 'tool.approve',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'decision-2',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        requestId: accepted.requestId,
+        taskId: accepted.taskId,
+        callId: 'call-1',
+        argumentsHash: 'sha256:abc'
+      },
+      (event) => {
+        published.push(event)
+      }
+    )
+    expect(approvals.approve).toHaveBeenCalledWith({
+      action: 'approve',
+      taskId: accepted.taskId,
+      callId: 'call-1',
+      argumentsHash: 'sha256:abc'
+    })
+
+    await repositories.events.append({
+      taskId: accepted.taskId,
+      threadId: accepted.sessionId,
+      checkpointId: accepted.responseId,
+      eventKey: 'call-1.1',
+      type: 'tool.waiting_approval',
+      payload: {
+        callId: 'call-1',
+        toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run',
+        summary: 'rg TODO README.md',
+        argumentsHash: 'sha256:abc'
+      },
+      occurredAt: '2026-09-23T00:00:01.000Z',
+      eventId: 'tool-event-1',
+      requestId: accepted.requestId,
+      sequence: 1
+    })
+    const replayed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'resume-1',
+        createdAt: '2026-09-23T00:00:02.000Z',
+        requestId: accepted.requestId,
+        afterCursor: accepted.cursor
+      },
+      (event) => {
+        replayed.push(event)
+      }
+    )
+    expect(replayed).toContainEqual(
+      expect.objectContaining({
+        type: 'tool.waiting_approval',
+        callId: 'call-1',
+        callSequence: 1
+      })
+    )
+    release()
+    await service.close()
+    repositories.close()
+  })
   it('creates a new task in the same session and inherits model with complete history', async () => {
     const requests: Parameters<GraphRunner['run']>[0][] = []
     const graphRunner: GraphRunner = {
@@ -419,6 +553,21 @@ describe('StreamSessionService', () => {
     await ended
     const accepted = initial[0]
     if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
+    await repositories.toolInvocations.save({
+      id: 'call-snapshot',
+      providerCallId: 'provider-snapshot',
+      taskId: accepted.taskId,
+      toolId: 'sandbox.fs.read',
+      toolVersion: 1,
+      argumentsHash: '',
+      decision: 'allow',
+      status: 'completed',
+      input: { path: 'README.md' },
+      output: { text: 'read' },
+      error: null,
+      createdAt: '2026-09-23T00:00:00.000Z',
+      updatedAt: '2026-09-23T00:00:01.000Z'
+    })
     database.prepare('DELETE FROM runtime_events WHERE cursor <= 2').run()
 
     const resumed: StreamServerEvent[] = []
@@ -445,7 +594,8 @@ describe('StreamSessionService', () => {
         messages: [
           expect.objectContaining({ role: 'user', content: 'Return **real Markdown**' }),
           expect.objectContaining({ role: 'assistant', content: 'final answer' })
-        ]
+        ],
+        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed' })]
       })
     ])
 

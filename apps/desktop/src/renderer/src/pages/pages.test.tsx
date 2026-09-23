@@ -177,4 +177,42 @@ describe('ActionDriver pages', () => {
     expect(body.querySelector('.conversation-scroll .agent-composer')).toBeNull()
     expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
+
+  it('places a waiting tool approval between the scrollable conversation and anchored composer', () => {
+    const { container } = render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          browser: null,
+          tools: [
+            {
+              callId: 'call-1',
+              toolId: 'sandbox.shell.run',
+              modelName: 'sandbox_shell_run',
+              summary: 'rg TODO README.md',
+              argumentsHash: 'sha256:abc',
+              status: 'waiting_approval'
+            }
+          ]
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+        onApproveTool={vi.fn(async () => undefined)}
+        onRejectTool={vi.fn(async () => undefined)}
+      />
+    )
+    const body = container.querySelector('.conversation-body')!
+    expect([...body.children].map((child) => child.className)).toEqual([
+      'conversation-scroll',
+      'tool-approval-list',
+      'agent-composer'
+    ])
+  })
 })

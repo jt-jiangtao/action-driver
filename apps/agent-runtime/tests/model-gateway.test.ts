@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import type {
   ModelCompletionEvent,
   ModelCompletionOutcome,
-  ModelCompletionRequest,
   ModelCompletionServicePort
 } from '@actiondriver/model-connections'
 import {
@@ -141,9 +140,7 @@ describe('ModelGateway boundary', () => {
   })
 
   it('persists a streamed tool-call terminal without turning it into assistant text', async () => {
-    const stream = vi.fn(async function* (
-      _request: ModelCompletionRequest
-    ): AsyncIterable<ModelCompletionEvent> {
+    const stream = vi.fn(async function* (): AsyncIterable<ModelCompletionEvent> {
       yield {
         kind: 'end',
         result: {

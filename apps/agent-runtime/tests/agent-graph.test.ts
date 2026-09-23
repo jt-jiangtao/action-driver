@@ -28,11 +28,13 @@ describe('minimal agent StateGraph', () => {
         if (requests.length === 1) {
           return {
             kind: 'tool-calls',
-            calls: [{
-              providerCallId: 'provider-read-1',
-              modelName: 'sandbox_fs_read',
-              arguments: { path: 'README.md' }
-            }]
+            calls: [
+              {
+                providerCallId: 'provider-read-1',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'README.md' }
+              }
+            ]
           }
         }
         return { kind: 'finish', content: '**done**' }
@@ -43,7 +45,11 @@ describe('minimal agent StateGraph', () => {
         yield { kind: 'content', stream: 'result', delta: 'README content' }
       }
     })
-    const result = await runner.run({ taskId: 'task-tool-loop', goal: 'Read README', model: modelRef })
+    const result = await runner.run({
+      taskId: 'task-tool-loop',
+      goal: 'Read README',
+      model: modelRef
+    })
 
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
     expect(requests).toHaveLength(2)
@@ -61,6 +67,7 @@ describe('minimal agent StateGraph', () => {
 
   it('handles a streamed tool-call terminal without showing it as assistant text', async () => {
     const observed: unknown[] = []
+    const toolRecords: unknown[] = []
     let round = 0
     const model: ModelGateway = {
       async complete() {
@@ -73,11 +80,13 @@ describe('minimal agent StateGraph', () => {
             kind: 'end' as const,
             result: {
               kind: 'tool-calls' as const,
-              calls: [{
-                providerCallId: 'provider-stream-1',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'README.md' }
-              }]
+              calls: [
+                {
+                  providerCallId: 'provider-stream-1',
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: 'README.md' }
+                }
+              ]
             },
             content: '',
             finishReason: 'tool_calls',
@@ -101,14 +110,34 @@ describe('minimal agent StateGraph', () => {
       }
     })
     const result = await runner.run(
-      { taskId: 'task-stream-tool', goal: 'read', model: modelRef },
+      {
+        taskId: 'task-stream-tool',
+        goal: 'read',
+        model: modelRef,
+        streamRequestId: 'request-stream-tool'
+      },
       undefined,
-      (event) => { observed.push(event) }
+      (event) => {
+        observed.push(event)
+      },
+      (record) => {
+        toolRecords.push(record)
+      }
     )
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
-    expect(observed.filter((event) =>
-      typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'content'
-    )).toEqual([{ kind: 'content', delta: '**done**' }])
+    expect(
+      observed.filter(
+        (event) =>
+          typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'content'
+      )
+    ).toEqual([{ kind: 'content', delta: '**done**' }])
+    expect(toolRecords).toContainEqual(
+      expect.objectContaining({
+        type: 'tool.completed',
+        requestId: 'request-stream-tool',
+        cursor: expect.any(Number)
+      })
+    )
   })
 
   it('returns denied tool errors to the model without executing the tool', async () => {
@@ -123,11 +152,13 @@ describe('minimal agent StateGraph', () => {
           expect(request.tools).toBeUndefined()
           return {
             kind: 'tool-calls',
-            calls: [{
-              providerCallId: 'provider-denied',
-              modelName: 'sandbox_fs_read',
-              arguments: { path: 'README.md' }
-            }]
+            calls: [
+              {
+                providerCallId: 'provider-denied',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'README.md' }
+              }
+            ]
           }
         }
         expect(request.messages.at(-1)).toMatchObject({
@@ -140,7 +171,10 @@ describe('minimal agent StateGraph', () => {
     }
     const { runner } = toolRunner(model, { execute })
     const result = await runner.run({
-      taskId: 'task-denied-tool', goal: 'read', model: modelRef, toolGrants: []
+      taskId: 'task-denied-tool',
+      goal: 'read',
+      model: modelRef,
+      toolGrants: []
     })
     expect(result).toMatchObject({ status: 'completed', output: 'Unable to read' })
     expect(execute).not.toHaveBeenCalled()
@@ -180,11 +214,13 @@ describe('minimal agent StateGraph', () => {
       async complete() {
         return {
           kind: 'tool-calls',
-          calls: [{
-            providerCallId: `provider-${++callCount}`,
-            modelName: 'sandbox_fs_read',
-            arguments: { path: 'README.md' }
-          }]
+          calls: [
+            {
+              providerCallId: `provider-${++callCount}`,
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            }
+          ]
         }
       }
     }
@@ -194,7 +230,9 @@ describe('minimal agent StateGraph', () => {
       }
     })
     const exhausted = await budget.runner.run({
-      taskId: 'task-budget', goal: 'loop', model: modelRef
+      taskId: 'task-budget',
+      goal: 'loop',
+      model: modelRef
     })
     expect(exhausted).toMatchObject({ status: 'failed', error: 'TOOL_BUDGET_EXCEEDED' })
     expect(budget.commits.filter((status) => status === 'completed')).toHaveLength(8)
@@ -225,17 +263,21 @@ describe('minimal agent StateGraph', () => {
   it('propagates cancellation to the active executor before the run resolves', async () => {
     const controller = new AbortController()
     let started!: () => void
-    const executorStarted = new Promise<void>((resolve) => { started = resolve })
+    const executorStarted = new Promise<void>((resolve) => {
+      started = resolve
+    })
     let terminated = false
     const model: ModelGateway = {
       async complete() {
         return {
           kind: 'tool-calls',
-          calls: [{
-            providerCallId: 'provider-cancel',
-            modelName: 'sandbox_fs_read',
-            arguments: { path: 'README.md' }
-          }]
+          calls: [
+            {
+              providerCallId: 'provider-cancel',
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            }
+          ]
         }
       }
     }
@@ -244,16 +286,21 @@ describe('minimal agent StateGraph', () => {
         started()
         try {
           await new Promise<void>((_resolve, reject) => {
-            signal?.addEventListener('abort', () =>
-              reject(Object.assign(new Error('aborted'), { name: 'AbortError' })), { once: true })
+            signal?.addEventListener(
+              'abort',
+              () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+              { once: true }
+            )
           })
         } finally {
           terminated = true
         }
+        yield { kind: 'result', output: null }
       }
     })
     const running = runner.run(
-      { taskId: 'task-cancel-tool', goal: 'read', model: modelRef }, controller.signal
+      { taskId: 'task-cancel-tool', goal: 'read', model: modelRef },
+      controller.signal
     )
     await executorStarted
     controller.abort(new DOMException('Cancelled', 'AbortError'))

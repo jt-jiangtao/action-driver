@@ -50,6 +50,22 @@ export interface ExecutionStepProjection {
   state: 'success' | 'current' | 'waiting' | 'failed'
 }
 
+export interface ToolInvocationProjection {
+  callId: string
+  toolId: string
+  modelName: string
+  summary: string
+  argumentsHash: string
+  status:
+    | 'proposed'
+    | 'waiting_approval'
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+}
+
 export interface TaskProjection {
   id: string
   sessionId: string
@@ -58,6 +74,7 @@ export interface TaskProjection {
   model: ModelRef
   messages: AgentMessageProjection[]
   steps: ExecutionStepProjection[]
+  tools?: ToolInvocationProjection[]
   browser: BrowserSkillProjection | null
 }
 
@@ -174,6 +191,8 @@ export interface AgentCommandService {
   submitGoal(request: AgentGoalRequest): Promise<TaskProjection>
   interrupt(taskId: string): Promise<void>
   continueTask(taskId: string): Promise<void>
+  approveTool?(taskId: string, callId: string, argumentsHash: string): Promise<void>
+  rejectTool?(taskId: string, callId: string, argumentsHash: string): Promise<void>
 }
 
 export interface TaskQueryService {

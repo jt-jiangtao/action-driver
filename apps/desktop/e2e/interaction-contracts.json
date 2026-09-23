@@ -486,6 +486,22 @@
     "coverage": "visual-only"
   },
   {
+    "target": "e2e/tasks/detail/tool-approval/approve#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
+    "testName": "shows the complete command accessibly and disables duplicate decisions while pending"
+  },
+  {
+    "target": "e2e/tasks/detail/tool-approval/reject#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ToolApprovalBar.test.tsx",
+    "testName": "rejects a waiting call without invoking approval"
+  },
+  {
     "target": "e2e/settings/sidebar/logs#button",
     "route": "settings",
     "type": "button",

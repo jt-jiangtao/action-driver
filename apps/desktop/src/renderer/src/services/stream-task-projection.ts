@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
 import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
@@ -7,6 +7,7 @@ export class StreamTaskProjection {
   private task: TaskProjection | null = null
   private readonly buffered: StreamServerEvent[] = []
   private readonly seenEventIds = new Set<string>()
+  private readonly toolSequences = new Map<string, number>()
   private lastSequence = -1
   private scheduled: ScheduledHandle | null = null
 
@@ -36,6 +37,7 @@ export class StreamTaskProjection {
       if (event.sequence < this.lastSequence) return
       this.seenEventIds.add(event.eventId)
       this.lastSequence = event.sequence
+      this.toolSequences.clear()
       this.task = {
         ...this.task,
         status: toTaskStatus(event.status),
@@ -43,9 +45,33 @@ export class StreamTaskProjection {
           id: message.id,
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content
-        }))
+        })),
+        tools: event.tools?.map((tool) => ({ ...tool })) ?? this.task.tools ?? []
       }
       this.flush()
+      return
+    }
+    if (event.type.startsWith('tool.')) {
+      const toolEvent = event as Extract<StreamServerEvent, { type: `tool.${string}` }>
+      if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
+      this.seenEventIds.add(event.eventId)
+      this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
+      if (toolEvent.type !== 'tool.content') {
+        const status = toolEvent.type.slice('tool.'.length) as ToolInvocationProjection['status']
+        const next: ToolInvocationProjection = {
+          callId: toolEvent.callId,
+          toolId: toolEvent.toolId,
+          modelName: toolEvent.modelName,
+          summary: toolEvent.summary,
+          argumentsHash: toolEvent.argumentsHash,
+          status
+        }
+        this.task = {
+          ...this.task,
+          tools: [...(this.task.tools ?? []).filter((tool) => tool.callId !== next.callId), next]
+        }
+        this.flush()
+      }
       return
     }
     if (

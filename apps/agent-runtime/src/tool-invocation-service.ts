@@ -12,10 +12,11 @@ import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type {
   Clock,
   PersistedToolInvocation,
+  RuntimeEventRecord,
   ToolInvocationPersistence
 } from './ports'
-import { RuntimeToolRegistry } from './tool-registry'
-import { RuntimeToolPolicy } from './tool-policy'
+import type { RuntimeToolRegistry } from './tool-registry'
+import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
 import { isLogControlPlaneOperation } from './service/logs'
@@ -26,6 +27,7 @@ export type ToolInvocationContext = {
   checkpointId: string
   requestId: string
   grants: string[]
+  onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
 }
 
 type ApprovalWaiter = {
@@ -45,6 +47,10 @@ export class ToolApprovalError extends Error {
 
 export class ToolInvocationService {
   private readonly pending = new Map<string, ApprovalWaiter>()
+  private readonly resolved = new Map<
+    string,
+    { taskId: string; argumentsHash: string; action: 'approve' | 'reject' }
+  >()
   private readonly maxOutputBytes: number
 
   constructor(
@@ -72,7 +78,16 @@ export class ToolInvocationService {
     const parsed = parseToolApprovalCommand(command)
     if (parsed.action !== action) throw new ToolApprovalError('TOOL_APPROVAL_STALE')
     const waiter = this.pending.get(parsed.callId)
-    if (!waiter) throw new ToolApprovalError('TOOL_APPROVAL_NOT_PENDING')
+    if (!waiter) {
+      const resolved = this.resolved.get(parsed.callId)
+      if (
+        resolved?.taskId === parsed.taskId &&
+        resolved.argumentsHash === parsed.argumentsHash &&
+        resolved.action === action
+      )
+        return
+      throw new ToolApprovalError(resolved ? 'TOOL_APPROVAL_STALE' : 'TOOL_APPROVAL_NOT_PENDING')
+    }
     if (waiter.taskId !== parsed.taskId || waiter.argumentsHash !== parsed.argumentsHash) {
       throw new ToolApprovalError('TOOL_APPROVAL_STALE')
     }
@@ -81,6 +96,12 @@ export class ToolInvocationService {
       return
     }
     waiter.decision = action
+    this.resolved.set(parsed.callId, {
+      taskId: parsed.taskId,
+      argumentsHash: parsed.argumentsHash,
+      action
+    })
+    if (this.resolved.size > 1000) this.resolved.delete(this.resolved.keys().next().value!)
     waiter.release(action)
   }
 
@@ -113,21 +134,35 @@ export class ToolInvocationService {
     let sequence = 0
     const persist = async (event: ToolEvent): Promise<ToolEvent> => {
       invocation.updatedAt = this.options.clock.now()
-      await this.options.persistence.commitToolInvocationWithEvent(invocation, {
+      const record = await this.options.persistence.commitToolInvocationWithEvent(invocation, {
         taskId: context.taskId,
         threadId: context.threadId,
         checkpointId: context.checkpointId,
         eventKey: `${call.callId}.${event.sequence}`,
         type: event.type,
-        payload: event,
+        payload: {
+          ...event,
+          toolId: definition.id,
+          modelName: definition.modelName,
+          summary: `${definition.modelName} ${JSON.stringify(call.arguments)}`,
+          argumentsHash: invocation.argumentsHash
+        },
         occurredAt: invocation.updatedAt,
+        eventId: `${call.callId}.${event.sequence}`,
         requestId: context.requestId,
         sequence: event.sequence
       })
+      await context.onEvent?.(record)
       return event
     }
     const event = (type: ToolEvent['type'], extra: Record<string, unknown> = {}): ToolEvent =>
-      ({ type, callId: call.callId, taskId: context.taskId, sequence: sequence++, ...extra }) as ToolEvent
+      ({
+        type,
+        callId: call.callId,
+        taskId: context.taskId,
+        sequence: sequence++,
+        ...extra
+      }) as ToolEvent
     const transition = async (
       status: PersistedToolInvocation['status'],
       extra: Record<string, unknown> = {}
@@ -187,7 +222,10 @@ export class ToolInvocationService {
     const onAbort = () => controller.abort(signal?.reason)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted) onAbort()
-    const timeout = setTimeout(() => controller.abort(new Error('TOOL_TIMEOUT')), definition.timeoutMs)
+    const timeout = setTimeout(
+      () => controller.abort(new Error('TOOL_TIMEOUT')),
+      definition.timeoutMs
+    )
     let waiter: ApprovalWaiter | null = null
     const collector = new ToolOutputCollector(this.maxOutputBytes)
     try {
@@ -219,7 +257,8 @@ export class ToolInvocationService {
           await completeLog('error', error)
           return
         }
-        if (approval !== 'approve') throw new Error(approval === 'timeout' ? 'TOOL_TIMEOUT' : 'AbortError')
+        if (approval !== 'approve')
+          throw new Error(approval === 'timeout' ? 'TOOL_TIMEOUT' : 'AbortError')
       }
 
       if (controller.signal.aborted) throw controller.signal.reason
@@ -242,11 +281,12 @@ export class ToolInvocationService {
         controller.abort(caught)
       }
       const timedOut =
-        controller.signal.aborted && !signal?.aborted &&
+        controller.signal.aborted &&
+        !signal?.aborted &&
         controller.signal.reason instanceof Error &&
         controller.signal.reason.message === 'TOOL_TIMEOUT'
-      const cancelled = !timedOut &&
-        (signal?.aborted || (caught instanceof Error && caught.name === 'AbortError'))
+      const cancelled =
+        !timedOut && (signal?.aborted || (caught instanceof Error && caught.name === 'AbortError'))
       const error =
         caught instanceof ToolOutputLimitError
           ? toolError(caught.code, caught.message)

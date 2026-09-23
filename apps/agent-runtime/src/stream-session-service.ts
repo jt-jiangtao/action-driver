@@ -3,7 +3,8 @@ import {
   parseStreamServerEvent,
   type RequestCreateEvent,
   type StreamClientEvent,
-  type StreamServerEvent
+  type StreamServerEvent,
+  type ToolApprovalCommand
 } from '@actiondriver/runtime-contracts'
 import type {
   AgentGraphResult,
@@ -16,6 +17,7 @@ import type {
   StreamSessionRepository,
   RuntimeTaskRecord
 } from './ports'
+import { ToolApprovalError, type ToolInvocationService } from './tool-invocation-service'
 
 type Emit = (event: StreamServerEvent) => void | Promise<void>
 
@@ -34,6 +36,7 @@ export class StreamSessionService {
       graphRunner: GraphRunner
       ids: IdGenerator
       now(): string
+      approvals?: Pick<ToolInvocationService, 'approve' | 'reject'>
     }
   ) {}
 
@@ -57,6 +60,58 @@ export class StreamSessionService {
     }
     if (event.type === 'request.resume') {
       await this.replay(event.requestId, event.afterCursor, emit)
+      return
+    }
+    if (event.type === 'tool.approve' || event.type === 'tool.reject') {
+      await this.decideTool(event, emit)
+    }
+  }
+
+  private async decideTool(
+    event: Extract<StreamClientEvent, { type: 'tool.approve' | 'tool.reject' }>,
+    emit: Emit
+  ): Promise<void> {
+    const request = await this.options.repositories.streamRequests.getByRequestId(event.requestId)
+    if (!request || request.taskId !== event.taskId) {
+      await this.emitRequestError(
+        event.requestId,
+        'tool-approval-stale',
+        'Tool request does not match this task',
+        emit
+      )
+      return
+    }
+    if (!this.options.approvals) {
+      await this.emitRequestError(
+        event.requestId,
+        'tool-approval-unavailable',
+        'Tool approval is unavailable',
+        emit
+      )
+      return
+    }
+    const command: ToolApprovalCommand = {
+      action: event.type === 'tool.approve' ? 'approve' : 'reject',
+      taskId: event.taskId,
+      callId: event.callId,
+      argumentsHash: event.argumentsHash
+    }
+    try {
+      if (command.action === 'approve') await this.options.approvals.approve(command)
+      else await this.options.approvals.reject(command)
+    } catch (error) {
+      const code =
+        error instanceof ToolApprovalError
+          ? error.code === 'TOOL_APPROVAL_STALE'
+            ? 'tool-approval-stale'
+            : 'tool-approval-not-pending'
+          : 'tool-approval-failed'
+      await this.emitRequestError(
+        event.requestId,
+        code,
+        error instanceof Error ? error.message : String(error),
+        emit
+      )
     }
   }
 
@@ -216,12 +271,13 @@ export class StreamSessionService {
           ...(createEvent.payload.systemPrompt === undefined
             ? {}
             : { systemPrompt: createEvent.payload.systemPrompt }),
-          skills: []
+          skills: [],
+          streamRequestId: request.requestId
         },
         signal,
         async (event) => {
           if (event.kind === 'end') {
-            terminal = event
+            if (event.result?.kind !== 'tool-calls') terminal = event
             return
           }
           sequence += 1
@@ -235,6 +291,11 @@ export class StreamSessionService {
             })
           )
           await emit(this.toServerEvent(request, record))
+        },
+        async (record) => {
+          if (record.requestId === request.requestId) {
+            await emit(this.toServerEvent(request, record))
+          }
         }
       )
     } catch (error) {
@@ -317,9 +378,10 @@ export class StreamSessionService {
     request: PersistedStreamRequest,
     cursor: number
   ): Promise<StreamServerEvent> {
-    const [task, messages] = await Promise.all([
+    const [task, messages, toolInvocations] = await Promise.all([
       this.options.repositories.tasks.get(request.taskId),
-      this.options.repositories.messages.listBySession(request.sessionId)
+      this.options.repositories.messages.listBySession(request.sessionId),
+      this.options.repositories.toolInvocations?.listByTask(request.taskId) ?? Promise.resolve([])
     ])
     const error = toStreamError(task?.error)
     return parseStreamServerEvent({
@@ -344,6 +406,14 @@ export class StreamSessionService {
           content: messageText(message.content),
           createdAt: message.createdAt
         })),
+      tools: toolInvocations.map((invocation) => ({
+        callId: invocation.id,
+        toolId: invocation.toolId,
+        modelName: invocation.toolId,
+        summary: `${invocation.toolId} ${JSON.stringify(invocation.input)}`,
+        argumentsHash: invocation.argumentsHash,
+        status: invocation.status
+      })),
       error
     })
   }
@@ -433,6 +503,34 @@ export class StreamSessionService {
     }
     if (record.type === 'request.accepted') {
       return parseStreamServerEvent({ type: record.type, ...identity })
+    }
+    if (record.type.startsWith('tool.')) {
+      const tool = payload as {
+        callId: string
+        toolId: string
+        modelName: string
+        summary: string
+        argumentsHash: string
+        stream?: string
+        delta?: string
+        output?: unknown
+        error?: unknown
+      }
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        callId: tool.callId,
+        callSequence: record.sequence,
+        toolId: tool.toolId,
+        modelName: tool.modelName,
+        summary: tool.summary,
+        argumentsHash: tool.argumentsHash,
+        ...(record.type === 'tool.content' ? { stream: tool.stream, delta: tool.delta } : {}),
+        ...(record.type === 'tool.completed' ? { output: tool.output } : {}),
+        ...(record.type === 'tool.failed' || record.type === 'tool.cancelled'
+          ? { error: tool.error }
+          : {})
+      })
     }
     return parseStreamServerEvent({
       type: record.type,

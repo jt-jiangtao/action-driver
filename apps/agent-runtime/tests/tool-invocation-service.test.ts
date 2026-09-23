@@ -100,7 +100,9 @@ describe('ToolInvocationService', () => {
     const iteration = collect(
       fixture.service.execute(shellCall(), context(['sandbox.shell.run@1']))
     )
-    await waitFor(() => fixture.commits.some(({ invocation }) => invocation.status === 'waiting_approval'))
+    await waitFor(() =>
+      fixture.commits.some(({ invocation }) => invocation.status === 'waiting_approval')
+    )
     const waiting = fixture.commits.find(
       ({ invocation }) => invocation.status === 'waiting_approval'
     )!.invocation
@@ -124,6 +126,22 @@ describe('ToolInvocationService', () => {
     const events = await iteration
     expect(events.at(-1)?.type).toBe('tool.completed')
     expect(execute).toHaveBeenCalledOnce()
+    await expect(
+      fixture.service.approve({
+        action: 'approve',
+        taskId: 'task-1',
+        callId: 'call-1',
+        argumentsHash: waiting.argumentsHash
+      })
+    ).resolves.toBeUndefined()
+    await expect(
+      fixture.service.reject({
+        action: 'reject',
+        taskId: 'task-1',
+        callId: 'call-1',
+        argumentsHash: waiting.argumentsHash
+      })
+    ).rejects.toThrow('TOOL_APPROVAL_STALE')
   })
 
   it('does not invoke denied tools and records a failed terminal', async () => {
@@ -154,9 +172,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(definition, { execute })
     const invalid = { ...readCall(), arguments: { unexpected: true } }
-    const events = await collect(
-      fixture.service.execute(invalid, context(['sandbox.fs.read@1']))
-    )
+    const events = await collect(fixture.service.execute(invalid, context(['sandbox.fs.read@1'])))
     expect(execute).not.toHaveBeenCalled()
     expect(events.at(-1)).toMatchObject({
       type: 'tool.failed',
@@ -165,11 +181,15 @@ describe('ToolInvocationService', () => {
   })
 
   it('fails on the aggregate output limit and supports timeout and caller cancellation', async () => {
-    const oversized = createFixture(readDefinition, {
-      async *execute() {
-        yield { kind: 'content', stream: 'stdout', delta: '123456' }
-      }
-    }, { maxOutputBytes: 5 })
+    const oversized = createFixture(
+      readDefinition,
+      {
+        async *execute() {
+          yield { kind: 'content', stream: 'stdout', delta: '123456' }
+        }
+      },
+      { maxOutputBytes: 5 }
+    )
     expect(
       (await collect(oversized.service.execute(readCall(), context(['sandbox.fs.read@1'])))).at(-1)
     ).toMatchObject({ type: 'tool.failed', error: { code: 'SANDBOX_OUTPUT_LIMIT' } })
@@ -261,6 +281,7 @@ function blockingExecutor(): ToolExecutor {
           { once: true }
         )
       })
+      yield { kind: 'result', output: null }
     }
   }
 }

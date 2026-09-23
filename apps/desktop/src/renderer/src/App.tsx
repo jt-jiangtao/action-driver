@@ -90,8 +90,8 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
 
   const openTask = async (taskId: string) => {
     const projection =
-      (await services.taskCatalog.getTask(taskId)) ??
-      services.agentSessionRepository.getTask(taskId)
+      services.agentSessionRepository.getTask(taskId) ??
+      (await services.taskCatalog.getTask(taskId))
     if (!projection) return
     setTask(projection)
     setRoute({ kind: 'task', taskId: projection.id })
@@ -250,6 +250,14 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
           onSubmit={submitContinuation}
+          onApproveTool={(callId, argumentsHash) =>
+            services.agentCommandService.approveTool?.(task.id, callId, argumentsHash) ??
+            Promise.reject(new Error('当前模式不支持工具审批'))
+          }
+          onRejectTool={(callId, argumentsHash) =>
+            services.agentCommandService.rejectTool?.(task.id, callId, argumentsHash) ??
+            Promise.reject(new Error('当前模式不支持工具审批'))
+          }
         />
       ) : null}
     </div>

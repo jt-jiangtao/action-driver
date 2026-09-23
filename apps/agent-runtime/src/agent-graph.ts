@@ -11,14 +11,15 @@ import {
 } from '@langchain/langgraph'
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ProviderToolCall } from '@actiondriver/model-connections'
-import { parseToolCall, type ToolDefinition } from '@actiondriver/runtime-contracts'
-import { RuntimeToolRegistry } from './tool-registry'
-import { RuntimeToolPolicy } from './tool-policy'
-import { ToolInvocationService } from './tool-invocation-service'
+import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
+import type { RuntimeToolRegistry } from './tool-registry'
+import type { RuntimeToolPolicy } from './tool-policy'
+import type { ToolInvocationService } from './tool-invocation-service'
 import type {
   AgentGraphResult,
   GraphRunner,
   ModelEventObserver,
+  ToolEventObserver,
   ModelGateway,
   ModelGatewayEvent,
   ModelResult,
@@ -90,6 +91,8 @@ export class LangGraphRunner implements GraphRunner {
   private readonly graph
   private readonly activeControllers = new Map<string, AbortController>()
   private readonly modelObservers = new Map<string, ModelEventObserver>()
+  private readonly toolObservers = new Map<string, ToolEventObserver>()
+  private readonly streamRequestIds = new Map<string, string>()
 
   constructor(
     private readonly modelGateway: ModelGateway,
@@ -109,12 +112,16 @@ export class LangGraphRunner implements GraphRunner {
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
       toolGrants?: string[]
+      streamRequestId?: string
     },
     signal?: AbortSignal,
-    observer?: ModelEventObserver
+    observer?: ModelEventObserver,
+    toolObserver?: ToolEventObserver
   ): Promise<AgentGraphResult> {
     const threadId = threadIdForTask(request.taskId)
     if (observer) this.modelObservers.set(request.taskId, observer)
+    if (toolObserver) this.toolObservers.set(request.taskId, toolObserver)
+    if (request.streamRequestId) this.streamRequestIds.set(request.taskId, request.streamRequestId)
     try {
       return await this.execute(
         request.taskId,
@@ -154,6 +161,10 @@ export class LangGraphRunner implements GraphRunner {
       if (observer && this.modelObservers.get(request.taskId) === observer) {
         this.modelObservers.delete(request.taskId)
       }
+      if (toolObserver && this.toolObservers.get(request.taskId) === toolObserver) {
+        this.toolObservers.delete(request.taskId)
+      }
+      this.streamRequestIds.delete(request.taskId)
     }
   }
 
@@ -327,7 +338,10 @@ export class LangGraphRunner implements GraphRunner {
             modelName: providerCall.modelName,
             arguments: providerCall.arguments
           })
-          let terminal: Extract<import('@actiondriver/runtime-contracts').ToolEvent, { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }> | null = null
+          let terminal: Extract<
+            ToolEvent,
+            { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
+          > | null = null
           try {
             for await (const toolEvent of this.toolRuntime.invocations.execute(
               call,
@@ -335,8 +349,13 @@ export class LangGraphRunner implements GraphRunner {
                 taskId: state.taskId,
                 threadId: state.threadId,
                 checkpointId: `tool:${state.toolRound}`,
-                requestId: `plan:${state.taskId}:${state.toolRound}`,
-                grants: state.toolGrants
+                requestId:
+                  this.streamRequestIds.get(state.taskId) ??
+                  `plan:${state.taskId}:${state.toolRound}`,
+                grants: state.toolGrants,
+                ...(this.toolObservers.get(state.taskId)
+                  ? { onEvent: this.toolObservers.get(state.taskId)! }
+                  : {})
               },
               config.signal
             )) {
@@ -356,7 +375,10 @@ export class LangGraphRunner implements GraphRunner {
               taskId: state.taskId,
               sequence: 0,
               error: {
-                code: error instanceof Error && 'code' in error ? String(error.code) : 'TOOL_UNAVAILABLE',
+                code:
+                  error instanceof Error && 'code' in error
+                    ? String(error.code)
+                    : 'TOOL_UNAVAILABLE',
                 message: error instanceof Error ? error.message : String(error),
                 retryable: false
               }
@@ -369,7 +391,13 @@ export class LangGraphRunner implements GraphRunner {
             content: JSON.stringify(
               terminal?.type === 'tool.completed'
                 ? { ok: true, output: terminal.output }
-                : { ok: false, error: terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled' ? terminal.error : { code: 'TOOL_NO_TERMINAL' } }
+                : {
+                    ok: false,
+                    error:
+                      terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled'
+                        ? terminal.error
+                        : { code: 'TOOL_NO_TERMINAL' }
+                  }
             )
           })
         }
@@ -485,9 +513,10 @@ export class LangGraphRunner implements GraphRunner {
     for await (const event of events) {
       await observer?.(event)
       if (event.kind === 'end') {
-        terminal = event.result?.kind === 'tool-calls'
-          ? { kind: 'tool-calls', calls: event.result.calls }
-          : { kind: 'finish', content: event.content }
+        terminal =
+          event.result?.kind === 'tool-calls'
+            ? { kind: 'tool-calls', calls: event.result.calls }
+            : { kind: 'finish', content: event.content }
       }
     }
     if (!terminal) throw new Error('Model stream ended without a terminal event')

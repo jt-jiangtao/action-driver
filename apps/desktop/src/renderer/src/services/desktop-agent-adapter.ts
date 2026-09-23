@@ -23,7 +23,8 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 
   constructor(
     private readonly api: AgentDesktopApi,
-    private readonly streamClient: Pick<RendererStreamClient, 'create' | 'cancel' | 'subscribe'>,
+    private readonly streamClient: Pick<RendererStreamClient, 'create' | 'cancel' | 'subscribe'> &
+      Partial<Pick<RendererStreamClient, 'approveTool' | 'rejectTool'>>,
     private readonly getSystemPrompt?: () => Promise<string>
   ) {
     this.streamClient.subscribe((event) => this.handleStreamEvent(event))
@@ -72,6 +73,18 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
     } catch (error) {
       throw mapAgentError(error)
     }
+  }
+
+  async approveTool(taskId: string, callId: string, argumentsHash: string): Promise<void> {
+    if (!this.streamClient.approveTool)
+      throw new AgentServiceError('unavailable', 'Tool approval is unavailable')
+    await this.streamClient.approveTool(taskId, callId, argumentsHash)
+  }
+
+  async rejectTool(taskId: string, callId: string, argumentsHash: string): Promise<void> {
+    if (!this.streamClient.rejectTool)
+      throw new AgentServiceError('unavailable', 'Tool approval is unavailable')
+    await this.streamClient.rejectTool(taskId, callId, argumentsHash)
   }
 
   async continueTask(taskId: string): Promise<void> {

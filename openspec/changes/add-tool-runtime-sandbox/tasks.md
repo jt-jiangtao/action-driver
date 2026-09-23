@@ -33,10 +33,10 @@
 
 ## 6. WebSocket、审批和页面投影
 
-- [ ] 6.1 扩展 WebSocket client/server schema 与 capabilities，加入 `tool.approve`、`tool.reject` 和 `tool.*` 服务端事件，验证鉴权前拒绝、call/task/hash 校验、重复决定幂等和断线重放。
-- [ ] 6.2 扩展 `StreamSessionService` 的 sequence、事件持久化与快照恢复，使模型文本和工具事件互不混淆，运行重连、重复投递、取消和页面重载测试。
-- [ ] 6.3 扩展 Renderer stream client、任务投影和领域 DTO，验证工具事件不会追加到助手 Markdown，等待审批和终态能从持久化快照恢复。
-- [ ] 6.4 在任务页输入框上方增加紧凑审批条并提供“拒绝”“允许一次”，验证键盘焦点、按钮 loading/disabled/终态、长命令省略与窄窗口布局，且无 Browser 工具时右侧面板保持关闭。
+- [x] 6.1 扩展 WebSocket client/server schema 与 capabilities，加入 `tool.approve`、`tool.reject` 和 `tool.*` 服务端事件，验证鉴权前拒绝、call/task/hash 校验、重复决定幂等和断线重放。
+- [x] 6.2 扩展 `StreamSessionService` 的 sequence、事件持久化与快照恢复，使模型文本和工具事件互不混淆，运行重连、重复投递、取消和页面重载测试。
+- [x] 6.3 扩展 Renderer stream client、任务投影和领域 DTO，验证工具事件不会追加到助手 Markdown，等待审批和终态能从持久化快照恢复。
+- [x] 6.4 在任务页输入框上方增加紧凑审批条并提供“拒绝”“允许一次”，验证键盘焦点、按钮 loading/disabled/终态、长命令省略与窄窗口布局，且无 Browser 工具时右侧面板保持关闭。
 
 ## 7. 端到端验证与交付
 

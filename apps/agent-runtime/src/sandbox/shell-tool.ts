@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { isAbsolute } from 'node:path'
 import type { ToolCall, ToolDefinition, ToolExecutorEvent } from '@actiondriver/runtime-contracts'
-import { SandboxPathGuard } from './path-guard'
+import type { SandboxPathGuard } from './path-guard'
 
 const COMMANDS = ['rg', 'head', 'tail', 'wc'] as const
 type SandboxCommand = (typeof COMMANDS)[number]

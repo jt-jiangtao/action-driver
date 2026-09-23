@@ -52,6 +52,56 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('keeps tool approval state separate from assistant Markdown', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'tool.waiting_approval',
+      ...identity,
+      eventId: 'tool-waiting',
+      callId: 'call-1',
+      callSequence: 1,
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: 'rg TODO README.md',
+      argumentsHash: 'sha256:abc'
+    })
+    expect(projection.snapshot()?.tools).toEqual([
+      expect.objectContaining({ callId: 'call-1', status: 'waiting_approval' })
+    ])
+    expect(projection.snapshot()?.messages.at(-1)?.content).toBe('')
+  })
+
+  it('restores pending tool approval from an authoritative snapshot after a page reload', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'response.snapshot',
+      ...identity,
+      eventId: 'snapshot-tools',
+      sequence: 0,
+      status: 'running',
+      messages: [
+        { id: 'user-1', role: 'user', content: '写代码', createdAt: identity.occurredAt },
+        { id: 'assistant-1', role: 'assistant', content: '', createdAt: identity.occurredAt }
+      ],
+      tools: [
+        {
+          callId: 'call-1',
+          toolId: 'sandbox.shell.run',
+          modelName: 'sandbox_shell_run',
+          summary: 'rg TODO README.md',
+          argumentsHash: 'sha256:abc',
+          status: 'waiting_approval'
+        }
+      ],
+      error: null
+    })
+    expect(projection.snapshot()?.tools).toEqual([
+      expect.objectContaining({ callId: 'call-1', status: 'waiting_approval' })
+    ])
+    expect(projection.snapshot()?.messages.at(-1)?.content).toBe('')
+  })
   it('buffers early content, joins split Markdown, and coalesces notifications', () => {
     const scheduled: Array<() => void> = []
     const onChange = vi.fn()

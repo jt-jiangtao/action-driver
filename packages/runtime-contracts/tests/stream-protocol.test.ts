@@ -89,6 +89,62 @@ describe('agent stream protocol', () => {
     ).toBe('request.resume')
   })
 
+  it.each(['tool.approve', 'tool.reject'] as const)(
+    'accepts %s with an exact call identity',
+    (type) => {
+      expect(
+        parseStreamClientEvent({
+          type,
+          protocol: STREAM_PROTOCOL,
+          eventId: 'decision-1',
+          createdAt: occurredAt,
+          requestId: 'request-1',
+          taskId: 'task-1',
+          callId: 'call-1',
+          argumentsHash: 'sha256:abc'
+        })
+      ).toMatchObject({ type, callId: 'call-1' })
+      expect(() =>
+        parseStreamClientEvent({
+          type,
+          protocol: STREAM_PROTOCOL,
+          eventId: 'decision-1',
+          createdAt: occurredAt,
+          requestId: 'request-1',
+          taskId: 'task-1',
+          callId: 'call-1'
+        })
+      ).toThrow()
+    }
+  )
+
+  it('accepts tool events with a cursor independent of response sequence', () => {
+    const identity = {
+      protocol: STREAM_PROTOCOL,
+      eventId: 'event-tool',
+      cursor: 4,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt
+    }
+    expect(
+      parseStreamServerEvent({
+        type: 'tool.waiting_approval',
+        ...identity,
+        callId: 'call-1',
+        callSequence: 1,
+        toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run',
+        summary: 'rg TODO README.md',
+        argumentsHash: 'sha256:abc'
+      })
+    ).toMatchObject({ type: 'tool.waiting_approval', cursor: 4, callSequence: 1 })
+  })
+
   it('requires a model only when creating a new session', () => {
     const base = {
       type: 'request.create',

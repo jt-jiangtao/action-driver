@@ -123,11 +123,23 @@ const requestResumeEventSchema = z
   })
   .strict()
 
+const toolDecisionEventSchema = z
+  .object({
+    type: z.enum(['tool.approve', 'tool.reject']),
+    ...clientBase,
+    requestId: idSchema,
+    taskId: idSchema,
+    callId: idSchema,
+    argumentsHash: idSchema
+  })
+  .strict()
+
 export const streamClientEventSchema = z.union([
   authEventSchema,
   requestCreateEventSchema,
   requestCancelEventSchema,
-  requestResumeEventSchema
+  requestResumeEventSchema,
+  toolDecisionEventSchema
 ])
 
 const sessionReadyEventSchema = z
@@ -208,9 +220,67 @@ const responseSnapshotEventSchema = z
         })
         .strict()
     ),
+    tools: z
+      .array(
+        z
+          .object({
+            callId: idSchema,
+            toolId: idSchema,
+            modelName: idSchema,
+            summary: z.string(),
+            argumentsHash: z.string(),
+            status: z.enum([
+              'proposed',
+              'waiting_approval',
+              'queued',
+              'running',
+              'completed',
+              'failed',
+              'cancelled'
+            ])
+          })
+          .strict()
+      )
+      .optional(),
     error: streamErrorSchema.nullable()
   })
   .strict()
+
+const toolStreamBase = {
+  ...streamIdentity,
+  callId: idSchema,
+  callSequence: z.number().int().nonnegative(),
+  toolId: idSchema,
+  modelName: idSchema,
+  summary: z.string(),
+  argumentsHash: z.string()
+} as const
+
+const toolStreamEventSchemas = [
+  z.object({ type: z.literal('tool.proposed'), ...toolStreamBase }).strict(),
+  z.object({ type: z.literal('tool.waiting_approval'), ...toolStreamBase }).strict(),
+  z.object({ type: z.literal('tool.queued'), ...toolStreamBase }).strict(),
+  z.object({ type: z.literal('tool.running'), ...toolStreamBase }).strict(),
+  z
+    .object({
+      type: z.literal('tool.content'),
+      ...toolStreamBase,
+      stream: z.enum(['stdout', 'stderr', 'result']),
+      delta: z.string()
+    })
+    .strict(),
+  z.object({ type: z.literal('tool.completed'), ...toolStreamBase, output: z.json() }).strict(),
+  z
+    .object({ type: z.literal('tool.failed'), ...toolStreamBase, error: streamErrorSchema })
+    .strict(),
+  z
+    .object({
+      type: z.literal('tool.cancelled'),
+      ...toolStreamBase,
+      error: streamErrorSchema.nullable()
+    })
+    .strict()
+] as const
 
 export const streamServerEventSchema = z.discriminatedUnion('type', [
   sessionReadyEventSchema,
@@ -219,7 +289,8 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   responseStartEventSchema,
   responseContentEventSchema,
   responseEndEventSchema,
-  responseSnapshotEventSchema
+  responseSnapshotEventSchema,
+  ...toolStreamEventSchemas
 ])
 
 export type StreamClientEvent = z.infer<typeof streamClientEventSchema>
@@ -231,6 +302,7 @@ export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
 export type StreamResponseEvent = ResponseStartEvent | ResponseContentEvent | ResponseEndEvent
+export type ToolStreamEvent = Extract<StreamServerEvent, { type: `tool.${string}` }>
 
 export function parseStreamClientEvent(value: unknown): StreamClientEvent {
   return streamClientEventSchema.parse(value)
