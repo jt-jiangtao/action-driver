@@ -642,7 +642,9 @@ function projectSnapshotActivity(events: RuntimeEventRecord[]) {
     }
     if (event.type === 'activity.text' && typeof payload.activityId === 'string') {
       const activity = activities.get(payload.activityId)
-      if (activity && typeof payload.delta === 'string') activity.items.push({ id: event.eventId, kind: 'text', content: payload.delta })
+      if (activity && typeof payload.delta === 'string') {
+        activity.items.push({ id: String(event.eventId), kind: 'text', content: String(payload.delta) })
+      }
       continue
     }
     if (event.type === 'activity.completed' && typeof payload.activityId === 'string') {

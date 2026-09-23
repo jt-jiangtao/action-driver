@@ -153,7 +153,7 @@ describe('service WebSocket surface', () => {
       streamSessions: { async handle() {} },
       token: 'service-token',
       runtimeVersion: '0.1.0',
-      trustedRendererOrigins: ['http://localhost:5173']
+      rendererOrigin: 'http://localhost:5173'
     })
     socket = new WebSocket(
       `${server.url.replace('http:', 'ws:')}/stream`,

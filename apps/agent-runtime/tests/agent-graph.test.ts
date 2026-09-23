@@ -122,8 +122,12 @@ describe('minimal agent StateGraph', () => {
     await runner.run(
       { taskId: 'task-fallback-activity', goal: 'read files', model: modelRef },
       undefined,
-      (event) => observed.push(event),
-      (record) => toolRecords.push(record)
+      (event) => {
+        observed.push(event)
+      },
+      (record) => {
+        toolRecords.push(record as { payload?: { activityId?: string | null } })
+      }
     )
 
     const activityEvents = observed.filter(
