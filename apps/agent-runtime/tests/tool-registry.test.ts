@@ -1,0 +1,67 @@
+import { describe, expect, it } from 'vitest'
+import type { ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
+import { RuntimeToolRegistry, ToolRegistryError } from '../src/tool-registry'
+
+const executor: ToolExecutor = {
+  async *execute() {
+    yield { kind: 'result', output: { ok: true } }
+  }
+}
+
+const readTool: ToolDefinition = {
+  id: 'sandbox.fs.read',
+  version: 1,
+  modelName: 'sandbox_fs_read',
+  description: 'Read a workspace file',
+  inputSchema: {
+    type: 'object',
+    properties: { path: { type: 'string' } },
+    required: ['path'],
+    additionalProperties: false
+  },
+  risk: 'low',
+  sideEffects: { filesystem: 'read', network: false },
+  timeoutMs: 10_000
+}
+
+describe('RuntimeToolRegistry', () => {
+  it('resolves one registered model name to its versioned tool and executor', () => {
+    const registry = new RuntimeToolRegistry()
+    registry.register(readTool, executor)
+
+    expect(registry.resolveModelName('sandbox_fs_read')).toEqual({ definition: readTool, executor })
+    expect(registry.resolve('sandbox.fs.read', 1)).toEqual({ definition: readTool, executor })
+  })
+
+  it('rejects duplicate model names without replacing the first registration', () => {
+    const registry = new RuntimeToolRegistry()
+    registry.register(readTool, executor)
+
+    expect(() =>
+      registry.register(
+        { ...readTool, id: 'sandbox.fs.list', modelName: readTool.modelName },
+        executor
+      )
+    ).toThrow('TOOL_MODEL_NAME_CONFLICT')
+    expect(registry.resolveModelName(readTool.modelName).definition.id).toBe(readTool.id)
+  })
+
+  it.each([
+    { ...readTool, version: 0 },
+    { ...readTool, modelName: 'contains.dot' },
+    { ...readTool, inputSchema: { type: 'string' } },
+    { ...readTool, inputSchema: { type: 'object', default: () => undefined } }
+  ])('rejects invalid tool definitions', (invalid) => {
+    expect(() => new RuntimeToolRegistry().register(invalid as ToolDefinition, executor)).toThrow(
+      ToolRegistryError
+    )
+  })
+
+  it('returns a stable error for unknown or mismatched tools', () => {
+    const registry = new RuntimeToolRegistry()
+    registry.register(readTool, executor)
+
+    expect(() => registry.resolveModelName('unknown')).toThrow('TOOL_UNAVAILABLE')
+    expect(() => registry.resolve(readTool.id, 2)).toThrow('TOOL_UNAVAILABLE')
+  })
+})

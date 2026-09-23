@@ -1,8 +1,8 @@
 ## 1. Tool 契约与持久化基础
 
-- [ ] 1.1 在 `packages/runtime-contracts` 定义 Tool Definition、Tool Call、Tool Event、审批控制帧、结构化错误和 Zod schema，并运行该包契约测试验证合法往返、未知字段拒绝与不可序列化输入失败。
-- [ ] 1.2 为 Runtime 数据库增加 `tool_invocations` 前进迁移及仓储端口，验证首次迁移、重复启动、旧 v5 数据库升级、输入/输出持久化与按任务排序读取。
-- [ ] 1.3 实现 Tool Registry 与模型名称双向映射，验证重复名称、未知版本、未启用工具和无效 JSON Schema 均被确定性拒绝。
+- [x] 1.1 在 `packages/runtime-contracts` 定义 Tool Definition、Tool Call、Tool Event、审批控制帧、结构化错误和 Zod schema，并运行该包契约测试验证合法往返、未知字段拒绝与不可序列化输入失败。
+- [x] 1.2 为 Runtime 数据库增加 `tool_invocations` 前进迁移及仓储端口，验证首次迁移、重复启动、旧 v5 数据库升级、输入/输出持久化与按任务排序读取。
+- [x] 1.3 实现 Tool Registry 与模型名称双向映射，验证重复名称、未知版本、未启用工具和无效 JSON Schema 均被确定性拒绝。
 
 ## 2. OpenAI-compatible 工具调用协议
 

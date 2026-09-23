@@ -112,6 +112,34 @@ export interface ModelCallRepository {
   listByTask(taskId: string): Promise<PersistedModelCall[]>
 }
 
+export type PersistedToolInvocation = {
+  id: string
+  providerCallId: string
+  taskId: string
+  toolId: string
+  toolVersion: number
+  argumentsHash: string
+  decision: 'allow' | 'require_approval' | 'deny'
+  status:
+    | 'proposed'
+    | 'waiting_approval'
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+  input: unknown
+  output: unknown | null
+  error: unknown | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ToolInvocationRepository {
+  save(invocation: PersistedToolInvocation): Promise<void>
+  listByTask(taskId: string): Promise<PersistedToolInvocation[]>
+}
+
 export type PersistedMessage = {
   id: string
   taskId: string

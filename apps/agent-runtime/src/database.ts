@@ -185,6 +185,32 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
           ON tasks(session_id, updated_at DESC, id DESC);
       `)
     }
+  },
+  {
+    version: 6,
+    name: 'add-tool-invocations',
+    up(database) {
+      database.exec(`
+        CREATE TABLE tool_invocations (
+          id TEXT PRIMARY KEY,
+          provider_call_id TEXT NOT NULL,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          tool_id TEXT NOT NULL,
+          tool_version INTEGER NOT NULL,
+          arguments_hash TEXT NOT NULL,
+          decision TEXT NOT NULL,
+          status TEXT NOT NULL,
+          input_json TEXT NOT NULL,
+          output_json TEXT,
+          error_json TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX tool_invocations_task_idx
+          ON tool_invocations(task_id, created_at, id);
+      `)
+    }
   }
 ]
 

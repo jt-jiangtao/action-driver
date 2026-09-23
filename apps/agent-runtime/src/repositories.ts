@@ -3,11 +3,17 @@ import type {
   PersistedMessage,
   PersistedModelCall,
   PersistedStreamRequest,
+  PersistedToolInvocation,
   RuntimeEventRecord,
   RuntimeTaskRecord
 } from './ports'
 
-export type { PersistedMessage, PersistedModelCall, PersistedStreamRequest } from './ports'
+export type {
+  PersistedMessage,
+  PersistedModelCall,
+  PersistedStreamRequest,
+  PersistedToolInvocation
+} from './ports'
 import { assertPersistablePayload } from './persistence-guard'
 
 export type PersistedStep = {
@@ -209,6 +215,18 @@ export class SqliteRuntimeRepositories {
         createdAt: row.created_at,
         updatedAt: row.updated_at
       }))
+  }
+
+  readonly toolInvocations = {
+    save: async (invocation: PersistedToolInvocation): Promise<void> => {
+      saveToolInvocation(this.database, invocation)
+    },
+    listByTask: async (taskId: string): Promise<PersistedToolInvocation[]> =>
+      (
+        this.database
+          .prepare('SELECT * FROM tool_invocations WHERE task_id = ? ORDER BY created_at, id')
+          .all(taskId) as ToolInvocationRow[]
+      ).map(toolInvocationFromRow)
   }
 
   readonly events = {
@@ -504,6 +522,40 @@ function saveSkillInvocation(
     )
 }
 
+function saveToolInvocation(
+  database: Database.Database,
+  invocation: PersistedToolInvocation
+): void {
+  assertPersistablePayload(invocation.input, 'toolInvocation.input')
+  assertPersistablePayload(invocation.output, 'toolInvocation.output')
+  assertPersistablePayload(invocation.error, 'toolInvocation.error')
+  database
+    .prepare(
+      `INSERT INTO tool_invocations
+        (id, provider_call_id, task_id, tool_id, tool_version, arguments_hash, decision, status,
+         input_json, output_json, error_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET decision = excluded.decision, status = excluded.status,
+        output_json = excluded.output_json, error_json = excluded.error_json,
+        updated_at = excluded.updated_at`
+    )
+    .run(
+      invocation.id,
+      invocation.providerCallId,
+      invocation.taskId,
+      invocation.toolId,
+      invocation.toolVersion,
+      invocation.argumentsHash,
+      invocation.decision,
+      invocation.status,
+      JSON.stringify(invocation.input),
+      nullableJson(invocation.output),
+      nullableJson(invocation.error),
+      invocation.createdAt,
+      invocation.updatedAt
+    )
+}
+
 function taskFromRow(row: TaskRow): RuntimeTaskRecord {
   return {
     id: row.id,
@@ -575,6 +627,24 @@ function streamRequestFromRow(row: StreamRequestRow): PersistedStreamRequest {
     messageId: row.message_id,
     status: row.status,
     lastSequence: row.last_sequence,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }
+}
+
+function toolInvocationFromRow(row: ToolInvocationRow): PersistedToolInvocation {
+  return {
+    id: row.id,
+    providerCallId: row.provider_call_id,
+    taskId: row.task_id,
+    toolId: row.tool_id,
+    toolVersion: row.tool_version,
+    argumentsHash: row.arguments_hash,
+    decision: row.decision,
+    status: row.status,
+    input: JSON.parse(row.input_json) as unknown,
+    output: parseNullableJson(row.output_json),
+    error: parseNullableJson(row.error_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -670,6 +740,21 @@ type StreamRequestRow = {
   message_id: string
   status: PersistedStreamRequest['status']
   last_sequence: number
+  created_at: string
+  updated_at: string
+}
+type ToolInvocationRow = {
+  id: string
+  provider_call_id: string
+  task_id: string
+  tool_id: string
+  tool_version: number
+  arguments_hash: string
+  decision: PersistedToolInvocation['decision']
+  status: PersistedToolInvocation['status']
+  input_json: string
+  output_json: string | null
+  error_json: string | null
   created_at: string
   updated_at: string
 }

@@ -10,6 +10,7 @@ import {
   type PersistedStreamRequest,
   type PersistedSkillInvocation,
   type PersistedStep,
+  type PersistedToolInvocation,
   type RuntimeEventRecord,
   type RuntimeTaskRecord
 } from '../src/index'
@@ -192,7 +193,7 @@ describe('SQLite runtime repositories', () => {
     repositories.close()
   })
 
-  it('stores and reads tasks, messages, steps, skill invocations, and ordered events', async () => {
+  it('stores and reads tasks, messages, steps, skill and tool invocations, and ordered events', async () => {
     const repositories = createRepositories()
     await repositories.tasks.save(task)
 
@@ -228,10 +229,26 @@ describe('SQLite runtime repositories', () => {
       createdAt: task.createdAt,
       updatedAt: task.updatedAt
     }
+    const toolInvocation: PersistedToolInvocation = {
+      id: 'call-1',
+      providerCallId: 'provider-call-1',
+      taskId: task.id,
+      toolId: 'sandbox.fs.read',
+      toolVersion: 1,
+      argumentsHash: 'sha256:test',
+      decision: 'allow',
+      status: 'completed',
+      input: { path: 'README.md' },
+      output: { content: 'ok' },
+      error: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
 
     await repositories.messages.save(message)
     await repositories.steps.save(step)
     await repositories.skillInvocations.save(invocation)
+    await repositories.toolInvocations.save(toolInvocation)
     const event = await repositories.events.append({
       taskId: task.id,
       threadId: task.threadId,
@@ -246,6 +263,9 @@ describe('SQLite runtime repositories', () => {
     await expect(repositories.messages.listByTask(task.id)).resolves.toEqual([message])
     await expect(repositories.steps.listByTask(task.id)).resolves.toEqual([step])
     await expect(repositories.skillInvocations.listByTask(task.id)).resolves.toEqual([invocation])
+    await expect(repositories.toolInvocations.listByTask(task.id)).resolves.toEqual([
+      toolInvocation
+    ])
     await expect(repositories.events.listAfter(0)).resolves.toEqual([{ ...event, cursor: 1 }])
 
     repositories.close()
