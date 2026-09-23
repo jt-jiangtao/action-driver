@@ -101,11 +101,30 @@ describe('StreamSessionService', () => {
         } as never)
         await observer?.({
           kind: 'activity',
-          event: { type: 'text', activityId: 'activity-research', delta: '已读取 README。' }
+          event: {
+            type: 'text',
+            activityId: 'activity-research',
+            textId: 'plan:research',
+            delta: '已读取 README。'
+          }
         } as never)
         await observer?.({
           kind: 'activity',
-          event: { type: 'text', activityId: 'activity-research', delta: '正在核对配置。' }
+          event: {
+            type: 'text',
+            activityId: 'activity-research',
+            textId: 'plan:research',
+            delta: '正在核对配置。'
+          }
+        } as never)
+        await observer?.({
+          kind: 'activity',
+          event: {
+            type: 'text.done',
+            activityId: 'activity-research',
+            textId: 'plan:research',
+            phase: 'process'
+          }
         } as never)
         await observer?.({
           kind: 'activity',
@@ -151,6 +170,7 @@ describe('StreamSessionService', () => {
       'activity.started',
       'activity.text',
       'activity.text',
+      'activity.text.done',
       'activity.updated',
       'activity.completed',
       'response.end'
@@ -158,14 +178,22 @@ describe('StreamSessionService', () => {
     expect(published[3]).toMatchObject({
       type: 'activity.text',
       activityId: 'activity-research',
+      textId: 'plan:research',
       delta: '已读取 README。'
     })
     expect(published[4]).toMatchObject({
       type: 'activity.text',
       activityId: 'activity-research',
+      textId: 'plan:research',
       delta: '正在核对配置。'
     })
     expect(published[5]).toMatchObject({
+      type: 'activity.text.done',
+      activityId: 'activity-research',
+      textId: 'plan:research',
+      phase: 'process'
+    })
+    expect(published[6]).toMatchObject({
       type: 'activity.updated',
       activityId: 'activity-research',
       title: '已完成调研',
@@ -190,6 +218,7 @@ describe('StreamSessionService', () => {
       'activity.started',
       'activity.text',
       'activity.text',
+      'activity.text.done',
       'activity.updated',
       'activity.completed',
       'response.end'
@@ -797,8 +826,7 @@ describe('StreamSessionService', () => {
           expect.objectContaining({ role: 'user', content: 'Return **real Markdown**' }),
           expect.objectContaining({ role: 'assistant', content: 'final answer' })
         ],
-        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed' })]
-        ,
+        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed' })],
         activities: [
           expect.objectContaining({
             activityId: 'activity-snapshot',

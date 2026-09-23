@@ -235,9 +235,21 @@ describe('agent stream protocol', () => {
         eventId: 'event-activity-text',
         cursor: 7,
         activityId: null,
+        textId: 'plan:task-1',
         delta: '已确认事件边界。'
       }).type
     ).toBe('activity.text')
+    expect(
+      parseStreamServerEvent({
+        type: 'activity.text.done',
+        ...identity,
+        eventId: 'event-activity-text-done',
+        cursor: 8,
+        activityId: null,
+        textId: 'plan:task-1',
+        phase: 'process'
+      }).type
+    ).toBe('activity.text.done')
     expect(
       parseStreamServerEvent({
         type: 'activity.completed',

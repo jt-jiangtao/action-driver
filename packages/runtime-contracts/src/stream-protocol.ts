@@ -240,7 +240,11 @@ const responseSnapshotEventSchema = z
             ]),
             durationMs: z.number().nonnegative(),
             resultSummary: z.string().optional(),
-            errorSummary: z.string().optional()
+            errorSummary: z.string().optional(),
+            activityId: idSchema.nullable().optional(),
+            rawInput: z.string().optional(),
+            rawOutput: z.string().optional(),
+            rawOutputTruncated: z.boolean().optional()
           })
           .strict()
       )
@@ -267,6 +271,7 @@ const responseSnapshotEventSchema = z
       .array(
         z.union([
           z.object({ id: idSchema, kind: z.literal('activity'), activityId: idSchema }).strict(),
+          z.object({ id: idSchema, kind: z.literal('tool'), callId: idSchema }).strict(),
           z.object({ id: idSchema, kind: z.literal('text'), content: z.string() }).strict()
         ])
       )
@@ -302,7 +307,17 @@ const activityStreamEventSchemas = [
       type: z.literal('activity.text'),
       ...streamIdentity,
       activityId: idSchema.nullable(),
+      textId: idSchema.optional(),
       delta: z.string()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('activity.text.done'),
+      ...streamIdentity,
+      activityId: idSchema.nullable(),
+      textId: idSchema,
+      phase: z.enum(['process', 'final'])
     })
     .strict(),
   z.object({ type: z.literal('activity.completed'), ...activityStreamBase }).strict()

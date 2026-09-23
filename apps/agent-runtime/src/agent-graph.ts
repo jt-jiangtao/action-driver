@@ -285,7 +285,8 @@ export class LangGraphRunner implements GraphRunner {
             ? await this.consumeModelStream(
                 this.modelGateway.stream(request, config.signal),
                 this.modelObservers.get(state.taskId),
-                state.activityCapturesProgress ? state.activeActivityId : null
+                state.activeActivityId,
+                request.requestId
               )
             : await this.modelGateway.complete(request, config.signal)
         } catch (error) {
@@ -566,15 +567,20 @@ export class LangGraphRunner implements GraphRunner {
   private async consumeModelStream(
     events: AsyncIterable<ModelGatewayEvent>,
     observer?: ModelEventObserver,
-    activityId: string | null = null
+    activityId: string | null = null,
+    textId = 'plan'
   ): Promise<ModelResult> {
     let terminal: ModelResult | null = null
+    let hasText = false
     for await (const event of events) {
-      await observer?.(
-        event.kind === 'content' && activityId !== null
-          ? { kind: 'activity', event: { type: 'text', activityId, delta: event.delta } }
-          : event
-      )
+      if (event.kind === 'content' && event.delta) {
+        hasText = true
+        await observer?.({
+          kind: 'activity',
+          event: { type: 'text', activityId, textId, delta: event.delta }
+        })
+      }
+      await observer?.(event)
       if (event.kind === 'end') {
         terminal =
           event.result?.kind === 'tool-calls'
@@ -583,6 +589,17 @@ export class LangGraphRunner implements GraphRunner {
       }
     }
     if (!terminal) throw new Error('Model stream ended without a terminal event')
+    if (hasText) {
+      await observer?.({
+        kind: 'activity',
+        event: {
+          type: 'text.done',
+          activityId,
+          textId,
+          phase: terminal.kind === 'finish' ? 'final' : 'process'
+        }
+      })
+    }
     return terminal
   }
 

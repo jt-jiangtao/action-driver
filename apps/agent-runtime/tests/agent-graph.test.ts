@@ -258,6 +258,148 @@ describe('minimal agent StateGraph', () => {
     ])
   })
 
+  it('streams ordered process text before a tool and final text after it', async () => {
+    let round = 0
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('stream path expected')
+      },
+      async *stream() {
+        round += 1
+        if (round === 1) {
+          yield { kind: 'content' as const, delta: '正文 A' }
+          yield {
+            kind: 'end' as const,
+            content: '正文 A',
+            finishReason: 'tool_calls',
+            usage: null,
+            result: {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: 'read-a',
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: 'README.md' }
+                }
+              ]
+            }
+          }
+          return
+        }
+        yield { kind: 'content' as const, delta: '最终结论' }
+        yield {
+          kind: 'end' as const,
+          content: '最终结论',
+          finishReason: 'stop',
+          usage: null,
+          result: { kind: 'final-text' as const, content: '最终结论' }
+        }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'README' }
+      }
+    })
+
+    const result = await runner.run(
+      { taskId: 'task', goal: 'read', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      }
+    )
+
+    expect(result).toMatchObject({ status: 'completed', output: '最终结论' })
+    expect(observed).toEqual(
+      expect.arrayContaining([
+        {
+          kind: 'activity',
+          event: {
+            type: 'text',
+            activityId: 'activity:task:default',
+            textId: 'plan:task',
+            delta: '正文 A'
+          }
+        },
+        {
+          kind: 'activity',
+          event: {
+            type: 'text.done',
+            activityId: 'activity:task:default',
+            textId: 'plan:task',
+            phase: 'process'
+          }
+        },
+        {
+          kind: 'activity',
+          event: {
+            type: 'text',
+            activityId: 'activity:task:default',
+            textId: 'plan:task:1',
+            delta: '最终结论'
+          }
+        },
+        {
+          kind: 'activity',
+          event: {
+            type: 'text.done',
+            activityId: 'activity:task:default',
+            textId: 'plan:task:1',
+            phase: 'final'
+          }
+        }
+      ])
+    )
+    expect(
+      observed.filter(
+        (event) =>
+          typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'content'
+      )
+    ).toEqual([
+      { kind: 'content', delta: '正文 A' },
+      { kind: 'content', delta: '最终结论' }
+    ])
+  })
+
+  it('does not classify interrupted streamed text as a completed final answer', async () => {
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('stream path expected')
+      },
+      async *stream() {
+        yield { kind: 'content' as const, delta: '部分内容' }
+        throw new Error('stream interrupted')
+      }
+    }
+    const result = await new LangGraphRunner(model, new MockSkillRegistry()).run(
+      { taskId: 'task-stream-error', goal: 'answer', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      }
+    )
+
+    expect(result.status).toBe('failed')
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'text',
+        activityId: 'activity:task-stream-error:default',
+        textId: 'plan:task-stream-error',
+        delta: '部分内容'
+      }
+    })
+    expect(observed).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'activity',
+        event: expect.objectContaining({ type: 'text.done', phase: 'final' })
+      })
+    )
+  })
+
   it('runs a model tool request and returns only the final model answer', async () => {
     const requests: Parameters<ModelGateway['complete']>[0][] = []
     const model: ModelGateway = {
@@ -635,6 +777,15 @@ describe('minimal agent StateGraph', () => {
           titleRevision: 1
         }
       },
+      {
+        kind: 'activity',
+        event: {
+          type: 'text',
+          activityId: 'activity:task-streaming:default',
+          textId: 'plan:task-streaming',
+          delta: '# Real'
+        }
+      },
       { kind: 'content', delta: '# Real' }
     ])
 
@@ -653,13 +804,40 @@ describe('minimal agent StateGraph', () => {
           titleRevision: 1
         }
       },
+      {
+        kind: 'activity',
+        event: {
+          type: 'text',
+          activityId: 'activity:task-streaming:default',
+          textId: 'plan:task-streaming',
+          delta: '# Real'
+        }
+      },
       { kind: 'content', delta: '# Real' },
+      {
+        kind: 'activity',
+        event: {
+          type: 'text',
+          activityId: 'activity:task-streaming:default',
+          textId: 'plan:task-streaming',
+          delta: ' answer'
+        }
+      },
       { kind: 'content', delta: ' answer' },
       {
         kind: 'end',
         content: '# Real answer',
         finishReason: 'stop',
         usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 }
+      },
+      {
+        kind: 'activity',
+        event: {
+          type: 'text.done',
+          activityId: 'activity:task-streaming:default',
+          textId: 'plan:task-streaming',
+          phase: 'final'
+        }
       },
       {
         kind: 'activity',

@@ -538,10 +538,12 @@ export class StreamSessionService {
     }
     if (record.type.startsWith('activity.')) {
       const activity = payload as {
-        activityId: string
+        activityId: string | null
         title?: string
         titleRevision?: number
         delta?: string
+        textId?: string
+        phase?: 'process' | 'final'
       }
       return parseStreamServerEvent({
         type: record.type,
@@ -550,7 +552,12 @@ export class StreamSessionService {
         ...(record.type === 'activity.started' || record.type === 'activity.updated'
           ? { title: activity.title, titleRevision: activity.titleRevision }
           : {}),
-        ...(record.type === 'activity.text' ? { delta: activity.delta } : {})
+        ...(record.type === 'activity.text'
+          ? { delta: activity.delta, ...(activity.textId ? { textId: activity.textId } : {}) }
+          : {}),
+        ...(record.type === 'activity.text.done'
+          ? { textId: activity.textId, phase: activity.phase }
+          : {})
       })
     }
     if (record.type.startsWith('tool.')) {

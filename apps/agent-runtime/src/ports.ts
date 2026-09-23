@@ -47,7 +47,8 @@ export type ActivityGraphEvent = {
   event:
     | { type: 'started'; activityId: string; title: string; titleRevision: number }
     | { type: 'updated'; activityId: string; title: string; titleRevision: number }
-    | { type: 'text'; activityId: string | null; delta: string }
+    | { type: 'text'; activityId: string | null; textId: string; delta: string }
+    | { type: 'text.done'; activityId: string | null; textId: string; phase: 'process' | 'final' }
     | { type: 'completed'; activityId: string }
 }
 
