@@ -1,9 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import type { ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
 import {
   LangGraphRunner,
   MockSkillRegistry,
+  RuntimeToolPolicy,
+  RuntimeToolRegistry,
+  ToolInvocationService,
   RUNTIME_TYPES,
   createRuntimeContainer,
   threadIdForTask,
@@ -16,6 +20,247 @@ import {
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('runs a model tool request and returns only the final model answer', async () => {
+    const requests: Parameters<ModelGateway['complete']>[0][] = []
+    const model: ModelGateway = {
+      async complete(request) {
+        requests.push(request)
+        if (requests.length === 1) {
+          return {
+            kind: 'tool-calls',
+            calls: [{
+              providerCallId: 'provider-read-1',
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            }]
+          }
+        }
+        return { kind: 'finish', content: '**done**' }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'content', stream: 'result', delta: 'README content' }
+      }
+    })
+    const result = await runner.run({ taskId: 'task-tool-loop', goal: 'Read README', model: modelRef })
+
+    expect(result).toMatchObject({ status: 'completed', output: '**done**' })
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
+    expect(requests[1]?.messages.at(-2)).toMatchObject({
+      role: 'assistant',
+      toolCalls: [{ providerCallId: 'provider-read-1' }]
+    })
+    expect(requests[1]?.messages.at(-1)).toMatchObject({
+      role: 'tool',
+      toolCallId: 'provider-read-1'
+    })
+    expect(JSON.stringify(result.output)).not.toContain('README content')
+  })
+
+  it('handles a streamed tool-call terminal without showing it as assistant text', async () => {
+    const observed: unknown[] = []
+    let round = 0
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('stream path expected')
+      },
+      async *stream() {
+        round += 1
+        if (round === 1) {
+          yield {
+            kind: 'end' as const,
+            result: {
+              kind: 'tool-calls' as const,
+              calls: [{
+                providerCallId: 'provider-stream-1',
+                modelName: 'sandbox_fs_read',
+                arguments: { path: 'README.md' }
+              }]
+            },
+            content: '',
+            finishReason: 'tool_calls',
+            usage: null
+          }
+          return
+        }
+        yield { kind: 'content' as const, delta: '**done**' }
+        yield {
+          kind: 'end' as const,
+          result: { kind: 'final-text' as const, content: '**done**' },
+          content: '**done**',
+          finishReason: 'stop',
+          usage: null
+        }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'README' }
+      }
+    })
+    const result = await runner.run(
+      { taskId: 'task-stream-tool', goal: 'read', model: modelRef },
+      undefined,
+      (event) => { observed.push(event) }
+    )
+    expect(result).toMatchObject({ status: 'completed', output: '**done**' })
+    expect(observed.filter((event) =>
+      typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'content'
+    )).toEqual([{ kind: 'content', delta: '**done**' }])
+  })
+
+  it('returns denied tool errors to the model without executing the tool', async () => {
+    const execute = vi.fn(async function* () {
+      yield { kind: 'result' as const, output: 'must not run' }
+    })
+    let round = 0
+    const model: ModelGateway = {
+      async complete(request) {
+        round += 1
+        if (round === 1) {
+          expect(request.tools).toBeUndefined()
+          return {
+            kind: 'tool-calls',
+            calls: [{
+              providerCallId: 'provider-denied',
+              modelName: 'sandbox_fs_read',
+              arguments: { path: 'README.md' }
+            }]
+          }
+        }
+        expect(request.messages.at(-1)).toMatchObject({
+          role: 'tool',
+          toolCallId: 'provider-denied',
+          content: expect.stringContaining('TOOL_DENIED')
+        })
+        return { kind: 'finish', content: 'Unable to read' }
+      }
+    }
+    const { runner } = toolRunner(model, { execute })
+    const result = await runner.run({
+      taskId: 'task-denied-tool', goal: 'read', model: modelRef, toolGrants: []
+    })
+    expect(result).toMatchObject({ status: 'completed', output: 'Unable to read' })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('runs multiple calls in provider order and stops after the tool round budget', async () => {
+    const order: string[] = []
+    let rounds = 0
+    const model: ModelGateway = {
+      async complete() {
+        rounds += 1
+        if (rounds === 1) {
+          return {
+            kind: 'tool-calls',
+            calls: [
+              { providerCallId: 'first', modelName: 'sandbox_fs_read', arguments: { path: 'a' } },
+              { providerCallId: 'second', modelName: 'sandbox_fs_read', arguments: { path: 'b' } }
+            ]
+          }
+        }
+        return { kind: 'finish', content: 'final' }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute(call) {
+        order.push(String(call.arguments.path))
+        yield { kind: 'result', output: { path: call.arguments.path } }
+      }
+    })
+    expect((await runner.run({ taskId: 'task-multi', goal: 'read', model: modelRef })).status).toBe(
+      'completed'
+    )
+    expect(order).toEqual(['a', 'b'])
+
+    let callCount = 0
+    const endless: ModelGateway = {
+      async complete() {
+        return {
+          kind: 'tool-calls',
+          calls: [{
+            providerCallId: `provider-${++callCount}`,
+            modelName: 'sandbox_fs_read',
+            arguments: { path: 'README.md' }
+          }]
+        }
+      }
+    }
+    const budget = toolRunner(endless, {
+      async *execute() {
+        yield { kind: 'result', output: 'ok' }
+      }
+    })
+    const exhausted = await budget.runner.run({
+      taskId: 'task-budget', goal: 'loop', model: modelRef
+    })
+    expect(exhausted).toMatchObject({ status: 'failed', error: 'TOOL_BUDGET_EXCEEDED' })
+    expect(budget.commits.filter((status) => status === 'completed')).toHaveLength(8)
+  })
+
+  it('rejects a model response exceeding the call budget before invoking a tool', async () => {
+    const execute = vi.fn(async function* () {
+      yield { kind: 'result' as const, output: 'never' }
+    })
+    const model: ModelGateway = {
+      async complete() {
+        return {
+          kind: 'tool-calls',
+          calls: Array.from({ length: 17 }, (_, index) => ({
+            providerCallId: `provider-${index}`,
+            modelName: 'sandbox_fs_read',
+            arguments: { path: 'README.md' }
+          }))
+        }
+      }
+    }
+    const { runner } = toolRunner(model, { execute })
+    const result = await runner.run({ taskId: 'task-call-budget', goal: 'loop', model: modelRef })
+    expect(result).toMatchObject({ status: 'failed', error: 'TOOL_BUDGET_EXCEEDED' })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('propagates cancellation to the active executor before the run resolves', async () => {
+    const controller = new AbortController()
+    let started!: () => void
+    const executorStarted = new Promise<void>((resolve) => { started = resolve })
+    let terminated = false
+    const model: ModelGateway = {
+      async complete() {
+        return {
+          kind: 'tool-calls',
+          calls: [{
+            providerCallId: 'provider-cancel',
+            modelName: 'sandbox_fs_read',
+            arguments: { path: 'README.md' }
+          }]
+        }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute(_call, signal) {
+        started()
+        try {
+          await new Promise<void>((_resolve, reject) => {
+            signal?.addEventListener('abort', () =>
+              reject(Object.assign(new Error('aborted'), { name: 'AbortError' })), { once: true })
+          })
+        } finally {
+          terminated = true
+        }
+      }
+    })
+    const running = runner.run(
+      { taskId: 'task-cancel-tool', goal: 'read', model: modelRef }, controller.signal
+    )
+    await executorStarted
+    controller.abort(new DOMException('Cancelled', 'AbortError'))
+    const result = await running
+    expect(terminated).toBe(true)
+    expect(result.status).toBe('interrupted')
+  })
   it('sends persisted conversation history before the new user turn', async () => {
     const requests: Parameters<ModelGateway['complete']>[0][] = []
     const model: ModelGateway = {
@@ -226,3 +471,46 @@ describe('minimal agent StateGraph', () => {
     expect(contractSources.join('\n')).not.toMatch(/@langchain\/(?:langgraph|core)/)
   })
 })
+
+const readTool: ToolDefinition = {
+  id: 'sandbox.fs.read',
+  version: 1,
+  modelName: 'sandbox_fs_read',
+  description: 'Read a workspace file',
+  inputSchema: {
+    type: 'object',
+    properties: { path: { type: 'string' } },
+    required: ['path'],
+    additionalProperties: false
+  },
+  risk: 'low',
+  sideEffects: { filesystem: 'read', network: false },
+  timeoutMs: 1_000
+}
+
+function toolRunner(model: ModelGateway, executor: ToolExecutor) {
+  const registry = new RuntimeToolRegistry()
+  registry.register(readTool, executor)
+  const policy = new RuntimeToolPolicy()
+  const commits: string[] = []
+  const invocations = new ToolInvocationService({
+    registry,
+    policy,
+    persistence: {
+      async commitToolInvocationWithEvent(invocation, event) {
+        commits.push(invocation.status)
+        return { ...event, cursor: commits.length }
+      }
+    },
+    clock: { now: () => new Date().toISOString() }
+  })
+  return {
+    runner: new LangGraphRunner(model, new MockSkillRegistry(), undefined, {
+      registry,
+      policy,
+      invocations,
+      grants: ['sandbox.fs.read@1']
+    }),
+    commits
+  }
+}

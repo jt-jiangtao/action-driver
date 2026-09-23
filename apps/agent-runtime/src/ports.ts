@@ -247,6 +247,7 @@ export interface GraphRunner {
       messages?: RuntimeMessage[]
       systemPrompt?: string
       skills?: ModelSkillDescription[]
+      toolGrants?: string[]
     },
     signal?: AbortSignal,
     observer?: ModelEventObserver

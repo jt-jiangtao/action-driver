@@ -63,7 +63,7 @@ export async function startAgentRuntimeProcess(
     correlationId: randomUUID,
     now: () => new Date().toISOString()
   })
-  const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
+  const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway, interactions })
   const streamSessions = new StreamSessionService({
     repositories,
     graphRunner: local.adapters.graphRunner,

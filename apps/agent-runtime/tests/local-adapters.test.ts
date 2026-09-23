@@ -34,6 +34,8 @@ describe('local runtime adapters', () => {
     const checkpoints = container.get<CheckpointStore>(RUNTIME_TYPES.checkpointStore)
 
     expect(container.get<ModelGateway>(RUNTIME_TYPES.modelGateway)).toBe(modelGateway)
+    expect(local.toolRuntime.registry.list()).toEqual([])
+    expect(local.toolRuntime.grants).toEqual([])
     expect(() => local.adapters.skillRegistry.resolve('browser-use', 1)).toThrow(
       'CAPABILITY_UNAVAILABLE'
     )

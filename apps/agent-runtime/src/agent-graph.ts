@@ -10,6 +10,11 @@ import {
   isInterrupted
 } from '@langchain/langgraph'
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ProviderToolCall } from '@actiondriver/model-connections'
+import { parseToolCall, type ToolDefinition } from '@actiondriver/runtime-contracts'
+import { RuntimeToolRegistry } from './tool-registry'
+import { RuntimeToolPolicy } from './tool-policy'
+import { ToolInvocationService } from './tool-invocation-service'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -34,6 +39,14 @@ type AgentGraphStatus =
   | 'failed'
 
 type AgentGraphRoute = 'finish' | 'awaitUser' | 'failed'
+type PlanRoute = 'tools' | 'skill'
+
+export type GraphToolRuntime = {
+  registry: RuntimeToolRegistry
+  policy: RuntimeToolPolicy
+  invocations: ToolInvocationService
+  grants: string[]
+}
 
 const replace = <T>(_current: T, update: T): T => update
 
@@ -44,6 +57,12 @@ const AgentState = Annotation.Root({
   model: Annotation<ModelRef>(),
   systemPrompt: Annotation<string>({ reducer: replace, default: () => '' }),
   messages: Annotation<RuntimeMessage[]>({ reducer: replace, default: () => [] }),
+  modelMessages: Annotation<RuntimeMessage[]>({ reducer: replace, default: () => [] }),
+  toolGrants: Annotation<string[]>({ reducer: replace, default: () => [] }),
+  toolRound: Annotation<number>({ reducer: replace, default: () => 0 }),
+  toolCallCount: Annotation<number>({ reducer: replace, default: () => 0 }),
+  pendingToolCalls: Annotation<ProviderToolCall[]>({ reducer: replace, default: () => [] }),
+  planRoute: Annotation<PlanRoute>({ reducer: replace, default: () => 'skill' }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
     reducer: replace,
     default: () => []
@@ -75,7 +94,8 @@ export class LangGraphRunner implements GraphRunner {
   constructor(
     private readonly modelGateway: ModelGateway,
     private readonly skillRegistry: SkillRegistry,
-    private readonly checkpointer: BaseCheckpointSaver = new MemorySaver()
+    private readonly checkpointer: BaseCheckpointSaver = new MemorySaver(),
+    private readonly toolRuntime?: GraphToolRuntime
   ) {
     this.graph = this.createGraph()
   }
@@ -88,6 +108,7 @@ export class LangGraphRunner implements GraphRunner {
       messages?: RuntimeMessage[]
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
+      toolGrants?: string[]
     },
     signal?: AbortSignal,
     observer?: ModelEventObserver
@@ -104,6 +125,18 @@ export class LangGraphRunner implements GraphRunner {
           model: request.model,
           systemPrompt: request.systemPrompt ?? '',
           messages: request.messages ?? [],
+          modelMessages: [
+            ...(request.systemPrompt?.trim()
+              ? [{ role: 'system' as const, content: request.systemPrompt }]
+              : []),
+            ...(request.messages ?? []),
+            { role: 'user' as const, content: request.goal }
+          ],
+          toolGrants: request.toolGrants ?? this.toolRuntime?.grants ?? [],
+          toolRound: 0,
+          toolCallCount: 0,
+          pendingToolCalls: [],
+          planRoute: 'skill',
           skills: request.skills ?? [],
           status: 'submitted',
           requestedSkillId: null,
@@ -206,17 +239,17 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('plan', async (state, config) => {
         let plan
         try {
+          const tools: ToolDefinition[] = this.toolRuntime
+            ? this.toolRuntime.policy.discover(this.toolRuntime.registry.list(), {
+                grants: state.toolGrants
+              })
+            : []
           const request = {
             taskId: state.taskId,
-            requestId: `plan:${state.taskId}`,
+            requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
             model: state.model,
-            messages: [
-              ...(state.systemPrompt.trim()
-                ? [{ role: 'system' as const, content: state.systemPrompt }]
-                : []),
-              ...state.messages,
-              { role: 'user' as const, content: state.goal }
-            ],
+            messages: state.modelMessages,
+            ...(tools.length ? { tools } : {}),
             skills: state.skills,
             parameters: { temperature: 0 }
           }
@@ -231,6 +264,7 @@ export class LangGraphRunner implements GraphRunner {
           return {
             status: 'failed' as const,
             error: `MODEL_GATEWAY_ERROR: ${error instanceof Error ? error.message : String(error)}`,
+            planRoute: 'skill' as const,
             trace: ['plan']
           }
         }
@@ -240,14 +274,34 @@ export class LangGraphRunner implements GraphRunner {
             status: 'planned' as const,
             output: plan.content,
             requestedSkillId: null,
+            planRoute: 'skill' as const,
             trace: ['plan']
           }
         }
 
         if (plan.kind === 'tool-calls') {
+          if (!this.toolRuntime) {
+            return {
+              status: 'failed' as const,
+              error: 'TOOL_CALLS_NOT_CONFIGURED',
+              planRoute: 'skill' as const,
+              trace: ['plan']
+            }
+          }
+          if (state.toolRound >= 8 || state.toolCallCount + plan.calls.length > 16) {
+            return {
+              status: 'failed' as const,
+              error: 'TOOL_BUDGET_EXCEEDED',
+              planRoute: 'skill' as const,
+              trace: ['plan']
+            }
+          }
           return {
-            status: 'failed' as const,
-            error: 'TOOL_CALLS_NOT_CONFIGURED',
+            status: 'planned' as const,
+            pendingToolCalls: plan.calls,
+            planRoute: 'tools' as const,
+            toolRound: state.toolRound + 1,
+            toolCallCount: state.toolCallCount + plan.calls.length,
             trace: ['plan']
           }
         }
@@ -256,7 +310,77 @@ export class LangGraphRunner implements GraphRunner {
           status: 'planned' as const,
           requestedSkillId: plan.skillId,
           skillInput: plan.input,
+          planRoute: 'skill' as const,
           trace: ['plan']
+        }
+      })
+      .addNode('executeTools', async (state, config) => {
+        if (!this.toolRuntime) {
+          return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
+        }
+        const results: RuntimeMessage[] = []
+        for (const [index, providerCall] of state.pendingToolCalls.entries()) {
+          if (config.signal?.aborted) throw config.signal.reason
+          const call = parseToolCall({
+            callId: `tool:${state.taskId}:${state.toolRound}:${index}`,
+            providerCallId: providerCall.providerCallId,
+            modelName: providerCall.modelName,
+            arguments: providerCall.arguments
+          })
+          let terminal: Extract<import('@actiondriver/runtime-contracts').ToolEvent, { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }> | null = null
+          try {
+            for await (const toolEvent of this.toolRuntime.invocations.execute(
+              call,
+              {
+                taskId: state.taskId,
+                threadId: state.threadId,
+                checkpointId: `tool:${state.toolRound}`,
+                requestId: `plan:${state.taskId}:${state.toolRound}`,
+                grants: state.toolGrants
+              },
+              config.signal
+            )) {
+              if (
+                toolEvent.type === 'tool.completed' ||
+                toolEvent.type === 'tool.failed' ||
+                toolEvent.type === 'tool.cancelled'
+              ) {
+                terminal = toolEvent
+              }
+            }
+          } catch (error) {
+            if (config.signal?.aborted) throw error
+            terminal = {
+              type: 'tool.failed',
+              callId: call.callId,
+              taskId: state.taskId,
+              sequence: 0,
+              error: {
+                code: error instanceof Error && 'code' in error ? String(error.code) : 'TOOL_UNAVAILABLE',
+                message: error instanceof Error ? error.message : String(error),
+                retryable: false
+              }
+            }
+          }
+          results.push({
+            role: 'tool',
+            toolCallId: providerCall.providerCallId,
+            name: providerCall.modelName,
+            content: JSON.stringify(
+              terminal?.type === 'tool.completed'
+                ? { ok: true, output: terminal.output }
+                : { ok: false, error: terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled' ? terminal.error : { code: 'TOOL_NO_TERMINAL' } }
+            )
+          })
+        }
+        return {
+          modelMessages: [
+            ...state.modelMessages,
+            { role: 'assistant' as const, toolCalls: state.pendingToolCalls },
+            ...results
+          ],
+          pendingToolCalls: [],
+          trace: ['executeTools']
         }
       })
       .addNode('resolveSkill', (state) => {
@@ -335,7 +459,11 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('failed', () => ({ status: 'failed' as const, trace: ['failed'] }))
       .addEdge(START, 'acceptGoal')
       .addEdge('acceptGoal', 'plan')
-      .addEdge('plan', 'resolveSkill')
+      .addConditionalEdges('plan', (state) => state.planRoute, {
+        tools: 'executeTools',
+        skill: 'resolveSkill'
+      })
+      .addEdge('executeTools', 'plan')
       .addEdge('resolveSkill', 'invokeSkill')
       .addEdge('invokeSkill', 'verifyOutcome')
       .addConditionalEdges('verifyOutcome', (state) => state.route, {
@@ -357,7 +485,9 @@ export class LangGraphRunner implements GraphRunner {
     for await (const event of events) {
       await observer?.(event)
       if (event.kind === 'end') {
-        terminal = { kind: 'finish', content: event.content }
+        terminal = event.result?.kind === 'tool-calls'
+          ? { kind: 'tool-calls', calls: event.result.calls }
+          : { kind: 'finish', content: event.content }
       }
     }
     if (!terminal) throw new Error('Model stream ended without a terminal event')

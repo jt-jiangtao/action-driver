@@ -20,9 +20,9 @@
 
 ## 4. LangGraph 模型—工具循环
 
-- [ ] 4.1 将 GraphRunner 扩展为模型文本或工具调用两类路由，并用确定性模型与 fake executor 验证“模型请求工具 → 执行 → 追加 tool result → 模型生成最终文本”的完整循环。
-- [ ] 4.2 支持同一响应的多个工具调用按 provider index 串行执行，验证 call id 关联、失败结果回传和最终正文不含工具执行进度。
-- [ ] 4.3 增加每任务 8 轮、16 次调用预算以及取消传播，验证无限工具模型得到 `TOOL_BUDGET_EXCEEDED`、运行中取消等待真实 executor 终态且不会伪报完成。
+- [x] 4.1 将 GraphRunner 扩展为模型文本或工具调用两类路由，并用确定性模型与 fake executor 验证“模型请求工具 → 执行 → 追加 tool result → 模型生成最终文本”的完整循环。
+- [x] 4.2 支持同一响应的多个工具调用按 provider index 串行执行，验证 call id 关联、失败结果回传和最终正文不含工具执行进度。
+- [x] 4.3 增加每任务 8 轮、16 次调用预算以及取消传播，验证无限工具模型得到 `TOOL_BUDGET_EXCEEDED`、运行中取消等待真实 executor 终态且不会伪报完成。
 
 ## 5. 只读 Sandbox Executor
 
