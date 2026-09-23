@@ -5,6 +5,7 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
+    "predev": "corepack pnpm --filter @actiondriver/agent-runtime build",
     "dev": "electron-vite dev",
     "prebuild": "corepack pnpm --dir ../.. validate:e2e-interactions",
     "build": "electron-vite build",

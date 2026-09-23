@@ -75,6 +75,7 @@ export async function startAgentRuntimeProcess(
     messages: repositories.messages,
     modelCalls: repositories.modelCalls
   })
+  parentPort.postMessage({ type: 'runtime.rpc-ready' })
 
   let httpServer: ServiceHttpServer | null = null
 

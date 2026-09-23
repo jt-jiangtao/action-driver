@@ -37,7 +37,14 @@ describe('Agent Runtime process entry', () => {
     })
     await started
 
+    expect(parentPort.postMessage).toHaveBeenCalledWith({ type: 'runtime.rpc-ready' })
     expect(parentPort.postMessage).toHaveBeenCalledWith({ type: 'runtime.ready', service: null })
+    const announcedTypes = parentPort.postMessage.mock.calls.map(
+      ([message]) => (message as { type: string }).type
+    )
+    expect(announcedTypes.indexOf('runtime.rpc-ready')).toBeLessThan(
+      announcedTypes.indexOf('runtime.ready')
+    )
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))

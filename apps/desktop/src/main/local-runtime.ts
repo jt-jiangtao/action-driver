@@ -37,6 +37,7 @@ export function createLocalRuntimeServices(
 } {
   const runtimeClient = new RuntimeClientGateway()
   const runtimeStreamClient = new RuntimeStreamClient()
+  let connectRuntimeRpc: (() => Promise<void>) | null = null
   const processFactory = createElectronRuntimeProcessFactory({
     databasePath: paths.databasePath,
     ...(options.serviceToken ? { serviceToken: options.serviceToken } : {}),
@@ -48,7 +49,20 @@ export function createLocalRuntimeServices(
         onSkillExecute: (request) =>
           skillProviderHost.execute(request, Date.now() + 30_000, options.authorizeSkillExecution)
       })
-      runtimeClient.attach(client.connect().then(() => client))
+      let beginConnection: (() => void) | null = null
+      const connectedClient = new Promise<RuntimeClient>((resolve, reject) => {
+        beginConnection = () => {
+          void client.connect().then(() => resolve(client), reject)
+        }
+      })
+      runtimeClient.attach(connectedClient)
+      connectRuntimeRpc = async () => {
+        if (!beginConnection) throw new Error('Runtime RPC connection was already started')
+        const begin = beginConnection
+        beginConnection = null
+        begin()
+        await connectedClient
+      }
     }
   })
 
@@ -56,6 +70,12 @@ export function createLocalRuntimeServices(
     runtimeClient,
     runtimeStreamClient,
     runtimeSupervisor: new RuntimeSupervisor(processFactory, paths.runtimeEntryPath, {
+      onRuntimeRpcReady: async () => {
+        if (!connectRuntimeRpc) throw new Error('Runtime RPC endpoint is unavailable')
+        const connect = connectRuntimeRpc
+        connectRuntimeRpc = null
+        await connect()
+      },
       onServiceReady: async (service) => {
         await runtimeStreamClient.connect({
           ...service,

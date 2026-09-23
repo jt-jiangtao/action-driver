@@ -26,8 +26,10 @@ import { resolveCredentialKey } from './credential-key'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { registerAgentFilesIpcHandlers } from './agent-files-ipc'
 import { createLocalInteractionLogStore } from '@actiondriver/observability'
+import { resolveModuleDirectory } from './module-directory'
 
-const desktopIconPath = resolveDesktopIconPath(__dirname)
+const moduleDirectory = resolveModuleDirectory(import.meta.url)
+const desktopIconPath = resolveDesktopIconPath(moduleDirectory)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
 let logging: MainLogging | undefined
@@ -50,10 +52,13 @@ function applyDesktopBranding(): void {
 }
 
 function createWindow(mainServices: MainServices): BrowserWindow {
-  const rendererPath = join(__dirname, '../renderer/index.html')
+  const rendererPath = join(moduleDirectory, '../renderer/index.html')
   const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
   const window = new BrowserWindow(
-    mainServices.windowOptionsFactory(join(__dirname, '../preload/index.cjs'), desktopIconPath)
+    mainServices.windowOptionsFactory(
+      join(moduleDirectory, '../preload/index.cjs'),
+      desktopIconPath
+    )
   )
 
   installNavigationGuards(window.webContents, rendererEntryUrl)

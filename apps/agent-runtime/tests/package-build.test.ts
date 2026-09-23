@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+describe('agent runtime build', () => {
+  it('keeps the CommonJS ws package external to the ESM runtime bundle', () => {
+    const packageJson = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8')
+    ) as { scripts: { build: string } }
+
+    expect(packageJson.scripts.build).toContain('--external:ws')
+  })
+})

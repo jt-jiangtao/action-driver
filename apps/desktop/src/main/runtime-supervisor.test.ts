@@ -49,6 +49,27 @@ function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {
 }
 
 describe('RuntimeSupervisor', () => {
+  it('waits for the child RPC listener before sending the Runtime handshake', async () => {
+    let releaseRpc: (() => void) | undefined
+    const onRuntimeRpcReady = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseRpc = resolve
+        })
+    )
+    const { processes, supervisor } = harness({ onRuntimeRpcReady })
+
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({ type: 'runtime.rpc-ready' })
+    processes[0]?.emitMessage({ type: 'runtime.ready' })
+
+    expect(onRuntimeRpcReady).toHaveBeenCalledOnce()
+    expect(supervisor.state).toBe('starting')
+    releaseRpc?.()
+    await starting
+    expect(supervisor.state).toBe('ready')
+  })
+
   it('starts one UtilityProcess for concurrent window requests and becomes ready', async () => {
     const { factory, processes, supervisor } = harness()
 

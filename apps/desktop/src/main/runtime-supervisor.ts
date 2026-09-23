@@ -28,6 +28,7 @@ export type RuntimeSupervisorOptions = {
   restartWindowMs?: number
   shutdownTimeoutMs?: number
   now?: () => number
+  onRuntimeRpcReady?: () => Promise<void>
   onServiceReady?: (service: RuntimeServiceDescriptor) => Promise<void>
 }
 
@@ -44,6 +45,9 @@ export class RuntimeSupervisor {
   private readyPromise: Promise<void> | null = null
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: Error) => void) | null = null
+  private rpcReadyPromise: Promise<void> = Promise.resolve()
+  private resolveRpcReady: (() => void) | null = null
+  private rejectRpcReady: ((error: Error) => void) | null = null
   private stopPromise: Promise<void> | null = null
   private resolveStop: (() => void) | null = null
   private shutdownTimer: ReturnType<typeof setTimeout> | null = null
@@ -52,6 +56,7 @@ export class RuntimeSupervisor {
   private readonly restartWindowMs: number
   private readonly shutdownTimeoutMs: number
   private readonly now: () => number
+  private readonly onRuntimeRpcReady: (() => Promise<void>) | undefined
   private readonly onServiceReady:
     | ((service: RuntimeServiceDescriptor) => Promise<void>)
     | undefined
@@ -76,6 +81,7 @@ export class RuntimeSupervisor {
     this.restartWindowMs = options.restartWindowMs ?? 60_000
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000
     this.now = options.now ?? Date.now
+    this.onRuntimeRpcReady = options.onRuntimeRpcReady
     this.onServiceReady = options.onServiceReady
   }
 
@@ -116,6 +122,16 @@ export class RuntimeSupervisor {
 
   private spawn(preservePendingStart = false): Promise<void> {
     this.state = 'starting'
+    if (this.onRuntimeRpcReady) {
+      this.rpcReadyPromise = new Promise<void>((resolve, reject) => {
+        this.resolveRpcReady = resolve
+        this.rejectRpcReady = reject
+      })
+    } else {
+      this.rpcReadyPromise = Promise.resolve()
+      this.resolveRpcReady = null
+      this.rejectRpcReady = null
+    }
     if (!preservePendingStart || !this.readyPromise) {
       this.readyPromise = new Promise<void>((resolve, reject) => {
         this.resolveReady = resolve
@@ -135,8 +151,35 @@ export class RuntimeSupervisor {
       typeof message === 'object' &&
       message !== null &&
       'type' in message &&
+      message.type === 'runtime.rpc-ready'
+    ) {
+      if (this.onRuntimeRpcReady) {
+        try {
+          await this.onRuntimeRpcReady()
+          this.resolveRpcReady?.()
+        } catch (error) {
+          const normalized = error instanceof Error ? error : new Error(String(error))
+          this.state = 'failed'
+          this.rejectRpcReady?.(normalized)
+          this.rejectReady?.(normalized)
+        }
+      }
+      return
+    }
+    if (
+      typeof message === 'object' &&
+      message !== null &&
+      'type' in message &&
       message.type === 'runtime.ready'
     ) {
+      if (this.onRuntimeRpcReady) {
+        try {
+          await this.rpcReadyPromise
+        } catch {
+          return
+        }
+      }
+      if (this.state === 'failed') return
       const service = 'service' in message ? message.service : null
       this.serviceBaseUrl =
         service !== null && typeof service === 'object' && 'baseUrl' in service
