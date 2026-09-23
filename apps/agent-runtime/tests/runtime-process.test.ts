@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
 import { startAgentRuntimeProcess } from '../src/runtime-process'
+import { createSandboxTools } from '../src/sandbox'
+import { RuntimeToolPolicy, RuntimeToolRegistry } from '../src/index'
 
 class FakeParentPort extends EventEmitter {
   readonly postMessage = vi.fn()
@@ -29,7 +31,10 @@ describe('Agent Runtime process entry', () => {
     mainPort.peer = runtimePort
     const exit = vi.fn()
     const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-process-')), 'runtime.db')
-    const started = startAgentRuntimeProcess(parentPort, databasePath, exit)
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
+    const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
+      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+    })
 
     parentPort.emit('message', {
       data: { type: 'runtime.connect' },
@@ -58,11 +63,14 @@ describe('Agent Runtime process entry', () => {
     mainPort.peer = runtimePort
     const exit = vi.fn()
     const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-http-')), 'runtime.db')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
 
     const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
+      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot,
       ACTIONDRIVER_SERVICE_TOKEN: 'service-token',
       ACTIONDRIVER_CREDENTIAL_KEY: 'credential-secret',
-      ACTIONDRIVER_RUNTIME_VERSION: '1.2.3'
+      ACTIONDRIVER_RUNTIME_VERSION: '1.2.3',
+      ACTIONDRIVER_RENDERER_ORIGIN: 'http://localhost:5173'
     })
     parentPort.emit('message', {
       data: { type: 'runtime.connect' },
@@ -84,7 +92,8 @@ describe('Agent Runtime process entry', () => {
 
     const socket = new WebSocket(
       `${readyMessage.service.baseUrl.replace('http:', 'ws:')}${readyMessage.service.streamPath}`,
-      [readyMessage.service.streamProtocol]
+      [readyMessage.service.streamProtocol],
+      { origin: 'http://localhost:5173' }
     )
     await new Promise<void>((resolve, reject) => {
       socket.once('open', resolve)
@@ -126,5 +135,36 @@ describe('Agent Runtime process entry', () => {
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+  })
+
+  it('rejects startup without a configured workspace root', async () => {
+    const parentPort = new FakeParentPort()
+    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-')), 'runtime.db')
+    await expect(startAgentRuntimeProcess(parentPort, databasePath, vi.fn(), {})).rejects.toThrow(
+      'SANDBOX_ROOT_INVALID'
+    )
+  })
+
+  it('registers file tools for automatic use while shell requires approval', async () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-policy-workspace-'))
+    const registry = new RuntimeToolRegistry()
+    const policy = new RuntimeToolPolicy()
+    const tools = await createSandboxTools({ workspaceRoot })
+    for (const tool of tools) registry.register(tool.definition, tool.executor)
+    const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
+    expect(registry.list().map((tool) => tool.id)).toEqual([
+      'sandbox.fs.list', 'sandbox.fs.read', 'sandbox.shell.run'
+    ])
+    const read = registry.resolveModelName('sandbox_fs_read').definition
+    const shell = registry.resolveModelName('sandbox_shell_run').definition
+    expect(policy.decide(read, {
+      callId: 'read', providerCallId: 'provider-read', modelName: read.modelName,
+      arguments: { path: 'README.md' }
+    }, { grants })).toEqual({ kind: 'allow' })
+    expect(policy.decide(shell, {
+      callId: 'shell', providerCallId: 'provider-shell', modelName: shell.modelName,
+      arguments: { command: 'rg', args: ['needle', '.'] }
+    }, { grants })).toMatchObject({ kind: 'require_approval' })
+    expect(() => registry.resolveModelName('unknown_tool')).toThrow('TOOL_UNAVAILABLE')
   })
 })

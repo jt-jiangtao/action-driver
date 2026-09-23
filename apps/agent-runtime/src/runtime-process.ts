@@ -19,6 +19,7 @@ import {
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
+import { createSandboxTools } from './sandbox'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -28,7 +29,11 @@ export async function startAgentRuntimeProcess(
   exit: (code: number) => void = process.exit,
   environment: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
-  const endpoint = await waitForRuntimeMessagePort(parentPort)
+  const workspaceRoot = environment.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
+  if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
+  const endpointPromise = waitForRuntimeMessagePort(parentPort)
+  const sandboxTools = await createSandboxTools({ workspaceRoot })
+  const endpoint = await endpointPromise
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
   const database = openRuntimeDatabase(databasePath)
   const repositories = new SqliteRuntimeRepositories(database)
@@ -64,6 +69,10 @@ export async function startAgentRuntimeProcess(
     now: () => new Date().toISOString()
   })
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway, interactions })
+  for (const tool of sandboxTools) {
+    local.toolRuntime.registry.register(tool.definition, tool.executor)
+    local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+  }
   const streamSessions = new StreamSessionService({
     repositories,
     graphRunner: local.adapters.graphRunner,

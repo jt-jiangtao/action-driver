@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:pino --external:pino-pretty --external:ws",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:pino --external:pino-pretty --external:ws && node scripts/copy-rg.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "@langchain/core": "1.2.12",
     "@langchain/langgraph": "1.4.16",
     "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
+    "@vscode/ripgrep": "1.18.0",
     "better-sqlite3": "12.11.1",
     "inversify": "8.2.3",
     "pino": "9.5.0",

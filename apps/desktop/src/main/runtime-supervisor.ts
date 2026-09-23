@@ -257,6 +257,7 @@ export class RuntimeSupervisor {
 
 export type ElectronRuntimeProcessFactoryOptions = {
   databasePath: string
+  workspaceRoot: string
   serviceToken?: string
   credentialKey?: string
   onEndpoint(endpoint: RuntimeMessageEndpoint): void
@@ -271,6 +272,7 @@ export function createElectronRuntimeProcessFactory(
         env: {
           ...process.env,
           ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
+          ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
           ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
           ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {})
         }

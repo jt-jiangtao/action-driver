@@ -1,4 +1,5 @@
 import { RuntimeClient } from '@actiondriver/runtime-contracts'
+import { mkdirSync } from 'node:fs'
 import type { RuntimePaths } from './runtime-paths'
 import { RuntimeClientGateway } from './runtime-client-gateway'
 import { RuntimeSupervisor, createElectronRuntimeProcessFactory } from './runtime-supervisor'
@@ -34,9 +35,13 @@ export function createLocalRuntimeServices(
   runtimeSupervisor: RuntimeSupervisor
 } {
   const runtimeClient = new RuntimeClientGateway()
+  const configuredWorkspaceRoot = process.env.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
+  if (!configuredWorkspaceRoot) mkdirSync(paths.workspaceRoot, { recursive: true })
+  const workspaceRoot = configuredWorkspaceRoot || paths.workspaceRoot
   let connectRuntimeRpc: (() => Promise<void>) | null = null
   const processFactory = createElectronRuntimeProcessFactory({
     databasePath: paths.databasePath,
+    workspaceRoot,
     ...(options.serviceToken ? { serviceToken: options.serviceToken } : {}),
     ...(options.credentialKey ? { credentialKey: options.credentialKey } : {}),
     onEndpoint(endpoint) {

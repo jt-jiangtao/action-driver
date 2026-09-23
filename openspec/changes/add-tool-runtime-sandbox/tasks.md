@@ -26,10 +26,10 @@
 
 ## 5. 只读 Sandbox Executor
 
-- [ ] 5.1 实现工作区路径解析器，验证普通相对路径、绝对路径、`..`、不存在目标、内部符号链接和越界符号链接的允许与拒绝行为。
-- [ ] 5.2 实现 `sandbox.fs.list@1` 与 `sandbox.fs.read@1`，验证确定排序、1,000 项列表上限、1 MiB 读取上限、UTF-8 内容、范围和截断元数据。
-- [ ] 5.3 实现 `sandbox.shell.run@1` 的 `spawn(..., { shell: false })` 执行器及 `rg/head/tail/wc` 参数白名单，验证 shell 元字符、未知 flag、网络/写入命令、越界路径、秘密环境变量、10 秒超时和 1 MiB 输出上限均按设计处理。
-- [ ] 5.4 在 Runtime 组合根注册 Sandbox 工具、工作区根和首版策略，验证文件工具自动允许、shell 工具等待一次性批准、未启用工具返回 `TOOL_UNAVAILABLE`。
+- [x] 5.1 实现工作区路径解析器，验证普通相对路径、绝对路径、`..`、不存在目标、内部符号链接和越界符号链接的允许与拒绝行为。
+- [x] 5.2 实现 `sandbox.fs.list@1` 与 `sandbox.fs.read@1`，验证确定排序、1,000 项列表上限、1 MiB 读取上限、UTF-8 内容、范围和截断元数据。
+- [x] 5.3 实现 `sandbox.shell.run@1` 的 `spawn(..., { shell: false })` 执行器及 `rg/head/tail/wc` 参数白名单，验证 shell 元字符、未知 flag、网络/写入命令、越界路径、秘密环境变量、10 秒超时和 1 MiB 输出上限均按设计处理。
+- [x] 5.4 在 Runtime 组合根注册 Sandbox 工具、工作区根和首版策略，验证文件工具自动允许、shell 工具等待一次性批准、未启用工具返回 `TOOL_UNAVAILABLE`。
 
 ## 6. WebSocket、审批和页面投影
 
