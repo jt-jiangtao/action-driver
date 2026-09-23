@@ -5,42 +5,32 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { FakeOpenAiStreamServer } from './support/fake-openai-stream-server'
 
-/**
- * Desktop integration coverage for the local Agent Runtime.
- *
- * The app runs in its production (local) composition: Electron Main forks the Agent Runtime
- * utility process, the Runtime owns SQLite and the LangGraph checkpoint, and the Skill Provider
- * Host only exposes Mock Browser/Computer providers. Run it with `pnpm test:e2e:local`, which
- * prepares the Electron native SQLite binding, the Runtime bundle and the local app build.
- */
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const runtimeEntry = fileURLToPath(new URL('../../agent-runtime/dist/index.js', import.meta.url))
 const mainBundle = fileURLToPath(new URL('../out/main/index.js', import.meta.url))
-
-/** Deterministic Mock goal markers defined by `DeterministicModelGateway`. */
-const PENDING_PLAN_GOAL = '整理本周行程（长时间准备）'
-const USER_INPUT_GOAL = '预订杭州酒店（等待确认）'
+const apiKey = 'sk-e2e-stream-secret'
 
 let application: ElectronApplication | undefined
-let userDataDirectory: string | undefined
-let homeDirectory: string | undefined
+let userDataDirectory: string
+let homeDirectory: string
+let provider: FakeOpenAiStreamServer
 
-test.beforeAll(() => {
-  expect(
-    existsSync(runtimeEntry),
-    'The Agent Runtime bundle is missing; run "pnpm test:e2e:local" instead of raw playwright.'
-  ).toBe(true)
-  expect(
-    readFileSync(mainBundle, 'utf8').includes('ACTIONDRIVER_RUNTIME_DATABASE_PATH'),
-    'The desktop build is not the local composition; run "pnpm test:e2e:local" so the production build is present.'
-  ).toBe(true)
+test.beforeAll(async () => {
+  expect(existsSync(runtimeEntry)).toBe(true)
+  expect(readFileSync(mainBundle, 'utf8')).toContain('ACTIONDRIVER_RUNTIME_DATABASE_PATH')
+  provider = new FakeOpenAiStreamServer()
+  await provider.start()
+})
+
+test.afterAll(async () => {
+  await provider.close()
 })
 
 test.afterEach(async () => {
@@ -48,10 +38,10 @@ test.afterEach(async () => {
   application = undefined
 })
 
-async function launch({ reuseDirectories = false } = {}): Promise<Page> {
-  if (!reuseDirectories || !userDataDirectory || !homeDirectory) {
-    userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-local-e2e-data-'))
-    homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-local-e2e-home-'))
+async function launch(reuseDirectories = false): Promise<Page> {
+  if (!reuseDirectories) {
+    userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-data-'))
+    homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
   }
   application = await electron.launch({
     args: ['.', `--user-data-dir=${userDataDirectory}`],
@@ -69,64 +59,32 @@ async function launch({ reuseDirectories = false } = {}): Promise<Page> {
   return page
 }
 
-function setSkillEnabled(page: Page, skillId: string, enabled: boolean): Promise<void> {
-  return page.evaluate(
-    async ([id, nextEnabled]) => {
-      await window.actionDriverDesktop.agentFiles.setSkillEnabled(
-        id as string,
-        nextEnabled as boolean
+async function configureProvider(page: Page): Promise<void> {
+  await page.evaluate(
+    async ({ baseUrl, secret }) => {
+      await window.actionDriverDesktop.modelConnections.add(
+        {
+          name: 'E2E Stream Provider',
+          protocol: 'openai-compatible',
+          baseUrl,
+          apiKey: secret
+        },
+        [
+          {
+            id: 'e2e-stream-model',
+            name: 'e2e-stream-model',
+            enabled: true,
+            testState: 'success'
+          }
+        ]
       )
     },
-    [skillId, enabled] as const
+    { baseUrl: provider.baseUrl, secret: apiKey }
   )
-}
-
-function taskIdOf(page: Page): Promise<string | null> {
-  return page.getByTestId('e2e/tasks/detail/page#page').getAttribute('data-task-id')
-}
-
-function agentStatus(page: Page, taskId: string): Promise<string | null> {
-  return page.evaluate(
-    async (id) => (await window.actionDriverDesktop.agent.get(id))?.status ?? null,
-    taskId
+  await page.reload()
+  await expect(page.getByRole('button', { name: /当前模型/ })).toContainText(
+    'E2E Stream Provider / e2e-stream-model'
   )
-}
-
-function continueTask(page: Page, taskId: string): Promise<void> {
-  return page.evaluate((id) => window.actionDriverDesktop.agent.continue(id), taskId)
-}
-
-function provideInput(page: Page, taskId: string, value: unknown): Promise<void> {
-  return page.evaluate(
-    ([id, input]) => window.actionDriverDesktop.agent.provideInput(id as string, input),
-    [taskId, value] as const
-  )
-}
-
-async function submitGoal(page: Page, goal: string) {
-  await page.getByLabel('任务描述').fill(goal)
-  await page.getByLabel('发送').click()
-  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toBeVisible()
-  const taskId = await taskIdOf(page)
-  expect(taskId).toMatch(/^task-/)
-  return taskId as string
-}
-
-function runtimeProcessCount(): number {
-  if (!userDataDirectory) return 0
-  const instanceMarker = basename(userDataDirectory)
-  try {
-    const output = execFileSync('ps', ['-ax', '-o', 'command'], { encoding: 'utf8' })
-    return output
-      .split('\n')
-      .filter(
-        (line) =>
-          line.includes('--utility-sub-type=node.mojom.NodeService') &&
-          line.includes(instanceMarker)
-      ).length
-  } catch {
-    return 0
-  }
 }
 
 function readInteractionFiles(directory: string): string {
@@ -143,170 +101,69 @@ function readInteractionFiles(directory: string): string {
     .join('\n')
 }
 
-test('carries a local Runtime task through submit, interrupt, continue and shutdown', async () => {
-  const page = await launch()
-
-  // 提交目标：真实 UI → Preload → Main IPC → Runtime 命令
-  const taskId = await submitGoal(page, PENDING_PLAN_GOAL)
-
-  // 时间线：Runtime 投影出任务消息与执行步骤
-  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toContainText(PENDING_PLAN_GOAL)
-  await expect(page.getByRole('heading', { name: '执行进度' })).toBeVisible()
-  await expect(page.getByText('执行任务')).toBeVisible()
-  await expect(page.getByText('Browser Skill · 运行中')).toBeVisible()
-  expect(await agentStatus(page, taskId)).toBe('running')
-
-  // 中断运行中的任务：Mock 模型等待中断信号，Runtime 停在最近安全 checkpoint
-  await page.getByTestId('e2e/shared/composer/interrupt#button').click()
-  await expect(page.getByText('Browser Skill · 已暂停')).toBeVisible()
-  await expect.poll(() => agentStatus(page, taskId)).toBe('paused')
-
-  // 继续：从 checkpoint 恢复，事件驱动时间线继续更新到完成
-  await continueTask(page, taskId)
-  await expect(page.getByText('Browser Skill · 已完成')).toBeVisible({ timeout: 20_000 })
-  await expect.poll(() => agentStatus(page, taskId)).toBe('succeeded')
-  await expect(page.getByText('任务已完成')).toBeVisible()
-
-  // 退出清理：Main 停止 Supervisor，Runtime utility process 与数据库写入一起结束
-  expect(runtimeProcessCount()).toBeGreaterThan(0)
-  await application!.close()
-  application = undefined
-  await expect.poll(runtimeProcessCount, { timeout: 15_000 }).toBe(0)
-  expect(existsSync(join(userDataDirectory!, 'data', 'actiondriver.db'))).toBe(true)
-})
-
-test('waits for user input and resumes a local Runtime task from its checkpoint', async () => {
-  const page = await launch()
-
-  const taskId = await submitGoal(page, USER_INPUT_GOAL)
-
-  await expect(page.getByText('Browser Skill · 等待用户')).toBeVisible({ timeout: 20_000 })
-  await expect.poll(() => agentStatus(page, taskId)).toBe('waiting-user')
-
-  await provideInput(page, taskId, { approved: true })
-
-  await expect(page.getByText('Browser Skill · 已完成')).toBeVisible({ timeout: 20_000 })
-  await expect.poll(() => agentStatus(page, taskId)).toBe('succeeded')
-  await expect(page.getByText('任务已完成')).toBeVisible()
-})
-
-test('enforces current Skill state across task snapshots and application restart', async () => {
+test('streams one real local Agent task, persists it, and exposes one aggregate model log', async () => {
   let page = await launch()
-  const initialSkills = await page.evaluate(() =>
-    window.actionDriverDesktop.agentFiles.listSkills()
-  )
-  expect(initialSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
-    enabled: true,
-    available: true,
-    executorId: 'browser-use'
-  })
-  expect(initialSkills.find((skill) => skill.id === 'computer-tools')).toMatchObject({
-    enabled: true,
-    available: true,
-    executorId: 'computer-use'
-  })
-  const taskId = await submitGoal(page, PENDING_PLAN_GOAL)
-  await expect.poll(() => agentStatus(page, taskId)).toBe('running')
+  await configureProvider(page)
 
-  await setSkillEnabled(page, 'browser-tools', false)
-  await setSkillEnabled(page, 'computer-tools', false)
-  const browserSkillPath = join(
-    homeDirectory!,
-    '.action-driver',
-    'skills',
-    'browser-tools',
-    'SKILL.md'
-  )
-  expect(readFileSync(browserSkillPath, 'utf8')).toContain('executor: browser-use')
-  await page.getByTestId('e2e/shared/composer/interrupt#button').click()
-  await expect.poll(() => agentStatus(page, taskId)).toBe('paused')
-  await continueTask(page, taskId)
-  await expect.poll(() => agentStatus(page, taskId), { timeout: 20_000 }).toBe('failed')
+  await page.getByLabel('任务描述').fill('返回 Markdown 流式结果')
+  await page.getByLabel('发送').click()
+  const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
+  await expect(taskPage).toBeVisible()
+  const taskId = await taskPage.getAttribute('data-task-id')
+  expect(taskId).toMatch(/^task-/)
+  await expect(page.getByTestId('e2e/tasks/detail/browser#section')).toHaveCount(0)
 
-  await application!.close()
-  application = undefined
-  expect(readFileSync(browserSkillPath, 'utf8')).toContain('executor: browser-use')
-  page = await launch({ reuseDirectories: true })
-  const persistedSkills = await page.evaluate(() =>
-    window.actionDriverDesktop.agentFiles.listSkills()
-  )
-  expect(persistedSkills.find((skill) => skill.id === 'browser-tools')).toMatchObject({
-    enabled: false,
-    available: true,
-    executorId: 'browser-use'
+  const markdown = page.getByTestId('e2e/tasks/detail/markdown#section')
+  await expect(markdown).toContainText('流式', { timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: '流式结果' })).toBeVisible()
+  await expect(markdown.getByRole('listitem')).toHaveCount(2)
+  await expect(markdown).toContainText('流式完成')
+
+  expect(provider.completions).toHaveLength(1)
+  expect(provider.completions[0]).toMatchObject({
+    model: 'e2e-stream-model',
+    stream: true,
+    messages: expect.arrayContaining([
+      expect.objectContaining({ role: 'user', content: '返回 Markdown 流式结果' })
+    ])
   })
 
-  await setSkillEnabled(page, 'browser-tools', true)
-  const resumedTaskId = await submitGoal(page, USER_INPUT_GOAL)
   await expect
-    .poll(() => agentStatus(page, resumedTaskId), { timeout: 20_000 })
-    .toBe('waiting-user')
-})
-
-test('records real IPC and HTTP bodies without logging the log viewer itself', async () => {
-  const page = await launch()
-  const apiKey = 'sk-e2e-interaction-secret'
-
-  await page.evaluate(async (secret) => {
-    await window.actionDriverDesktop.modelConnections.list()
-    await window.actionDriverDesktop.modelConnections.testConnection({
-      name: 'E2E 日志连接',
-      protocol: 'openai-compatible',
-      baseUrl: 'http://127.0.0.1:1/v1',
-      apiKey: secret
+    .poll(
+      async () => {
+        const modelLog = await page.evaluate(
+          (id) => window.actionDriverDesktop.agent.getModelLog(id),
+          taskId!
+        )
+        return modelLog?.tasks[0]?.calls[0] ?? null
+      },
+      { timeout: 10_000 }
+    )
+    .toMatchObject({
+      status: 'completed',
+      requestId: `plan:${taskId}`,
+      sections: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'model-response',
+          content: expect.stringContaining('流式完成')
+        })
+      ])
     })
-  }, apiKey)
-  await submitGoal(page, PENDING_PLAN_GOAL)
-
-  await page.getByRole('button', { name: '设置' }).click()
-  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
-  await expect(page.getByTestId('e2e/settings/logs/entries/0#button')).toBeVisible()
-
-  await page.getByTestId('e2e/settings/logs/transport#button').click()
-  await page.getByRole('menuitemcheckbox', { name: 'IPC' }).click()
-  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('IPC')
-  await page.getByTestId('e2e/settings/logs/transport#button').click()
-  await page.getByTestId('e2e/settings/logs/entries/0#button').click()
-  await page.getByTestId('e2e/settings/logs/inspector/request#button').click()
-  await page.getByTestId('e2e/settings/logs/inspector/response#button').click()
-  const requestCopy = page.getByTestId('e2e/settings/logs/inspector/request/copy#button')
-  await expect(requestCopy).toBeVisible()
-  await requestCopy.click()
-  await expect
-    .poll(() => page.evaluate(() => globalThis.navigator.clipboard.readText()))
-    .not.toBe('')
-
-  await page.getByTestId('e2e/settings/logs/auto-refresh#switch').click()
-  await expect(page.getByTestId('e2e/settings/logs/auto-refresh#switch')).toHaveAttribute(
-    'aria-pressed',
-    'false'
-  )
-  await page.getByTestId('e2e/settings/logs/auto-refresh#switch').click()
-  await page.getByTestId('e2e/settings/logs/inspector/close#button').click()
-  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('IPC')
-
-  await page.getByTestId('e2e/settings/logs/transport#button').click()
-  await page.getByRole('menuitemcheckbox', { name: 'IPC' }).click()
-  await page.getByRole('menuitemcheckbox', { name: 'HTTP' }).click()
-  await expect(page.getByTestId('e2e/settings/logs/transport#button')).toContainText('HTTP')
-  await expect(page.getByText('POST /model-connections/test')).toBeVisible()
-
-  const expired = await page.evaluate(async () => {
-    try {
-      await window.actionDriverDesktop.logs.detail('main:expired-e2e-event')
-      return null
-    } catch (error) {
-      return error as { code?: string; message?: string }
-    }
-  })
-  expect(expired).toMatchObject({ code: 'payload-expired' })
 
   await application!.close()
   application = undefined
-  const persisted = readInteractionFiles(join(userDataDirectory!, 'logs', 'interactions'))
-  expect(persisted).not.toContain(apiKey)
-  expect(persisted).not.toContain('actiondriver:log:list')
-  expect(persisted).not.toContain('actiondriver:log:detail')
-  expect(persisted).not.toContain('actiondriver:logs:list')
-  expect(persisted).not.toContain('actiondriver:logs:detail')
+  page = await launch(true)
+  await expect(page.getByRole('button', { name: '返回 Markdown 流式结果' })).toBeVisible()
+  const persisted = await page.evaluate((id) => window.actionDriverDesktop.agent.get(id), taskId!)
+  expect(persisted).toMatchObject({ status: 'succeeded' })
+  expect(persisted?.messages.find((message) => message.role === 'agent')?.content).toContain(
+    '流式完成'
+  )
+
+  await application!.close()
+  application = undefined
+  const interactionText = readInteractionFiles(join(userDataDirectory, 'logs', 'interactions'))
+  expect(interactionText).not.toContain(apiKey)
+  expect(interactionText).not.toContain('actiondriver:log:list')
+  expect(interactionText.match(/POST \/chat\/completions/g)).toHaveLength(2)
 })

@@ -1,15 +1,17 @@
 [
   {
-    "target": "e2e/home/header/expand-browser#button",
-    "route": "home",
-    "type": "button",
-    "coverage": "visual-only"
-  },
-  {
     "target": "e2e/home/main/composer#section",
     "route": "home",
     "type": "section",
     "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/home/main/retry-models#button",
+    "route": "home",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "shows retryable errors without falling back to production mock labels"
   },
   {
     "target": "e2e/settings/add-model-set/add-manual-model#button",
@@ -330,6 +332,14 @@
     "coverage": "visual-only"
   },
   {
+    "target": "e2e/shared/sidebar/retry-tasks#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "shows retryable errors without falling back to production mock labels"
+  },
+  {
     "target": "e2e/shared/sidebar/search#button",
     "route": "shared",
     "type": "button",
@@ -362,6 +372,14 @@
     "route": "tasks",
     "type": "section",
     "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/markdown#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "renders model Markdown while escaping raw HTML"
   },
   {
     "target": "e2e/tasks/detail/browser#section",

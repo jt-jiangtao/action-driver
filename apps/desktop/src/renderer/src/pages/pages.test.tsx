@@ -122,5 +122,6 @@ describe('ActionDriver pages', () => {
     )
     expect(screen.queryByTestId('e2e/tasks/detail/browser#section')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '展开浏览器' })).not.toBeInTheDocument()
+    expect(screen.queryByText('执行进度')).not.toBeInTheDocument()
   })
 })

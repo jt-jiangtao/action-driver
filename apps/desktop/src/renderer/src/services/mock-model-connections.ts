@@ -77,7 +77,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
   async discover(draft: ModelConnectionDraft): Promise<ModelOption[]> {
     await this.wait()
     if (!draft.baseUrl.trim()) return []
-    return cloneModels(discoveredModels)
+    return discoveredModels.map((model) => ({ ...model, testState: 'untested' }))
   }
 
   async refresh(connectionId: string): Promise<ModelOption[]> {

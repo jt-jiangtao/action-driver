@@ -11,15 +11,14 @@ import type {
   TaskProjection
 } from '@actiondriver/contracts'
 import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
-import type { AgentDesktopApi } from '../../../preload/desktop-api'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { AgentDesktopApi, AgentStreamEvent } from '../../../preload/desktop-api'
 import { StreamTaskProjection } from './stream-task-projection'
 
 export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
   private readonly tasks = new Map<string, TaskProjection>()
   private readonly listeners = new Set<(task: TaskProjection) => void>()
   private readonly streamProjections = new Map<string, StreamTaskProjection>()
-  private readonly pendingStreamEvents = new Map<string, StreamServerEvent[]>()
+  private readonly pendingStreamEvents = new Map<string, AgentStreamEvent[]>()
 
   constructor(private readonly api: AgentDesktopApi) {
     this.api.subscribeStream((event) => this.handleStreamEvent(event))
@@ -92,7 +91,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
     return () => this.listeners.delete(listener)
   }
 
-  private handleStreamEvent(event: StreamServerEvent): void {
+  private handleStreamEvent(event: AgentStreamEvent): void {
     if (!('taskId' in event)) return
     const projection = this.streamProjections.get(event.taskId)
     if (projection) {

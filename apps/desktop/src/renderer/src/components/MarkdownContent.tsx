@@ -10,7 +10,7 @@ export function MarkdownContent({ content, className }: { content: string; class
   return (
     <div
       className={className}
-      data-testid="markdown-content"
+      data-testid="e2e/tasks/detail/markdown#section"
       dangerouslySetInnerHTML={{ __html: markdown.render(content) }}
     />
   )

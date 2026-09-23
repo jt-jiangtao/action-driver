@@ -53,6 +53,8 @@ export interface DesktopIpcBridge {
   off(channel: string, listener: (event: unknown, payload: unknown) => void): void
 }
 
+export type AgentStreamEvent = StreamServerEvent
+
 export interface AgentDesktopApi {
   submit(request: AgentGoalRequest): Promise<AgentSubmitResult>
   cancel(taskId: string): Promise<void>

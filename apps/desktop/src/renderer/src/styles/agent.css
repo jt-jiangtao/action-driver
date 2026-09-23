@@ -182,10 +182,23 @@
   align-items: center;
   height: calc(100% - 56px);
   min-height: 0;
-  padding: 24px 0 20px;
+  overflow: hidden;
+  padding: 0 0 20px;
+}
+.conversation-scroll {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  padding: 24px 0 16px;
+  overflow-y: auto;
+  scrollbar-color: var(--ad-color-border-strong, #a8adb6) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 .conversation-stream {
   flex: 0 0 auto;
+  align-self: flex-start;
 }
 .user-message {
   width: 390px;

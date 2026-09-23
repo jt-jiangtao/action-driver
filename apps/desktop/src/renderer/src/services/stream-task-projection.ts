@@ -1,11 +1,11 @@
 import type { TaskProjection } from '@actiondriver/contracts'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { AgentStreamEvent } from '../../../preload/desktop-api'
 
 type ScheduledHandle = unknown
 
 export class StreamTaskProjection {
   private task: TaskProjection | null = null
-  private readonly buffered: StreamServerEvent[] = []
+  private readonly buffered: AgentStreamEvent[] = []
   private readonly seenEventIds = new Set<string>()
   private lastSequence = -1
   private scheduled: ScheduledHandle | null = null
@@ -24,7 +24,7 @@ export class StreamTaskProjection {
     for (const event of events) this.apply(event)
   }
 
-  apply(event: StreamServerEvent): void {
+  apply(event: AgentStreamEvent): void {
     if (!this.task) {
       this.buffered.push(structuredClone(event))
       return

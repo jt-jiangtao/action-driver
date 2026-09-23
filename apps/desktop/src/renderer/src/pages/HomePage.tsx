@@ -33,7 +33,13 @@ export function HomePage({
           {modelSelection.state === 'error' ? (
             <div className="model-selection-notice" role="alert">
               <span>模型加载失败</span>
-              <button type="button" onClick={onRetryModels}>重试</button>
+              <button
+                type="button"
+                data-testid="e2e/home/main/retry-models#button"
+                onClick={onRetryModels}
+              >
+                重试
+              </button>
             </div>
           ) : null}
           {modelSelection.state === 'empty' ? (

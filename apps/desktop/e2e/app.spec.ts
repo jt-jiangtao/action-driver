@@ -79,7 +79,6 @@ test('captures all Home and Task Figma states through public controls', async ()
   await expect(page).toHaveTitle('ActionDriver')
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   await auditRenderedInteractions(page, contracts, [
-    'e2e/home/header/expand-browser#button',
     'e2e/home/main/composer#section',
     'e2e/shared/sidebar/root#nav',
     'e2e/shared/sidebar/collapse#button',

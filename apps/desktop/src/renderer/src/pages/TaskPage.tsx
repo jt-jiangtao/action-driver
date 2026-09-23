@@ -3,7 +3,6 @@ import { AgentComposer } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
-import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -63,11 +62,14 @@ export function TaskPage({
           onExpandBrowser={() => onModeChange('split')}
         />
         <div className="conversation-body">
-          <div className="conversation-stream" data-width={flowWidth}>
-            <ConversationMessages messages={task.messages} generating={task.status === 'running'} />
-            <ExecutionTimeline steps={task.steps} />
+          <div className="conversation-scroll">
+            <div className="conversation-stream" data-width={flowWidth}>
+              <ConversationMessages
+                messages={task.messages}
+                generating={task.status === 'running'}
+              />
+            </div>
           </div>
-          <div className="conversation-spacer" />
           <AgentComposer
             key={task.id}
             running={task.status === 'running'}

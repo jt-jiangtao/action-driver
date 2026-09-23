@@ -32,7 +32,7 @@ describe('conversation components', () => {
     )
 
     expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toHaveClass('user-message')
-    expect(screen.getByTestId('markdown-content')).toHaveClass('agent-message')
+    expect(screen.getByTestId('e2e/tasks/detail/markdown#section')).toHaveClass('agent-message')
   })
 
   it('renders model Markdown while escaping raw HTML', () => {

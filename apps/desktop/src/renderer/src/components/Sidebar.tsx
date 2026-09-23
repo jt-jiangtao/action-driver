@@ -70,7 +70,13 @@ export function Sidebar({
           {!recentTasksLoading && recentTasksError ? (
             <div className="sidebar-empty-state">
               <span>任务加载失败</span>
-              <button type="button" onClick={onRetryRecentTasks}>重试任务</button>
+              <button
+                type="button"
+                data-testid="e2e/shared/sidebar/retry-tasks#button"
+                onClick={onRetryRecentTasks}
+              >
+                重试任务
+              </button>
             </div>
           ) : null}
           {!recentTasksLoading && !recentTasksError && recentTasks.length === 0 ? (
