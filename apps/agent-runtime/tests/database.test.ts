@@ -54,8 +54,16 @@ describe('runtime SQLite database', () => {
       { version: 1 },
       { version: 2 },
       { version: 3 },
-      { version: 4 }
+      { version: 4 },
+      { version: 5 }
     ])
+
+    expect(
+      database
+        .prepare("PRAGMA table_info('tasks')")
+        .all()
+        .map((row) => (row as { name: string }).name)
+    ).toContain('session_id')
 
     expect(
       database
@@ -89,7 +97,8 @@ describe('runtime SQLite database', () => {
       { version: 1, count: 1 },
       { version: 2, count: 1 },
       { version: 3, count: 1 },
-      { version: 4, count: 1 }
+      { version: 4, count: 1 },
+      { version: 5, count: 1 }
     ])
 
     database.close()
@@ -98,7 +107,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 5,
+      version: 6,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -108,14 +117,15 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 5 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 6 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
       { version: 1 },
       { version: 2 },
       { version: 3 },
-      { version: 4 }
+      { version: 4 },
+      { version: 5 }
     ])
     expect(
       database

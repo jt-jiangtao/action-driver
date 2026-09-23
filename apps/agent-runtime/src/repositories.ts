@@ -45,10 +45,42 @@ export class SqliteRuntimeRepositories {
         | undefined
       return row ? taskFromRow(row) : null
     },
+    getLatestBySession: async (sessionId: string): Promise<RuntimeTaskRecord | null> => {
+      const row = this.database
+        .prepare(
+          'SELECT * FROM tasks WHERE session_id = ? ORDER BY created_at DESC, id DESC LIMIT 1'
+        )
+        .get(sessionId) as TaskRow | undefined
+      return row ? taskFromRow(row) : null
+    },
+    listBySession: async (sessionId: string): Promise<RuntimeTaskRecord[]> =>
+      (
+        this.database
+          .prepare('SELECT * FROM tasks WHERE session_id = ? ORDER BY created_at, id')
+          .all(sessionId) as TaskRow[]
+      ).map(taskFromRow),
     listRecent: async (limit: number): Promise<RuntimeTaskRecord[]> =>
       (
         this.database
           .prepare('SELECT * FROM tasks ORDER BY updated_at DESC, id DESC LIMIT ?')
+          .all(limit) as TaskRow[]
+      ).map(taskFromRow),
+    listRecentSessions: async (limit: number): Promise<RuntimeTaskRecord[]> =>
+      (
+        this.database
+          .prepare(
+            `SELECT latest.*
+             FROM tasks latest
+             WHERE latest.id = (
+               SELECT candidate.id
+               FROM tasks candidate
+               WHERE candidate.session_id = latest.session_id
+               ORDER BY candidate.updated_at DESC, candidate.id DESC
+               LIMIT 1
+             )
+             ORDER BY latest.updated_at DESC, latest.id DESC
+             LIMIT ?`
+          )
           .all(limit) as TaskRow[]
       ).map(taskFromRow),
     save: async (task: RuntimeTaskRecord): Promise<void> => saveTask(this.database, task)
@@ -99,13 +131,19 @@ export class SqliteRuntimeRepositories {
         this.database
           .prepare('SELECT * FROM messages WHERE task_id = ? ORDER BY created_at, id')
           .all(taskId) as MessageRow[]
-      ).map((row) => ({
-        id: row.id,
-        taskId: row.task_id,
-        role: row.role,
-        content: JSON.parse(row.content_json) as unknown,
-        createdAt: row.created_at
-      }))
+      ).map(messageFromRow),
+    listBySession: async (sessionId: string): Promise<PersistedMessage[]> =>
+      (
+        this.database
+          .prepare(
+            `SELECT messages.*
+             FROM messages
+             JOIN tasks ON tasks.id = messages.task_id
+             WHERE tasks.session_id = ?
+             ORDER BY tasks.created_at, tasks.id, messages.created_at, messages.id`
+          )
+          .all(sessionId) as MessageRow[]
+      ).map(messageFromRow)
   }
 
   readonly steps = {
@@ -338,10 +376,11 @@ function saveTask(database: Database.Database, task: RuntimeTaskRecord): void {
   database
     .prepare(
       `INSERT INTO tasks
-        (id, thread_id, goal, connection_id, model_id, status, error_json,
+        (id, thread_id, session_id, goal, connection_id, model_id, status, error_json,
          last_checkpoint_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET thread_id = excluded.thread_id, goal = excluded.goal,
+        session_id = excluded.session_id,
         connection_id = excluded.connection_id, model_id = excluded.model_id,
         status = excluded.status, error_json = excluded.error_json,
         last_checkpoint_id = excluded.last_checkpoint_id, updated_at = excluded.updated_at`
@@ -349,6 +388,7 @@ function saveTask(database: Database.Database, task: RuntimeTaskRecord): void {
     .run(
       task.id,
       task.threadId,
+      task.sessionId,
       task.goal,
       task.model.connectionId,
       task.model.modelId,
@@ -468,6 +508,7 @@ function taskFromRow(row: TaskRow): RuntimeTaskRecord {
   return {
     id: row.id,
     threadId: row.thread_id,
+    sessionId: row.session_id,
     goal: row.goal,
     model: { connectionId: row.connection_id, modelId: row.model_id },
     status: row.status,
@@ -475,6 +516,16 @@ function taskFromRow(row: TaskRow): RuntimeTaskRecord {
     lastCheckpointId: row.last_checkpoint_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  }
+}
+
+function messageFromRow(row: MessageRow): PersistedMessage {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    role: row.role,
+    content: JSON.parse(row.content_json) as unknown,
+    createdAt: row.created_at
   }
 }
 
@@ -537,6 +588,7 @@ const parseNullableJson = (value: string | null): unknown | null =>
 type TaskRow = {
   id: string
   thread_id: string
+  session_id: string
   goal: string
   connection_id: string
   model_id: string

@@ -51,6 +51,22 @@ describe('agent stream protocol', () => {
 
     expect(
       parseStreamClientEvent({
+        type: 'request.create',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'client-continue',
+        requestId: 'request-continue',
+        idempotencyKey: 'idempotency-continue',
+        sessionId: 'session-1',
+        createdAt: occurredAt,
+        payload: {
+          input: { role: 'user', content: '继续解释' },
+          skills: []
+        }
+      })
+    ).toMatchObject({ type: 'request.create', sessionId: 'session-1' })
+
+    expect(
+      parseStreamClientEvent({
         type: 'request.cancel',
         protocol: STREAM_PROTOCOL,
         eventId: 'client-cancel',
@@ -71,6 +87,33 @@ describe('agent stream protocol', () => {
         createdAt: occurredAt
       }).type
     ).toBe('request.resume')
+  })
+
+  it('requires a model only when creating a new session', () => {
+    const base = {
+      type: 'request.create',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'client-invalid',
+      requestId: 'request-invalid',
+      idempotencyKey: 'idempotency-invalid',
+      createdAt: occurredAt,
+      payload: {
+        input: { role: 'user', content: 'hello' },
+        skills: []
+      }
+    }
+
+    expect(() => parseStreamClientEvent({ ...base, sessionId: null })).toThrow()
+    expect(() =>
+      parseStreamClientEvent({
+        ...base,
+        sessionId: 'session-1',
+        payload: {
+          ...base.payload,
+          model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+        }
+      })
+    ).toThrow()
   })
 
   it('rejects unknown fields and credential-bearing create payloads', () => {

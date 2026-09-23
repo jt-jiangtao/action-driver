@@ -61,8 +61,10 @@ describe('agent skill contracts', () => {
     }
     const task: TaskProjection = {
       id: 'task-1',
+      sessionId: 'session-1',
       title: '预订周末去杭州的酒店',
       status: 'running',
+      model: { connectionId: 'connection-a', modelId: 'shared-model' },
       messages: [],
       steps: [],
       browser
@@ -81,6 +83,13 @@ describe('agent skill contracts', () => {
 
     expect(request.model).toEqual({ connectionId: 'connection-a', modelId: 'shared-model' })
     expect(isSerializableContract(request)).toBe(true)
+
+    const continuation: AgentGoalRequest = {
+      goal: '继续解释',
+      sessionId: 'session-1'
+    }
+    expect(continuation).toEqual({ goal: '继续解释', sessionId: 'session-1' })
+    expect(isSerializableContract(continuation)).toBe(true)
   })
 
   it('keeps recent task and model log correlation data serializable', () => {

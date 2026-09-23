@@ -74,6 +74,7 @@ export interface SkillRegistry {
 export type RuntimeTaskRecord = {
   id: string
   threadId: string
+  sessionId: string
   goal: string
   model: ModelRef
   status: string
@@ -85,7 +86,10 @@ export type RuntimeTaskRecord = {
 
 export interface TaskRepository {
   get(taskId: string): Promise<RuntimeTaskRecord | null>
+  getLatestBySession(sessionId: string): Promise<RuntimeTaskRecord | null>
+  listBySession(sessionId: string): Promise<RuntimeTaskRecord[]>
   listRecent(limit: number): Promise<RuntimeTaskRecord[]>
+  listRecentSessions(limit: number): Promise<RuntimeTaskRecord[]>
   save(task: RuntimeTaskRecord): Promise<void>
 }
 
@@ -163,6 +167,7 @@ export interface StreamSessionRepository {
 export interface MessageRepository {
   save(message: PersistedMessage): Promise<void>
   listByTask(taskId: string): Promise<PersistedMessage[]>
+  listBySession(sessionId: string): Promise<PersistedMessage[]>
 }
 
 export type RuntimeEventRecord = {

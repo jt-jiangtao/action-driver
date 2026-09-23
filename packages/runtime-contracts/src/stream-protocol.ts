@@ -56,21 +56,27 @@ const authEventSchema = z
   })
   .strict()
 
-const requestCreateEventSchema = z
+const requestCreateBase = {
+  type: z.literal('request.create'),
+  ...clientBase,
+  requestId: idSchema,
+  idempotencyKey: idSchema
+} as const
+
+const requestInputSchema = z
   .object({
-    type: z.literal('request.create'),
-    ...clientBase,
-    requestId: idSchema,
-    idempotencyKey: idSchema,
-    sessionId: idSchema.nullable(),
+    role: z.literal('user'),
+    content: idSchema
+  })
+  .strict()
+
+const newSessionRequestCreateEventSchema = z
+  .object({
+    ...requestCreateBase,
+    sessionId: z.null(),
     payload: z
       .object({
-        input: z
-          .object({
-            role: z.literal('user'),
-            content: idSchema
-          })
-          .strict(),
+        input: requestInputSchema,
         model: modelRefSchema,
         systemPrompt: z.string().optional(),
         skills: z.tuple([])
@@ -78,6 +84,25 @@ const requestCreateEventSchema = z
       .strict()
   })
   .strict()
+
+const continuationRequestCreateEventSchema = z
+  .object({
+    ...requestCreateBase,
+    sessionId: idSchema,
+    payload: z
+      .object({
+        input: requestInputSchema,
+        systemPrompt: z.string().optional(),
+        skills: z.tuple([])
+      })
+      .strict()
+  })
+  .strict()
+
+const requestCreateEventSchema = z.union([
+  newSessionRequestCreateEventSchema,
+  continuationRequestCreateEventSchema
+])
 
 const requestCancelEventSchema = z
   .object({
@@ -98,7 +123,7 @@ const requestResumeEventSchema = z
   })
   .strict()
 
-export const streamClientEventSchema = z.discriminatedUnion('type', [
+export const streamClientEventSchema = z.union([
   authEventSchema,
   requestCreateEventSchema,
   requestCancelEventSchema,
@@ -205,10 +230,7 @@ export type ResponseStartEvent = z.infer<typeof responseStartEventSchema>
 export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
-export type StreamResponseEvent =
-  | ResponseStartEvent
-  | ResponseContentEvent
-  | ResponseEndEvent
+export type StreamResponseEvent = ResponseStartEvent | ResponseContentEvent | ResponseEndEvent
 
 export function parseStreamClientEvent(value: unknown): StreamClientEvent {
   return streamClientEventSchema.parse(value)

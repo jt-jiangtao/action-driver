@@ -52,8 +52,10 @@ export interface ExecutionStepProjection {
 
 export interface TaskProjection {
   id: string
+  sessionId: string
   title: string
   status: SkillExecutionState
+  model: ModelRef
   messages: AgentMessageProjection[]
   steps: ExecutionStepProjection[]
   browser: BrowserSkillProjection | null
@@ -64,10 +66,9 @@ export type ModelRef = {
   modelId: string
 }
 
-export type AgentGoalRequest = {
-  goal: string
-  model: ModelRef
-}
+export type AgentGoalRequest =
+  | { goal: string; model: ModelRef; sessionId?: never }
+  | { goal: string; sessionId: string; model?: never }
 
 export type RecentTaskProjection = {
   id: string

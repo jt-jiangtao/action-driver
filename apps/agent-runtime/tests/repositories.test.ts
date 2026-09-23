@@ -31,6 +31,7 @@ afterEach(() => {
 const task: RuntimeTaskRecord = {
   id: 'task-1',
   threadId: 'task-1',
+  sessionId: 'session-1',
   goal: 'research a product',
   model: { connectionId: 'connection-1', modelId: 'gpt-real' },
   status: 'running',
@@ -45,7 +46,7 @@ describe('SQLite runtime repositories', () => {
     const repositories = createRepositories()
     const streamTask: RuntimeTaskRecord = {
       ...task,
-      threadId: 'session-1',
+      threadId: 'thread-1',
       lastCheckpointId: null
     }
     const request: PersistedStreamRequest = {
@@ -260,6 +261,7 @@ describe('SQLite runtime repositories', () => {
       ...task,
       id: 'task-2',
       threadId: 'task-2',
+      sessionId: 'session-2',
       goal: 'newer task',
       createdAt: '2026-01-01T00:01:00.000Z',
       updatedAt: '2026-01-01T00:01:00.000Z'
@@ -287,6 +289,46 @@ describe('SQLite runtime repositories', () => {
     ])
     await expect(reopened.modelCalls.listByTask(task.id)).resolves.toEqual([modelCall])
     reopened.close()
+  })
+
+  it('groups ordered tasks and messages by session and lists the latest task once', async () => {
+    const repositories = createRepositories()
+    const first = { ...task, id: 'task-1', threadId: 'thread-1', sessionId: 'session-1' }
+    const second = {
+      ...task,
+      id: 'task-2',
+      threadId: 'thread-2',
+      sessionId: 'session-1',
+      goal: 'continue',
+      createdAt: '2026-01-01T00:01:00.000Z',
+      updatedAt: '2026-01-01T00:01:00.000Z'
+    }
+    await repositories.tasks.save(first)
+    await repositories.tasks.save(second)
+    await repositories.messages.save({
+      id: 'message-1',
+      taskId: first.id,
+      role: 'user',
+      content: { text: 'first' },
+      createdAt: first.createdAt
+    })
+    await repositories.messages.save({
+      id: 'message-2',
+      taskId: second.id,
+      role: 'assistant',
+      content: { text: 'second' },
+      createdAt: second.createdAt
+    })
+
+    await expect(repositories.tasks.getLatestBySession('session-1')).resolves.toEqual(second)
+    await expect(repositories.tasks.listBySession('session-1')).resolves.toEqual([first, second])
+    await expect(repositories.tasks.listRecentSessions(20)).resolves.toEqual([second])
+    await expect(repositories.messages.listBySession('session-1')).resolves.toMatchObject([
+      { id: 'message-1', taskId: 'task-1' },
+      { id: 'message-2', taskId: 'task-2' }
+    ])
+
+    repositories.close()
   })
 
   it('commits a task state change and its event atomically', async () => {

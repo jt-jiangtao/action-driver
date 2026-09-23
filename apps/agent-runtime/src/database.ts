@@ -173,6 +173,18 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
           ON runtime_events(request_id, cursor) WHERE request_id IS NOT NULL;
       `)
     }
+  },
+  {
+    version: 5,
+    name: 'add-shared-task-session-identity',
+    up(database) {
+      database.exec(`
+        ALTER TABLE tasks ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
+        UPDATE tasks SET session_id = thread_id WHERE session_id = '';
+        CREATE INDEX tasks_session_updated_idx
+          ON tasks(session_id, updated_at DESC, id DESC);
+      `)
+    }
   }
 ]
 
