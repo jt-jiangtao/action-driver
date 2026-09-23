@@ -60,6 +60,18 @@ function call(
 }
 
 describe('repository-backed task and model-log projections', () => {
+  it('projects a cancelled stream as paused rather than perpetually running', () => {
+    const cancelled = task('task-cancelled', 'cancelled', {
+      code: 'cancelled',
+      message: 'Request was cancelled',
+      retryable: false
+    })
+    expect(buildTaskProjection(cancelled, [])).toMatchObject({
+      status: 'paused',
+      steps: [{ detail: '任务已暂停' }]
+    })
+    expect(buildModelLogSessionProjection(cancelled, [], []).status).toBe('failed')
+  })
   it('projects one session with multiple task calls and complete conversation messages', () => {
     const first = task('task-1', 'completed')
     const second = {

@@ -214,14 +214,14 @@ function readRequestMessages(
 function toTaskStatus(status: string): SkillExecutionState {
   if (status === 'completed') return 'succeeded'
   if (status === 'waiting-user') return 'waiting-user'
-  if (status === 'interrupted') return 'paused'
+  if (status === 'interrupted' || status === 'cancelled') return 'paused'
   if (status === 'failed') return 'failed'
   return 'running'
 }
 
 function toModelStatus(status: string): ModelRunStatus {
   if (status === 'completed') return 'completed'
-  if (status === 'failed') return 'failed'
+  if (status === 'failed' || status === 'cancelled') return 'failed'
   return 'running'
 }
 

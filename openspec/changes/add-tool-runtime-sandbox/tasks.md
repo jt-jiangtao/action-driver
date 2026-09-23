@@ -40,7 +40,7 @@
 
 ## 7. 端到端验证与交付
 
-- [ ] 7.1 增加本地假 OpenAI-compatible 上游 E2E，验证真实 WebSocket 经过文本 → tool call → Sandbox `fs.read` → tool result → 最终 Markdown、数据库恢复和模型/接口日志完整可查。
-- [ ] 7.2 增加 shell 审批 E2E，验证未批准不创建进程、允许一次后执行、拒绝/取消/超时终态和正文无内部执行进度。
-- [ ] 7.3 使用一个已保存且支持 tool calling 的真实 OpenAI-compatible 模型执行 smoke；若模型不支持则显示 `TOOL_PROTOCOL_UNSUPPORTED` 而不回退 Mock，并保存去凭据的验证证据。
-- [ ] 7.4 按任务组完成后分别运行相关包测试，最终运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build` 和本变更 E2E，确认已有真实文本流、会话续问、日志与输入框行为无回归。
+- [x] 7.1 增加本地假 OpenAI-compatible 上游 E2E，验证真实 WebSocket 经过文本 → tool call → Sandbox `fs.read` → tool result → 最终 Markdown、数据库恢复和模型/接口日志完整可查。
+- [x] 7.2 增加 shell 审批 E2E，验证未批准不创建进程、允许一次后执行、拒绝/取消/超时终态和正文无内部执行进度。
+- [x] 7.3 使用一个已保存且支持 tool calling 的真实 OpenAI-compatible 模型执行 smoke；若模型不支持则显示 `TOOL_PROTOCOL_UNSUPPORTED` 而不回退 Mock，并保存去凭据的验证证据。
+- [x] 7.4 按任务组完成后分别运行相关包测试，最终运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build` 和本变更 E2E，确认已有真实文本流、会话续问、日志与输入框行为无回归。

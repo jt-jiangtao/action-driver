@@ -24,6 +24,7 @@ type Emit = (event: StreamServerEvent) => void | Promise<void>
 type ActiveRequest = {
   controller: AbortController
   operation: Promise<void>
+  delivery: { emit: Emit }
 }
 
 export class StreamSessionService {
@@ -221,6 +222,7 @@ export class StreamSessionService {
     }
 
     const controller = new AbortController()
+    const delivery = { emit }
     const operation = this.execute(
       event,
       storedRequest,
@@ -228,14 +230,14 @@ export class StreamSessionService {
       assistantMessage,
       history,
       controller.signal,
-      emit
+      (event) => delivery.emit(event)
     ).finally(() => {
       if (this.active.get(storedRequest.requestId)?.operation === operation) {
         this.active.delete(storedRequest.requestId)
         this.activeSessions.delete(storedRequest.sessionId)
       }
     })
-    this.active.set(storedRequest.requestId, { controller, operation })
+    this.active.set(storedRequest.requestId, { controller, operation, delivery })
     void operation.catch(() => undefined)
   }
 
@@ -347,6 +349,8 @@ export class StreamSessionService {
   }
 
   private async replay(requestId: string, afterCursor: number, emit: Emit): Promise<void> {
+    const active = this.active.get(requestId)
+    if (active) active.delivery.emit = emit
     const request = await this.options.repositories.streamRequests.getByRequestId(requestId)
     if (!request) {
       await emit({

@@ -84,6 +84,77 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('publishes future events to a resumed connection instead of a closed emitter', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        await gate
+        await observer?.({ kind: 'content', delta: 'after reconnect' })
+        await observer?.({
+          kind: 'end',
+          content: 'after reconnect',
+          finishReason: 'stop',
+          usage: null
+        })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: 'after reconnect',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const oldEvents: StreamServerEvent[] = []
+    let started!: () => void
+    const startSeen = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    await service.handle(createEvent, (event) => {
+      oldEvents.push(event)
+      if (event.type === 'response.start') started()
+    })
+    await startSeen
+    const start = oldEvents.find((event) => event.type === 'response.start')
+    if (!start || start.type !== 'response.start') throw new Error('missing start')
+    const resumedEvents: StreamServerEvent[] = []
+    let ended!: () => void
+    const endSeen = new Promise<void>((resolve) => {
+      ended = resolve
+    })
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v1',
+        eventId: 'resume-new-socket',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        requestId: start.requestId,
+        afterCursor: start.cursor
+      },
+      (event) => {
+        resumedEvents.push(event)
+        if (event.type === 'response.end') ended()
+      }
+    )
+    release()
+    await endSeen
+    expect(resumedEvents.map((event) => event.type)).toEqual(['response.content', 'response.end'])
+    expect(oldEvents.map((event) => event.type)).toEqual(['request.accepted', 'response.start'])
+    await service.close()
+    repositories.close()
+  })
   it('validates approval identity, delegates the decision, and replays persisted tool status', async () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => {
