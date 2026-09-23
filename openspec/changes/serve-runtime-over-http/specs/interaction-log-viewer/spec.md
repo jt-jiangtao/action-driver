@@ -148,6 +148,10 @@
 - **WHEN** 用户从任务或会话打开对应日志
 - **THEN** 接口层与模型层记录使用真实 `taskId`、`requestId` 与 `correlationId` 串联到同一次模型调用，并展示最终聚合响应而非互不关联的分片列表
 
+#### Scenario: 多轮会话按任务区分调用
+- **WHEN** 同一 `sessionId` 下完成两轮或更多模型调用
+- **THEN** 模型层日志以该会话聚合所有轮次，并按任务时间展示不同 `taskId`；每轮只关联自己的 `requestId`、`correlationId`、实际模型请求和最终响应
+
 #### Scenario: 请求失败仍可诊断
 - **WHEN** 上游请求在收到有效模型文本前失败
 - **THEN** 接口层保留实际 Request 与错误 Response 或失败元数据，模型层展示失败终态且不伪造模型回答

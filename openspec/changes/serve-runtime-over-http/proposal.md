@@ -5,6 +5,7 @@
 ## What Changes
 
 - **BREAKING**：以 HTTP + WebSocket 取代 MessagePort RPC。配置、查询与模型连接走 HTTP；任务创建、取消、恢复和流式输出走一条应用级 WebSocket 长连接。首个闭环固定使用 `request.create` / `request.accepted` 与 `response.start` / `response.content` / `response.end` 事件，不再等待完整模型响应后一次性渲染。
+- **BREAKING**：Renderer 页面直接持有 WebSocket。Electron Main 只负责启动并监督本地 Runtime、生成一次性访问凭据并向受信任页面注入 `wsUrl + accessToken`；流式命令、事件、重连与游标恢复不再经过 Main IPC 代理。
 - **BREAKING**：模型连接配置与凭据从 Electron Main 迁入服务端。服务端持有连接、凭据（本地形态加密后写入本地存储）并真实发起 `GET /models`、`POST /chat/completions`、`POST /v1/messages`；客户端页面只保留配置界面，不再持有密钥、不再直连供应商。
 - 服务端成为会话数据与配置的唯一写入者，并保持本地存储；客户端页面不再读写存储。
 - 服务端按"可迁移"约束实现：传输、存储、凭据、时钟与 ID 全部是端口，本地与云端各一套适配器，业务代码共用；本期只实现本地形态，云端形态作为同一代码的另一种装配。
@@ -34,6 +35,7 @@
 - 测试面变化：契约测试改为 HTTP/WS；E2E 需要覆盖页面直连、断线重连与游标恢复；打包后仍需验证服务端随客户端启动。
 - 日志存储新增独立载荷与保留策略；查询契约拆分为摘要列表和单条详情，避免完整请求/响应随每次列表刷新重复传输。
 - 任务提交从原有请求/响应式调用升级为应用级 WebSocket 流；客户端需要维护事件去重、顺序校验、Markdown 增量内容聚合和断线后的游标恢复，服务端需要持久化可重放事件并在终态提供最终全文校准。
+- Renderer 需要持有仅限本次 Runtime 生命周期的一次性访问凭据，并把本地 WebSocket Origin、CSP `connect-src`、重连与页面重载恢复纳入安全和回归测试；模型供应商 API Key 仍只存在于 Runtime。
 
 ## Battle Status
 
@@ -83,3 +85,22 @@
 - 用户覆盖：Agent 曾推荐首版本地形态复用既有 Runtime 事件通道以降低连接治理成本；用户明确选择独立 WebSocket，以便后续远程 Runtime 复用同一协议。接受的已知风险是新增鉴权、连接生命周期、幂等、重放、背压和断线恢复复杂度。
 - 成功标准：真实上游按流返回内容时，页面从 `start` 进入生成态、随 `content` 持续显示 Markdown、在 `end` 后进入准确终态；刷新或重连不会重复文本；任务列表、会话详情和请求/响应日志均来自真实持久化数据且能用标识串联；整个流程不出现 Mock 降级、Browser/Computer 面板或日志递归记录。
 - 上游 SDK 裁决：用户确认采用官方 `openai` Node SDK 处理 OpenAI-compatible HTTP/SSE、取消、超时和结构化 chunk；ActionDriver 保留业务生命周期、持久化、幂等重放、聚合日志和凭据过滤。比较过继续自研 Fetch/SSE 与仅引入 `eventsource-parser` 的方案，前者维护面过大，后者仍需自研大部分上游适配。SDK 自动重试和 debug logging 必须关闭，避免一次请求产生隐藏重试、重复日志或敏感正文旁路。
+
+## Renderer Direct WebSocket Update (2026-09-23)
+
+- 类型：安全边界 + 公共协议 + 客户端架构，属于决策型任务；Battle 已完成。
+- 目标：让本地与未来云端形态复用同一套 Renderer WebSocket 客户端，页面直接发送流式命令、接收事件并负责重连和游标恢复，移除 Main 对流式消息的代理。
+- 当前方案：Renderer 通过 Preload 只读获取 Main 注入的本次启动 `wsUrl + accessToken`，使用浏览器 WebSocket API 建立 `actiondriver.stream.v1` 长连接；Main 不再转发 `request.create` 或 `response.*`。服务端主动发送原生 Ping，浏览器网络栈自动回复 Pong；页面通过连接关闭、业务超时和恢复快照判断健康状态。
+- 比较方案：保留 Main WebSocket 客户端可避免访问凭据进入页面环境，安全边界更窄，但本地与未来云端需要不同传输适配，且增加一层 IPC 流式代理。Renderer 直连减少代理层并提高云端复用度，但扩大 Renderer 注入漏洞的影响面。
+- 最终裁决：用户确认采用 Renderer 直连，并明确接受一次性 Runtime token 进入 Renderer 内存的风险。模型供应商 API Key 仍由 Runtime 独占，页面不得读取或透传。
+- 安全约束：访问凭据只存在内存且随 Runtime 生命周期失效；只允许受信任应用 Origin 连接回环地址；CSP 仅开放注入的 Runtime 端点；连接 URL、token、鉴权帧不得进入日志、截图、持久化任务或错误正文。
+- 重开条件：若 Electron/Chromium 无法可靠完成原生 Ping/Pong、动态 CSP 无法把网络范围限制到注入端点，或页面注入面无法满足最小权限要求，则重新比较 Main 代理与 Renderer 直连。
+
+## Multi-turn Session Update (2026-09-23)
+
+- 类型：产品交互 + 会话数据模型 + 公共协议，属于决策型任务；Battle 已完成。
+- 目标：任务完成后正文输入框继续可用，用户可在当前会话中发起下一轮真实模型调用，并在同一页面、侧栏会话和日志链路中查看完整历史。
+- 最终裁决：每次用户继续提问都在原 `sessionId` 下创建一个新任务，而不是重新打开或覆盖已结束任务；Runtime 使用该会话按顺序持久化的全部用户与 assistant 消息构造新一轮模型上下文，并复用会话上一轮的模型引用。
+- 展示与日志：页面展示同一会话的完整消息序列，运行中只锁定当前提交并显示中断控制，终态恢复可编辑输入；侧栏每个会话只显示一项；模型层与接口层日志按 `sessionId` 聚合、按 `taskId` 区分每轮调用。
+- 比较方案：复用同一个终态任务会破坏任务不可变终态、幂等键和每轮日志边界；每次创建全新会话会割裂上下文和侧栏记录。采用“同会话、新任务”保持会话连续性与任务审计边界。
+- 重开条件：若完整历史超过供应商上下文窗口，需要另行裁决截断、摘要或记忆策略；本轮只保证按顺序发送当前持久化历史，不引入自动摘要。

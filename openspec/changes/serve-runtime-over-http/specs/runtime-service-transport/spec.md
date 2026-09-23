@@ -37,6 +37,20 @@
 ### Requirement: 会话在单一 WebSocket 上多路复用
 系统 SHALL 使用一条应用级长期 WebSocket 连接承载会话创建、取消、恢复与流式事件，并通过 `requestId` 关联命令、通过 `sessionId` 与 `taskId` 区分运行归属、通过 `responseId`、`streamId` 与 `messageId` 区分一次模型响应；客户端 MUST 能在不重建连接的情况下处理连续或并发请求。
 
+Renderer SHALL 直接持有该 WebSocket 连接并负责鉴权、命令关联、事件应用、重连与游标恢复；Electron Main MUST NOT 代理 `request.create`、`request.cancel`、`request.resume` 或任何 `response.*` 流式事件。Main MAY 只向受信任页面注入本次 Runtime 生命周期内有效的连接地址与一次性访问凭据。
+
+#### Scenario: Renderer 直接建立连接
+- **WHEN** 本地 Runtime 就绪且页面加载完成
+- **THEN** Renderer 使用注入的 `wsUrl` 建立 `actiondriver.stream.v1` 连接并通过首个鉴权帧提交一次性 token，后续流式命令和事件不经过 Main IPC
+
+#### Scenario: 页面重新加载
+- **WHEN** Renderer 被刷新或重新创建
+- **THEN** 新页面使用当前注入配置重新连接，并依据持久化任务与游标恢复可见状态，不要求 Main 保存页面消息缓冲
+
+#### Scenario: 浏览器 WebSocket 健康检查
+- **WHEN** 服务端发送原生 WebSocket Ping
+- **THEN** Chromium 网络栈自动回复 Pong；Renderer 使用连接关闭、命令截止时间与恢复流程判断连接健康，不发送自定义 JSON Ping
+
 #### Scenario: 同一连接并发运行两个任务
 - **WHEN** 客户端在同一连接上提交两个目标
 - **THEN** 服务端为两个任务分别推送事件，客户端按任务标识区分且响应不会串线
@@ -153,6 +167,29 @@
 #### Scenario: 客户端未携带凭据
 - **WHEN** 服务端接收任务提交
 - **THEN** 请求只包含模型引用和业务输入，供应商密钥由服务端内部解析且不进入任务合同
+
+### Requirement: 当前会话支持多轮真实模型调用
+系统 SHALL 允许客户端在已存在的 `sessionId` 下提交下一轮用户输入，并 SHALL 为每轮创建新的任务与流式响应标识；服务端 MUST NOT 重新打开、覆盖或复用已经终止的任务。继续会话 SHALL 继承上一轮有效模型引用，并使用该会话全部已持久化用户与 assistant 消息构造有序模型上下文。
+
+#### Scenario: 在当前会话继续提问
+- **WHEN** 用户在已完成会话中提交新的非空输入
+- **THEN** Renderer 发送携带现有 `sessionId` 的 `request.create`，Runtime 创建新的 `taskId` 与响应标识、继承模型引用，并在同一会话下持久化新用户消息和 assistant 占位消息
+
+#### Scenario: 上游接收完整会话历史
+- **WHEN** Runtime 执行会话的第二轮或后续任务
+- **THEN** 上游请求按顺序包含系统提示词、此前全部已持久化用户与 assistant 消息以及当前用户输入，不重复当前输入、不包含未完成占位正文
+
+#### Scenario: 同一会话已有运行任务
+- **WHEN** 客户端在该会话仍有任务运行时再次提交
+- **THEN** 服务端以稳定的 `session-busy` 错误拒绝新任务，不创建额外用户消息、模型调用或日志记录
+
+#### Scenario: 会话不存在或模型已失效
+- **WHEN** 继续请求引用未知会话，或该会话继承的模型连接已删除、停用或不再支持文本
+- **THEN** 服务端在上游调用前返回结构化错误且不回退其他会话或模型
+
+#### Scenario: 历史超过上下文窗口
+- **WHEN** 上游因完整会话历史超过上下文窗口而拒绝请求
+- **THEN** Runtime 保存失败任务并返回稳定的上下文超限错误，不静默裁剪、摘要或删除既有消息
 
 ### Requirement: 通过真实 OpenAI-compatible 上游完成流式执行
 本地生产装配 SHALL 通过模型连接服务持有的真实 OpenAI-compatible 凭据发起流式模型请求，并 SHALL 把可恢复的流式事件、最终模型输出、任务状态与运行事件写入服务端存储；本地生产装配 MUST NOT 回退到确定性模型网关或以定时器伪造流式输出。
