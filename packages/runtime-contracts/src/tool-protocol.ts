@@ -1,7 +1,19 @@
 import { z } from 'zod'
+import type { ImageAssetRef } from '@actiondriver/contracts'
 
 const idSchema = z.string().trim().min(1)
 const jsonObjectSchema = z.record(z.string(), z.json())
+const imageAssetRefSchema: z.ZodType<ImageAssetRef> = z
+  .object({
+    assetId: idSchema,
+    sessionId: idSchema,
+    mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    byteLength: z.number().int().positive(),
+    source: z.enum(['upload', 'generated'])
+  })
+  .strict()
 export const toolDefinitionSchema = z
   .object({
     id: idSchema,
@@ -60,6 +72,14 @@ export const toolEventSchema = z.discriminatedUnion('type', [
     .strict(),
   z
     .object({
+      type: z.literal('tool.asset'),
+      ...toolEventBase,
+      index: z.number().int().nonnegative(),
+      asset: imageAssetRefSchema
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('tool.completed'),
       ...toolEventBase,
       output: z.json()
@@ -89,6 +109,7 @@ export type ToolDecision = { kind: 'allow' } | { kind: 'deny'; error: ToolError 
 
 export type ToolExecutorEvent =
   | { kind: 'content'; stream: 'stdout' | 'stderr' | 'result'; delta: string }
+  | { kind: 'asset'; index: number; asset: z.infer<typeof imageAssetRefSchema> }
   | { kind: 'result'; output: z.infer<typeof z.json> }
 
 export interface ToolExecutor {

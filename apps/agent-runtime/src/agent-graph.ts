@@ -47,6 +47,7 @@ export type GraphToolRuntime = {
   policy: RuntimeToolPolicy
   invocations: ToolInvocationService
   grants: string[]
+  isAvailable?: (definition: ToolDefinition) => Promise<boolean>
 }
 
 const MAX_TOOL_CALLS = 512
@@ -275,7 +276,15 @@ export class LangGraphRunner implements GraphRunner {
                 grants: state.toolGrants
               })
             : []
-          const tools = discoveredTools
+          const tools = this.toolRuntime?.isAvailable
+            ? (
+                await Promise.all(
+                  discoveredTools.map(async (definition) =>
+                    (await this.toolRuntime!.isAvailable!(definition)) ? definition : null
+                  )
+                )
+              ).filter((definition): definition is ToolDefinition => definition !== null)
+            : discoveredTools
           const request = {
             taskId: state.taskId,
             sessionId: state.sessionId,

@@ -116,17 +116,16 @@ export class ToolInvocationService {
     }
 
     yield await persist(event('tool.proposed'))
-    const finishLog =
-      this.options.interactions
-        ? await this.options.interactions.start({
-            transport: 'http',
-            direction: 'service->skill',
-            operation: definition.id,
-            requestId: context.requestId,
-            taskId: context.taskId,
-            request: { kind: 'json', value: call.arguments }
-          })
-        : null
+    const finishLog = this.options.interactions
+      ? await this.options.interactions.start({
+          transport: 'http',
+          direction: 'service->skill',
+          operation: definition.id,
+          requestId: context.requestId,
+          taskId: context.taskId,
+          request: { kind: 'json', value: call.arguments }
+        })
+      : null
     const completeLog = async (outcome: 'ok' | 'error', error?: ToolError): Promise<void> => {
       await finishLog?.({
         outcome,
@@ -177,6 +176,10 @@ export class ToolInvocationService {
       yield await transition('running')
       for await (const part of registered.executor.execute(call, controller.signal)) {
         if (controller.signal.aborted) throw controller.signal.reason
+        if (part.kind === 'asset') {
+          yield await persist(event('tool.asset', { index: part.index, asset: part.asset }))
+          continue
+        }
         collector.add(part)
         if (part.kind === 'content') {
           yield await persist(event('tool.content', { stream: part.stream, delta: part.delta }))
@@ -210,14 +213,14 @@ export class ToolInvocationService {
           ? toolError(caught.code, caught.message)
           : caught instanceof ProcessOutputLimitError
             ? toolError(caught.code, caught.message)
-          : caught instanceof ProcessExitError
-            ? toolError(caught.code, caught.message)
-          : timedOut
-            ? toolError('TOOL_TIMEOUT', 'Tool execution timed out')
-            : toolError(
-                cancelled ? 'TOOL_CANCELLED' : 'TOOL_EXECUTION_FAILED',
-                caught instanceof Error ? caught.message : String(caught)
-              )
+            : caught instanceof ProcessExitError
+              ? toolError(caught.code, caught.message)
+              : timedOut
+                ? toolError('TOOL_TIMEOUT', 'Tool execution timed out')
+                : toolError(
+                    cancelled ? 'TOOL_CANCELLED' : 'TOOL_EXECUTION_FAILED',
+                    caught instanceof Error ? caught.message : String(caught)
+                  )
       invocation.error = error
       yield await transition(cancelled ? 'cancelled' : 'failed', { error })
       await completeLog('error', error)

@@ -45,6 +45,34 @@ const shellDefinition: ToolDefinition = {
 }
 
 describe('ToolInvocationService', () => {
+  it('persists generated asset references as separate tool events', async () => {
+    const image = {
+      assetId: 'asset-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
+    }
+    const executor: ToolExecutor = {
+      async *execute() {
+        yield { kind: 'asset', index: 0, asset: image }
+        yield { kind: 'result', output: { succeeded: 1, failed: 0 } }
+      }
+    }
+    const fixture = createFixture(readDefinition, executor)
+    const events = await collect(
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
+    )
+    expect(events.find((event) => event.type === 'tool.asset')).toMatchObject({
+      type: 'tool.asset',
+      callId: readCall().callId,
+      index: 0,
+      asset: image
+    })
+    expect(JSON.stringify(events)).not.toContain('data:image/')
+  })
   it('persists ordered lifecycle/content events and one aggregate interaction log', async () => {
     const executor: ToolExecutor = {
       async *execute() {

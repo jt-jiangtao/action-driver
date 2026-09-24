@@ -11,6 +11,7 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   if (toolId === 'local.python.run') return '运行 Python'
   if (toolId === 'local.node.run') return '运行 Node.js'
   if (toolId === 'local.typescript.run') return '运行 TypeScript'
+  if (toolId === 'image.generate@1' || toolId === 'image.generate') return '生成图片'
   return `运行 ${toolId}`
 }
 
@@ -33,7 +34,9 @@ export function toolActivityTitle(
               ? '运行 Node.js'
               : type === 'local.typescript.run'
                 ? '运行 TypeScript'
-              : '调用工具'
+                : type === 'image.generate'
+                  ? '生成图片'
+                  : '调用工具'
   const target =
     type === 'web.search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
@@ -47,7 +50,7 @@ export function toolActivityTitle(
         ? 'Node.js 执行失败'
         : type === 'local.typescript.run'
           ? 'TypeScript 执行失败'
-        : `${label}失败`
+          : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
   if (status === 'unknown') return `${label}结果未知`
   if (status === 'waiting_approval') return `等待批准：${label}`

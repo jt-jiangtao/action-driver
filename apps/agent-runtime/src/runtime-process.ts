@@ -26,6 +26,7 @@ import { SkillInstaller } from './agent-files/skill-installer'
 import { createSkillRuntimeTools } from './agent-files/runtime-tools'
 import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
+import { createImageGenerationTool } from './media/image-generation-tool'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -122,6 +123,16 @@ export async function startAgentRuntimeProcess(
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
+  const imageTool = createImageGenerationTool({
+    defaultModel: () => service.getDefaultImageModel(),
+    generate: (request, signal) => service.generateImage(request, signal),
+    assets,
+    sessionForTask: async (taskId) => (await repositories.tasks.get(taskId))?.sessionId ?? null
+  })
+  local.toolRuntime.registry.register(imageTool.definition, imageTool.executor)
+  local.toolRuntime.grants.push(`${imageTool.definition.id}@${imageTool.definition.version}`)
+  local.toolRuntime.isAvailable = async (definition) =>
+    definition.id !== imageTool.definition.id || (await service.getDefaultImageModel()) !== null
   registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
   for (const tool of createSkillRuntimeTools({ store: agentFiles, installer: skillInstaller })) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)

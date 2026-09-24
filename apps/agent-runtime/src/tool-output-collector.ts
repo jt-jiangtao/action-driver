@@ -27,6 +27,7 @@ export class ToolOutputCollector {
   constructor(private readonly maxBytes: number) {}
 
   add(event: ToolExecutorEvent): void {
+    if (event.kind === 'asset') return
     if (event.kind === 'result') {
       const serialized = JSON.stringify(event.output)
       const bytes = Buffer.byteLength(serialized, 'utf8')

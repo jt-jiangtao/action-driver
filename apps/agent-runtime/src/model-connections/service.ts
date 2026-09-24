@@ -2,6 +2,7 @@ import type { HttpTransport } from './http-transport'
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
+import { createImageGenerationAdapter } from '../media/image-generation-adapter'
 import type { SecretCipher } from './credential-cipher'
 import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
@@ -226,6 +227,36 @@ export class ModelConnectionService
 
   async getDefaultImageModel(): Promise<ModelRef | null> {
     return this.options.store.readDefaultImageModel()
+  }
+
+  async generateImage(
+    request: { model: ModelRef; prompt: string },
+    signal?: AbortSignal
+  ): Promise<Uint8Array> {
+    const selected = await this.getDefaultImageModel()
+    if (
+      !selected ||
+      selected.connectionId !== request.model.connectionId ||
+      selected.modelId !== request.model.modelId
+    )
+      throw new ModelServiceError('invalid-request', 'Default image model changed')
+    const connection = requireConnection(this.read(), selected.connectionId)
+    const model = connection.models.find((candidate) => candidate.id === selected.modelId)
+    if (
+      connection.protocol !== 'openai-compatible' ||
+      !model?.enabled ||
+      !model.imageGenerationEnabled
+    )
+      throw new ModelServiceError('invalid-request', 'Image model is unavailable')
+    return createImageGenerationAdapter().generate(
+      {
+        baseUrl: connection.baseUrl,
+        apiKey: this.decrypt(connection),
+        modelId: model.id,
+        prompt: request.prompt
+      },
+      signal
+    )
   }
 
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
