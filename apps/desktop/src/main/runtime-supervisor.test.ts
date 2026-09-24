@@ -49,23 +49,24 @@ function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {
 }
 
 describe('RuntimeSupervisor', () => {
-  it('waits for the child RPC listener before sending the Runtime handshake', async () => {
-    let releaseRpc: (() => void) | undefined
-    const onRuntimeRpcReady = vi.fn(
+  it('waits for the local capability connection before reporting ready', async () => {
+    let releaseConnection: (() => void) | undefined
+    const onServiceReady = vi.fn(
       () =>
         new Promise<void>((resolve) => {
-          releaseRpc = resolve
+          releaseConnection = resolve
         })
     )
-    const { processes, supervisor } = harness({ onRuntimeRpcReady })
+    const { processes, supervisor } = harness({ onServiceReady })
 
     const starting = supervisor.start()
-    processes[0]?.emitMessage({ type: 'runtime.rpc-ready' })
-    processes[0]?.emitMessage({ type: 'runtime.ready' })
+    processes[0]?.emitMessage({ type: 'runtime.ready', service: {
+      baseUrl: 'http://127.0.0.1:45123', streamPath: '/stream', streamProtocol: 'test'
+    } })
 
-    expect(onRuntimeRpcReady).toHaveBeenCalledOnce()
+    expect(onServiceReady).toHaveBeenCalledOnce()
     expect(supervisor.state).toBe('starting')
-    releaseRpc?.()
+    releaseConnection?.()
     await starting
     expect(supervisor.state).toBe('ready')
   })
@@ -107,14 +108,14 @@ describe('RuntimeSupervisor', () => {
       service: {
         baseUrl: 'http://127.0.0.1:45123',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v1'
+        streamProtocol: 'actiondriver.stream.v2'
       }
     })
     await firstStart
     expect(onServiceReady).toHaveBeenNthCalledWith(1, {
       baseUrl: 'http://127.0.0.1:45123',
       streamPath: '/stream',
-      streamProtocol: 'actiondriver.stream.v1'
+      streamProtocol: 'actiondriver.stream.v2'
     })
 
     processes[0]?.emitExit(1)
@@ -123,15 +124,55 @@ describe('RuntimeSupervisor', () => {
       service: {
         baseUrl: 'http://127.0.0.1:45124',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v1'
+        streamProtocol: 'actiondriver.stream.v2'
       }
     })
     await vi.waitFor(() => expect(supervisor.state).toBe('ready'))
     expect(onServiceReady).toHaveBeenNthCalledWith(2, {
       baseUrl: 'http://127.0.0.1:45124',
       streamPath: '/stream',
-      streamProtocol: 'actiondriver.stream.v1'
+      streamProtocol: 'actiondriver.stream.v2'
     })
+  })
+
+  it('ignores a stale capability connection after the Runtime has restarted', async () => {
+    let failFirst!: (error: Error) => void
+    const firstConnection = new Promise<void>((_resolve, reject) => { failFirst = reject })
+    let connectionCount = 0
+    const { processes, supervisor } = harness({
+      onServiceReady: async () => {
+        connectionCount += 1
+        if (connectionCount === 1) await firstConnection
+      }
+    })
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({ type: 'runtime.ready', service: {
+      baseUrl: 'http://127.0.0.1:45123', streamPath: '/stream', streamProtocol: 'test'
+    } })
+    await vi.waitFor(() => expect(connectionCount).toBe(1))
+    processes[0]?.emitExit(1)
+    processes[1]?.emitMessage({ type: 'runtime.ready', service: {
+      baseUrl: 'http://127.0.0.1:45124', streamPath: '/stream', streamProtocol: 'test'
+    } })
+    await starting
+    failFirst(new Error('stale connection failed'))
+    await vi.waitFor(() => expect(connectionCount).toBe(2))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(supervisor.state).toBe('ready')
+    expect(supervisor.serviceUrl).toBe('http://127.0.0.1:45124')
+  })
+
+  it('terminates a process when capability registration fails during startup', async () => {
+    const { processes, supervisor } = harness({
+      onServiceReady: async () => { throw new Error('Capability registration failed') }
+    })
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({ type: 'runtime.ready', service: {
+      baseUrl: 'http://127.0.0.1:45123', streamPath: '/stream', streamProtocol: 'test'
+    } })
+    await expect(starting).rejects.toThrow('Capability registration failed')
+    expect(processes[0]?.kill).toHaveBeenCalledOnce()
+    expect(supervisor.state).toBe('failed')
   })
 
   it('restarts at most three times inside a 60 second window', async () => {

@@ -1,4 +1,4 @@
-import type { StoredModelConnection } from '@actiondriver/model-connections'
+import type { StoredModelConnection } from '../src/model-connections/store'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

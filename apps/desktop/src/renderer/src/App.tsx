@@ -1,11 +1,11 @@
 import type { ModelRef, TaskProjection } from '@actiondriver/contracts'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import type { TaskLayoutMode } from './components/BrowserPanel'
 import { useAppServices } from './di/services-context'
 import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
-import { LogsPage } from './pages/LogsPage'
 import { TaskPage } from './pages/TaskPage'
 import { MainPromptPage } from './pages/MainPromptPage'
 import { SkillsPage } from './pages/SkillsPage'
@@ -24,6 +24,7 @@ const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
 
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
   const services = useAppServices()
+  const queryClient = useQueryClient()
   const restoredTaskId = useRef(initialRoute === 'home' ? readActiveTaskId() : null)
   const [route, setRoute] = useState<AppRoute>(() =>
     restoredTaskId.current
@@ -45,7 +46,12 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       const requestId = ++modelRequestId.current
       setModelSelection(loadingModelSelection)
       try {
-        const connections = await services.modelConnectionsService.list()
+        const connections = await queryClient.fetchQuery({
+          queryKey: ['model-connections'],
+          queryFn: () => services.modelConnectionsService.list(),
+          staleTime: 30_000,
+          retry: false
+        })
         if (requestId !== modelRequestId.current) return
         setModelSelection(toModelSelectionProjection(connections, selected))
       } catch (error) {
@@ -53,14 +59,19 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         setModelSelection(failedModelSelection(error))
       }
     },
-    [services]
+    [queryClient, services]
   )
 
   const loadRecentTasks = useCallback(async () => {
     const requestId = ++taskRequestId.current
     setRecentTasksLoading(true)
     try {
-      const recent = await services.taskCatalog.listRecentTasks()
+      const recent = await queryClient.fetchQuery({
+        queryKey: ['recent-tasks'],
+        queryFn: () => services.taskCatalog.listRecentTasks(),
+        staleTime: 30_000,
+        retry: false
+      })
       if (requestId !== taskRequestId.current) return
       setRecentTasks(recent)
       setRecentTasksError(null)
@@ -80,7 +91,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     } finally {
       if (requestId === taskRequestId.current) setRecentTasksLoading(false)
     }
-  }, [initialRoute, services])
+  }, [initialRoute, queryClient, services])
 
   useEffect(() => {
     void loadModels()
@@ -184,19 +195,13 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const mainRoute: MainAppRoute =
     route.kind === 'settings' ||
     route.kind === 'main-prompt' ||
-    route.kind === 'skills' ||
-    route.kind === 'logs'
+    route.kind === 'skills'
       ? route.returnTo
       : route
 
   const openSettings = () => {
     if (route.kind === 'settings') return
     setRoute({ kind: 'settings', returnTo: mainRoute })
-  }
-
-  const openLogs = () => {
-    if (route.kind === 'logs') return
-    setRoute({ kind: 'logs', returnTo: mainRoute })
   }
 
   const openMainPrompt = () => {
@@ -217,7 +222,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           void loadModels(modelSelection.selected)
           setRoute(route.returnTo)
         }}
-        onOpenLogs={openLogs}
         onOpenMainPrompt={openMainPrompt}
         onOpenSkills={openSkills}
       />
@@ -231,7 +235,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenSkills={openSkills}
-        onOpenLogs={openLogs}
       />
     )
   }
@@ -243,20 +246,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenMainPrompt={openMainPrompt}
-        onOpenLogs={openLogs}
-      />
-    )
-  }
-
-  if (route.kind === 'logs') {
-    return (
-      <LogsPage
-        service={services.interactionLogService}
-        modelLogService={services.modelLogService}
-        onBack={() => setRoute(route.returnTo)}
-        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
-        onOpenMainPrompt={openMainPrompt}
-        onOpenSkills={openSkills}
       />
     )
   }

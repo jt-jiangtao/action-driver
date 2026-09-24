@@ -22,7 +22,7 @@
 - 无效 JSON 与字段：HTTP 返回结构化 4xx，数据未写入；Task 1。
 - Renderer token/Origin 不匹配：HTTP 与 WS 一致拒绝；Task 1。
 - Main 能力执行晚于取消：Runtime 不接受迟到结果为成功；Task 2。
-- 重启期间本机 prompt/Skill 迁移被执行两次：结果只有一份；Task 3。
+- 重启期间 prompt/Skill 默认文件初始化被执行两次：原路径内容不被覆盖；Task 3。
 - 打包后页面仍调用被删除的 preload 方法：E2E 失败而非静默 Mock 降级；Task 4。
 
 ---
@@ -66,19 +66,19 @@
   ```
 - [ ] **Step 4: Run green and commit.** Run target suites plus `pnpm test:e2e:local`; stage named files and commit `feat(runtime): route local capabilities through Main`.
 
-### Task 3: prompt/Skill 定义归属与幂等导入
+### Task 3: prompt/Skill 定义归属与幂等初始化
 
 **Files:** Modify `apps/desktop/src/main/agent-files/agent-file-store.ts`, `apps/desktop/src/main/agent-files-ipc.ts`, `apps/agent-runtime/src/ports.ts`, `apps/agent-runtime/src/service/http-service.ts`; Add focused Runtime definition-store adapter and tests alongside it; Test `apps/desktop/src/main/agent-files/agent-file-store.test.ts`, `apps/desktop/src/main/agent-files-ipc.test.ts`.
 
-**Interfaces:** Runtime exposes typed definition read/write commands; Main exposes constrained file read/write adapter. `Definition` is the existing validated prompt/Skill record type, not a new generic document shape. Migration marker identifies an imported source path and content hash.
+**Interfaces:** Runtime exposes typed definition read/write commands and owns constrained file read/write decisions. `Definition` is the existing validated prompt/Skill record type, not a new generic document shape. `~/.action-driver` 原路径是唯一事实来源；默认文件仅在缺失时创建。
 
-- [ ] **Step 1: Write failing tests.** Import legacy prompt/Skill files twice, assert identical IDs and one canonical definition; update through Runtime and assert Main cannot independently mutate the definition; malformed file produces visible error without overwriting valid data.
+- [ ] **Step 1: Write failing tests.** Initialize legacy prompt/Skill files twice, assert their content and identity remain unchanged; update through Runtime and assert Main cannot independently mutate the definition; malformed file produces visible error without overwriting valid data.
 - [ ] **Step 2: Run red.** Run target suites and new Runtime definition-store test; expect duplicate authority/import behavior.
-- [ ] **Step 3: Implement.** Put definition validation, identity and write decisions in Runtime. Main implements path allowlist and atomic file operations. Migrate legacy data by stable source identity; switch Renderer services to Runtime routes, then remove Main's definition write command.
+- [ ] **Step 3: Implement.** Put definition validation, identity and write decisions in Runtime 的受限文件服务。原文件直接沿用，默认文件缺失时才创建；switch Renderer services to Runtime routes, then remove Main's definition write command.
 
   ```ts
   type DefinitionStore = {
-    importLegacy(sourceId: string, contentHash: string, content: string): Promise<Definition>
+    initialize(): Promise<void>
     save(definition: Definition): Promise<Definition>
   }
   ```

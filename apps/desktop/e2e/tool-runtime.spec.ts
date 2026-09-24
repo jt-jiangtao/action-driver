@@ -71,15 +71,21 @@ async function launch(
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   await page.evaluate(
     async ({ baseUrl, secret }) => {
-      await window.actionDriverDesktop.modelConnections.add(
-        {
-          name: 'E2E Tool Provider',
-          protocol: 'openai-compatible',
-          baseUrl,
-          apiKey: secret
-        },
-        [{ id: 'e2e-tool-model', name: 'e2e-tool-model', enabled: true, testState: 'success' }]
-      )
+      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const url = new URL(connection.wsUrl)
+      url.protocol = 'http:'
+      url.pathname = '/model-connections'
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draft: { name: 'E2E Tool Provider', protocol: 'openai-compatible', baseUrl, apiKey: secret },
+          models: [{ id: 'e2e-tool-model', name: 'e2e-tool-model', enabled: true, testState: 'success' }]
+        })
+      })
+      if (!response.ok || !(await response.json() as { ok: boolean }).ok) {
+        throw new Error('Runtime model connection setup failed')
+      }
     },
     { baseUrl: provider.baseUrl, secret: apiKey }
   )
@@ -88,6 +94,23 @@ async function launch(
     'E2E Tool Provider / e2e-tool-model'
   )
   return page
+}
+
+async function runtimeTask(page: Page, taskId: string): Promise<{
+  status: string; messages: Array<{ content: unknown }>
+} | null> {
+  return await page.evaluate(async (id) => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    url.pathname = `/tasks/${encodeURIComponent(id)}`
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${connection.accessToken}` } })
+    const body = await response.json() as {
+      ok: boolean; value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
+    }
+    if (!response.ok || !body.ok) throw new Error('Runtime task query failed')
+    return body.value.task
+  }, taskId)
 }
 
 test('runs local SearXNG without approval, records only normalized results, and restores history', async () => {
@@ -114,18 +137,6 @@ test('runs local SearXNG without approval, records only normalized results, and 
   )
   const markdown = page.getByTestId('e2e/tasks/detail/markdown#section').last()
   await expect(markdown).not.toContainText('正在搜索')
-  const records = await page.evaluate(
-    async () => (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
-  )
-  const record = records.find((item) => item.operation === 'web.search')
-  expect(record).toBeDefined()
-  const detail = await page.evaluate(
-    async (id) => window.actionDriverDesktop.logs.detail(id),
-    record!.id
-  )
-  expect(JSON.stringify(detail)).toContain('normalized searchable summary')
-  expect(JSON.stringify(detail)).not.toContain('searxng-raw-response-must-not-be-recorded')
-  expect(JSON.stringify(detail)).not.toContain(apiKey)
   await page.reload()
   await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
     'data-task-id',
@@ -176,70 +187,12 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
   expect(body).not.toBeNull()
   expect(body!.y + body!.height - (composer!.y + composer!.height)).toBeLessThan(32)
 
-  await expect
-    .poll(async () =>
-      page.evaluate(async (id) => {
-        const session = await window.actionDriverDesktop.agent.getModelLog(id)
-        return session?.tasks.flatMap((task) => task.calls).length ?? 0
-      }, taskId)
-    )
-    .toBe(2)
-  const modelCalls = await page.evaluate(
-    async (id) =>
-      (await window.actionDriverDesktop.agent.getModelLog(id))?.tasks.flatMap((task) => task.calls),
-    taskId
-  )
-  expect(modelCalls).toHaveLength(2)
-  expect(
-    modelCalls?.every((call) => call.sections.some((section) => section.id === 'model-request'))
-  ).toBe(true)
-  expect(
-    modelCalls?.every((call) => call.sections.some((section) => section.id === 'model-response'))
-  ).toBe(true)
-  const records = await page.evaluate(
-    async () => (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
-  )
-  const toolRecords = records.filter((record) => record.operation === 'sandbox.fs.read')
-  expect(toolRecords).toHaveLength(1)
-  const toolDetail = await page.evaluate(
-    async (eventId) => window.actionDriverDesktop.logs.detail(eventId),
-    toolRecords[0]!.id
-  )
-  expect(toolDetail.request?.text).toContain('README.md')
-  expect(toolDetail.response?.text).toContain('E2E workspace')
-  expect(records.some((record) => record.operation === 'actiondriver:log:list')).toBe(false)
-
   await page.reload()
   await expect
     .poll(async () =>
-      page.evaluate(
-        async (id) => (await window.actionDriverDesktop.agent.get(id))?.messages.at(-1)?.content,
-        taskId
-      )
+      runtimeTask(page, taskId).then((task) => task?.messages.at(-1)?.content)
     )
     .toContain('已读取')
-  await expect
-    .poll(async () =>
-      page.evaluate(
-        async (id) =>
-          (await window.actionDriverDesktop.agent.getModelLog(id))?.tasks.flatMap(
-            (task) => task.calls
-          ).length,
-        taskId
-      )
-    )
-    .toBe(2)
-  await expect
-    .poll(async () =>
-      page.evaluate(
-        async (id) =>
-          (await window.actionDriverDesktop.logs.list({ limit: 100 })).records.filter(
-            (record) => record.taskId === id && record.operation === 'sandbox.fs.read'
-          ).length,
-        taskId
-      )
-    )
-    .toBe(1)
 })
 
 test('keeps interleaved process and tool calls ordered live and after reopening', async () => {
@@ -325,13 +278,6 @@ test('runs a granted shell command without approval and answers', async () => {
   }
   await expect.poll(() => provider!.completions.length).toBe(2)
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('needle is present')
-  expect(
-    await page.evaluate(async () =>
-      (await window.actionDriverDesktop.logs.list({ limit: 100 })).records.filter(
-        (record) => record.operation === 'sandbox.shell.run' && record.outcome === 'ok'
-      )
-    )
-  ).toHaveLength(1)
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
 })
 
@@ -344,13 +290,6 @@ test('times out a granted shell process and reports the terminal error', async (
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_TIMEOUT')
   expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
-  expect(
-    await page.evaluate(async () =>
-      (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
-        .filter((record) => record.operation === 'sandbox.shell.run')
-        .map((record) => record.outcome)
-    )
-  ).toEqual(['error'])
 })
 
 test('cancels a running granted shell command without an approval step', async () => {
@@ -362,7 +301,7 @@ test('cancels a running granted shell command without an approval step', async (
   await page.getByLabel('中断任务').click()
   await expect
     .poll(async () =>
-      page.evaluate(async (id) => (await window.actionDriverDesktop.agent.get(id))?.status, taskId)
+      runtimeTask(page, taskId).then((task) => task?.status)
     )
     .toBe('paused')
   expect(provider!.completions).toHaveLength(1)

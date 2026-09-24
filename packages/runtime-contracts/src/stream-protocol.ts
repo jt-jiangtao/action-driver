@@ -1,7 +1,7 @@
 import type { ModelRef } from '@actiondriver/contracts'
 import { z } from 'zod'
 
-export const STREAM_PROTOCOL = 'actiondriver.stream.v1' as const
+export const STREAM_PROTOCOL = 'actiondriver.stream.v2' as const
 
 const idSchema = z.string().trim().min(1)
 const timestampSchema = z.string().trim().min(1)
@@ -23,6 +23,7 @@ const streamIdentity = {
   protocol: protocolSchema,
   eventId: idSchema,
   cursor: z.number().int().nonnegative(),
+  sequence: z.number().int().nonnegative(),
   requestId: idSchema,
   sessionId: idSchema,
   taskId: idSchema,
@@ -163,7 +164,6 @@ const responseStartEventSchema = z
   .object({
     type: z.literal('response.start'),
     ...streamIdentity,
-    sequence: z.literal(0),
     model: modelRefSchema
   })
   .strict()
@@ -189,6 +189,14 @@ const responseEndEventSchema = z
     usage: usageSchema.nullable(),
     durationMs: z.number().nonnegative(),
     error: streamErrorSchema.nullable()
+  })
+  .strict()
+
+const runtimeInterruptedEventSchema = z
+  .object({
+    type: z.literal('runtime.interrupted'),
+    ...streamIdentity,
+    error: streamErrorSchema
   })
   .strict()
 
@@ -224,7 +232,8 @@ const responseSnapshotEventSchema = z
               'running',
               'completed',
               'failed',
-              'cancelled'
+              'cancelled',
+              'unknown'
             ]),
             durationMs: z.number().nonnegative(),
             resultSummary: z.string().optional(),
@@ -365,6 +374,9 @@ const toolStreamEventSchemas = [
     .object({ type: z.literal('tool.failed'), ...toolStreamBase, error: streamErrorSchema })
     .strict(),
   z
+    .object({ type: z.literal('tool.unknown'), ...toolStreamBase, error: streamErrorSchema })
+    .strict(),
+  z
     .object({
       type: z.literal('tool.cancelled'),
       ...toolStreamBase,
@@ -380,6 +392,7 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   responseStartEventSchema,
   responseContentEventSchema,
   responseEndEventSchema,
+  runtimeInterruptedEventSchema,
   responseSnapshotEventSchema,
   ...activityStreamEventSchemas,
   ...toolStreamEventSchemas

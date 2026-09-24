@@ -1,4 +1,4 @@
-import type { ParentPortLike } from './parent-port-endpoint'
+import type { ParentPortLike } from './runtime-parent-port'
 import { startAgentRuntimeProcess } from './runtime-process'
 
 const databasePath = process.env.ACTIONDRIVER_RUNTIME_DATABASE_PATH

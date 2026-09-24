@@ -12,13 +12,11 @@ import {
   ConnectionModelGateway,
   LangGraphRunner,
   MockSkillRegistry,
-  RUNTIME_TYPES,
-  createRuntimeContainer,
+  createRuntimeServices,
   type ModelCallRepository,
   type ModelGateway,
   type ModelRequest,
-  type PersistedModelCall,
-  type TaskRepository
+  type PersistedModelCall
 } from '../src/index'
 
 class MemoryModelCallRepository implements ModelCallRepository {
@@ -43,7 +41,13 @@ function completionService(outcome: ModelCompletionOutcome): ModelCompletionServ
   }
 }
 
-function createGateway(service: ModelCompletionServicePort) {
+function createGateway(
+  service: ModelCompletionServicePort,
+  traces?: {
+    start(input: unknown): Promise<void>
+    finish(id: string, result: unknown): Promise<void>
+  }
+) {
   const modelCalls = new MemoryModelCallRepository()
   const interactions = new MemoryInteractionLogStore()
   const gateway = new ConnectionModelGateway({
@@ -56,7 +60,8 @@ function createGateway(service: ModelCompletionServicePort) {
     }),
     callId: () => 'call-1',
     correlationId: () => 'correlation-1',
-    now: () => '2026-01-01T00:00:00.000Z'
+    now: () => '2026-01-01T00:00:00.000Z',
+    ...(traces ? { traces } : {})
   })
   return { gateway, modelCalls, interactions }
 }
@@ -71,6 +76,81 @@ const realRequest: ModelRequest = {
 }
 
 describe('ModelGateway boundary', () => {
+  it('finishes a LangSmith trace for a streamed model result', async () => {
+    const starts: unknown[] = []
+    const finishes: unknown[] = []
+    const traces = {
+      start: async (input: unknown) => {
+        starts.push(input)
+      },
+      finish: async (_id: string, result: unknown) => {
+        finishes.push(result)
+      }
+    }
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('unexpected complete')
+      },
+      async *stream() {
+        yield {
+          kind: 'end' as const,
+          content: 'done',
+          finishReason: 'stop',
+          usage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
+          requestBody: { messages: realRequest.messages },
+          responseBody: { content: 'done' },
+          status: 200
+        }
+      }
+    }
+    const { gateway } = createGateway(service, traces)
+    for await (const event of gateway.stream({ ...realRequest, sessionId: 'session-1' })) {
+      expect(event.kind).toBe('end')
+    }
+    expect(starts[0]).toMatchObject({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      requestId: 'plan:task-1'
+    })
+    expect(finishes[0]).toMatchObject({ output: { content: 'done' }, usage: { inputTokens: 1 } })
+  })
+
+  it('finishes LangSmith traces for successful and failed nonstream calls', async () => {
+    const finishes: unknown[] = []
+    const traces = {
+      start: async () => {},
+      finish: async (_id: string, result: unknown) => {
+        finishes.push(result)
+      }
+    }
+    const success = createGateway(
+      completionService({
+        ok: true,
+        value: {
+          content: 'done',
+          providerProtocol: 'openai-compatible',
+          requestBody: { messages: realRequest.messages },
+          responseBody: { content: 'done' },
+          status: 200
+        }
+      }),
+      traces
+    )
+    await success.gateway.complete(realRequest)
+    expect(finishes[0]).toMatchObject({ output: { content: 'done' } })
+    const failure = createGateway(
+      completionService({
+        ok: false,
+        failure: { code: 'unauthorized', message: 'Bearer secret rejected', retryable: false },
+        requestBody: { messages: realRequest.messages },
+        responseBody: { error: 'rejected', authorization: 'Bearer secret' },
+        status: 401
+      }),
+      traces
+    )
+    await expect(failure.gateway.complete(realRequest)).rejects.toThrow()
+    expect(finishes[1]).toMatchObject({ error: 'Bearer secret rejected' })
+  })
   it('forwards content before provider completion and commits one aggregate call at end', async () => {
     let releaseEnd!: () => void
     const endGate = new Promise<void>((resolve) => {
@@ -328,8 +408,7 @@ describe('ModelGateway boundary', () => {
   })
 
   it('turns remote failures into diagnostic task state without losing local history', async () => {
-    const container = createRuntimeContainer({ mode: 'mock' })
-    const tasks = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)
+    const tasks = createRuntimeServices({ mode: 'mock' }).taskRepository
     const localTask = {
       id: 'task-model-error',
       threadId: 'task-model-error',

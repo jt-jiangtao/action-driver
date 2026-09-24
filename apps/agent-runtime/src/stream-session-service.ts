@@ -1,12 +1,11 @@
 import {
   STREAM_PROTOCOL,
-  emptyActivityTimelineState,
   parseStreamServerEvent,
-  reduceActivityProjection,
   type RequestCreateEvent,
   type StreamClientEvent,
   type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
+import { emptyActivityTimelineState, reduceActivityProjection } from '@actiondriver/activity-projection'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -346,13 +345,20 @@ export class StreamSessionService {
   ): Promise<void> {
     const previous = this.publicationTails.get(request.requestId) ?? Promise.resolve()
     const current = previous.then(async () => {
-      const last = this.publishedCursors.get(request.requestId) ?? 0
-      const records = (await this.options.repositories.events.listAfter(last)).filter(
-        (record) => record.requestId === request.requestId && record.cursor <= cursor
-      )
-      for (const record of records) {
-        await emit(this.toServerEvent(request, record))
-        this.publishedCursors.set(request.requestId, record.cursor)
+      let last = this.publishedCursors.get(request.requestId) ?? 0
+      while (last < cursor) {
+        const records = await this.options.repositories.events.listForRequestAfter(
+          request.requestId,
+          last,
+          256
+        )
+        if (records.length === 0) break
+        for (const record of records) {
+          if (record.cursor > cursor) return
+          await emit(this.toServerEvent(request, record))
+          last = record.cursor
+          this.publishedCursors.set(request.requestId, last)
+        }
       }
     })
     this.publicationTails.set(
@@ -377,19 +383,23 @@ export class StreamSessionService {
       })
       return
     }
-    const retained = (await this.options.repositories.events.listAfter(0)).filter(
-      (event) => event.requestId === requestId
-    )
-    const first = retained[0]
+    const first = (await this.options.repositories.events.listForRequestAfter(requestId, 0, 1))[0]
     const replayExpired =
       (!first && request.lastSequence >= 0) ||
-      (first !== undefined && first.type !== 'request.accepted' && afterCursor < first.cursor - 1)
+      (first !== undefined && first.type !== 'request.accepted' && afterCursor < first.cursor)
     if (replayExpired) {
       await emit(await this.snapshot(request.requestId))
       return
     }
-    const events = retained.filter((event) => event.cursor > afterCursor)
-    for (const event of events) await emit(this.toServerEvent(request, event))
+    let cursor = afterCursor
+    while (true) {
+      const events = await this.options.repositories.events.listForRequestAfter(requestId, cursor, 256)
+      if (events.length === 0) break
+      for (const event of events) {
+        await emit(this.toServerEvent(request, event))
+        cursor = event.cursor
+      }
+    }
   }
 
   private async snapshot(requestId: string): Promise<SnapshotEvent> {
@@ -457,8 +467,8 @@ export class StreamSessionService {
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {
-    const event = (await this.options.repositories.events.listAfter(0)).find(
-      (candidate) => candidate.requestId === requestId && candidate.type === type
+    const event = (await this.options.repositories.events.listForRequestAfter(requestId, 0, 1)).find(
+      (candidate) => candidate.type === type
     )
     if (!event) throw new Error(`Missing persisted ${type} event for ${requestId}`)
     return event
@@ -538,10 +548,18 @@ export class StreamSessionService {
       responseId: request.responseId,
       streamId: request.streamId,
       messageId: request.messageId,
-      occurredAt: record.occurredAt
+      occurredAt: record.occurredAt,
+      sequence: record.sequence
     }
     if (record.type === 'request.accepted') {
       return parseStreamServerEvent({ type: record.type, ...identity })
+    }
+    if (record.type === 'runtime.interrupted') {
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        error: payload.error
+      })
     }
     if (record.type.startsWith('activity.')) {
       const activity = payload as {
@@ -581,6 +599,8 @@ export class StreamSessionService {
         output?: unknown
         error?: unknown
         durationMs?: unknown
+        sequence?: number
+        callSequence?: number
       }
       const rawToolIO = this.options.rawToolIO?.enabled === true
       const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
@@ -591,7 +611,12 @@ export class StreamSessionService {
         type: record.type,
         ...identity,
         callId: tool.callId,
-        callSequence: record.sequence,
+        callSequence:
+          typeof tool.callSequence === 'number'
+            ? tool.callSequence
+            : typeof tool.sequence === 'number'
+              ? tool.sequence
+              : (record.sequence ?? 0),
         toolId: tool.toolId,
         modelName: tool.modelName,
         summary: tool.summary,
@@ -613,13 +638,15 @@ export class StreamSessionService {
                 : {})
             }
           : {}),
-        ...(record.type === 'tool.failed' || record.type === 'tool.cancelled'
+        ...(record.type === 'tool.failed' || record.type === 'tool.cancelled' || record.type === 'tool.unknown'
           ? {
-              error: {
-                code: 'tool-failed',
-                message: toolActivityErrorSummary(tool.error),
-                retryable: false
-              }
+              error: tool.error && typeof tool.error === 'object' && 'code' in tool.error
+                ? tool.error
+                : {
+                    code: 'tool-failed',
+                    message: toolActivityErrorSummary(tool.error),
+                    retryable: false
+                  }
             }
           : {})
       })

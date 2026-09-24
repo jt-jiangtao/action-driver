@@ -1,6 +1,7 @@
 import { once } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket, WebSocketServer } from 'ws'
+import fc from 'fast-check'
 import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { RendererStreamClient } from './renderer-stream-client'
 
@@ -30,7 +31,7 @@ function send(socket: WebSocket, event: StreamServerEvent): void {
 }
 
 const identity = {
-  protocol: 'actiondriver.stream.v1' as const,
+  protocol: 'actiondriver.stream.v2' as const,
   requestId: 'request-1',
   sessionId: 'session-1',
   taskId: 'task-1',
@@ -40,6 +41,96 @@ const identity = {
 }
 
 describe('RendererStreamClient', () => {
+  it('delivers each request event once for shuffled frames and duplicates (seed 240924)', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.shuffledSubarray([1, 2, 3, 4], { minLength: 4, maxLength: 4 }),
+        async (order) => {
+          const wsUrl = await listen()
+          server!.on('connection', (socket) => {
+            socket.on('message', (raw) => {
+              const frame = JSON.parse(raw.toString()) as { type: string; requestId?: string }
+              if (frame.type === 'auth') {
+                send(socket, {
+                  type: 'session.ready',
+                  protocol: 'actiondriver.stream.v2',
+                  eventId: 'ready-property',
+                  connectionId: 'connection-1',
+                  capabilities: ['request.create', 'request.resume'],
+                  occurredAt: '2026-09-23T00:00:00.000Z'
+                })
+              }
+              if (frame.type !== 'request.create') return
+              const requestId = frame.requestId!
+              const common = {
+                ...identity,
+                requestId,
+                occurredAt: '2026-09-23T00:00:01.000Z'
+              }
+              send(socket, {
+                type: 'request.accepted',
+                ...common,
+                eventId: 'accepted-property',
+                cursor: 1,
+                sequence: 0
+              })
+              const events: StreamServerEvent[] = [
+                {
+                  type: 'response.start', ...common, eventId: 'start-property', cursor: 3,
+                  sequence: 1, model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+                },
+                {
+                  type: 'response.content', ...common, eventId: 'a-property', cursor: 5,
+                  sequence: 2, delta: 'A', contentIndex: 0
+                },
+                {
+                  type: 'response.content', ...common, eventId: 'b-property', cursor: 7,
+                  sequence: 3, delta: 'B', contentIndex: 0
+                },
+                {
+                  type: 'response.end', ...common, eventId: 'end-property', cursor: 9,
+                  sequence: 4, status: 'completed', content: 'AB', finishReason: 'stop',
+                  usage: null, durationMs: 1, error: null
+                }
+              ]
+              for (const sequence of order) send(socket, events[sequence - 1]!)
+              send(socket, events[order[0]! - 1]!)
+            })
+          })
+          client = new RendererStreamClient({
+            getConnection: async () => ({
+              wsUrl, protocol: 'actiondriver.stream.v2', accessToken: 'token'
+            }),
+            createWebSocket: (url, protocols) => new WebSocket(url, protocols),
+            id: () => 'request-property'
+          })
+          const delivered: number[] = []
+          const ended = new Promise<void>((resolve) => client!.subscribe((event) => {
+            if ('sequence' in event) delivered.push(event.sequence)
+            if (event.type === 'response.end') resolve()
+          }))
+          try {
+            await client.create({
+              goal: 'property', model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+            })
+            await Promise.race([
+              ended,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('sequence stalled')), 500))
+            ])
+            expect(delivered).toEqual([0, 1, 2, 3, 4])
+          } finally {
+            await client.close()
+            client = undefined
+            for (const socket of server!.clients) socket.terminate()
+            await new Promise<void>((resolve) => server!.close(() => resolve()))
+            server = undefined
+          }
+        }
+      ),
+      { seed: 240924, numRuns: 16 }
+    )
+  })
+
   it('uses real WebSocket auth first and keeps the launch token out of the URL', async () => {
     const wsUrl = await listen()
     const requests: string[] = []
@@ -52,7 +143,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth') {
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v1',
+            protocol: 'actiondriver.stream.v2',
             eventId: 'ready-1',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -65,6 +156,7 @@ describe('RendererStreamClient', () => {
             ...identity,
             eventId: 'accepted-1',
             cursor: 1,
+            sequence: 0,
             occurredAt: '2026-09-23T00:00:01.000Z'
           })
         }
@@ -72,7 +164,7 @@ describe('RendererStreamClient', () => {
     })
     const getConnection = vi.fn(async () => ({
       wsUrl,
-      protocol: 'actiondriver.stream.v1' as const,
+      protocol: 'actiondriver.stream.v2' as const,
       accessToken: 'launch-token'
     }))
     let id = 0
@@ -110,7 +202,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth') {
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v1',
+            protocol: 'actiondriver.stream.v2',
             eventId: `ready-${connection}`,
             connectionId: `connection-${connection}`,
             capabilities: ['request.create', 'request.resume'],
@@ -123,6 +215,7 @@ describe('RendererStreamClient', () => {
             ...identity,
             eventId: 'accepted-1',
             cursor: 1,
+            sequence: 0,
             occurredAt: '2026-09-23T00:00:01.000Z'
           })
           send(socket, {
@@ -131,7 +224,7 @@ describe('RendererStreamClient', () => {
             eventId: 'start-1',
             cursor: 2,
             occurredAt: '2026-09-23T00:00:02.000Z',
-            sequence: 0,
+            sequence: 1,
             model: { connectionId: 'connection-1', modelId: 'gpt-real' }
           })
           send(socket, {
@@ -140,7 +233,7 @@ describe('RendererStreamClient', () => {
             eventId: 'content-1',
             cursor: 3,
             occurredAt: '2026-09-23T00:00:03.000Z',
-            sequence: 1,
+            sequence: 2,
             delta: 'A',
             contentIndex: 0
           })
@@ -153,7 +246,7 @@ describe('RendererStreamClient', () => {
             eventId: 'content-1',
             cursor: 3,
             occurredAt: '2026-09-23T00:00:03.000Z',
-            sequence: 1,
+            sequence: 2,
             delta: 'A',
             contentIndex: 0
           })
@@ -163,7 +256,7 @@ describe('RendererStreamClient', () => {
             eventId: 'content-2',
             cursor: 4,
             occurredAt: '2026-09-23T00:00:04.000Z',
-            sequence: 2,
+            sequence: 3,
             delta: 'B',
             contentIndex: 0
           })
@@ -173,7 +266,7 @@ describe('RendererStreamClient', () => {
             eventId: 'end-1',
             cursor: 5,
             occurredAt: '2026-09-23T00:00:05.000Z',
-            sequence: 3,
+            sequence: 4,
             status: 'completed',
             content: 'AB',
             finishReason: 'stop',
@@ -187,7 +280,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v1',
+        protocol: 'actiondriver.stream.v2',
         accessToken: 'launch-token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols),
@@ -223,7 +316,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth')
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v1',
+            protocol: 'actiondriver.stream.v2',
             eventId: 'ready-order',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -236,6 +329,7 @@ describe('RendererStreamClient', () => {
             requestId: frame.requestId!,
             eventId: 'accepted-order',
             cursor: 1,
+            sequence: 0,
             occurredAt: '2026-09-23T00:00:01.000Z'
           })
           send(socket, {
@@ -243,9 +337,9 @@ describe('RendererStreamClient', () => {
             ...identity,
             requestId: frame.requestId!,
             eventId: 'start-order',
-            cursor: 2,
+            cursor: 3,
             occurredAt: '2026-09-23T00:00:02.000Z',
-            sequence: 0,
+            sequence: 1,
             model: { connectionId: 'connection-1', modelId: 'gpt-real' }
           })
           send(socket, {
@@ -253,7 +347,8 @@ describe('RendererStreamClient', () => {
             ...identity,
             requestId: frame.requestId!,
             eventId: 'tool-order',
-            cursor: 4,
+            cursor: 7,
+            sequence: 3,
             occurredAt: '2026-09-23T00:00:04.000Z',
             callId: 'call-order',
             callSequence: 3,
@@ -270,7 +365,8 @@ describe('RendererStreamClient', () => {
             ...identity,
             requestId: frame.requestId!,
             eventId: 'activity-order',
-            cursor: 3,
+            cursor: 5,
+            sequence: 2,
             occurredAt: '2026-09-23T00:00:03.000Z',
             activityId: 'activity-order',
             title: '调研现有实现',
@@ -282,7 +378,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v1',
+        protocol: 'actiondriver.stream.v2',
         accessToken: 'token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols)
@@ -315,7 +411,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth')
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v1',
+            protocol: 'actiondriver.stream.v2',
             eventId: 'ready-snapshot',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -329,6 +425,7 @@ describe('RendererStreamClient', () => {
             requestId,
             eventId: 'accepted-snapshot',
             cursor: 1,
+            sequence: 0,
             occurredAt: '2026-09-23T00:00:01.000Z'
           })
           send(socket, {
@@ -337,6 +434,7 @@ describe('RendererStreamClient', () => {
             requestId,
             eventId: 'after-snapshot',
             cursor: 8,
+            sequence: 4,
             occurredAt: '2026-09-23T00:00:08.000Z',
             activityId: 'activity-snapshot'
           })
@@ -360,6 +458,7 @@ describe('RendererStreamClient', () => {
             requestId,
             eventId: 'before-completed',
             cursor: 7,
+            sequence: 3,
             occurredAt: '2026-09-23T00:00:07.000Z',
             activityId: 'activity-snapshot',
             title: '读取文件',
@@ -371,6 +470,7 @@ describe('RendererStreamClient', () => {
             requestId,
             eventId: 'duplicate-old',
             cursor: 5,
+            sequence: 1,
             occurredAt: '2026-09-23T00:00:05.000Z',
             activityId: 'old',
             title: '旧标题',
@@ -382,7 +482,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v1',
+        protocol: 'actiondriver.stream.v2',
         accessToken: 'token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols)
@@ -418,7 +518,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v1',
+        protocol: 'actiondriver.stream.v2',
         accessToken: 'launch-token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols),

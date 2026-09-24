@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { dirname } from 'node:path'
 import { requiresElectronNativeBinding, resolveElectronNativeBinding } from './native-binding'
 
@@ -211,6 +212,68 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
           ON tool_invocations(task_id, created_at, id);
       `)
     }
+  },
+  {
+    version: 7,
+    name: 'make-request-event-sequences-contiguous',
+    up(database) {
+      const orphan = database
+        .prepare(
+          `SELECT e.request_id FROM runtime_events e
+           LEFT JOIN stream_requests r ON r.request_id = e.request_id
+           WHERE e.request_id IS NOT NULL AND r.request_id IS NULL LIMIT 1`
+        )
+        .get() as { request_id: string } | undefined
+      if (orphan) throw new Error(`Event has no stream request: ${orphan.request_id}`)
+
+      database.exec(`
+        WITH ordered AS (
+          SELECT cursor,
+                 ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY cursor) - 1 AS next_sequence
+          FROM runtime_events WHERE request_id IS NOT NULL
+        )
+        UPDATE runtime_events
+        SET sequence = (SELECT next_sequence FROM ordered WHERE ordered.cursor = runtime_events.cursor)
+        WHERE request_id IS NOT NULL;
+
+        UPDATE stream_requests
+        SET last_sequence = COALESCE(
+          (SELECT MAX(sequence) FROM runtime_events
+           WHERE runtime_events.request_id = stream_requests.request_id), -1
+        );
+
+        CREATE UNIQUE INDEX runtime_events_request_sequence_unique
+          ON runtime_events(request_id, sequence) WHERE request_id IS NOT NULL;
+
+        CREATE TRIGGER runtime_events_request_sequence_insert
+        BEFORE INSERT ON runtime_events
+        WHEN NEW.request_id IS NOT NULL AND (NEW.sequence IS NULL OR NEW.sequence < 0)
+        BEGIN
+          SELECT RAISE(ABORT, 'request event requires nonnegative sequence');
+        END;
+
+        CREATE TRIGGER runtime_events_request_sequence_update
+        BEFORE UPDATE OF request_id, sequence ON runtime_events
+        WHEN NEW.request_id IS NOT NULL AND (NEW.sequence IS NULL OR NEW.sequence < 0)
+        BEGIN
+          SELECT RAISE(ABORT, 'request event requires nonnegative sequence');
+        END;
+      `)
+    }
+  },
+  {
+    version: 8,
+    name: 'add-runtime-process-ownership',
+    up(database) {
+      database.exec(`
+        CREATE TABLE runtime_process_owner (
+          singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+          pid INTEGER NOT NULL,
+          token TEXT NOT NULL,
+          acquired_at TEXT NOT NULL
+        );
+      `)
+    }
   }
 ]
 
@@ -223,12 +286,31 @@ export function openRuntimeDatabase(
   try {
     configureDatabase(database)
     ensureMigrationTable(database)
+    backupBeforeMigration(database, path, migrations)
     applyMigrations(database, migrations)
     return database
   } catch (error) {
     database.close()
     throw error
   }
+}
+
+function backupBeforeMigration(
+  database: Database.Database,
+  path: string,
+  migrations: readonly RuntimeMigration[]
+): void {
+  if (path === ':memory:') return
+  const row = database
+    .prepare('SELECT MAX(version) AS version FROM schema_migrations')
+    .get() as { version: number | null }
+  if (row.version === null || !migrations.some((migration) => migration.version > row.version!)) {
+    return
+  }
+  const targetVersion = migrations.at(-1)?.version
+  if (targetVersion === undefined) return
+  const backupPath = `${path}.pre-v${targetVersion}-${randomUUID()}.sqlite`
+  database.prepare('VACUUM INTO ?').run(backupPath)
 }
 
 export function createRuntimeDatabase(path: string): Database.Database {

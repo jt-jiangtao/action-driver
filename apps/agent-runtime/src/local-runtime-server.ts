@@ -1,52 +1,26 @@
 import type {
-  ModelLogQuery,
   SkillControlCommand,
   SkillExecutionEvent,
   SkillExecutionState
 } from '@actiondriver/contracts'
 import {
-  RuntimeRpcError,
-  RuntimeServer,
-  type RuntimeEvent,
-  type RuntimeMessageEndpoint,
   type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
-import { createRuntimeContainer, RUNTIME_TYPES } from './composition-root'
-import {
-  buildModelLogSessionProjection,
-  buildRecentTaskProjection,
-  buildTaskProjection
-} from './model-log-projection'
+import { createRuntimeServices } from './composition-root'
+import { buildRecentTaskProjection, buildTaskProjection } from './model-log-projection'
 import type {
-  EventRepository,
-  GraphRunner,
-  IdGenerator,
   MessageRepository,
   ModelCallRepository,
   RuntimeAdapters,
-  RuntimeTaskRecord,
-  TaskRepository
+  RuntimeTaskRecord
 } from './ports'
-
-const RUNTIME_CAPABILITIES = [
-  'task.submit',
-  'task.get',
-  'task.list',
-  'model-log.list',
-  'model-log.get',
-  'task.interrupt',
-  'task.continue',
-  'task.provide-input',
-  'skill.control',
-  'event.subscribe'
-] as const
 
 export type LocalRuntimeServer = {
   close(): Promise<void>
+  execute(command: string, input: unknown): Promise<unknown>
 }
 
 export function createLocalRuntimeServer(
-  endpoint: RuntimeMessageEndpoint,
   options: {
     adapters: RuntimeAdapters
     messages: MessageRepository
@@ -58,23 +32,16 @@ export function createLocalRuntimeServer(
     }
   }
 ): LocalRuntimeServer {
-  const serverRef: { current: RuntimeServer | null } = { current: null }
-  function requireServer(): RuntimeServer {
-    if (!serverRef.current) {
-      throw new RuntimeRpcError('RUNTIME_DISCONNECTED', 'Local Agent Runtime is not ready')
-    }
-    return serverRef.current
-  }
-  const container = createRuntimeContainer({ mode: 'local', adapters: options.adapters })
-  const graphRunner = container.get<GraphRunner>(RUNTIME_TYPES.graphRunner)
-  const taskRepository = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)
-  const eventRepository = container.get<EventRepository>(RUNTIME_TYPES.eventRepository)
-  const ids = container.get<IdGenerator>(RUNTIME_TYPES.idGenerator)
+  const services = createRuntimeServices({ mode: 'local', adapters: options.adapters })
+  const graphRunner = services.graphRunner
+  const taskRepository = services.taskRepository
+  const eventRepository = services.eventRepository
+  const ids = services.idGenerator
   const active = new Map<string, Promise<void>>()
   const skillStates = new Map<string, SkillExecutionState>()
 
   async function publishTask(task: RuntimeTaskRecord, type: string): Promise<void> {
-    const record = await eventRepository.append({
+    await eventRepository.append({
       taskId: task.id,
       threadId: task.threadId,
       checkpointId: task.lastCheckpointId ?? `task:${task.id}`,
@@ -83,7 +50,6 @@ export function createLocalRuntimeServer(
       payload: { status: task.status },
       occurredAt: task.updatedAt
     })
-    requireServer().publishEvent(toRuntimeEvent(record))
   }
 
   async function saveStatus(
@@ -132,21 +98,7 @@ export function createLocalRuntimeServer(
     }
   }
 
-  async function projectModelLog(task: RuntimeTaskRecord) {
-    const tasks = await taskRepository.listBySession(task.sessionId)
-    const [messages, modelCalls] = await Promise.all([
-      options.messages.listBySession(task.sessionId),
-      Promise.all(tasks.map((sessionTask) => options.modelCalls.listByTask(sessionTask.id))).then(
-        (calls) => calls.flat()
-      )
-    ])
-    return buildModelLogSessionProjection(tasks, messages, modelCalls)
-  }
-
-  const rpcServer = new RuntimeServer(endpoint, {
-    runtimeVersion: '0.1.0',
-    capabilities: RUNTIME_CAPABILITIES,
-    async onCommand(command, rawInput) {
+  async function execute(command: string, rawInput: unknown): Promise<unknown> {
       if (command === 'task.submit') {
         const { goal, model, systemPrompt, skills } = rawInput as {
           goal: string
@@ -155,7 +107,7 @@ export function createLocalRuntimeServer(
           skills: []
         }
         if (skills.length !== 0) {
-          throw new RuntimeRpcError('INVALID_MESSAGE', 'Agent-only tasks require skills=[]')
+          throw new Error('INVALID_MESSAGE: Agent-only tasks require skills=[]')
         }
         const taskId = ids.next('task')
         const now = options.adapters.clock.now()
@@ -250,17 +202,6 @@ export function createLocalRuntimeServer(
           )
         }
       }
-      if (command === 'model-log.list') {
-        const query = rawInput as ModelLogQuery
-        const tasks = await taskRepository.listRecentSessions(100)
-        const sessions = await Promise.all(tasks.map(projectModelLog))
-        return { sessions: sessions.filter((session) => matchesModelLog(session, query)) }
-      }
-      if (command === 'model-log.get') {
-        const { taskId } = rawInput as { taskId: string }
-        const task = await taskRepository.get(taskId)
-        return { session: task ? await projectModelLog(task) : null }
-      }
       if (command === 'task.interrupt') {
         const { taskId } = rawInput as { taskId: string }
         graphRunner.interrupt(taskId)
@@ -296,53 +237,14 @@ export function createLocalRuntimeServer(
         }
         return { event }
       }
-      throw new RuntimeRpcError('INVALID_MESSAGE', `Unsupported Runtime command: ${command}`)
-    },
-    async readEvents(taskId, afterCursor) {
-      return (await eventRepository.listAfter(afterCursor))
-        .filter((event) => event.taskId === taskId)
-        .map(toRuntimeEvent)
-    }
-  })
-  serverRef.current = rpcServer
+      throw new Error(`INVALID_MESSAGE: Unsupported Runtime command: ${command}`)
+  }
 
   return {
+    execute,
     async close() {
       for (const taskId of active.keys()) graphRunner.interrupt(taskId)
       await Promise.allSettled(active.values())
     }
   }
-}
-
-function toRuntimeEvent(event: {
-  cursor: number
-  taskId: string
-  type: string
-  payload: unknown
-  occurredAt: string
-}): RuntimeEvent {
-  return {
-    cursor: event.cursor,
-    taskId: event.taskId,
-    type: event.type,
-    payload: event.payload,
-    occurredAt: event.occurredAt
-  }
-}
-
-function matchesModelLog(
-  session: ReturnType<typeof buildModelLogSessionProjection>,
-  query: ModelLogQuery
-): boolean {
-  if (query.status && session.status !== query.status) return false
-  const search = query.query?.trim().toLowerCase()
-  if (!search) return true
-  const task = session.tasks[0]
-  return [
-    session.id,
-    session.name,
-    task?.model.connectionId,
-    task?.model.modelId,
-    ...(task?.calls.flatMap((call) => [call.requestId, call.correlationId]) ?? [])
-  ].some((value) => value?.toLowerCase().includes(search))
 }

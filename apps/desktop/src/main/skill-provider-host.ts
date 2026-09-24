@@ -39,12 +39,23 @@ export class SkillProviderHost {
     return [...this.providers.values()].some((provider) => provider.skillId === skillId)
   }
 
+  listProviders(): Array<Pick<HostedSkillProvider, 'providerId' | 'providerVersion' | 'skillId'> & { contractVersion: number }> {
+    return [...this.providers.values()].map(({ providerId, providerVersion, skillId }) => ({
+      providerId, providerVersion, skillId, contractVersion: 1
+    }))
+  }
+
   async execute(
     request: SkillExecuteRequest,
     deadlineUnixMs: number,
-    authorize?: (skillId: string) => Promise<void>
+    authorize?: (skillId: string) => Promise<void>,
+    signal?: AbortSignal
   ): Promise<SkillExecuteResult> {
     await authorize?.(request.requestedSkillId)
+    if (signal?.aborted) {
+      this.invocationStates.set(request.invocationId, 'failed')
+      throw new SkillProviderHostError('SKILL_TIMEOUT', `SKILL_TIMEOUT: ${request.invocationId}`)
+    }
     const provider = this.providers.get(request.resolvedProviderId)
     if (
       !provider ||
@@ -71,10 +82,19 @@ export class SkillProviderHost {
     const controller = new AbortController()
 
     return new Promise<SkillExecuteResult>((resolve, reject) => {
+      const abort = () => {
+        if (this.invocationStates.get(request.invocationId) !== 'running') return
+        this.invocationStates.set(request.invocationId, 'failed')
+        controller.abort()
+        clearTimeout(timeout)
+        reject(new SkillProviderHostError('SKILL_TIMEOUT', `SKILL_TIMEOUT: ${request.invocationId}`))
+      }
+      signal?.addEventListener('abort', abort, { once: true })
       const timeout = setTimeout(() => {
         if (this.invocationStates.get(request.invocationId) !== 'running') return
         this.invocationStates.set(request.invocationId, 'timed_out')
         controller.abort()
+        signal?.removeEventListener('abort', abort)
         reject(
           new SkillProviderHostError('SKILL_TIMEOUT', `SKILL_TIMEOUT: ${request.invocationId}`)
         )
@@ -84,6 +104,7 @@ export class SkillProviderHost {
         (output) => {
           if (this.invocationStates.get(request.invocationId) !== 'running') return
           clearTimeout(timeout)
+          signal?.removeEventListener('abort', abort)
           this.invocationStates.set(request.invocationId, 'completed')
           resolve({
             event: {
@@ -99,6 +120,7 @@ export class SkillProviderHost {
         (error: unknown) => {
           if (this.invocationStates.get(request.invocationId) !== 'running') return
           clearTimeout(timeout)
+          signal?.removeEventListener('abort', abort)
           this.invocationStates.set(request.invocationId, 'failed')
           reject(
             new SkillProviderHostError(
@@ -108,8 +130,13 @@ export class SkillProviderHost {
           )
         }
       )
+      if (signal?.aborted) abort()
     })
   }
+}
+
+export function createProductionSkillProviderHost(): SkillProviderHost {
+  return new SkillProviderHost()
 }
 
 export function createMockSkillProviderHost(): SkillProviderHost {

@@ -1,4 +1,5 @@
-import type { Logger } from 'pino'
+import type { StructuredLogger } from './otel'
+import { context, trace, SpanStatusCode, type Meter, type Tracer } from '@opentelemetry/api'
 import { encodeInteractionPayload } from './interaction-payload'
 
 export type InteractionTransport = 'ipc' | 'http' | 'websocket'
@@ -145,35 +146,56 @@ export type InteractionRecorderOneWay = Omit<InteractionRecorderStart, 'request'
 }
 
 export interface InteractionLogRecorder {
-  start(
-    input: InteractionRecorderStart
-  ): Promise<(result: InteractionRecorderResult) => Promise<void>>
+  start(input: InteractionRecorderStart): Promise<InteractionCompletion>
   recordOneWay(input: InteractionRecorderOneWay): Promise<void>
 }
 
+export type InteractionCompletion = ((result: InteractionRecorderResult) => Promise<void>) & {
+  run<T>(operation: () => Promise<T>): Promise<T>
+}
+
 export function createInteractionLogRecorder(options: {
-  store: InteractionLogStore
+  store?: InteractionLogStore
   ids: InteractionLogIdFactory
   clock?: () => number
-  logger?: Logger
+  logger?: Pick<StructuredLogger, 'info' | 'error'>
+  tracer?: Tracer
+  meter?: Meter
 }): InteractionLogRecorder {
   const clock = options.clock ?? Date.now
+  const callCount = options.meter?.createCounter('actiondriver.calls', {
+    description: 'Completed ActionDriver calls'
+  })
+  const callDuration = options.meter?.createHistogram('actiondriver.call.duration', {
+    unit: 'ms', description: 'ActionDriver call duration'
+  })
   return {
     async start(input) {
       const time = input.startedAt ?? clock()
+      const correlationId = input.correlationId ?? options.ids.correlationId()
+      const span = options.tracer?.startSpan('actiondriver.call', {
+        startTime: time,
+        attributes: {
+          'rpc.system': input.transport,
+          'rpc.method': input.operation,
+          'operation': input.operation,
+          'task.id': input.taskId ?? '',
+          'request.id': input.requestId ?? ''
+        }
+      })
       const event: InteractionBeginRecord = {
         id: options.ids.eventId(),
-        correlationId: input.correlationId ?? options.ids.correlationId(),
+        correlationId,
         time,
         transport: input.transport,
         direction: input.direction,
         operation: input.operation,
         ...(input.requestId ? { requestId: input.requestId } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
-        request: encodeInteractionPayload(input.request)
+        request: options.store ? encodeInteractionPayload(input.request) : emptyPayloadView()
       }
-      await options.store.begin(event)
-      return async (result) => {
+      if (options.store) await options.store.begin(event)
+      const complete = async (result: InteractionRecorderResult) => {
         const completedAt = clock()
         const safeError = result.error
           ? {
@@ -181,35 +203,68 @@ export function createInteractionLogRecorder(options: {
               message: redactKnownSecrets(result.error.message, result.secretValues ?? []) as string
             }
           : undefined
-        await options.store.complete(event.id, {
-          completedAt,
-          outcome: result.outcome,
-          ...(result.status === undefined ? {} : { status: result.status }),
-          response: result.response
-            ? encodeInteractionPayload(result.response, undefined, result.secretValues)
-            : null,
-          ...(safeError ? { error: safeError } : {})
-        })
+        if (options.store) {
+          await options.store.complete(event.id, {
+            completedAt,
+            outcome: result.outcome,
+            ...(result.status === undefined ? {} : { status: result.status }),
+            response: result.response
+              ? encodeInteractionPayload(result.response, undefined, result.secretValues)
+              : null,
+            ...(safeError ? { error: safeError } : {})
+          })
+        }
         const record = {
           transport: event.transport,
           direction: event.direction,
           operation: event.operation,
           correlationId: event.correlationId,
+          ...(input.requestId ? { requestId: input.requestId } : {}),
+          ...(input.taskId ? { taskId: input.taskId } : {}),
           outcome: result.outcome,
           durationMs: completedAt - event.time,
+          ...(span ? { trace_id: span.spanContext().traceId, span_id: span.spanContext().spanId } : {}),
           ...(result.status === undefined ? {} : { status: result.status }),
-          ...(safeError ? { errorCode: safeError.code, errorMessage: safeError.message } : {})
+          ...(safeError
+            ? { errorCode: safeError.code, ...(options.store ? { errorMessage: safeError.message } : {}) }
+            : {})
         }
         options.logger?.[safeError ? 'error' : 'info'](
           record,
           `${event.direction} ${event.operation} ${result.outcome}`
         )
+        span?.setAttribute('outcome', result.outcome)
+        span?.setStatus({ code: safeError ? SpanStatusCode.ERROR : SpanStatusCode.OK })
+        span?.end(completedAt)
+        const metricAttributes = {
+          transport: event.transport,
+          direction: event.direction,
+          outcome: result.outcome
+        }
+        callCount?.add(1, metricAttributes)
+        callDuration?.record(completedAt - event.time, metricAttributes)
       }
+      return Object.assign(complete, {
+        run: <T>(operation: () => Promise<T>): Promise<T> =>
+          span
+            ? context.with(trace.setSpan(context.active(), span), operation)
+            : operation()
+      })
     },
     async recordOneWay(input) {
-      await options.store.recordOneWay({
+      const correlationId = input.correlationId ?? options.ids.correlationId()
+      const span = options.tracer?.startSpan('actiondriver.event', {
+        attributes: {
+          'rpc.system': input.transport,
+          'rpc.method': input.operation,
+          'operation': input.operation,
+          'task.id': input.taskId ?? '',
+          'request.id': input.requestId ?? ''
+        }
+      })
+      if (options.store) await options.store.recordOneWay({
         id: options.ids.eventId(),
-        correlationId: input.correlationId ?? options.ids.correlationId(),
+        correlationId,
         time: clock(),
         transport: input.transport,
         direction: input.direction,
@@ -218,7 +273,38 @@ export function createInteractionLogRecorder(options: {
         ...(input.taskId ? { taskId: input.taskId } : {}),
         payload: encodeInteractionPayload(input.payload)
       })
+      options.logger?.info(
+        {
+          transport: input.transport,
+          direction: input.direction,
+          operation: input.operation,
+          correlationId,
+          outcome: 'sent',
+          ...(span ? { trace_id: span.spanContext().traceId, span_id: span.spanContext().spanId } : {}),
+          ...(input.requestId ? { requestId: input.requestId } : {}),
+          ...(input.taskId ? { taskId: input.taskId } : {})
+        },
+        `${input.direction} ${input.operation} sent`
+      )
+      span?.setStatus({ code: SpanStatusCode.OK })
+      span?.end()
+      callCount?.add(1, {
+        transport: input.transport,
+        direction: input.direction,
+        outcome: 'sent'
+      })
     }
+  }
+}
+
+function emptyPayloadView(): InteractionPayloadView {
+  return {
+    kind: 'empty',
+    contentType: null,
+    byteLength: 0,
+    truncated: false,
+    text: null,
+    unavailableReason: null
   }
 }
 
@@ -397,17 +483,18 @@ export async function startBestEffortInteraction(
   interactions: InteractionLogRecorder | undefined,
   input: InteractionRecorderStart,
   onError?: (error: unknown) => void
-): Promise<((result: InteractionRecorderResult) => Promise<void>) | null> {
+): Promise<InteractionCompletion | null> {
   if (!interactions) return null
   try {
     const finish = await interactions.start(input)
-    return async (result) => {
+    const complete = async (result: InteractionRecorderResult) => {
       try {
         await finish(result)
       } catch (error) {
         reportInteractionFailure(onError, error)
       }
     }
+    return Object.assign(complete, { run: finish.run })
   } catch (error) {
     reportInteractionFailure(onError, error)
     return null

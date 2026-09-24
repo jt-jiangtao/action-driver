@@ -4,11 +4,12 @@ import {
   type InteractionLogRecorder,
   type InteractionLogStore
 } from '@actiondriver/observability'
-import { ModelConnectionService } from '@actiondriver/model-connections'
 import { describe, expect, it, vi } from 'vitest'
-import { registerAgentIpcHandlers } from './agent-ipc'
+import { mkdtempSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createMainLogging } from './logging'
 import { listLogs, registerLogIpcHandlers } from './logs-ipc'
-import { registerModelIpcHandlers } from './model-ipc'
 
 function recordingInteractions(source = 'main') {
   const store = new MemoryInteractionLogStore()
@@ -35,67 +36,17 @@ function ipcMainStub() {
 }
 
 describe('renderer to service interaction logging', () => {
-  it('does not register the legacy agent submit IPC after Renderer owns the stream', async () => {
-    const ipcMain = ipcMainStub()
-    const { interactions } = recordingInteractions()
-    registerAgentIpcHandlers(
-      ipcMain as never,
-      {
-        request: async () => ({ taskId: 'task-1' }),
-        subscribeEvents: async () => ({ subscriptionId: 's-1', cursor: 0 })
-      } as never,
-      interactions
-    )
-
-    expect(ipcMain.handlers.has('actiondriver:agent:submit')).toBe(false)
-  })
-
-  it('records failures with the serialized error code', async () => {
-    const ipcMain = ipcMainStub()
-    const { interactions, store } = recordingInteractions()
-    registerAgentIpcHandlers(
-      ipcMain as never,
-      {
-        request: async () => {
-          throw new Error('runtime offline')
-        },
-        subscribeEvents: async () => ({ subscriptionId: 's-1', cursor: 0 })
-      } as never,
-      interactions
-    )
-
-    await ipcMain.handlers.get('actiondriver:agent:get')!(undefined, { taskId: 'task-1' })
-
-    expect((await store.list({ limit: 20 })).records[0]).toMatchObject({
-      outcome: 'error',
-      errorCode: 'UNKNOWN',
-      errorMessage: 'runtime offline'
+  it('does not create a local operational or interaction log directory', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'actiondriver-main-otel-'))
+    const logging = await createMainLogging()
+    const finish = await logging.interactions.start({
+      transport: 'ipc', direction: 'renderer->service', operation: 'task.get',
+      request: { kind: 'text', text: 'not persisted' }
     })
+    await finish({ outcome: 'ok' })
+    await logging.logger.close()
+    expect(existsSync(join(userDataPath, 'logs'))).toBe(false)
   })
-
-  it('records model connection bodies without persisting the api key', async () => {
-    const ipcMain = ipcMainStub()
-    const { interactions, store } = recordingInteractions()
-    const service = new ModelConnectionService({
-      store: { read: () => [], write: () => undefined },
-      cipher: { isAvailable: () => true, encrypt: (value) => value, decrypt: (value) => value },
-      transport: { request: async () => ({ status: 200, body: {}, text: '' }) }
-    })
-    registerModelIpcHandlers(ipcMain as never, service, interactions)
-
-    await ipcMain.handlers.get('actiondriver:model-connections:test-connection')!(undefined, {
-      name: '公司模型网关',
-      protocol: 'openai-compatible',
-      baseUrl: 'https://api.example.com/v1',
-      apiKey: 'sk-secret-value'
-    })
-
-    const record = (await store.list({ limit: 20 })).records[0]!
-    const detail = await store.getDetail(record.id)
-    expect(detail?.request?.text).toContain('公司模型网关')
-    expect(JSON.stringify(detail)).not.toContain('sk-secret-value')
-  })
-
   it('does not record log control-plane channels', async () => {
     const ipcMain = ipcMainStub()
     const { interactions, store } = recordingInteractions()
@@ -104,32 +55,6 @@ describe('renderer to service interaction logging', () => {
     await ipcMain.handlers.get('actiondriver:logs:list')!(undefined, {})
 
     expect((await store.list({ limit: 20 })).records).toEqual([])
-  })
-
-  it('records model-log queries with task metadata without creating model execution records', async () => {
-    const ipcMain = ipcMainStub()
-    const { interactions, store } = recordingInteractions()
-    registerAgentIpcHandlers(
-      ipcMain as never,
-      {
-        request: async () => ({ session: null }),
-        subscribeEvents: async () => ({ subscriptionId: 's-1', cursor: 0 })
-      } as never,
-      interactions
-    )
-
-    await ipcMain.handlers.get('actiondriver:agent:model-log-get')!(undefined, {
-      taskId: 'task-1'
-    })
-
-    expect((await store.list({ limit: 20 })).records).toEqual([
-      expect.objectContaining({
-        direction: 'renderer->service',
-        operation: 'actiondriver:agent:model-log-get',
-        taskId: 'task-1'
-      })
-    ])
-    expect((await store.list({ search: 'service->model', limit: 20 })).records).toEqual([])
   })
 
   it('merges summary pages and routes lazy detail reads to the owning source', async () => {

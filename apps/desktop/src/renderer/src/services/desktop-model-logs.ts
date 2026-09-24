@@ -1,20 +1,45 @@
 import type { ModelLogSessionProjection } from '@actiondriver/contracts'
-import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import type { ModelLogService } from '../models/model-log-service'
-import { mockModelLogSessions, type ModelLogSession } from '../models/model-logs'
+import type { ModelLogSession } from '../models/model-logs'
+
+export type LegacyModelLogApi = {
+  listModelLogs(): Promise<ModelLogSessionProjection[]>
+  openModelLogDetail(url: string, bounds: Parameters<ModelLogService['openDetail']>[1]): Promise<void>
+  setModelLogDetailBounds(bounds: Parameters<ModelLogService['setDetailBounds']>[0]): Promise<void>
+  closeModelLogDetail(): Promise<void>
+}
 
 export class DesktopModelLogService implements ModelLogService {
-  constructor(private readonly api: AgentDesktopApi) {}
+  constructor(private readonly api: LegacyModelLogApi) {}
 
   async list(): Promise<ModelLogSession[]> {
     return (await this.api.listModelLogs()).map(toModelLogSession)
+  }
+
+  async openDetail(
+    url: string,
+    bounds: Parameters<ModelLogService['openDetail']>[1]
+  ): Promise<void> {
+    await this.api.openModelLogDetail(url, bounds)
+  }
+  async setDetailBounds(bounds: Parameters<ModelLogService['setDetailBounds']>[0]): Promise<void> {
+    await this.api.setModelLogDetailBounds(bounds)
+  }
+  async closeDetail(): Promise<void> {
+    await this.api.closeModelLogDetail()
   }
 }
 
 export class MockModelLogService implements ModelLogService {
   async list(): Promise<ModelLogSession[]> {
-    return structuredClone(mockModelLogSessions)
+    return []
   }
+
+  async openDetail(): Promise<void> {
+    throw new Error('LangSmith is unavailable in mock mode')
+  }
+  async setDetailBounds(): Promise<void> {}
+  async closeDetail(): Promise<void> {}
 }
 
 export function toModelLogSession(session: ModelLogSessionProjection): ModelLogSession {
@@ -26,6 +51,7 @@ export function toModelLogSession(session: ModelLogSessionProjection): ModelLogS
     ...(session.endTime ? { endTime: displayTime(session.endTime) } : {}),
     status: session.status,
     duration: displayDuration(session.durationMs, session.status),
+    detailUrl: session.detailUrl ?? null,
     tasks: session.tasks.map((task) => ({
       id: task.id,
       name: task.name,
@@ -33,15 +59,8 @@ export function toModelLogSession(session: ModelLogSessionProjection): ModelLogS
       status: task.status,
       duration: displayDuration(task.durationMs, task.status),
       model: task.model.modelId,
-      calls: task.calls.map((call) => ({
-        id: call.id,
-        label: call.label,
-        time: displayTime(call.time),
-        kind: 'model',
-        status: call.status,
-        description: call.description,
-        sections: call.sections
-      }))
+      detailUrl: task.detailUrl ?? null,
+      calls: []
     }))
   }
 }

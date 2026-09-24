@@ -39,10 +39,10 @@
 ### 2. 传输：HTTP 承载配置，WebSocket 承载会话
 
 - HTTP：`GET /health`、`GET /version`、模型连接 CRUD、模型发现、连接测试、模型测试、任务查询。
-- WebSocket：客户端建立一条应用级长期连接，使用子协议 `actiondriver.stream.v1`。客户端事件为 `auth`、`request.create`、`request.cancel`、`request.resume`；服务端控制事件为 `session.ready`、`request.accepted`、`request.error`、`response.snapshot`；流式事件固定为 `response.start`、`response.content`、`response.end`。
+- WebSocket：客户端建立一条应用级长期连接，使用子协议 `actiondriver.stream.v2`。客户端事件为 `auth`、`request.create`、`request.cancel`、`request.resume`；服务端控制事件为 `session.ready`、`request.accepted`、`request.error`、`response.snapshot`；流式事件固定为 `response.start`、`response.content`、`response.end`。原 v1 响应级计序已由 `converge-runtime-architecture` 的请求级连续计序覆盖。
 - 生命周期：服务端只有在初始会话、任务和用户消息持久化成功后才发送 `request.accepted`。每个已开始响应严格遵循 `start → content* → end`；开始前失败使用 `request.error`，开始后的完成、失败和取消都以唯一 `response.end` 收口。
 - 标识：`eventId` 用于去重，`requestId` 用于命令关联，`idempotencyKey` 用于安全重试；`responseId`、`sessionId`、`taskId`、`streamId`、`messageId` 分别标识响应、会话、任务、流和消息。每个响应的 `sequence` 从 0 单调递增，持久化事件另带全局可恢复 `cursor`。
-- 事件恢复：传输按至少一次投递设计。客户端只在成功应用事件后推进本地 cursor，重连时发送 `request.resume(afterCursor)`；服务端重放相同 `eventId` 的原事件，客户端先按 `eventId` 去重，再按 `sequence` 检测缺口。保留窗口外返回 `response.snapshot`，客户端用持久化全文替换不完整投影。
+- 事件恢复：传输按至少一次投递设计。客户端只在成功应用请求内连续 `sequence` 的事件后推进本地 cursor，重连时发送 `request.resume(afterCursor)`；服务端重放相同 `eventId` 的原事件，客户端先按 `eventId` 去重，再按请求 `sequence` 检测缺口。保留窗口外返回 `response.snapshot`，客户端用持久化全文替换不完整投影。
 - 终态校准：`response.content` 只携带 `delta`；`response.end` 始终携带当前最终聚合 `content`、`finishReason`、`usage`、`durationMs` 与可选结构化错误。客户端以全文覆盖校准，不再次追加。
 - 连接治理：协议心跳使用 WebSocket 原生 Ping/Pong，不新增 JSON ping 消息；正常关闭、协议错误、策略拒绝、消息过大、服务端错误和过载分别使用标准 close code 1000、1002、1008、1009、1011、1013。重连采用指数退避与抖动。
 - 反向调用：本地装配下复用同一连接，携带 `invocationId`、`deadline`、取消语义；迟到响应只记录诊断。云端装配不操作用户本机 GUI，因此该通道只服务同机装配。

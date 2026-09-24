@@ -1,5 +1,4 @@
-import { createLogger, INTERACTION_REDACT_PATHS, type ActionDriverLogger } from '@actiondriver/observability'
-import { dirname, join } from 'node:path'
+import { createProcessObservability, INTERACTION_REDACT_PATHS, type ProcessObservability } from '@actiondriver/observability'
 
 export const REDACTED_LOG_PATHS = INTERACTION_REDACT_PATHS
 
@@ -10,19 +9,11 @@ export type ServiceLoggerOptions = {
   name?: string
 }
 
-export type ServiceLogger = ActionDriverLogger
+export type ServiceLogger = ProcessObservability
 
 /**
- * Service logger: readable output for developer runs plus a JSON log file next to the runtime data
- * so interactions stay inspectable when the app is launched without a terminal.
+ * Service process telemetry is exported over OTLP. No operational log is written beside runtime data.
  */
 export function createServiceLogger(options: ServiceLoggerOptions = {}): ServiceLogger {
-  return createLogger({
-    name: options.name ?? 'actiondriver-service',
-    ...(options.level === undefined ? {} : { level: options.level }),
-    ...(options.pretty === undefined ? {} : { pretty: options.pretty }),
-    ...(options.databasePath === undefined
-      ? {}
-      : { filePath: join(dirname(options.databasePath), '..', 'logs', 'service.log') })
-  })
+  return createProcessObservability({ serviceName: options.name ?? 'actiondriver-service' })
 }

@@ -9,5 +9,6 @@ describe('agent runtime build', () => {
     ) as { scripts: { build: string } }
 
     expect(packageJson.scripts.build).toContain('--external:ws')
+    expect(packageJson.scripts.build).toContain('__actionDriverCreateRequire(import.meta.url)')
   })
 })

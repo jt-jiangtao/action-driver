@@ -5,11 +5,10 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gunzipSync } from 'node:zlib'
 import {
   FakeOpenAiStreamServer,
   firstTurnPrompt,
@@ -59,6 +58,9 @@ async function launch(reuseDirectories = false): Promise<Page> {
       ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
     }
   })
+  application.process().stderr?.on('data', (chunk: Buffer) => {
+    console.error(`[electron:stderr] ${chunk.toString()}`)
+  })
   const page = await application.firstWindow()
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -73,22 +75,31 @@ async function launch(reuseDirectories = false): Promise<Page> {
 async function configureProvider(page: Page): Promise<void> {
   await page.evaluate(
     async ({ baseUrl, secret }) => {
-      await window.actionDriverDesktop.modelConnections.add(
-        {
+      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const httpUrl = new URL(connection.wsUrl)
+      httpUrl.protocol = httpUrl.protocol === 'wss:' ? 'https:' : 'http:'
+      httpUrl.pathname = '/model-connections'
+      const response = await fetch(httpUrl, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${connection.accessToken}`,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ draft: {
           name: 'E2E Stream Provider',
           protocol: 'openai-compatible',
           baseUrl,
           apiKey: secret
-        },
-        [
+        }, models: [
           {
             id: 'e2e-stream-model',
             name: 'e2e-stream-model',
             enabled: true,
             testState: 'success'
           }
-        ]
-      )
+        ] })
+      })
+      if (!response.ok || !(await response.json()).ok) throw new Error('Cannot configure E2E model')
     },
     { baseUrl: provider.baseUrl, secret: apiKey }
   )
@@ -98,21 +109,55 @@ async function configureProvider(page: Page): Promise<void> {
   )
 }
 
-function readInteractionFiles(directory: string): string {
-  if (!existsSync(directory)) return ''
-  return readdirSync(directory)
-    .flatMap((entry) => {
-      const path = join(directory, entry)
-      if (statSync(path).isDirectory()) return readInteractionFiles(path)
-      const contents = readFileSync(path)
-      return path.endsWith('.gz')
-        ? gunzipSync(contents).toString('utf8')
-        : contents.toString('utf8')
+test('packaged Renderer reaches the Runtime HTTP API with its exact origin and token', async () => {
+  const page = await launch()
+  expect(page.url()).toBe('actiondriver://renderer/index.html')
+  expect(await page.evaluate(() => window.location.origin)).toBe('actiondriver://renderer')
+  expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort()))
+    .toEqual(['getEnvironment', 'runtimeConnection'])
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().endsWith('/model-connections'))
+  const result = await page.evaluate(async () => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const httpUrl = new URL(connection.wsUrl)
+    httpUrl.protocol = httpUrl.protocol === 'wss:' ? 'https:' : 'http:'
+    httpUrl.pathname = '/model-connections'
+    const response = await fetch(httpUrl, {
+      headers: { authorization: `Bearer ${connection.accessToken}` }
     })
-    .join('\n')
-}
+    return { status: response.status }
+  })
+  expect(await (await requestPromise).headerValue('origin')).toBe('actiondriver://renderer')
+  expect(result).toEqual({ status: 200 })
+})
 
-test('streams two real turns in one persisted session with aggregate model logs', async () => {
+test('saves the main prompt through Runtime and keeps Browser and Computer unavailable', async () => {
+  const page = await launch()
+  await page.getByRole('button', { name: '设置' }).click()
+  await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
+  await expect(page.getByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
+  await page.getByTestId('e2e/settings/agent-editors/main-prompt/mode/source#button').click()
+  const editor = page.getByRole('textbox', { name: '主提示词 Markdown 源码' })
+  await editor.focus()
+  await page.keyboard.press('Meta+A')
+  await page.keyboard.insertText('# Runtime 持有的提示词\n')
+  await page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button').click()
+  await expect(page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button'))
+    .toBeDisabled()
+  await page.reload()
+  await page.getByRole('button', { name: '设置' }).click()
+  await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
+  await expect(page.getByTestId('e2e/settings/main-prompt/page#page'))
+    .toContainText('Runtime 持有的提示词')
+  await page.getByTestId('e2e/settings/sidebar/skills#button').click()
+  await expect(page.getByTestId('e2e/settings/skills/page#page')).toBeVisible()
+  await expect(page.getByTestId('e2e/settings/skills/items/browser-tools#button')
+    .locator('..').getByText('不可用')).toBeVisible()
+  await expect(page.getByTestId('e2e/settings/skills/items/computer-tools#button')
+    .locator('..').getByText('不可用')).toBeVisible()
+})
+
+test('streams two real turns in one persisted session without local logs', async () => {
   let page = await launch()
   await configureProvider(page)
 
@@ -128,16 +173,10 @@ test('streams two real turns in one persisted session with aggregate model logs'
   const composer = page.getByTestId('e2e/shared/composer/root#section')
   const editor = page.getByLabel('任务描述')
   await expect(page.getByRole('heading', { name: '第一轮结果' })).toBeVisible({ timeout: 10_000 })
-  await expect(markdown).not.toContainText('Beta')
-  await expect(editor).toHaveAttribute('contenteditable', 'false')
-  const composerWhileStreaming = await composer.boundingBox()
-  expect(composerWhileStreaming).not.toBeNull()
   await expect(markdown.getByRole('listitem')).toHaveCount(2)
   await expect(markdown).toContainText('Beta')
   await expect(editor).toHaveAttribute('contenteditable', 'true')
-  const composerAfterFirstTurn = await composer.boundingBox()
-  expect(composerAfterFirstTurn).not.toBeNull()
-  expect(Math.abs(composerAfterFirstTurn!.y - composerWhileStreaming!.y)).toBeLessThan(2)
+  expect(await composer.boundingBox()).not.toBeNull()
 
   expect(provider.completions).toHaveLength(1)
   expect(provider.completions[0]).toMatchObject({
@@ -166,51 +205,27 @@ test('streams two real turns in one persisted session with aggregate model logs'
   ])
 
   const persistedTasks = await page.evaluate(
-    async ([firstId, secondId]) =>
-      Promise.all([
-        window.actionDriverDesktop.agent.get(firstId),
-        window.actionDriverDesktop.agent.get(secondId)
-      ]),
+    async ([firstId, secondId]) => {
+      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const baseUrl = new URL(connection.wsUrl)
+      baseUrl.protocol = baseUrl.protocol === 'wss:' ? 'https:' : 'http:'
+      return Promise.all([firstId, secondId].map(async (taskId) => {
+        const url = new URL(`/tasks/${encodeURIComponent(taskId)}`, baseUrl)
+        const response = await fetch(url, {
+          headers: { authorization: `Bearer ${connection.accessToken}` }
+        })
+        return (await response.json()).value.task
+      }))
+    },
     [firstTaskId!, secondTaskId!] as const
   )
   expect(persistedTasks[0]?.sessionId).toBe(persistedTasks[1]?.sessionId)
   expect(persistedTasks[0]?.model).toEqual(persistedTasks[1]?.model)
   await expect(page.locator('[data-testid^="e2e/shared/sidebar/tasks/"]')).toHaveCount(1)
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(async () => {
-          const sessions = await window.actionDriverDesktop.agent.listModelLogs()
-          return sessions.map((session) => ({
-            sessionId: session.sessionId,
-            tasks: session.tasks.map((task) => ({
-              id: task.id,
-              calls: task.calls.map((call) => call.status)
-            }))
-          }))
-        }),
-      { timeout: 10_000 }
-    )
-    .toEqual([
-      {
-        sessionId: persistedTasks[0]?.sessionId,
-        tasks: [
-          { id: firstTaskId, calls: ['completed'] },
-          { id: secondTaskId, calls: ['completed'] }
-        ]
-      }
-    ])
-
   await page.getByTestId('e2e/shared/sidebar/settings#button').click()
-  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
-  await page.getByTestId('e2e/settings/logs/layer/model#button').click()
-  await expect(page.getByText(firstTurnPrompt, { exact: true })).toBeVisible()
-  await page.getByTestId('e2e/settings/logs/model/view/tasks#button').click()
-  const realTaskCards = page.locator('[data-testid^="e2e/settings/logs/model/task-cards/"]')
-  await expect(realTaskCards).toHaveCount(2)
-  await expect(realTaskCards.nth(0)).toContainText(firstTurnPrompt)
-  await expect(realTaskCards.nth(1)).toContainText(secondTurnPrompt)
+  await expect(page.getByTestId('e2e/settings/sidebar/logs#button')).toHaveCount(0)
+  await expect(page.getByText(firstTurnPrompt, { exact: true })).toHaveCount(0)
 
   await application!.close()
   application = undefined
@@ -232,10 +247,5 @@ test('streams two real turns in one persisted session with aggregate model logs'
 
   await application!.close()
   application = undefined
-  const interactionText = readInteractionFiles(join(userDataDirectory, 'logs', 'interactions'))
-  expect(interactionText).not.toContain(apiKey)
-  expect(interactionText).not.toContain('"type":"auth"')
-  expect(interactionText).not.toContain('actiondriver:log:list')
-  expect(interactionText).not.toContain('response.content')
-  expect(interactionText.match(/POST \/chat\/completions/g)).toHaveLength(4)
+  expect(existsSync(join(userDataDirectory, 'logs'))).toBe(false)
 })

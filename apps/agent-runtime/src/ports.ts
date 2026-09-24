@@ -16,6 +16,7 @@ export type ModelSkillDescription = {
 
 export type ModelRequest = {
   taskId: string
+  sessionId?: string
   requestId: string
   model: ModelRef
   messages: RuntimeMessage[]
@@ -147,6 +148,7 @@ export type PersistedToolInvocation = {
     | 'completed'
     | 'failed'
     | 'cancelled'
+    | 'unknown'
   input: unknown
   output: unknown | null
   error: unknown | null
@@ -197,7 +199,7 @@ export interface StreamRequestRepository {
 export interface StreamSessionRepository {
   readonly tasks: Pick<TaskRepository, 'get' | 'getLatestBySession' | 'listBySession'>
   readonly messages: Pick<MessageRepository, 'listByTask' | 'listBySession'>
-  readonly events: Pick<EventRepository, 'append' | 'listAfter'>
+  readonly events: Pick<EventRepository, 'append' | 'listAfter' | 'listForRequestAfter'>
   readonly streamRequests: StreamRequestRepository
   readonly toolInvocations?: Pick<ToolInvocationRepository, 'listByTask'>
   readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead>
@@ -256,11 +258,11 @@ export type RuntimeEventRecord = {
 export interface EventRepository {
   append(event: Omit<RuntimeEventRecord, 'cursor'>): Promise<RuntimeEventRecord>
   listAfter(cursor: number): Promise<RuntimeEventRecord[]>
-}
-
-export interface CheckpointStore {
-  get(threadId: string): Promise<unknown | null>
-  put(threadId: string, checkpoint: unknown): Promise<void>
+  listForRequestAfter(
+    requestId: string,
+    cursor: number,
+    limit: number
+  ): Promise<RuntimeEventRecord[]>
 }
 
 export interface GraphRunner {
@@ -303,7 +305,6 @@ export interface IdGenerator {
 
 export interface RuntimeAdapters {
   graphRunner: GraphRunner
-  checkpointStore: CheckpointStore
   taskRepository: TaskRepository
   eventRepository: EventRepository
   modelGateway: ModelGateway

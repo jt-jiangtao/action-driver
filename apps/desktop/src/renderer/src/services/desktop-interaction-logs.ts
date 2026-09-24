@@ -1,4 +1,4 @@
-import type { LogsDesktopApi } from '../../../preload/desktop-api'
+import type { LogDetailResult, LogListRequest, LogListResult } from '../../../shared/log-ipc-contract'
 import type {
   InteractionLogRecord,
   InteractionLogRequest,
@@ -8,7 +8,10 @@ import type {
 import type { InteractionLogDetail } from '@actiondriver/observability'
 
 export class DesktopInteractionLogService implements InteractionLogService {
-  constructor(private readonly api: LogsDesktopApi) {}
+  constructor(private readonly api: {
+    list(request: LogListRequest): Promise<LogListResult>
+    detail(eventId: string): Promise<LogDetailResult>
+  }) {}
 
   async list(request: InteractionLogRequest): Promise<InteractionLogResult> {
     const result = await this.api.list(request)

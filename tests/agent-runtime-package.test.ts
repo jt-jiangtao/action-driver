@@ -35,10 +35,12 @@ describe('agent runtime package', () => {
         '@langchain/langgraph': expect.stringMatching(/^\d/),
         '@langchain/langgraph-checkpoint-sqlite': expect.stringMatching(/^\d/),
         'better-sqlite3': expect.stringMatching(/^\d/),
-        inversify: expect.stringMatching(/^\d/),
+        hono: expect.stringMatching(/^\d/),
         zod: expect.stringMatching(/^\d/)
       })
     )
+    expect(packageJson.dependencies).not.toHaveProperty('inversify')
+    expect(packageJson.dependencies).not.toHaveProperty('reflect-metadata')
     for (const version of Object.values(packageJson.dependencies)) {
       if (version.startsWith('workspace:')) continue
       expect(version).not.toMatch(/^[~^*]/)

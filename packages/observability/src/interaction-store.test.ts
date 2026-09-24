@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { context, trace } from '@opentelemetry/api'
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks'
 import {
   MemoryInteractionLogStore,
   createInteractionLogRecorder,
@@ -15,6 +17,136 @@ function sequentialIds(source = 'main'): InteractionLogIdFactory {
 }
 
 describe('structured interaction logs', () => {
+  it('emits an IPC summary without persisting request or response content', async () => {
+    const emitted: Record<string, unknown>[] = []
+    let now = 1_000
+    const recorder = createInteractionLogRecorder({
+      ids: sequentialIds(),
+      clock: () => now,
+      logger: {
+        info: (record: Record<string, unknown>) => emitted.push(record),
+        error: (record: Record<string, unknown>) => emitted.push(record)
+      } as never
+    })
+    const finish = await recorder.start({
+      transport: 'ipc',
+      direction: 'renderer->service',
+      operation: 'task:run',
+      taskId: 'task-1',
+      request: { kind: 'json', value: { secretMarker: 'BODY_NEVER_IN_LOKI' } }
+    })
+    now = 1_025
+    await finish({ outcome: 'ok', response: { kind: 'text', text: 'RESPONSE_NEVER_IN_LOKI' } })
+
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toMatchObject({
+      transport: 'ipc',
+      direction: 'renderer->service',
+      operation: 'task:run',
+      taskId: 'task-1',
+      outcome: 'ok',
+      durationMs: 25
+    })
+    expect(JSON.stringify(emitted)).not.toMatch(/BODY_NEVER_IN_LOKI|RESPONSE_NEVER_IN_LOKI/)
+  })
+
+  it('emits one summary for a one-way WebSocket event', async () => {
+    const emitted: Record<string, unknown>[] = []
+    const recorder = createInteractionLogRecorder({
+      ids: sequentialIds(),
+      clock: () => 2_000,
+      logger: {
+        info: (record: Record<string, unknown>) => emitted.push(record),
+        error: (record: Record<string, unknown>) => emitted.push(record)
+      } as never
+    })
+    await recorder.recordOneWay({
+      transport: 'websocket',
+      direction: 'service->renderer',
+      operation: 'task.progress',
+      requestId: 'request-1',
+      taskId: 'task-1',
+      payload: { kind: 'text', text: 'STREAM_BODY_NEVER_IN_LOKI' }
+    })
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toMatchObject({
+      transport: 'websocket',
+      operation: 'task.progress',
+      outcome: 'sent',
+      requestId: 'request-1',
+      taskId: 'task-1'
+    })
+    expect(JSON.stringify(emitted)).not.toContain('STREAM_BODY_NEVER_IN_LOKI')
+  })
+
+  it('correlates an IPC summary with a bounded span without adding request content', async () => {
+    const emitted: Record<string, unknown>[] = []
+    const setAttribute = vi.fn()
+    const end = vi.fn()
+    const tracer = { startSpan: vi.fn(() => ({
+      spanContext: () => ({ traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) }),
+      setAttribute,
+      setStatus: vi.fn(),
+      end
+    })) }
+    const recorder = createInteractionLogRecorder({
+      ids: sequentialIds(),
+      tracer: tracer as never,
+      logger: { info: (record: Record<string, unknown>) => emitted.push(record) } as never
+    })
+    const finish = await recorder.start({
+      transport: 'ipc', direction: 'renderer->service', operation: 'task.get',
+      request: { kind: 'text', text: 'NO_TRACE_PAYLOAD_MARKER' }
+    })
+    await finish({ outcome: 'ok' })
+    expect(emitted[0]).toMatchObject({ trace_id: 'a'.repeat(32), span_id: 'b'.repeat(16) })
+    expect(JSON.stringify(tracer.startSpan.mock.calls)).not.toContain('NO_TRACE_PAYLOAD_MARKER')
+    expect(end).toHaveBeenCalledOnce()
+  })
+
+  it('records call count and duration with low-cardinality metric attributes', async () => {
+    const add = vi.fn()
+    const record = vi.fn()
+    const meter = {
+      createCounter: vi.fn(() => ({ add })),
+      createHistogram: vi.fn(() => ({ record }))
+    }
+    const recorder = createInteractionLogRecorder({
+      ids: sequentialIds(), meter: meter as never, clock: () => 1_000
+    })
+    const finish = await recorder.start({
+      transport: 'http', direction: 'renderer->service', operation: 'POST /secret-path',
+      request: { kind: 'text', text: 'NO_METRIC_PAYLOAD_MARKER' }
+    })
+    await finish({ outcome: 'error', error: { code: 'network', message: 'private details' } })
+    expect(add).toHaveBeenCalledWith(1, {
+      transport: 'http', direction: 'renderer->service', outcome: 'error'
+    })
+    expect(record).toHaveBeenCalledWith(0, {
+      transport: 'http', direction: 'renderer->service', outcome: 'error'
+    })
+    expect(JSON.stringify(add.mock.calls)).not.toMatch(/secret-path|NO_METRIC_PAYLOAD_MARKER|private details/)
+  })
+
+  it('runs the business callback under the interaction span context', async () => {
+    context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable())
+    const span = {
+      spanContext: () => ({ traceId: 'c'.repeat(32), spanId: 'd'.repeat(16), traceFlags: 1 }),
+      setAttribute: vi.fn(), setStatus: vi.fn(), end: vi.fn()
+    }
+    const recorder = createInteractionLogRecorder({
+      ids: sequentialIds(), tracer: { startSpan: () => span } as never
+    })
+    const finish = await recorder.start({
+      transport: 'ipc', direction: 'renderer->service', operation: 'task.get',
+      request: { kind: 'empty' }
+    })
+    const traceId = await finish.run(async () => trace.getSpan(context.active())?.spanContext().traceId)
+    expect(traceId).toBe('c'.repeat(32))
+    await finish({ outcome: 'ok' })
+    context.disable()
+  })
+
   it('serializes begin and completion into one correlated event', async () => {
     const store = new MemoryInteractionLogStore()
     let now = 1_000

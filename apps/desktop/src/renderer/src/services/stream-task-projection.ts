@@ -2,9 +2,9 @@ import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/con
 import {
   emptyActivityTimelineState,
   reduceActivityProjection,
-  type ActivityTimelineState,
-  type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
+  type ActivityTimelineState
+} from '@actiondriver/activity-projection'
+import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
 
@@ -78,11 +78,18 @@ export class StreamTaskProjection {
       this.flush()
       return
     }
+    if (event.sequence !== this.lastSequence + 1) return
+    this.seenEventIds.add(event.eventId)
+    this.lastSequence = event.sequence
+    this.recordCursor(event.cursor)
+    this.task = { ...this.task, streamSequence: event.sequence }
+    if (event.type === 'request.accepted') {
+      this.flush()
+      return
+    }
     if (event.type.startsWith('activity.')) {
       if (event.cursor <= this.activityState.cursor) return
-      this.seenEventIds.add(event.eventId)
       this.applyActivityProjection(event)
-      this.recordCursor(event.cursor)
       this.flush()
       return
     }
@@ -90,9 +97,7 @@ export class StreamTaskProjection {
       const toolEvent = event as Extract<StreamServerEvent, { type: `tool.${string}` }>
       if (toolEvent.cursor <= this.activityState.cursor) return
       this.applyActivityProjection(toolEvent)
-      this.recordCursor(toolEvent.cursor)
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
-      this.seenEventIds.add(event.eventId)
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
       if (toolEvent.type !== 'tool.content') {
         const status = toolEvent.type.slice('tool.'.length) as ToolInvocationProjection['status']
@@ -113,7 +118,7 @@ export class StreamTaskProjection {
           status,
           ...(toolEvent.type === 'tool.completed'
             ? { durationMs: toolEvent.durationMs, resultSummary: toolEvent.resultSummary }
-            : toolEvent.type === 'tool.failed' || toolEvent.type === 'tool.cancelled'
+            : toolEvent.type === 'tool.failed' || toolEvent.type === 'tool.cancelled' || toolEvent.type === 'tool.unknown'
               ? { errorSummary: toolEvent.error?.message ?? '工具已取消' }
               : {})
         }
@@ -127,19 +132,28 @@ export class StreamTaskProjection {
       }
       return
     }
+    if (event.type === 'runtime.interrupted') {
+      this.task = {
+        ...this.task,
+        status: 'failed',
+        steps: this.task.steps.map((step) =>
+          step.state === 'current'
+            ? { ...step, state: 'failed', detail: event.error.message }
+            : step
+        )
+      }
+      this.flush()
+      return
+    }
     if (
       event.type !== 'response.start' &&
       event.type !== 'response.content' &&
       event.type !== 'response.end'
     ) {
+      this.flush()
       return
     }
     if (event.messageId !== this.assistantMessage(event.messageId)?.id) return
-    if (event.sequence <= this.lastSequence || event.sequence !== this.lastSequence + 1) return
-
-    this.seenEventIds.add(event.eventId)
-    this.lastSequence = event.sequence
-    this.recordCursor(event.cursor)
     if (event.type === 'response.start') {
       this.task = {
         ...this.task,

@@ -7,7 +7,7 @@ import type {
 import { StreamLifecycleGuard, StreamProtocolError } from '../src/stream-lifecycle'
 
 const identity = {
-  protocol: 'actiondriver.stream.v1' as const,
+  protocol: 'actiondriver.stream.v2' as const,
   cursor: 1,
   requestId: 'request-1',
   sessionId: 'session-1',
@@ -81,14 +81,10 @@ describe('StreamLifecycleGuard', () => {
     )
   })
 
-  it('rejects sequence gaps without advancing lifecycle state', () => {
+  it('allows unrelated request events between response events', () => {
     const guard = new StreamLifecycleGuard()
     guard.apply(start())
-
-    expect(() => guard.apply(content(2))).toThrowError(
-      expect.objectContaining({ code: 'SEQUENCE_GAP' })
-    )
-    expect(guard.apply(content(1))).toBe('applied')
+    expect(guard.apply(content(2))).toBe('applied')
   })
 
   it('rejects a second start and every event after end', () => {

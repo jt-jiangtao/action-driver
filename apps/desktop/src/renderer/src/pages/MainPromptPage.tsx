@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import {
   AgentMarkdownEditor,
@@ -10,15 +11,14 @@ export function MainPromptPage({
   service,
   onBack,
   onOpenConnections,
-  onOpenSkills,
-  onOpenLogs
+  onOpenSkills
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenSkills?(): void
-  onOpenLogs?(): void
 }) {
+  const queryClient = useQueryClient()
   const [file, setFile] = useState<AgentTextFile | null>(null)
   const [value, setValue] = useState('')
   const [saveState, setSaveState] = useState<EditorSaveState>('saved')
@@ -26,9 +26,15 @@ export function MainPromptPage({
   const [dialog, setDialog] = useState<'restore' | 'leave' | null>(null)
   const pendingNavigation = useRef<(() => void) | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     try {
-      const loaded = await service.getMainPrompt()
+      if (refresh) await queryClient.invalidateQueries({ queryKey: ['main-prompt'], refetchType: 'none' })
+      const loaded = await queryClient.fetchQuery({
+        queryKey: ['main-prompt'],
+        queryFn: () => service.getMainPrompt(),
+        staleTime: 30_000,
+        retry: false
+      })
       setFile(loaded)
       setValue(loaded.content)
       setSaveState('saved')
@@ -36,7 +42,7 @@ export function MainPromptPage({
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : String(loadError))
     }
-  }, [service])
+  }, [queryClient, service])
 
   useEffect(() => {
     void load()
@@ -51,6 +57,7 @@ export function MainPromptPage({
         content: value,
         expectedDigest: file.digest
       })
+      queryClient.setQueryData(['main-prompt'], saved)
       setFile(saved)
       setValue(saved.content)
       setSaveState('saved')
@@ -61,7 +68,7 @@ export function MainPromptPage({
       setError(saveError instanceof Error ? saveError.message : String(saveError))
       return false
     }
-  }, [file, service, value])
+  }, [file, queryClient, service, value])
 
   const requestNavigation = useCallback(
     (navigate?: () => void) => {
@@ -92,7 +99,6 @@ export function MainPromptPage({
           ? { onOpenConnections: () => requestNavigation(onOpenConnections) }
           : {})}
         {...(onOpenSkills ? { onOpenSkills: () => requestNavigation(onOpenSkills) } : {})}
-        {...(onOpenLogs ? { onOpenLogs: () => requestNavigation(onOpenLogs) } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className="agent-page">
@@ -141,7 +147,7 @@ export function MainPromptPage({
               <button
                 data-testid="e2e/settings/main-prompt/reload#button"
                 type="button"
-                onClick={() => void load()}
+                onClick={() => void load(true)}
               >
                 重新加载
               </button>
@@ -180,6 +186,7 @@ export function MainPromptPage({
                   setSaveState('saving')
                   try {
                     const restored = await service.resetMainPrompt(file.digest)
+                    queryClient.setQueryData(['main-prompt'], restored)
                     setFile(restored)
                     setValue(restored.content)
                     setSaveState('saved')

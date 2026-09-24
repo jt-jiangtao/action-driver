@@ -4,14 +4,12 @@ import { AppIcon } from './ui/AppIcon'
 export function SettingsSidebar({
   onBack,
   active = 'model-connections',
-  onOpenLogs,
   onOpenConnections,
   onOpenMainPrompt,
   onOpenSkills
 }: {
   onBack(): void
-  active?: 'model-connections' | 'main-prompt' | 'skills' | 'logs'
-  onOpenLogs?(): void
+  active?: 'model-connections' | 'main-prompt' | 'skills'
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
   onOpenSkills?(): void
@@ -75,20 +73,6 @@ export function SettingsSidebar({
           MCP
           <span className="settings-nav-soon">稍后</span>
         </button>
-      </div>
-      <div className="settings-nav-group">
-        <span className="settings-nav-label">诊断</span>
-        {onOpenLogs ? (
-          <button
-            className={`settings-nav-item ${active === 'logs' ? 'is-active' : ''}`}
-            data-testid="e2e/settings/sidebar/logs#button"
-            type="button"
-            onClick={onOpenLogs}
-          >
-            <AppIcon name="scroll-text" />
-            日志
-          </button>
-        ) : null}
       </div>
       </nav>
       <div className="settings-brand">

@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { StreamTaskProjection } from './stream-task-projection'
 
 const identity = {
-  protocol: 'actiondriver.stream.v1' as const,
+  protocol: 'actiondriver.stream.v2' as const,
   cursor: 2,
+  sequence: 0,
   requestId: 'request-1',
   sessionId: 'session-1',
   taskId: 'task-1',
@@ -52,6 +53,79 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('preserves partial content and shows unknown tool outcome after Runtime interruption', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach({
+      ...task(),
+      streamCursor: 5,
+      streamSequence: 2,
+      messages: [
+        { id: 'user-1', role: 'user', content: '写代码' },
+        { id: 'assistant-1', role: 'agent', content: '部分结果' }
+      ]
+    })
+    projection.apply({
+      type: 'tool.unknown', ...identity, eventId: 'unknown-tool', cursor: 6, sequence: 3,
+      callId: 'call-1', callSequence: 2, toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run', summary: '运行命令', argumentsHash: 'hash',
+      activityId: null,
+      error: { code: 'TOOL_OUTCOME_UNKNOWN', message: '工具结果未知', retryable: false }
+    })
+    projection.apply({
+      type: 'runtime.interrupted', ...identity, eventId: 'interrupted', cursor: 7, sequence: 4,
+      error: { code: 'RUNTIME_RESTARTED', message: 'Runtime 异常退出', retryable: false }
+    })
+    expect(projection.snapshot()).toMatchObject({
+      status: 'failed', streamSequence: 4,
+      messages: [{ role: 'user' }, { role: 'agent', content: '部分结果' }],
+      tools: [{ callId: 'call-1', status: 'unknown', errorSummary: '工具结果未知' }]
+    })
+  })
+
+  it('applies response content after accepted and activity events in one request sequence', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'request.accepted',
+      ...identity,
+      eventId: 'accepted-interleaved',
+      cursor: 1,
+      sequence: 0
+    })
+    projection.apply({
+      type: 'response.start',
+      ...identity,
+      eventId: 'start-interleaved',
+      cursor: 3,
+      sequence: 1,
+      model: { connectionId: 'connection-1', modelId: 'qwen3.7-max' }
+    })
+    projection.apply({
+      type: 'activity.started',
+      ...identity,
+      eventId: 'activity-interleaved',
+      cursor: 5,
+      sequence: 2,
+      activityId: 'research',
+      title: '调研',
+      titleRevision: 1
+    })
+    projection.apply({
+      type: 'response.content',
+      ...identity,
+      eventId: 'content-interleaved',
+      cursor: 7,
+      sequence: 3,
+      delta: '已完成',
+      contentIndex: 0
+    })
+    expect(projection.snapshot()).toMatchObject({
+      streamCursor: 7,
+      streamSequence: 3,
+      messages: [{ role: 'user' }, { role: 'agent', content: '已完成' }]
+    })
+  })
+
   it('does not replay buffered events already included in the task.get high-water snapshot', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.apply({
@@ -103,6 +177,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a2',
         cursor: 3,
+        sequence: 1,
         activityId: 'research',
         textId: 'plan:task',
         delta: '正文 A'
@@ -112,6 +187,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a3',
         cursor: 4,
+        sequence: 2,
         callId: 'call-a',
         callSequence: 0,
         toolId: 'shell',
@@ -125,6 +201,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a4',
         cursor: 5,
+        sequence: 3,
         activityId: 'research',
         textId: 'plan:task',
         phase: 'process'
@@ -134,6 +211,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a5',
         cursor: 6,
+        sequence: 4,
         activityId: 'research',
         textId: 'plan:task:1',
         delta: '正文 B'
@@ -143,6 +221,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a6',
         cursor: 7,
+        sequence: 5,
         callId: 'call-b',
         callSequence: 0,
         toolId: 'shell',
@@ -156,6 +235,7 @@ describe('StreamTaskProjection', () => {
         ...identity,
         eventId: 'a7',
         cursor: 8,
+        sequence: 6,
         activityId: 'research',
         textId: 'plan:task:1',
         phase: 'final'
@@ -182,7 +262,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'snapshot-interleaved',
       cursor: 8,
-      sequence: 0,
+      sequence: 6,
       status: 'running',
       messages: [],
       tools: [
@@ -260,6 +340,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'activity-text',
       cursor: 3,
+      sequence: 1,
       activityId: 'research',
       delta: '已读取协议。'
     })
@@ -268,6 +349,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'activity-tool',
       cursor: 4,
+      sequence: 2,
       callId: 'call-research',
       callSequence: 1,
       toolId: 'web.search',
@@ -283,6 +365,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'activity-update',
       cursor: 5,
+      sequence: 3,
       activityId: 'research',
       title: '已核对现有实现',
       titleRevision: 2
@@ -292,6 +375,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'activity-complete',
       cursor: 6,
+      sequence: 4,
       activityId: 'research'
     })
 
@@ -349,6 +433,7 @@ describe('StreamTaskProjection', () => {
       ...identity,
       eventId: 'late-tool',
       cursor: 5,
+      sequence: 1,
       callId: 'call-cursor',
       callSequence: 3,
       toolId: 'sandbox.fs.read',

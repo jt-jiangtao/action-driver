@@ -232,12 +232,25 @@ export class SqliteRuntimeRepositories {
 
   readonly events = {
     append: async (event: Omit<RuntimeEventRecord, 'cursor'>): Promise<RuntimeEventRecord> =>
-      appendEvent(this.database, event),
+      this.database.transaction(() => appendEvent(this.database, event)).immediate(),
     listAfter: async (cursor: number): Promise<RuntimeEventRecord[]> =>
       (
         this.database
           .prepare('SELECT * FROM runtime_events WHERE cursor > ? ORDER BY cursor')
           .all(cursor) as EventRow[]
+      ).map(eventFromRow),
+    listForRequestAfter: async (
+      requestId: string,
+      cursor: number,
+      limit: number
+    ): Promise<RuntimeEventRecord[]> =>
+      (
+        this.database
+          .prepare(
+            `SELECT * FROM runtime_events
+             WHERE request_id = ? AND cursor > ? ORDER BY cursor LIMIT ?`
+          )
+          .all(requestId, cursor, limit) as EventRow[]
       ).map(eventFromRow)
   }
 
@@ -263,6 +276,97 @@ export class SqliteRuntimeRepositories {
   }
 
   constructor(private readonly database: Database.Database) {}
+
+  async recoverInterruptedRequests(code: string): Promise<RuntimeEventRecord[]> {
+    return this.database.transaction(() => {
+      const requests = this.database
+        .prepare("SELECT * FROM stream_requests WHERE status = 'running' ORDER BY created_at, request_id")
+        .all() as StreamRequestRow[]
+      const recovered: RuntimeEventRecord[] = []
+      for (const row of requests) {
+        const request = streamRequestFromRow(row)
+        const taskRow = this.database
+          .prepare('SELECT * FROM tasks WHERE id = ?')
+          .get(request.taskId) as TaskRow | undefined
+        if (!taskRow) throw new Error(`Missing task for stream request: ${request.requestId}`)
+        const task = taskFromRow(taskRow)
+        const occurredAt = new Date().toISOString()
+        const error = {
+          code,
+          message: 'Runtime exited before this task completed',
+          retryable: false as const
+        }
+        const runningTools = this.database
+          .prepare("SELECT * FROM tool_invocations WHERE task_id = ? AND status = 'running' ORDER BY created_at, id")
+          .all(task.id) as ToolInvocationRow[]
+        for (const toolRow of runningTools) {
+          const tool = toolInvocationFromRow(toolRow)
+          saveToolInvocation(this.database, {
+            ...tool,
+            status: 'unknown',
+            error: { code: 'TOOL_OUTCOME_UNKNOWN', message: 'Tool outcome is unknown after Runtime restart' },
+            updatedAt: occurredAt
+          })
+          const previousRow = this.database.prepare(
+            `SELECT payload_json FROM runtime_events
+             WHERE request_id = ? AND event_type LIKE 'tool.%'
+               AND json_extract(payload_json, '$.callId') = ?
+             ORDER BY cursor DESC LIMIT 1`
+          ).get(request.requestId, tool.id) as { payload_json: string } | undefined
+          const previous = previousRow
+            ? JSON.parse(previousRow.payload_json) as Record<string, unknown>
+            : {}
+          const previousCallSequence = previous.callSequence ?? previous.sequence
+          recovered.push(appendEvent(this.database, {
+            taskId: task.id,
+            threadId: request.sessionId,
+            checkpointId: request.responseId,
+            eventKey: `recovery:tool.unknown:${tool.id}`,
+            type: 'tool.unknown',
+            payload: {
+              callId: tool.id,
+              toolId: tool.toolId,
+              modelName: typeof previous.modelName === 'string'
+                ? previous.modelName : tool.toolId.replaceAll('.', '_'),
+              summary: typeof previous.summary === 'string' ? previous.summary : tool.toolId,
+              argumentsHash: tool.argumentsHash,
+              activityId: typeof previous.activityId === 'string' ? previous.activityId : null,
+              input: tool.input,
+              callSequence: (typeof previousCallSequence === 'number' ? previousCallSequence : -1) + 1,
+              error: { code: 'TOOL_OUTCOME_UNKNOWN', message: 'Tool outcome is unknown', retryable: false }
+            },
+            occurredAt,
+            eventId: `recovery:tool.unknown:${tool.id}`,
+            requestId: request.requestId,
+            responseId: request.responseId,
+            streamId: request.streamId,
+            messageId: request.messageId,
+            sequence: null
+          }))
+        }
+        saveTask(this.database, { ...task, status: 'failed', error, updatedAt: occurredAt })
+        this.database.prepare(
+          "UPDATE stream_requests SET status = 'failed', updated_at = ? WHERE request_id = ? AND status = 'running'"
+        ).run(occurredAt, request.requestId)
+        recovered.push(appendEvent(this.database, {
+          taskId: task.id,
+          threadId: request.sessionId,
+          checkpointId: request.responseId,
+          eventKey: 'runtime.interrupted',
+          type: 'runtime.interrupted',
+          payload: { error },
+          occurredAt,
+          eventId: `runtime.interrupted:${request.requestId}`,
+          requestId: request.requestId,
+          responseId: request.responseId,
+          streamId: request.streamId,
+          messageId: request.messageId,
+          sequence: null
+        }))
+      }
+      return recovered
+    }).immediate()
+  }
 
   async cancelLegacyPendingApprovals(code: string): Promise<void> {
     this.database
@@ -332,7 +436,7 @@ export class SqliteRuntimeRepositories {
                   messageId: request.messageId
                 }
               : {}),
-            sequence: 1
+            sequence: null
           })
           if (!changedTasks.has(task.id))
             changedTasks.set(task.id, { task, request, occurredAt, error })
@@ -340,13 +444,12 @@ export class SqliteRuntimeRepositories {
         for (const { task, request, occurredAt, error } of changedTasks.values()) {
           saveTask(this.database, { ...task, status: 'failed', error, updatedAt: occurredAt })
           if (!request) continue
-          const sequence = Math.max(0, request.lastSequence + 1)
           this.database
             .prepare(
-              `UPDATE stream_requests SET status = 'failed', last_sequence = ?, updated_at = ?
+              `UPDATE stream_requests SET status = 'failed', updated_at = ?
                WHERE request_id = ? AND status = 'running'`
             )
-            .run(sequence, occurredAt, request.requestId)
+            .run(occurredAt, request.requestId)
           appendEvent(this.database, {
             taskId: task.id,
             threadId: request.sessionId,
@@ -367,7 +470,7 @@ export class SqliteRuntimeRepositories {
             responseId: request.responseId,
             streamId: request.streamId,
             messageId: request.messageId,
-            sequence
+            sequence: null
           })
         }
       })
@@ -442,7 +545,14 @@ export class SqliteRuntimeRepositories {
         saveMessage(this.database, input.assistantMessage)
         saveStreamRequest(this.database, input.request)
         appendEvent(this.database, input.acceptedEvent)
-        return { created: true, request: input.request }
+        return {
+          created: true,
+          request: streamRequestFromRow(
+            this.database
+              .prepare('SELECT * FROM stream_requests WHERE request_id = ?')
+              .get(input.request.requestId) as StreamRequestRow
+          )
+        }
       })
       .immediate()
   }
@@ -458,10 +568,10 @@ export class SqliteRuntimeRepositories {
         const result = this.database
           .prepare(
             `UPDATE stream_requests
-             SET last_sequence = ?, updated_at = ?
+             SET updated_at = ?
              WHERE request_id = ?`
           )
-          .run(event.sequence ?? request.lastSequence, event.occurredAt, request.requestId)
+          .run(event.occurredAt, request.requestId)
         if (result.changes !== 1) throw new Error(`Unknown stream request: ${request.requestId}`)
         return appendEvent(this.database, event)
       })
@@ -481,12 +591,11 @@ export class SqliteRuntimeRepositories {
         const result = this.database
           .prepare(
             `UPDATE stream_requests
-             SET status = ?, last_sequence = ?, updated_at = ?
+             SET status = ?, updated_at = ?
              WHERE request_id = ?`
           )
           .run(
             input.request.status,
-            input.request.lastSequence,
             input.request.updatedAt,
             input.request.requestId
           )
@@ -506,34 +615,6 @@ export class SqliteRuntimeRepositories {
       .transaction(() => {
         saveTask(this.database, task)
         return appendEvent(this.database, event)
-      })
-      .immediate()
-  }
-
-  async projectCheckpoint(
-    task: RuntimeTaskRecord,
-    event: Omit<RuntimeEventRecord, 'cursor'>
-  ): Promise<boolean> {
-    assertPersistablePayload(event.payload, 'runtimeEvent.payload')
-    return this.database
-      .transaction(() => {
-        saveTask(this.database, task)
-        const result = this.database
-          .prepare(
-            `INSERT OR IGNORE INTO runtime_events
-              (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json, occurred_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
-          )
-          .run(
-            event.taskId,
-            event.threadId,
-            event.checkpointId,
-            event.eventKey,
-            event.type,
-            JSON.stringify(event.payload),
-            event.occurredAt
-          )
-        return result.changes === 1
       })
       .immediate()
   }
@@ -648,6 +729,27 @@ function appendEvent(
   event: Omit<RuntimeEventRecord, 'cursor'>
 ): RuntimeEventRecord {
   assertPersistablePayload(event.payload, 'runtimeEvent.payload')
+  const payload =
+    event.type.startsWith('tool.') &&
+    typeof event.sequence === 'number' &&
+    event.payload !== null &&
+    typeof event.payload === 'object' &&
+    !Array.isArray(event.payload) &&
+    !('sequence' in event.payload) &&
+    !('callSequence' in event.payload)
+      ? { ...event.payload, callSequence: event.sequence }
+      : event.payload
+  let sequence = event.sequence ?? null
+  if (event.requestId) {
+    const row = database
+      .prepare(
+        `UPDATE stream_requests SET last_sequence = last_sequence + 1, updated_at = ?
+         WHERE request_id = ? RETURNING last_sequence`
+      )
+      .get(event.occurredAt, event.requestId) as { last_sequence: number } | undefined
+    if (!row) throw new Error(`Unknown stream request: ${event.requestId}`)
+    sequence = row.last_sequence
+  }
   const result = database
     .prepare(
       `INSERT INTO runtime_events
@@ -661,16 +763,23 @@ function appendEvent(
       event.checkpointId,
       event.eventKey,
       event.type,
-      JSON.stringify(event.payload),
+      JSON.stringify(payload),
       event.occurredAt,
       event.eventId ?? null,
       event.requestId ?? null,
       event.responseId ?? null,
       event.streamId ?? null,
       event.messageId ?? null,
-      event.sequence ?? null
+      sequence
     )
-  return { ...event, cursor: Number(result.lastInsertRowid) }
+  const persistedEvent = { ...event }
+  delete persistedEvent.sequence
+  return {
+    ...persistedEvent,
+    payload,
+    ...(sequence === null ? {} : { sequence }),
+    cursor: Number(result.lastInsertRowid)
+  }
 }
 
 function saveSkillInvocation(

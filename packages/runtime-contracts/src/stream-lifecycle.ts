@@ -4,7 +4,6 @@ export type StreamProtocolErrorCode =
   | 'DUPLICATE_START'
   | 'CONTENT_BEFORE_START'
   | 'END_BEFORE_START'
-  | 'SEQUENCE_GAP'
   | 'EVENT_AFTER_END'
 
 export class StreamProtocolError extends Error {
@@ -20,7 +19,6 @@ export class StreamProtocolError extends Error {
 type ResponseState = {
   started: boolean
   ended: boolean
-  lastSequence: number
 }
 
 export class StreamLifecycleGuard {
@@ -47,8 +45,7 @@ export class StreamLifecycleGuard {
       }
       this.responses.set(event.responseId, {
         started: true,
-        ended: false,
-        lastSequence: event.sequence
+        ended: false
       })
       this.appliedEventIds.add(event.eventId)
       return 'applied'
@@ -61,15 +58,6 @@ export class StreamLifecycleGuard {
       )
     }
 
-    const expectedSequence = current.lastSequence + 1
-    if (event.sequence !== expectedSequence) {
-      throw new StreamProtocolError(
-        'SEQUENCE_GAP',
-        `Response ${event.responseId} expected sequence ${expectedSequence}, received ${event.sequence}`
-      )
-    }
-
-    current.lastSequence = event.sequence
     if (event.type === 'response.end') current.ended = true
     this.appliedEventIds.add(event.eventId)
     return 'applied'

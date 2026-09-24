@@ -4,7 +4,7 @@ import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type { Clock, IdGenerator, ModelGateway, RuntimeAdapters } from './ports'
 import type { SqliteRuntimeRepositories } from './repositories'
 import { RuntimeSkillRegistry } from './skill-registry'
-import { SqliteCheckpointStore, type ResilientSqliteSaver } from './sqlite-checkpointer'
+import type { ResilientSqliteSaver } from './sqlite-checkpointer'
 import { RuntimeToolRegistry } from './tool-registry'
 import { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationService } from './tool-invocation-service'
@@ -57,7 +57,6 @@ export function createLocalRuntimeAdapters(options: {
       graphRunner: new LangGraphRunner(
         options.modelGateway, skillRegistry, options.checkpointer, toolRuntime
       ),
-      checkpointStore: new SqliteCheckpointStore(options.checkpointer),
       taskRepository: options.repositories.tasks,
       eventRepository: options.repositories.events,
       modelGateway: options.modelGateway,

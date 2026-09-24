@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import Database from 'better-sqlite3'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   DEFAULT_RUNTIME_MIGRATIONS,
   openRuntimeDatabase,
@@ -24,6 +24,96 @@ afterEach(() => {
 })
 
 describe('runtime SQLite database', () => {
+  it('backfills interleaved legacy requests to contiguous per-request sequences', () => {
+    const path = databasePath()
+    const legacy = openRuntimeDatabase(path, DEFAULT_RUNTIME_MIGRATIONS.slice(0, 4))
+    for (const id of ['a', 'b']) {
+      legacy
+        .prepare(
+          `INSERT INTO tasks
+           (id, thread_id, goal, status, created_at, updated_at, connection_id, model_id)
+           VALUES (?, ?, 'goal', 'running', '2026-01-01', '2026-01-01', 'connection', 'model')`
+        )
+        .run(id, id)
+      legacy
+        .prepare(
+          `INSERT INTO stream_requests
+           (request_id, idempotency_key, session_id, task_id, response_id, stream_id,
+            message_id, status, last_sequence, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'running', 1, '2026-01-01', '2026-01-01')`
+        )
+        .run(id, `key-${id}`, id, id, `response-${id}`, `stream-${id}`, `message-${id}`)
+    }
+    for (const [requestId, eventKey, oldSequence] of [
+      ['a', 'accepted', null],
+      ['b', 'accepted', null],
+      ['a', 'start', 0],
+      ['b', 'start', 0]
+    ] as const) {
+      legacy
+        .prepare(
+          `INSERT INTO runtime_events
+           (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json,
+            occurred_at, event_id, request_id, sequence)
+           VALUES (?, ?, ?, ?, ?, '{}', '2026-01-01', ?, ?, ?)`
+        )
+        .run(
+          requestId,
+          requestId,
+          `response-${requestId}`,
+          eventKey,
+          eventKey,
+          `${requestId}-${eventKey}`,
+          requestId,
+          oldSequence
+        )
+    }
+    legacy.close()
+
+    const upgraded = openRuntimeDatabase(path)
+    expect(
+      upgraded
+        .prepare('SELECT request_id, cursor, sequence FROM runtime_events ORDER BY cursor')
+        .all()
+    ).toEqual([
+      { request_id: 'a', cursor: 1, sequence: 0 },
+      { request_id: 'b', cursor: 2, sequence: 0 },
+      { request_id: 'a', cursor: 3, sequence: 1 },
+      { request_id: 'b', cursor: 4, sequence: 1 }
+    ])
+    expect(
+      upgraded.prepare('SELECT request_id, last_sequence FROM stream_requests ORDER BY request_id').all()
+    ).toEqual([
+      { request_id: 'a', last_sequence: 1 },
+      { request_id: 'b', last_sequence: 1 }
+    ])
+    expect(() =>
+      upgraded
+        .prepare(
+          `INSERT INTO runtime_events
+           (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json,
+            occurred_at, event_id, request_id, sequence)
+           VALUES ('a', 'a', 'response-a', 'duplicate', 'duplicate', '{}',
+            '2026-01-01', 'a-duplicate', 'a', 1)`
+        )
+        .run()
+    ).toThrow()
+    expect(() =>
+      upgraded
+        .prepare(
+          `INSERT INTO runtime_events
+           (task_id, thread_id, checkpoint_id, event_key, event_type, payload_json,
+            occurred_at, event_id, request_id, sequence)
+           VALUES ('a', 'a', 'response-a', 'missing-sequence', 'activity.started', '{}',
+            '2026-01-01', 'a-missing-sequence', 'a', NULL)`
+        )
+        .run()
+    ).toThrow()
+    upgraded.close()
+    expect(readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v8-'))).toBe(
+      true
+    )
+  })
   it('creates the business schema with production pragmas before becoming ready', () => {
     const path = databasePath()
     const database = openRuntimeDatabase(path)
@@ -43,6 +133,7 @@ describe('runtime SQLite database', () => {
         'model_connection_models',
         'model_connections',
         'runtime_events',
+        'runtime_process_owner',
         'schema_migrations',
         'skill_invocations',
         'steps',
@@ -57,7 +148,9 @@ describe('runtime SQLite database', () => {
       { version: 3 },
       { version: 4 },
       { version: 5 },
-      { version: 6 }
+      { version: 6 },
+      { version: 7 },
+      { version: 8 }
     ])
 
     expect(
@@ -101,7 +194,9 @@ describe('runtime SQLite database', () => {
       { version: 3, count: 1 },
       { version: 4, count: 1 },
       { version: 5, count: 1 },
-      { version: 6, count: 1 }
+      { version: 6, count: 1 },
+      { version: 7, count: 1 },
+      { version: 8, count: 1 }
     ])
 
     database.close()
@@ -110,7 +205,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 7,
+      version: 9,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -120,7 +215,7 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 7 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 9 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
@@ -129,7 +224,9 @@ describe('runtime SQLite database', () => {
       { version: 3 },
       { version: 4 },
       { version: 5 },
-      { version: 6 }
+      { version: 6 },
+      { version: 7 },
+      { version: 8 }
     ])
     expect(
       database

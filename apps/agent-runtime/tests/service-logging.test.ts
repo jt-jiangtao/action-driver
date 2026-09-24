@@ -1,5 +1,5 @@
 import { pino } from 'pino'
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -115,7 +115,7 @@ describe('service interaction logging', () => {
     expect(text).not.toContain('service-token')
   })
 
-  it('writes readable service records to a log file next to the database', async () => {
+  it('does not create a local operational log next to the database', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('ACTIONDRIVER_LOG_PRETTY', '0')
     const dataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-logs-'))
@@ -126,9 +126,6 @@ describe('service interaction logging', () => {
     await serviceLogger.close()
 
     const logPath = join(dataDirectory, 'logs', 'service.log')
-    expect(existsSync(logPath)).toBe(true)
-    const persisted = readFileSync(logPath, 'utf8')
-    expect(persisted).toContain('service response')
-    expect(persisted).toContain('/model-connections')
+    expect(existsSync(logPath)).toBe(false)
   })
 })

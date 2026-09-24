@@ -1,5 +1,7 @@
 # 真实 OpenAI-compatible 流式 Agent 闭环设计
 
+> **协议版本更新：** 本文记录最初的 v1 纵向闭环。当前持久化事件协议以 `2026-09-24-architecture-convergence-design.md` 为准，使用 `actiondriver.stream.v2` 和请求内连续 `sequence`；下文的 v1 示例仅作历史背景。
+
 日期：2026-09-23
 
 关联 OpenSpec：`serve-runtime-over-http`

@@ -8,10 +8,8 @@ import {
   RuntimeToolPolicy,
   RuntimeToolRegistry,
   ToolInvocationService,
-  RUNTIME_TYPES,
-  createRuntimeContainer,
+  createRuntimeServices,
   threadIdForTask,
-  type GraphRunner,
   type ModelGateway,
   type SkillProvider,
   type SkillRegistry
@@ -847,8 +845,7 @@ describe('minimal agent StateGraph', () => {
   })
 
   it('runs the deterministic skill path through explicit graph nodes', async () => {
-    const container = createRuntimeContainer({ mode: 'mock' })
-    const runner = container.get<GraphRunner>(RUNTIME_TYPES.graphRunner)
+    const runner = createRuntimeServices({ mode: 'mock' }).graphRunner
 
     const result = await runner.run({
       taskId: 'task-42',
@@ -961,7 +958,8 @@ describe('minimal agent StateGraph', () => {
   it('keeps LangGraph types out of shared domain contracts', async () => {
     const contractSources = await Promise.all([
       readFile(resolve(process.cwd(), 'packages/contracts/src/index.ts'), 'utf8'),
-      readFile(resolve(process.cwd(), 'packages/runtime-contracts/src/protocol.ts'), 'utf8')
+      readFile(resolve(process.cwd(), 'packages/runtime-contracts/src/runtime-event.ts'), 'utf8'),
+      readFile(resolve(process.cwd(), 'packages/runtime-contracts/src/local-capability-protocol.ts'), 'utf8')
     ])
 
     expect(contractSources.join('\n')).not.toMatch(/@langchain\/(?:langgraph|core)/)

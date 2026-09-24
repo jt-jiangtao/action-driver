@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SkillProviderHost,
   createMockSkillProviderHost,
+  createProductionSkillProviderHost,
   type HostedSkillProvider
 } from './skill-provider-host'
 
@@ -10,6 +11,16 @@ afterEach(() => {
 })
 
 describe('SkillProviderHost', () => {
+  it('keeps Browser and Computer unavailable in production without real providers', async () => {
+    const host = createProductionSkillProviderHost()
+    expect(host.hasSkill('browser-use')).toBe(false)
+    expect(host.hasSkill('computer-use')).toBe(false)
+    await expect(host.execute({
+      invocationId: 'browser-production', requestedSkillId: 'browser-use',
+      resolvedProviderId: 'mock.browser', providerVersion: '1.0.0', input: {}
+    }, Date.now() + 1_000)).rejects.toThrow('CAPABILITY_UNAVAILABLE')
+  })
+
   it('reports a requested user hand-off back to the Runtime', async () => {
     const host = createMockSkillProviderHost()
 

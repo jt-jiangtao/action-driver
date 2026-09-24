@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AddModelSetDialog } from '../components/AddModelSetDialog'
 import { ModelConnectionCard } from '../components/ModelConnectionCard'
 import { ModelConnectionsEmptyState } from '../components/ModelConnectionsEmptyState'
@@ -7,56 +8,55 @@ import { DeleteModelSetDialog } from '../components/settings/DeleteModelSetDialo
 import { SettingsPageTitle } from '../components/settings/SettingsPageTitle'
 import type { ModelConnection, ModelConnectionsService } from '../models/model-connections'
 
+const EMPTY_CONNECTIONS: ModelConnection[] = []
+
 export function SettingsPage({
   service,
   onBack,
-  onOpenLogs,
   onOpenMainPrompt,
   onOpenSkills
 }: {
   service: ModelConnectionsService
   onBack(): void
-  onOpenLogs?(): void
   onOpenMainPrompt?(): void
   onOpenSkills?(): void
 }) {
-  const [connections, setConnections] = useState<ModelConnection[]>([])
+  const queryClient = useQueryClient()
+  const connectionsQuery = useQuery({
+    queryKey: ['model-connections'],
+    queryFn: () => service.list(),
+    staleTime: 30_000,
+    retry: false
+  })
+  const connections = connectionsQuery.data ?? EMPTY_CONNECTIONS
   const [expandedIds, setExpandedIds] = useState(() => new Set<string>())
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const loadError = connectionsQuery.error?.message ?? null
+  const loading = connectionsQuery.isPending
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ModelConnection | null>(null)
 
-  const syncConnections = useCallback(async () => {
-    try {
-      const loaded = await service.list()
-      setConnections(loaded)
-      setExpandedIds((current) => {
-        const next = new Set(current)
-        for (const connection of loaded) {
-          if (connection.expanded) next.add(connection.id)
-        }
-        return next
-      })
-      setLoadError(null)
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [service])
-
   useEffect(() => {
-    void syncConnections()
-  }, [syncConnections])
+    setExpandedIds((current) => {
+      const next = new Set(current)
+      let changed = false
+      for (const connection of connections) {
+        if (connection.expanded && !next.has(connection.id)) {
+          next.add(connection.id)
+          changed = true
+        }
+      }
+      return changed ? next : current
+    })
+  }, [connections])
+
+  const syncConnections = () => queryClient.invalidateQueries({ queryKey: ['model-connections'] })
 
   return (
     <div className="settings-shell" data-testid="e2e/settings/model-connections/page#page">
       <SettingsSidebar
         onBack={onBack}
         active="model-connections"
-        {...(onOpenLogs ? { onOpenLogs } : {})}
         {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
         {...(onOpenSkills ? { onOpenSkills } : {})}
       />
@@ -100,8 +100,8 @@ export function SettingsPage({
                     await syncConnections()
                   }}
                   onTestModel={async (modelId) => {
-                    setConnections((current) =>
-                      current.map((item) =>
+                    queryClient.setQueryData<ModelConnection[]>(['model-connections'], (current) =>
+                      (current ?? []).map((item) =>
                         item.id === connection.id
                           ? {
                               ...item,

@@ -53,6 +53,7 @@ const replace = <T>(_current: T, update: T): T => update
 
 const AgentState = Annotation.Root({
   taskId: Annotation<string>(),
+  sessionId: Annotation<string>(),
   threadId: Annotation<string>(),
   goal: Annotation<string>(),
   model: Annotation<ModelRef>(),
@@ -109,6 +110,7 @@ export class LangGraphRunner implements GraphRunner {
   async run(
     request: {
       taskId: string
+      sessionId?: string
       goal: string
       model: ModelRef
       messages?: RuntimeMessage[]
@@ -140,6 +142,7 @@ export class LangGraphRunner implements GraphRunner {
         request.taskId,
         {
           taskId: request.taskId,
+          sessionId: request.sessionId ?? request.taskId,
           threadId,
           goal: request.goal,
           model: request.model,
@@ -274,6 +277,7 @@ export class LangGraphRunner implements GraphRunner {
           const tools = discoveredTools
           const request = {
             taskId: state.taskId,
+            sessionId: state.sessionId,
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
             model: state.model,
             messages: state.modelMessages,

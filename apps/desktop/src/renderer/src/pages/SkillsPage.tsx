@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import {
   AgentMarkdownEditor,
@@ -75,15 +76,14 @@ export function SkillsPage({
   service,
   onBack,
   onOpenConnections,
-  onOpenMainPrompt,
-  onOpenLogs
+  onOpenMainPrompt
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
-  onOpenLogs?(): void
 }) {
+  const queryClient = useQueryClient()
   const [skills, setSkills] = useState<AgentSkillSummary[] | null>(null)
   const [selectedSkill, setSelectedSkill] = useState<AgentSkillSummary | null>(null)
   const [tree, setTree] = useState<AgentFileNode[]>([])
@@ -100,9 +100,15 @@ export function SkillsPage({
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [pendingSkillId, setPendingSkillId] = useState<string | null>(null)
 
-  const loadSkills = useCallback(async () => {
+  const loadSkills = useCallback(async (refresh = false) => {
     try {
-      const nextSkills = await service.listSkills()
+      if (refresh) await queryClient.invalidateQueries({ queryKey: ['skills'], refetchType: 'none' })
+      const nextSkills = await queryClient.fetchQuery({
+        queryKey: ['skills'],
+        queryFn: () => service.listSkills(),
+        staleTime: 30_000,
+        retry: false
+      })
       setSkills(nextSkills)
       setError(null)
       return nextSkills
@@ -111,7 +117,7 @@ export function SkillsPage({
       setError(loadError instanceof Error ? loadError.message : String(loadError))
       return []
     }
-  }, [service])
+  }, [queryClient, service])
 
   useEffect(() => {
     void loadSkills()
@@ -164,16 +170,16 @@ export function SkillsPage({
     try {
       if (dialog === 'create') {
         await service.createSkill({ name: dialogName, description: dialogDescription })
-        await loadSkills()
+        await loadSkills(true)
       } else if (dialog === 'rename' && selectedSkill) {
         const renamed = await service.renameSkill(selectedSkill.id, dialogName)
         setSelectedSkill(renamed)
-        await loadSkills()
+        await loadSkills(true)
       } else if (dialog === 'delete' && selectedSkill) {
         await service.deleteSkill(selectedSkill.id)
         setSelectedSkill(null)
         setFile(null)
-        await loadSkills()
+        await loadSkills(true)
       }
       setDialogBusy(false)
       closeDialog()
@@ -193,7 +199,6 @@ export function SkillsPage({
         active="skills"
         {...(onOpenConnections ? { onOpenConnections } : {})}
         {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
-        {...(onOpenLogs ? { onOpenLogs } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className={`agent-page ${selectedSkill ? 'is-skill-detail' : ''}`}>
@@ -295,7 +300,7 @@ export function SkillsPage({
                           setValue(saved.content)
                           setError(null)
                           if (saved.path.endsWith('/SKILL.md')) {
-                            const nextSkills = await loadSkills()
+                            const nextSkills = await loadSkills(true)
                             const refreshed = nextSkills.find(
                               (skill) => skill.id === selectedSkill.id
                             )
@@ -360,7 +365,7 @@ export function SkillsPage({
                     className="agent-secondary-button"
                     data-testid="e2e/settings/skills/retry#button"
                     type="button"
-                    onClick={() => void loadSkills()}
+                    onClick={() => void loadSkills(true)}
                   >
                     重试
                   </button>

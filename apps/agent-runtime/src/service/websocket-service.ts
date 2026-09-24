@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Server } from 'node:http'
-import type { Logger } from 'pino'
+import type { StructuredLogger } from '@actiondriver/observability'
+import { startBestEffortInteraction, type InteractionLogRecorder } from '@actiondriver/observability'
 import { WebSocket, WebSocketServer } from 'ws'
 import {
   STREAM_PROTOCOL,
@@ -25,8 +26,10 @@ export function attachServiceWebSocketServer(
   options: {
     sessions: ServiceStreamSessionPort
     tokenMatches(token: string): boolean
-    logger: Logger | null
+    logger: StructuredLogger | null
+    interactions?: InteractionLogRecorder
     rendererOrigin?: string
+    allowCapabilityUpgrade?: boolean
     maxPayloadBytes?: number
     maxBufferedBytes?: number
   }
@@ -39,7 +42,8 @@ export function attachServiceWebSocketServer(
     const url = new URL(request.url ?? '/', 'http://localhost')
     const origin = request.headers.origin
     const trustedRendererOrigin =
-      origin === undefined || origin === 'file://' || origin === options.rendererOrigin
+      origin === undefined || (options.rendererOrigin !== undefined && origin === options.rendererOrigin)
+    if (url.pathname === '/capabilities' && options.allowCapabilityUpgrade) return
     if (url.pathname !== SERVICE_STREAM_PATH || !trustedRendererOrigin) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
       socket.destroy()
@@ -76,6 +80,19 @@ export function attachServiceWebSocketServer(
         return
       }
       webSocket.send(serialized)
+      if (
+        options.interactions &&
+        ['session.ready', 'request.accepted', 'request.error', 'response.start', 'response.end', 'response.snapshot'].includes(event.type)
+      ) {
+        try {
+          await options.interactions.recordOneWay({
+            transport: 'websocket', direction: 'service->renderer', operation: event.type,
+            ...('requestId' in event ? { requestId: event.requestId } : {}),
+            ...('taskId' in event ? { taskId: event.taskId } : {}),
+            payload: { kind: 'empty' }
+          })
+        } catch { /* Telemetry cannot interrupt a stream. */ }
+      }
     }
 
     webSocket.on('message', (data, isBinary) => {
@@ -116,9 +133,23 @@ export function attachServiceWebSocketServer(
           webSocket.close(1002, 'Already authenticated')
           return
         }
+        const finish = options.interactions
+          ? await startBestEffortInteraction(options.interactions, {
+              transport: 'websocket', direction: 'renderer->service', operation: event.type,
+              ...('requestId' in event ? { requestId: event.requestId } : {}),
+              ...('taskId' in event ? { taskId: event.taskId } : {}),
+              request: { kind: 'empty' }
+            })
+          : null
         try {
-          await options.sessions.handle(event, send)
+          if (finish) await finish.run(() => options.sessions.handle(event, send))
+          else await options.sessions.handle(event, send)
+          await finish?.({ outcome: 'ok' }).catch(() => undefined)
         } catch (error) {
+          await finish?.({
+            outcome: 'error',
+            error: { code: 'stream-command-failed', message: 'Stream command failed' }
+          }).catch(() => undefined)
           options.logger?.error(
             {
               transport: 'websocket',

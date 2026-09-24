@@ -1,5 +1,7 @@
 import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver/model-connections'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
+import { randomUUID } from 'node:crypto'
+import type { ModelTraceStart, ModelTraceFinish } from '../langsmith-observability'
 import type { ModelCallRepository, ModelGateway, ModelRequest, PersistedModelCall } from '../ports'
 
 export class ModelExecutionError extends Error {
@@ -22,6 +24,7 @@ export class ConnectionModelGateway implements ModelGateway {
       callId(): string
       correlationId(): string
       now(): string
+      traces?: { start(run: ModelTraceStart): Promise<void>; finish(id: string, result: ModelTraceFinish): Promise<void> }
     }
   ) {}
 
@@ -30,6 +33,8 @@ export class ConnectionModelGateway implements ModelGateway {
     const correlationId = this.options.correlationId()
     const startedAt = this.options.now()
     const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, true))
+    const traceId = randomUUID()
+    await this.startTrace(traceId, request, correlationId, startedAt, requestBody)
     const running: PersistedModelCall = {
       id,
       taskId: request.taskId,
@@ -88,6 +93,7 @@ export class ConnectionModelGateway implements ModelGateway {
           status: event.status,
           response: { kind: 'json', value: safeResponse }
         })
+        await this.finishTrace(traceId, { completedAt, output: safeResponse, usage: event.usage })
         yield {
           kind: 'end' as const,
           result: event.result ?? { kind: 'final-text', content: event.content },
@@ -124,6 +130,7 @@ export class ConnectionModelGateway implements ModelGateway {
         outcome: 'error',
         error: { code: error.code, message: error.message }
       })
+      await this.finishTrace(traceId, { completedAt, error: error.message })
       throw new ModelExecutionError(error.code, error.message, error.retryable)
     }
   }
@@ -133,6 +140,8 @@ export class ConnectionModelGateway implements ModelGateway {
     const correlationId = this.options.correlationId()
     const startedAt = this.options.now()
     const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, false))
+    const traceId = randomUUID()
+    await this.startTrace(traceId, request, correlationId, startedAt, requestBody)
     const running: PersistedModelCall = {
       id,
       taskId: request.taskId,
@@ -185,6 +194,7 @@ export class ConnectionModelGateway implements ModelGateway {
           status: outcome.value.status,
           response: { kind: 'json', value: safeResponse }
         })
+        await this.finishTrace(traceId, { completedAt, output: safeResponse })
         return { kind: 'finish' as const, content: outcome.value.content }
       }
 
@@ -211,6 +221,7 @@ export class ConnectionModelGateway implements ModelGateway {
           : { response: { kind: 'json' as const, value: safeResponse } }),
         error: { code: error.code, message: error.message }
       })
+      await this.finishTrace(traceId, { completedAt, output: safeResponse, error: error.message })
       throw new ModelExecutionError(error.code, error.message, error.retryable)
     } catch (caught) {
       if (caught instanceof ModelExecutionError) throw caught
@@ -226,7 +237,42 @@ export class ConnectionModelGateway implements ModelGateway {
         outcome: 'error',
         error: { code: error.code, message: error.message }
       })
+      await this.finishTrace(traceId, { completedAt, error: error.message })
       throw new ModelExecutionError(error.code, error.message, error.retryable)
+    }
+  }
+
+  private async startTrace(
+    id: string,
+    request: ModelRequest,
+    correlationId: string,
+    startedAt: string,
+    input: unknown
+  ): Promise<void> {
+    try {
+      const userMessage = request.messages.find((message) => message.role === 'user')
+      const sessionName = userMessage && 'content' in userMessage ? userMessage.content : undefined
+      await this.options.traces?.start({
+        id,
+        sessionId: request.sessionId ?? request.taskId,
+        ...(typeof sessionName === 'string' ? { sessionName: sessionName.slice(0, 120) } : {}),
+        taskId: request.taskId,
+        requestId: request.requestId,
+        correlationId,
+        model: request.model,
+        startedAt,
+        input
+      })
+    } catch {
+      /* Observability cannot change the model execution result. */
+    }
+  }
+
+  private async finishTrace(id: string, result: ModelTraceFinish): Promise<void> {
+    try {
+      await this.options.traces?.finish(id, result)
+    } catch {
+      /* Telemetry must never change the model execution result. */
     }
   }
 }

@@ -1,7 +1,5 @@
 import {
   ModelServiceError,
-  createFetchHttpTransport,
-  type HttpTransport,
   type ModelConnectionServicePort,
   type ModelAddRequestDto,
   type ModelConnectionDto,
@@ -14,8 +12,39 @@ import {
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
+import { currentTraceparent } from '@actiondriver/observability'
 
 type Envelope<T> = { ok: true; value: T } | { ok: false; error: { code: ModelFailureCode; message: string } }
+
+export type HttpRequest = {
+  url: string
+  method: 'GET' | 'POST' | 'DELETE'
+  headers: Record<string, string>
+  body?: unknown
+  timeoutMs: number
+}
+
+export type HttpResponse = { status: number; body: unknown; text: string }
+
+export type HttpTransport = { request(request: HttpRequest): Promise<HttpResponse> }
+
+const fetchTransport: HttpTransport = {
+  async request(request) {
+    const response = await globalThis.fetch(request.url, {
+      method: request.method,
+      headers: {
+        ...request.headers,
+        ...(request.body === undefined ? {} : { 'content-type': 'application/json' })
+      },
+      ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      signal: AbortSignal.timeout(request.timeoutMs)
+    })
+    const text = await response.text()
+    let body: unknown = null
+    try { body = JSON.parse(text) as unknown } catch { /* Invalid envelopes are reported by the client. */ }
+    return { status: response.status, body, text }
+  }
+}
 
 export type ModelConnectionHttpClientOptions = {
   baseUrl: string
@@ -31,7 +60,7 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
   private readonly transport: HttpTransport
 
   constructor(private readonly options: ModelConnectionHttpClientOptions) {
-    this.transport = options.transport ?? createFetchHttpTransport()
+    this.transport = options.transport ?? fetchTransport
   }
 
   list(): Promise<ModelConnectionDto[]> {
@@ -77,10 +106,14 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
   }
 
   private async call<T>(path: string, body?: unknown, method: 'GET' | 'POST' | 'DELETE' = 'GET'): Promise<T> {
+    const traceparent = currentTraceparent()
     const response = await this.transport.request({
       url: `${this.options.baseUrl}${path}`,
       method: method === 'DELETE' ? 'DELETE' : body === undefined ? 'GET' : 'POST',
-      headers: { authorization: `Bearer ${this.options.token}` },
+      headers: {
+        authorization: `Bearer ${this.options.token}`,
+        ...(traceparent ? { traceparent } : {})
+      },
       ...(body === undefined ? {} : { body }),
       timeoutMs: 15_000
     })

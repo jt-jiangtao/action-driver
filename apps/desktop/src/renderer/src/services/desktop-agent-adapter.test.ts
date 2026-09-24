@@ -30,8 +30,6 @@ function harness() {
   const api: AgentDesktopApi = {
     get: vi.fn(async () => structuredClone(currentTask)),
     listTasks: vi.fn(async () => []),
-    listModelLogs: vi.fn(async () => []),
-    getModelLog: vi.fn(async () => null),
     interrupt: vi.fn(async () => undefined),
     continue: vi.fn(async () => undefined),
     provideInput: vi.fn(async () => undefined),
@@ -54,9 +52,10 @@ function harness() {
   const streamClient = {
     create: vi.fn(async () => ({
       type: 'request.accepted' as const,
-      protocol: 'actiondriver.stream.v1' as const,
+      protocol: 'actiondriver.stream.v2' as const,
       eventId: 'accepted-1',
       cursor: 1,
+      sequence: 0,
       requestId: 'request-1',
       sessionId: 'session-1',
       taskId: 'task-1',
@@ -115,7 +114,7 @@ describe('DesktopAgentAdapter', () => {
 
     emitStream({
       type: 'response.start',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'start-1',
       cursor: 2,
       requestId: 'request-1',
@@ -130,7 +129,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.content',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'content-1',
       cursor: 3,
       requestId: 'request-1',
@@ -168,9 +167,10 @@ describe('DesktopAgentAdapter', () => {
     })
     vi.mocked(streamClient.create).mockResolvedValueOnce({
       type: 'request.accepted',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'accepted-2',
       cursor: 4,
+      sequence: 0,
       requestId: 'request-2',
       sessionId: 'session-1',
       taskId: 'task-2',
@@ -183,7 +183,7 @@ describe('DesktopAgentAdapter', () => {
     await adapter.submitGoal({ goal: '第二问', sessionId: 'session-1' })
     emitStream({
       type: 'response.start',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'start-2',
       cursor: 5,
       requestId: 'request-2',
@@ -198,7 +198,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.content',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'content-2',
       cursor: 6,
       requestId: 'request-2',
@@ -214,7 +214,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.end',
-      protocol: 'actiondriver.stream.v1',
+      protocol: 'actiondriver.stream.v2',
       eventId: 'end-2',
       cursor: 7,
       requestId: 'request-2',

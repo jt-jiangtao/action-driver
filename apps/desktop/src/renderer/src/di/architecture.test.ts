@@ -16,7 +16,7 @@ async function sourceFiles(directory: string): Promise<string[]> {
 }
 
 describe('renderer dependency boundary', () => {
-  it('keeps Inversify and infrastructure adapters outside pages and components', async () => {
+  it('keeps infrastructure adapters outside pages and components', async () => {
     const sourceRoot = join(import.meta.dirname, '..')
     const files = [
       ...(await sourceFiles(join(sourceRoot, 'components'))),

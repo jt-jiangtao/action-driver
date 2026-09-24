@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { createRendererContainer, resolveAppServices } from './di/container'
+import { createRendererServices } from './di/container'
 import { AppServicesProvider } from './di/services-context'
 import { MockModelConnectionsService } from './services/mock-model-connections'
 
 function renderApp(initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' = 'home') {
-  const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+  const services = createRendererServices({ mode: 'mock' })
   return render(
     <AppServicesProvider services={services}>
       <App initialRoute={initialRoute} />
@@ -18,6 +18,23 @@ function renderApp(initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 
 describe('App', () => {
   beforeEach(() => sessionStorage.clear())
   afterEach(() => sessionStorage.clear())
+
+  it('shares the model connection query across home and settings navigation', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    const list = vi.spyOn(services.modelConnectionsService, 'list')
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    await screen.findByRole('button', { name: '设置' })
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    await screen.findByText('公司模型网关')
+    await user.click(screen.getByRole('button', { name: '返回应用' }))
+    expect(list).toHaveBeenCalledOnce()
+  })
 
   it('restores the current task, title and messages after the renderer remounts', async () => {
     const first = renderApp('task')
@@ -37,7 +54,7 @@ describe('App', () => {
   })
 
   it('restores the active task even when the recent-task list fails to load', async () => {
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
     const getTask = services.taskCatalog.getTask.bind(services.taskCatalog)
     services.taskCatalog = {
       listRecentTasks: async () => {
@@ -152,6 +169,7 @@ describe('App', () => {
   it('navigates across the single settings sidebar without duplicating the shell', async () => {
     const user = userEvent.setup()
     renderApp('settings')
+    expect(screen.queryByRole('button', { name: '日志' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '主提示词' }))
     expect(await screen.findByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
@@ -160,16 +178,13 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Skills' }))
     expect(await screen.findByTestId('e2e/settings/skills/page#page')).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: '日志' }))
-    expect(await screen.findByTestId('e2e/settings/logs/page#page')).toBeVisible()
-
     await user.click(screen.getByRole('button', { name: '模型连接' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
   })
 
   it('loads persisted models and tasks, then submits the exact selected model reference', async () => {
     const user = userEvent.setup()
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
     const completedTask = {
       id: 'real-task',
       sessionId: 'real-session',
@@ -246,7 +261,7 @@ describe('App', () => {
 
   it('shows retryable errors without falling back to production mock labels', async () => {
     const user = userEvent.setup()
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
     let rejectModels = true
     let rejectTasks = true
     services.modelConnectionsService = Object.assign(services.modelConnectionsService, {
@@ -296,8 +311,7 @@ describe('App', () => {
 
   it('clears a model selection disabled in settings and prevents submission', async () => {
     const user = userEvent.setup()
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
-    let enabled = true
+    const services = createRendererServices({ mode: 'mock' })
     const source = new MockModelConnectionsService({
       delayMs: 0,
       seed: [
@@ -314,15 +328,7 @@ describe('App', () => {
         }
       ]
     })
-    const listSource = source.list.bind(source)
-    services.modelConnectionsService = Object.assign(source, {
-      list: async () => [
-        {
-          ...(await listSource())[0]!,
-          models: [{ id: 'mutable-model', name: 'mutable-model', enabled, testState: 'success' }]
-        }
-      ]
-    })
+    services.modelConnectionsService = source
 
     render(
       <AppServicesProvider services={services}>
@@ -332,7 +338,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('button', { name: /可变网关 \/ mutable-model/ })).toBeVisible()
     await user.click(screen.getByRole('button', { name: '设置' }))
-    enabled = false
+    await user.click(await screen.findByRole('switch', { name: '启用mutable-model' }))
     await user.click(screen.getByRole('button', { name: '返回应用' }))
 
     expect(await screen.findByRole('button', { name: '选择模型' })).toBeVisible()

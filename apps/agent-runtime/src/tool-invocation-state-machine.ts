@@ -6,10 +6,11 @@ const ALLOWED_TRANSITIONS: Record<ToolInvocationState, readonly ToolInvocationSt
   proposed: ['queued', 'failed', 'cancelled'],
   waiting_approval: [],
   queued: ['running', 'cancelled'],
-  running: ['completed', 'failed', 'cancelled'],
+  running: ['completed', 'failed', 'cancelled', 'unknown'],
   completed: [],
   failed: [],
-  cancelled: []
+  cancelled: [],
+  unknown: []
 }
 
 export class ToolInvocationStateMachine {

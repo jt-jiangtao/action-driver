@@ -1,0 +1,87 @@
+{
+  "id": null,
+  "uid": "actiondriver-overview",
+  "title": "ActionDriver 观测概览",
+  "tags": ["actiondriver", "observability"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "30s",
+  "editable": false,
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["30s", "1m", "5m"] },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "调用量",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (transport) (increase(actiondriver_calls_total[$__range]))",
+          "legendFormat": "{{transport}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "auto", "textMode": "auto" }
+    },
+    {
+      "id": 2,
+      "title": "错误量",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (transport) (increase(actiondriver_calls_total{outcome=\"error\"}[$__range]))",
+          "legendFormat": "{{transport}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "auto", "textMode": "auto" }
+    },
+    {
+      "id": 3,
+      "title": "P95 耗时",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, transport) (increase(actiondriver_call_duration_milliseconds_bucket[$__range])))",
+          "legendFormat": "{{transport}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 1 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "auto", "textMode": "auto" }
+    },
+    {
+      "id": 4,
+      "title": "应用日志",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "x": 0, "y": 7, "w": 24, "h": 13 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\"actiondriver-(main|service)\"}",
+          "queryType": "range",
+          "maxLines": 200
+        }
+      ],
+      "options": { "showTime": true, "showLabels": true, "showCommonLabels": false, "wrapLogMessage": true, "enableLogDetails": true, "sortOrder": "Descending" }
+    }
+  ]
+}

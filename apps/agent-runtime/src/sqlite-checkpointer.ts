@@ -1,7 +1,6 @@
 import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite'
 import { createRuntimeDatabase } from './database'
 import { assertPersistablePayload } from './persistence-guard'
-import type { CheckpointStore } from './ports'
 
 export class ResilientSqliteSaver extends SqliteSaver {
   override async put(
@@ -23,19 +22,6 @@ export class ResilientSqliteSaver extends SqliteSaver {
       assertPersistablePayload(value, `checkpoint.pendingWrites.${channel}`)
     )
     return super.putWrites(...args)
-  }
-
-  listThreadIds(): string[] {
-    this.setup()
-    return (
-      this.db
-        .prepare(
-          `SELECT DISTINCT thread_id FROM checkpoints
-           WHERE checkpoint IS NOT NULL AND metadata IS NOT NULL
-           ORDER BY thread_id`
-        )
-        .all() as { thread_id: string }[]
-    ).map((row) => row.thread_id)
   }
 
   override async getTuple(
@@ -83,40 +69,6 @@ export class ResilientSqliteSaver extends SqliteSaver {
 
   close(): void {
     this.db.close()
-  }
-}
-
-export class SqliteCheckpointStore implements CheckpointStore {
-  private sequence = 0
-
-  constructor(private readonly saver: ResilientSqliteSaver) {}
-
-  async get(threadId: string): Promise<unknown | null> {
-    const tuple = await this.saver.getTuple({
-      configurable: { thread_id: threadId, checkpoint_ns: 'actiondriver-port' }
-    })
-    return tuple?.checkpoint.channel_values.actiondriver ?? null
-  }
-
-  async put(threadId: string, checkpoint: unknown): Promise<void> {
-    assertPersistablePayload(checkpoint, 'checkpoint.value')
-    this.sequence += 1
-    const timestamp = new Date().toISOString()
-    const checkpointId = `${Date.now().toString().padStart(16, '0')}-${this.sequence
-      .toString()
-      .padStart(8, '0')}`
-    await this.saver.put(
-      { configurable: { thread_id: threadId, checkpoint_ns: 'actiondriver-port' } },
-      {
-        v: 4,
-        id: checkpointId,
-        ts: timestamp,
-        channel_values: { actiondriver: checkpoint },
-        channel_versions: { actiondriver: this.sequence },
-        versions_seen: {}
-      },
-      { source: 'update', step: this.sequence, parents: {} }
-    )
   }
 }
 

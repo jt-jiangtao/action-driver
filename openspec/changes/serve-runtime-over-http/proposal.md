@@ -78,7 +78,7 @@
 - 类型：产品交互 + 公共协议 + 运行时架构，属于决策型任务；Battle 已完成。
 - 当前唯一优先目标：先跑通一个可验收的真实 Agent 流程——选择真实 OpenAI-compatible 模型、创建真实会话与任务、通过 WebSocket 接收并渲染流式输出、完成后查看同一次调用的真实 Request/Response 日志。除支撑该闭环的最小能力外，其他工作均后置。
 - 协议裁决：使用一条应用级长期 WebSocket 连接；客户端发送 `request.create`，服务端持久化后返回 `request.accepted`，随后严格发送一次 `response.start`、零到多次 `response.content`、一次 `response.end`。`response.end` 对完成、失败和取消都成立，并携带最终聚合全文用于校准客户端增量内容；开始前失败使用 `request.error`。
-- 标识与恢复：每条事件携带 `eventId`、`requestId`、`responseId`、`sessionId`、`taskId`、`streamId`、`messageId`、单响应递增 `sequence` 与可恢复 `cursor`；创建请求携带 `idempotencyKey`。传输按至少一次投递设计，客户端按 `eventId` 去重、按 `sequence` 检测缺口，并以 `request.resume(afterCursor)` 请求重放；超出保留窗口时服务端返回 `response.snapshot`。
+- 标识与恢复：持久化的请求事件携带稳定 `eventId`、`requestId`、请求内连续 `sequence` 与全局可恢复 `cursor`，按事件类型另带 `responseId`、`sessionId`、`taskId`、`streamId`、`messageId`；创建请求携带 `idempotencyKey`。传输按至少一次投递设计，客户端按 `eventId` 去重、按请求 `sequence` 检测缺口，并以 `request.resume(afterCursor)` 请求重放；超出保留窗口时服务端返回 `response.snapshot`。原 v1 单响应计序裁决由 `converge-runtime-architecture` 的 v2 请求计序覆盖。
 - 渲染裁决：`request.accepted` 后页面立即进入真实会话并创建用户消息、空 assistant 消息与生成中状态；`response.content` 只追加文本，页面聚合完整字符串后交给 `markdown-it` 渲染，不把单个 delta 片段独立解析为 Markdown。没有 Browser/Computer 动作时保持 Agent-only 全宽布局，不显示右侧面板或相关控件。
 - 日志裁决：一次模型调用只形成一条可配对记录，保存完整模型请求、最终聚合响应、用量、结束原因、状态和耗时；不得为每个 `response.content` 分片创建日志事件，日志查询控制面继续不被记录。
 - 范围后置：Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制及与最小闭环无关的横向 HTTP/WS 迁移均不阻塞本轮验收。
@@ -90,7 +90,7 @@
 
 - 类型：安全边界 + 公共协议 + 客户端架构，属于决策型任务；Battle 已完成。
 - 目标：让本地与未来云端形态复用同一套 Renderer WebSocket 客户端，页面直接发送流式命令、接收事件并负责重连和游标恢复，移除 Main 对流式消息的代理。
-- 当前方案：Renderer 通过 Preload 只读获取 Main 注入的本次启动 `wsUrl + accessToken`，使用浏览器 WebSocket API 建立 `actiondriver.stream.v1` 长连接；Main 不再转发 `request.create` 或 `response.*`。服务端主动发送原生 Ping，浏览器网络栈自动回复 Pong；页面通过连接关闭、业务超时和恢复快照判断健康状态。
+- 当前方案：Renderer 通过 Preload 只读获取 Main 注入的本次启动 `wsUrl + accessToken`，使用浏览器 WebSocket API 建立 `actiondriver.stream.v2` 长连接；Main 不再转发 `request.create` 或 `response.*`。服务端主动发送原生 Ping，浏览器网络栈自动回复 Pong；页面通过连接关闭、业务超时和恢复快照判断健康状态。
 - 比较方案：保留 Main WebSocket 客户端可避免访问凭据进入页面环境，安全边界更窄，但本地与未来云端需要不同传输适配，且增加一层 IPC 流式代理。Renderer 直连减少代理层并提高云端复用度，但扩大 Renderer 注入漏洞的影响面。
 - 最终裁决：用户确认采用 Renderer 直连，并明确接受一次性 Runtime token 进入 Renderer 内存的风险。模型供应商 API Key 仍由 Runtime 独占，页面不得读取或透传。
 - 安全约束：访问凭据只存在内存且随 Runtime 生命周期失效；只允许受信任应用 Origin 连接回环地址；CSP 仅开放注入的 Runtime 端点；连接 URL、token、鉴权帧不得进入日志、截图、持久化任务或错误正文。

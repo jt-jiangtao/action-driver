@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { ModelOptionDto } from '../../shared/model-ipc-contract'
+import type { ModelOptionDto } from '@actiondriver/model-connections'
 import {
   ModelStorageError,
   createModelConnectionStore,
   type FileSystemPort,
   type StoredModelConnection
 } from './connection-store'
-import { SecretCipherUnavailableError, apiKeyHint, createSecretCipher } from '@actiondriver/model-connections'
+import { SecretCipherUnavailableError, apiKeyHint, createSecretCipher } from './secret-cipher'
 
 function memoryFileSystem(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial))

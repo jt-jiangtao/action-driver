@@ -62,40 +62,11 @@ test('conversation list exposes a visible scrollbar when content overflows', asy
   }
 })
 
-test('model log detail keeps navigation and payload content in bounded scroll areas', async () => {
+test('mock mode has no in-app observability navigation or model logs', async () => {
   application = await electron.launch({ args: [mainEntry] })
   const page = await application.firstWindow()
   await page.getByRole('button', { name: '设置' }).click()
-  await page.getByTestId('e2e/settings/sidebar/logs#button').click()
-  await page.getByTestId('e2e/settings/logs/layer/model#button').click()
-  await page.getByTestId('e2e/settings/logs/model/sessions/office-assistant#button').click()
-  await page.getByTestId('e2e/settings/logs/model/tasks/weather-report#button').click()
-
-  const sectionToggles = page.locator('.model-detail-section > button[aria-expanded="false"]')
-  while ((await sectionToggles.count()) > 0) {
-    await sectionToggles.first().click()
-  }
-  const detailSections = page.locator('.model-detail-sections')
-  await expect(detailSections.locator('.model-detail-section').first()).toHaveCSS('flex-shrink', '0')
-  const detailMetrics = await detailSections.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight
-  }))
-  expect(detailMetrics.scrollHeight).toBeGreaterThan(detailMetrics.clientHeight)
-  await detailSections.hover()
-  await page.mouse.wheel(0, 480)
-  await expect.poll(() => detailSections.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-
-  await expect(page.locator('.model-call-list')).toHaveCSS('overflow-y', 'auto')
-  await expect(detailSections).toHaveCSS('overflow-y', 'scroll')
-  for (const list of [page.locator('.model-call-list'), detailSections]) {
-    const scrollbarWidth = await list.evaluate(
-      (element) => getComputedStyle(element, '::-webkit-scrollbar').width
-    )
-    const thumbColor = await list.evaluate(
-      (element) => getComputedStyle(element, '::-webkit-scrollbar-thumb').backgroundColor
-    )
-    expect(scrollbarWidth).toBe('8px')
-    expect(thumbColor).not.toBe('rgba(0, 0, 0, 0)')
-  }
+  await expect(page.getByTestId('e2e/settings/sidebar/logs#button')).toHaveCount(0)
+  await expect(page.locator('.model-detail-sections')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'LangSmith 模型日志详情' })).toHaveCount(0)
 })

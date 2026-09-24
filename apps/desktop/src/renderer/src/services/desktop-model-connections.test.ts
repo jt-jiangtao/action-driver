@@ -1,103 +1,66 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createDesktopApi } from '../../../preload/desktop-api'
-import type { DesktopIpcBridge } from '../../../preload/desktop-api'
+import { describe, expect, it } from 'vitest'
+import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
 import { DesktopModelConnectionsService, ModelConnectionsError } from './desktop-model-connections'
 
-function bridge(handler: (channel: string, input: unknown) => unknown): DesktopIpcBridge {
+const connection = {
+  id: 'company-gateway', name: '公司模型网关', protocol: 'openai-compatible' as const,
+  baseUrl: 'https://api.example.com/v1', apiKeyHint: '••••1234', expanded: true,
+  models: [{ id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true,
+    testState: 'untested' as const }]
+}
+
+function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnectionsDesktopApi {
   return {
-    invoke: async (channel, input) => ({ ok: true, value: await handler(channel, input) }),
-    on: () => undefined,
-    off: () => undefined
+    list: async () => [connection],
+    testConnection: async () => ({ ok: true }),
+    discover: async () => connection.models,
+    refresh: async () => connection.models,
+    testModels: async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }],
+    testConnectionModels: async () => [],
+    setModelEnabled: async () => undefined,
+    add: async () => connection,
+    delete: async () => undefined,
+    ...overrides
   }
 }
 
-const connectionDto = {
-  id: 'company-gateway',
-  name: '公司模型网关',
-  protocol: 'openai-compatible' as const,
-  baseUrl: 'https://api.example.com/v1',
-  apiKeyHint: '••••1234',
-  expanded: true,
-  models: [{ id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'untested' }]
+const draft = {
+  name: '公司模型网关', protocol: 'openai-compatible' as const,
+  baseUrl: 'https://api.example.com/v1', apiKey: 'sk-secret-value'
 }
 
 describe('DesktopModelConnectionsService', () => {
-  it('maps transport DTOs into renderer domain models', async () => {
-    const api = createDesktopApi(
-      'darwin',
-      '0.1.0',
-      bridge((channel) => {
-        if (channel.endsWith(':list')) return [connectionDto]
-        if (channel.endsWith(':discover')) return connectionDto.models
-        if (channel.endsWith(':test-models')) {
-          return [{ modelId: 'qwen3.7-plus', state: 'unsupported' as const }]
-        }
-        return null
-      })
-    )
-    const service = new DesktopModelConnectionsService(api.modelConnections)
-
-    await expect(service.list()).resolves.toEqual([connectionDto])
-
-    const draft = {
-      name: '公司模型网关',
-      protocol: 'openai-compatible' as const,
-      baseUrl: 'https://api.example.com/v1',
-      apiKey: 'sk-secret-value'
-    }
-    await expect(service.discover(draft)).resolves.toEqual(connectionDto.models)
+  it('maps Runtime DTOs into renderer models', async () => {
+    const service = new DesktopModelConnectionsService(api())
+    await expect(service.list()).resolves.toEqual([connection])
+    await expect(service.discover(draft)).resolves.toEqual(connection.models)
     await expect(service.testModels(draft, ['qwen3.7-plus'])).resolves.toEqual([
       { modelId: 'qwen3.7-plus', state: 'unsupported' }
     ])
   })
 
-  it('maps Main failures into domain errors without exposing the key', async () => {
-    const api = createDesktopApi('darwin', '0.1.0', {
-      invoke: async () => ({
-        ok: false,
-        error: { code: 'unauthorized', message: 'Invalid API-key provided.' }
-      }),
-      on: () => undefined,
-      off: () => undefined
+  it('keeps Runtime failures visible without printing a credential', async () => {
+    const service = new DesktopModelConnectionsService(api({
+      add: async () => { throw { code: 'unauthorized', message: 'Invalid API-key provided.' } }
+    }))
+    await expect(service.add(draft, [])).rejects.toMatchObject({
+      code: 'unauthorized', message: 'Invalid API-key provided.'
     })
-    const service = new DesktopModelConnectionsService(api.modelConnections)
-
-    await expect(
-      service.add(
-        {
-          name: '公司模型网关',
-          protocol: 'openai-compatible',
-          baseUrl: 'https://api.example.com/v1',
-          apiKey: 'sk-secret-value'
-        },
-        []
-      )
-    ).rejects.toMatchObject({ code: 'unauthorized', message: 'Invalid API-key provided.' })
   })
 
-  it('returns a failure result for a rejected connection test', async () => {
-    const api = createDesktopApi(
-      'darwin',
-      '0.1.0',
-      bridge(() => ({ ok: false, failure: { code: 'timeout', message: '请求超时' } }))
-    )
-    const service = new DesktopModelConnectionsService(api.modelConnections)
-
-    await expect(
-      service.testConnection({
-        name: '公司模型网关',
-        protocol: 'openai-compatible',
-        baseUrl: 'https://api.example.com/v1',
-        apiKey: 'sk-secret-value'
-      })
-    ).resolves.toEqual({ ok: false, failure: { code: 'timeout', message: '请求超时' } })
+  it('returns a rejected connection test as a result', async () => {
+    const service = new DesktopModelConnectionsService(api({
+      testConnection: async () => ({ ok: false, failure: { code: 'timeout', message: '请求超时' } })
+    }))
+    await expect(service.testConnection(draft)).resolves.toEqual({
+      ok: false, failure: { code: 'timeout', message: '请求超时' }
+    })
   })
 
-  it('rejects malformed payloads instead of rendering them', async () => {
-    const api = createDesktopApi('darwin', '0.1.0', bridge(() => [{ id: 'broken' }]))
-    const service = new DesktopModelConnectionsService(api.modelConnections)
-
+  it('rejects malformed Runtime payloads', async () => {
+    const service = new DesktopModelConnectionsService(api({
+      list: async () => [{ id: 'broken' }] as never
+    }))
     await expect(service.list()).rejects.toBeInstanceOf(ModelConnectionsError)
-    expect(vi.isMockFunction(service.list)).toBe(false)
   })
 })

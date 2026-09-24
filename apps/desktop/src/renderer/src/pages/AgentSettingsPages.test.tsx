@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { MainPromptPage } from './MainPromptPage'
 import { SkillsPage } from './SkillsPage'
 import { MockAgentFilesService } from '../services/mock-agent-files'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
+
+function renderWithQuery(element: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={client}>{element}</QueryClientProvider>)
+}
 
 vi.mock('@monaco-editor/react', () => ({
   default: ({
@@ -24,10 +31,46 @@ vi.mock('@monaco-editor/react', () => ({
 }))
 
 describe('Agent settings pages', () => {
+  it('reuses the saved main prompt when reopening its page', async () => {
+    const service = new MockAgentFilesService()
+    const get = vi.spyOn(service, 'getMainPrompt')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const page = () => (
+      <QueryClientProvider client={client}>
+        <MainPromptPage service={service} onBack={() => undefined} />
+      </QueryClientProvider>
+    )
+    const first = render(page())
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    first.unmount()
+    const second = render(page())
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    expect(get).toHaveBeenCalledOnce()
+    second.unmount()
+  })
+
+  it('reuses the Skill list when returning to the page without a mutation', async () => {
+    const service = new MockAgentFilesService()
+    const list = vi.spyOn(service, 'listSkills')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const page = () => (
+      <QueryClientProvider client={client}>
+        <SkillsPage service={service} onBack={() => undefined} />
+      </QueryClientProvider>
+    )
+    const first = render(page())
+    await screen.findByText('browser-tools')
+    await waitFor(() => expect(list).toHaveBeenCalledOnce())
+    first.unmount()
+    const second = render(page())
+    await screen.findByText('browser-tools')
+    expect(list).toHaveBeenCalledOnce()
+    second.unmount()
+  })
   it('loads, edits, and saves the main prompt in one editor panel', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
-    render(<MainPromptPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<MainPromptPage service={service} onBack={() => undefined} />)
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     expect(screen.getByRole('heading', { name: 'ActionDriver 主提示词', level: 1 })).toBeVisible()
@@ -46,7 +89,7 @@ describe('Agent settings pages', () => {
 
   it('switches the same main prompt panel into source mode', async () => {
     const user = userEvent.setup()
-    render(<MainPromptPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    renderWithQuery(<MainPromptPage service={new MockAgentFilesService()} onBack={() => undefined} />)
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
@@ -61,7 +104,7 @@ describe('Agent settings pages', () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
     vi.spyOn(service, 'saveFile').mockRejectedValueOnce(new Error('文件已在外部更改'))
-    render(<MainPromptPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<MainPromptPage service={service} onBack={() => undefined} />)
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
@@ -76,7 +119,7 @@ describe('Agent settings pages', () => {
   it('restores the built-in main prompt only after confirmation', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
-    render(<MainPromptPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<MainPromptPage service={service} onBack={() => undefined} />)
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
@@ -100,7 +143,7 @@ describe('Agent settings pages', () => {
   it('offers save, discard, and cancel before leaving a dirty main prompt', async () => {
     const user = userEvent.setup()
     const openConnections = vi.fn()
-    render(
+    renderWithQuery(
       <MainPromptPage
         service={new MockAgentFilesService()}
         onBack={() => undefined}
@@ -129,7 +172,7 @@ describe('Agent settings pages', () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
     const openConnections = vi.fn()
-    render(
+    renderWithQuery(
       <MainPromptPage
         service={service}
         onBack={() => undefined}
@@ -150,10 +193,10 @@ describe('Agent settings pages', () => {
   it('opens a skill into its file tree and saves the selected file', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
-    render(<SkillsPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     expect(await screen.findByRole('heading', { name: 'Skills' })).toBeVisible()
-    expect(screen.getByText('browser-tools')).toBeVisible()
+    expect(await screen.findByText('browser-tools')).toBeVisible()
     expect(screen.getByText('不可用')).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: /browser-tools/ }))
@@ -183,7 +226,7 @@ describe('Agent settings pages', () => {
 
   it('returns from a skill detail to the repository list', async () => {
     const user = userEvent.setup()
-    render(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: /report-writer/ }))
     await user.click(await screen.findByRole('button', { name: '返回 Skills' }))
@@ -215,7 +258,7 @@ describe('Agent settings pages', () => {
           : { ...skill }
       )
     )
-    render(<SkillsPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: /data-inspector/ }))
     await user.click(await screen.findByRole('button', { name: '源码' }))
@@ -231,7 +274,7 @@ describe('Agent settings pages', () => {
 
   it('creates a skill through the validated dialog and exposes protected actions safely', async () => {
     const user = userEvent.setup()
-    render(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: '新建 Skill' }))
     const dialog = screen.getByRole('dialog', { name: '新建 Skill' })
@@ -255,7 +298,7 @@ describe('Agent settings pages', () => {
   it('shows an exclusive retry state when the skill repository fails to load', async () => {
     const service = new MockAgentFilesService()
     vi.spyOn(service, 'listSkills').mockRejectedValueOnce(new Error('无法读取 Skills'))
-    render(<SkillsPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('无法读取 Skills')
     expect(screen.queryByText('没有匹配的 Skill')).not.toBeInTheDocument()
@@ -266,7 +309,7 @@ describe('Agent settings pages', () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
     vi.spyOn(service, 'readFile').mockRejectedValueOnce(new Error('文件路径不在允许的目录内'))
-    render(<SkillsPage service={service} onBack={() => undefined} />)
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: /browser-tools/ }))
 

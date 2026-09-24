@@ -2,7 +2,7 @@
 
 > 本组是当前唯一优先交付。目标只有“真实请求流程跑通、页面实时渲染、日志可追踪”三项；完成前除直接依赖和严重回归外，不推进 Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制或其他横向迁移。每个子项只运行定向测试，整组完成后再运行全集门禁。
 
-- [x] 0.1 定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。
+- [x] 0.1 最初定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。现行协议已由 `converge-runtime-architecture` 升为 v2 请求级序号。
 - [x] 0.2 使用官方 `openai` Node SDK 把 OpenAI-compatible 模型网关扩展为真实流式 `/chat/completions`：按保存连接设置 `baseURL`，关闭自动重试与 SDK debug logging，传入 15 秒超时和调用级 `AbortSignal`，暴露不含凭据的可取消 async iterable，并聚合最终 assistant 全文、用量与结束原因；用本地假上游定向测试覆盖多分片 Markdown、认证失败、限流、超时、畸形分片、无文本与中途断流，确认凭据只存在于 Runtime 上游边界且不以定时器伪造流。
 - [x] 0.3 在 Runtime 建立最小 WebSocket 服务与流式执行编排：校验并持久化会话、任务、用户消息后发送 `request.accepted`，再持久化并发布固定生命周期事件，终态原子写入 assistant 全文与任务状态；实现同一 `idempotencyKey` 不重复执行、`eventId` 去重、`request.resume(afterCursor)` 重放和窗口过期快照，并用服务端定向测试覆盖完成、失败、取消与重连。
 - [x] 0.4 把单连接 WebSocket 客户端迁入 Renderer 并接入真实提交：Main/Preload 只注入本次 Runtime 的 `wsUrl + accessToken`，Renderer 管理鉴权、命令截止时间、标准 close code、指数退避、命令关联、事件去重、序列检查与恢复；服务端主动 Ping、Chromium 自动 Pong。移除 Main 的流式 WebSocket 与 IPC 事件代理，用客户端定向测试验证重连不重复正文、错误不串线、token 不进入日志且生产装配无 Mock 降级；服务端 MUST 接受且只接受 Main 为本次 Runtime 注入的受信任 renderer Origin（并保留既有 `file://` / 无 Origin 本机路径），拒绝其他 Origin。

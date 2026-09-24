@@ -149,6 +149,30 @@ export type ModelDeleteRequestDto = {
   connectionId: string
 }
 
-export type ModelIpcError = ModelFailure
+/** Stable read port implemented by Runtime model connection services. */
+export interface ModelConnectionServicePort {
+  list(): Promise<ModelConnectionDto[]>
+  testConnection(draft: ModelConnectionDraftDto): Promise<ModelConnectionTestResultDto>
+  discover(draft: ModelConnectionDraftDto): Promise<ModelOptionDto[]>
+  refresh(connectionId: string): Promise<ModelOptionDto[]>
+  testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
+  testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
+  setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
+  delete(connectionId: string): Promise<void>
+}
 
-export type ModelIpcResponse<T> = { ok: true; value: T } | { ok: false; error: ModelIpcError }
+export interface ModelCompletionServicePort {
+  complete(request: ModelCompletionRequest, signal?: AbortSignal): Promise<ModelCompletionOutcome>
+  stream(request: ModelCompletionRequest, signal?: AbortSignal): AsyncIterable<ModelCompletionEvent>
+}
+
+export class ModelServiceError extends Error {
+  constructor(
+    readonly code: ModelFailureCode,
+    message: string
+  ) {
+    super(message)
+    this.name = 'ModelServiceError'
+  }
+}

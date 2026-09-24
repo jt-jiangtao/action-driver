@@ -32,6 +32,7 @@ export function toolActivityErrorSummary(error: unknown): string {
   if (code === 'TOOL_CANCELLED') return '已取消'
   if (code === 'TOOL_TIMEOUT') return '执行超时'
   if (code === 'TOOL_INPUT_INVALID') return '参数无效'
+  if (code === 'TOOL_OUTCOME_UNKNOWN') return '工具结果未知'
   return '工具执行失败'
 }
 
@@ -47,7 +48,7 @@ export function persistedToolActivity(invocation: PersistedToolInvocation) {
     durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
     ...(invocation.status === 'completed'
       ? { resultSummary: toolActivityResultSummary(invocation.toolId, invocation.output) }
-      : invocation.status === 'failed' || invocation.status === 'cancelled'
+      : invocation.status === 'failed' || invocation.status === 'cancelled' || invocation.status === 'unknown'
         ? { errorSummary: toolActivityErrorSummary(invocation.error) }
         : {})
   }

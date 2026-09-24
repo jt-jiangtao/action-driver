@@ -3,13 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  RUNTIME_TYPES,
   SqliteRuntimeRepositories,
   createLocalRuntimeAdapters,
-  createRuntimeContainer,
+  createRuntimeServices,
   createSqliteCheckpointer,
   openRuntimeDatabase,
-  type CheckpointStore,
   type ModelGateway,
   type TaskRepository
 } from '../src/index'
@@ -29,11 +27,10 @@ describe('local runtime adapters', () => {
       }
     }
     const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
-    const container = createRuntimeContainer({ mode: 'local', adapters: local.adapters })
-    const tasks = container.get<TaskRepository>(RUNTIME_TYPES.taskRepository)
-    const checkpoints = container.get<CheckpointStore>(RUNTIME_TYPES.checkpointStore)
+    const services = createRuntimeServices({ mode: 'local', adapters: local.adapters })
+    const tasks: TaskRepository = services.taskRepository
 
-    expect(container.get<ModelGateway>(RUNTIME_TYPES.modelGateway)).toBe(modelGateway)
+    expect(services.modelGateway).toBe(modelGateway)
     expect(local.toolRuntime.registry.list()).toEqual([])
     expect(local.toolRuntime.grants).toEqual([])
     expect(() => local.adapters.skillRegistry.resolve('browser-use', 1)).toThrow(
@@ -55,10 +52,8 @@ describe('local runtime adapters', () => {
       createdAt: '2026-09-22T00:00:00.000Z',
       updatedAt: '2026-09-22T00:00:00.000Z'
     })
-    await checkpoints.put('task-local', { stage: 'accepted' })
 
     await expect(tasks.get('task-local')).resolves.toMatchObject({ goal: 'Persist locally' })
-    await expect(checkpoints.get('task-local')).resolves.toEqual({ stage: 'accepted' })
     checkpointer.close()
     repositories.close()
   })

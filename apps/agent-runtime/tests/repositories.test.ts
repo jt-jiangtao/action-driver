@@ -45,6 +45,148 @@ const task: RuntimeTaskRecord = {
 }
 
 describe('SQLite runtime repositories', () => {
+  it('recovers an orphan request once without discarding partial text or retrying a running tool', async () => {
+    const repositories = createRepositories()
+    const request: PersistedStreamRequest = {
+      requestId: 'request-restart', idempotencyKey: 'key-restart', sessionId: task.sessionId,
+      taskId: task.id, responseId: 'response-restart', streamId: 'stream-restart',
+      messageId: 'assistant-restart', status: 'running', lastSequence: -1,
+      createdAt: task.createdAt, updatedAt: task.updatedAt
+    }
+    await repositories.createStreamTask({
+      request, task,
+      userMessage: { id: 'user-restart', taskId: task.id, role: 'user',
+        content: { text: 'goal' }, createdAt: task.createdAt },
+      assistantMessage: { id: request.messageId, taskId: task.id, role: 'assistant',
+        content: { text: 'partial answer' }, createdAt: task.createdAt },
+      acceptedEvent: {
+        taskId: task.id, threadId: task.sessionId, checkpointId: request.responseId,
+        eventKey: 'request.accepted', type: 'request.accepted', payload: {},
+        occurredAt: task.createdAt, eventId: 'accepted-restart', requestId: request.requestId,
+        responseId: request.responseId, streamId: request.streamId,
+        messageId: request.messageId, sequence: null
+      }
+    })
+    await repositories.toolInvocations.save({
+      id: 'tool-restart', providerCallId: 'provider-restart', taskId: task.id,
+      toolId: 'sandbox.shell.run', toolVersion: 1, argumentsHash: 'hash', decision: 'allow',
+      status: 'running', input: { command: 'touch marker' }, output: null, error: null,
+      createdAt: task.createdAt, updatedAt: task.updatedAt
+    })
+    await repositories.events.append({
+      taskId: task.id, threadId: task.sessionId, checkpointId: request.responseId,
+      eventKey: 'tool.running:tool-restart', type: 'tool.running',
+      payload: { callId: 'tool-restart', toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run', summary: 'touch marker', argumentsHash: 'hash',
+        activityId: null, callSequence: 0 }, occurredAt: task.createdAt,
+      eventId: 'tool-running-restart', requestId: request.requestId,
+      responseId: request.responseId, streamId: request.streamId,
+      messageId: request.messageId, sequence: null
+    })
+
+    const first = await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
+    const second = await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
+    expect(first.map((event) => event.type)).toEqual(['tool.unknown', 'runtime.interrupted'])
+    expect(second).toEqual([])
+    expect((await repositories.tasks.get(task.id))?.status).toBe('failed')
+    expect((await repositories.streamRequests.getByRequestId(request.requestId))?.lastSequence).toBe(3)
+    expect((await repositories.messages.listByTask(task.id)).at(-1)?.content).toEqual({ text: 'partial answer' })
+    expect((await repositories.toolInvocations.listByTask(task.id))[0]?.status).toBe('unknown')
+    const service = new StreamSessionService({
+      repositories,
+      graphRunner: {} as GraphRunner,
+      ids: { next: (prefix) => prefix + '-replay' },
+      now: () => task.updatedAt
+    })
+    const replayed: string[] = []
+    await service.handle({
+      type: 'request.resume', protocol: 'actiondriver.stream.v2', eventId: 'resume-restart',
+      createdAt: task.updatedAt, requestId: request.requestId, afterCursor: 0
+    }, (event) => { replayed.push(event.type) })
+    expect(replayed).toEqual([
+      'request.accepted', 'tool.running', 'tool.unknown', 'runtime.interrupted'
+    ])
+    repositories.close()
+  })
+
+  it('allocates a contiguous event sequence for each interleaved request', async () => {
+    const repositories = createRepositories()
+    for (const id of ['a', 'b']) {
+      const request: PersistedStreamRequest = {
+        requestId: id,
+        idempotencyKey: `key-${id}`,
+        sessionId: `session-${id}`,
+        taskId: `task-${id}`,
+        responseId: `response-${id}`,
+        streamId: `stream-${id}`,
+        messageId: `assistant-${id}`,
+        status: 'running',
+        lastSequence: -1,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt
+      }
+      await repositories.createStreamTask({
+        request,
+        task: { ...task, id: request.taskId, threadId: request.taskId, sessionId: request.sessionId },
+        userMessage: {
+          id: `user-${id}`,
+          taskId: request.taskId,
+          role: 'user',
+          content: { text: 'goal' },
+          createdAt: task.createdAt
+        },
+        assistantMessage: {
+          id: request.messageId,
+          taskId: request.taskId,
+          role: 'assistant',
+          content: { text: '' },
+          createdAt: task.createdAt
+        },
+        acceptedEvent: {
+          taskId: request.taskId,
+          threadId: request.sessionId,
+          checkpointId: request.responseId,
+          eventKey: 'request.accepted',
+          type: 'request.accepted',
+          payload: {},
+          occurredAt: task.createdAt,
+          eventId: `accepted-${id}`,
+          requestId: id,
+          responseId: request.responseId,
+          streamId: request.streamId,
+          messageId: request.messageId,
+          sequence: null
+        }
+      })
+    }
+    for (const id of ['a', 'b', 'a', 'b']) {
+      const previous = (await repositories.events.listAfter(0)).filter(
+        (event) => event.requestId === id
+      ).length
+      await repositories.events.append({
+        taskId: `task-${id}`,
+        threadId: `session-${id}`,
+        checkpointId: `response-${id}`,
+        eventKey: `activity-${previous}`,
+        type: 'activity.started',
+        payload: { activityId: `activity-${id}` },
+        occurredAt: task.createdAt,
+        eventId: `${id}-${previous}`,
+        requestId: id,
+        sequence: null
+      })
+    }
+    const events = await repositories.events.listAfter(0)
+    expect(events.filter((event) => event.requestId === 'a').map((event) => event.sequence)).toEqual([
+      0, 1, 2
+    ])
+    expect(events.filter((event) => event.requestId === 'b').map((event) => event.sequence)).toEqual([
+      0, 1, 2
+    ])
+    expect((await repositories.streamRequests.getByRequestId('a'))?.lastSequence).toBe(2)
+    repositories.close()
+  })
+
   it('cancels only legacy pending approvals and never reopens a completed task', async () => {
     const repositories = createRepositories()
     const request: PersistedStreamRequest = {
@@ -252,7 +394,7 @@ describe('SQLite runtime repositories', () => {
       assistantMessage,
       acceptedEvent
     })
-    expect(created).toMatchObject({ created: true, request })
+    expect(created).toMatchObject({ created: true, request: { ...request, lastSequence: 0 } })
 
     const duplicate = await repositories.createStreamTask({
       request: {
@@ -277,7 +419,7 @@ describe('SQLite runtime repositories', () => {
         threadId: 'session-duplicate'
       }
     })
-    expect(duplicate).toEqual({ created: false, request })
+    expect(duplicate).toEqual({ created: false, request: { ...request, lastSequence: 0 } })
     await expect(repositories.tasks.get('task-duplicate')).resolves.toBeNull()
 
     const contentEvent: Omit<RuntimeEventRecord, 'cursor'> = {

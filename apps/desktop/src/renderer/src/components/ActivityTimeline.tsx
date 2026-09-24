@@ -288,6 +288,7 @@ function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
 }
 
 function toolAction(tool: ToolInvocationProjection): string {
+  if (tool.status === 'unknown') return '结果未知：'
   if (tool.status === 'failed') return '执行失败：'
   if (tool.status === 'cancelled') return '已取消：'
   if (tool.status === 'waiting_approval') return '旧审批记录：'

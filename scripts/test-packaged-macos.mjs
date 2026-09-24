@@ -1,0 +1,48 @@
+import { existsSync, mkdtempSync, renameSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { spawnSync } from 'node:child_process'
+
+if (process.platform !== 'darwin') throw new Error('macOS packaged smoke requires macOS')
+
+const root = resolve(import.meta.dirname, '..')
+const temporary = mkdtempSync(join(tmpdir(), 'actiondriver-packaged-smoke-'))
+const desktopDeployment = join(temporary, 'desktop')
+const runtimeDeployment = join(temporary, 'runtime')
+const app = join(temporary, 'ActionDriver.app')
+
+function run(command, args, env = process.env) {
+  const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw new Error(`${command} exited with ${result.status}`)
+}
+
+try {
+  run('corepack', ['pnpm', 'build:native:electron'])
+  run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'build'])
+  run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'build'])
+  run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'deploy', '--prod', desktopDeployment])
+  run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'deploy', '--prod', runtimeDeployment])
+
+  const require = createRequire(import.meta.url)
+  const electronExecutable = require('electron')
+  const electronApp = dirname(dirname(dirname(electronExecutable)))
+  if (!existsSync(join(electronApp, 'Contents', 'Info.plist'))) {
+    throw new Error('Electron macOS application bundle was not found')
+  }
+  run('ditto', [electronApp, app])
+  rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
+  run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
+  run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
+  renameSync(join(app, 'Contents', 'MacOS', 'Electron'),
+    join(app, 'Contents', 'MacOS', 'ActionDriver'))
+  run('/usr/libexec/PlistBuddy', [
+    '-c', 'Set :CFBundleExecutable ActionDriver', join(app, 'Contents', 'Info.plist')
+  ])
+  run('corepack', [
+    'pnpm', 'exec', 'playwright', 'test', 'apps/desktop/e2e/packaged-runtime.spec.ts'
+  ], { ...process.env, ACTIONDRIVER_PACKAGED_APP: app })
+} finally {
+  rmSync(temporary, { recursive: true, force: true })
+}

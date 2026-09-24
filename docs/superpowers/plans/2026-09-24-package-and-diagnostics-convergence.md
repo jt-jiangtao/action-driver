@@ -29,7 +29,7 @@
 
 ## File map
 
-`packages/runtime-contracts` 保留 wire schema；`packages/contracts` 保留跨进程通用 DTO；`apps/agent-runtime/src/model-connections` 持有供应商实现；`apps/desktop/src/renderer/src/services` 持有 UI 投影与 Query hooks；`composition-root.ts` 仅显式装配；`packages/observability` 保留可被多个 Node 进程安全消费的诊断实现。
+`packages/runtime-contracts` 保留 wire schema；`packages/contracts` 保留跨进程通用 DTO；`packages/activity-projection` 保留 Runtime 与 Renderer 共用的纯事件投影；`apps/agent-runtime/src/model-connections` 持有供应商实现；`apps/desktop/src/renderer/src/services` 持有其余 UI 投影与 Query hooks；`composition-root.ts` 仅显式装配；`packages/observability` 保留可被多个 Node 进程安全消费的诊断实现。
 
 ### Task 1: 模型实现和协议包归位
 
@@ -49,13 +49,13 @@
 
 ### Task 2: UI 投影与 TanStack Query 读取态
 
-**Files:** Move `packages/runtime-contracts/src/activity-projection.ts` UI-only logic to `apps/desktop/src/renderer/src/services/`; Modify `apps/desktop/src/renderer/src/{App.tsx,pages/SkillsPage.tsx,pages/SettingsPage.tsx}`, associated service clients, `apps/desktop/package.json`; Test adjacent service/page `.test.ts(x)`.
+**Files:** Move `packages/runtime-contracts/src/activity-projection.ts` pure shared logic to `packages/activity-projection`; keep remaining UI projection in `apps/desktop/src/renderer/src/services/`; Modify `apps/desktop/src/renderer/src/{App.tsx,pages/SkillsPage.tsx,pages/SettingsPage.tsx}`, associated service clients, `apps/desktop/package.json`; Test adjacent service/page `.test.ts(x)`.
 
 **Interfaces:** `queryKeys` uniquely identify tasks, model connections and Skill definitions; WS projector is independent of Query cache and uses the reliability plan's pure reducer.
 
 - [ ] **Step 1: Write failing tests.** Fetch tasks/models/Skills with loading, error and retry states; after mutation, assert only matching query keys refetch. Stream one content event and assert UI projection updates without writing raw event arrays into Query cache.
 - [ ] **Step 2: Run red.** Run App, SettingsPage, SkillsPage and projection suites; confirm manually managed state/invalidations fail the new contract.
-- [ ] **Step 3: Implement.** Add pinned `@tanstack/react-query`; one app `QueryClientProvider`; migrate each read service to typed query hooks and mutations with targeted invalidation. Move pure activity projection to Renderer and delete unused contract exports.
+- [ ] **Step 3: Implement.** Add pinned `@tanstack/react-query`; one app `QueryClientProvider`; migrate each read service to typed query hooks and mutations with targeted invalidation. Move pure activity projection to the shared pure package and delete unused contract exports.
 
   ```ts
   const taskKeys = { all: ['tasks'] as const, detail: (id: string) => ['tasks', id] as const }

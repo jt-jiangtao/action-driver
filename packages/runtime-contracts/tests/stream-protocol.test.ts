@@ -14,6 +14,7 @@ describe('agent stream protocol', () => {
       protocol: STREAM_PROTOCOL,
       eventId: 'event-accepted',
       cursor: 1,
+      sequence: 0,
       requestId: 'request-1',
       sessionId: 'session-1',
       taskId: 'task-1',
@@ -112,6 +113,7 @@ describe('agent stream protocol', () => {
       protocol: STREAM_PROTOCOL,
       eventId: 'event-tool',
       cursor: 4,
+      sequence: 3,
       requestId: 'request-1',
       sessionId: 'session-1',
       taskId: 'task-1',
@@ -142,6 +144,7 @@ describe('agent stream protocol', () => {
         protocol: STREAM_PROTOCOL,
         eventId: 'event-tool-raw',
         cursor: 5,
+        sequence: 4,
         requestId: 'request-1',
         sessionId: 'session-1',
         taskId: 'task-1',
@@ -170,6 +173,7 @@ describe('agent stream protocol', () => {
       protocol: STREAM_PROTOCOL,
       eventId: 'event-activity',
       cursor: 5,
+      sequence: 4,
       requestId: 'request-1',
       sessionId: 'session-1',
       taskId: 'task-1',
@@ -199,6 +203,7 @@ describe('agent stream protocol', () => {
       protocol: STREAM_PROTOCOL,
       eventId: 'event-activity-lifecycle',
       cursor: 6,
+      sequence: 5,
       requestId: 'request-1',
       sessionId: 'session-1',
       taskId: 'task-1',
@@ -307,7 +312,7 @@ describe('agent stream protocol', () => {
 
   it.each([
     ['blank id', { eventId: '' }],
-    ['unsupported protocol', { protocol: 'actiondriver.stream.v2' }],
+    ['unsupported protocol', { protocol: 'actiondriver.stream.v1' }],
     ['negative cursor', { cursor: -1 }]
   ])('rejects %s in a server event', (_label, override) => {
     expect(() =>

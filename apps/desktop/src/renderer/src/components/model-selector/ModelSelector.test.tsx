@@ -1,11 +1,21 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { toModelSelectionProjection } from '../../models/model-selection'
+import { loadingModelSelection, toModelSelectionProjection } from '../../models/model-selection'
 import { mockModelSelection } from '../../testing/model-selection-fixture'
 import { ModelSelector } from './ModelSelector'
 
 describe('ModelSelector', () => {
+  it('expands the selected connection after an asynchronous model load', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <ModelSelector projection={loadingModelSelection} onSelect={vi.fn()} />
+    )
+    view.rerender(<ModelSelector projection={mockModelSelection} onSelect={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /当前模型/ }))
+    expect(screen.getByRole('option', { name: 'gpt-4.1' })).toBeVisible()
+  })
+
   it('expands connections and selects a model', async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()

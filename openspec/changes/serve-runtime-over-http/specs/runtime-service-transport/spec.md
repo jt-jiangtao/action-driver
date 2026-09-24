@@ -41,7 +41,7 @@ Renderer SHALL 直接持有该 WebSocket 连接并负责鉴权、命令关联、
 
 #### Scenario: Renderer 直接建立连接
 - **WHEN** 本地 Runtime 就绪且页面加载完成
-- **THEN** Renderer 使用注入的 `wsUrl` 建立 `actiondriver.stream.v1` 连接并通过首个鉴权帧提交一次性 token，后续流式命令和事件不经过 Main IPC
+- **THEN** Renderer 使用注入的 `wsUrl` 建立 `actiondriver.stream.v2` 连接并通过首个鉴权帧提交一次性 token，后续流式命令和事件不经过 Main IPC
 
 #### Scenario: 页面重新加载
 - **WHEN** Renderer 被刷新或重新创建
@@ -72,11 +72,11 @@ Renderer SHALL 直接持有该 WebSocket 连接并负责鉴权、命令关联、
 - **THEN** 服务端停止继续生成，并最终为该响应发送 `status=cancelled` 的 `response.end`
 
 ### Requirement: 流式响应遵循固定生命周期
-系统 SHALL 为每次已开始的模型响应严格发送一次 `response.start`、零到多次 `response.content` 和一次 `response.end`；同一响应的事件 SHALL 使用从零开始单调递增的 `sequence`，且 `response.end` MUST 对完成、失败和取消三种终态都成立。
+系统 SHALL 为每次已开始的模型响应严格发送一次 `response.start`、零到多次 `response.content` 和一次 `response.end`；持久化的请求事件 SHALL 在一次请求内使用从零开始连续递增的 `sequence`，包括接受、活动、文本、工具及终态事件；`response.end` MUST 对完成、失败和取消三种终态都成立。
 
 #### Scenario: 成功流式返回
 - **WHEN** 上游模型开始生成并连续返回文本增量
-- **THEN** 服务端先发送 `sequence=0` 的 `response.start`，再按顺序发送携带文本 `delta` 的 `response.content`，最后发送 `status=completed` 的 `response.end`
+- **THEN** 服务端在已接受请求之后发送 `response.start`，再按请求序号发送携带文本 `delta` 的 `response.content`，最后发送 `status=completed` 的 `response.end`；响应事件不重新从零计序
 
 #### Scenario: 上游在开始后失败
 - **WHEN** 服务端已经发送 `response.start`，随后上游发生认证、限流、超时、协议或连接错误
@@ -95,7 +95,7 @@ Renderer SHALL 直接持有该 WebSocket 连接并负责鉴权、命令关联、
 
 #### Scenario: 断线重连
 - **WHEN** 页面与服务端的连接中断后重新建立
-- **THEN** 客户端使用最后应用的 `cursor` 请求恢复，服务端重放后续事件，客户端按 `eventId` 去重并按 `sequence` 检查同一响应是否缺失事件
+- **THEN** 客户端使用最后应用的 `cursor` 请求恢复，服务端重放后续事件，客户端按 `eventId` 去重并按请求 `sequence` 检查是否缺失事件
 
 #### Scenario: 页面重新加载
 - **WHEN** 页面重新加载并重新订阅已知任务

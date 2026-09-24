@@ -9,19 +9,18 @@ import {
 import type { DesktopApi } from '../../../preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
-import { DesktopAgentFilesService } from '../services/desktop-agent-files'
+import { RuntimeAgentFilesService } from '../services/runtime-agent-files'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { MockAgentFilesService } from '../services/mock-agent-files'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
 import { DesktopTaskCatalog } from '../services/desktop-task-catalog'
-import { DesktopModelLogService, MockModelLogService } from '../services/desktop-model-logs'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
   MockSkillGateway
 } from '../services/mock-skill-capabilities'
-import { createRendererContainer, resolveAppServices } from './container'
+import { createRendererServices } from './container'
 
 function createDesktopApi(): DesktopApi {
   return {
@@ -29,110 +28,22 @@ function createDesktopApi(): DesktopApi {
     runtimeConnection: {
       get: async () => ({
         wsUrl: 'ws://127.0.0.1:4321/stream',
-        protocol: 'actiondriver.stream.v1',
+        protocol: 'actiondriver.stream.v2',
         accessToken: 'launch-token'
-      })
-    },
-    agent: {
-      get: async () => null,
-      listTasks: async () => [],
-      listModelLogs: async () => [],
-      getModelLog: async () => null,
-      interrupt: async () => undefined,
-      continue: async () => undefined,
-      provideInput: async () => undefined,
-      controlSkill: async (invocationId, command) => ({
-        id: `event-${command}`,
-        invocationId,
-        skillId: SKILL_IDS.browser,
-        state: command === 'pause' ? 'paused' : command === 'resume' ? 'running' : 'taken-over',
-        occurredAt: '2026-09-22T00:00:00.000Z'
-      }),
-      subscribe: async () => () => undefined
-    },
-    modelConnections: {
-      list: async () => [],
-      testConnection: async () => ({ ok: true }),
-      discover: async () => [],
-      refresh: async () => [],
-      testModels: async () => [],
-      testConnectionModels: async () => [],
-      setModelEnabled: async () => undefined,
-      add: async () => ({
-        id: 'model-connection',
-        name: '连接',
-        protocol: 'openai-compatible',
-        baseUrl: 'https://api.example.com/v1',
-        apiKeyHint: '••••test',
-        expanded: true,
-        models: []
-      }),
-      delete: async () => undefined
-    },
-    logs: {
-      list: async () => ({ records: [], nextCursor: null, files: [] }),
-      detail: async () => {
-        throw new Error('not implemented in container test')
-      }
-    },
-    agentFiles: {
-      getMainPrompt: async () => ({
-        path: '.action-driver/prompts/main.md',
-        content: '',
-        digest: 'a',
-        modifiedAt: 'now'
-      }),
-      resetMainPrompt: async () => ({
-        path: '.action-driver/prompts/main.md',
-        content: '',
-        digest: 'b',
-        modifiedAt: 'now'
-      }),
-      listSkills: async () => [],
-      getSkillTree: async () => [],
-      readFile: async (path) => ({ path, content: '', digest: 'a', modifiedAt: 'now' }),
-      saveFile: async (input) => ({ ...input, digest: 'b', modifiedAt: 'now' }),
-      createSkill: async (input) => ({
-        id: input.name,
-        name: input.name,
-        description: input.description,
-        enabled: true,
-        available: true,
-        executorId: 'custom-use',
-        unavailableReason: null,
-        protected: false,
-        modifiedAt: 'now'
-      }),
-      renameSkill: async (skillId, name) => ({
-        id: skillId,
-        name,
-        description: '',
-        enabled: true,
-        available: true,
-        executorId: 'custom-use',
-        unavailableReason: null,
-        protected: false,
-        modifiedAt: 'now'
-      }),
-      deleteSkill: async () => undefined,
-      setSkillEnabled: async (skillId, enabled) => ({
-        id: skillId,
-        name: skillId,
-        description: '',
-        enabled,
-        available: true,
-        executorId: 'custom-use',
-        unavailableReason: null,
-        protected: false,
-        modifiedAt: 'now'
       })
     }
   }
 }
 
 describe('renderer composition root', () => {
+  it('provides explicit typed services directly', () => {
+    const services = createRendererServices({ mode: 'mock' })
+    expect(services.agentCommandService).toBeDefined()
+    expect(services.taskCatalog).toBeDefined()
+  })
+
   it('binds agent ports and the independently registered skill gateway without exposing the container', () => {
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
 
     expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
@@ -140,14 +51,11 @@ describe('renderer composition root', () => {
     expect(services.agentFilesService).toBeInstanceOf(MockAgentFilesService)
     expect(services.skillGateway).not.toBe(services.agentCommandService)
     expect(services.taskCatalog).toBeInstanceOf(MockTaskCatalog)
-    expect(services.modelLogService).toBeInstanceOf(MockModelLogService)
     expect(Object.keys(services).sort()).toEqual([
       'agentCommandService',
       'agentFilesService',
       'agentSessionRepository',
-      'interactionLogService',
       'modelConnectionsService',
-      'modelLogService',
       'skillGateway',
       'taskCatalog'
     ])
@@ -158,9 +66,7 @@ describe('renderer composition root', () => {
       [SKILL_IDS.browser]: new MockBrowserSkillCapability(),
       [SKILL_IDS.computer]: new MockComputerUseSkillCapability()
     })
-    const services = resolveAppServices(
-      createRendererContainer({ mode: 'mock', skillGateway: replacement })
-    )
+    const services = createRendererServices({ mode: 'mock', skillGateway: replacement })
 
     expect(services.skillGateway).toBe(replacement)
     expect(services.agentCommandService).not.toBe(replacement)
@@ -169,10 +75,8 @@ describe('renderer composition root', () => {
       'agentSessionRepository',
       'skillGateway',
       'modelConnectionsService',
-      'interactionLogService',
       'agentFilesService',
-      'taskCatalog',
-      'modelLogService'
+      'taskCatalog'
     ])
   })
 
@@ -190,13 +94,11 @@ describe('renderer composition root', () => {
         throw new Error('not needed')
       }
     }
-    const services = resolveAppServices(
-      createRendererContainer({
+    const services = createRendererServices({
         mode: 'mock',
         browserCapability,
         computerCapability: new MockComputerUseSkillCapability()
       })
-    )
 
     await services.agentCommandService.submitGoal({
       goal: '使用浏览器',
@@ -211,28 +113,25 @@ describe('renderer composition root', () => {
   })
 
   it('requires the whitelisted desktop API for local mode', () => {
-    expect(() => createRendererContainer({ mode: 'local' })).toThrow(
+    expect(() => createRendererServices({ mode: 'local' })).toThrow(
       'Local renderer services require DesktopApi'
     )
   })
 
   it('binds local Agent, Session, and Skill ports to the Preload Runtime adapters', () => {
-    const services = resolveAppServices(
-      createRendererContainer({ mode: 'local', desktopApi: createDesktopApi() })
-    )
+    const services = createRendererServices({ mode: 'local', desktopApi: createDesktopApi() })
 
     expect(services.agentCommandService).toBeInstanceOf(DesktopAgentAdapter)
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
     expect(services.skillGateway).toBeInstanceOf(DesktopSkillGateway)
     expect(services.skillGateway).not.toBeInstanceOf(MockSkillGateway)
     expect(services.modelConnectionsService).toBeInstanceOf(DesktopModelConnectionsService)
-    expect(services.agentFilesService).toBeInstanceOf(DesktopAgentFilesService)
+    expect(services.agentFilesService).toBeInstanceOf(RuntimeAgentFilesService)
     expect(services.taskCatalog).toBeInstanceOf(DesktopTaskCatalog)
-    expect(services.modelLogService).toBeInstanceOf(DesktopModelLogService)
   })
 
   it('binds the mock model connection service for fixture and visual runs', () => {
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
 
     expect(services.modelConnectionsService).toBeInstanceOf(MockModelConnectionsService)
   })
@@ -255,14 +154,12 @@ describe('renderer composition root', () => {
       getTask: () => projection,
       subscribe: () => () => undefined
     }
-    const services = resolveAppServices(
-      createRendererContainer({
+    const services = createRendererServices({
         mode: 'local',
         desktopApi: createDesktopApi(),
         agentCommandService: replacement,
         agentSessionRepository: replacement
       })
-    )
 
     expect(services.agentCommandService).toBe(replacement)
     expect(services.agentSessionRepository).toBe(replacement)

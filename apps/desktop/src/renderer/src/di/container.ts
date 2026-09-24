@@ -4,19 +4,12 @@ import type {
   SkillCapability,
   SkillGateway
 } from '@actiondriver/contracts'
-import type { InteractionLogService } from '../models/interaction-logs'
 import type { AgentFilesService } from '../models/agent-files'
-import {
-  DesktopInteractionLogService,
-  MockInteractionLogService
-} from '../services/desktop-interaction-logs'
-import { SERVICE_TYPES, SKILL_IDS } from '@actiondriver/contracts'
-import { Container } from 'inversify'
+import { SKILL_IDS } from '@actiondriver/contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
-import type { ModelLogService } from '../models/model-log-service'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
 import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
 import { MockTaskCatalog } from '../services/mock-task-catalog'
@@ -28,26 +21,20 @@ import {
 } from '../services/mock-skill-capabilities'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
 import { MockAgentFilesService } from '../services/mock-agent-files'
-import { DesktopAgentFilesService } from '../services/desktop-agent-files'
+import { RuntimeAgentFilesService } from '../services/runtime-agent-files'
+import { RuntimeHttpClient } from '../services/runtime-http-client'
+import { RuntimeAgentHttpApi } from '../services/runtime-agent-http-api'
+import { RuntimeModelHttpApi } from '../services/runtime-model-http-api'
 import { RendererStreamClient } from '../services/renderer-stream-client'
-import { DesktopModelLogService, MockModelLogService } from '../services/desktop-model-logs'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
   agentSessionRepository: AgentSessionRepository
   skillGateway: SkillGateway
   modelConnectionsService: ModelConnectionsService
-  interactionLogService: InteractionLogService
   agentFilesService: AgentFilesService
   taskCatalog: TaskCatalog
-  modelLogService: ModelLogService
 }
-
-const MODEL_CONNECTIONS_SERVICE = Symbol('MODEL_CONNECTIONS_SERVICE')
-const INTERACTION_LOG_SERVICE = Symbol('INTERACTION_LOG_SERVICE')
-const AGENT_FILES_SERVICE = Symbol('AGENT_FILES_SERVICE')
-const TASK_CATALOG = Symbol('TASK_CATALOG')
-const MODEL_LOG_SERVICE = Symbol('MODEL_LOG_SERVICE')
 
 interface RendererOverrides extends Partial<AppServices> {
   browserCapability?: SkillCapability<typeof SKILL_IDS.browser>
@@ -59,11 +46,13 @@ export interface RendererContainerOptions extends RendererOverrides {
   desktopApi?: DesktopApi
 }
 
-export function createRendererContainer(options: RendererContainerOptions): Container {
-  const container = new Container()
+export function createRendererServices(options: RendererContainerOptions): AppServices {
   let agentCommandService: AgentCommandService
   let agentSessionRepository: AgentSessionRepository
   let skillGateway: SkillGateway
+  let localAgentFilesService: AgentFilesService | null = null
+  let localAgentApi: RuntimeAgentHttpApi | null = null
+  let localModelApi: RuntimeModelHttpApi | null = null
 
   if (options.mode === 'local') {
     if (!options.desktopApi) throw new Error('Local renderer services require DesktopApi')
@@ -71,14 +60,21 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
     const streamClient = new RendererStreamClient({
       getConnection: () => options.desktopApi!.runtimeConnection.get()
     })
+    const http = new RuntimeHttpClient(
+      () => options.desktopApi!.runtimeConnection.get()
+    )
+    localAgentFilesService = new RuntimeAgentFilesService(http)
+    localAgentApi = new RuntimeAgentHttpApi(http)
+    localModelApi = new RuntimeModelHttpApi(http)
+    const agentFiles = localAgentFilesService
     const agentAdapter = new DesktopAgentAdapter(
-      options.desktopApi.agent,
+      localAgentApi,
       streamClient,
-      async () => (await options.desktopApi!.agentFiles.getMainPrompt()).content
+      async () => (await agentFiles.getMainPrompt()).content
     )
     agentCommandService = options.agentCommandService ?? agentAdapter
     agentSessionRepository = options.agentSessionRepository ?? agentAdapter
-    skillGateway = options.skillGateway ?? new DesktopSkillGateway(options.desktopApi.agent)
+    skillGateway = options.skillGateway ?? new DesktopSkillGateway(localAgentApi)
   } else {
     const browserCapability = options.browserCapability ?? new MockBrowserSkillCapability()
     const computerCapability = options.computerCapability ?? new MockComputerUseSkillCapability()
@@ -93,65 +89,24 @@ export function createRendererContainer(options: RendererContainerOptions): Cont
     agentSessionRepository = options.agentSessionRepository ?? runtime
   }
 
-  container
-    .bind<AgentCommandService>(SERVICE_TYPES.agentCommandService)
-    .toConstantValue(agentCommandService)
-  container
-    .bind<AgentSessionRepository>(SERVICE_TYPES.agentSessionRepository)
-    .toConstantValue(agentSessionRepository)
-  container.bind<SkillGateway>(SERVICE_TYPES.skillGateway).toConstantValue(skillGateway)
-  container
-    .bind<ModelConnectionsService>(MODEL_CONNECTIONS_SERVICE)
-    .toConstantValue(
-      options.modelConnectionsService ??
-        (options.mode === 'local' && options.desktopApi
-          ? new DesktopModelConnectionsService(options.desktopApi.modelConnections)
-          : new MockModelConnectionsService())
-    )
-  container
-    .bind<TaskCatalog>(TASK_CATALOG)
-    .toConstantValue(
-      options.taskCatalog ??
-        (options.mode === 'local' && options.desktopApi
-          ? new DesktopTaskCatalog(options.desktopApi.agent)
-          : new MockTaskCatalog())
-    )
-  container
-    .bind<ModelLogService>(MODEL_LOG_SERVICE)
-    .toConstantValue(
-      options.modelLogService ??
-        (options.mode === 'local' && options.desktopApi
-          ? new DesktopModelLogService(options.desktopApi.agent)
-          : new MockModelLogService())
-    )
-  container
-    .bind<InteractionLogService>(INTERACTION_LOG_SERVICE)
-    .toConstantValue(
-      options.interactionLogService ??
-        (options.mode === 'local' && options.desktopApi
-          ? new DesktopInteractionLogService(options.desktopApi.logs)
-          : new MockInteractionLogService())
-    )
-  container
-    .bind<AgentFilesService>(AGENT_FILES_SERVICE)
-    .toConstantValue(
-      options.agentFilesService ??
-        (options.mode === 'local' && options.desktopApi
-          ? new DesktopAgentFilesService(options.desktopApi.agentFiles)
-          : new MockAgentFilesService())
-    )
-  return container
-}
-
-export function resolveAppServices(container: Container): AppServices {
   return {
-    agentCommandService: container.get(SERVICE_TYPES.agentCommandService),
-    agentSessionRepository: container.get(SERVICE_TYPES.agentSessionRepository),
-    skillGateway: container.get(SERVICE_TYPES.skillGateway),
-    modelConnectionsService: container.get(MODEL_CONNECTIONS_SERVICE),
-    interactionLogService: container.get(INTERACTION_LOG_SERVICE),
-    agentFilesService: container.get(AGENT_FILES_SERVICE),
-    taskCatalog: container.get(TASK_CATALOG),
-    modelLogService: container.get(MODEL_LOG_SERVICE)
+    agentCommandService,
+    agentSessionRepository,
+    skillGateway,
+    modelConnectionsService:
+      options.modelConnectionsService ??
+      (options.mode === 'local' && options.desktopApi
+        ? new DesktopModelConnectionsService(localModelApi!)
+        : new MockModelConnectionsService()),
+    agentFilesService:
+      options.agentFilesService ??
+      (options.mode === 'local' && options.desktopApi
+        ? localAgentFilesService!
+        : new MockAgentFilesService()),
+    taskCatalog:
+      options.taskCatalog ??
+      (options.mode === 'local' && options.desktopApi
+        ? new DesktopTaskCatalog(localAgentApi!)
+        : new MockTaskCatalog())
   }
 }

@@ -68,8 +68,7 @@ describe('service log records', () => {
     expect(readRecentLogRecords({ filePath }).map((record) => record.time)).toEqual([1])
   })
 
-  it('serves log records over HTTP for a log page', async () => {
-    const logFilePath = logFile(records)
+  it('does not serve local log records over HTTP', async () => {
     server = await startServiceHttpServer({
       service: {
         list: () => [],
@@ -83,8 +82,7 @@ describe('service log records', () => {
         delete: vi.fn()
       } as never,
       token: 'service-token',
-      runtimeVersion: '0.1.0',
-      logFilePath
+      runtimeVersion: '0.1.0'
     })
 
     const response = await fetch(`${server.url}/logs?level=warn&limit=1`, {
@@ -92,7 +90,7 @@ describe('service log records', () => {
     })
     const payload = (await response.json()) as { ok: boolean; value: { records: { time: number }[] } }
 
-    expect(payload.ok).toBe(true)
-    expect(payload.value.records.map((record) => record.time)).toEqual([3])
+    expect(response.status).toBe(404)
+    expect(payload.ok).toBe(false)
   })
 })

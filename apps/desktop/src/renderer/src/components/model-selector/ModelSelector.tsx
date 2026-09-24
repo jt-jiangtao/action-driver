@@ -26,6 +26,14 @@ export function ModelSelector({
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
     () => new Set(selectedConnectionId ? [selectedConnectionId] : [])
   )
+  useEffect(() => {
+    if (!selectedConnectionId) return
+    setExpanded((current) =>
+      current.has(selectedConnectionId)
+        ? current
+        : new Set([...current, selectedConnectionId])
+    )
+  }, [selectedConnectionId])
   const visibleModels = useMemo(
     () => projection.connections.flatMap((connection) => expanded.has(connection.id) ? connection.models.map((model) => ({ connection, model })) : []),
     [expanded, projection.connections]

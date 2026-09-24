@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { createRendererContainer, resolveAppServices } from './container'
+import { createRendererServices } from './container'
 import { AppServicesProvider, useAppServices } from './services-context'
 
 function Probe() {
@@ -10,7 +10,7 @@ function Probe() {
 
 describe('renderer service context', () => {
   it('provides resolved services without exposing the container', () => {
-    const services = resolveAppServices(createRendererContainer({ mode: 'mock' }))
+    const services = createRendererServices({ mode: 'mock' })
 
     render(
       <AppServicesProvider services={services}>

@@ -1,37 +1,37 @@
-import { app, BrowserWindow, ipcMain, nativeImage, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeImage, net, protocol, safeStorage } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { unlinkSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
-import { createMainContainer, resolveMainServices } from './container'
+import { createMainServices } from './container'
 import { applyApplicationName, resolveDesktopIconPath } from './app-identity'
-import { registerAgentIpcHandlers } from './agent-ipc'
 import { createLocalRuntimeServices } from './local-runtime'
-import { registerModelIpcHandlers } from './model-ipc'
-import { registerLogIpcHandlers } from './logs-ipc'
 import { createMainLogging, type MainLogging } from './logging'
 import {
   createModelConnectionStore,
   createNodeFileSystem
 } from './model-connections/connection-store'
 import { ModelConnectionHttpClient } from './model-connections/http-client'
-import { createSecretCipher } from '@actiondriver/model-connections'
+import { createSecretCipher } from './model-connections/secret-cipher'
 import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
-import { createMockSkillProviderHost } from './skill-provider-host'
+import { createProductionSkillProviderHost } from './skill-provider-host'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
-import { AgentFileStore } from './agent-files/agent-file-store'
-import { registerAgentFilesIpcHandlers } from './agent-files-ipc'
-import { createLocalInteractionLogStore } from '@actiondriver/observability'
 import { resolveModuleDirectory } from './module-directory'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
+import { PACKAGED_RENDERER_URL, resolveRendererAssetPath } from './renderer-protocol'
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'actiondriver',
+  privileges: { standard: true, secure: true, supportFetchAPI: true }
+}])
 
 const moduleDirectory = resolveModuleDirectory(import.meta.url)
 const desktopIconPath = resolveDesktopIconPath(moduleDirectory)
 const rendererPath = join(moduleDirectory, '../renderer/index.html')
-const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(rendererPath).href
+const rendererEntryUrl = process.env.ELECTRON_RENDERER_URL ?? PACKAGED_RENDERER_URL
 const trustedRendererOrigin = resolveTrustedRendererOrigin(rendererEntryUrl)
 const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
@@ -66,50 +66,28 @@ function createWindow(mainServices: MainServices): BrowserWindow {
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(rendererEntryUrl)
   } else {
-    void window.loadFile(rendererPath)
+    void window.loadURL(rendererEntryUrl)
   }
   return window
 }
 
 app.whenReady().then(async () => {
+  protocol.handle('actiondriver', (request) => {
+    const path = resolveRendererAssetPath(dirname(rendererPath), request.url)
+    return path
+      ? net.fetch(pathToFileURL(path).href)
+      : new Response('Not found', { status: 404 })
+  })
   applyDesktopBranding()
-  logging = await createMainLogging({ userDataPath: app.getPath('userData') })
-  const interactionRoot = join(app.getPath('userData'), 'logs', 'interactions')
-  registerLogIpcHandlers(
-    ipcMain,
-    [
-      {
-        prefix: 'main',
-        filePath: join(interactionRoot, 'main', 'index.ndjson'),
-        store: async () => logging!.interactionStore
-      },
-      {
-        prefix: 'service',
-        filePath: join(interactionRoot, 'service', 'index.ndjson'),
-        store: () =>
-          createLocalInteractionLogStore({
-            rootDirectory: interactionRoot,
-            source: 'service',
-            readOnly: true
-          })
-      }
-    ],
-    logging.interactions
-  )
+  logging = await createMainLogging()
   if (compositionMode === 'mock') {
-    services = resolveMainServices(createMainContainer({ mode: 'mock' }))
+    services = createMainServices({ mode: 'mock' })
   } else {
-    const skillProviderHost = createMockSkillProviderHost()
+    const skillProviderHost = createProductionSkillProviderHost()
     const agentHomeDirectory =
       !app.isPackaged && process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
         ? process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
         : app.getPath('home')
-    const agentFileStore = new AgentFileStore({
-      homeDirectory: agentHomeDirectory,
-      isExecutorRegistered: (executorId) => skillProviderHost.hasSkill(executorId)
-    })
-    await agentFileStore.initialize()
-    registerAgentFilesIpcHandlers(ipcMain, agentFileStore, logging.interactions)
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
@@ -122,17 +100,14 @@ app.whenReady().then(async () => {
     const credentialKey = resolveCredentialKey({
       userDataPath: app.getPath('userData')
     })
-    const runtime = createLocalRuntimeServices(paths, app.getVersion(), skillProviderHost, {
+    const runtime = createLocalRuntimeServices(paths, skillProviderHost, {
       serviceToken,
       credentialKey: credentialKey.toString('base64'),
+      agentHomeDirectory,
       ...(trustedRendererOrigin ? { trustedRendererOrigin } : {}),
-      authorizeSkillExecution: (skillId) => agentFileStore.assertExecutorEnabled(skillId)
     })
-    services = resolveMainServices(
-      createMainContainer({ mode: 'local', skillProviderHost, ...runtime })
-    )
+    services = createMainServices({ mode: 'local', skillProviderHost, ...runtime })
     await runtime.runtimeSupervisor.start()
-    registerAgentIpcHandlers(ipcMain, runtime.runtimeClient, logging.interactions)
     const serviceDescriptor = runtime.runtimeSupervisor.serviceDescriptor
     if (!serviceDescriptor) throw new Error('Local service did not report a stream surface')
     registerRuntimeConnectionIpc(ipcMain, serviceDescriptor, serviceToken)
@@ -154,7 +129,6 @@ app.whenReady().then(async () => {
         error instanceof Error ? error.message : String(error)
       )
     }
-    registerModelIpcHandlers(ipcMain, modelConnectionClient, logging.interactions)
   }
 
   createWindow(services)

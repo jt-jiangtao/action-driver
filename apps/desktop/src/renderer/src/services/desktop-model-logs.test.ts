@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { AgentDesktopApi } from '../../../preload/desktop-api'
+import type { LegacyModelLogApi } from './desktop-model-logs'
 import { DesktopModelLogService } from './desktop-model-logs'
 
 describe('DesktopModelLogService', () => {
@@ -13,6 +13,7 @@ describe('DesktopModelLogService', () => {
         endTime: '2026-09-23T00:00:02.000Z',
         status: 'completed' as const,
         durationMs: 2_000,
+        detailUrl: 'https://smith.langchain.com/r/session-1',
         tasks: [
           {
             id: 'task-1',
@@ -23,6 +24,7 @@ describe('DesktopModelLogService', () => {
             status: 'completed' as const,
             durationMs: 2_000,
             model: { connectionId: 'connection-1', modelId: 'model-1' },
+            detailUrl: 'https://smith.langchain.com/r/task-1',
             calls: [
               {
                 id: 'call-1',
@@ -40,7 +42,7 @@ describe('DesktopModelLogService', () => {
         ]
       }
     ])
-    const service = new DesktopModelLogService({ listModelLogs } as unknown as AgentDesktopApi)
+    const service = new DesktopModelLogService({ listModelLogs } as unknown as LegacyModelLogApi)
 
     await expect(service.list()).resolves.toMatchObject([
       {
@@ -50,7 +52,7 @@ describe('DesktopModelLogService', () => {
           {
             id: 'task-1',
             model: 'model-1',
-            calls: [{ id: 'call-1', kind: 'model', status: 'completed' }]
+            detailUrl: 'https://smith.langchain.com/r/task-1'
           }
         ]
       }

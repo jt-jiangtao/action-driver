@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   SKILL_IDS,
-  SERVICE_TYPES,
   isSerializableContract,
   type BrowserSkillInvocation,
   type ComputerUseSkillInvocation,
@@ -37,12 +36,6 @@ describe('agent skill contracts', () => {
     expect(computerInvocation.skillId).toBe('computer-use')
     expect(isSerializableContract(browserInvocation)).toBe(true)
     expect(isSerializableContract(computerInvocation)).toBe(true)
-  })
-
-  it('uses stable dependency injection symbols', () => {
-    expect(SERVICE_TYPES.agentCommandService).toBeTypeOf('symbol')
-    expect(SERVICE_TYPES.agentSessionRepository).toBeTypeOf('symbol')
-    expect(SERVICE_TYPES.skillGateway).toBeTypeOf('symbol')
   })
 
   it('accepts serializable task, skill event, and browser projection data', () => {

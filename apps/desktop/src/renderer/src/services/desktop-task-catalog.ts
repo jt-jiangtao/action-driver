@@ -1,9 +1,9 @@
 import type { SkillExecutionState } from '@actiondriver/contracts'
-import type { AgentDesktopApi } from '../../../preload/desktop-api'
+import type { AgentControlApi } from './runtime-agent-http-api'
 import type { RecentTaskSummary, TaskCatalog } from '../models/task-catalog'
 
 export class DesktopTaskCatalog implements TaskCatalog {
-  constructor(private readonly api: AgentDesktopApi) {}
+  constructor(private readonly api: AgentControlApi) {}
 
   async listRecentTasks(): Promise<readonly RecentTaskSummary[]> {
     const tasks = await this.api.listTasks(50)

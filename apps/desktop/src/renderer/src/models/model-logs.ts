@@ -3,13 +3,7 @@ export type ModelRunStatus = 'completed' | 'running' | 'failed'
 export type ModelCallKind = 'prompt' | 'model' | 'component' | 'result'
 
 export interface ModelLogDetailSection {
-  id:
-    | 'system-prompt'
-    | 'user-input'
-    | 'model-request'
-    | 'tool-io'
-    | 'model-response'
-    | 'metadata'
+  id: 'system-prompt' | 'user-input' | 'model-request' | 'tool-io' | 'model-response' | 'metadata'
   title: string
   content: string
   language?: 'json' | 'text'
@@ -32,6 +26,7 @@ export interface ModelLogTask {
   status: ModelRunStatus
   duration: string
   model: string
+  detailUrl?: string | null
   calls: ModelLogCall[]
 }
 
@@ -43,6 +38,7 @@ export interface ModelLogSession {
   endTime?: string
   status: ModelRunStatus
   duration: string
+  detailUrl?: string | null
   tasks: ModelLogTask[]
 }
 
@@ -209,9 +205,9 @@ export const mockModelLogSessions: ModelLogSession[] = [
         status: 'running',
         duration: '进行中',
         model: 'gpt-4o',
-        calls: weatherCalls.slice(0, 4).map((item, index) =>
-          index === 3 ? { ...item, status: 'running' as const } : item
-        )
+        calls: weatherCalls
+          .slice(0, 4)
+          .map((item, index) => (index === 3 ? { ...item, status: 'running' as const } : item))
       }
     ]
   },
@@ -231,11 +227,13 @@ export const mockModelLogSessions: ModelLogSession[] = [
         status: 'failed',
         duration: '1 分 12 秒',
         model: 'claude-3.5-sonnet',
-        calls: weatherCalls.slice(0, 5).map((item, index) =>
-          index === 4
-            ? { ...item, status: 'failed' as const, description: '组件连接超时，任务中止' }
-            : item
-        )
+        calls: weatherCalls
+          .slice(0, 5)
+          .map((item, index) =>
+            index === 4
+              ? { ...item, status: 'failed' as const, description: '组件连接超时，任务中止' }
+              : item
+          )
       }
     ]
   }

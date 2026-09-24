@@ -11,7 +11,7 @@ import type {
   TaskProjection
 } from '@actiondriver/contracts'
 import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
-import type { AgentDesktopApi } from '../../../preload/desktop-api'
+import type { AgentControlApi } from './runtime-agent-http-api'
 import { StreamTaskProjection } from './stream-task-projection'
 import type { RendererStreamClient, RuntimeStreamListener } from './renderer-stream-client'
 
@@ -22,7 +22,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   private readonly pendingStreamEvents = new Map<string, Parameters<RuntimeStreamListener>[0][]>()
 
   constructor(
-    private readonly api: AgentDesktopApi,
+    private readonly api: AgentControlApi,
     private readonly streamClient: Pick<RendererStreamClient, 'create' | 'cancel' | 'subscribe'>,
     private readonly getSystemPrompt?: () => Promise<string>
   ) {
@@ -121,7 +121,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 export class DesktopSkillGateway implements SkillGateway {
   private readonly listeners = new Set<(event: SkillExecutionEvent) => void>()
 
-  constructor(private readonly api: AgentDesktopApi) {}
+  constructor(private readonly api: AgentControlApi) {}
 
   invoke(invocation: SkillInvocation): Promise<SkillExecutionEvent> {
     void invocation

@@ -11,16 +11,24 @@ import {
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
+import { getRequestListener } from '@hono/node-server'
+import { zValidator } from '@hono/zod-validator'
+import { Hono } from 'hono'
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import type { Logger } from 'pino'
+import { createServer, type Server } from 'node:http'
 import {
   startBestEffortInteraction,
   type InteractionLogRecorder,
-  type InteractionRecorderResult
+  type StructuredLogger,
+  withRemoteTraceparent
 } from '@actiondriver/observability'
-import { LOG_LEVELS, readRecentLogRecords } from './logs'
+import { z } from 'zod'
 import { attachServiceWebSocketServer, type ServiceStreamSessionPort } from './websocket-service'
+import { attachLocalCapabilityService } from './local-capability-service'
+import type { RuntimeSkillRegistry } from '../skill-registry'
+import { AgentFileStoreError } from '../agent-files/agent-file-store'
+import type { AgentFileStore } from '../agent-files/agent-file-store'
+import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
 
 export type { ServiceStreamSessionPort } from './websocket-service'
 
@@ -40,15 +48,17 @@ export type ServiceModelConnectionPort = {
 
 export type ServiceHttpOptions = {
   service: ServiceModelConnectionPort
+  agentFiles?: AgentFileStore
+  taskControl?: { execute(command: string, input: unknown): Promise<unknown> }
   token: string
   runtimeVersion: string
-  logger?: Logger
-  logFilePath?: string | null
+  logger?: StructuredLogger
   host?: string
   port?: number
   bodyLimitBytes?: number
   interactions?: InteractionLogRecorder
   streamSessions?: ServiceStreamSessionPort
+  skillRegistry?: RuntimeSkillRegistry
   rendererOrigin?: string
   streamMaxPayloadBytes?: number
   streamMaxBufferedBytes?: number
@@ -62,29 +72,309 @@ export type ServiceHttpServer = {
 
 type Envelope<T> =
   | { ok: true; value: T }
-  | { ok: false; error: { code: ModelFailureCode; message: string } }
+  | { ok: false; error: { code: ModelFailureCode | AgentFileErrorCode; message: string } }
 
-const DEFAULT_BODY_LIMIT = 1_000_000
+const id = z.string().trim().min(1)
+const draftSchema = z.object({
+  name: id,
+  protocol: z.enum(['openai-compatible', 'anthropic']),
+  baseUrl: z.url(),
+  apiKey: id
+}).strict()
+const modelSchema = z.object({
+  id,
+  name: id,
+  enabled: z.boolean(),
+  testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported'])
+}).strict()
+const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) }).strict()
+const testModelsSchema = z.object({ draft: draftSchema, modelIds: z.array(id) }).strict()
+const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
+const enabledSchema = z.object({ enabled: z.boolean() }).strict()
+const saveAgentFileSchema = z.object({ path: id, content: z.string(), expectedDigest: id }).strict()
+const createAgentSkillSchema = z.object({ name: id, description: z.string() }).strict()
+const renameAgentSkillSchema = z.object({ name: id }).strict()
+const resetPromptSchema = z.object({ expectedDigest: id }).strict()
+const taskInputSchema = z.object({ value: z.unknown() }).strict()
+const skillControlSchema = z.object({ command: z.enum(['pause', 'resume', 'take-over']) }).strict()
+const invalid = () => failure('invalid-request', 'Request body does not match the route schema')
+const validate = <T extends z.ZodType>(schema: T) =>
+  zValidator('json', schema, (result, context) => {
+    if (!result.success) return context.json(invalid(), 400)
+  })
 
-/**
- * HTTP surface of the local service: configuration and model connection management.
- * Sessions use the WebSocket channel instead.
- */
-export async function startServiceHttpServer(
-  options: ServiceHttpOptions
-): Promise<ServiceHttpServer> {
-  const host = options.host ?? '127.0.0.1'
-  const bodyLimit = options.bodyLimitBytes ?? DEFAULT_BODY_LIMIT
+export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
+  const app = new Hono()
   const tokenDigest = createHash('sha256').update(options.token).digest()
   const logger = options.logger ?? null
-  const server = createServer((request, response) => {
-    void handleRequest(request, response, options, tokenDigest, bodyLimit, logger)
+  const bodyLimit = options.bodyLimitBytes ?? 1_000_000
+
+  app.onError((error, context) => {
+    const mapped = error instanceof ModelServiceError
+      ? { status: 200 as const, code: error.code, message: error.message }
+      : error instanceof AgentFileStoreError
+        ? {
+            status: error.code === 'NOT_FOUND' ? 404 as const
+              : error.code === 'CONFLICT' ? 409 as const : 400 as const,
+            code: error.code,
+            message: error.message
+          }
+        : {
+          status: 500 as const,
+          code: 'unknown' as const,
+          message: error instanceof Error ? error.message : String(error)
+        }
+    return context.json(failure(mapped.code, mapped.message), mapped.status)
   })
+
+  app.use('*', async (context, next) => {
+    const startedAt = Date.now()
+    const method = context.req.method
+    const path = context.req.path
+    const requestLog = logger?.child({ transport: 'http', method, path })
+    const origin = context.req.header('origin')
+    const trustedRendererOrigin = options.rendererOrigin
+    const originRejected = origin !== undefined && origin !== trustedRendererOrigin
+    if (method === 'OPTIONS' && origin === trustedRendererOrigin && origin !== undefined) {
+      const requestedMethod = context.req.header('access-control-request-method')?.toUpperCase()
+      const requestedHeaders = context.req.header('access-control-request-headers')
+        ?.split(',').map((header) => header.trim().toLowerCase()) ?? []
+      if (
+        !requestedMethod || !['GET', 'POST', 'DELETE'].includes(requestedMethod) ||
+        requestedHeaders.some((header) => !['authorization', 'content-type'].includes(header))
+      ) {
+        return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
+      }
+      return context.body(null, 204, {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Methods': 'GET, POST, DELETE',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Max-Age': '600',
+        Vary: 'Origin'
+      })
+    }
+    const authRejected = path !== '/readyz' && path !== '/healthz' &&
+      !tokenMatches(bearerToken(context.req.header('authorization')), tokenDigest)
+    let requestBody: unknown = null
+    let bodyError: string | null = null
+    if (!originRejected && !authRejected &&
+      (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      const raw = await readLimitedBody(context.req.raw.clone(), bodyLimit)
+      if (raw === null) bodyError = 'Request body is too large'
+      else if (raw.trim()) {
+        try {
+          requestBody = JSON.parse(raw) as unknown
+        } catch {
+          bodyError = 'Request body must be valid JSON'
+        }
+      }
+    }
+    const secretValues = credentialValues(requestBody, ['apiKey', 'draft.apiKey'])
+    const finish = options.interactions
+      ? await startBestEffortInteraction(
+          options.interactions,
+          {
+            transport: 'http',
+            direction: 'renderer->service',
+            operation: method + ' ' + path,
+            startedAt,
+            request: {
+              kind: 'json',
+              value: {
+                method,
+                path,
+                query: Object.fromEntries(new URL(context.req.url).searchParams),
+                headers: Object.fromEntries(context.req.raw.headers),
+                body: requestBody
+              },
+              secretPaths: [
+                'headers.authorization', 'headers.proxy-authorization', 'headers.cookie',
+                'headers.set-cookie', 'headers.x-api-key', 'body.apiKey', 'body.draft.apiKey'
+              ]
+            }
+          },
+          (error) => requestLog?.warn(
+            { error: error instanceof Error ? error.message : String(error) },
+            'interaction log write failed'
+          )
+        )
+      : null
+
+    if (originRejected) {
+      requestLog?.warn({ status: 403, reason: 'origin-rejected' }, 'service request rejected')
+      context.res = context.json(failure('unauthorized', 'Browser origins are not allowed'), 403)
+    } else if (authRejected) {
+      requestLog?.warn({ status: 401, reason: 'unauthorized' }, 'service request rejected')
+      context.res = context.json(failure('unauthorized', 'A valid service credential is required'), 401)
+    } else if (bodyError) {
+      context.res = context.json(failure('invalid-request', bodyError), 400)
+    } else {
+      requestLog?.info({ status: 'accepted' }, 'service request received')
+      await next()
+    }
+
+    if (origin !== undefined && !originRejected) {
+      context.header('Access-Control-Allow-Origin', origin)
+      context.header('Vary', 'Origin')
+    }
+
+    const responseText = await context.res.clone().text()
+    let responseValue: unknown
+    try {
+      responseValue = JSON.parse(responseText) as unknown
+    } catch {
+      responseValue = responseText
+    }
+    const envelope = isRecord(responseValue) ? responseValue : null
+    const failed = envelope?.ok === false
+    const outcome: 'error' | 'ok' = context.res.status >= 400 || failed ? 'error' : 'ok'
+    const error = failed && isRecord(envelope.error) ? envelope.error : null
+    const interactionError = error && typeof error.code === 'string' && typeof error.message === 'string'
+      ? { code: error.code, message: error.message }
+      : null
+    await finish?.({
+      outcome,
+      status: context.res.status,
+      response: typeof responseValue === 'string'
+        ? { kind: 'text', text: responseValue, contentType: context.res.headers.get('content-type') ?? 'text/plain' }
+        : { kind: 'json', value: responseValue },
+      secretValues,
+      ...(interactionError ? { error: interactionError } : {})
+    })
+    const loggedMessage = error && typeof error.message === 'string'
+      ? redactSecrets(error.message, secretValues)
+      : undefined
+    if (outcome === 'error') {
+      requestLog?.error({
+        status: context.res.status,
+        ...(error && typeof error.code === 'string' ? { code: error.code } : {}),
+        ...(loggedMessage ? { message: loggedMessage } : {}),
+        durationMs: Date.now() - startedAt
+      }, 'service request failed')
+    } else {
+      requestLog?.info({ status: context.res.status, durationMs: Date.now() - startedAt }, 'service response')
+    }
+  })
+
+  app.get('/readyz', (context) => context.text('ok'))
+  app.get('/healthz', (context) => context.text('ok'))
+  app.get('/version', (context) => context.json(success({
+    runtimeVersion: options.runtimeVersion,
+    protocolVersion: SERVICE_PROTOCOL_VERSION
+  })))
+  app.get('/model-connections', async (context) =>
+    context.json(success(await options.service.list())))
+  app.post('/model-connections', validate(addSchema), async (context) =>
+    context.json(success(await options.service.add(context.req.valid('json')))))
+  app.post('/model-connections/test', validate(draftSchema), async (context) =>
+    context.json(success(await options.service.testConnection(context.req.valid('json')))))
+  app.post('/model-connections/discover', validate(draftSchema), async (context) =>
+    context.json(success(await options.service.discover(context.req.valid('json')))))
+  app.post('/model-connections/test-models', validate(testModelsSchema), async (context) =>
+    context.json(success(await options.service.testModels(context.req.valid('json')))))
+  app.post('/model-connections/:connectionId/refresh', async (context) =>
+    context.json(success(await options.service.refresh(context.req.param('connectionId')))))
+  app.post('/model-connections/:connectionId/test-models',
+    validate(connectionModelsSchema),
+    async (context) => context.json(success(await options.service.testConnectionModels({
+      connectionId: context.req.param('connectionId'),
+      modelIds: context.req.valid('json').modelIds
+    })))
+  )
+  app.post('/model-connections/:connectionId/models/:modelId',
+    validate(enabledSchema),
+    async (context) => {
+      await options.service.setModelEnabled({
+        connectionId: context.req.param('connectionId'),
+        modelId: context.req.param('modelId'),
+        enabled: context.req.valid('json').enabled
+      })
+      return context.json(success(null))
+    }
+  )
+  app.delete('/model-connections/:connectionId', async (context) => {
+    await options.service.delete(context.req.param('connectionId'))
+    return context.json(success(null))
+  })
+  if (options.agentFiles) {
+    const files = options.agentFiles
+    app.get('/agent-files/main-prompt', async (context) =>
+      context.json(success(await files.getMainPrompt())))
+    app.post('/agent-files/main-prompt/reset', validate(resetPromptSchema), async (context) =>
+      context.json(success(await files.resetMainPrompt(context.req.valid('json').expectedDigest))))
+    app.get('/agent-files/skills', async (context) =>
+      context.json(success(await files.listSkills())))
+    app.get('/agent-files/skills/:skillId/tree', async (context) =>
+      context.json(success(await files.getSkillTree(context.req.param('skillId')))))
+    app.post('/agent-files/skills', validate(createAgentSkillSchema), async (context) =>
+      context.json(success(await files.createSkill(context.req.valid('json')))))
+    app.post('/agent-files/skills/:skillId/rename', validate(renameAgentSkillSchema), async (context) =>
+      context.json(success(await files.renameSkill(
+        context.req.param('skillId'), context.req.valid('json').name
+      ))))
+    app.delete('/agent-files/skills/:skillId', async (context) => {
+      await files.deleteSkill(context.req.param('skillId'))
+      return context.json(success(null))
+    })
+    app.post('/agent-files/skills/:skillId/enabled', validate(enabledSchema), async (context) =>
+      context.json(success(await files.setSkillEnabled(
+        context.req.param('skillId'), context.req.valid('json').enabled
+      ))))
+    app.get('/agent-files/file', async (context) => {
+      const path = context.req.query('path')
+      if (!path) return context.json(invalid(), 400)
+      return context.json(success(await files.readFile(path)))
+    })
+    app.post('/agent-files/file', validate(saveAgentFileSchema), async (context) =>
+      context.json(success(await files.saveFile(context.req.valid('json')))))
+  }
+  if (options.taskControl) {
+    const tasks = options.taskControl
+    app.get('/tasks', async (context) => {
+      const limit = Number(context.req.query('limit') ?? 20)
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+        return context.json(invalid(), 400)
+      }
+      return context.json(success(await tasks.execute('task.list', { limit })))
+    })
+    app.get('/tasks/:taskId', async (context) =>
+      context.json(success(await tasks.execute('task.get', { taskId: context.req.param('taskId') }))))
+    app.post('/tasks/:taskId/interrupt', async (context) =>
+      context.json(success(await tasks.execute('task.interrupt', { taskId: context.req.param('taskId') }))))
+    app.post('/tasks/:taskId/continue', async (context) =>
+      context.json(success(await tasks.execute('task.continue', { taskId: context.req.param('taskId') }))))
+    app.post('/tasks/:taskId/input', validate(taskInputSchema), async (context) =>
+      context.json(success(await tasks.execute('task.provide-input', {
+        taskId: context.req.param('taskId'), value: context.req.valid('json').value
+      }))))
+    app.post('/skills/invocations/:invocationId/control', validate(skillControlSchema),
+      async (context) => context.json(success(await tasks.execute('skill.control', {
+        invocationId: context.req.param('invocationId'),
+        command: context.req.valid('json').command
+      }))))
+  }
+  app.notFound((context) =>
+    context.json(failure('not-found', 'Unknown route: ' + context.req.method + ' ' + context.req.path), 404))
+  return app
+}
+
+export async function startServiceHttpServer(options: ServiceHttpOptions): Promise<ServiceHttpServer> {
+  const host = options.host ?? '127.0.0.1'
+  const app = createServiceHttpApp(options)
+  const listen = getRequestListener(app.fetch, { overrideGlobalObjects: false })
+  const server = createServer((request, response) => {
+    const parent = request.headers.traceparent
+    const run = () => listen(request, response)
+    void (typeof parent === 'string' ? withRemoteTraceparent(parent, run) : run())
+  })
+  const tokenDigest = createHash('sha256').update(options.token).digest()
   const webSockets = options.streamSessions
     ? attachServiceWebSocketServer(server, {
         sessions: options.streamSessions,
         tokenMatches: (token) => tokenMatches(token, tokenDigest),
-        logger,
+        logger: options.logger ?? null,
+        allowCapabilityUpgrade: options.skillRegistry !== undefined,
+        ...(options.interactions ? { interactions: options.interactions } : {}),
         ...(options.rendererOrigin ? { rendererOrigin: options.rendererOrigin } : {}),
         ...(options.streamMaxPayloadBytes === undefined
           ? {}
@@ -92,6 +382,12 @@ export async function startServiceHttpServer(
         ...(options.streamMaxBufferedBytes === undefined
           ? {}
           : { maxBufferedBytes: options.streamMaxBufferedBytes })
+      })
+    : null
+  const localCapabilities = options.skillRegistry
+    ? attachLocalCapabilityService(server, {
+        registry: options.skillRegistry,
+        tokenMatches: (token) => tokenMatches(token, tokenDigest)
       })
     : null
 
@@ -102,350 +398,46 @@ export async function startServiceHttpServer(
       resolve()
     })
   })
-
   const address = server.address()
   if (!address || typeof address === 'string') {
     await closeServer(server)
     throw new Error('Service HTTP server did not expose a TCP address')
   }
-
   return {
-    url: `http://${host}:${address.port}`,
+    url: 'http://' + host + ':' + address.port,
     port: address.port,
     close: async () => {
       await webSockets?.close()
+      await localCapabilities?.close()
       await closeServer(server)
     }
   }
 }
 
-async function handleRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  options: ServiceHttpOptions,
-  tokenDigest: Buffer,
-  bodyLimit: number,
-  logger: Logger | null
-): Promise<void> {
-  const url = new URL(request.url ?? '/', 'http://localhost')
-  const method = request.method ?? 'GET'
-  const startedAt = Date.now()
-  const requestLog = logger?.child({ transport: 'http', method, path: url.pathname })
-  let requestBody: unknown = null
-  let finishPromise:
-    | Promise<((result: InteractionRecorderResult) => Promise<void>) | null>
-    | undefined
-  const ensureCapture = () => {
-    if (finishPromise) return finishPromise
-    finishPromise =
-      url.pathname === '/logs' || !options.interactions
-        ? Promise.resolve(null)
-        : startBestEffortInteraction(
-            options.interactions,
-            {
-              transport: 'http',
-              direction: 'renderer->service',
-              operation: `${method} ${url.pathname}`,
-              startedAt,
-              request: {
-                kind: 'json',
-                value: {
-                  method,
-                  path: url.pathname,
-                  query: Object.fromEntries(url.searchParams),
-                  headers: request.headers,
-                  body: requestBody
-                },
-                secretPaths: [
-                  'headers.authorization',
-                  'headers.proxy-authorization',
-                  'headers.cookie',
-                  'headers.set-cookie',
-                  'headers.x-api-key',
-                  'body.apiKey',
-                  'body.draft.apiKey'
-                ]
-              }
-            },
-            (error) =>
-              requestLog?.warn(
-                { error: error instanceof Error ? error.message : String(error) },
-                'interaction log write failed'
-              )
-          )
-    return finishPromise
-  }
-  const secretValues = () => credentialValues(requestBody, ['apiKey', 'draft.apiKey'])
-  const readCapturedJson = async () => {
-    requestBody = await readJson(request, bodyLimit)
-    await ensureCapture()
-    return requestBody
-  }
-  const replyJson = async (status: number, payload: Envelope<unknown>) => {
-    const finish = await ensureCapture()
-    await finish?.({
-      outcome: payload.ok ? 'ok' : 'error',
-      status,
-      response: { kind: 'json', value: payload },
-      secretValues: secretValues(),
-      ...(payload.ok ? {} : { error: payload.error })
-    })
-    sendJson(response, status, payload)
-  }
-  const replyText = async (status: number, text: string, contentType: string) => {
-    const finish = await ensureCapture()
-    await finish?.({
-      outcome: status < 400 ? 'ok' : 'error',
-      status,
-      response: { kind: 'text', text, contentType },
-      secretValues: secretValues()
-    })
-    response.writeHead(status, { 'content-type': contentType })
-    response.end(text)
-  }
+function bearerToken(header: string | undefined): string {
+  return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : ''
+}
 
-  // Browser origins are rejected, mirroring Codex app-server behaviour, so a rendered page can
-  // never drive the local service directly.
-  if (request.headers.origin) {
-    requestLog?.warn({ status: 403, reason: 'origin-rejected' }, 'service request rejected')
-    await replyJson(403, failure('unauthorized', 'Browser origins are not allowed'))
-    return
-  }
-
-  if (url.pathname === '/readyz' || url.pathname === '/healthz') {
-    requestLog?.debug({ status: 200, durationMs: Date.now() - startedAt }, 'service health probe')
-    await replyText(200, 'ok', 'text/plain')
-    return
-  }
-
-  if (!isAuthorized(request, tokenDigest)) {
-    requestLog?.warn({ status: 401, reason: 'unauthorized' }, 'service request rejected')
-    await replyJson(401, failure('unauthorized', 'A valid service credential is required'))
-    return
-  }
-
-  requestLog?.info({ status: 'accepted' }, 'service request received')
-
+async function readLimitedBody(request: Request, limit: number): Promise<string | null> {
+  if (!request.body) return ''
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
   try {
-    if (method !== 'POST') await ensureCapture()
-    if (method === 'GET' && url.pathname === '/version') {
-      await replyJson(200, {
-        ok: true,
-        value: {
-          runtimeVersion: options.runtimeVersion,
-          protocolVersion: SERVICE_PROTOCOL_VERSION
-        }
-      })
-      requestLog?.info({ status: 200, durationMs: Date.now() - startedAt }, 'service response')
-      return
-    }
-
-    if (method === 'GET' && url.pathname === '/logs') {
-      const limit = Number(url.searchParams.get('limit') ?? '')
-      const level = url.searchParams.get('level') ?? undefined
-      const records = options.logFilePath
-        ? readRecentLogRecords({
-            filePath: options.logFilePath,
-            ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
-            ...(level ? { minLevel: LOG_LEVELS[level] ?? LOG_LEVELS.info! } : {})
-          })
-        : []
-      await replyJson(200, {
-        ok: true,
-        value: { records, filePath: options.logFilePath ?? null }
-      })
-      requestLog?.info(
-        { status: 200, records: records.length, durationMs: Date.now() - startedAt },
-        'service response'
-      )
-      return
-    }
-
-    if (method === 'GET' && url.pathname === '/model-connections') {
-      const connections = await options.service.list()
-      await replyJson(200, { ok: true, value: connections })
-      requestLog?.info(
-        { status: 200, connections: connections.length, durationMs: Date.now() - startedAt },
-        'service response'
-      )
-      return
-    }
-
-    if (method === 'POST' && url.pathname === '/model-connections') {
-      const body = await readCapturedJson()
-      const created = await options.service.add(body as ModelAddRequestDto)
-      await replyJson(200, { ok: true, value: created })
-      requestLog?.info(
-        { status: 200, connectionId: created.id, durationMs: Date.now() - startedAt },
-        'service response'
-      )
-      return
-    }
-
-    if (method === 'POST' && url.pathname === '/model-connections/test') {
-      const body = await readCapturedJson()
-      const request_ = body as ModelConnectionDraftDto
-      const childLog = requestLog?.child({
-        protocol: request_.protocol,
-        baseUrl: request_.baseUrl,
-        apiKey: '[redacted]'
-      })
-      const result = await options.service.testConnection(request_)
-      await replyJson(200, {
-        ok: true,
-        value: result
-      })
-      childLog?.info(
-        {
-          status: 200,
-          outcome: result.ok ? 'ok' : result.failure.code,
-          durationMs: Date.now() - startedAt
-        },
-        'service response'
-      )
-      return
-    }
-
-    if (method === 'POST' && url.pathname === '/model-connections/discover') {
-      const body = await readCapturedJson()
-      const request_ = body as ModelConnectionDraftDto
-      const models = await options.service.discover(request_)
-      await replyJson(200, {
-        ok: true,
-        value: models
-      })
-      requestLog?.info(
-        {
-          status: 200,
-          protocol: request_.protocol,
-          baseUrl: request_.baseUrl,
-          models: models.length,
-          durationMs: Date.now() - startedAt
-        },
-        'service response'
-      )
-      return
-    }
-
-    if (method === 'POST' && url.pathname === '/model-connections/test-models') {
-      const body = await readCapturedJson()
-      const request_ = body as ModelTestRequestDto
-      const results = await options.service.testModels(request_)
-      await replyJson(200, {
-        ok: true,
-        value: results
-      })
-      requestLog?.info(
-        {
-          status: 200,
-          models: results.length,
-          unsupported: results.filter((result) => result.state === 'unsupported').length,
-          failed: results.filter((result) => result.state === 'failed').length,
-          durationMs: Date.now() - startedAt
-        },
-        'service response'
-      )
-      return
-    }
-
-    const connectionRoute = matchConnectionRoute(url.pathname)
-    if (connectionRoute) {
-      const { connectionId, action, modelId } = connectionRoute
-      if (method === 'DELETE' && action === undefined) {
-        await options.service.delete(connectionId)
-        await replyJson(200, { ok: true, value: null })
-        requestLog?.info(
-          { status: 200, connectionId, durationMs: Date.now() - startedAt },
-          'service response'
-        )
-        return
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > limit) {
+        void reader.cancel().catch(() => undefined)
+        return null
       }
-      if (method === 'POST' && action === 'refresh') {
-        await ensureCapture()
-        const models = await options.service.refresh(connectionId)
-        await replyJson(200, {
-          ok: true,
-          value: models
-        })
-        requestLog?.info(
-          { status: 200, connectionId, models: models.length, durationMs: Date.now() - startedAt },
-          'service response'
-        )
-        return
-      }
-      if (method === 'POST' && action === 'test-models') {
-        const body = await readCapturedJson()
-        const request_ = body as { modelIds?: unknown }
-        const modelIds = Array.isArray(request_.modelIds) ? (request_.modelIds as string[]) : []
-        const results = await options.service.testConnectionModels({ connectionId, modelIds })
-        await replyJson(200, {
-          ok: true,
-          value: results
-        })
-        requestLog?.info(
-          {
-            status: 200,
-            connectionId,
-            models: results.length,
-            durationMs: Date.now() - startedAt
-          },
-          'service response'
-        )
-        return
-      }
-      if (method === 'POST' && action === 'models' && modelId) {
-        const body = await readCapturedJson()
-        const enabled = (body as { enabled?: unknown }).enabled === true
-        await options.service.setModelEnabled({ connectionId, modelId, enabled })
-        await replyJson(200, { ok: true, value: null })
-        requestLog?.info(
-          { status: 200, connectionId, modelId, enabled, durationMs: Date.now() - startedAt },
-          'service response'
-        )
-        return
-      }
+      chunks.push(value)
     }
-
-    requestLog?.warn({ status: 404, durationMs: Date.now() - startedAt }, 'service response')
-    await replyJson(404, failure('not-found', `Unknown route: ${method} ${url.pathname}`))
-  } catch (error) {
-    const mapped = toEnvelopeError(error)
-    requestLog?.error(
-      {
-        status: mapped.status,
-        code: mapped.code,
-        message: redactSecrets(mapped.message, secretValues()),
-        durationMs: Date.now() - startedAt
-      },
-      'service request failed'
-    )
-    await replyJson(mapped.status, failure(mapped.code, mapped.message))
+    return new TextDecoder().decode(Buffer.concat(chunks))
+  } finally {
+    reader.releaseLock()
   }
-}
-
-function matchConnectionRoute(pathname: string): {
-  connectionId: string
-  action?: 'refresh' | 'test-models' | 'models'
-  modelId?: string
-} | null {
-  const segments = pathname.split('/').filter(Boolean)
-  if (segments[0] !== 'model-connections' || segments.length < 2) return null
-  const connectionId = decodeURIComponent(segments[1] as string)
-  if (segments.length === 2) return { connectionId }
-  const action = segments[2]
-  if (action === 'refresh' && segments.length === 3) return { connectionId, action }
-  if (action === 'test-models' && segments.length === 3) return { connectionId, action }
-  if (action === 'models' && segments.length === 4) {
-    return { connectionId, action, modelId: decodeURIComponent(segments[3] as string) }
-  }
-  return null
-}
-
-function isAuthorized(request: IncomingMessage, tokenDigest: Buffer): boolean {
-  const header = request.headers.authorization
-  if (typeof header !== 'string' || !header.startsWith('Bearer ')) return false
-  const presented = createHash('sha256').update(header.slice('Bearer '.length)).digest()
-  return presented.length === tokenDigest.length && timingSafeEqual(presented, tokenDigest)
 }
 
 function tokenMatches(token: string, tokenDigest: Buffer): boolean {
@@ -453,56 +445,12 @@ function tokenMatches(token: string, tokenDigest: Buffer): boolean {
   return presented.length === tokenDigest.length && timingSafeEqual(presented, tokenDigest)
 }
 
-async function readJson(request: IncomingMessage, limit: number): Promise<unknown> {
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-    size += buffer.length
-    if (size > limit) throw new ModelServiceError('invalid-request', 'Request body is too large')
-    chunks.push(buffer)
-  }
-  const text = Buffer.concat(chunks).toString('utf8').trim()
-  if (!text) return {}
-  try {
-    return JSON.parse(text)
-  } catch {
-    throw new ModelServiceError('invalid-request', 'Request body must be valid JSON')
-  }
+function success<T>(value: T): Envelope<T> {
+  return { ok: true, value }
 }
 
-function toEnvelopeError(error: unknown): {
-  status: number
-  code: ModelFailureCode
-  message: string
-} {
-  if (error instanceof ModelServiceError) {
-    return { status: 200, code: error.code, message: error.message }
-  }
-  return {
-    status: 500,
-    code: 'unknown',
-    message: error instanceof Error ? error.message : String(error)
-  }
-}
-
-function failure(code: ModelFailureCode, message: string): Envelope<never> {
+function failure(code: ModelFailureCode | AgentFileErrorCode, message: string): Envelope<never> {
   return { ok: false, error: { code, message } }
-}
-
-function sendJson(response: ServerResponse, status: number, payload: Envelope<unknown>): void {
-  const body = JSON.stringify(payload)
-  response.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'content-length': Buffer.byteLength(body)
-  })
-  response.end(body)
-}
-
-function closeServer(server: Server): Promise<void> {
-  return new Promise((resolve) => {
-    server.close(() => resolve())
-  })
 }
 
 function credentialValues(value: unknown, paths: string[]): string[] {
@@ -510,17 +458,25 @@ function credentialValues(value: unknown, paths: string[]): string[] {
   for (const path of paths) {
     let current = value
     for (const segment of path.split('.')) {
-      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+      if (!isRecord(current)) {
         current = undefined
         break
       }
-      current = (current as Record<string, unknown>)[segment]
+      current = current[segment]
     }
     if (typeof current === 'string' && current.length > 0) values.push(current)
   }
   return values
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
 function redactSecrets(text: string, secrets: string[]): string {
   return secrets.reduce((sanitized, secret) => sanitized.split(secret).join('[redacted]'), text)
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve) => server.close(() => resolve()))
 }

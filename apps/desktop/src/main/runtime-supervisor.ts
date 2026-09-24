@@ -1,6 +1,4 @@
-import { MessageChannelMain, utilityProcess } from 'electron'
-import type { RuntimeMessageEndpoint } from '@actiondriver/runtime-contracts'
-import { adaptRuntimeMessageChannel } from './runtime-message-port'
+import { utilityProcess } from 'electron'
 
 export type RuntimeSupervisorState =
   | 'stopped'
@@ -28,7 +26,6 @@ export type RuntimeSupervisorOptions = {
   restartWindowMs?: number
   shutdownTimeoutMs?: number
   now?: () => number
-  onRuntimeRpcReady?: () => Promise<void>
   onServiceReady?: (service: RuntimeServiceDescriptor) => Promise<void>
 }
 
@@ -45,9 +42,6 @@ export class RuntimeSupervisor {
   private readyPromise: Promise<void> | null = null
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: Error) => void) | null = null
-  private rpcReadyPromise: Promise<void> = Promise.resolve()
-  private resolveRpcReady: (() => void) | null = null
-  private rejectRpcReady: ((error: Error) => void) | null = null
   private stopPromise: Promise<void> | null = null
   private resolveStop: (() => void) | null = null
   private shutdownTimer: ReturnType<typeof setTimeout> | null = null
@@ -56,7 +50,6 @@ export class RuntimeSupervisor {
   private readonly restartWindowMs: number
   private readonly shutdownTimeoutMs: number
   private readonly now: () => number
-  private readonly onRuntimeRpcReady: (() => Promise<void>) | undefined
   private readonly onServiceReady:
     | ((service: RuntimeServiceDescriptor) => Promise<void>)
     | undefined
@@ -81,7 +74,6 @@ export class RuntimeSupervisor {
     this.restartWindowMs = options.restartWindowMs ?? 60_000
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000
     this.now = options.now ?? Date.now
-    this.onRuntimeRpcReady = options.onRuntimeRpcReady
     this.onServiceReady = options.onServiceReady
   }
 
@@ -122,16 +114,6 @@ export class RuntimeSupervisor {
 
   private spawn(preservePendingStart = false): Promise<void> {
     this.state = 'starting'
-    if (this.onRuntimeRpcReady) {
-      this.rpcReadyPromise = new Promise<void>((resolve, reject) => {
-        this.resolveRpcReady = resolve
-        this.rejectRpcReady = reject
-      })
-    } else {
-      this.rpcReadyPromise = Promise.resolve()
-      this.resolveRpcReady = null
-      this.rejectRpcReady = null
-    }
     if (!preservePendingStart || !this.readyPromise) {
       this.readyPromise = new Promise<void>((resolve, reject) => {
         this.resolveReady = resolve
@@ -151,34 +133,8 @@ export class RuntimeSupervisor {
       typeof message === 'object' &&
       message !== null &&
       'type' in message &&
-      message.type === 'runtime.rpc-ready'
-    ) {
-      if (this.onRuntimeRpcReady) {
-        try {
-          await this.onRuntimeRpcReady()
-          this.resolveRpcReady?.()
-        } catch (error) {
-          const normalized = error instanceof Error ? error : new Error(String(error))
-          this.state = 'failed'
-          this.rejectRpcReady?.(normalized)
-          this.rejectReady?.(normalized)
-        }
-      }
-      return
-    }
-    if (
-      typeof message === 'object' &&
-      message !== null &&
-      'type' in message &&
       message.type === 'runtime.ready'
     ) {
-      if (this.onRuntimeRpcReady) {
-        try {
-          await this.rpcReadyPromise
-        } catch {
-          return
-        }
-      }
       if (this.state === 'failed') return
       const service = 'service' in message ? message.service : null
       this.serviceBaseUrl =
@@ -201,10 +157,18 @@ export class RuntimeSupervisor {
         try {
           await this.onServiceReady(this.serviceDescriptorValue)
         } catch (error) {
+          if (this.currentProcess !== process) return
           this.state = 'failed'
+          this.currentProcess = null
+          this.serviceBaseUrl = null
+          this.serviceDescriptorValue = null
+          process.kill()
           this.rejectReady?.(error instanceof Error ? error : new Error(String(error)))
+          this.resolveReady = null
+          this.rejectReady = null
           return
         }
+        if (this.currentProcess !== process) return
       }
       this.state = 'ready'
       this.resolveReady?.()
@@ -258,10 +222,10 @@ export class RuntimeSupervisor {
 export type ElectronRuntimeProcessFactoryOptions = {
   databasePath: string
   workspaceRoot: string
+  agentHomeDirectory?: string
   serviceToken?: string
   credentialKey?: string
   trustedRendererOrigin?: string
-  onEndpoint(endpoint: RuntimeMessageEndpoint): void
 }
 
 export function createElectronRuntimeProcessFactory(
@@ -274,15 +238,14 @@ export function createElectronRuntimeProcessFactory(
           ...process.env,
           ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
           ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
+          ...(options.agentHomeDirectory
+            ? { ACTIONDRIVER_AGENT_HOME: options.agentHomeDirectory }
+            : {}),
           ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
           ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {}),
           ACTIONDRIVER_RENDERER_ORIGIN: options.trustedRendererOrigin ?? ''
         }
       })
-      const messageChannel = new MessageChannelMain()
-      const runtimeChannel = adaptRuntimeMessageChannel(messageChannel)
-      options.onEndpoint(runtimeChannel.endpoint)
-      child.postMessage({ type: 'runtime.connect' }, [messageChannel.port2])
       return {
         postMessage(message) {
           child.postMessage(message)

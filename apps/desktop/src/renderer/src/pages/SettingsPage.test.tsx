@@ -1,13 +1,38 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, type RenderOptions } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+function renderWithQuery(element: ReactElement, options?: RenderOptions) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={client}>{element}</QueryClientProvider>, options)
+}
 
 describe('SettingsPage model connections', () => {
+  it('reuses cached connections when the settings page is reopened', async () => {
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const list = vi.spyOn(service, 'list')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const renderPage = () => (
+      <QueryClientProvider client={client}>
+        <SettingsPage service={service} onBack={() => undefined} />
+      </QueryClientProvider>
+    )
+    const first = render(renderPage())
+    expect(await screen.findByText('公司模型网关')).toBeVisible()
+    first.unmount()
+    const second = render(renderPage())
+    expect(await screen.findByText('公司模型网关')).toBeVisible()
+    expect(list).toHaveBeenCalledOnce()
+    second.unmount()
+  })
+
   it('renders connection cards and expands or collapses their model rows', async () => {
     const user = userEvent.setup()
-    render(<SettingsPage service={new MockModelConnectionsService({ delayMs: 0 })} onBack={() => {}} />)
+    renderWithQuery(<SettingsPage service={new MockModelConnectionsService({ delayMs: 0 })} onBack={() => {}} />)
 
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
     expect(await screen.findByText('公司模型网关')).toBeVisible()
@@ -23,7 +48,7 @@ describe('SettingsPage model connections', () => {
     const user = userEvent.setup()
     const service = new MockModelConnectionsService({ delayMs: 0 })
     const deleteSpy = vi.spyOn(service, 'delete')
-    render(<SettingsPage service={service} onBack={() => {}} />)
+    renderWithQuery(<SettingsPage service={service} onBack={() => {}} />)
 
     await user.click(await screen.findByRole('button', { name: '公司模型网关的更多操作' }))
     const menu = screen.getByRole('menu')
@@ -46,7 +71,7 @@ describe('SettingsPage model connections', () => {
 
   it('opens and cancels add-model-set from the designed empty state', async () => {
     const user = userEvent.setup()
-    render(
+    renderWithQuery(
       <SettingsPage
         service={new MockModelConnectionsService({ delayMs: 0, seed: [] })}
         onBack={() => {}}
@@ -65,7 +90,7 @@ describe('SettingsPage model connections', () => {
   it('enters the empty state after confirming deletion of the last model set', async () => {
     const user = userEvent.setup()
     const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
-    render(
+    renderWithQuery(
       <SettingsPage
         service={new MockModelConnectionsService({ delayMs: 0, seed })}
         onBack={() => {}}
@@ -83,7 +108,7 @@ describe('SettingsPage model connections', () => {
   it('configures a connection, discovers models, and saves without a manual-add row', async () => {
     const user = userEvent.setup()
     const service = new MockModelConnectionsService({ delayMs: 0 })
-    render(<SettingsPage service={service} onBack={() => {}} />)
+    renderWithQuery(<SettingsPage service={service} onBack={() => {}} />)
 
     await screen.findByText('公司模型网关')
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
@@ -128,7 +153,7 @@ describe('SettingsPage model connections', () => {
     })
     const testConnectionSpy = vi.spyOn(service, 'testConnection')
     const testModelsSpy = vi.spyOn(service, 'testModels')
-    render(<SettingsPage service={service} onBack={() => {}} />)
+    renderWithQuery(<SettingsPage service={service} onBack={() => {}} />)
 
     await screen.findByText('还没有模型集')
     await user.click(screen.getByRole('button', { name: '添加模型集' }))

@@ -1,9 +1,5 @@
-import {
-  ModelServiceError,
-  type HttpRequest,
-  type HttpResponse,
-  type HttpTransport
-} from '@actiondriver/model-connections'
+import { ModelServiceError } from '@actiondriver/model-connections'
+import type { HttpRequest, HttpResponse, HttpTransport } from './http-client'
 import { describe, expect, it } from 'vitest'
 import { ModelConnectionHttpClient } from './http-client'
 

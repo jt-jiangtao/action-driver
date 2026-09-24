@@ -1,6 +1,23 @@
-import type { SecretCipher } from '@actiondriver/model-connections'
-import { SecretCipherUnavailableError } from '@actiondriver/model-connections'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
+
+export interface SecretCipher {
+  isAvailable(): boolean
+  encrypt(plainText: string): string
+  decrypt(cipherText: string): string
+}
+
+export class SecretCipherUnavailableError extends Error {
+  readonly code = 'MODEL_SECRET_UNAVAILABLE'
+  constructor() {
+    super('MODEL_SECRET_UNAVAILABLE: credential encryption is unavailable')
+    this.name = 'SecretCipherUnavailableError'
+  }
+}
+
+export function apiKeyHint(apiKey: string): string {
+  const trimmed = apiKey.trim()
+  return trimmed.length <= 4 ? '••••' : `••••${trimmed.slice(-4)}`
+}
 
 const ALGORITHM = 'aes-256-gcm'
 const KEY_BYTES = 32

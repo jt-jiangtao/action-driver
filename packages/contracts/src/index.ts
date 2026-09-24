@@ -71,6 +71,7 @@ export interface ToolInvocationProjection {
     | 'completed'
     | 'failed'
     | 'cancelled'
+    | 'unknown'
 }
 
 export interface ActivityTextProjection {
@@ -172,6 +173,7 @@ export type ModelLogTaskProjection = {
   durationMs: number | null
   model: ModelRef
   calls: ModelLogCallProjection[]
+  detailUrl?: string | null
 }
 
 export type ModelLogSessionProjection = {
@@ -182,6 +184,7 @@ export type ModelLogSessionProjection = {
   endTime?: string
   status: ModelRunStatus
   durationMs: number | null
+  detailUrl?: string | null
   tasks: ModelLogTaskProjection[]
 }
 
@@ -268,12 +271,6 @@ export interface SkillGateway {
   getCapability<TSkillId extends SkillId>(skillId: TSkillId): SkillCapability<TSkillId>
   subscribe(listener: (event: SkillExecutionEvent) => void): () => void
 }
-
-export const SERVICE_TYPES = {
-  agentCommandService: Symbol.for('actiondriver.agent-command-service'),
-  agentSessionRepository: Symbol.for('actiondriver.agent-session-repository'),
-  skillGateway: Symbol.for('actiondriver.skill-gateway')
-} as const
 
 export function isSerializableContract(value: unknown): boolean {
   const seen = new WeakSet<object>()

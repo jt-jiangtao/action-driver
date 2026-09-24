@@ -42,9 +42,11 @@ export class RendererStreamClient {
   >()
   private readonly acceptedByTask = new Map<string, RuntimeStreamAccepted>()
   private readonly cursors = new Map<string, number>()
+  private readonly sequences = new Map<string, number>()
   private readonly activeRequests = new Set<string>()
   private readonly lifecycleGuards = new Map<string, StreamLifecycleGuard>()
-  private readonly pendingByCursor = new Map<string, Map<number, StreamServerEvent>>()
+  private readonly pendingBySequence = new Map<string, Map<number, StreamServerEvent>>()
+  private readonly requestedGaps = new Set<string>()
   private readonly seenEventIds = new Set<string>()
   private readonly seenOrder: string[] = []
 
@@ -204,49 +206,65 @@ export class RendererStreamClient {
       return
     }
     if ('cursor' in event) {
-      this.queueByCursor(event)
+      this.queueBySequence(event)
       return
     }
     this.deliver(event)
   }
 
-  private queueByCursor(
+  private queueBySequence(
     event: Extract<StreamServerEvent, { cursor: number; requestId: string }>
   ): void {
     const current = this.cursors.get(event.requestId)
-    if (current !== undefined && event.cursor <= current) return
     if (event.type === 'response.snapshot') {
+      if (current !== undefined && event.cursor <= current) return
       this.deliver(event)
-      const pending = this.pendingByCursor.get(event.requestId)
+      const pending = this.pendingBySequence.get(event.requestId)
       if (pending) {
-        for (const cursor of pending.keys()) if (cursor <= event.cursor) pending.delete(cursor)
+        for (const sequence of pending.keys()) {
+          if (sequence <= event.sequence) pending.delete(sequence)
+        }
       }
-      this.drainCursor(event.requestId)
+      this.requestedGaps.delete(event.requestId)
+      this.drainSequence(event.requestId)
       return
     }
     if (current === undefined && event.type === 'request.accepted') {
       this.deliver(event)
-      this.drainCursor(event.requestId)
+      this.drainSequence(event.requestId)
       return
     }
+    const lastSequence = this.sequences.get(event.requestId) ?? -1
+    if (event.sequence <= lastSequence) return
     const pending =
-      this.pendingByCursor.get(event.requestId) ?? new Map<number, StreamServerEvent>()
-    pending.set(event.cursor, event)
-    this.pendingByCursor.set(event.requestId, pending)
-    this.drainCursor(event.requestId)
+      this.pendingBySequence.get(event.requestId) ?? new Map<number, StreamServerEvent>()
+    pending.set(event.sequence, event)
+    this.pendingBySequence.set(event.requestId, pending)
+    if (pending.size > 512) {
+      pending.clear()
+      this.resume(event.requestId)
+      return
+    }
+    this.drainSequence(event.requestId)
   }
 
-  private drainCursor(requestId: string): void {
-    const pending = this.pendingByCursor.get(requestId)
+  private drainSequence(requestId: string): void {
+    const pending = this.pendingBySequence.get(requestId)
     if (!pending) return
-    let next = (this.cursors.get(requestId) ?? 0) + 1
+    let next = (this.sequences.get(requestId) ?? -1) + 1
     while (pending.has(next)) {
       const event = pending.get(next)!
       pending.delete(next)
       this.deliver(event)
-      next = (this.cursors.get(requestId) ?? next) + 1
+      next = (this.sequences.get(requestId) ?? next) + 1
     }
-    if (pending.size === 0) this.pendingByCursor.delete(requestId)
+    if (pending.size === 0) {
+      this.pendingBySequence.delete(requestId)
+      this.requestedGaps.delete(requestId)
+    } else if (!this.requestedGaps.has(requestId)) {
+      this.requestedGaps.add(requestId)
+      this.resume(requestId)
+    }
   }
 
   private deliver(event: StreamServerEvent): void {
@@ -270,6 +288,7 @@ export class RendererStreamClient {
     for (const listener of this.listeners) listener(event)
     this.remember(event.eventId)
     if ('cursor' in event) this.cursors.set(event.requestId, event.cursor)
+    if ('sequence' in event) this.sequences.set(event.requestId, event.sequence)
     if (event.type === 'request.accepted') {
       this.activeRequests.add(event.requestId)
       this.acceptedByTask.set(event.taskId, event)
@@ -288,7 +307,9 @@ export class RendererStreamClient {
         this.pendingCreates.delete(event.requestId)
       }
     }
-    if (event.type === 'response.end') this.activeRequests.delete(event.requestId)
+    if (event.type === 'runtime.interrupted') this.lifecycleGuards.delete(event.responseId)
+    if (event.type === 'response.end' || event.type === 'runtime.interrupted')
+      this.activeRequests.delete(event.requestId)
   }
 
   private handleClose(socket: RendererWebSocket, code: number): void {

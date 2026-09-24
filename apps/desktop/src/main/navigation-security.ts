@@ -8,6 +8,9 @@ export interface NavigationGuardTarget {
 
 export function resolveTrustedRendererOrigin(rendererEntryUrl: string): string | null {
   const rendererEntry = new URL(rendererEntryUrl)
+  if (rendererEntry.protocol === 'actiondriver:' && rendererEntry.hostname === 'renderer') {
+    return 'actiondriver://renderer'
+  }
   return rendererEntry.protocol === 'http:' || rendererEntry.protocol === 'https:'
     ? rendererEntry.origin
     : null
@@ -21,10 +24,12 @@ export function installNavigationGuards(
   target.setWindowOpenHandler(() => ({ action: 'deny' }))
   target.on('will-navigate', (event, candidateUrl) => {
     const candidate = new URL(candidateUrl)
+    const trustedOrigin = resolveTrustedRendererOrigin(rendererEntryUrl)
+    const candidateOrigin = resolveTrustedRendererOrigin(candidateUrl)
     const allowed =
       rendererEntry.protocol === 'file:'
         ? candidate.href === rendererEntry.href
-        : candidate.origin === rendererEntry.origin
+        : trustedOrigin !== null && candidateOrigin === trustedOrigin
     if (!allowed) event.preventDefault()
   })
 }

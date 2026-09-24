@@ -1,7 +1,7 @@
 import {
   ModelServiceError,
   type ModelConnectionDto,
-  type ModelConnectionService
+  type ModelConnectionServicePort
 } from '@actiondriver/model-connections'
 import {
   createInteractionLogRecorder,
@@ -10,6 +10,7 @@ import {
 } from '@actiondriver/observability'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
+import type { AgentFileStore } from '../src/agent-files/agent-file-store'
 
 const connection: ModelConnectionDto = {
   id: 'company-gateway',
@@ -41,19 +42,23 @@ function serviceStub(overrides: Record<string, unknown> = {}) {
     delete: vi.fn(async () => undefined),
     ...overrides
   }
-  return base as unknown as ModelConnectionService & typeof base
+  return base as unknown as ModelConnectionServicePort & typeof base
 }
 
 async function startService(
   overrides: Record<string, unknown> = {},
-  interactions?: InteractionLogRecorder
+  interactions?: InteractionLogRecorder,
+  rendererOrigin?: string,
+  agentFiles?: AgentFileStore
 ) {
   const service = serviceStub(overrides)
   server = await startServiceHttpServer({
     service,
     token: 'service-token',
     runtimeVersion: '0.1.0',
-    ...(interactions ? { interactions } : {})
+    ...(interactions ? { interactions } : {}),
+    ...(rendererOrigin ? { rendererOrigin } : {}),
+    ...(agentFiles ? { agentFiles } : {})
   })
   return { service, url: server.url }
 }
@@ -80,6 +85,68 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('serves prompt and Skill definitions from the Runtime file service', async () => {
+    const fileStore = {
+      getMainPrompt: vi.fn(async () => ({
+        path: '.action-driver/prompts/main.md', content: '# Prompt', digest: 'digest',
+        modifiedAt: '2026-09-24T00:00:00.000Z'
+      })),
+      listSkills: vi.fn(async () => [])
+    } as unknown as AgentFileStore
+    await startService({}, undefined, undefined, fileStore)
+    const prompt = await authorized('/agent-files/main-prompt')
+    expect(prompt.status).toBe(200)
+    await expect(prompt.json()).resolves.toMatchObject({ ok: true, value: { content: '# Prompt' } })
+    const skills = await authorized('/agent-files/skills')
+    expect(skills.status).toBe(200)
+    await expect(skills.json()).resolves.toMatchObject({ ok: true, value: [] })
+  })
+
+  it('serves task reads and controls from the Runtime task service', async () => {
+    const execute = vi.fn(async (command: string) => command === 'task.get'
+      ? { task: { id: 'task-1' } }
+      : command === 'task.list' ? { tasks: [{ id: 'task-1' }] } : { accepted: true })
+    server = await startServiceHttpServer({
+      service: serviceStub(), token: 'service-token', runtimeVersion: '0.1.0',
+      taskControl: { execute }
+    })
+    await expect(authorized('/tasks/task-1').then((response) => response.json()))
+      .resolves.toMatchObject({ ok: true, value: { task: { id: 'task-1' } } })
+    await expect(authorized('/tasks?limit=10').then((response) => response.json()))
+      .resolves.toMatchObject({ ok: true, value: { tasks: [{ id: 'task-1' }] } })
+    await authorized('/tasks/task-1/interrupt', { method: 'POST' })
+    expect(execute.mock.calls.map(([command]) => command)).toEqual([
+      'task.get', 'task.list', 'task.interrupt'
+    ])
+  })
+
+  it('rejects invalid write payloads with 400 before calling the service', async () => {
+    const { service } = await startService()
+    const cases = [
+      ['/model-connections', { draft: { name: 'bad' }, models: [] }],
+      ['/model-connections/test', { name: 'bad', protocol: 'invalid', baseUrl: '', apiKey: '' }],
+      ['/model-connections/discover', { name: 'bad' }],
+      ['/model-connections/test-models', { draft: { name: 'bad' }, modelIds: [1] }],
+      ['/model-connections/company-gateway/test-models', { modelIds: [1] }],
+      ['/model-connections/company-gateway/models/qwen3.7-plus', { enabled: 'yes' }]
+    ] as const
+    for (const [path, body] of cases) {
+      const response = await authorized(path, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+      })
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toMatchObject({
+        ok: false, error: { code: 'invalid-request' }
+      })
+    }
+    expect(service.add).not.toHaveBeenCalled()
+    expect(service.testConnection).not.toHaveBeenCalled()
+    expect(service.discover).not.toHaveBeenCalled()
+    expect(service.testModels).not.toHaveBeenCalled()
+    expect(service.testConnectionModels).not.toHaveBeenCalled()
+    expect(service.setModelEnabled).not.toHaveBeenCalled()
+  })
+
   it('answers health probes without a credential', async () => {
     await startService()
 
@@ -100,6 +167,38 @@ describe('service HTTP surface', () => {
       ok: false,
       error: { code: 'unauthorized' }
     })
+  })
+
+  it('allows only the configured Renderer origin with a valid token and scoped preflight', async () => {
+    await startService({}, undefined, 'http://localhost:5173')
+    const preflight = await fetch(`${server!.url}/model-connections`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'GET',
+        'access-control-request-headers': 'authorization'
+      }
+    })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
+    expect(preflight.headers.get('access-control-allow-headers')).toContain('Authorization')
+
+    const allowed = await authorized('/model-connections', {
+      headers: { origin: 'http://localhost:5173' }
+    })
+    expect(allowed.status).toBe(200)
+    expect(allowed.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
+
+    const noToken = await fetch(`${server!.url}/model-connections`, {
+      headers: { origin: 'http://localhost:5173' }
+    })
+    expect(noToken.status).toBe(401)
+
+    const foreign = await authorized('/model-connections', {
+      headers: { origin: 'http://localhost:5174' }
+    })
+    expect(foreign.status).toBe(403)
+    expect(foreign.headers.get('access-control-allow-origin')).toBeNull()
   })
 
   it('requires the service credential for business routes', async () => {
@@ -199,7 +298,23 @@ describe('service HTTP surface', () => {
     })
   })
 
-  it('records HTTP request/response pairs without credentials and excludes log queries', async () => {
+  it('rejects an oversized body before reaching the model service', async () => {
+    const service = serviceStub()
+    server = await startServiceHttpServer({
+      service, token: 'service-token', runtimeVersion: '0.1.0', bodyLimitBytes: 64
+    })
+    const response = await authorized('/model-connections/test', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'too large', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1',
+        apiKey: 'x'.repeat(1024)
+      })
+    })
+    expect(response.status).toBe(400)
+    expect(service.testConnection).not.toHaveBeenCalled()
+  })
+
+  it('records HTTP request/response pairs without credentials, including removed-route attempts', async () => {
     const { interactions, store } = recordingInteractions()
     await startService({}, interactions)
 
@@ -220,6 +335,7 @@ describe('service HTTP surface', () => {
 
     const records = (await store.list({ limit: 20 })).records
     expect(records.map((record) => record.operation).sort()).toEqual([
+      'GET /logs',
       'GET /model-connections',
       'POST /model-connections/test'
     ])
@@ -286,9 +402,9 @@ describe('service HTTP surface', () => {
       async start() {
         calls += 1
         if (calls === 1) throw new Error('disk unavailable')
-        return async () => {
+        return Object.assign(async () => {
           throw new Error('disk full')
-        }
+        }, { run: <T>(operation: () => Promise<T>) => operation() })
       },
       async recordOneWay() {
         throw new Error('disk unavailable')

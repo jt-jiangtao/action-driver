@@ -1,5 +1,4 @@
 import type {
-  CheckpointStore,
   Clock,
   EventRepository,
   IdGenerator,
@@ -105,18 +104,6 @@ export class MockSkillRegistry extends RuntimeSkillRegistry {
   }
 }
 
-class InMemoryCheckpointStore implements CheckpointStore {
-  private readonly checkpoints = new Map<string, unknown>()
-
-  async get(threadId: string): Promise<unknown | null> {
-    return this.checkpoints.get(threadId) ?? null
-  }
-
-  async put(threadId: string, checkpoint: unknown): Promise<void> {
-    this.checkpoints.set(threadId, checkpoint)
-  }
-}
-
 class InMemoryTaskRepository implements TaskRepository {
   private readonly tasks = new Map<string, RuntimeTaskRecord>()
 
@@ -175,6 +162,18 @@ class InMemoryEventRepository implements EventRepository {
   async listAfter(cursor: number): Promise<RuntimeEventRecord[]> {
     return structuredClone(this.events.filter((event) => event.cursor > cursor))
   }
+
+  async listForRequestAfter(
+    requestId: string,
+    cursor: number,
+    limit: number
+  ): Promise<RuntimeEventRecord[]> {
+    return structuredClone(
+      this.events
+        .filter((event) => event.requestId === requestId && event.cursor > cursor)
+        .slice(0, limit)
+    )
+  }
 }
 
 class DeterministicClock implements Clock {
@@ -198,7 +197,6 @@ export function createMockRuntimeAdapters(): RuntimeAdapters {
 
   return {
     graphRunner: new LangGraphRunner(modelGateway, skillRegistry),
-    checkpointStore: new InMemoryCheckpointStore(),
     taskRepository: new InMemoryTaskRepository(),
     eventRepository: new InMemoryEventRepository(),
     modelGateway,

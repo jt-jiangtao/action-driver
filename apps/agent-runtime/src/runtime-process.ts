@@ -1,26 +1,28 @@
 import { createLocalRuntimeServer } from './local-runtime-server'
 import { createLocalRuntimeAdapters } from './local-adapters'
-import { waitForRuntimeMessagePort, type ParentPortLike } from './parent-port-endpoint'
+import type { ParentPortLike } from './runtime-parent-port'
 import { openRuntimeDatabase } from './database'
+import { claimRuntimeOwnership } from './runtime-ownership'
 import { SqliteRuntimeRepositories } from './repositories'
 import { createSqliteCheckpointer } from './sqlite-checkpointer'
 import { ConnectionModelGateway } from './model-connections/model-gateway'
+import { LangSmithObservability } from './langsmith-observability'
 import { createSqliteModelConnectionStore } from './model-connections/sqlite-store'
 import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
 import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
 import { StreamSessionService } from './stream-session-service'
 import { SERVICE_STREAM_PATH, SERVICE_STREAM_PROTOCOL } from './service/websocket-service'
-import { ModelConnectionService, createFetchHttpTransport } from '@actiondriver/model-connections'
+import { createFetchHttpTransport } from './model-connections/http-transport'
+import { ModelConnectionService } from './model-connections/service'
 import {
-  createInteractionLogRecorder,
-  createLocalInteractionLogStore,
-  DEFAULT_INTERACTION_SOURCE_RETENTION
+  createInteractionLogRecorder
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
-import { dirname, join } from 'node:path'
 import { createSandboxTools } from './sandbox'
 import { registerSearxngTool } from './searxng/runtime-tools'
+import { AgentFileStore } from './agent-files/agent-file-store'
+import type { RuntimeSkillRegistry } from './skill-registry'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -32,27 +34,29 @@ export async function startAgentRuntimeProcess(
 ): Promise<void> {
   const workspaceRoot = environment.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
   if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
-  const endpointPromise = waitForRuntimeMessagePort(parentPort)
   const sandboxTools = await createSandboxTools({ workspaceRoot })
-  const endpoint = await endpointPromise
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
   const database = openRuntimeDatabase(databasePath)
+  let ownership: ReturnType<typeof claimRuntimeOwnership>
+  try {
+    ownership = claimRuntimeOwnership(database)
+  } catch (error) {
+    database.close()
+    throw error
+  }
   const repositories = new SqliteRuntimeRepositories(database)
   await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
+  await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
   const checkpointer = createSqliteCheckpointer(databasePath)
   const logging = createServiceLogger({ databasePath })
-  const interactionStore = await createLocalInteractionLogStore({
-    rootDirectory: join(dirname(databasePath), '..', 'logs', 'interactions'),
-    source: 'service',
-    retention: DEFAULT_INTERACTION_SOURCE_RETENTION
-  })
   const interactions = createInteractionLogRecorder({
-    store: interactionStore,
     ids: {
       eventId: () => `service:${randomUUID()}`,
       correlationId: randomUUID
     },
-    logger: logging.logger
+    logger: logging.logger,
+    tracer: logging.tracer,
+    meter: logging.meter
   })
   const credentialSecret = environment.ACTIONDRIVER_CREDENTIAL_KEY?.trim()
   const service = new ModelConnectionService({
@@ -62,10 +66,16 @@ export async function startAgentRuntimeProcess(
     ),
     transport: createFetchHttpTransport()
   })
+  const modelTraces = new LangSmithObservability(environment)
+  const agentFiles = new AgentFileStore({
+    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
+  })
+  await agentFiles.initialize()
   const modelGateway = new ConnectionModelGateway({
     service,
     modelCalls: repositories.modelCalls,
     interactions,
+    traces: modelTraces,
     callId: () => `model-call:${randomUUID()}`,
     correlationId: randomUUID,
     now: () => new Date().toISOString()
@@ -88,25 +98,26 @@ export async function startAgentRuntimeProcess(
     now: () => local.adapters.clock.now(),
     rawToolIO: { enabled: true }
   })
-  const server = createLocalRuntimeServer(endpoint, {
+  const server = createLocalRuntimeServer({
     adapters: local.adapters,
     messages: repositories.messages,
     modelCalls: repositories.modelCalls,
     streamSnapshots: streamSessions
   })
-  parentPort.postMessage({ type: 'runtime.rpc-ready' })
 
   let httpServer: ServiceHttpServer | null = null
 
   if (serviceToken) {
     httpServer = await startServiceHttpServer({
       service,
+      agentFiles,
+      taskControl: server,
       token: serviceToken,
       runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
       logger: logging.logger,
-      logFilePath: logging.logFilePath,
       interactions,
       streamSessions,
+      skillRegistry: local.adapters.skillRegistry as RuntimeSkillRegistry,
       ...(environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
         ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
         : {})
@@ -126,6 +137,7 @@ export async function startAgentRuntimeProcess(
     void server.close().then(async () => {
       await httpServer?.close()
       checkpointer.close()
+      ownership.release()
       repositories.close()
       await logging.close()
       exit(0)

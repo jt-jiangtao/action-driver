@@ -1,11 +1,6 @@
-import type {
-  ModelConnectionStore,
-  ModelOptionDto,
-  ModelProtocol,
-  ModelTestState,
-  StoredModelConnection
-} from '@actiondriver/model-connections'
-import { ModelStorageError } from '@actiondriver/model-connections'
+import type { ModelOptionDto, ModelProtocol, ModelTestState } from '@actiondriver/model-connections'
+import type { ModelConnectionStore, StoredModelConnection } from './store'
+import { ModelStorageError } from './store'
 import type Database from 'better-sqlite3'
 
 type ConnectionRow = {

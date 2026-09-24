@@ -3,12 +3,29 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
+import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 
 const sourceProfile = process.env.ACTIONDRIVER_REAL_SMOKE_PROFILE
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 
 test.skip(!sourceProfile, 'Set ACTIONDRIVER_REAL_SMOKE_PROFILE to run against a saved connection')
+
+async function runtimeTask(page: Page, taskId: string): Promise<{
+  status: string; messages: Array<{ content: unknown }>
+} | null> {
+  return await page.evaluate(async (id) => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    url.pathname = `/tasks/${encodeURIComponent(id)}`
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${connection.accessToken}` } })
+    const body = await response.json() as {
+      ok: boolean; value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
+    }
+    if (!response.ok || !body.ok) throw new Error('Runtime task query failed')
+    return body.value.task
+  }, taskId)
+}
 
 test('calls a saved real model and observes a real sandbox file read', async () => {
   test.setTimeout(90_000)
@@ -55,26 +72,12 @@ test('calls a saved real model and observes a real sandbox file read', async () 
     await expect
       .poll(
         async () =>
-          page.evaluate(
-            async (id) => (await window.actionDriverDesktop.agent.get(id))?.status,
-            taskId!
-          ),
+          runtimeTask(page, taskId!).then((task) => task?.status),
         { timeout: 75_000 }
       )
       .not.toBe('running')
-    const persisted = await page.evaluate(
-      async (id) => ({
-        task: await window.actionDriverDesktop.agent.get(id),
-        modelLog: await window.actionDriverDesktop.agent.getModelLog(id),
-        toolLogs: (await window.actionDriverDesktop.logs.list({ limit: 100 })).records
-          .filter((record) => record.taskId === id && record.operation.startsWith('sandbox.'))
-          .map((record) => ({ operation: record.operation, outcome: record.outcome }))
-      }),
-      taskId!
-    )
-    expect(persisted.toolLogs).toContainEqual({ operation: 'sandbox.fs.read', outcome: 'ok' })
-    expect(persisted.modelLog?.tasks.flatMap((task) => task.calls).length).toBeGreaterThanOrEqual(2)
-    expect(persisted.task?.messages.at(-1)?.content).toContain(
+    const persisted = await runtimeTask(page, taskId!)
+    expect(persisted?.messages.at(-1)?.content).toContain(
       'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923'
     )
   } finally {

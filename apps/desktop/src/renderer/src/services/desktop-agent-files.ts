@@ -10,7 +10,7 @@ import {
 
 type StructuredError = { code?: unknown; message?: unknown }
 
-function mapError(error: unknown): Error {
+export function mapAgentFileError(error: unknown): Error {
   const structured = error as StructuredError
   const message = typeof structured?.message === 'string' ? structured.message : String(error)
   if (structured?.code === 'CONFLICT') return new AgentFileConflictError(message)
@@ -23,7 +23,7 @@ async function call<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation()
   } catch (error) {
-    throw mapError(error)
+    throw mapAgentFileError(error)
   }
 }
 

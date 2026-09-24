@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { installNavigationGuards } from './navigation-security'
+import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 
 describe('installNavigationGuards', () => {
+  it('derives a stable exact origin for the packaged application protocol', () => {
+    expect(resolveTrustedRendererOrigin('actiondriver://renderer/index.html'))
+      .toBe('actiondriver://renderer')
+  })
+
   it('denies new windows and prevents navigation outside the renderer origin', () => {
     let openHandler: ((details: { url: string }) => { action: 'deny' | 'allow' }) | undefined
     let navigateHandler: ((event: { preventDefault(): void }, url: string) => void) | undefined

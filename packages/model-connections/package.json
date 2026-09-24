@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@actiondriver/contracts": "workspace:*",
-    "@actiondriver/runtime-contracts": "workspace:*",
-    "openai": "6.49.0"
+    "@actiondriver/runtime-contracts": "workspace:*"
   }
 }
