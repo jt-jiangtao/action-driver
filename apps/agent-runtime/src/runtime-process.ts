@@ -85,7 +85,11 @@ export async function startAgentRuntimeProcess(
   })
   const modelTraces = new PhoenixModelObservability(logging.tracer)
   const agentFiles = new AgentFileStore({
-    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
+    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot,
+    systemSkillsSourceRoot: resolve(
+      runtimeEntry.endsWith('.ts') ? dirname(runtimeEntry) : runtimeDist,
+      runtimeEntry.endsWith('.ts') ? '../resources/system-skills' : 'system-skills'
+    )
   })
   await agentFiles.initialize()
   const modelGateway = new ConnectionModelGateway({

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import {
+  cp,
   lstat,
   mkdir,
   open,
@@ -26,7 +27,8 @@ import { parseSkillDeclaration } from './skill-declaration'
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
-const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'report-writer'])
+const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'])
+const LEGACY_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
 
 const DEFAULT_PROMPT = `# ActionDriver 主提示词
 
@@ -74,28 +76,36 @@ export class AgentFileStoreError extends Error {
 export class AgentFileStore {
   private readonly managedRoot: string
   private readonly skillsRoot: string
+  private readonly systemRoot: string
+  private readonly systemSkillsSourceRoot: string
   private managedRootRealPath: string | null = null
   private readonly isExecutorRegistered: (executorId: string) => boolean
 
   constructor({
     homeDirectory,
-    isExecutorRegistered = () => false
+    isExecutorRegistered = () => false,
+    systemSkillsSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/system-skills')
   }: {
     homeDirectory: string
     isExecutorRegistered?: (executorId: string) => boolean
+    systemSkillsSourceRoot?: string
   }) {
     this.managedRoot = join(homeDirectory, MANAGED_DIRECTORY)
     this.skillsRoot = join(this.managedRoot, 'skills')
+    this.systemRoot = join(this.skillsRoot, '.system')
+    this.systemSkillsSourceRoot = systemSkillsSourceRoot
     this.isExecutorRegistered = isExecutorRegistered
   }
 
   async initialize(): Promise<void> {
     await mkdir(join(this.managedRoot, 'prompts'), { recursive: true })
     await mkdir(this.skillsRoot, { recursive: true })
+    await mkdir(this.systemRoot, { recursive: true })
     this.managedRootRealPath = await realpath(this.managedRoot)
     await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), DEFAULT_PROMPT)
+    await this.migrateLegacyBuiltIns()
     for (const skill of DEFAULT_SKILLS) {
-      const directory = join(this.skillsRoot, skill.id)
+      const directory = join(this.systemRoot, skill.id)
       await mkdir(directory, { recursive: true })
       await this.writeDefaultIfMissing(
         join(directory, 'SKILL.md'),
@@ -109,6 +119,13 @@ export class AgentFileStore {
         `# ${skill.id} references\n\n在这里放置该 Skill 使用的参考资料。\n`
       )
     }
+    const creator = join(this.systemRoot, 'skill-creator')
+    try {
+      await lstat(creator)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      await cp(join(this.systemSkillsSourceRoot, 'skill-creator'), creator, { recursive: true, errorOnExist: true })
+    }
   }
 
   async getMainPrompt(): Promise<AgentTextFileDto> {
@@ -121,7 +138,11 @@ export class AgentFileStore {
 
   async listSkills(): Promise<AgentSkillSummaryDto[]> {
     this.assertInitialized()
-    const entries = await readdir(this.skillsRoot, { withFileTypes: true })
+    const [personal, system] = await Promise.all([
+      readdir(this.skillsRoot, { withFileTypes: true }),
+      readdir(this.systemRoot, { withFileTypes: true })
+    ])
+    const entries = [...personal.filter((entry) => !entry.name.startsWith('.')), ...system]
     const skills = await Promise.all(
       entries
         .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
@@ -141,8 +162,9 @@ export class AgentFileStore {
   }
 
   async getSkillTree(skillId: string): Promise<AgentFileNodeDto[]> {
-    const directory = await this.resolveExisting(`${SKILLS_PATH}/${this.validateSkillId(skillId)}`)
-    return this.readTree(directory, `${SKILLS_PATH}/${skillId}`)
+    const publicPath = this.skillPublicPath(this.validateSkillId(skillId))
+    const directory = await this.resolveExisting(publicPath)
+    return this.readTree(directory, publicPath)
   }
 
   async readFile(path: string): Promise<AgentTextFileDto> {
@@ -159,17 +181,22 @@ export class AgentFileStore {
   }
 
   async saveFile(input: SaveAgentFileDto): Promise<AgentTextFileDto> {
+    const absolutePath = await this.resolveExisting(input.path)
+    const withinSystem = relative(await realpath(this.systemRoot), absolutePath)
+    if (withinSystem === '' || (!withinSystem.startsWith('..') && !isAbsolute(withinSystem))) {
+      throw new AgentFileStoreError('PROTECTED', '系统 Skill 内容只读。')
+    }
     const current = await this.readFile(input.path)
     if (current.digest !== input.expectedDigest) {
       throw new AgentFileStoreError('CONFLICT', '文件已在外部更改，请重新加载后再保存。')
     }
-    const absolutePath = await this.resolveExisting(input.path)
     await this.atomicWrite(absolutePath, input.content)
     return this.readFile(input.path)
   }
 
   async createSkill(input: CreateAgentSkillDto): Promise<AgentSkillSummaryDto> {
     const id = this.validateSkillId(input.name)
+    this.assertMutable(id)
     const directory = await this.resolveForCreation(`${SKILLS_PATH}/${id}`)
     try {
       await mkdir(directory)
@@ -188,6 +215,7 @@ export class AgentFileStore {
     const currentId = this.validateSkillId(skillId)
     this.assertMutable(currentId)
     const nextId = this.validateSkillId(name)
+    this.assertMutable(nextId)
     const source = await this.resolveExisting(`${SKILLS_PATH}/${currentId}`)
     const destination = await this.resolveForCreation(`${SKILLS_PATH}/${nextId}`)
     try {
@@ -201,13 +229,13 @@ export class AgentFileStore {
   async deleteSkill(skillId: string): Promise<void> {
     const id = this.validateSkillId(skillId)
     this.assertMutable(id)
-    const directory = await this.resolveExisting(`${SKILLS_PATH}/${id}`)
+    const directory = await this.resolveExisting(this.skillPublicPath(id))
     await rm(directory, { recursive: true })
   }
 
   async setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummaryDto> {
     const id = this.validateSkillId(skillId)
-    const directory = await this.resolveExisting(`${SKILLS_PATH}/${id}`)
+    const directory = await this.resolveExisting(this.skillPublicPath(id))
     const summary = await this.summarizeSkill(id)
     if (enabled && !summary.available) {
       throw new AgentFileStoreError(
@@ -254,13 +282,13 @@ export class AgentFileStore {
     if (!skill?.available || !skill.enabled) {
       throw new AgentFileStoreError('VALIDATION', `Skill 未启用：${id}`)
     }
-    const skillRoot = await realpath(join(this.skillsRoot, id))
+    const skillRoot = await realpath(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id))
     const requested = await realpath(join(skillRoot, relativePath))
     const withinSkill = relative(skillRoot, requested)
     if (withinSkill === '..' || withinSkill.startsWith(`..${sep}`) || isAbsolute(withinSkill)) {
       throw new AgentFileStoreError('PATH_REJECTED', 'Skill 文件路径越出当前目录。')
     }
-    const file = await this.readFile(`${SKILLS_PATH}/${id}/${relativePath}`)
+    const file = await this.readFile(`${this.skillPublicPath(id)}/${relativePath}`)
     if (Buffer.byteLength(file.content, 'utf8') > 1024 * 1024) {
       throw new AgentFileStoreError('VALIDATION', 'Skill 文件超过读取上限。')
     }
@@ -277,9 +305,9 @@ export class AgentFileStore {
   }
 
   private async summarizeSkill(id: string): Promise<AgentSkillSummaryDto> {
-    const skillFile = await this.readFile(`${SKILLS_PATH}/${id}/SKILL.md`)
+    const skillFile = await this.readFile(`${this.skillPublicPath(id)}/SKILL.md`)
     const declaration = parseSkillDeclaration(skillFile.content)
-    const disabled = await lstat(join(this.skillsRoot, id, '.disabled'))
+    const disabled = await lstat(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id, '.disabled'))
       .then(() => true)
       .catch((error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return false
@@ -287,11 +315,12 @@ export class AgentFileStore {
       })
     const available = true
     const unavailableReason = null
+    const source = BUILT_IN_SKILLS.has(id) ? 'builtin' : await this.readPersonalSource(id)
     return {
       id,
       name: declaration.name,
       description: declaration.description,
-      source: BUILT_IN_SKILLS.has(id) ? 'builtin' : 'local',
+      source,
       enabled: available && !disabled,
       available,
       executorId: declaration.executorId,
@@ -302,7 +331,7 @@ export class AgentFileStore {
   }
 
   private async summarizeInvalidSkill(id: string): Promise<AgentSkillSummaryDto> {
-    const directoryStat = await stat(join(this.skillsRoot, id))
+    const directoryStat = await stat(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id))
     return {
       id,
       name: id,
@@ -323,7 +352,7 @@ export class AgentFileStore {
   ): Promise<AgentFileNodeDto[]> {
     const entries = await readdir(absoluteDirectory, { withFileTypes: true })
     const visibleEntries = entries
-      .filter((entry) => entry.name !== '.disabled')
+      .filter((entry) => entry.name !== '.disabled' && entry.name !== '.action-driver-source.json')
       .sort((left, right) => {
         if (left.isDirectory() !== right.isDirectory()) return left.isDirectory() ? -1 : 1
         return left.name.localeCompare(right.name)
@@ -403,6 +432,50 @@ export class AgentFileStore {
     return id
   }
 
+  private skillPublicPath(id: string): string {
+    return `${SKILLS_PATH}/${BUILT_IN_SKILLS.has(id) ? '.system/' : ''}${id}`
+  }
+
+  private async readPersonalSource(id: string): Promise<'local' | 'github'> {
+    try {
+      const raw = await readFile(join(this.skillsRoot, id, '.action-driver-source.json'), 'utf8')
+      return JSON.parse(raw).source === 'github' ? 'github' : 'local'
+    } catch {
+      return 'local'
+    }
+  }
+
+  private async migrateLegacyBuiltIns(): Promise<void> {
+    for (const id of LEGACY_BUILT_INS) {
+      const oldPath = join(this.skillsRoot, id)
+      try {
+        await lstat(oldPath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
+      const newPath = join(this.systemRoot, id)
+      let destination = newPath
+      try {
+        await lstat(newPath)
+        let suffix = 0
+        do {
+          destination = join(this.skillsRoot, `${id}-legacy${suffix ? `-${suffix}` : ''}`)
+          suffix++
+          try {
+            await lstat(destination)
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
+            throw error
+          }
+        } while (true)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+      await rename(oldPath, destination)
+    }
+  }
+
   private assertMutable(id: string): void {
     if (BUILT_IN_SKILLS.has(id)) {
       throw new AgentFileStoreError('PROTECTED', '内置 Skill 不能重命名或删除。')
@@ -431,7 +504,7 @@ export class AgentFileStore {
 
   private async migrateDefaultExecutor(skill: (typeof DEFAULT_SKILLS)[number]): Promise<void> {
     if (!skill.executorId) return
-    const path = join(this.skillsRoot, skill.id, 'SKILL.md')
+    const path = join(this.systemRoot, skill.id, 'SKILL.md')
     const current = await readFile(path, 'utf8')
     const legacy = `# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
     if (current === legacy) await this.atomicWrite(path, this.defaultSkillContent(skill))

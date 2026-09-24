@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs && node scripts/copy-system-skills.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
