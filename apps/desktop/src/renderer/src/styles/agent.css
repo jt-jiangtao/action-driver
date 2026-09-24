@@ -87,6 +87,51 @@
   outline: none;
   cursor: text;
 }
+.composer-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.composer-image-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+}
+.composer-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 190px;
+  padding: 4px 7px 4px 4px;
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 10px;
+  color: var(--ad-color-text-secondary);
+  font-size: 12px;
+}
+.composer-image-preview img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.composer-image-preview span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-image-preview button {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.composer-submit-error {
+  color: #b42318;
+  font-size: 12px;
+  padding-top: 8px;
+}
 .agent-composer[data-state='running'] .composer-editor,
 .agent-composer[data-state='disabled'] .composer-editor {
   cursor: default;
@@ -538,6 +583,76 @@
   margin: 10px 0 20px;
   color: var(--ad-color-text-secondary);
   line-height: 20px;
+}
+.user-message-with-images,
+.agent-message-with-images {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.agent-message-with-images .markdown-content {
+  flex-basis: 100%;
+}
+.conversation-image-item {
+  position: relative;
+  display: inline-block;
+}
+.conversation-image-open {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.conversation-image-open img {
+  display: block;
+  width: auto;
+  max-width: min(220px, 100%);
+  max-height: 220px;
+  object-fit: contain;
+}
+.conversation-image-download {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 90%);
+  color: #222;
+}
+.conversation-image-loading,
+.conversation-image-missing {
+  display: inline-block;
+  padding: 12px;
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 10px;
+  color: var(--ad-color-text-secondary);
+  font-size: 12px;
+}
+.conversation-image-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  background: rgb(0 0 0 / 82%);
+}
+.conversation-image-overlay img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.conversation-image-overlay > button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: white;
 }
 .markdown-content > :first-child {
   margin-top: 0;

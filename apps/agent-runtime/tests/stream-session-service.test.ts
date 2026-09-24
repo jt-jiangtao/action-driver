@@ -85,7 +85,6 @@ async function runToEnd(
 
 describe('StreamSessionService', () => {
   it('streams completed images and keeps them in the final assistant snapshot', async () => {
-    let harness!: ReturnType<typeof createHarness>
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer, onToolEvent) {
         const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
@@ -132,7 +131,7 @@ describe('StreamSessionService', () => {
         throw new Error('unused')
       }
     }
-    harness = createHarness(graphRunner)
+    const harness = createHarness(graphRunner)
     const events = await runToEnd(harness.service, createEvent)
     expect(events.filter((event) => event.type === 'response.image')).toHaveLength(2)
     const imageEvents = events.filter((event) => event.type === 'response.image')

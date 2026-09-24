@@ -7,6 +7,54 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import { mockModelSelection } from '../testing/model-selection-fixture'
 
 describe('ActionDriver pages', () => {
+  it('shows completed generated images while process text stays in the activity group', async () => {
+    const asset = {
+      assetId: 'generated-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
+    }
+    render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'running',
+          browser: null,
+          messages: [
+            { id: 'user-1', role: 'user', content: '画图' },
+            {
+              id: 'assistant-1',
+              role: 'agent',
+              content: '过程文字',
+              parts: [
+                { kind: 'text', text: '过程文字' },
+                { kind: 'image', asset }
+              ]
+            }
+          ],
+          activityTimeline: [
+            { id: 'text:process', kind: 'text', content: '过程文字', phase: 'process' }
+          ],
+          activities: []
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const placeholder = await screen.findByText('图片无法读取')
+    expect(placeholder).toBeVisible()
+    expect(placeholder.closest('.agent-message')).not.toHaveTextContent('过程文字')
+  })
   it('renders the Figma home copy and 720px composer contract', () => {
     render(
       <HomePage modelSelection={mockModelSelection} onSelectModel={vi.fn()} onSubmit={vi.fn()} />
@@ -266,20 +314,39 @@ describe('ActionDriver pages', () => {
             { id: 'second-user', role: 'user', content: '111' },
             { id: 'second-answer', role: 'agent', content: '第二轮结果' }
           ],
-          priorActivityTurns: [{
-            taskId: 'first-task', userMessageId: 'first-user', durationMs: 5_000,
-            activities: [{
-              activityId: 'first-group', title: '测试所有工具', titleRevision: 1,
-              status: 'completed', items: [{ id: 'tool:first', kind: 'tool', callId: 'first' }]
-            }],
-            activityTimeline: [{ id: 'activity:first-group', kind: 'activity', activityId: 'first-group' }],
-            tools: [{
-              callId: 'first', toolId: 'web.search@1', modelName: 'web_search',
-              summary: '搜索网页', argumentsHash: '', status: 'completed'
-            }]
-          }],
+          priorActivityTurns: [
+            {
+              taskId: 'first-task',
+              userMessageId: 'first-user',
+              durationMs: 5_000,
+              activities: [
+                {
+                  activityId: 'first-group',
+                  title: '测试所有工具',
+                  titleRevision: 1,
+                  status: 'completed',
+                  items: [{ id: 'tool:first', kind: 'tool', callId: 'first' }]
+                }
+              ],
+              activityTimeline: [
+                { id: 'activity:first-group', kind: 'activity', activityId: 'first-group' }
+              ],
+              tools: [
+                {
+                  callId: 'first',
+                  toolId: 'web.search@1',
+                  modelName: 'web_search',
+                  summary: '搜索网页',
+                  argumentsHash: '',
+                  status: 'completed'
+                }
+              ]
+            }
+          ],
           activityDurationMs: 2_000,
-          activities: [], activityTimeline: [], tools: []
+          activities: [],
+          activityTimeline: [],
+          tools: []
         }}
         modelSelection={mockModelSelection}
         onSelectModel={vi.fn()}

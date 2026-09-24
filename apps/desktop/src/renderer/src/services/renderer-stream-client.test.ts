@@ -207,6 +207,7 @@ describe('RendererStreamClient', () => {
     await expect(
       client.create({
         goal: 'Say hello',
+        imageAssetIds: ['staged-1'],
         model: { connectionId: 'connection-1', modelId: 'gpt-real' }
       })
     ).resolves.toMatchObject(identity)
@@ -215,6 +216,7 @@ describe('RendererStreamClient', () => {
     expect(requests.join('')).not.toContain('launch-token')
     expect(frames.map((frame) => frame.type)).toEqual(['auth', 'request.create'])
     expect(frames[0]).toMatchObject({ payload: { token: 'launch-token' } })
+    expect(frames[1]).toMatchObject({ payload: { input: { imageAssetIds: ['staged-1'] } } })
     expect(getConnection).toHaveBeenCalledOnce()
   })
 

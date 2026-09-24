@@ -96,6 +96,43 @@ describe('App', () => {
     expect(screen.getAllByText('预订周末去杭州的酒店')).toHaveLength(2)
   })
 
+  it('stages image-only input and passes asset IDs to the stream command', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    const originalList = services.modelConnectionsService.list.bind(
+      services.modelConnectionsService
+    )
+    services.modelConnectionsService.list = async () =>
+      (await originalList()).map((connection) => ({
+        ...connection,
+        models: connection.models.map((model) => ({ ...model, imageInputEnabled: true }))
+      }))
+    const uploadImage = vi.fn(async () => ({
+      assetId: 'staged-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'upload' as const
+    }))
+    services.imageAssets = { uploadImage, readImage: vi.fn() }
+    const submit = vi.spyOn(services.agentCommandService, 'submitGoal')
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText('添加图片'), image)
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
+    expect(uploadImage).toHaveBeenCalledWith(image)
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ goal: '', imageAssetIds: ['staged-1'] })
+    )
+  })
+
   it('switches between split, expanded, and collapsed browser layouts', async () => {
     const user = userEvent.setup()
     renderApp('task')

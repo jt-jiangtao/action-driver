@@ -90,7 +90,11 @@ export class RendererStreamClient {
             ...common,
             sessionId: input.sessionId,
             payload: {
-              input: { role: 'user', content: input.goal },
+              input: {
+                role: 'user',
+                content: input.goal,
+                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {})
+              },
               ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),
               skills: []
             }
@@ -99,7 +103,11 @@ export class RendererStreamClient {
             ...common,
             sessionId: null,
             payload: {
-              input: { role: 'user', content: input.goal },
+              input: {
+                role: 'user',
+                content: input.goal,
+                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {})
+              },
               model: input.model,
               ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),
               skills: []

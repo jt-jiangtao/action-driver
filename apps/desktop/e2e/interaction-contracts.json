@@ -266,6 +266,22 @@
     "testName": "uses the plus and send actions and submits Slate text"
   },
   {
+    "target": "e2e/shared/composer/images/:image-index/remove#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "accepts an image-only message and keeps the image after submission fails"
+  },
+  {
+    "target": "e2e/shared/composer/images/select#input",
+    "route": "shared",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "accepts an image-only message and keeps the image after submission fails"
+  },
+  {
     "target": "e2e/shared/composer/interrupt#button",
     "route": "shared",
     "type": "button",
@@ -396,6 +412,30 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
     "testName": "renders model Markdown while escaping raw HTML"
+  },
+  {
+    "target": "e2e/tasks/detail/images/:asset-id/open#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
+  },
+  {
+    "target": "e2e/tasks/detail/images/:asset-id/save#link",
+    "route": "tasks",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
+  },
+  {
+    "target": "e2e/tasks/detail/images/:asset-id/close#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
   },
   {
     "target": "e2e/tasks/detail/browser#section",

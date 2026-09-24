@@ -164,8 +164,8 @@ export type ModelRef = {
 }
 
 export type AgentGoalRequest =
-  | { goal: string; model: ModelRef; sessionId?: never }
-  | { goal: string; sessionId: string; model?: never }
+  | { goal: string; model: ModelRef; sessionId?: never; imageAssetIds?: string[] }
+  | { goal: string; sessionId: string; model?: never; imageAssetIds?: string[] }
 
 export type RecentTaskProjection = {
   id: string

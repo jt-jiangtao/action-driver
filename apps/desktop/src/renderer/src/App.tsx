@@ -171,12 +171,30 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     []
   )
 
+  const stageImages = useCallback(
+    async (files: File[] = []): Promise<string[]> => {
+      if (files.length === 0) return []
+      if (!services.imageAssets) throw new Error('图片上传暂不可用')
+      const staged = await Promise.all(files.map((file) => services.imageAssets!.uploadImage(file)))
+      return staged.map((asset) => asset.assetId)
+    },
+    [services]
+  )
+  const readImage = useCallback(
+    (sessionId: string, assetId: string) => services.imageAssets!.readImage(sessionId, assetId),
+    [services]
+  )
+
   const submitNewSession = useCallback(
-    async (goal: string) => {
+    async (goal: string, imageFiles: File[] = []) => {
       const selected = findSelectedModel(modelSelection)
       if (!selected) throw new Error('请选择可用模型')
+      if (imageFiles.length && !selected.model.imageInputEnabled)
+        throw new Error('当前模型未启用图片识别')
+      const imageAssetIds = await stageImages(imageFiles)
       const projection = await services.agentCommandService.submitGoal({
         goal,
+        ...(imageAssetIds.length ? { imageAssetIds } : {}),
         model: {
           connectionId: selected.connection.id,
           modelId: selected.model.id
@@ -184,20 +202,31 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       })
       presentSubmittedTask(projection)
     },
-    [modelSelection, presentSubmittedTask, services]
+    [modelSelection, presentSubmittedTask, services, stageImages]
   )
 
   const submitContinuation = useCallback(
-    async (goal: string) => {
+    async (goal: string, imageFiles: File[] = []) => {
       if (!task) return
+      const inherited = modelSelection.connections
+        .flatMap((connection) => connection.models)
+        .find(
+          (model) =>
+            model.ref.connectionId === task.model.connectionId &&
+            model.ref.modelId === task.model.modelId
+        )
+      if (imageFiles.length && !inherited?.imageInputEnabled)
+        throw new Error('当前会话模型未启用图片识别')
+      const imageAssetIds = await stageImages(imageFiles)
       const previousTaskId = task.id
       const projection = await services.agentCommandService.submitGoal({
         goal,
+        ...(imageAssetIds.length ? { imageAssetIds } : {}),
         sessionId: task.sessionId
       })
       presentSubmittedTask(projection, previousTaskId)
     },
-    [presentSubmittedTask, services, task]
+    [modelSelection, presentSubmittedTask, services, stageImages, task]
   )
 
   const mainRoute: MainAppRoute =
@@ -294,6 +323,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onResume={() => services.skillGateway.resume('browser-invocation')}
           onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
+          readImage={services.imageAssets ? readImage : undefined}
           onSubmit={submitContinuation}
         />
       ) : null}

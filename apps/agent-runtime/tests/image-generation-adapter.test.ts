@@ -8,13 +8,14 @@ const png = Buffer.from(
 
 describe('Images API adapter', () => {
   it('sends one request with n:1 and returns decoded bytes', async () => {
-    const fetch = vi.fn(
-      async (_url: string, _init?: RequestInit) =>
-        new Response(JSON.stringify({ data: [{ b64_json: png.toString('base64') }] }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    )
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toContain('/images/generations')
+      expect(init?.method).toBe('POST')
+      return new Response(JSON.stringify({ data: [{ b64_json: png.toString('base64') }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      })
+    })
     const adapter = createImageGenerationAdapter({ fetch })
     const bytes = await adapter.generate({
       baseUrl: 'https://images.example/v1',

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ConversationMessages, TaskHeader } from './Conversation'
 import { AgentResponse } from './agent/AgentResponse'
@@ -7,6 +8,67 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('loads a generated image, opens it with the keyboard, and offers download', async () => {
+    const previousCreate = URL.createObjectURL
+    const previousRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:conversation-image')
+    URL.revokeObjectURL = vi.fn()
+    const user = userEvent.setup()
+    const asset = {
+      assetId: 'asset-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
+    }
+    const readImage = vi.fn(async () => new Blob(['png'], { type: 'image/png' }))
+    try {
+      const view = render(
+        <AgentResponse
+          message={{ id: 'a', role: 'agent', content: '', parts: [{ kind: 'image', asset }] }}
+          readImage={readImage}
+        />
+      )
+      expect(await screen.findByRole('img', { name: '生成的图片' })).toBeVisible()
+      expect(readImage).toHaveBeenCalledWith('session-1', 'asset-1')
+      expect(screen.getByRole('link', { name: '保存图片' })).toHaveAttribute(
+        'download',
+        'asset-1.png'
+      )
+      await user.click(screen.getByRole('button', { name: '放大图片' }))
+      expect(screen.getByRole('dialog', { name: '图片预览' })).toBeVisible()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      view.unmount()
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:conversation-image')
+    } finally {
+      URL.createObjectURL = previousCreate
+      URL.revokeObjectURL = previousRevoke
+    }
+  })
+
+  it('shows a placeholder if an old image file is missing', async () => {
+    const asset = {
+      assetId: 'asset-missing',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'upload' as const
+    }
+    render(
+      <UserMessage
+        message={{ id: 'u', role: 'user', content: '', parts: [{ kind: 'image', asset }] }}
+        readImage={async () => {
+          throw new Error('missing')
+        }}
+      />
+    )
+    expect(await screen.findByText('图片无法读取')).toBeVisible()
+  })
   it('renders the task title without extra time, skill, or more controls', () => {
     render(<TaskHeader title={mockTaskFixture.title} browserCollapsed onExpandBrowser={vi.fn()} />)
 

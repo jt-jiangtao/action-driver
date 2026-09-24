@@ -80,4 +80,22 @@ describe('AgentComposer', () => {
     })
     expect(screen.getByLabelText('任务描述')).toHaveTextContent('保留这段文字')
   })
+
+  it('accepts an image-only message and keeps the image after submission fails', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn(async () => {
+      throw new Error('上传失败')
+    })
+    render(<AgentComposer onSubmit={onSubmit} />)
+    const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText('添加图片'), image)
+    expect(screen.getByText('photo.png')).toBeVisible()
+    expect(screen.getByRole('button', { name: '发送' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    expect(onSubmit).toHaveBeenCalledWith('', [image])
+    expect(await screen.findByRole('alert')).toHaveTextContent('上传失败')
+    expect(screen.getByText('photo.png')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '移除 photo.png' }))
+    expect(screen.getByRole('button', { name: '发送' })).toBeDisabled()
+  })
 })

@@ -14,7 +14,7 @@ export function HomePage({
 }: {
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
-  onSubmit(goal: string): void
+  onSubmit(goal: string, imageFiles?: File[]): Promise<unknown> | void
   onRetryModels?(): void
   sidebarCollapsed?: boolean
   onExpandSidebar?: (() => void) | undefined

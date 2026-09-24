@@ -117,7 +117,7 @@ describe('model connection service', () => {
   })
 
   it('preserves image flags across model refresh without generating an image', async () => {
-    const { service, requests } = createService((request) => ({
+    const { service, requests } = createService(() => ({
       status: 200,
       body: { data: [{ id: 'vision' }, { id: 'image' }] },
       text: ''

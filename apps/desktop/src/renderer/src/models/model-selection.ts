@@ -9,6 +9,7 @@ export interface ModelOptionItemProjection {
   ref: ModelRef
   disabled: boolean
   disabledReason: string | null
+  imageInputEnabled?: boolean
 }
 
 export interface ModelConnectionOption {
@@ -54,7 +55,8 @@ export function toModelSelectionProjection(
         name: model.name,
         ref: { connectionId: connection.id, modelId: model.id },
         disabled: disabledReason !== null,
-        disabledReason
+        disabledReason,
+        imageInputEnabled: model.imageInputEnabled === true
       }
     })
   }))
@@ -75,7 +77,7 @@ export function toModelSelectionProjection(
       ? selectedModel && !selectedModel.model.disabled
         ? selected
         : null
-      : firstSelectable?.ref ?? null
+      : (firstSelectable?.ref ?? null)
   }
 }
 

@@ -8,6 +8,7 @@ import { ConversationViewport } from '../components/ConversationViewport'
 import { ActivityTimeline } from '../components/ActivityTimeline'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ImageReader } from '../components/agent/ConversationImage'
 
 export function TaskPage({
   mode,
@@ -21,6 +22,7 @@ export function TaskPage({
   onResume,
   onTakeOver,
   onInterrupt,
+  readImage,
   onSubmit
 }: {
   mode: TaskLayoutMode
@@ -34,7 +36,8 @@ export function TaskPage({
   onResume(): Promise<unknown> | void
   onTakeOver(): Promise<unknown> | void
   onInterrupt(): void
-  onSubmit(goal: string): Promise<unknown> | void
+  readImage?: ImageReader | undefined
+  onSubmit(goal: string, imageFiles?: File[]): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
   const pageMode = hasBrowser ? mode : 'agent-only'
@@ -87,10 +90,22 @@ export function TaskPage({
   const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false
   const visibleAssistantMessages =
     task.status === 'running' &&
-    (hasTimelineText || assistantMessages.every((message) => message.content.length === 0))
+    !assistantMessages.some((message) => message.parts?.some((part) => part.kind === 'image')) &&
+    (hasTimelineText ||
+      assistantMessages.every(
+        (message) =>
+          message.content.length === 0 && !message.parts?.some((part) => part.kind === 'image')
+      ))
       ? []
       : assistantMessages
-  const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}`
+  const renderedAssistantMessages =
+    task.status === 'running'
+      ? visibleAssistantMessages.map((message) => {
+          const images = message.parts?.filter((part) => part.kind === 'image') ?? []
+          return images.length ? { ...message, content: '', parts: images } : message
+        })
+      : visibleAssistantMessages
+  const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}:${latestMessage?.parts?.length ?? 0}`
   return (
     <main
       className="task-page"
@@ -117,7 +132,11 @@ export function TaskPage({
                 const activity = priorActivityByUserId.get(turn.user.id)
                 return (
                   <Fragment key={turn.user.id}>
-                    <ConversationMessages messages={[turn.user]} generating={false} />
+                    <ConversationMessages
+                      messages={[turn.user]}
+                      generating={false}
+                      readImage={readImage}
+                    />
                     {activity ? (
                       <ActivityTimeline
                         task={{
@@ -131,16 +150,25 @@ export function TaskPage({
                         }}
                       />
                     ) : null}
-                    <ConversationMessages messages={turn.replies} generating={false} />
+                    <ConversationMessages
+                      messages={turn.replies}
+                      generating={false}
+                      readImage={readImage}
+                    />
                   </Fragment>
                 )
               })}
-              <ConversationMessages messages={processMessages} generating={false} />
+              <ConversationMessages
+                messages={processMessages}
+                generating={false}
+                readImage={readImage}
+              />
               <ActivityTimeline task={task} />
-              {visibleAssistantMessages.length > 0 ? (
+              {renderedAssistantMessages.length > 0 ? (
                 <ConversationMessages
-                  messages={visibleAssistantMessages}
+                  messages={renderedAssistantMessages}
                   generating={task.status === 'running'}
+                  readImage={readImage}
                 />
               ) : null}
             </div>
@@ -152,7 +180,9 @@ export function TaskPage({
             menuCloseKey={mode}
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
-            onSubmit={(goal) => void onSubmit(goal)}
+            onSubmit={(goal, imageFiles) =>
+              imageFiles ? onSubmit(goal, imageFiles) : onSubmit(goal)
+            }
             onInterrupt={onInterrupt}
             width={flowWidth}
           />

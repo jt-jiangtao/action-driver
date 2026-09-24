@@ -1,5 +1,28 @@
 import type { AgentMessageProjection } from '@actiondriver/contracts'
+import { ConversationImage, type ImageReader } from './ConversationImage'
 
-export function UserMessage({ message }: { message: AgentMessageProjection }) {
-  return <div className="user-message">{message.content}</div>
+export function UserMessage({
+  message,
+  readImage
+}: {
+  message: AgentMessageProjection
+  readImage?: ImageReader | undefined
+}) {
+  if (!message.parts?.some((part) => part.kind === 'image'))
+    return <div className="user-message">{message.content}</div>
+  return (
+    <div className="user-message user-message-with-images">
+      {message.parts.map((part, index) =>
+        part.kind === 'image' ? (
+          <ConversationImage
+            key={`${part.asset.assetId}:${index}`}
+            asset={part.asset}
+            readImage={readImage}
+          />
+        ) : (
+          <span key={`text:${index}`}>{part.text}</span>
+        )
+      )}
+    </div>
+  )
 }

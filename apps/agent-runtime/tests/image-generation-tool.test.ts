@@ -70,8 +70,8 @@ describe('image_generate', () => {
       sessionForTask: async () => 's'
     })
     await expect(async () => {
-      for await (const _ of tool.executor.execute(call(['a', 'b', 'c', 'd', 'e']))) {
-        /* consume */
+      for await (const event of tool.executor.execute(call(['a', 'b', 'c', 'd', 'e']))) {
+        expect(event).toBeDefined()
       }
     }).rejects.toThrow('IMAGE_COUNT_INVALID')
     expect(generate).not.toHaveBeenCalled()
@@ -104,8 +104,8 @@ describe('image_generate', () => {
       sessionForTask: async () => 's'
     })
     await expect(async () => {
-      for await (const _ of tool.executor.execute(call(['x']))) {
-        /* consume */
+      for await (const event of tool.executor.execute(call(['x']))) {
+        expect(event).toBeDefined()
       }
     }).rejects.toThrow('IMAGE_GENERATION_FAILED')
   })
@@ -120,9 +120,8 @@ describe('image_generate', () => {
       assets: { saveGenerated },
       sessionForTask: async () => 'session-1'
     })
-    const iterator = tool.executor
-      .execute(call(['0', '1']), controller.signal)
-      [Symbol.asyncIterator]()
+    const stream = tool.executor.execute(call(['0', '1']), controller.signal)
+    const iterator = stream[Symbol.asyncIterator]()
     const first = iterator.next()
     jobs[0]!.resolve(new Uint8Array([0]))
     expect((await first).value).toMatchObject({ kind: 'asset', index: 0 })
