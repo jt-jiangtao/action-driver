@@ -51,7 +51,7 @@ describe('runtime SQLite database', () => {
             requestBody: { prompt: 'new input' }, responseBody: { text: 'new result' }, status: 200
           }
         }),
-        async *stream() { throw new Error('unused') }
+        async *stream() { yield* []; throw new Error('unused') }
       },
       interactions: createInteractionLogRecorder({
         ids: { eventId: () => 'new-event', correlationId: () => 'new-correlation' },

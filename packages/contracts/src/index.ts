@@ -142,57 +142,6 @@ export type RecentTaskProjection = {
   updatedAt: string
 }
 
-export type ModelRunStatus = 'completed' | 'running' | 'failed'
-
-export type ModelLogDetailSectionProjection = {
-  id: 'system-prompt' | 'user-input' | 'model-request' | 'model-response' | 'metadata'
-  title: string
-  content: string
-  language?: 'json' | 'text'
-}
-
-export type ModelLogCallProjection = {
-  id: string
-  taskId: string
-  requestId: string
-  correlationId: string
-  label: string
-  time: string
-  status: ModelRunStatus
-  description: string
-  sections: ModelLogDetailSectionProjection[]
-}
-
-export type ModelLogTaskProjection = {
-  id: string
-  sessionId: string
-  name: string
-  startTime: string
-  endTime?: string
-  status: ModelRunStatus
-  durationMs: number | null
-  model: ModelRef
-  calls: ModelLogCallProjection[]
-  detailUrl?: string | null
-}
-
-export type ModelLogSessionProjection = {
-  id: string
-  sessionId: string
-  name: string
-  startTime: string
-  endTime?: string
-  status: ModelRunStatus
-  durationMs: number | null
-  detailUrl?: string | null
-  tasks: ModelLogTaskProjection[]
-}
-
-export type ModelLogQuery = {
-  status?: ModelRunStatus
-  query?: string
-}
-
 interface BaseSkillInvocation<TSkillId extends SkillId, TInput> {
   id: string
   taskId: string

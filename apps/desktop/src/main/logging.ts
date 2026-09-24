@@ -34,17 +34,13 @@ export async function createMainLogging(): Promise<MainLogging> {
   }
 }
 
-export function isLogControlPlaneChannel(channel: string): boolean {
-  return /^actiondriver:logs?:/.test(channel)
-}
-
 export function startIpcInteraction(
   interactions: InteractionLogRecorder | undefined,
   channel: string,
   input: unknown,
   secretPaths: string[] = []
 ): Promise<InteractionCompletion | null> {
-  if (!interactions || isLogControlPlaneChannel(channel)) return Promise.resolve(null)
+  if (!interactions) return Promise.resolve(null)
   const request: InteractionPayloadInput = {
     kind: 'json',
     value: input ?? null,

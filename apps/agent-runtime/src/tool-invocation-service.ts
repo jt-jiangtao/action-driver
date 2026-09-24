@@ -16,7 +16,6 @@ import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
-import { isLogControlPlaneOperation } from './service/logs'
 import { toolActivityDurationMs, toolActivitySummary } from './tool-activity'
 
 export type ToolInvocationContext = {
@@ -116,7 +115,7 @@ export class ToolInvocationService {
 
     yield await persist(event('tool.proposed'))
     const finishLog =
-      this.options.interactions && !isLogControlPlaneOperation(definition.id)
+      this.options.interactions
         ? await this.options.interactions.start({
             transport: 'http',
             direction: 'service->skill',

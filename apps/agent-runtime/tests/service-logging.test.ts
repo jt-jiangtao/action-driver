@@ -1,9 +1,9 @@
-import { pino } from 'pino'
+import type { StructuredLogger } from '@actiondriver/observability'
 import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createServiceLogger, REDACTED_LOG_PATHS } from '../src/service/logger'
+import { createServiceLogger } from '../src/service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
 
 let server: ServiceHttpServer | undefined
@@ -15,18 +15,18 @@ afterEach(async () => {
 })
 
 function capturingLogger() {
-  const lines: string[] = []
-  const stream = {
-    write: (line: string) => {
-      lines.push(line)
-      return true
+  const captured: Array<Record<string, unknown>> = []
+  const withBase = (base: Record<string, unknown>): StructuredLogger => {
+    const emit = (attributes: Record<string, unknown>, msg?: string) => {
+      captured.push({ ...base, ...attributes, msg })
+    }
+    return {
+      debug: emit, info: emit, warn: emit, error: emit,
+      child: (attributes) => withBase({ ...base, ...attributes })
     }
   }
-  const logger = pino(
-    { level: 'debug', redact: { paths: REDACTED_LOG_PATHS, censor: '[redacted]' } },
-    stream
-  )
-  return { logger, lines, records: () => lines.map((line) => JSON.parse(line)) }
+  const logger = withBase({})
+  return { logger, records: () => captured }
 }
 
 const serviceStub = {
@@ -76,7 +76,7 @@ describe('service interaction logging', () => {
       path: '/model-connections',
       status: 200
     })
-    expect(typeof responses[0].durationMs).toBe('number')
+    expect(typeof responses[0]?.durationMs).toBe('number')
   })
 
   it('logs rejections with a reason instead of a status code', async () => {
@@ -95,8 +95,12 @@ describe('service interaction logging', () => {
   })
 
   it('never writes the service credential or a model API key into the log', async () => {
-    const { logger, lines } = capturingLogger()
+    const { logger, records } = capturingLogger()
     await start(logger)
+
+    await fetch(`${server!.url}/model-connections`, {
+      headers: { authorization: 'Bearer service-token' }
+    })
 
     await fetch(`${server!.url}/model-connections/test`, {
       method: 'POST',
@@ -109,7 +113,7 @@ describe('service interaction logging', () => {
       })
     })
 
-    const text = lines.join('\n')
+    const text = JSON.stringify(records())
     expect(text).toContain('service response')
     expect(text).not.toContain('sk-super-secret-value')
     expect(text).not.toContain('service-token')

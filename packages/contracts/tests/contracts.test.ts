@@ -6,7 +6,6 @@ import {
   type ComputerUseSkillInvocation,
   type BrowserSkillProjection,
   type AgentGoalRequest,
-  type ModelLogSessionProjection,
   type RecentTaskProjection,
   type SkillExecutionEvent,
   type TaskProjection
@@ -85,7 +84,7 @@ describe('agent skill contracts', () => {
     expect(isSerializableContract(continuation)).toBe(true)
   })
 
-  it('keeps recent task and model log correlation data serializable', () => {
+  it('keeps recent task data serializable', () => {
     const recent: RecentTaskProjection = {
       id: 'task-1',
       sessionId: 'thread-1',
@@ -95,47 +94,7 @@ describe('agent skill contracts', () => {
       createdAt: '2026-09-23T01:00:00.000Z',
       updatedAt: '2026-09-23T01:00:01.000Z'
     }
-    const modelLogs: ModelLogSessionProjection = {
-      id: 'thread-1',
-      sessionId: 'thread-1',
-      name: '总结本周进展',
-      startTime: '2026-09-23T01:00:00.000Z',
-      endTime: '2026-09-23T01:00:01.000Z',
-      status: 'completed',
-      durationMs: 1000,
-      tasks: [
-        {
-          id: 'task-1',
-          sessionId: 'thread-1',
-          name: '总结本周进展',
-          startTime: '2026-09-23T01:00:00.000Z',
-          endTime: '2026-09-23T01:00:01.000Z',
-          status: 'completed',
-          durationMs: 1000,
-          model: { connectionId: 'connection-a', modelId: 'shared-model' },
-          calls: [
-            {
-              id: 'call-1',
-              taskId: 'task-1',
-              requestId: 'plan:task-1',
-              correlationId: 'correlation-1',
-              label: '模型调用',
-              time: '2026-09-23T01:00:00.000Z',
-              status: 'completed',
-              description: '真实模型返回',
-              sections: []
-            }
-          ]
-        }
-      ]
-    }
-
     expect(recent).toMatchObject({ id: 'task-1', sessionId: 'thread-1' })
-    expect(modelLogs.tasks[0]?.calls[0]).toMatchObject({
-      taskId: 'task-1',
-      requestId: 'plan:task-1',
-      correlationId: 'correlation-1'
-    })
-    expect(isSerializableContract({ recent, modelLogs })).toBe(true)
+    expect(isSerializableContract(recent)).toBe(true)
   })
 })

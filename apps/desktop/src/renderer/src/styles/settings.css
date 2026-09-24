@@ -1377,12 +1377,6 @@
 }
 
 .logs-toolbar,
-.model-log-toolbar {
-  min-height: 52px;
-  padding: 8px;
-  border-color: #e4e7ed;
-  box-shadow: none;
-}
 
 .logs-search {
   min-width: 290px;
@@ -2557,14 +2551,6 @@
   max-width: min(36vw, 420px);
 }
 
-.model-log-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 12px;
-}
 
 .segmented-control button {
   min-width: 76px;
@@ -2575,10 +2561,6 @@
   font-size: 12px;
 }
 
-.model-log-search {
-  flex: 1 1 auto;
-  min-width: 220px;
-}
 
 .model-auto-refresh {
   margin-left: auto;
@@ -2762,12 +2744,6 @@
   white-space: nowrap;
 }
 
-.model-log-summary {
-  display: flex;
-  justify-content: space-between;
-  color: #8b93a1;
-  font-size: 11px;
-}
 
 .model-task-grid {
   display: grid;
@@ -3225,31 +3201,4 @@
   .model-detail-hero dl {
     display: none;
   }
-}
-
-.model-langsmith-overlay {
-  position: fixed;
-  inset: 40px 24px 24px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #dce2ec;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 18px 60px rgb(25 35 58 / 25%);
-}
-
-.model-langsmith-header {
-  display: flex;
-  min-height: 52px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  border-bottom: 1px solid #e8ecf2;
-}
-
-.model-langsmith-body {
-  flex: 1;
-  min-height: 1px;
 }

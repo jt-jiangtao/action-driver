@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:pino --external:pino-pretty --external:ws && node scripts/copy-rg.mjs",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws && node scripts/copy-rg.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -24,8 +24,6 @@
     "better-sqlite3": "12.11.1",
     "hono": "4.11.7",
     "openai": "6.49.0",
-    "pino": "9.5.0",
-    "pino-pretty": "13.0.0",
     "ws": "8.21.3",
     "zod": "4.6.5"
   },

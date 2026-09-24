@@ -1,6 +1,4 @@
-import { createProcessObservability, INTERACTION_REDACT_PATHS, type ProcessObservability } from '@actiondriver/observability'
-
-export const REDACTED_LOG_PATHS = INTERACTION_REDACT_PATHS
+import { createProcessObservability, type ProcessObservability } from '@actiondriver/observability'
 
 export type ServiceLoggerOptions = {
   level?: string
