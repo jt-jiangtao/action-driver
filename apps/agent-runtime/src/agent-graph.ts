@@ -460,6 +460,23 @@ export class LangGraphRunner implements GraphRunner {
                   }
             )
           })
+          activityTitleRevision += 1
+          await this.modelObservers.get(state.taskId)?.({
+            kind: 'activity',
+            event: {
+              type: 'updated',
+              activityId: activeActivityId,
+              title: activityTitleForTool(
+                providerCall.modelName,
+                terminal?.type === 'tool.completed'
+                  ? 'completed'
+                  : terminal?.type === 'tool.cancelled'
+                    ? 'cancelled'
+                    : 'failed'
+              ),
+              titleRevision: activityTitleRevision
+            }
+          })
         }
         return {
           modelMessages: [
@@ -635,12 +652,21 @@ function nextActivityId(taskId: string, toolRound: number, index: number): strin
   return `activity:${taskId}:tools:${toolRound}:${index}`
 }
 
-function activityTitleForTool(modelName: string): string {
+function activityTitleForTool(
+  modelName: string,
+  status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running'
+): string {
   const normalized = modelName.toLowerCase()
-  if (normalized.includes('web') || normalized.includes('search')) return '正在搜索网页'
-  if (normalized.includes('shell') || normalized.includes('command')) return '正在执行命令'
-  if (normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')) {
-    return '正在读取文件'
-  }
-  return '正在调用工具'
+  const action =
+    normalized.includes('web') || normalized.includes('search')
+      ? '搜索网页'
+      : normalized.includes('shell') || normalized.includes('command')
+        ? '执行命令'
+        : normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')
+          ? '读取文件'
+          : '调用工具'
+  if (status === 'running') return `正在${action}`
+  if (status === 'completed') return `已${action}`
+  if (status === 'cancelled') return `已取消${action}`
+  return `${action}失败`
 }

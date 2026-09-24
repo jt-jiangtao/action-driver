@@ -110,6 +110,27 @@ describe('cursor-ordered activity projection', () => {
     ])
   })
 
+  it('keeps the terminal title after a tool completes and the activity is archived', () => {
+    const state = [
+      event(1, {
+        type: 'activity.started',
+        activityId: 'activity',
+        title: '正在搜索网页',
+        titleRevision: 1
+      }),
+      tool(2, 'call-a'),
+      tool(3, 'call-a', 'tool.completed'),
+      event(4, {
+        type: 'activity.updated',
+        activityId: 'activity',
+        title: '已搜索网页',
+        titleRevision: 2
+      }),
+      event(5, { type: 'activity.completed', activityId: 'activity' })
+    ].reduce(reduceActivityProjection, emptyActivityTimelineState())
+    expect(state.activities[0]).toMatchObject({ title: '已搜索网页', status: 'completed' })
+  })
+
   it('does not move a tool when it waits for approval or is cancelled', () => {
     const state = [
       event(1, { type: 'activity.started', activityId: 'activity', title: '执行', titleRevision: 1 }),

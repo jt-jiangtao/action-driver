@@ -101,8 +101,26 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '正在读取文件',
+          title: '已读取文件',
           titleRevision: 3
+        }
+      },
+      {
+        kind: 'activity',
+        event: {
+          type: 'updated',
+          activityId: 'activity:task-activity:default',
+          title: '正在读取文件',
+          titleRevision: 4
+        }
+      },
+      {
+        kind: 'activity',
+        event: {
+          type: 'updated',
+          activityId: 'activity:task-activity:default',
+          title: '已读取文件',
+          titleRevision: 5
         }
       },
       {
@@ -127,6 +145,57 @@ describe('minimal agent StateGraph', () => {
       'running',
       'completed'
     ])
+  })
+
+  it.each([
+    ['failed', new Error('read failed'), '读取文件失败'],
+    [
+      'cancelled',
+      Object.assign(new Error('read cancelled'), { name: 'AbortError' }),
+      '已取消读取文件'
+    ]
+  ])('updates the group title when a tool is %s', async (_status, failure, title) => {
+    let round = 0
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        round += 1
+        return round === 1
+          ? {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: 'provider-read',
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: 'README.md' }
+                }
+              ]
+            }
+          : { kind: 'finish' as const, content: 'done' }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'partial read' }
+        throw failure
+      }
+    })
+    await runner.run(
+      { taskId: `task-${_status}`, goal: 'read', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      }
+    )
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: `activity:task-${_status}:default`,
+        title,
+        titleRevision: 3
+      }
+    })
   })
 
   it('creates one default activity and assigns unlabelled tools to it', async () => {
@@ -200,8 +269,26 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在读取文件',
+        title: '已读取文件',
         titleRevision: 3
+      }
+    })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: 'activity:task-fallback-activity:default',
+        title: '正在读取文件',
+        titleRevision: 4
+      }
+    })
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: 'activity:task-fallback-activity:default',
+        title: '已读取文件',
+        titleRevision: 5
       }
     })
     expect(toolRecords).toHaveLength(8)

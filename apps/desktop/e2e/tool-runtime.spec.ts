@@ -143,6 +143,8 @@ test('runs local SearXNG without approval, records only normalized results, and 
     taskId
   )
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
+  await expect(page.locator('.activity-group > summary')).toContainText('已搜索网页')
+  await expect(page.locator('.activity-group > summary')).not.toContainText('正在')
   await expect(page.locator('.activity-tool')).toHaveCount(1)
   await expect(page.locator('.activity-tool')).toContainText('ActionDriver')
 })
@@ -299,6 +301,8 @@ test('times out a granted shell process and reports the terminal error', async (
   await sendGoal(page, '在阻塞文件中查找 needle')
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
+  await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
+  await expect(page.locator('.activity-group > summary')).toContainText('执行命令失败')
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_TIMEOUT')
   expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
 })

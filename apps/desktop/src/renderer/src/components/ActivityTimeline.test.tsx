@@ -82,10 +82,20 @@ describe('ActivityTimeline', () => {
   })
 
   it('keeps a group with visible tool content expandable', () => {
-    render(<ActivityTimeline task={task('running')} />)
+    const runningTool = task('running')
+    runningTool.tools![0]!.status = 'running'
+    render(<ActivityTimeline task={runningTool} />)
     const group = screen.getByText('调研实现').closest('.activity-group')
     expect(group?.querySelector('summary')).not.toBeNull()
     expect(group?.querySelector('.activity-chevron')).not.toBeNull()
+    expect(screen.getByText('调研实现')).toHaveClass('activity-active-title')
+  })
+
+  it('stops animating a group title once its latest tool reaches a terminal state', () => {
+    const completedTool = task('running')
+    completedTool.activities![0]!.title = '已读取文件'
+    render(<ActivityTimeline task={completedTool} />)
+    expect(screen.getByText('已读取文件')).not.toHaveClass('activity-active-title')
   })
 
   it('keeps a live elapsed header above the activity and advances it while running', () => {

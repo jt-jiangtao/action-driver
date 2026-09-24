@@ -46,13 +46,18 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           (child): child is ActivityToolProjection =>
             child.kind === 'tool' && tools.has(child.callId)
         )
+        const latestTool = tools.get(visibleToolItems.at(-1)?.callId ?? '')
+        const titleIsActive =
+          activity.status === 'running' &&
+          (!latestTool ||
+            ['proposed', 'queued', 'running', 'waiting_approval'].includes(latestTool.status))
         const heading = (
           <>
             <ActivityIcon
               title={activity.title}
               toolIds={visibleToolItems.map((child) => tools.get(child.callId)?.toolId ?? '')}
             />
-            <span className={activity.status === 'running' ? 'activity-active-title' : undefined}>
+            <span className={titleIsActive ? 'activity-active-title' : undefined}>
               {activity.title}
             </span>
           </>
