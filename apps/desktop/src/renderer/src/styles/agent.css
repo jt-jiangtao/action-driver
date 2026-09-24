@@ -347,37 +347,61 @@
 .activity-archive .activity-timeline-items {
   padding-top: 16px;
 }
-.activity-group > summary {
+.activity-group > summary,
+.activity-group-heading {
   display: flex;
   align-items: center;
-  gap: 4px;
-  cursor: pointer;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 28px;
   color: #70747b;
   font-weight: 500;
+}
+.activity-group > summary {
+  cursor: pointer;
   list-style: none;
 }
-.activity-group > summary > span {
+.activity-group > summary:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #4c7dff;
+  outline-offset: 2px;
+}
+.activity-group > summary > span,
+.activity-group-heading > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.activity-group > summary > svg {
+.activity-group > summary > svg,
+.activity-group-heading > svg {
   flex: 0 0 auto;
 }
 .activity-group > summary svg,
+.activity-group-heading svg,
 .activity-tool-line svg {
   color: #777c83;
+}
+@media (hover: hover) {
+  .activity-group > summary .activity-chevron {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  .activity-group > summary:hover .activity-chevron,
+  .activity-group > summary:focus .activity-chevron {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-group > summary .activity-chevron {
+    transition: none;
+  }
 }
 .activity-items {
   display: grid;
   gap: 2px;
   padding: 2px 0 1px;
-}
-.activity-text,
-.activity-standalone-text {
-  margin: 0;
-  color: var(--ad-color-text-primary);
 }
 .activity-tool {
   min-width: 0;
@@ -452,33 +476,17 @@
   animation: activity-title-sheen 2s linear infinite;
 }
 @keyframes activity-title-sheen {
-  to { background-position: -220% 0; }
-}
-.activity-thinking {
-  position: relative;
-  width: max-content;
-  overflow: hidden;
-  color: var(--ad-color-text-secondary);
-}
-.activity-thinking::after {
-  position: absolute;
-  inset: 0 auto 0 -80%;
-  width: 45%;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent);
-  content: '';
-  animation: activity-sheen 1.7s ease-in-out infinite;
-}
-@keyframes activity-sheen {
   to {
-    transform: translateX(360%);
+    background-position: -220% 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .activity-thinking::after,
   .activity-active-title {
     animation: none;
   }
-  .activity-active-title { color: #747981; }
+  .activity-active-title {
+    color: #747981;
+  }
 }
 .conversation-scroll {
   display: flex;

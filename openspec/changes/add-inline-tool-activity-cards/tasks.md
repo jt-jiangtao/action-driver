@@ -15,3 +15,5 @@
 - [x] 3.1 将内联工具活动区接入任务对话视口，保持最终 Assistant Markdown 与工具过程分离；通过任务页测试验证 Agent-only、分栏及浏览器折叠布局。
 - [x] 3.2 扩展 fake OpenAI/工具 Runtime 桌面 E2E，覆盖文件、Shell 与 Web Search 的批准、运行、成功、失败、拒绝、超时与重连恢复；断言对话正文不混入工具进度且工具卡不泄漏秘密。
 - [x] 3.3 运行受影响 workspace 的类型检查、单元测试、完整工具 Runtime E2E、`corepack pnpm validate:e2e-interactions` 与 `openspec validate add-inline-tool-activity-cards --strict`，记录结果。
+- [x] 3.4 修正任务组正文边界：活动区仅显示标题、耗时和工具过程，不显示模型正文或“正在思考”占位；运行中的助手正文在活动区外持续显示，失败任务沿用既有正文规则。用组件、任务页和桌面交互测试验证。
+- [x] 3.5 调整任务组展开样式：无工具子项时静态显示标题；有子项时整行可展开，箭头仅在悬停、键盘聚焦或触屏环境显示。用组件及桌面交互测试验证。

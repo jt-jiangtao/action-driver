@@ -47,8 +47,14 @@ describe('ActivityTimeline', () => {
     expect(screen.getByText('用时 7 分 22 秒')).toBeVisible()
   })
 
-  it('renders process text and tools in cursor order while excluding a classified final answer', () => {
+  it('keeps model body text out of the activity group and preserves tool rows', () => {
     const mixed = task('running')
+    mixed.activityTimeline!.unshift({
+      id: 'text:standalone',
+      kind: 'text',
+      content: '组外模型正文',
+      phase: 'process'
+    })
     mixed.activities![0]!.items = [
       { id: 'text:a', kind: 'text', content: '正文 A', phase: 'process' },
       { id: 'tool:read', kind: 'tool', callId: 'read' },
@@ -56,10 +62,30 @@ describe('ActivityTimeline', () => {
     ]
     render(<ActivityTimeline task={mixed} />)
     const process = screen.getByRole('region', { name: '任务过程' })
-    expect(process.textContent?.indexOf('正文 A')).toBeLessThan(
-      process.textContent!.indexOf('读取 README')
-    )
+    expect(process).toHaveTextContent('读取 README')
+    expect(process).not.toHaveTextContent('组外模型正文')
+    expect(process).not.toHaveTextContent('正文 A')
     expect(process).not.toHaveTextContent('最终结论')
+  })
+
+  it('renders a group without visible tool content as a static title', () => {
+    const empty = task('running')
+    empty.activities![0]!.items = [
+      { id: 'text:only', kind: 'text', content: '不可展开的正文', phase: 'process' }
+    ]
+    render(<ActivityTimeline task={empty} />)
+    const group = screen.getByText('调研实现').closest('.activity-group')
+    expect(group).not.toBeNull()
+    expect(group?.querySelector('summary')).toBeNull()
+    expect(group?.querySelector('.activity-chevron')).toBeNull()
+    expect(group).not.toHaveTextContent('不可展开的正文')
+  })
+
+  it('keeps a group with visible tool content expandable', () => {
+    render(<ActivityTimeline task={task('running')} />)
+    const group = screen.getByText('调研实现').closest('.activity-group')
+    expect(group?.querySelector('summary')).not.toBeNull()
+    expect(group?.querySelector('.activity-chevron')).not.toBeNull()
   })
 
   it('keeps a live elapsed header above the activity and advances it while running', () => {
@@ -173,9 +199,9 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"stdout"')
   })
 
-  it('shows a thinking tail only while no tool is active', () => {
+  it('does not add a thinking text row to the task group', () => {
     render(<ActivityTimeline task={task('running')} />)
-    expect(screen.getByText('正在思考')).toBeVisible()
+    expect(screen.queryByText('正在思考')).toBeNull()
   })
 
   it('archives completed process closed under an elapsed-time summary', () => {

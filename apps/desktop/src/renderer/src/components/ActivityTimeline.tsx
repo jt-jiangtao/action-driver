@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen, ChevronDown, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
-import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import type {
+  ActivityToolProjection,
+  TaskProjection,
+  ToolInvocationProjection
+} from '@actiondriver/contracts'
 
 export function ActivityTimeline({ task }: { task: TaskProjection }) {
   const activities = new Map(
@@ -31,48 +35,45 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
     0,
     now - (Number.isFinite(startedAt) ? startedAt : fallbackStartedAt.current)
   )
-  const toolIsActive = (task.tools ?? []).some((tool) =>
-    ['proposed', 'queued', 'running'].includes(tool.status)
-  )
-
   const body = (
     <div className="activity-timeline-items">
       {timeline.map((item) => {
-        if (item.kind === 'text') {
-          if (item.phase === 'final') return null
-          return (
-            <p key={item.id} className="activity-standalone-text">
-              {item.content}
-            </p>
-          )
-        }
+        if (item.kind === 'text') return null
         if (item.kind === 'tool') return <ToolRow key={item.id} tool={tools.get(item.callId)} />
         const activity = activities.get(item.activityId)
         if (!activity) return null
+        const visibleToolItems = activity.items.filter(
+          (child): child is ActivityToolProjection =>
+            child.kind === 'tool' && tools.has(child.callId)
+        )
+        const heading = (
+          <>
+            <ActivityIcon
+              title={activity.title}
+              toolIds={visibleToolItems.map((child) => tools.get(child.callId)?.toolId ?? '')}
+            />
+            <span className={activity.status === 'running' ? 'activity-active-title' : undefined}>
+              {activity.title}
+            </span>
+          </>
+        )
+        if (visibleToolItems.length === 0) {
+          return (
+            <div key={item.id} className="activity-group activity-group-static">
+              <div className="activity-group-heading">{heading}</div>
+            </div>
+          )
+        }
         return (
           <details key={item.id} className="activity-group" open={task.status === 'running'}>
             <summary data-testid="e2e/tasks/detail/activity/toggle#button">
-              <ActivityIcon
-                title={activity.title}
-                toolIds={activity.items.flatMap((child) =>
-                  child.kind === 'tool' ? [tools.get(child.callId)?.toolId ?? ''] : []
-                )}
-              />
-              <span className={activity.status === 'running' ? 'activity-active-title' : undefined}>
-                {activity.title}
-              </span>
-              <ChevronDown aria-hidden="true" className="activity-chevron" size={17} />
+              {heading}
+              <ChevronDown aria-hidden="true" className="activity-chevron" size={18} />
             </summary>
             <div className="activity-items">
-              {activity.items.map((child) =>
-                child.kind === 'text' && child.phase === 'final' ? null : child.kind === 'text' ? (
-                  <p key={child.id} className="activity-text">
-                    {child.content}
-                  </p>
-                ) : (
-                  <ToolRow key={child.id} tool={tools.get(child.callId)} />
-                )
-              )}
+              {visibleToolItems.map((child) => (
+                <ToolRow key={child.id} tool={tools.get(child.callId)} />
+              ))}
             </div>
           </details>
         )
@@ -88,11 +89,6 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
             已处理 {formatRunningDuration(elapsedMs)}
           </div>
           {body}
-          {!toolIsActive ? (
-            <div className="activity-thinking" aria-live="polite">
-              正在思考
-            </div>
-          ) : null}
         </>
       ) : (
         <details className="activity-archive">
@@ -131,7 +127,7 @@ function ActivityIcon({ title, toolIds }: { title: string; toolIds: string[] }) 
       return 'other'
     })
   )
-  if (toolKinds.size > 1) return <Wrench aria-hidden="true" size={17} />
+  if (toolKinds.size > 1) return <Wrench aria-hidden="true" size={18} />
   if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={18} />
   if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={18} />
   if (toolKinds.has('search')) return <Search aria-hidden="true" size={18} />

@@ -252,6 +252,37 @@ describe('ActionDriver pages', () => {
     expect(container.querySelectorAll('.agent-message')).toHaveLength(1)
   })
 
+  it('shows streaming assistant text outside the activity group while running', () => {
+    render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'running',
+          browser: null,
+          messages: [
+            { id: 'current-user', role: 'user', content: '测试工具' },
+            { id: 'streaming-agent', role: 'agent', content: '好的，我来测试' }
+          ],
+          activityTimeline: [
+            { id: 'text:streaming', kind: 'text', content: '好的，我来测试', phase: 'process' }
+          ]
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const process = screen.getByRole('region', { name: '任务过程' })
+    expect(process).not.toHaveTextContent('好的，我来测试')
+    expect(screen.getByText('好的，我来测试').closest('.agent-message')).not.toBeNull()
+  })
+
   it('preserves previous conversation turns and does not show failed process text as a conclusion', () => {
     render(
       <TaskPage
