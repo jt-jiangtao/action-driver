@@ -372,7 +372,7 @@ export class LangGraphRunner implements GraphRunner {
             return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
           }
           activityToolNames = [...activityToolNames, providerCall.modelName]
-          const toolTitle = activityTitleForTools(activityToolNames)
+          const toolTitle = activityTitleForTools(state.goal, activityToolNames)
           if (activeActivityId) {
             activityTitleRevision += 1
             await this.modelObservers.get(state.taskId)?.({
@@ -478,6 +478,7 @@ export class LangGraphRunner implements GraphRunner {
               type: 'updated',
               activityId: activeActivityId,
               title: activityTitleForTools(
+                state.goal,
                 activityToolNames,
                 terminal?.type === 'tool.completed'
                   ? 'completed'
@@ -700,14 +701,54 @@ export function activityTitleForTool(
   return `${action}失败`
 }
 
-function activityTitleForTools(
+export function activityTitleForTools(
+  goal: string,
   modelNames: string[],
   status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running',
   issueCount = 0
 ): string {
-  if (modelNames.length === 1) return activityTitleForTool(modelNames[0]!, status)
   const kinds = new Set(modelNames.map(activityToolKind))
   const count = modelNames.length
+  const category = [...kinds]
+    .map((kind) =>
+      kind === 'web'
+        ? '网页'
+        : kind === 'file-search'
+          ? '文件搜索'
+          : kind === 'shell'
+            ? '命令'
+            : kind === 'file'
+              ? '文件'
+              : '其他工具'
+    )
+    .join('、')
+  const firstSentence = goal.trim().replace(/\s+/g, ' ').split(/[。！？\n]/)[0]?.trim()
+  const shortGoal = firstSentence?.replace(/[，,；;:：]$/, '')
+  if (shortGoal && /[\u3400-\u9fff]/.test(shortGoal) && shortGoal.length <= 24) {
+    const detail =
+      count === 1
+        ? ''
+        : kinds.size > 1
+          ? `：${category}`
+          : ` · ${count} ${kinds.has('file') ? '个文件' : kinds.has('shell') ? '条命令' : '项操作'}`
+    const summary = `${shortGoal}${detail}`
+    if (status === 'running') return `正在${summary}`
+    if (status === 'failed' && count === 1) return `${summary}（执行失败）`
+    if (status === 'cancelled' && count === 1) return `${summary}（已取消）`
+    if (issueCount > 0) return `${summary}（${issueCount} 项未完成）`
+    if (status === 'completed') return `已完成${summary}`
+    if (status === 'cancelled') return `已取消${summary}`
+    return `${summary}失败`
+  }
+  if (count === 1) return activityTitleForTool(modelNames[0]!, status)
+  if (kinds.size > 1) {
+    const summary = `使用${category}工具`
+    if (status === 'running') return `正在${summary}`
+    if (issueCount > 0) return `${summary}（${issueCount} 项未完成）`
+    if (status === 'completed') return `已完成${summary}`
+    if (status === 'cancelled') return `已取消${summary}`
+    return `${summary}失败`
+  }
   const subject =
     kinds.size === 1 && kinds.has('file')
       ? `${count} 个文件`

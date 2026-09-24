@@ -313,6 +313,9 @@
   font-size: 14px;
   line-height: 22px;
 }
+.activity-timeline.is-initial-thinking {
+  gap: 4px;
+}
 .activity-group {
   border: 0;
 }
@@ -393,7 +396,8 @@
   color: #777c83;
 }
 @media (hover: hover) {
-  .activity-timeline summary .activity-chevron {
+  .activity-group > summary .activity-chevron,
+  .activity-tool > summary .activity-chevron {
     opacity: 0;
   }
   .activity-timeline summary:hover .activity-chevron,

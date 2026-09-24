@@ -14,7 +14,7 @@ import {
   type SkillProvider,
   type SkillRegistry
 } from '../src/index'
-import { activityTitleForTool } from '../src/agent-graph'
+import { activityTitleForTool, activityTitleForTools } from '../src/agent-graph'
 
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
@@ -22,6 +22,36 @@ describe('minimal agent StateGraph', () => {
   it('distinguishes workspace search from web search in group titles', () => {
     expect(activityTitleForTool('sandbox_fs_search')).toBe('正在搜索文件')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
+  })
+  it('updates a mixed group summary as its tools and outcomes change', () => {
+    const goal = '测试所有工具'
+    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_shell_run'])).toBe(
+      '正在测试所有工具：文件、命令'
+    )
+    expect(
+      activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_shell_run', 'web_search'])
+    ).toBe('正在测试所有工具：文件、命令、网页')
+    expect(
+      activityTitleForTools(
+        goal,
+        ['sandbox_fs_read', 'sandbox_shell_run', 'web_search'],
+        'completed',
+        1
+      )
+    ).toBe('测试所有工具：文件、命令、网页（1 项未完成）')
+  })
+  it('uses a concise task intent for a single tool and a homogeneous group', () => {
+    const goal = '读取 README 的第一段'
+    expect(activityTitleForTools(goal, ['sandbox_fs_read'])).toBe('正在读取 README 的第一段')
+    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_fs_read'])).toBe(
+      '正在读取 README 的第一段 · 2 个文件'
+    )
+    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_fs_read'], 'completed')).toBe(
+      '已完成读取 README 的第一段 · 2 个文件'
+    )
+    expect(
+      activityTitleForTools('在阻塞文件中查找 needle', ['sandbox_shell_run'], 'failed', 1)
+    ).toBe('在阻塞文件中查找 needle（执行失败）')
   })
   it('keeps activity titles and tool associations in the runtime without a model activity tool', async () => {
     let round = 0

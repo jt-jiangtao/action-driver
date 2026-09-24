@@ -106,6 +106,15 @@ export type TaskTimelineProjectionItem =
       phase?: 'pending' | 'process' | 'final' | undefined
     }
 
+export interface PriorActivityTurnProjection {
+  taskId: string
+  userMessageId: string
+  durationMs?: number
+  tools: ToolInvocationProjection[]
+  activities: ActivityProjection[]
+  activityTimeline: TaskTimelineProjectionItem[]
+}
+
 export interface TaskProjection {
   id: string
   sessionId: string
@@ -118,7 +127,8 @@ export interface TaskProjection {
   activities?: ActivityProjection[]
   activityTimeline?: TaskTimelineProjectionItem[]
   activityStartedAt?: string
-  activityDurationMs?: number
+  activityDurationMs?: number | undefined
+  priorActivityTurns?: PriorActivityTurnProjection[]
   streamCursor?: number
   streamSequence?: number
   browser: BrowserSkillProjection | null

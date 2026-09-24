@@ -1,7 +1,8 @@
 import type {
   SkillControlCommand,
   SkillExecutionEvent,
-  SkillExecutionState
+  SkillExecutionState,
+  ToolInvocationProjection
 } from '@actiondriver/contracts'
 import {
   type StreamServerEvent
@@ -148,45 +149,53 @@ export function createLocalRuntimeServer(
       if (command === 'task.get') {
         const task = await taskRepository.get((rawInput as { taskId: string }).taskId)
         if (!task) return { task: null }
+        const [sessionMessages, sessionTasks] = await Promise.all([
+          options.messages.listBySession(task.sessionId),
+          taskRepository.listBySession(task.sessionId)
+        ])
+        const currentIndex = sessionTasks.findIndex((turn) => turn.id === task.id)
+        const visibleTaskIds = new Set(sessionTasks.slice(0, currentIndex + 1).map((turn) => turn.id))
         const projection = buildTaskProjection(
           task,
-          await options.messages.listBySession(task.sessionId)
+          sessionMessages.filter((message) => visibleTaskIds.has(message.taskId))
+        )
+        const priorActivityTurns = await Promise.all(
+          sessionTasks.slice(0, currentIndex).map(async (turn) => {
+            const userMessage = sessionMessages.find(
+              (message) => message.taskId === turn.id && message.role === 'user'
+            )
+            if (!userMessage) return null
+            const turnSnapshot = await options.streamSnapshots?.getTaskSnapshot(turn.id)
+            const elapsed = Date.parse(turn.updatedAt) - Date.parse(turn.createdAt)
+            const durationMs =
+              turnSnapshot?.durationMs ??
+              (turn.status !== 'running' && Number.isFinite(elapsed) ? Math.max(0, elapsed) : undefined)
+            return {
+              taskId: turn.id,
+              userMessageId: userMessage.id,
+              ...(durationMs === undefined ? {} : { durationMs }),
+              activities: turnSnapshot?.activities ?? [],
+              activityTimeline: turnSnapshot?.activityTimeline ?? [],
+              tools: turnSnapshot?.tools?.map(toToolProjection) ?? []
+            }
+          })
         )
         const snapshot = await options.streamSnapshots?.getTaskSnapshot(task.id)
         return {
           task: snapshot
             ? {
                 ...projection,
+                priorActivityTurns: priorActivityTurns.filter((turn) => turn !== null),
                 activities: snapshot.activities ?? [],
                 activityTimeline: snapshot.activityTimeline ?? [],
                 streamCursor: snapshot.cursor,
                 streamSequence: snapshot.sequence,
-                tools:
-                  snapshot.tools?.map((tool) => ({
-                    callId: tool.callId,
-                    toolId: tool.toolId,
-                    modelName: tool.modelName,
-                    summary: tool.summary,
-                    ...(tool.title === undefined ? {} : { title: tool.title }),
-                    argumentsHash: tool.argumentsHash,
-                    status: tool.status,
-                    durationMs: tool.durationMs,
-                    ...(tool.activityId === undefined ? {} : { activityId: tool.activityId }),
-                    ...(tool.resultSummary === undefined
-                      ? {}
-                      : { resultSummary: tool.resultSummary }),
-                    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary }),
-                    ...(tool.rawInput === undefined ? {} : { rawInput: tool.rawInput }),
-                    ...(tool.rawOutput === undefined ? {} : { rawOutput: tool.rawOutput }),
-                    ...(tool.rawOutputTruncated === undefined
-                      ? {}
-                      : { rawOutputTruncated: tool.rawOutputTruncated })
-                  })) ?? [],
+                tools: snapshot.tools?.map(toToolProjection) ?? [],
                 ...(snapshot.durationMs === undefined
                   ? {}
                   : { activityDurationMs: snapshot.durationMs })
               }
-            : projection
+            : { ...projection, priorActivityTurns: priorActivityTurns.filter((turn) => turn !== null) }
         }
       }
       if (command === 'task.list') {
@@ -245,5 +254,26 @@ export function createLocalRuntimeServer(
       for (const taskId of active.keys()) graphRunner.interrupt(taskId)
       await Promise.allSettled(active.values())
     }
+  }
+}
+
+function toToolProjection(
+  tool: NonNullable<Extract<StreamServerEvent, { type: 'response.snapshot' }>['tools']>[number]
+): ToolInvocationProjection {
+  return {
+    callId: tool.callId,
+    toolId: tool.toolId,
+    modelName: tool.modelName,
+    summary: tool.summary,
+    ...(tool.title === undefined ? {} : { title: tool.title }),
+    argumentsHash: tool.argumentsHash,
+    status: tool.status,
+    durationMs: tool.durationMs,
+    ...(tool.activityId === undefined ? {} : { activityId: tool.activityId }),
+    ...(tool.resultSummary === undefined ? {} : { resultSummary: tool.resultSummary }),
+    ...(tool.errorSummary === undefined ? {} : { errorSummary: tool.errorSummary }),
+    ...(tool.rawInput === undefined ? {} : { rawInput: tool.rawInput }),
+    ...(tool.rawOutput === undefined ? {} : { rawOutput: tool.rawOutput }),
+    ...(tool.rawOutputTruncated === undefined ? {} : { rawOutputTruncated: tool.rawOutputTruncated })
   }
 }

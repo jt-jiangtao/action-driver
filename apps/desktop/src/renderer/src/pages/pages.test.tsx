@@ -252,6 +252,50 @@ describe('ActionDriver pages', () => {
     expect(container.querySelectorAll('.agent-message')).toHaveLength(1)
   })
 
+  it('places each restored turn duration and archive before that turn answer', () => {
+    const { container } = render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'succeeded',
+          browser: null,
+          messages: [
+            { id: 'first-user', role: 'user', content: '测试所有工具' },
+            { id: 'first-answer', role: 'agent', content: '第一轮结果' },
+            { id: 'second-user', role: 'user', content: '111' },
+            { id: 'second-answer', role: 'agent', content: '第二轮结果' }
+          ],
+          priorActivityTurns: [{
+            taskId: 'first-task', userMessageId: 'first-user', durationMs: 5_000,
+            activities: [{
+              activityId: 'first-group', title: '测试所有工具', titleRevision: 1,
+              status: 'completed', items: [{ id: 'tool:first', kind: 'tool', callId: 'first' }]
+            }],
+            activityTimeline: [{ id: 'activity:first-group', kind: 'activity', activityId: 'first-group' }],
+            tools: [{
+              callId: 'first', toolId: 'web.search@1', modelName: 'web_search',
+              summary: '搜索网页', argumentsHash: '', status: 'completed'
+            }]
+          }],
+          activityDurationMs: 2_000,
+          activities: [], activityTimeline: [], tools: []
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const text = container.querySelector('.conversation-stream')!.textContent!
+    expect(text).toMatch(/测试所有工具.*用时 5 秒.*第一轮结果.*111.*用时 2 秒.*第二轮结果/s)
+    expect(screen.getByText('用时 5 秒').closest('details')).not.toBeNull()
+  })
+
   it('shows streaming assistant text outside the activity group while running', () => {
     render(
       <TaskPage

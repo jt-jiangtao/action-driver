@@ -45,10 +45,12 @@ describe('ActivityTimeline', () => {
     waiting.activityTimeline = []
     waiting.activities = []
     waiting.tools = []
-    render(<ActivityTimeline task={waiting} />)
+    const { container } = render(<ActivityTimeline task={waiting} />)
     expect(screen.getByText('正在思考')).toHaveClass('activity-active-title')
     expect(screen.queryByText('正在处理请求')).toBeNull()
     expect(document.querySelector('.activity-group')).toBeNull()
+    expect(container.querySelector('.activity-timeline-items')).toBeNull()
+    expect(container.querySelector('.activity-timeline')).toHaveClass('is-initial-thinking')
   })
 
   it('keeps process text between groups and archives it after completion', () => {

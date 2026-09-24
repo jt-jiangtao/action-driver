@@ -1,4 +1,5 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
+import { Fragment } from 'react'
 import { AgentComposer } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
@@ -65,6 +66,14 @@ export function TaskPage({
     }
   }
   const precedingMessages = task.messages.slice(0, Math.max(0, currentUserIndex))
+  const precedingTurns: Array<{ user: AgentMessageProjection; replies: AgentMessageProjection[] }> = []
+  for (const message of precedingMessages) {
+    if (message.role === 'user') precedingTurns.push({ user: message, replies: [] })
+    else precedingTurns.at(-1)?.replies.push(message)
+  }
+  const priorActivityByUserId = new Map(
+    (task.priorActivityTurns ?? []).map((turn) => [turn.userMessageId, turn])
+  )
   const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
   const assistantMessages =
     task.status === 'succeeded' || task.status === 'running'
@@ -97,9 +106,28 @@ export function TaskPage({
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
-              {precedingMessages.length > 0 ? (
-                <ConversationMessages messages={precedingMessages} generating={false} />
-              ) : null}
+              {precedingTurns.map((turn) => {
+                const activity = priorActivityByUserId.get(turn.user.id)
+                return (
+                  <Fragment key={turn.user.id}>
+                    <ConversationMessages messages={[turn.user]} generating={false} />
+                    {activity ? (
+                      <ActivityTimeline
+                        task={{
+                          ...task,
+                          id: activity.taskId,
+                          status: 'succeeded',
+                          activityDurationMs: activity.durationMs,
+                          activities: activity.activities,
+                          activityTimeline: activity.activityTimeline,
+                          tools: activity.tools
+                        }}
+                      />
+                    ) : null}
+                    <ConversationMessages messages={turn.replies} generating={false} />
+                  </Fragment>
+                )
+              })}
               <ConversationMessages messages={processMessages} generating={false} />
               <ActivityTimeline task={task} />
               {visibleAssistantMessages.length > 0 ? (

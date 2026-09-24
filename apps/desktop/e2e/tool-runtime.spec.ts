@@ -112,6 +112,11 @@ test('shows only elapsed time and streamed text until a tool is actually called'
   const process = page.getByRole('region', { name: '任务过程' })
   try {
     await expect(process).toContainText('正在思考')
+    const elapsedBox = await process.locator('.activity-elapsed').boundingBox()
+    const thinkingBox = await process.locator('.activity-thinking').boundingBox()
+    expect(elapsedBox).not.toBeNull()
+    expect(thinkingBox).not.toBeNull()
+    expect(thinkingBox!.y - (elapsedBox!.y + elapsedBox!.height)).toBeLessThan(12)
     await expect(process.locator('.activity-group')).toHaveCount(0)
     await expect.poll(() => provider!.completions.length).toBe(1)
     provider!.releaseTextStart()
@@ -192,7 +197,7 @@ test('runs local SearXNG without approval, records only normalized results, and 
     taskId
   )
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
-  await expect(page.locator('.activity-group > summary')).toContainText('已搜索网页')
+  await expect(page.locator('.activity-group > summary')).toContainText('已完成搜索 ActionDriver')
   await expect(page.locator('.activity-group > summary')).not.toContainText('正在')
   await expect(page.locator('.activity-tool')).toHaveCount(1)
   await expect(page.locator('.activity-tool')).toContainText('ActionDriver')
@@ -207,6 +212,26 @@ async function sendGoal(page: Page, goal: string): Promise<string> {
   expect(taskId).toMatch(/^task-/)
   return taskId!
 }
+
+test('preserves the first turn duration and archive after a follow-up and reload', async () => {
+  const page = await launch('read')
+  await sendGoal(page, '测试所有工具')
+  await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+    'data-state', 'idle'
+  )
+  await sendGoal(page, '111')
+  await expect(page.getByRole('heading', { name: '已读取' })).toHaveCount(2, { timeout: 15_000 })
+  const stream = page.locator('.conversation-stream')
+  const archives = page.getByTestId('e2e/tasks/detail/activity/archive#button')
+  await expect(archives).toHaveCount(1)
+  await expect(stream).toContainText(/测试所有工具.*用时.*已读取.*111.*用时.*已读取/s)
+  await archives.click()
+  await expect(page.locator('.activity-group')).toHaveCount(1)
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toHaveCount(1)
+  await expect(stream).toContainText(/测试所有工具.*用时.*已读取.*111.*用时.*已读取/s)
+})
 
 test('runs a real workspace read through WebSocket and returns only final Markdown', async () => {
   const page = await launch('read')
@@ -253,7 +278,7 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   const archiveArrow = archive.locator('.activity-chevron')
   await expect(archiveArrow).toHaveClass(/lucide-chevron-right/)
   await page.mouse.move(0, 0)
-  await expect(archiveArrow).toHaveCSS('opacity', '0')
+  await expect(archiveArrow).toHaveCSS('opacity', '1')
   const archiveArrowBeforeHover = await archiveArrow.boundingBox()
   await archive.hover()
   await expect(archiveArrow).toHaveCSS('opacity', '1')
@@ -409,7 +434,7 @@ test('times out a granted shell process and reports the terminal error', async (
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
-  await expect(page.locator('.activity-group > summary')).toContainText('执行命令失败')
+  await expect(page.locator('.activity-group > summary')).toContainText('执行失败')
   await expect(page.locator('.activity-group > summary span')).not.toHaveClass(
     /activity-active-title/
   )

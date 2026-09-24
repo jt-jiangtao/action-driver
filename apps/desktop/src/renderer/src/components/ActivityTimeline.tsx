@@ -120,13 +120,16 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
   )
 
   return (
-    <section className="activity-timeline" aria-label="任务过程">
+    <section
+      className={`activity-timeline${showThinking && !hasVisibleContent ? ' is-initial-thinking' : ''}`}
+      aria-label="任务过程"
+    >
       {task.status === 'running' ? (
         <>
           <div className="activity-elapsed" aria-label="已处理时间">
             已处理 {formatRunningDuration(elapsedMs)}
           </div>
-          {body}
+          {hasVisibleContent ? body : null}
           {showThinking ? (
             <div className="activity-thinking activity-active-title" role="status">
               正在思考
