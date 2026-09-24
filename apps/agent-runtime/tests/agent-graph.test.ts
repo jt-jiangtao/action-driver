@@ -22,6 +22,8 @@ describe('minimal agent StateGraph', () => {
   it('distinguishes shell commands from web search in group titles', () => {
     expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
+    expect(activityTitleForTool('web_open')).toBe('正在读取网页')
+    expect(activityTitleForTools('read pages', ['web_open', 'web_open'])).toBe('正在执行 2 项网页读取')
   })
   it('updates a mixed group summary as its tools and outcomes change', () => {
     const goal = '测试所有工具'

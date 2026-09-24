@@ -592,6 +592,14 @@
     "testName": "keeps interleaved process and tool calls ordered live and after reopening"
   },
   {
+    "target": "e2e/tasks/detail/activity/web-open/source#link",
+    "route": "tasks",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "renders a webpage title, source and text instead of raw JSON"
+  },
+  {
     "target": "e2e/settings/sidebar/main-prompt#button",
     "route": "settings",
     "type": "button",

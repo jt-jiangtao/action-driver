@@ -3,6 +3,7 @@ import type { PersistedToolInvocation } from './ports'
 type ToolErrorLike = { code?: unknown }
 
 export function toolActivitySummary(toolId: string, input: unknown): string {
+  if (toolId === 'web.open@1') return `读取 ${webOpenHostname(input)}`
   if (toolId === 'web.search@1' && isRecord(input) && typeof input.query === 'string') {
     return `搜索 “${truncate(input.query, 120)}”`
   }
@@ -22,21 +23,23 @@ export function toolActivityTitle(
 ): string {
   const type = toolId.split('@')[0] ?? toolId
   const action =
-    type === 'web.search'
-      ? '搜索网页'
-      : type === 'sandbox.shell.run'
-        ? '执行命令'
-        : type === 'local.shell.run'
+    type === 'web.open'
+      ? `读取网页 ${webOpenHostname(input)}`
+      : type === 'web.search'
+        ? '搜索网页'
+        : type === 'sandbox.shell.run'
           ? '执行命令'
-          : type === 'local.python.run'
-            ? '运行 Python'
-            : type === 'local.node.run'
-              ? '运行 Node.js'
-              : type === 'local.typescript.run'
-                ? '运行 TypeScript'
-                : type === 'image.generate'
-                  ? '生成图片'
-                  : '调用工具'
+          : type === 'local.shell.run'
+            ? '执行命令'
+            : type === 'local.python.run'
+              ? '运行 Python'
+              : type === 'local.node.run'
+                ? '运行 Node.js'
+                : type === 'local.typescript.run'
+                  ? '运行 TypeScript'
+                  : type === 'image.generate'
+                    ? '生成图片'
+                    : '调用工具'
   const target =
     type === 'web.search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
@@ -44,13 +47,15 @@ export function toolActivityTitle(
   const label = `${action}${target}`
   if (status === 'completed') return `已${label}`
   if (status === 'failed')
-    return type === 'local.python.run'
-      ? 'Python 执行失败'
-      : type === 'local.node.run'
-        ? 'Node.js 执行失败'
-        : type === 'local.typescript.run'
-          ? 'TypeScript 执行失败'
-          : `${label}失败`
+    return type === 'web.open'
+      ? `${label} 失败`
+      : type === 'local.python.run'
+        ? 'Python 执行失败'
+        : type === 'local.node.run'
+          ? 'Node.js 执行失败'
+          : type === 'local.typescript.run'
+            ? 'TypeScript 执行失败'
+            : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
   if (status === 'unknown') return `${label}结果未知`
   if (status === 'waiting_approval') return `等待批准：${label}`
@@ -59,6 +64,9 @@ export function toolActivityTitle(
 
 export function toolActivityResultSummary(toolId: string, output: unknown): string {
   const result = isRecord(output) && 'result' in output ? output.result : output
+  if (toolId === 'web.open@1' && isRecord(result) && typeof result.title === 'string') {
+    return truncate(result.title, 160)
+  }
   if (toolId === 'web.search@1' && isRecord(result) && Array.isArray(result.results)) {
     const first = result.results[0]
     if (isRecord(first) && typeof first.title === 'string') return truncate(first.title, 160)
@@ -78,6 +86,19 @@ export function toolActivityErrorSummary(error: unknown): string {
   if (code === 'TOOL_TIMEOUT') return '执行超时'
   if (code === 'TOOL_INPUT_INVALID') return '参数无效'
   if (code === 'PROCESS_OUTPUT_LIMIT') return '输出超限'
+  if (code === 'TOOL_EXECUTION_FAILED' && isRecord(error) && typeof error.message === 'string') {
+    const webOpenReasons: Record<string, string> = {
+      WEB_OPEN_URL_DENIED: '仅支持公网网页',
+      WEB_OPEN_CONTENT_UNSUPPORTED: '该页面不是 HTML',
+      WEB_OPEN_EMPTY_CONTENT: '网页没有可读取的正文',
+      WEB_OPEN_RESPONSE_LIMIT: '网页内容超出大小限制',
+      WEB_OPEN_TIMEOUT: '读取网页超时',
+      WEB_OPEN_PARSE_TIMEOUT: '网页解析超时',
+      WEB_OPEN_PARSE_FAILED: '网页解析失败'
+    }
+    const reason = webOpenReasons[error.message]
+    if (reason) return reason
+  }
   if (code === 'PROCESS_EXIT_NONZERO' && isRecord(error) && typeof error.message === 'string') {
     const exitCode = error.message.match(/PROCESS_EXIT_NONZERO: (\d+)/)?.[1]
     if (exitCode) return `退出码 ${exitCode}`
@@ -113,4 +134,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function truncate(value: string, maximum: number): string {
   return value.length <= maximum ? value : `${value.slice(0, maximum - 1)}…`
+}
+
+function webOpenHostname(input: unknown): string {
+  if (!isRecord(input) || typeof input.url !== 'string') return '网页'
+  try {
+    return new URL(input.url).hostname
+  } catch {
+    return '网页'
+  }
 }

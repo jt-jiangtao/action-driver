@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { toolActivityTitle } from '../src/tool-activity'
+import {
+  toolActivityErrorSummary,
+  toolActivityResultSummary,
+  toolActivitySummary,
+  toolActivityTitle
+} from '../src/tool-activity'
 
 describe('tool activity titles', () => {
   it('names the action across the tool lifecycle', () => {
@@ -40,7 +45,46 @@ describe('tool activity titles', () => {
     expect(toolActivityTitle('local.python.run', { code: 'x' }, 'cancelled')).toBe(
       '已取消运行 Python'
     )
-    expect(toolActivityTitle('local.typescript.run@2', { script: 'const secret: string = "x"' }, 'running'))
-      .toBe('正在运行 TypeScript')
+    expect(
+      toolActivityTitle(
+        'local.typescript.run@2',
+        { script: 'const secret: string = "x"' },
+        'running'
+      )
+    ).toBe('正在运行 TypeScript')
+  })
+
+  it('names a web page read separately from web search across statuses', () => {
+    const input = { url: 'https://example.com/article' }
+    expect(toolActivitySummary('web.open@1', input)).toBe('读取 example.com')
+    expect(toolActivityTitle('web.open@1', input, 'running')).toBe('正在读取网页 example.com')
+    expect(toolActivityTitle('web.open@1', input, 'completed')).toBe('已读取网页 example.com')
+    expect(toolActivityTitle('web.open@1', input, 'failed')).toBe('读取网页 example.com 失败')
+    expect(
+      toolActivityResultSummary('web.open@1', {
+        result: { title: '页面标题', url: input.url, text: '正文', truncated: false }
+      })
+    ).toBe('页面标题')
+  })
+
+  it('shows a useful reason when a webpage cannot be read', () => {
+    expect(
+      toolActivityErrorSummary({
+        code: 'TOOL_EXECUTION_FAILED',
+        message: 'WEB_OPEN_URL_DENIED'
+      })
+    ).toBe('仅支持公网网页')
+    expect(
+      toolActivityErrorSummary({
+        code: 'TOOL_EXECUTION_FAILED',
+        message: 'WEB_OPEN_CONTENT_UNSUPPORTED'
+      })
+    ).toBe('该页面不是 HTML')
+    expect(
+      toolActivityErrorSummary({
+        code: 'TOOL_EXECUTION_FAILED',
+        message: 'WEB_OPEN_EMPTY_CONTENT'
+      })
+    ).toBe('网页没有可读取的正文')
   })
 })

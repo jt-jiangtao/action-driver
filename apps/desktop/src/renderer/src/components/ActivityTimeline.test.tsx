@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TaskProjection } from '@actiondriver/contracts'
 import { ActivityTimeline } from './ActivityTimeline'
@@ -75,6 +75,16 @@ describe('ActivityTimeline', () => {
     expect(screen.getByRole('status')).toHaveTextContent('正在准备 TypeScript 脚本')
   })
 
+  it('names a webpage read while its arguments are still streaming', () => {
+    const preparing = task('running')
+    preparing.activityTimeline = []
+    preparing.activities = []
+    preparing.tools = []
+    preparing.preparingToolName = 'web_open'
+    render(<ActivityTimeline task={preparing} />)
+    expect(screen.getByRole('status')).toHaveTextContent('正在准备 网页读取')
+  })
+
   it('renders inline script source as terminal input instead of a JSON wrapper', () => {
     const scripted = task('running')
     scripted.tools![0]!.rawInput = JSON.stringify({ script: 'echo hello', args: ['one'] })
@@ -87,7 +97,9 @@ describe('ActivityTimeline', () => {
 
   it('shows tool preparation after streamed process text in the same model response', () => {
     const preparing = task('running')
-    preparing.activityTimeline = [{ id: 'text:plan', kind: 'text', content: '先检查输入', phase: 'pending' }]
+    preparing.activityTimeline = [
+      { id: 'text:plan', kind: 'text', content: '先检查输入', phase: 'pending' }
+    ]
     preparing.activities = []
     preparing.tools = []
     preparing.preparingToolName = 'python_run'
@@ -393,6 +405,55 @@ describe('ActivityTimeline', () => {
     )
     expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"stdout"')
+  })
+
+  it('renders a webpage title, source and text instead of raw JSON', () => {
+    const open = vi.fn(async () => {})
+    vi.stubGlobal('actionDriverDesktop', { externalLinks: { open } })
+    const reading = task('running')
+    reading.activities![0]!.title = '已读取网页'
+    reading.tools![0] = {
+      callId: 'read',
+      toolId: 'web.open',
+      modelName: 'web_open',
+      title: '已读取网页 example.com',
+      summary: '读取 example.com',
+      argumentsHash: '',
+      activityId: 'research',
+      status: 'completed',
+      rawInput: '{"url":"https://example.com/start"}',
+      rawOutput: JSON.stringify({
+        result: {
+          title: '页面标题',
+          url: 'https://example.com/final',
+          text: '正文内容',
+          truncated: true
+        }
+      })
+    }
+    const { container, rerender } = render(<ActivityTimeline task={reading} />)
+    screen.getByText('已读取网页').closest('summary')!.click()
+    screen.getByText('已读取网页 example.com').click()
+    expect(screen.getByText('页面标题')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'https://example.com/final' })).toHaveAttribute(
+      'href',
+      'https://example.com/final'
+    )
+    expect(screen.getByRole('link', { name: 'https://example.com/final' })).toHaveAttribute(
+      'data-testid',
+      'e2e/tasks/detail/activity/web-open/source#link'
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'https://example.com/final' }))
+    expect(open).toHaveBeenCalledWith('https://example.com/final')
+    expect(screen.getByText('正文内容')).toBeVisible()
+    expect(screen.getByText('内容已截断')).toBeVisible()
+    expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"result"')
+    expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"rawInput"')
+
+    rerender(<ActivityTimeline task={{ ...reading, status: 'succeeded' }} />)
+    screen.getByTestId('e2e/tasks/detail/activity/archive#button').click()
+    expect(screen.getByText('页面标题')).toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 
   it('renders Python and Node input as expandable terminal details', () => {

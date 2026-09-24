@@ -524,6 +524,32 @@
 .activity-tool-io pre.is-long {
   mask-image: linear-gradient(to bottom, #000 0%, #000 86%, transparent 100%);
 }
+.activity-web-page {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.activity-web-page-title {
+  color: #30343a;
+  font-weight: 600;
+}
+.activity-web-page a {
+  color: #526786;
+  overflow-wrap: anywhere;
+}
+.activity-web-page p {
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  color: #555b63;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.activity-web-page .activity-tool-status {
+  padding: 0;
+}
 .activity-tool-status {
   padding: 0 9px 10px;
   color: #6c7076;

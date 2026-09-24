@@ -20,6 +20,7 @@ import { createProductionSkillProviderHost } from './skill-provider-host'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
 import { resolveModuleDirectory } from './module-directory'
+import { registerExternalLinkIpc } from './external-link-ipc'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 import { PACKAGED_RENDERER_URL, resolveRendererAssetPath } from './renderer-protocol'
 import {
@@ -77,6 +78,7 @@ function createWindow(mainServices: MainServices): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
+  registerExternalLinkIpc(ipcMain, (url) => shell.openExternal(url))
   protocol.handle('actiondriver', (request) => {
     const path = resolveRendererAssetPath(dirname(rendererPath), request.url)
     return path

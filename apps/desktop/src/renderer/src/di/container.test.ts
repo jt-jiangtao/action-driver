@@ -36,7 +36,8 @@ function createDesktopApi(): DesktopApi {
       choose: async () => null,
       browse: async () => undefined,
       reveal: async () => undefined
-    }
+    },
+    externalLinks: { open: async () => undefined }
   }
 }
 

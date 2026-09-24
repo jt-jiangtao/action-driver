@@ -158,6 +158,7 @@ function preparingToolLabel(modelName: string): string {
   if (modelName === 'node_run') return 'Node.js 脚本'
   if (modelName === 'ts_run') return 'TypeScript 脚本'
   if (modelName === 'web_search') return '网页搜索'
+  if (modelName === 'web_open') return '网页读取'
   return modelName
 }
 
@@ -205,6 +206,7 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   if (!tool) return null
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
   const shellTranscript = shellToolTranscript(tool)
+  const webpage = webOpenResult(tool)
   const active = tool.status === 'running'
   const row = (
     <>
@@ -236,7 +238,27 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
       </summary>
       <div className={`activity-tool-io${shellTranscript ? ' is-terminal' : ''}`}>
         <div className="activity-tool-io-title">{toolTitle(tool)}</div>
-        {shellTranscript ? (
+        {webpage ? (
+          <div className="activity-web-page">
+            <div className="activity-web-page-title">{webpage.title}</div>
+            <a
+              href={webpage.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.preventDefault()
+                void window.actionDriverDesktop.externalLinks.open(webpage.url).catch((error) => {
+                  console.error('[web-open] Failed to open source link:', error)
+                })
+              }}
+              data-testid="e2e/tasks/detail/activity/web-open/source#link"
+            >
+              {webpage.url}
+            </a>
+            <p>{webpage.text}</p>
+            {webpage.truncated ? <div className="activity-tool-status">内容已截断</div> : null}
+          </div>
+        ) : shellTranscript ? (
           <pre
             className={
               tool.rawOutputTruncated || shellTranscript.text.length > 900 ? 'is-long' : undefined
@@ -291,13 +313,18 @@ function shellToolTranscript(
           : null
   const script = typeof input?.script === 'string' ? input.script : null
   if (command === null && script === null) return null
-  const runtime = /typescript/.test(tool.toolId) ? 'node --input-type=module-typescript'
-    : /python/.test(tool.toolId) ? 'python3'
-      : /node\.run/.test(tool.toolId) ? 'node' : 'zsh'
+  const runtime = /typescript/.test(tool.toolId)
+    ? 'node --input-type=module-typescript'
+    : /python/.test(tool.toolId)
+      ? 'python3'
+      : /node\.run/.test(tool.toolId)
+        ? 'node'
+        : 'zsh'
   const escapedArgs = args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
-  const invocation = script === null
-    ? `$ ${[command, ...escapedArgs].join(' ')}`
-    : `$ ${[runtime, '-', ...escapedArgs].join(' ')}\n${script}`
+  const invocation =
+    script === null
+      ? `$ ${[command, ...escapedArgs].join(' ')}`
+      : `$ ${[runtime, '-', ...escapedArgs].join(' ')}\n${script}`
   const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
   const chunks = output
     ? [output.stdout, output.stderr, output.content].filter(
@@ -336,6 +363,33 @@ function parseObject(value: string): Record<string, unknown> | null {
   }
 }
 
+function webOpenResult(tool: ToolInvocationProjection): {
+  title: string
+  url: string
+  text: string
+  truncated: boolean
+} | null {
+  if (!tool.toolId.startsWith('web.open') || !tool.rawOutput) return null
+  const raw = parseObject(tool.rawOutput)
+  const result = raw?.result
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null
+  const page = result as Record<string, unknown>
+  if (
+    typeof page.title !== 'string' ||
+    typeof page.url !== 'string' ||
+    typeof page.text !== 'string' ||
+    typeof page.truncated !== 'boolean'
+  )
+    return null
+  try {
+    const url = new URL(page.url)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null
+  } catch {
+    return null
+  }
+  return { title: page.title, url: page.url, text: page.text, truncated: page.truncated }
+}
+
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
   if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
   if (/shell|command|python|node\.run|typescript/.test(tool.toolId))
@@ -351,6 +405,7 @@ function toolAction(tool: ToolInvocationProjection): string {
   if (tool.status === 'waiting_approval') return '旧审批记录：'
   if (tool.status === 'running' || tool.status === 'queued' || tool.status === 'proposed')
     return '正在运行 '
+  if (tool.toolId.startsWith('web.open')) return '已读取网页：'
   if (/web/.test(tool.toolId)) return '已搜索网页：'
   if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
   if (/shell|command|python|node\.run|typescript/.test(tool.toolId)) return '已运行 '
@@ -362,6 +417,7 @@ function toolTitle(tool: ToolInvocationProjection): string {
   if (/python/.test(tool.toolId)) return 'Python'
   if (/node\.run/.test(tool.toolId)) return 'Node.js'
   if (/typescript/.test(tool.toolId)) return 'TypeScript'
+  if (tool.toolId.startsWith('web.open')) return '网页内容'
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   return '工具'

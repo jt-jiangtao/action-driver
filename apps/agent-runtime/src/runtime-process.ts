@@ -21,6 +21,7 @@ import { createScriptTools } from './execution/tools'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerSearxngTool } from './searxng/runtime-tools'
+import { registerWebOpenTool } from './web-open/tool'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { SkillInstaller } from './agent-files/skill-installer'
 import { createSkillRuntimeTools } from './agent-files/runtime-tools'
@@ -134,6 +135,7 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.isAvailable = async (definition) =>
     definition.id !== imageTool.definition.id || (await service.getDefaultImageModel()) !== null
   registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
+  registerWebOpenTool(local.toolRuntime)
   for (const tool of createSkillRuntimeTools({ store: agentFiles, installer: skillInstaller })) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)

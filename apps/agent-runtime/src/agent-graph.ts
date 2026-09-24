@@ -700,17 +700,20 @@ export function activityTitleForTool(
   status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running'
 ): string {
   const normalized = modelName.toLowerCase()
-  const action = normalized.includes('web')
-    ? '搜索网页'
-    : normalized.includes('shell') || normalized.includes('command')
-      ? '执行命令'
-      : normalized.includes('python')
-        ? '运行 Python'
-        : normalized.includes('ts_run') || normalized.includes('typescript')
-          ? '运行 TypeScript'
-          : normalized.includes('node_run') || normalized.includes('node.run')
-            ? '运行 Node.js'
-            : '调用工具'
+  const action =
+    normalized === 'web_open'
+      ? '读取网页'
+      : normalized.includes('web')
+        ? '搜索网页'
+        : normalized.includes('shell') || normalized.includes('command')
+          ? '执行命令'
+          : normalized.includes('python')
+            ? '运行 Python'
+            : normalized.includes('ts_run') || normalized.includes('typescript')
+              ? '运行 TypeScript'
+              : normalized.includes('node_run') || normalized.includes('node.run')
+                ? '运行 Node.js'
+                : '调用工具'
   if (status === 'running') return `正在${action}`
   if (status === 'completed') return `已${action}`
   if (status === 'cancelled') return `已取消${action}`
@@ -763,7 +766,13 @@ export function activityTitleForTools(
   }
   const subject =
     kinds.size === 1 && kinds.has('web')
-      ? `${count} 项网页搜索`
+      ? `${count} 项${
+          modelNames.every((name) => name.toLowerCase() === 'web_open')
+            ? '网页读取'
+            : modelNames.every((name) => name.toLowerCase() === 'web_search')
+              ? '网页搜索'
+              : '网页操作'
+        }`
       : kinds.size === 1 && kinds.has('shell')
         ? `${count} 条命令`
         : `${count} 项操作`

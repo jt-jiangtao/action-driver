@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs && node scripts/copy-system-skills.mjs",
+    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws --external:jsdom --external:@mozilla/readability && esbuild src/web-open/extract-worker.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/web-open-worker.js --external:jsdom --external:@mozilla/readability && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs && node scripts/copy-system-skills.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -19,12 +19,15 @@
     "@langchain/core": "1.2.12",
     "@langchain/langgraph": "1.4.16",
     "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
+    "@mozilla/readability": "0.6.0",
     "@opentelemetry/api": "1.9.1",
     "@vscode/ripgrep": "1.18.0",
     "better-sqlite3": "12.11.1",
     "file-type": "20.5.0",
     "hono": "4.11.7",
     "image-size": "2.0.4",
+    "ipaddr.js": "2.5.0",
+    "jsdom": "26.1.0",
     "openai": "6.49.0",
     "ws": "8.21.3",
     "yaml": "2.9.1",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",
+    "@types/jsdom": "21.1.7",
     "@types/ws": "8.18.1",
     "esbuild": "0.28.2"
   }
