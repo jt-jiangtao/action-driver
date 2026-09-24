@@ -19,6 +19,11 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           kind: 'tool' as const,
           callId: tool.callId
         }))
+  const hasVisibleContent = timeline.some((item) =>
+    item.kind === 'tool'
+      ? tools.has(item.callId)
+      : item.kind === 'activity' && activities.has(item.activityId)
+  )
   const fallbackStartedAt = useRef(Date.now())
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -95,14 +100,16 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           </div>
           {body}
         </>
-      ) : (
+      ) : hasVisibleContent ? (
         <details className="activity-archive">
           <summary data-testid="e2e/tasks/detail/activity/archive#button">
             <span>用时 {formatDuration(task.activityDurationMs)}</span>
-            <ChevronDown aria-hidden="true" size={17} />
+            <ChevronDown aria-hidden="true" className="activity-chevron" size={18} />
           </summary>
           {body}
         </details>
+      ) : (
+        <div className="activity-elapsed">用时 {formatDuration(task.activityDurationMs)}</div>
       )}
     </section>
   )
@@ -155,7 +162,7 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
         <span>{toolAction(tool)}</span>
         <span>{toolSummary(tool)}</span>
       </span>
-      {hasRawIO ? <ChevronDown aria-hidden="true" className="activity-chevron" size={17} /> : null}
+      {hasRawIO ? <ChevronDown aria-hidden="true" className="activity-chevron" size={18} /> : null}
     </>
   )
   if (!hasRawIO) {

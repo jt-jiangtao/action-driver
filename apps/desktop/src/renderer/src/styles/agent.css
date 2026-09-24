@@ -311,7 +311,7 @@
   margin: 12px 0 24px;
   color: var(--ad-color-text-secondary);
   font-size: 14px;
-  line-height: 23px;
+  line-height: 22px;
 }
 .activity-group {
   border: 0;
@@ -362,7 +362,9 @@
   cursor: pointer;
   list-style: none;
 }
-.activity-group > summary:focus-visible {
+.activity-group > summary:focus-visible,
+.activity-tool > summary:focus-visible,
+.activity-archive > summary:focus-visible {
   border-radius: 4px;
   outline: 2px solid #4c7dff;
   outline-offset: 2px;
@@ -384,18 +386,12 @@
   color: #777c83;
 }
 @media (hover: hover) {
-  .activity-group > summary .activity-chevron {
+  .activity-timeline summary .activity-chevron {
     opacity: 0;
-    transition: opacity 120ms ease;
   }
-  .activity-group > summary:hover .activity-chevron,
-  .activity-group > summary:focus .activity-chevron {
+  .activity-timeline summary:hover .activity-chevron,
+  .activity-timeline summary:focus-visible .activity-chevron {
     opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .activity-group > summary .activity-chevron {
-    transition: none;
   }
 }
 .activity-items {
@@ -410,10 +406,13 @@
 .activity-tool-line {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) 18px;
-  align-items: start;
-  gap: 4px;
-  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
   list-style: none;
+}
+.activity-tool > summary.activity-tool-line {
+  cursor: pointer;
 }
 .activity-tool-label {
   min-width: 0;

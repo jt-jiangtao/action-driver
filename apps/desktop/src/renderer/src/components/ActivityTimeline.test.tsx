@@ -218,7 +218,18 @@ describe('ActivityTimeline', () => {
     render(<ActivityTimeline task={task('succeeded')} />)
     const archive = screen.getByText('用时 2.8 秒').closest('details')
     expect(archive).not.toHaveAttribute('open')
+    expect(archive?.querySelector('.activity-chevron')).not.toBeNull()
     expect(screen.queryByText('正在思考')).toBeNull()
+  })
+
+  it('renders an elapsed line without an arrow when there is no process to expand', () => {
+    const empty = task('succeeded')
+    empty.activityTimeline = []
+    empty.activities = []
+    empty.tools = []
+    render(<ActivityTimeline task={empty} />)
+    expect(screen.getByText('用时 2.8 秒').closest('details')).toBeNull()
+    expect(screen.getByRole('region', { name: '任务过程' }).querySelector('svg')).toBeNull()
   })
 
   it('renders a standalone tool from a legacy or snapshot task in the same timeline', () => {
@@ -241,6 +252,15 @@ describe('ActivityTimeline', () => {
     render(<ActivityTimeline task={standalone} />)
     screen.getByText('用时 2.8 秒').click()
     expect(screen.getByText('访问文件 /')).toBeVisible()
+    expect(
+      screen.getByText('访问文件 /').closest('.activity-tool')?.querySelector('summary')
+    ).toBeNull()
+    expect(
+      screen
+        .getByText('访问文件 /')
+        .closest('.activity-tool')
+        ?.querySelector('svg.activity-chevron')
+    ).toBeNull()
     expect(screen.queryByText('运行结束')).toBeNull()
   })
 })
