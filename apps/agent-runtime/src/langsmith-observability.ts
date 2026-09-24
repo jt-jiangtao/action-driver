@@ -7,6 +7,7 @@ import type {
   ModelRef,
   ModelRunStatus
 } from '@actiondriver/contracts'
+import type { ModelTraceFinish, ModelTraceStart } from './model-trace-port'
 
 const DEFAULT_ENDPOINT = 'https://api.smith.langchain.com'
 
@@ -56,25 +57,6 @@ export interface LangSmithClientPort {
   updateRun(id: string, run: RunUpdate): Promise<void>
   flush(): Promise<void>
   listRuns(query: RunQuery): AsyncIterable<Run>
-}
-
-export type ModelTraceStart = {
-  id: string
-  sessionId: string
-  sessionName?: string
-  taskId: string
-  requestId: string
-  correlationId: string
-  model: ModelRef
-  startedAt: string
-  input: unknown
-}
-
-export type ModelTraceFinish = {
-  completedAt: string
-  output?: unknown
-  usage?: unknown
-  error?: string
 }
 
 export class LangSmithObservability {

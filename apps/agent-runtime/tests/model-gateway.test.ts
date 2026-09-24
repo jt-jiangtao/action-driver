@@ -76,6 +76,27 @@ const realRequest: ModelRequest = {
 }
 
 describe('ModelGateway boundary', () => {
+  it('keeps the provider result when tracing start or finish fails', async () => {
+    const outcome: ModelCompletionOutcome = {
+      ok: true,
+      value: {
+        content: 'done',
+        providerProtocol: 'openai-compatible',
+        requestBody: { messages: realRequest.messages },
+        responseBody: { content: 'done' },
+        status: 200
+      }
+    }
+    for (const failingMethod of ['start', 'finish'] as const) {
+      const traces = {
+        start: async () => { if (failingMethod === 'start') throw new Error('collector down') },
+        finish: async () => { if (failingMethod === 'finish') throw new Error('collector down') }
+      }
+      const { gateway } = createGateway(completionService(outcome), traces)
+      await expect(gateway.complete(realRequest)).resolves.toEqual({ kind: 'finish', content: 'done' })
+    }
+  })
+
   it('finishes a LangSmith trace for a streamed model result', async () => {
     const starts: unknown[] = []
     const finishes: unknown[] = []

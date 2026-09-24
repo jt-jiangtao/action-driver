@@ -1,8 +1,8 @@
 import { SpanStatusCode, type Span, type Tracer } from '@opentelemetry/api'
-import type { ModelTraceFinish, ModelTraceStart } from './langsmith-observability'
+import type { ModelTraceFinish, ModelTracePort, ModelTraceStart } from './model-trace-port'
 
 /** Complete model content lives on OpenInference spans routed to the local Phoenix collector. */
-export class PhoenixModelObservability {
+export class PhoenixModelObservability implements ModelTracePort {
   private readonly active = new Map<string, Span>()
 
   constructor(private readonly tracer: Tracer) {}
@@ -37,17 +37,22 @@ export class PhoenixModelObservability {
     }
     span.setStatus(result.error === undefined
       ? { code: SpanStatusCode.OK }
-      : { code: SpanStatusCode.ERROR, message: result.error })
+      : { code: SpanStatusCode.ERROR, message: redactCredentialText(result.error) })
     span.end(new Date(result.completedAt))
   }
 }
 
 function withoutCredentials(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutCredentials)
+  if (typeof value === 'string') return redactCredentialText(value)
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value).flatMap(([key, nested]) =>
     /^(api[-_]?key|authorization|cookie|password|token)$/i.test(key)
       ? []
       : [[key, withoutCredentials(nested)]]
   ))
+}
+
+function redactCredentialText(value: string): string {
+  return value.replace(/Bearer\s+[^\s]+|sk-[A-Za-z0-9_-]+/gi, '[redacted]')
 }

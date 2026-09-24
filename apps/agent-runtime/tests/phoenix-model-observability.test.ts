@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Tracer } from '@opentelemetry/api'
 import { PhoenixModelObservability } from '../src/phoenix-model-observability'
+import type { ModelTracePort } from '../src/model-trace-port'
 
 describe('Phoenix model observability', () => {
   it('puts complete model input and output on one OTel span, with no credential fields', async () => {
@@ -26,6 +27,38 @@ describe('Phoenix model observability', () => {
     expect(JSON.stringify(attributes)).toContain('MODEL_INPUT_MARKER')
     expect(JSON.stringify(attributes)).toContain('MODEL_OUTPUT_MARKER')
     expect(JSON.stringify(attributes)).not.toContain('secret')
+    expect(end).toHaveBeenCalledOnce()
+  })
+})
+
+describe('Phoenix trace failure boundary', () => {
+  it('filters nested credentials and ends a failed model span', async () => {
+    const attributes: Record<string, unknown> = {}
+    const setStatus = vi.fn()
+    const end = vi.fn()
+    const tracer = {
+      startSpan: () => ({
+        setAttribute: (key: string, value: unknown) => { attributes[key] = value },
+        setStatus,
+        end
+      })
+    } as unknown as Tracer
+    const port: ModelTracePort = new PhoenixModelObservability(tracer)
+    await port.start({
+      id: 'call-2', sessionId: 'session-1', taskId: 'task-1', requestId: 'request-1',
+      correlationId: 'correlation-1', model: { connectionId: 'connection-1', modelId: 'test-model' },
+      startedAt: '2026-09-24T00:00:00Z',
+      input: { messages: [{ text: 'MODEL_INPUT_MARKER', headers: { Authorization: 'Bearer secret' } }] }
+    })
+    await port.finish('call-2', {
+      completedAt: '2026-09-24T00:00:01Z',
+      output: { value: [{ text: 'MODEL_OUTPUT_MARKER', apiKey: 'secret' }] },
+      error: 'Bearer secret rejected'
+    })
+    expect(JSON.stringify(attributes)).toContain('MODEL_INPUT_MARKER')
+    expect(JSON.stringify(attributes)).toContain('MODEL_OUTPUT_MARKER')
+    expect(JSON.stringify(attributes)).not.toMatch(/secret|Bearer/)
+    expect(JSON.stringify(setStatus.mock.calls)).not.toMatch(/secret|Bearer/)
     expect(end).toHaveBeenCalledOnce()
   })
 })

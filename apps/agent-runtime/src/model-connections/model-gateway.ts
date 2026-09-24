@@ -1,7 +1,7 @@
 import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver/model-connections'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
-import type { ModelTraceStart, ModelTraceFinish } from '../langsmith-observability'
+import type { ModelTraceFinish, ModelTracePort } from '../model-trace-port'
 import type { ModelCallRepository, ModelGateway, ModelRequest, PersistedModelCall } from '../ports'
 
 export class ModelExecutionError extends Error {
@@ -24,7 +24,7 @@ export class ConnectionModelGateway implements ModelGateway {
       callId(): string
       correlationId(): string
       now(): string
-      traces?: { start(run: ModelTraceStart): Promise<void>; finish(id: string, result: ModelTraceFinish): Promise<void> }
+      traces?: ModelTracePort
     }
   ) {}
 
