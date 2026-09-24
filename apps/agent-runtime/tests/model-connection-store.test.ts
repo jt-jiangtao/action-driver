@@ -23,12 +23,54 @@ const connection: StoredModelConnection = {
   apiKeyHint: '••••alue',
   expanded: true,
   models: [
-    { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'success' },
-    { id: 'wan2.7-image', name: 'wan2.7-image', enabled: false, testState: 'unsupported' }
+    {
+      id: 'qwen3.7-plus',
+      name: 'qwen3.7-plus',
+      enabled: true,
+      testState: 'success',
+      imageInputEnabled: false,
+      imageGenerationEnabled: false
+    },
+    {
+      id: 'wan2.7-image',
+      name: 'wan2.7-image',
+      enabled: false,
+      testState: 'unsupported',
+      imageInputEnabled: false,
+      imageGenerationEnabled: false
+    }
   ]
 }
 
 describe('service-side model connection storage', () => {
+  it('keeps the unique image default after a model rewrite and clears it when removed', () => {
+    const path = databasePath()
+    const database = openRuntimeDatabase(path)
+    const store = createSqliteModelConnectionStore(database)
+    const configured = {
+      ...connection,
+      models: connection.models.map((model) =>
+        model.id === 'wan2.7-image'
+          ? { ...model, enabled: true, imageGenerationEnabled: true }
+          : model
+      )
+    }
+    store.write([configured])
+    store.writeDefaultImageModel({ connectionId: configured.id, modelId: 'wan2.7-image' })
+    store.write([configured])
+    expect(store.readDefaultImageModel()).toEqual({
+      connectionId: configured.id,
+      modelId: 'wan2.7-image'
+    })
+    database.close()
+    const reopened = openRuntimeDatabase(path)
+    const afterRestart = createSqliteModelConnectionStore(reopened)
+    expect(afterRestart.readDefaultImageModel()?.modelId).toBe('wan2.7-image')
+    afterRestart.write([])
+    expect(afterRestart.readDefaultImageModel()).toBeNull()
+    reopened.close()
+  })
+
   it('migrates model image capability flags and a nullable default image model', () => {
     const database = openRuntimeDatabase(databasePath())
     const columns = database.prepare('PRAGMA table_info(model_connection_models)').all() as Array<{

@@ -53,6 +53,7 @@ function cloneConnection(connection: ModelConnection): ModelConnection {
 
 export class MockModelConnectionsService implements ModelConnectionsService {
   private connections: ModelConnection[]
+  private defaultImageModel: { connectionId: string; modelId: string } | null = null
   private readonly delayMs: number
   private readonly modelResults: Record<string, boolean>
 
@@ -86,30 +87,25 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const currentById = new Map(connection.models.map((model) => [model.id, model]))
     connection.models = discoveredModels.map((model) => ({
       ...model,
-      enabled: currentById.get(model.id)?.enabled ?? model.enabled
+      enabled: currentById.get(model.id)?.enabled ?? model.enabled,
+      imageInputEnabled: currentById.get(model.id)?.imageInputEnabled ?? false,
+      imageGenerationEnabled: currentById.get(model.id)?.imageGenerationEnabled ?? false
     }))
+    this.clearInvalidImageDefault()
     return cloneModels(connection.models)
   }
 
-  async testModels(
-    draft: ModelConnectionDraft,
-    modelIds: string[]
-  ): Promise<ModelTestResult[]> {
+  async testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]> {
     await this.wait()
     if (!draft.baseUrl.trim()) return []
     return modelIds.map((modelId) => ({
       modelId,
       state:
-        (this.modelResults[modelId] ?? !modelId.startsWith('custom-model'))
-          ? 'success'
-          : 'failed'
+        (this.modelResults[modelId] ?? !modelId.startsWith('custom-model')) ? 'success' : 'failed'
     }))
   }
 
-  async testConnectionModels(
-    connectionId: string,
-    modelIds: string[]
-  ): Promise<ModelTestResult[]> {
+  async testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]> {
     const connection = this.requireConnection(connectionId)
     const results = await this.testModels(
       {
@@ -133,15 +129,47 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
     if (!model) throw new Error(`Unknown model: ${modelId}`)
     model.enabled = enabled
+    this.clearInvalidImageDefault()
+  }
+
+  async setModelImageCapability(
+    connectionId: string,
+    modelId: string,
+    kind: 'input' | 'generation',
+    enabled: boolean
+  ): Promise<void> {
+    const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
+    if (!model) throw new Error(`Unknown model: ${modelId}`)
+    if (kind === 'input') model.imageInputEnabled = enabled
+    else model.imageGenerationEnabled = enabled
+    this.clearInvalidImageDefault()
+  }
+
+  async setDefaultImageModel(
+    model: { connectionId: string; modelId: string } | null
+  ): Promise<void> {
+    if (model) {
+      const selected = this.requireConnection(model.connectionId).models.find(
+        (item) => item.id === model.modelId
+      )
+      if (!selected?.enabled || !selected.imageGenerationEnabled)
+        throw new Error('Image model is unavailable')
+    }
+    this.defaultImageModel = model
+  }
+
+  async getDefaultImageModel(): Promise<{ connectionId: string; modelId: string } | null> {
+    return this.defaultImageModel
   }
 
   async add(draft: ModelConnectionDraft, models: ModelOption[]): Promise<ModelConnection> {
     await this.wait()
-    const baseId = draft.name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
-      .replace(/(^-|-$)/g, '') || 'model-connection'
+    const baseId =
+      draft.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'model-connection'
     let id = baseId
     let suffix = 2
     while (this.connections.some((connection) => connection.id === id)) {
@@ -164,6 +192,16 @@ export class MockModelConnectionsService implements ModelConnectionsService {
   async delete(connectionId: string): Promise<void> {
     await this.wait()
     this.connections = this.connections.filter((connection) => connection.id !== connectionId)
+    this.clearInvalidImageDefault()
+  }
+
+  private clearInvalidImageDefault(): void {
+    const selected = this.defaultImageModel
+    if (!selected) return
+    const model = this.connections
+      .find((connection) => connection.id === selected.connectionId)
+      ?.models.find((item) => item.id === selected.modelId)
+    if (!model?.enabled || !model.imageGenerationEnabled) this.defaultImageModel = null
   }
 
   private requireConnection(connectionId: string): ModelConnection {

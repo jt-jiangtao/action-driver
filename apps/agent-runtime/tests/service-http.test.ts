@@ -91,6 +91,42 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('routes image capability and default model settings through authenticated APIs', async () => {
+    const setModelImageCapability = vi.fn(async () => undefined)
+    const setDefaultImageModel = vi.fn(async () => undefined)
+    const getDefaultImageModel = vi.fn(async () => ({
+      connectionId: 'company-gateway',
+      modelId: 'image'
+    }))
+    await startService({ setModelImageCapability, setDefaultImageModel, getDefaultImageModel })
+    const body = { kind: 'generation', enabled: true }
+    const toggle = await authorized(
+      '/model-connections/company-gateway/models/image/image-capability',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    )
+    expect(toggle.status).toBe(200)
+    expect(setModelImageCapability).toHaveBeenCalledWith({
+      connectionId: 'company-gateway',
+      modelId: 'image',
+      ...body
+    })
+    const model = { connectionId: 'company-gateway', modelId: 'image' }
+    const chosen = await authorized('/model-connections/default-image-model', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model })
+    })
+    expect(chosen.status).toBe(200)
+    expect(setDefaultImageModel).toHaveBeenCalledWith(model)
+    expect(
+      await authorized('/model-connections/default-image-model').then((r) => r.json())
+    ).toMatchObject({ ok: true, value: model })
+  })
+
   it('authenticates binary image upload/read and never logs image bytes', async () => {
     const root = mkdtempSync(join(tmpdir(), 'actiondriver-image-http-'))
     const database = openRuntimeDatabase(join(root, 'actiondriver.db'))

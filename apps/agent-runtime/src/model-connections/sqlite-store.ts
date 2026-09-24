@@ -2,6 +2,7 @@ import type { ModelOptionDto, ModelProtocol, ModelTestState } from '@actiondrive
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
 import type Database from 'better-sqlite3'
+import type { ModelRef } from '@actiondriver/contracts'
 
 type ConnectionRow = {
   id: string
@@ -19,6 +20,8 @@ type ModelRow = {
   name: string
   enabled: number
   test_state: string
+  image_input_enabled: number
+  image_generation_enabled: number
 }
 
 /** Stores model connections in the runtime database so the service is their only writer. */
@@ -37,7 +40,8 @@ export function createSqliteModelConnectionStore(
           .all() as ConnectionRow[]
         const models = database
           .prepare(
-            `SELECT connection_id, model_id, name, enabled, test_state
+            `SELECT connection_id, model_id, name, enabled, test_state,
+                    image_input_enabled, image_generation_enabled
              FROM model_connection_models ORDER BY connection_id, position`
           )
           .all() as ModelRow[]
@@ -50,9 +54,7 @@ export function createSqliteModelConnectionStore(
           apiKeyCipher: connection.api_key_cipher,
           apiKeyHint: connection.api_key_hint,
           expanded: connection.expanded === 1,
-          models: models
-            .filter((model) => model.connection_id === connection.id)
-            .map(toModel)
+          models: models.filter((model) => model.connection_id === connection.id).map(toModel)
         }))
       } catch (error) {
         throw new ModelStorageError('Cannot read model connections', { cause: error })
@@ -61,6 +63,8 @@ export function createSqliteModelConnectionStore(
     write(connections) {
       try {
         const replace = database.transaction((next: readonly StoredModelConnection[]) => {
+          const previousDefault = readDefault(database)
+          database.prepare('DELETE FROM default_image_model').run()
           database.prepare('DELETE FROM model_connection_models').run()
           database.prepare('DELETE FROM model_connections').run()
           const insertConnection = database.prepare(
@@ -70,8 +74,9 @@ export function createSqliteModelConnectionStore(
           )
           const insertModel = database.prepare(
             `INSERT INTO model_connection_models
-               (connection_id, model_id, name, enabled, test_state, position)
-             VALUES (?, ?, ?, ?, ?, ?)`
+               (connection_id, model_id, name, enabled, test_state, position,
+                image_input_enabled, image_generation_enabled)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
           )
           const timestamp = now()
           for (const connection of next) {
@@ -93,14 +98,46 @@ export function createSqliteModelConnectionStore(
                 model.name,
                 model.enabled ? 1 : 0,
                 model.testState,
-                index
+                index,
+                model.imageInputEnabled ? 1 : 0,
+                model.imageGenerationEnabled ? 1 : 0
               )
             })
+          }
+          const selected = next
+            .find((connection) => connection.id === previousDefault?.connectionId)
+            ?.models.find((model) => model.id === previousDefault?.modelId)
+          if (previousDefault && selected?.enabled && selected.imageGenerationEnabled) {
+            database
+              .prepare(
+                `INSERT INTO default_image_model
+              (singleton, connection_id, model_id) VALUES (1, ?, ?)`
+              )
+              .run(previousDefault.connectionId, previousDefault.modelId)
           }
         })
         replace(connections)
       } catch (error) {
         throw new ModelStorageError('Cannot write model connections', { cause: error })
+      }
+    },
+    readDefaultImageModel() {
+      return readDefault(database)
+    },
+    writeDefaultImageModel(model) {
+      try {
+        database.transaction(() => {
+          database.prepare('DELETE FROM default_image_model').run()
+          if (model)
+            database
+              .prepare(
+                `INSERT INTO default_image_model
+            (singleton, connection_id, model_id) VALUES (1, ?, ?)`
+              )
+              .run(model.connectionId, model.modelId)
+        })()
+      } catch (error) {
+        throw new ModelStorageError('Cannot write default image model', { cause: error })
       }
     }
   }
@@ -111,8 +148,17 @@ function toModel(row: ModelRow): ModelOptionDto {
     id: row.model_id,
     name: row.name,
     enabled: row.enabled === 1,
-    testState: toTestState(row.test_state)
+    testState: toTestState(row.test_state),
+    imageInputEnabled: row.image_input_enabled === 1,
+    imageGenerationEnabled: row.image_generation_enabled === 1
   }
+}
+
+function readDefault(database: Database.Database): ModelRef | null {
+  const row = database
+    .prepare('SELECT connection_id, model_id FROM default_image_model WHERE singleton = 1')
+    .get() as { connection_id: string; model_id: string } | undefined
+  return row ? { connectionId: row.connection_id, modelId: row.model_id } : null
 }
 
 function toProtocol(value: string): ModelProtocol {

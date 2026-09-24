@@ -9,12 +9,16 @@ import {
   type ModelFailureCode,
   type ModelOptionDto,
   type ModelSetEnabledRequestDto,
+  type ModelImageCapabilityRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
+import type { ModelRef } from '@actiondriver/contracts'
 import { currentTraceparent } from '@actiondriver/observability'
 
-type Envelope<T> = { ok: true; value: T } | { ok: false; error: { code: ModelFailureCode; message: string } }
+type Envelope<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: ModelFailureCode; message: string } }
 
 export type HttpRequest = {
   url: string
@@ -41,7 +45,11 @@ const fetchTransport: HttpTransport = {
     })
     const text = await response.text()
     let body: unknown = null
-    try { body = JSON.parse(text) as unknown } catch { /* Invalid envelopes are reported by the client. */ }
+    try {
+      body = JSON.parse(text) as unknown
+    } catch {
+      /* Invalid envelopes are reported by the client. */
+    }
     return { status: response.status, body, text }
   }
 }
@@ -84,10 +92,9 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
   }
 
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]> {
-    return this.call(
-      `/model-connections/${encodeURIComponent(request.connectionId)}/test-models`,
-      { modelIds: request.modelIds }
-    )
+    return this.call(`/model-connections/${encodeURIComponent(request.connectionId)}/test-models`, {
+      modelIds: request.modelIds
+    })
   }
 
   async setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void> {
@@ -95,6 +102,21 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
       `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}`,
       { enabled: request.enabled }
     )
+  }
+
+  async setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void> {
+    await this.call(
+      `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}/image-capability`,
+      { kind: request.kind, enabled: request.enabled }
+    )
+  }
+
+  async setDefaultImageModel(model: ModelRef | null): Promise<void> {
+    await this.call('/model-connections/default-image-model', { model })
+  }
+
+  getDefaultImageModel(): Promise<ModelRef | null> {
+    return this.call('/model-connections/default-image-model')
   }
 
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
@@ -105,7 +127,11 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
     await this.call(`/model-connections/${encodeURIComponent(connectionId)}`, undefined, 'DELETE')
   }
 
-  private async call<T>(path: string, body?: unknown, method: 'GET' | 'POST' | 'DELETE' = 'GET'): Promise<T> {
+  private async call<T>(
+    path: string,
+    body?: unknown,
+    method: 'GET' | 'POST' | 'DELETE' = 'GET'
+  ): Promise<T> {
     const traceparent = currentTraceparent()
     const response = await this.transport.request({
       url: `${this.options.baseUrl}${path}`,
@@ -123,7 +149,8 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
       throw new ModelServiceError('invalid-response', 'Service returned an invalid response')
     }
     if (!payload.ok) {
-      const failure = (payload as { ok: false; error: { code: ModelFailureCode; message: string } }).error
+      const failure = (payload as { ok: false; error: { code: ModelFailureCode; message: string } })
+        .error
       throw new ModelServiceError(failure.code, failure.message)
     }
     return (payload as { ok: true; value: T }).value

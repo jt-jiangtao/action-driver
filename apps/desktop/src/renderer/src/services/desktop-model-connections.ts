@@ -46,18 +46,12 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
     return models.map(mapModel)
   }
 
-  async testModels(
-    draft: ModelConnectionDraft,
-    modelIds: string[]
-  ): Promise<ModelTestResult[]> {
+  async testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]> {
     const results = await this.run(() => this.api.testModels(draft, [...modelIds]))
     return results.map(mapTestResult)
   }
 
-  async testConnectionModels(
-    connectionId: string,
-    modelIds: string[]
-  ): Promise<ModelTestResult[]> {
+  async testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]> {
     const results = await this.run(() => this.api.testConnectionModels(connectionId, [...modelIds]))
     return results.map(mapTestResult)
   }
@@ -66,9 +60,31 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
     await this.run(() => this.api.setModelEnabled(connectionId, modelId, enabled))
   }
 
+  async setModelImageCapability(
+    connectionId: string,
+    modelId: string,
+    kind: 'input' | 'generation',
+    enabled: boolean
+  ): Promise<void> {
+    await this.run(() => this.api.setModelImageCapability(connectionId, modelId, kind, enabled))
+  }
+
+  async setDefaultImageModel(
+    model: { connectionId: string; modelId: string } | null
+  ): Promise<void> {
+    await this.run(() => this.api.setDefaultImageModel(model))
+  }
+
+  async getDefaultImageModel(): Promise<{ connectionId: string; modelId: string } | null> {
+    return this.run(() => this.api.getDefaultImageModel())
+  }
+
   async add(draft: ModelConnectionDraft, models: ModelOption[]): Promise<ModelConnection> {
     const connection = await this.run(() =>
-      this.api.add(draft, models.map((model) => ({ ...model })))
+      this.api.add(
+        draft,
+        models.map((model) => ({ ...model }))
+      )
     )
     return mapConnection(connection)
   }
@@ -169,15 +185,22 @@ function mapModel(value: unknown): ModelOption {
   ) {
     throw new ModelConnectionsError('invalid-response', '模型列表响应格式不正确')
   }
-  return { id: value.id, name: value.name, enabled: value.enabled, testState: value.testState }
+  return {
+    id: value.id,
+    name: value.name,
+    enabled: value.enabled,
+    testState: value.testState,
+    ...(typeof value.imageInputEnabled === 'boolean'
+      ? { imageInputEnabled: value.imageInputEnabled }
+      : {}),
+    ...(typeof value.imageGenerationEnabled === 'boolean'
+      ? { imageGenerationEnabled: value.imageGenerationEnabled }
+      : {})
+  }
 }
 
 function mapTestResult(value: unknown): ModelTestResult {
-  if (
-    !isRecord(value) ||
-    typeof value.modelId !== 'string' ||
-    !isProbeState(value.state)
-  ) {
+  if (!isRecord(value) || typeof value.modelId !== 'string' || !isProbeState(value.state)) {
     throw new ModelConnectionsError('invalid-response', '模型测试响应格式不正确')
   }
   return { modelId: value.modelId, state: value.state }

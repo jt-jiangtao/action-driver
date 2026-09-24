@@ -1,20 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ModelServiceError,
-  type ModelOptionDto,
-} from '@actiondriver/model-connections'
+import { ModelServiceError, type ModelOptionDto } from '@actiondriver/model-connections'
 import { ModelConnectionService } from '../src/model-connections/service'
-import type { HttpRequest, HttpResponse, HttpTransport } from '../src/model-connections/http-transport'
+import type {
+  HttpRequest,
+  HttpResponse,
+  HttpTransport
+} from '../src/model-connections/http-transport'
 import type { ModelConnectionStore, StoredModelConnection } from '../src/model-connections/store'
 import type { SecretCipher } from '../src/model-connections/credential-cipher'
-import type { OpenAiClientFactory, OpenAiStreamChunk } from '../src/model-connections/provider-adapters'
+import type {
+  OpenAiClientFactory,
+  OpenAiStreamChunk
+} from '../src/model-connections/provider-adapters'
 
 function memoryStore(): ModelConnectionStore {
   let connections: StoredModelConnection[] = []
+  let defaultImageModel: { connectionId: string; modelId: string } | null = null
   return {
     read: () => connections,
     write: (next) => {
       connections = next.map((connection) => ({ ...connection, models: [...connection.models] }))
+      if (
+        defaultImageModel &&
+        !connections.some(
+          (connection) =>
+            connection.id === defaultImageModel?.connectionId &&
+            connection.models.some(
+              (model) =>
+                model.id === defaultImageModel?.modelId &&
+                model.enabled &&
+                model.imageGenerationEnabled
+            )
+        )
+      )
+        defaultImageModel = null
+    },
+    readDefaultImageModel: () => defaultImageModel,
+    writeDefaultImageModel: (model) => {
+      defaultImageModel = model
     }
   }
 }
@@ -64,6 +87,72 @@ const discoveredModels: ModelOptionDto[] = [
 ]
 
 describe('model connection service', () => {
+  it('keeps one default image model and clears it when generation is disabled', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft,
+      models: [
+        { id: 'vision', name: 'vision', enabled: true, testState: 'success' },
+        { id: 'image', name: 'image', enabled: true, testState: 'untested' }
+      ]
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'image',
+      kind: 'generation',
+      enabled: true
+    })
+    await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image' })
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'image'
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'image',
+      kind: 'generation',
+      enabled: false
+    })
+    expect(await service.getDefaultImageModel()).toBeNull()
+  })
+
+  it('preserves image flags across model refresh without generating an image', async () => {
+    const { service, requests } = createService((request) => ({
+      status: 200,
+      body: { data: [{ id: 'vision' }, { id: 'image' }] },
+      text: ''
+    }))
+    const connection = await service.add({
+      draft,
+      models: [
+        { id: 'vision', name: 'vision', enabled: true, testState: 'success' },
+        { id: 'image', name: 'image', enabled: true, testState: 'untested' }
+      ]
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'vision',
+      kind: 'input',
+      enabled: true
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'image',
+      kind: 'generation',
+      enabled: true
+    })
+    await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image' })
+    expect(await service.refresh(connection.id)).toMatchObject([
+      { id: 'vision', imageInputEnabled: true },
+      { id: 'image', imageGenerationEnabled: true }
+    ])
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'image'
+    })
+    expect(requests.every((request) => request.url.endsWith('/models'))).toBe(true)
+  })
+
   it('streams a duplicate model id through the exact selected connection', async () => {
     const clientOptions: Array<Record<string, unknown>> = []
     const chunks: OpenAiStreamChunk[] = [

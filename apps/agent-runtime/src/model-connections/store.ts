@@ -1,4 +1,5 @@
 import type { ModelOptionDto, ModelProtocol } from '@actiondriver/model-connections'
+import type { ModelRef } from '@actiondriver/contracts'
 
 export type StoredModelConnection = {
   id: string
@@ -14,6 +15,8 @@ export type StoredModelConnection = {
 export interface ModelConnectionStore {
   read(): StoredModelConnection[]
   write(connections: readonly StoredModelConnection[]): void
+  readDefaultImageModel(): ModelRef | null
+  writeDefaultImageModel(model: ModelRef | null): void
 }
 
 export class ModelStorageError extends Error {

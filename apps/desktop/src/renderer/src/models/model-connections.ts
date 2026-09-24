@@ -37,6 +37,8 @@ export interface ModelOption {
   name: string
   enabled: boolean
   testState: ModelTestState
+  imageInputEnabled?: boolean
+  imageGenerationEnabled?: boolean
 }
 
 export interface ModelConnectionDraft {
@@ -71,6 +73,14 @@ export interface ModelConnectionsService {
   testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]>
   testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]>
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
+  setModelImageCapability(
+    connectionId: string,
+    modelId: string,
+    kind: 'input' | 'generation',
+    enabled: boolean
+  ): Promise<void>
+  setDefaultImageModel(model: { connectionId: string; modelId: string } | null): Promise<void>
+  getDefaultImageModel(): Promise<{ connectionId: string; modelId: string } | null>
   add(draft: ModelConnectionDraft, models: ModelOption[]): Promise<ModelConnection>
   delete(connectionId: string): Promise<void>
 }

@@ -42,6 +42,11 @@ function serviceStub() {
       return []
     },
     async setModelEnabled() {},
+    async setModelImageCapability() {},
+    async setDefaultImageModel() {},
+    async getDefaultImageModel() {
+      return null
+    },
     async add() {
       throw new Error('not used')
     },
@@ -346,34 +351,58 @@ describe('service WebSocket surface', () => {
     const records: Record<string, unknown>[] = []
     const interactions = createInteractionLogRecorder({
       ids: { eventId: () => 'event-1', correlationId: () => 'correlation-1' },
-      logger: { info: (record: Record<string, unknown>) => records.push(record),
-        error: (record: Record<string, unknown>) => records.push(record) } as never
+      logger: {
+        info: (record: Record<string, unknown>) => records.push(record),
+        error: (record: Record<string, unknown>) => records.push(record)
+      } as never
     })
     server = await startServiceHttpServer({
-      service: serviceStub(), token: 'service-token', runtimeVersion: '0.1.0', interactions,
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      interactions,
       streamSessions: {
         async handle(event, emit) {
-          for (let index = 0; index < 20; index++) await emit({
-            type: 'response.chunk', protocol: 'actiondriver.stream.v2', eventId: `chunk-${index}`,
-            requestId: 'requestId' in event ? event.requestId : 'request-1', sessionId: 'session-1', taskId: 'task-1',
-            responseId: 'response-1', streamId: 'stream-1', messageId: 'message-1',
-            cursor: index + 1, delta: 'NO_WS_PAYLOAD_MARKER', occurredAt: new Date().toISOString()
-          } as never)
+          for (let index = 0; index < 20; index++)
+            await emit({
+              type: 'response.chunk',
+              protocol: 'actiondriver.stream.v2',
+              eventId: `chunk-${index}`,
+              requestId: 'requestId' in event ? event.requestId : 'request-1',
+              sessionId: 'session-1',
+              taskId: 'task-1',
+              responseId: 'response-1',
+              streamId: 'stream-1',
+              messageId: 'message-1',
+              cursor: index + 1,
+              delta: 'NO_WS_PAYLOAD_MARKER',
+              occurredAt: new Date().toISOString()
+            } as never)
         }
       }
     })
-    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, ['actiondriver.stream.v2'])
+    socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
+      'actiondriver.stream.v2'
+    ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
     auth(socket)
     await ready
     const chunks = nextMessages(socket, 20)
-    socket.send(JSON.stringify({
-      type: 'request.resume', protocol: 'actiondriver.stream.v2', eventId: 'resume-1',
-      createdAt: new Date().toISOString(), requestId: 'request-1', afterCursor: 0
-    }))
+    socket.send(
+      JSON.stringify({
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v2',
+        eventId: 'resume-1',
+        createdAt: new Date().toISOString(),
+        requestId: 'request-1',
+        afterCursor: 0
+      })
+    )
     await chunks
-    await vi.waitFor(() => expect(records.some((record) => record.operation === 'request.resume')).toBe(true))
+    await vi.waitFor(() =>
+      expect(records.some((record) => record.operation === 'request.resume')).toBe(true)
+    )
     expect(records.filter((record) => record.operation === 'response.chunk')).toHaveLength(0)
     expect(JSON.stringify(records)).not.toContain('NO_WS_PAYLOAD_MARKER')
   })

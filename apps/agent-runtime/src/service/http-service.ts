@@ -7,6 +7,7 @@ import {
   type ModelConnectionTestResultDto,
   type ModelFailureCode,
   type ModelOptionDto,
+  type ModelImageCapabilityRequestDto,
   type ModelSetEnabledRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
@@ -23,6 +24,7 @@ import {
   withRemoteTraceparent
 } from '@actiondriver/observability'
 import { z } from 'zod'
+import type { ModelRef } from '@actiondriver/contracts'
 import { attachServiceWebSocketServer, type ServiceStreamSessionPort } from './websocket-service'
 import { attachLocalCapabilityService } from './local-capability-service'
 import type { RuntimeSkillRegistry } from '../skill-registry'
@@ -44,6 +46,9 @@ export type ServiceModelConnectionPort = {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
+  setDefaultImageModel(model: ModelRef | null): Promise<void>
+  getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
   delete(connectionId: string): Promise<void>
 }
@@ -92,13 +97,23 @@ const modelSchema = z
     id,
     name: id,
     enabled: z.boolean(),
-    testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported'])
+    testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported']),
+    imageInputEnabled: z.boolean().optional(),
+    imageGenerationEnabled: z.boolean().optional()
   })
   .strict()
 const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) }).strict()
 const testModelsSchema = z.object({ draft: draftSchema, modelIds: z.array(id) }).strict()
 const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
 const enabledSchema = z.object({ enabled: z.boolean() }).strict()
+const imageCapabilitySchema = z
+  .object({
+    kind: z.enum(['input', 'generation']),
+    enabled: z.boolean()
+  })
+  .strict()
+const imageModelSchema = z.object({ connectionId: id, modelId: id }).strict()
+const defaultImageModelSchema = z.object({ model: imageModelSchema.nullable() }).strict()
 const saveAgentFileSchema = z.object({ path: id, content: z.string(), expectedDigest: id }).strict()
 const createAgentSkillSchema = z.object({ name: id, description: z.string() }).strict()
 const installSkillSchema = z.discriminatedUnion('source', [
@@ -360,6 +375,17 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
   app.get('/model-connections', async (context) =>
     context.json(success(await options.service.list()))
   )
+  app.get('/model-connections/default-image-model', async (context) =>
+    context.json(success(await options.service.getDefaultImageModel()))
+  )
+  app.post(
+    '/model-connections/default-image-model',
+    validate(defaultImageModelSchema),
+    async (context) => {
+      await options.service.setDefaultImageModel(context.req.valid('json').model)
+      return context.json(success(null))
+    }
+  )
   app.post('/model-connections', validate(addSchema), async (context) =>
     context.json(success(await options.service.add(context.req.valid('json'))))
   )
@@ -396,6 +422,18 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         connectionId: context.req.param('connectionId'),
         modelId: context.req.param('modelId'),
         enabled: context.req.valid('json').enabled
+      })
+      return context.json(success(null))
+    }
+  )
+  app.post(
+    '/model-connections/:connectionId/models/:modelId/image-capability',
+    validate(imageCapabilitySchema),
+    async (context) => {
+      await options.service.setModelImageCapability({
+        connectionId: context.req.param('connectionId'),
+        modelId: context.req.param('modelId'),
+        ...context.req.valid('json')
       })
       return context.json(success(null))
     }

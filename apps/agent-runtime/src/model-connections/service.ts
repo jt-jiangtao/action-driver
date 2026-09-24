@@ -1,4 +1,5 @@
 import type { HttpTransport } from './http-transport'
+import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import type { SecretCipher } from './credential-cipher'
@@ -17,6 +18,7 @@ import type {
   ModelCompletionRequest,
   ModelOptionDto,
   ModelSetEnabledRequestDto,
+  ModelImageCapabilityRequestDto,
   ModelTestRequestDto,
   ModelTestResultDto,
   ModelConnectionServicePort,
@@ -64,6 +66,7 @@ export class ModelConnectionService
     if (connection.protocol !== 'openai-compatible') {
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
     }
+    requireVisionCapability(model, request.messages)
 
     const adapter = createModelProviderAdapter(
       connection.protocol,
@@ -190,6 +193,41 @@ export class ModelConnectionService
     this.write(connections)
   }
 
+  async setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void> {
+    const connections = this.read()
+    const connection = requireConnection(connections, request.connectionId)
+    if (request.enabled && connection.protocol !== 'openai-compatible')
+      throw new ModelServiceError(
+        'invalid-request',
+        'Image capability requires an OpenAI compatible connection'
+      )
+    const model = connection.models.find((candidate) => candidate.id === request.modelId)
+    if (!model) throw new ModelServiceError('invalid-request', `Unknown model: ${request.modelId}`)
+    const field = request.kind === 'input' ? 'imageInputEnabled' : 'imageGenerationEnabled'
+    connection.models = connection.models.map((candidate) =>
+      candidate.id === request.modelId ? { ...candidate, [field]: request.enabled } : candidate
+    )
+    this.write(connections)
+  }
+
+  async setDefaultImageModel(model: ModelRef | null): Promise<void> {
+    if (model) {
+      const connection = requireConnection(this.read(), model.connectionId)
+      const chosen = connection.models.find((candidate) => candidate.id === model.modelId)
+      if (
+        connection.protocol !== 'openai-compatible' ||
+        !chosen?.enabled ||
+        !chosen.imageGenerationEnabled
+      )
+        throw new ModelServiceError('invalid-request', 'Model is not enabled for image generation')
+    }
+    this.options.store.writeDefaultImageModel(model)
+  }
+
+  async getDefaultImageModel(): Promise<ModelRef | null> {
+    return this.options.store.readDefaultImageModel()
+  }
+
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
     const draft = validateDraft(request.draft)
     const connections = this.read()
@@ -282,8 +320,26 @@ export class ModelConnectionService
     if (connection.protocol !== 'openai-compatible') {
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
     }
+    requireVisionCapability(model, request.messages)
     return { connection, model }
   }
+}
+
+function requireVisionCapability(
+  model: ModelOptionDto,
+  messages: ModelCompletionRequest['messages']
+): void {
+  const hasImage = messages.some(
+    (message) =>
+      message.role === 'user' &&
+      Array.isArray(message.content) &&
+      message.content.some((part) => part.kind === 'image')
+  )
+  if (hasImage && !model.imageInputEnabled)
+    throw new ModelServiceError(
+      'invalid-request',
+      `Model ${model.id} is not enabled for image input`
+    )
 }
 
 function toDto(connection: StoredModelConnection): ModelConnectionDto {

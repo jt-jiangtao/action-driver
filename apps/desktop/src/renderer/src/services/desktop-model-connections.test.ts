@@ -3,10 +3,15 @@ import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
 import { DesktopModelConnectionsService, ModelConnectionsError } from './desktop-model-connections'
 
 const connection = {
-  id: 'company-gateway', name: '公司模型网关', protocol: 'openai-compatible' as const,
-  baseUrl: 'https://api.example.com/v1', apiKeyHint: '••••1234', expanded: true,
-  models: [{ id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true,
-    testState: 'untested' as const }]
+  id: 'company-gateway',
+  name: '公司模型网关',
+  protocol: 'openai-compatible' as const,
+  baseUrl: 'https://api.example.com/v1',
+  apiKeyHint: '••••1234',
+  expanded: true,
+  models: [
+    { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'untested' as const }
+  ]
 }
 
 function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnectionsDesktopApi {
@@ -18,6 +23,9 @@ function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnecti
     testModels: async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }],
     testConnectionModels: async () => [],
     setModelEnabled: async () => undefined,
+    setModelImageCapability: async () => undefined,
+    setDefaultImageModel: async () => undefined,
+    getDefaultImageModel: async () => null,
     add: async () => connection,
     delete: async () => undefined,
     ...overrides
@@ -25,11 +33,39 @@ function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnecti
 }
 
 const draft = {
-  name: '公司模型网关', protocol: 'openai-compatible' as const,
-  baseUrl: 'https://api.example.com/v1', apiKey: 'sk-secret-value'
+  name: '公司模型网关',
+  protocol: 'openai-compatible' as const,
+  baseUrl: 'https://api.example.com/v1',
+  apiKey: 'sk-secret-value'
 }
 
 describe('DesktopModelConnectionsService', () => {
+  it('maps image flags and the separate default generation model', async () => {
+    const model = { connectionId: 'company-gateway', modelId: 'image' }
+    const service = new DesktopModelConnectionsService(
+      api({
+        list: async () => [
+          {
+            ...connection,
+            models: [
+              {
+                id: 'image',
+                name: 'image',
+                enabled: true,
+                testState: 'untested',
+                imageInputEnabled: false,
+                imageGenerationEnabled: true
+              }
+            ]
+          }
+        ],
+        getDefaultImageModel: async () => model
+      })
+    )
+    expect((await service.list())[0]?.models[0]).toMatchObject({ imageGenerationEnabled: true })
+    expect(await service.getDefaultImageModel()).toEqual(model)
+  })
+
   it('maps Runtime DTOs into renderer models', async () => {
     const service = new DesktopModelConnectionsService(api())
     await expect(service.list()).resolves.toEqual([connection])
@@ -40,27 +76,40 @@ describe('DesktopModelConnectionsService', () => {
   })
 
   it('keeps Runtime failures visible without printing a credential', async () => {
-    const service = new DesktopModelConnectionsService(api({
-      add: async () => { throw { code: 'unauthorized', message: 'Invalid API-key provided.' } }
-    }))
+    const service = new DesktopModelConnectionsService(
+      api({
+        add: async () => {
+          throw { code: 'unauthorized', message: 'Invalid API-key provided.' }
+        }
+      })
+    )
     await expect(service.add(draft, [])).rejects.toMatchObject({
-      code: 'unauthorized', message: 'Invalid API-key provided.'
+      code: 'unauthorized',
+      message: 'Invalid API-key provided.'
     })
   })
 
   it('returns a rejected connection test as a result', async () => {
-    const service = new DesktopModelConnectionsService(api({
-      testConnection: async () => ({ ok: false, failure: { code: 'timeout', message: '请求超时' } })
-    }))
+    const service = new DesktopModelConnectionsService(
+      api({
+        testConnection: async () => ({
+          ok: false,
+          failure: { code: 'timeout', message: '请求超时' }
+        })
+      })
+    )
     await expect(service.testConnection(draft)).resolves.toEqual({
-      ok: false, failure: { code: 'timeout', message: '请求超时' }
+      ok: false,
+      failure: { code: 'timeout', message: '请求超时' }
     })
   })
 
   it('rejects malformed Runtime payloads', async () => {
-    const service = new DesktopModelConnectionsService(api({
-      list: async () => [{ id: 'broken' }] as never
-    }))
+    const service = new DesktopModelConnectionsService(
+      api({
+        list: async () => [{ id: 'broken' }] as never
+      })
+    )
     await expect(service.list()).rejects.toBeInstanceOf(ModelConnectionsError)
   })
 })

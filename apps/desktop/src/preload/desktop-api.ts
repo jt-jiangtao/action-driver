@@ -1,18 +1,30 @@
 import type {
-  RecentTaskProjection, SkillControlCommand, SkillExecutionEvent, TaskProjection
+  RecentTaskProjection,
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
 } from '@actiondriver/contracts'
 import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
+import type { ModelRef } from '@actiondriver/contracts'
 import type {
-  ModelConnectionDraftDto, ModelConnectionDto, ModelConnectionTestResultDto,
-  ModelOptionDto, ModelTestResultDto
+  ModelConnectionDraftDto,
+  ModelConnectionDto,
+  ModelConnectionTestResultDto,
+  ModelOptionDto,
+  ModelTestResultDto
 } from '@actiondriver/model-connections'
 import type {
-  AgentFileNodeDto, AgentSkillSummaryDto, AgentTextFileDto, CreateAgentSkillDto,
-  SaveAgentFileDto, InstallSkillInput
+  AgentFileNodeDto,
+  AgentSkillSummaryDto,
+  AgentTextFileDto,
+  CreateAgentSkillDto,
+  SaveAgentFileDto,
+  InstallSkillInput
 } from '@actiondriver/runtime-contracts'
 import {
   RUNTIME_CONNECTION_IPC_CHANNEL,
-  type RuntimeConnectionDesktopApi, type RuntimeConnectionInfo
+  type RuntimeConnectionDesktopApi,
+  type RuntimeConnectionInfo
 } from '../shared/runtime-connection-contract'
 import {
   SKILL_FOLDER_BROWSE_CHANNEL,
@@ -32,7 +44,11 @@ export interface AgentDesktopApi {
   continue(taskId: string): Promise<void>
   provideInput(taskId: string, value: unknown): Promise<void>
   controlSkill(invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent>
-  subscribe(taskId: string, afterCursor: number, listener: (event: RuntimeEvent) => void): Promise<() => void>
+  subscribe(
+    taskId: string,
+    afterCursor: number,
+    listener: (event: RuntimeEvent) => void
+  ): Promise<() => void>
 }
 
 export interface ModelConnectionsDesktopApi {
@@ -43,6 +59,14 @@ export interface ModelConnectionsDesktopApi {
   testModels(draft: ModelConnectionDraftDto, modelIds: string[]): Promise<ModelTestResultDto[]>
   testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResultDto[]>
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
+  setModelImageCapability(
+    connectionId: string,
+    modelId: string,
+    kind: 'input' | 'generation',
+    enabled: boolean
+  ): Promise<void>
+  setDefaultImageModel(model: ModelRef | null): Promise<void>
+  getDefaultImageModel(): Promise<ModelRef | null>
   add(draft: ModelConnectionDraftDto, models: ModelOptionDto[]): Promise<ModelConnectionDto>
   delete(connectionId: string): Promise<void>
 }
@@ -80,12 +104,17 @@ export function createDesktopApi(
   return {
     getEnvironment: () => ({ platform, version }),
     runtimeConnection: {
-      get: async () => await ipc.invoke(RUNTIME_CONNECTION_IPC_CHANNEL, {}) as RuntimeConnectionInfo
+      get: async () =>
+        (await ipc.invoke(RUNTIME_CONNECTION_IPC_CHANNEL, {})) as RuntimeConnectionInfo
     },
     skillFolders: {
-      choose: async () => await ipc.invoke(SKILL_FOLDER_CHOOSE_CHANNEL, {}) as string | null,
-      browse: async () => { await ipc.invoke(SKILL_FOLDER_BROWSE_CHANNEL, {}) },
-      reveal: async (skillId) => { await ipc.invoke(SKILL_FOLDER_REVEAL_CHANNEL, { skillId }) }
+      choose: async () => (await ipc.invoke(SKILL_FOLDER_CHOOSE_CHANNEL, {})) as string | null,
+      browse: async () => {
+        await ipc.invoke(SKILL_FOLDER_BROWSE_CHANNEL, {})
+      },
+      reveal: async (skillId) => {
+        await ipc.invoke(SKILL_FOLDER_REVEAL_CHANNEL, { skillId })
+      }
     }
   }
 }

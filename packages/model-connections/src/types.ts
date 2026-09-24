@@ -107,8 +107,8 @@ export type ModelOptionDto = {
   name: string
   enabled: boolean
   testState: ModelTestState
-  imageInputEnabled?: boolean
-  imageGenerationEnabled?: boolean
+  imageInputEnabled?: boolean | undefined
+  imageGenerationEnabled?: boolean | undefined
 }
 
 export type ModelConnectionDto = {
@@ -144,6 +144,13 @@ export type ModelSetEnabledRequestDto = {
   enabled: boolean
 }
 
+export type ModelImageCapabilityRequestDto = {
+  connectionId: string
+  modelId: string
+  kind: 'input' | 'generation'
+  enabled: boolean
+}
+
 export type ModelAddRequestDto = {
   draft: ModelConnectionDraftDto
   models: ModelOptionDto[]
@@ -162,6 +169,9 @@ export interface ModelConnectionServicePort {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
+  setDefaultImageModel(model: ModelRef | null): Promise<void>
+  getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
   delete(connectionId: string): Promise<void>
 }
