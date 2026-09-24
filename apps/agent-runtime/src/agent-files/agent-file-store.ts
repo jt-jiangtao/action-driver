@@ -21,6 +21,7 @@ import type {
   CreateAgentSkillDto,
   SaveAgentFileDto
 } from '@actiondriver/runtime-contracts'
+import { parseSkillDeclaration } from './skill-declaration'
 
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
@@ -58,14 +59,6 @@ const DEFAULT_SKILLS = [
     executorId: null
   }
 ] as const
-
-type SkillUnavailableReason = AgentSkillSummaryDto['unavailableReason']
-
-type SkillDeclaration = {
-  body: string
-  executorId: string | null
-  unavailableReason: Extract<SkillUnavailableReason, 'missing-executor' | 'invalid-executor'> | null
-}
 
 export class AgentFileStoreError extends Error {
   constructor(
@@ -245,6 +238,35 @@ export class AgentFileStore {
     return [...executors.values()]
   }
 
+  async listEnabledSkillDescriptions(): Promise<Array<{ skillId: string; description: string }>> {
+    return (await this.listSkills())
+      .filter((skill) => skill.available && skill.enabled)
+      .map(({ id, description }) => ({ skillId: id, description }))
+  }
+
+  async readEnabledSkillFile(skillId: string, relativePath = 'SKILL.md'): Promise<AgentTextFileDto> {
+    const id = this.validateSkillId(skillId)
+    if (
+      !relativePath || isAbsolute(relativePath) || relativePath.includes('\\') ||
+      relativePath.split('/').some((part) => !part || part === '.' || part === '..')
+    ) throw new AgentFileStoreError('PATH_REJECTED', 'Skill 文件路径无效。')
+    const skill = (await this.listSkills()).find((item) => item.id === id)
+    if (!skill?.available || !skill.enabled) {
+      throw new AgentFileStoreError('VALIDATION', `Skill 未启用：${id}`)
+    }
+    const skillRoot = await realpath(join(this.skillsRoot, id))
+    const requested = await realpath(join(skillRoot, relativePath))
+    const withinSkill = relative(skillRoot, requested)
+    if (withinSkill === '..' || withinSkill.startsWith(`..${sep}`) || isAbsolute(withinSkill)) {
+      throw new AgentFileStoreError('PATH_REJECTED', 'Skill 文件路径越出当前目录。')
+    }
+    const file = await this.readFile(`${SKILLS_PATH}/${id}/${relativePath}`)
+    if (Buffer.byteLength(file.content, 'utf8') > 1024 * 1024) {
+      throw new AgentFileStoreError('VALIDATION', 'Skill 文件超过读取上限。')
+    }
+    return file
+  }
+
   async assertExecutorEnabled(executorId: string): Promise<void> {
     const enabled = (await this.listSkills()).some(
       (skill) => skill.executorId === executorId && skill.available && skill.enabled
@@ -256,27 +278,20 @@ export class AgentFileStore {
 
   private async summarizeSkill(id: string): Promise<AgentSkillSummaryDto> {
     const skillFile = await this.readFile(`${SKILLS_PATH}/${id}/SKILL.md`)
-    const declaration = this.parseSkillDeclaration(skillFile.content)
-    const description =
-      declaration.body
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .find((line) => line.length > 0 && !line.startsWith('#')) ?? '暂无描述'
+    const declaration = parseSkillDeclaration(skillFile.content)
     const disabled = await lstat(join(this.skillsRoot, id, '.disabled'))
       .then(() => true)
       .catch((error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return false
         throw error
       })
-    const available =
-      declaration.executorId !== null && this.isExecutorRegistered(declaration.executorId)
-    const unavailableReason: SkillUnavailableReason =
-      declaration.unavailableReason ??
-      (declaration.executorId !== null && !available ? 'executor-unregistered' : null)
+    const available = true
+    const unavailableReason = null
     return {
       id,
-      name: id,
-      description,
+      name: declaration.name,
+      description: declaration.description,
+      source: BUILT_IN_SKILLS.has(id) ? 'builtin' : 'local',
       enabled: available && !disabled,
       available,
       executorId: declaration.executorId,
@@ -292,6 +307,7 @@ export class AgentFileStore {
       id,
       name: id,
       description: 'Skill 声明缺失或无法读取。',
+      source: BUILT_IN_SKILLS.has(id) ? 'builtin' : 'local',
       enabled: false,
       available: false,
       executorId: null,
@@ -419,40 +435,6 @@ export class AgentFileStore {
     const current = await readFile(path, 'utf8')
     const legacy = `# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
     if (current === legacy) await this.atomicWrite(path, this.defaultSkillContent(skill))
-  }
-
-  private parseSkillDeclaration(content: string): SkillDeclaration {
-    if (!content.startsWith('---')) {
-      return { body: content, executorId: null, unavailableReason: 'missing-executor' }
-    }
-    const lines = content.split(/\r?\n/)
-    if (lines[0] !== '---') {
-      return { body: content, executorId: null, unavailableReason: 'invalid-executor' }
-    }
-    const closingIndex = lines.findIndex((line, index) => index > 0 && line === '---')
-    if (closingIndex < 0) {
-      return { body: content, executorId: null, unavailableReason: 'invalid-executor' }
-    }
-    const frontmatterLines = lines.slice(1, closingIndex)
-    const nestedExecutorLines = frontmatterLines.filter(
-      (line) => line !== line.trimStart() && /^executor\s*:/.test(line.trimStart())
-    )
-    const executorLines = frontmatterLines.filter((line) => /^executor\s*:/.test(line))
-    const body = lines.slice(closingIndex + 1).join('\n')
-    if (nestedExecutorLines.length > 0 || executorLines.length > 1) {
-      return { body, executorId: null, unavailableReason: 'invalid-executor' }
-    }
-    if (executorLines.length === 0) {
-      return { body, executorId: null, unavailableReason: 'missing-executor' }
-    }
-    const scalar = executorLines[0]!.replace(/^executor\s*:\s*/, '').trim()
-    const quoted = scalar.match(/^(['"])(.*?)\1(?:\s+#.*)?$/)
-    const rawExecutor = quoted?.[2] ?? scalar.replace(/\s+#.*$/, '').trim()
-    if (!rawExecutor) return { body, executorId: null, unavailableReason: 'invalid-executor' }
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawExecutor)) {
-      return { body, executorId: null, unavailableReason: 'invalid-executor' }
-    }
-    return { body, executorId: rawExecutor, unavailableReason: null }
   }
 
   private async atomicWrite(path: string, content: string): Promise<void> {
