@@ -9,7 +9,12 @@ import {
   type InteractionLogRecorder
 } from '@actiondriver/observability'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
+import { openRuntimeDatabase } from '../src/database'
+import { SessionAssetStore } from '../src/media/session-asset-store'
 import type { AgentFileStore } from '../src/agent-files/agent-file-store'
 import type { SkillInstaller } from '../src/agent-files/skill-installer'
 
@@ -86,10 +91,62 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('authenticates binary image upload/read and never logs image bytes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'actiondriver-image-http-'))
+    const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+    const assets = new SessionAssetStore({ database, rootDirectory: root })
+    const { interactions, store } = recordingInteractions()
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      assets,
+      interactions
+    })
+    const image = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+    try {
+      const unauthorized = await fetch(`${server.url}/assets/staged`, {
+        method: 'POST',
+        body: image,
+        headers: { 'content-type': 'image/png' }
+      })
+      expect(unauthorized.status).toBe(401)
+      const oversized = await authorized('/assets/staged', {
+        method: 'POST',
+        body: Buffer.alloc(20 * 1024 * 1024 + 1),
+        headers: { 'content-type': 'image/png' }
+      })
+      expect(oversized.status).toBe(413)
+      const uploaded = await authorized('/assets/staged', {
+        method: 'POST',
+        body: image,
+        headers: { 'content-type': 'image/png' }
+      })
+      expect(uploaded.status).toBe(200)
+      const ref = ((await uploaded.json()) as { value: { assetId: string } }).value
+      await assets.bindStaged(ref.assetId, 'session-a')
+      const read = await authorized(`/sessions/session-a/assets/${ref.assetId}`)
+      expect(read.status).toBe(200)
+      expect(Buffer.from(await read.arrayBuffer())).toEqual(image)
+      expect((await authorized(`/sessions/session-b/assets/${ref.assetId}`)).status).toBe(404)
+      expect((await authorized('/sessions/session-a/assets/missing')).status).toBe(404)
+      const log = JSON.stringify(await store.list({ limit: 100 }))
+      expect(log).not.toContain(image.toString('base64'))
+      expect(log).not.toContain('PNG\r\n')
+    } finally {
+      await server?.close()
+      server = undefined
+      database.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('serves prompt and Skill definitions from the Runtime file service', async () => {
     const fileStore = {
       getMainPrompt: vi.fn(async () => ({
-        path: '.action-driver/prompts/main.md', content: '# Prompt', digest: 'digest',
+        path: '.action-driver/prompts/main.md',
+        content: '# Prompt',
+        digest: 'digest',
         modifiedAt: '2026-09-24T00:00:00.000Z'
       })),
       listSkills: vi.fn(async () => [])
@@ -106,12 +163,15 @@ describe('service HTTP surface', () => {
   it('routes Skill installation through the shared installer', async () => {
     const installSkill = vi.fn(async () => ({ id: 'writer', source: 'local' }))
     server = await startServiceHttpServer({
-      service: serviceStub(), token: 'service-token', runtimeVersion: '0.1.0',
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
       agentFiles: { listSkills: async () => [] } as unknown as AgentFileStore,
       skillInstaller: { installSkill } as unknown as SkillInstaller
     })
     const response = await authorized('/agent-files/skills/install', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ source: 'local', path: '/tmp/writer' })
     })
     expect(response.status).toBe(200)
@@ -119,20 +179,30 @@ describe('service HTTP surface', () => {
   })
 
   it('serves task reads and controls from the Runtime task service', async () => {
-    const execute = vi.fn(async (command: string) => command === 'task.get'
-      ? { task: { id: 'task-1' } }
-      : command === 'task.list' ? { tasks: [{ id: 'task-1' }] } : { accepted: true })
+    const execute = vi.fn(async (command: string) =>
+      command === 'task.get'
+        ? { task: { id: 'task-1' } }
+        : command === 'task.list'
+          ? { tasks: [{ id: 'task-1' }] }
+          : { accepted: true }
+    )
     server = await startServiceHttpServer({
-      service: serviceStub(), token: 'service-token', runtimeVersion: '0.1.0',
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
       taskControl: { execute }
     })
-    await expect(authorized('/tasks/task-1').then((response) => response.json()))
-      .resolves.toMatchObject({ ok: true, value: { task: { id: 'task-1' } } })
-    await expect(authorized('/tasks?limit=10').then((response) => response.json()))
-      .resolves.toMatchObject({ ok: true, value: { tasks: [{ id: 'task-1' }] } })
+    await expect(
+      authorized('/tasks/task-1').then((response) => response.json())
+    ).resolves.toMatchObject({ ok: true, value: { task: { id: 'task-1' } } })
+    await expect(
+      authorized('/tasks?limit=10').then((response) => response.json())
+    ).resolves.toMatchObject({ ok: true, value: { tasks: [{ id: 'task-1' }] } })
     await authorized('/tasks/task-1/interrupt', { method: 'POST' })
     expect(execute.mock.calls.map(([command]) => command)).toEqual([
-      'task.get', 'task.list', 'task.interrupt'
+      'task.get',
+      'task.list',
+      'task.interrupt'
     ])
   })
 
@@ -148,11 +218,14 @@ describe('service HTTP surface', () => {
     ] as const
     for (const [path, body] of cases) {
       const response = await authorized(path, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
       })
       expect(response.status).toBe(400)
       await expect(response.json()).resolves.toMatchObject({
-        ok: false, error: { code: 'invalid-request' }
+        ok: false,
+        error: { code: 'invalid-request' }
       })
     }
     expect(service.add).not.toHaveBeenCalled()
@@ -317,12 +390,18 @@ describe('service HTTP surface', () => {
   it('rejects an oversized body before reaching the model service', async () => {
     const service = serviceStub()
     server = await startServiceHttpServer({
-      service, token: 'service-token', runtimeVersion: '0.1.0', bodyLimitBytes: 64
+      service,
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      bodyLimitBytes: 64
     })
     const response = await authorized('/model-connections/test', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        name: 'too large', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1',
+        name: 'too large',
+        protocol: 'openai-compatible',
+        baseUrl: 'https://api.example.com/v1',
         apiKey: 'x'.repeat(1024)
       })
     })
@@ -418,9 +497,12 @@ describe('service HTTP surface', () => {
       async start() {
         calls += 1
         if (calls === 1) throw new Error('disk unavailable')
-        return Object.assign(async () => {
-          throw new Error('disk full')
-        }, { run: <T>(operation: () => Promise<T>) => operation() })
+        return Object.assign(
+          async () => {
+            throw new Error('disk full')
+          },
+          { run: <T>(operation: () => Promise<T>) => operation() }
+        )
       },
       async recordOneWay() {
         throw new Error('disk unavailable')

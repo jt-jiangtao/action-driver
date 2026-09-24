@@ -30,6 +30,7 @@ import { AgentFileStoreError } from '../agent-files/agent-file-store'
 import type { AgentFileStore } from '../agent-files/agent-file-store'
 import type { SkillInstaller } from '../agent-files/skill-installer'
 import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
+import { AssetError, MAX_IMAGE_BYTES, type SessionAssetStore } from '../media/session-asset-store'
 
 export type { ServiceStreamSessionPort } from './websocket-service'
 
@@ -61,6 +62,7 @@ export type ServiceHttpOptions = {
   interactions?: InteractionLogRecorder
   streamSessions?: ServiceStreamSessionPort
   skillRegistry?: RuntimeSkillRegistry
+  assets?: SessionAssetStore
   rendererOrigin?: string
   streamMaxPayloadBytes?: number
   streamMaxBufferedBytes?: number
@@ -74,21 +76,25 @@ export type ServiceHttpServer = {
 
 type Envelope<T> =
   | { ok: true; value: T }
-  | { ok: false; error: { code: ModelFailureCode | AgentFileErrorCode; message: string } }
+  | { ok: false; error: { code: ModelFailureCode | AgentFileErrorCode | string; message: string } }
 
 const id = z.string().trim().min(1)
-const draftSchema = z.object({
-  name: id,
-  protocol: z.enum(['openai-compatible', 'anthropic']),
-  baseUrl: z.url(),
-  apiKey: id
-}).strict()
-const modelSchema = z.object({
-  id,
-  name: id,
-  enabled: z.boolean(),
-  testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported'])
-}).strict()
+const draftSchema = z
+  .object({
+    name: id,
+    protocol: z.enum(['openai-compatible', 'anthropic']),
+    baseUrl: z.url(),
+    apiKey: id
+  })
+  .strict()
+const modelSchema = z
+  .object({
+    id,
+    name: id,
+    enabled: z.boolean(),
+    testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported'])
+  })
+  .strict()
 const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) }).strict()
 const testModelsSchema = z.object({ draft: draftSchema, modelIds: z.array(id) }).strict()
 const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
@@ -116,20 +122,34 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
   const bodyLimit = options.bodyLimitBytes ?? 1_000_000
 
   app.onError((error, context) => {
-    const mapped = error instanceof ModelServiceError
-      ? { status: 200 as const, code: error.code, message: error.message }
-      : error instanceof AgentFileStoreError
-        ? {
-            status: error.code === 'NOT_FOUND' ? 404 as const
-              : error.code === 'CONFLICT' ? 409 as const : 400 as const,
-            code: error.code,
-            message: error.message
-          }
-        : {
-          status: 500 as const,
-          code: 'unknown' as const,
-          message: error instanceof Error ? error.message : String(error)
-        }
+    const mapped =
+      error instanceof ModelServiceError
+        ? { status: 200 as const, code: error.code, message: error.message }
+        : error instanceof AssetError
+          ? {
+              status:
+                error.code === 'ASSET_NOT_FOUND' || error.code === 'ASSET_SESSION_MISMATCH'
+                  ? (404 as const)
+                  : (400 as const),
+              code: error.code,
+              message: error.message
+            }
+          : error instanceof AgentFileStoreError
+            ? {
+                status:
+                  error.code === 'NOT_FOUND'
+                    ? (404 as const)
+                    : error.code === 'CONFLICT'
+                      ? (409 as const)
+                      : (400 as const),
+                code: error.code,
+                message: error.message
+              }
+            : {
+                status: 500 as const,
+                code: 'unknown' as const,
+                message: error instanceof Error ? error.message : String(error)
+              }
     return context.json(failure(mapped.code, mapped.message), mapped.status)
   })
 
@@ -137,16 +157,22 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
     const startedAt = Date.now()
     const method = context.req.method
     const path = context.req.path
+    const binaryUpload = method === 'POST' && path === '/assets/staged'
+    const binaryDownload = method === 'GET' && /^\/sessions\/[^/]+\/assets\/[^/]+$/.test(path)
     const requestLog = logger?.child({ transport: 'http', method, path })
     const origin = context.req.header('origin')
     const trustedRendererOrigin = options.rendererOrigin
     const originRejected = origin !== undefined && origin !== trustedRendererOrigin
     if (method === 'OPTIONS' && origin === trustedRendererOrigin && origin !== undefined) {
       const requestedMethod = context.req.header('access-control-request-method')?.toUpperCase()
-      const requestedHeaders = context.req.header('access-control-request-headers')
-        ?.split(',').map((header) => header.trim().toLowerCase()) ?? []
+      const requestedHeaders =
+        context.req
+          .header('access-control-request-headers')
+          ?.split(',')
+          .map((header) => header.trim().toLowerCase()) ?? []
       if (
-        !requestedMethod || !['GET', 'POST', 'DELETE'].includes(requestedMethod) ||
+        !requestedMethod ||
+        !['GET', 'POST', 'DELETE'].includes(requestedMethod) ||
         requestedHeaders.some((header) => !['authorization', 'content-type'].includes(header))
       ) {
         return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
@@ -159,12 +185,18 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         Vary: 'Origin'
       })
     }
-    const authRejected = path !== '/readyz' && path !== '/healthz' &&
+    const authRejected =
+      path !== '/readyz' &&
+      path !== '/healthz' &&
       !tokenMatches(bearerToken(context.req.header('authorization')), tokenDigest)
     let requestBody: unknown = null
     let bodyError: string | null = null
-    if (!originRejected && !authRejected &&
-      (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    if (
+      !originRejected &&
+      !authRejected &&
+      !binaryUpload &&
+      (method === 'POST' || method === 'PUT' || method === 'PATCH')
+    ) {
       const raw = await readLimitedBody(context.req.raw.clone(), bodyLimit)
       if (raw === null) bodyError = 'Request body is too large'
       else if (raw.trim()) {
@@ -191,18 +223,30 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
                 path,
                 query: Object.fromEntries(new URL(context.req.url).searchParams),
                 headers: Object.fromEntries(context.req.raw.headers),
-                body: requestBody
+                body: binaryUpload
+                  ? {
+                      kind: 'binary-image',
+                      mimeType: context.req.header('content-type') ?? null,
+                      byteLength: context.req.header('content-length') ?? null
+                    }
+                  : requestBody
               },
               secretPaths: [
-                'headers.authorization', 'headers.proxy-authorization', 'headers.cookie',
-                'headers.set-cookie', 'headers.x-api-key', 'body.apiKey', 'body.draft.apiKey'
+                'headers.authorization',
+                'headers.proxy-authorization',
+                'headers.cookie',
+                'headers.set-cookie',
+                'headers.x-api-key',
+                'body.apiKey',
+                'body.draft.apiKey'
               ]
             }
           },
-          (error) => requestLog?.warn(
-            { error: error instanceof Error ? error.message : String(error) },
-            'interaction log write failed'
-          )
+          (error) =>
+            requestLog?.warn(
+              { error: error instanceof Error ? error.message : String(error) },
+              'interaction log write failed'
+            )
         )
       : null
 
@@ -211,7 +255,10 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       context.res = context.json(failure('unauthorized', 'Browser origins are not allowed'), 403)
     } else if (authRejected) {
       requestLog?.warn({ status: 401, reason: 'unauthorized' }, 'service request rejected')
-      context.res = context.json(failure('unauthorized', 'A valid service credential is required'), 401)
+      context.res = context.json(
+        failure('unauthorized', 'A valid service credential is required'),
+        401
+      )
     } else if (bodyError) {
       context.res = context.json(failure('invalid-request', bodyError), 400)
     } else {
@@ -224,70 +271,125 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       context.header('Vary', 'Origin')
     }
 
-    const responseText = await context.res.clone().text()
+    const responseText = binaryDownload && context.res.ok ? '' : await context.res.clone().text()
     let responseValue: unknown
-    try {
-      responseValue = JSON.parse(responseText) as unknown
-    } catch {
-      responseValue = responseText
-    }
+    if (binaryDownload && context.res.ok) {
+      responseValue = {
+        kind: 'binary-image',
+        mimeType: context.res.headers.get('content-type'),
+        byteLength: context.res.headers.get('content-length')
+      }
+    } else
+      try {
+        responseValue = JSON.parse(responseText) as unknown
+      } catch {
+        responseValue = responseText
+      }
     const envelope = isRecord(responseValue) ? responseValue : null
     const failed = envelope?.ok === false
     const outcome: 'error' | 'ok' = context.res.status >= 400 || failed ? 'error' : 'ok'
     const error = failed && isRecord(envelope.error) ? envelope.error : null
-    const interactionError = error && typeof error.code === 'string' && typeof error.message === 'string'
-      ? { code: error.code, message: error.message }
-      : null
+    const interactionError =
+      error && typeof error.code === 'string' && typeof error.message === 'string'
+        ? { code: error.code, message: error.message }
+        : null
     await finish?.({
       outcome,
       status: context.res.status,
-      response: typeof responseValue === 'string'
-        ? { kind: 'text', text: responseValue, contentType: context.res.headers.get('content-type') ?? 'text/plain' }
-        : { kind: 'json', value: responseValue },
+      response:
+        typeof responseValue === 'string'
+          ? {
+              kind: 'text',
+              text: responseValue,
+              contentType: context.res.headers.get('content-type') ?? 'text/plain'
+            }
+          : { kind: 'json', value: responseValue },
       secretValues,
       ...(interactionError ? { error: interactionError } : {})
     })
-    const loggedMessage = error && typeof error.message === 'string'
-      ? redactSecrets(error.message, secretValues)
-      : undefined
+    const loggedMessage =
+      error && typeof error.message === 'string'
+        ? redactSecrets(error.message, secretValues)
+        : undefined
     if (outcome === 'error') {
-      requestLog?.error({
-        status: context.res.status,
-        ...(error && typeof error.code === 'string' ? { code: error.code } : {}),
-        ...(loggedMessage ? { message: loggedMessage } : {}),
-        durationMs: Date.now() - startedAt
-      }, 'service request failed')
+      requestLog?.error(
+        {
+          status: context.res.status,
+          ...(error && typeof error.code === 'string' ? { code: error.code } : {}),
+          ...(loggedMessage ? { message: loggedMessage } : {}),
+          durationMs: Date.now() - startedAt
+        },
+        'service request failed'
+      )
     } else {
-      requestLog?.info({ status: context.res.status, durationMs: Date.now() - startedAt }, 'service response')
+      requestLog?.info(
+        { status: context.res.status, durationMs: Date.now() - startedAt },
+        'service response'
+      )
     }
   })
 
   app.get('/readyz', (context) => context.text('ok'))
   app.get('/healthz', (context) => context.text('ok'))
-  app.get('/version', (context) => context.json(success({
-    runtimeVersion: options.runtimeVersion,
-    protocolVersion: SERVICE_PROTOCOL_VERSION
-  })))
-  app.get('/model-connections', async (context) =>
-    context.json(success(await options.service.list())))
-  app.post('/model-connections', validate(addSchema), async (context) =>
-    context.json(success(await options.service.add(context.req.valid('json')))))
-  app.post('/model-connections/test', validate(draftSchema), async (context) =>
-    context.json(success(await options.service.testConnection(context.req.valid('json')))))
-  app.post('/model-connections/discover', validate(draftSchema), async (context) =>
-    context.json(success(await options.service.discover(context.req.valid('json')))))
-  app.post('/model-connections/test-models', validate(testModelsSchema), async (context) =>
-    context.json(success(await options.service.testModels(context.req.valid('json')))))
-  app.post('/model-connections/:connectionId/refresh', async (context) =>
-    context.json(success(await options.service.refresh(context.req.param('connectionId')))))
-  app.post('/model-connections/:connectionId/test-models',
-    validate(connectionModelsSchema),
-    async (context) => context.json(success(await options.service.testConnectionModels({
-      connectionId: context.req.param('connectionId'),
-      modelIds: context.req.valid('json').modelIds
-    })))
+  app.get('/version', (context) =>
+    context.json(
+      success({
+        runtimeVersion: options.runtimeVersion,
+        protocolVersion: SERVICE_PROTOCOL_VERSION
+      })
+    )
   )
-  app.post('/model-connections/:connectionId/models/:modelId',
+  if (options.assets) {
+    app.post('/assets/staged', async (context) => {
+      const bytes = await readLimitedBytes(context.req.raw, MAX_IMAGE_BYTES)
+      if (!bytes) return context.json(failure('invalid-request', 'Image is too large'), 413)
+      return context.json(success(await options.assets!.stageUpload(bytes)))
+    })
+    app.get('/sessions/:sessionId/assets/:assetId', async (context) => {
+      const { bytes, mimeType } = await options.assets!.read(
+        context.req.param('assetId'),
+        context.req.param('sessionId')
+      )
+      return context.body(new Uint8Array(bytes), 200, {
+        'Content-Type': mimeType,
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff'
+      })
+    })
+  }
+  app.get('/model-connections', async (context) =>
+    context.json(success(await options.service.list()))
+  )
+  app.post('/model-connections', validate(addSchema), async (context) =>
+    context.json(success(await options.service.add(context.req.valid('json'))))
+  )
+  app.post('/model-connections/test', validate(draftSchema), async (context) =>
+    context.json(success(await options.service.testConnection(context.req.valid('json'))))
+  )
+  app.post('/model-connections/discover', validate(draftSchema), async (context) =>
+    context.json(success(await options.service.discover(context.req.valid('json'))))
+  )
+  app.post('/model-connections/test-models', validate(testModelsSchema), async (context) =>
+    context.json(success(await options.service.testModels(context.req.valid('json'))))
+  )
+  app.post('/model-connections/:connectionId/refresh', async (context) =>
+    context.json(success(await options.service.refresh(context.req.param('connectionId'))))
+  )
+  app.post(
+    '/model-connections/:connectionId/test-models',
+    validate(connectionModelsSchema),
+    async (context) =>
+      context.json(
+        success(
+          await options.service.testConnectionModels({
+            connectionId: context.req.param('connectionId'),
+            modelIds: context.req.valid('json').modelIds
+          })
+        )
+      )
+  )
+  app.post(
+    '/model-connections/:connectionId/models/:modelId',
     validate(enabledSchema),
     async (context) => {
       await options.service.setModelEnabled({
@@ -305,38 +407,57 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
   if (options.agentFiles) {
     const files = options.agentFiles
     app.get('/agent-files/main-prompt', async (context) =>
-      context.json(success(await files.getMainPrompt())))
+      context.json(success(await files.getMainPrompt()))
+    )
     app.post('/agent-files/main-prompt/reset', validate(resetPromptSchema), async (context) =>
-      context.json(success(await files.resetMainPrompt(context.req.valid('json').expectedDigest))))
+      context.json(success(await files.resetMainPrompt(context.req.valid('json').expectedDigest)))
+    )
     app.get('/agent-files/skills', async (context) =>
-      context.json(success(await files.listSkills())))
+      context.json(success(await files.listSkills()))
+    )
     if (options.skillInstaller) {
       app.post('/agent-files/skills/install', validate(installSkillSchema), async (context) =>
-        context.json(success(await options.skillInstaller!.installSkill(context.req.valid('json')))))
+        context.json(success(await options.skillInstaller!.installSkill(context.req.valid('json'))))
+      )
     }
     app.get('/agent-files/skills/:skillId/tree', async (context) =>
-      context.json(success(await files.getSkillTree(context.req.param('skillId')))))
+      context.json(success(await files.getSkillTree(context.req.param('skillId'))))
+    )
     app.post('/agent-files/skills', validate(createAgentSkillSchema), async (context) =>
-      context.json(success(await files.createSkill(context.req.valid('json')))))
-    app.post('/agent-files/skills/:skillId/rename', validate(renameAgentSkillSchema), async (context) =>
-      context.json(success(await files.renameSkill(
-        context.req.param('skillId'), context.req.valid('json').name
-      ))))
+      context.json(success(await files.createSkill(context.req.valid('json'))))
+    )
+    app.post(
+      '/agent-files/skills/:skillId/rename',
+      validate(renameAgentSkillSchema),
+      async (context) =>
+        context.json(
+          success(
+            await files.renameSkill(context.req.param('skillId'), context.req.valid('json').name)
+          )
+        )
+    )
     app.delete('/agent-files/skills/:skillId', async (context) => {
       await files.deleteSkill(context.req.param('skillId'))
       return context.json(success(null))
     })
     app.post('/agent-files/skills/:skillId/enabled', validate(enabledSchema), async (context) =>
-      context.json(success(await files.setSkillEnabled(
-        context.req.param('skillId'), context.req.valid('json').enabled
-      ))))
+      context.json(
+        success(
+          await files.setSkillEnabled(
+            context.req.param('skillId'),
+            context.req.valid('json').enabled
+          )
+        )
+      )
+    )
     app.get('/agent-files/file', async (context) => {
       const path = context.req.query('path')
       if (!path) return context.json(invalid(), 400)
       return context.json(success(await files.readFile(path)))
     })
     app.post('/agent-files/file', validate(saveAgentFileSchema), async (context) =>
-      context.json(success(await files.saveFile(context.req.valid('json')))))
+      context.json(success(await files.saveFile(context.req.valid('json'))))
+    )
   }
   if (options.taskControl) {
     const tasks = options.taskControl
@@ -348,27 +469,56 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       return context.json(success(await tasks.execute('task.list', { limit })))
     })
     app.get('/tasks/:taskId', async (context) =>
-      context.json(success(await tasks.execute('task.get', { taskId: context.req.param('taskId') }))))
+      context.json(
+        success(await tasks.execute('task.get', { taskId: context.req.param('taskId') }))
+      )
+    )
     app.post('/tasks/:taskId/interrupt', async (context) =>
-      context.json(success(await tasks.execute('task.interrupt', { taskId: context.req.param('taskId') }))))
+      context.json(
+        success(await tasks.execute('task.interrupt', { taskId: context.req.param('taskId') }))
+      )
+    )
     app.post('/tasks/:taskId/continue', async (context) =>
-      context.json(success(await tasks.execute('task.continue', { taskId: context.req.param('taskId') }))))
+      context.json(
+        success(await tasks.execute('task.continue', { taskId: context.req.param('taskId') }))
+      )
+    )
     app.post('/tasks/:taskId/input', validate(taskInputSchema), async (context) =>
-      context.json(success(await tasks.execute('task.provide-input', {
-        taskId: context.req.param('taskId'), value: context.req.valid('json').value
-      }))))
-    app.post('/skills/invocations/:invocationId/control', validate(skillControlSchema),
-      async (context) => context.json(success(await tasks.execute('skill.control', {
-        invocationId: context.req.param('invocationId'),
-        command: context.req.valid('json').command
-      }))))
+      context.json(
+        success(
+          await tasks.execute('task.provide-input', {
+            taskId: context.req.param('taskId'),
+            value: context.req.valid('json').value
+          })
+        )
+      )
+    )
+    app.post(
+      '/skills/invocations/:invocationId/control',
+      validate(skillControlSchema),
+      async (context) =>
+        context.json(
+          success(
+            await tasks.execute('skill.control', {
+              invocationId: context.req.param('invocationId'),
+              command: context.req.valid('json').command
+            })
+          )
+        )
+    )
   }
   app.notFound((context) =>
-    context.json(failure('not-found', 'Unknown route: ' + context.req.method + ' ' + context.req.path), 404))
+    context.json(
+      failure('not-found', 'Unknown route: ' + context.req.method + ' ' + context.req.path),
+      404
+    )
+  )
   return app
 }
 
-export async function startServiceHttpServer(options: ServiceHttpOptions): Promise<ServiceHttpServer> {
+export async function startServiceHttpServer(
+  options: ServiceHttpOptions
+): Promise<ServiceHttpServer> {
   const host = options.host ?? '127.0.0.1'
   const app = createServiceHttpApp(options)
   const listen = getRequestListener(app.fetch, { overrideGlobalObjects: false })
@@ -450,6 +600,28 @@ async function readLimitedBody(request: Request, limit: number): Promise<string 
   }
 }
 
+async function readLimitedBytes(request: Request, limit: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array()
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > limit) {
+        void reader.cancel().catch(() => undefined)
+        return null
+      }
+      chunks.push(value)
+    }
+    return Buffer.concat(chunks)
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 function tokenMatches(token: string, tokenDigest: Buffer): boolean {
   const presented = createHash('sha256').update(token).digest()
   return presented.length === tokenDigest.length && timingSafeEqual(presented, tokenDigest)
@@ -459,7 +631,10 @@ function success<T>(value: T): Envelope<T> {
   return { ok: true, value }
 }
 
-function failure(code: ModelFailureCode | AgentFileErrorCode, message: string): Envelope<never> {
+function failure(
+  code: ModelFailureCode | AgentFileErrorCode | string,
+  message: string
+): Envelope<never> {
   return { ok: false, error: { code, message } }
 }
 

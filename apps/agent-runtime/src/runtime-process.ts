@@ -25,6 +25,7 @@ import { AgentFileStore } from './agent-files/agent-file-store'
 import { SkillInstaller } from './agent-files/skill-installer'
 import { createSkillRuntimeTools } from './agent-files/runtime-tools'
 import type { RuntimeSkillRegistry } from './skill-registry'
+import { SessionAssetStore } from './media/session-asset-store'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -66,6 +67,9 @@ export async function startAgentRuntimeProcess(
     throw error
   }
   const repositories = new SqliteRuntimeRepositories(database)
+  const assets = new SessionAssetStore({ database, rootDirectory: dirname(databasePath) })
+  await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
+  await assets.cleanOrphanFiles()
   await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
   await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
   const checkpointer = createSqliteCheckpointer(databasePath)
@@ -141,6 +145,7 @@ export async function startAgentRuntimeProcess(
   if (serviceToken) {
     httpServer = await startServiceHttpServer({
       service,
+      assets,
       agentFiles,
       skillInstaller,
       taskControl: server,

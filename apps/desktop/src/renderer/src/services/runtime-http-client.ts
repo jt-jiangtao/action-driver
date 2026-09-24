@@ -1,4 +1,5 @@
 import type { RuntimeConnectionInfo } from '../../../shared/runtime-connection-contract'
+import type { ImageAssetRef } from '@actiondriver/contracts'
 
 export class RuntimeHttpClient {
   constructor(
@@ -37,5 +38,45 @@ export class RuntimeHttpClient {
       throw new Error('Runtime returned an invalid response')
     }
     return payload.value as T
+  }
+
+  async uploadImage(file: File): Promise<Omit<ImageAssetRef, 'sessionId'>> {
+    const connection = await this.getConnection()
+    const response = await this.fetcher(this.httpUrl(connection, '/assets/staged'), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${connection.accessToken}`,
+        'content-type': file.type || 'application/octet-stream'
+      },
+      body: file
+    })
+    const payload = (await response.json()) as
+      | { ok: true; value: Omit<ImageAssetRef, 'sessionId'> }
+      | { ok: false; error: { code: string; message: string } }
+    if (!payload.ok) throw new Error(payload.error.message)
+    return payload.value
+  }
+
+  async readImage(sessionId: string, assetId: string): Promise<Blob> {
+    const connection = await this.getConnection()
+    const response = await this.fetcher(
+      this.httpUrl(
+        connection,
+        `/sessions/${encodeURIComponent(sessionId)}/assets/${encodeURIComponent(assetId)}`
+      ),
+      {
+        headers: { authorization: `Bearer ${connection.accessToken}` }
+      }
+    )
+    if (!response.ok) throw new Error(`IMAGE_READ_FAILED: ${response.status}`)
+    return response.blob()
+  }
+
+  private httpUrl(connection: RuntimeConnectionInfo, path: string): string {
+    const url = new URL(connection.wsUrl)
+    url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:'
+    url.pathname = path
+    url.search = ''
+    return url.toString()
   }
 }
