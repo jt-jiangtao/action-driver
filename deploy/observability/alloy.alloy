@@ -1,0 +1,108 @@
+otelcol.receiver.otlp "application" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    logs    = [otelcol.processor.batch.logs.input]
+    metrics = [otelcol.processor.batch.metrics.input]
+    traces  = [otelcol.processor.batch.traces.input]
+  }
+}
+
+otelcol.processor.batch "logs" {
+  output {
+    logs = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+otelcol.processor.batch "metrics" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.prometheus.input]
+  }
+}
+
+otelcol.processor.batch "traces" {
+  output {
+    traces = [
+      otelcol.exporter.otlphttp.phoenix.input,
+      otelcol.processor.filter.tempo_events.input,
+    ]
+  }
+}
+
+// Phoenix is the only trace destination receiving complete LLM content.
+otelcol.exporter.otlphttp "phoenix" {
+  client {
+    endpoint = "http://phoenix:6006"
+  }
+}
+
+// Drop all span events, which may contain exception messages or model content.
+otelcol.processor.filter "tempo_events" {
+  trace_conditions {
+    context    = "spanevent"
+    conditions = [`true`]
+  }
+  output {
+    traces = [otelcol.processor.transform.tempo_allowlist.input]
+  }
+}
+
+otelcol.processor.transform "tempo_allowlist" {
+  error_mode = "propagate"
+  trace_statements {
+    context = "resource"
+    statements = [
+      `keep_keys(attributes, ["service.name", "service.version", "deployment.environment.name"])`,
+    ]
+  }
+  trace_statements {
+    context = "span"
+    statements = [
+      `keep_keys(attributes, ["http.request.method", "http.route", "http.response.status_code", "rpc.system", "rpc.method", "task.id", "request.id", "session.id", "operation", "outcome", "duration.ms", "error.type"])`,
+      `set(status.message, "")`,
+      `set(name, "actiondriver.operation")`,
+    ]
+  }
+  output {
+    traces = [otelcol.exporter.otlphttp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = "http://tempo:4318"
+  }
+}
+
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+  }
+}
+
+otelcol.exporter.otlphttp "prometheus" {
+  client {
+    endpoint = "http://prometheus:9090/api/v1/otlp"
+  }
+}
+
+discovery.docker "local" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.local.targets
+  labels     = {"service_name" = "docker-container"}
+  forward_to = [loki.write.containers.receiver]
+}
+
+loki.write "containers" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
