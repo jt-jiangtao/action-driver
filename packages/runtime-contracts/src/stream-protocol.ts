@@ -199,6 +199,17 @@ const responseContentEventSchema = z
   })
   .strict()
 
+const responseImageEventSchema = z
+  .object({
+    type: z.literal('response.image'),
+    ...streamIdentity,
+    asset: imageAssetSchema,
+    contentIndex: z.number().int().nonnegative(),
+    callId: idSchema,
+    index: z.number().int().nonnegative()
+  })
+  .strict()
+
 const responseToolPreparingEventSchema = z
   .object({
     type: z.literal('response.tool_preparing'),
@@ -397,6 +408,14 @@ const toolStreamEventSchemas = [
     .strict(),
   z
     .object({
+      type: z.literal('tool.asset'),
+      ...toolStreamBase,
+      index: z.number().int().nonnegative(),
+      asset: imageAssetSchema
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('tool.completed'),
       ...toolStreamBase,
       durationMs: z.number().nonnegative(),
@@ -425,6 +444,7 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   requestErrorEventSchema,
   responseStartEventSchema,
   responseContentEventSchema,
+  responseImageEventSchema,
   responseToolPreparingEventSchema,
   responseEndEventSchema,
   runtimeInterruptedEventSchema,
@@ -439,11 +459,13 @@ export type RequestCreateEvent = z.infer<typeof requestCreateEventSchema>
 export type RequestAcceptedEvent = z.infer<typeof requestAcceptedEventSchema>
 export type ResponseStartEvent = z.infer<typeof responseStartEventSchema>
 export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
+export type ResponseImageEvent = z.infer<typeof responseImageEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
 export type StreamResponseEvent =
   | ResponseStartEvent
   | ResponseContentEvent
+  | ResponseImageEvent
   | z.infer<typeof responseToolPreparingEventSchema>
   | ResponseEndEvent
 export type ActivityStreamEvent = Extract<StreamServerEvent, { type: `activity.${string}` }>

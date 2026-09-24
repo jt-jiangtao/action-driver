@@ -69,7 +69,8 @@ export class StreamTaskProjection {
         messages: event.messages.map((message) => ({
           id: message.id,
           role: message.role === 'assistant' ? 'agent' : 'user',
-          content: message.content
+          content: message.content,
+          ...(message.parts ? { parts: message.parts } : {})
         })),
         tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? [],
         ...(event.durationMs === undefined ? {} : { activityDurationMs: event.durationMs }),
@@ -103,7 +104,7 @@ export class StreamTaskProjection {
       this.applyActivityProjection(toolEvent)
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
-      if (toolEvent.type !== 'tool.content') {
+      if (toolEvent.type !== 'tool.content' && toolEvent.type !== 'tool.asset') {
         const status = toolEvent.type.slice('tool.'.length) as ToolInvocationProjection['status']
         const next: ToolInvocationProjection = {
           callId: toolEvent.callId,
@@ -156,6 +157,7 @@ export class StreamTaskProjection {
     if (
       event.type !== 'response.start' &&
       event.type !== 'response.content' &&
+      event.type !== 'response.image' &&
       event.type !== 'response.tool_preparing' &&
       event.type !== 'response.end'
     ) {
@@ -186,11 +188,43 @@ export class StreamTaskProjection {
         event.messageId,
         `${this.assistantMessage(event.messageId)?.content ?? ''}${event.delta}`
       )
+      const assistant = this.assistantMessage(event.messageId)
+      if (assistant?.parts?.some((part) => part.kind === 'image')) {
+        const parts = [...assistant.parts]
+        const trailing = parts.at(-1)
+        if (trailing?.kind === 'text') trailing.text += event.delta
+        else parts.push({ kind: 'text', text: event.delta })
+        this.replaceAssistantParts(event.messageId, parts)
+      }
       this.scheduleEmit()
       return
     }
 
+    if (event.type === 'response.image') {
+      const assistant = this.assistantMessage(event.messageId)
+      const parts = assistant?.parts
+        ? [...assistant.parts]
+        : assistant?.content
+          ? [{ kind: 'text' as const, text: assistant.content }]
+          : []
+      if (
+        !parts.some((part) => part.kind === 'image' && part.asset.assetId === event.asset.assetId)
+      ) {
+        parts.splice(event.contentIndex, 0, { kind: 'image', asset: event.asset })
+        this.replaceAssistantParts(event.messageId, parts)
+      }
+      this.flush()
+      return
+    }
+
     this.replaceAssistantContent(event.messageId, event.content)
+    const images =
+      this.assistantMessage(event.messageId)?.parts?.filter((part) => part.kind === 'image') ?? []
+    if (images.length)
+      this.replaceAssistantParts(
+        event.messageId,
+        event.content ? [...images, { kind: 'text', text: event.content }] : images
+      )
     const completed = event.status === 'completed'
     const detail = completed
       ? '模型响应已完成'
@@ -239,6 +273,19 @@ export class StreamTaskProjection {
       ...this.task,
       messages: this.task.messages.map((message) =>
         message.id === assistant.id ? { ...message, content } : message
+      )
+    }
+  }
+
+  private replaceAssistantParts(
+    messageId: string,
+    parts: NonNullable<TaskProjection['messages'][number]['parts']>
+  ): void {
+    if (!this.task) return
+    this.task = {
+      ...this.task,
+      messages: this.task.messages.map((message) =>
+        message.id === messageId ? { ...message, parts } : message
       )
     }
   }

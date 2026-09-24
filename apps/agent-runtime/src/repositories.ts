@@ -8,11 +8,7 @@ import type {
   StreamSnapshotRead
 } from './ports'
 
-export type {
-  PersistedMessage,
-  PersistedStreamRequest,
-  PersistedToolInvocation
-} from './ports'
+export type { PersistedMessage, PersistedStreamRequest, PersistedToolInvocation } from './ports'
 import { assertPersistablePayload } from './persistence-guard'
 
 export type PersistedStep = {
@@ -238,94 +234,118 @@ export class SqliteRuntimeRepositories {
   constructor(private readonly database: Database.Database) {}
 
   async recoverInterruptedRequests(code: string): Promise<RuntimeEventRecord[]> {
-    return this.database.transaction(() => {
-      const requests = this.database
-        .prepare("SELECT * FROM stream_requests WHERE status = 'running' ORDER BY created_at, request_id")
-        .all() as StreamRequestRow[]
-      const recovered: RuntimeEventRecord[] = []
-      for (const row of requests) {
-        const request = streamRequestFromRow(row)
-        const taskRow = this.database
-          .prepare('SELECT * FROM tasks WHERE id = ?')
-          .get(request.taskId) as TaskRow | undefined
-        if (!taskRow) throw new Error(`Missing task for stream request: ${request.requestId}`)
-        const task = taskFromRow(taskRow)
-        const occurredAt = new Date().toISOString()
-        const error = {
-          code,
-          message: 'Runtime exited before this task completed',
-          retryable: false as const
-        }
-        const runningTools = this.database
-          .prepare("SELECT * FROM tool_invocations WHERE task_id = ? AND status = 'running' ORDER BY created_at, id")
-          .all(task.id) as ToolInvocationRow[]
-        for (const toolRow of runningTools) {
-          const tool = toolInvocationFromRow(toolRow)
-          saveToolInvocation(this.database, {
-            ...tool,
-            status: 'unknown',
-            error: { code: 'TOOL_OUTCOME_UNKNOWN', message: 'Tool outcome is unknown after Runtime restart' },
-            updatedAt: occurredAt
-          })
-          const previousRow = this.database.prepare(
-            `SELECT payload_json FROM runtime_events
+    return this.database
+      .transaction(() => {
+        const requests = this.database
+          .prepare(
+            "SELECT * FROM stream_requests WHERE status = 'running' ORDER BY created_at, request_id"
+          )
+          .all() as StreamRequestRow[]
+        const recovered: RuntimeEventRecord[] = []
+        for (const row of requests) {
+          const request = streamRequestFromRow(row)
+          const taskRow = this.database
+            .prepare('SELECT * FROM tasks WHERE id = ?')
+            .get(request.taskId) as TaskRow | undefined
+          if (!taskRow) throw new Error(`Missing task for stream request: ${request.requestId}`)
+          const task = taskFromRow(taskRow)
+          const occurredAt = new Date().toISOString()
+          const error = {
+            code,
+            message: 'Runtime exited before this task completed',
+            retryable: false as const
+          }
+          const runningTools = this.database
+            .prepare(
+              "SELECT * FROM tool_invocations WHERE task_id = ? AND status = 'running' ORDER BY created_at, id"
+            )
+            .all(task.id) as ToolInvocationRow[]
+          for (const toolRow of runningTools) {
+            const tool = toolInvocationFromRow(toolRow)
+            saveToolInvocation(this.database, {
+              ...tool,
+              status: 'unknown',
+              error: {
+                code: 'TOOL_OUTCOME_UNKNOWN',
+                message: 'Tool outcome is unknown after Runtime restart'
+              },
+              updatedAt: occurredAt
+            })
+            const previousRow = this.database
+              .prepare(
+                `SELECT payload_json FROM runtime_events
              WHERE request_id = ? AND event_type LIKE 'tool.%'
                AND json_extract(payload_json, '$.callId') = ?
              ORDER BY cursor DESC LIMIT 1`
-          ).get(request.requestId, tool.id) as { payload_json: string } | undefined
-          const previous = previousRow
-            ? JSON.parse(previousRow.payload_json) as Record<string, unknown>
-            : {}
-          const previousCallSequence = previous.callSequence ?? previous.sequence
-          recovered.push(appendEvent(this.database, {
-            taskId: task.id,
-            threadId: request.sessionId,
-            checkpointId: request.responseId,
-            eventKey: `recovery:tool.unknown:${tool.id}`,
-            type: 'tool.unknown',
-            payload: {
-              callId: tool.id,
-              toolId: tool.toolId,
-              modelName: typeof previous.modelName === 'string'
-                ? previous.modelName : tool.toolId.replaceAll('.', '_'),
-              summary: typeof previous.summary === 'string' ? previous.summary : tool.toolId,
-              argumentsHash: tool.argumentsHash,
-              activityId: typeof previous.activityId === 'string' ? previous.activityId : null,
-              input: tool.input,
-              callSequence: (typeof previousCallSequence === 'number' ? previousCallSequence : -1) + 1,
-              error: { code: 'TOOL_OUTCOME_UNKNOWN', message: 'Tool outcome is unknown', retryable: false }
-            },
-            occurredAt,
-            eventId: `recovery:tool.unknown:${tool.id}`,
-            requestId: request.requestId,
-            responseId: request.responseId,
-            streamId: request.streamId,
-            messageId: request.messageId,
-            sequence: null
-          }))
+              )
+              .get(request.requestId, tool.id) as { payload_json: string } | undefined
+            const previous = previousRow
+              ? (JSON.parse(previousRow.payload_json) as Record<string, unknown>)
+              : {}
+            const previousCallSequence = previous.callSequence ?? previous.sequence
+            recovered.push(
+              appendEvent(this.database, {
+                taskId: task.id,
+                threadId: request.sessionId,
+                checkpointId: request.responseId,
+                eventKey: `recovery:tool.unknown:${tool.id}`,
+                type: 'tool.unknown',
+                payload: {
+                  callId: tool.id,
+                  toolId: tool.toolId,
+                  modelName:
+                    typeof previous.modelName === 'string'
+                      ? previous.modelName
+                      : tool.toolId.replaceAll('.', '_'),
+                  summary: typeof previous.summary === 'string' ? previous.summary : tool.toolId,
+                  argumentsHash: tool.argumentsHash,
+                  activityId: typeof previous.activityId === 'string' ? previous.activityId : null,
+                  input: tool.input,
+                  callSequence:
+                    (typeof previousCallSequence === 'number' ? previousCallSequence : -1) + 1,
+                  error: {
+                    code: 'TOOL_OUTCOME_UNKNOWN',
+                    message: 'Tool outcome is unknown',
+                    retryable: false
+                  }
+                },
+                occurredAt,
+                eventId: `recovery:tool.unknown:${tool.id}`,
+                requestId: request.requestId,
+                responseId: request.responseId,
+                streamId: request.streamId,
+                messageId: request.messageId,
+                sequence: null
+              })
+            )
+          }
+          saveTask(this.database, { ...task, status: 'failed', error, updatedAt: occurredAt })
+          this.database
+            .prepare(
+              "UPDATE stream_requests SET status = 'failed', updated_at = ? WHERE request_id = ? AND status = 'running'"
+            )
+            .run(occurredAt, request.requestId)
+          recovered.push(
+            appendEvent(this.database, {
+              taskId: task.id,
+              threadId: request.sessionId,
+              checkpointId: request.responseId,
+              eventKey: 'runtime.interrupted',
+              type: 'runtime.interrupted',
+              payload: { error },
+              occurredAt,
+              eventId: `runtime.interrupted:${request.requestId}`,
+              requestId: request.requestId,
+              responseId: request.responseId,
+              streamId: request.streamId,
+              messageId: request.messageId,
+              sequence: null
+            })
+          )
         }
-        saveTask(this.database, { ...task, status: 'failed', error, updatedAt: occurredAt })
-        this.database.prepare(
-          "UPDATE stream_requests SET status = 'failed', updated_at = ? WHERE request_id = ? AND status = 'running'"
-        ).run(occurredAt, request.requestId)
-        recovered.push(appendEvent(this.database, {
-          taskId: task.id,
-          threadId: request.sessionId,
-          checkpointId: request.responseId,
-          eventKey: 'runtime.interrupted',
-          type: 'runtime.interrupted',
-          payload: { error },
-          occurredAt,
-          eventId: `runtime.interrupted:${request.requestId}`,
-          requestId: request.requestId,
-          responseId: request.responseId,
-          streamId: request.streamId,
-          messageId: request.messageId,
-          sequence: null
-        }))
-      }
-      return recovered
-    }).immediate()
+        return recovered
+      })
+      .immediate()
   }
 
   async cancelLegacyPendingApprovals(code: string): Promise<void> {
@@ -538,6 +558,14 @@ export class SqliteRuntimeRepositories {
       .immediate()
   }
 
+  async commitAssistantImageWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord> {
+    return this.commitAssistantContentWithEvent(request, message, event)
+  }
+
   async finishStreamTask(input: {
     request: PersistedStreamRequest
     task: RuntimeTaskRecord
@@ -554,11 +582,7 @@ export class SqliteRuntimeRepositories {
              SET status = ?, updated_at = ?
              WHERE request_id = ?`
           )
-          .run(
-            input.request.status,
-            input.request.updatedAt,
-            input.request.requestId
-          )
+          .run(input.request.status, input.request.updatedAt, input.request.requestId)
         if (result.changes !== 1) {
           throw new Error(`Unknown stream request: ${input.request.requestId}`)
         }

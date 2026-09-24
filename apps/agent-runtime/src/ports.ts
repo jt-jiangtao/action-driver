@@ -197,6 +197,11 @@ export interface StreamSessionRepository {
     message: PersistedMessage,
     event: Omit<RuntimeEventRecord, 'cursor'>
   ): Promise<RuntimeEventRecord>
+  commitAssistantImageWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
   finishStreamTask(input: {
     request: PersistedStreamRequest
     task: RuntimeTaskRecord

@@ -9,7 +9,7 @@ import {
   emptyActivityTimelineState,
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
-import type { MessageContentPart } from '@actiondriver/contracts'
+import type { ImageAssetRef, MessageContentPart } from '@actiondriver/contracts'
 import type { ModelInputMessage } from '@actiondriver/model-connections'
 import type { SessionAssetStore } from './media/session-asset-store'
 import type {
@@ -267,6 +267,12 @@ export class StreamSessionService {
     let sequence = 0
     let activitySequence = 0
     let content = ''
+    const assistantParts: MessageContentPart[] = []
+    const seenImages = new Set<string>()
+    const assistantContent = () =>
+      assistantParts.some((part) => part.kind === 'image')
+        ? { parts: assistantParts.map((part) => ({ ...part })) }
+        : { text: content }
     let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
     const startedAt = Date.parse(request.createdAt)
     const startRecord = await this.options.repositories.commitAssistantContentWithEvent(
@@ -328,9 +334,14 @@ export class StreamSessionService {
           }
           sequence += 1
           content += event.delta
+          if (assistantParts.length > 0) {
+            const last = assistantParts.at(-1)
+            if (last?.kind === 'text') last.text += event.delta
+            else assistantParts.push({ kind: 'text', text: event.delta })
+          }
           const record = await this.options.repositories.commitAssistantContentWithEvent(
             request,
-            { ...initialAssistant, content: { text: content } },
+            { ...initialAssistant, content: assistantContent() },
             this.runtimeEvent(request, 'response.content', sequence, {
               delta: event.delta,
               contentIndex: 0
@@ -341,6 +352,45 @@ export class StreamSessionService {
         async (record) => {
           if (record.requestId === request.requestId) {
             await this.publishThrough(request, record.cursor, emit)
+            if (record.type === 'tool.asset') {
+              const payload = record.payload as {
+                callId?: unknown
+                index?: unknown
+                asset?: unknown
+              }
+              if (
+                typeof payload.callId !== 'string' ||
+                typeof payload.index !== 'number' ||
+                !isImageAssetRef(payload.asset) ||
+                payload.asset.sessionId !== request.sessionId
+              )
+                return
+              const imageKey = `${payload.callId}:${payload.index}`
+              if (seenImages.has(imageKey)) return
+              seenImages.add(imageKey)
+              if (assistantParts.length === 0 && content)
+                assistantParts.push({ kind: 'text', text: content })
+              const contentIndex = assistantParts.length
+              assistantParts.push({ kind: 'image', asset: payload.asset })
+              sequence += 1
+              const imageRecord = await this.options.repositories.commitAssistantImageWithEvent(
+                request,
+                { ...initialAssistant, content: assistantContent() },
+                this.runtimeEvent(
+                  request,
+                  'response.image',
+                  sequence,
+                  {
+                    asset: payload.asset,
+                    contentIndex,
+                    callId: payload.callId,
+                    index: payload.index
+                  },
+                  `response.image:${imageKey}`
+                )
+              )
+              await this.publishThrough(request, imageRecord.cursor, emit)
+            }
           }
         }
       )
@@ -353,7 +403,14 @@ export class StreamSessionService {
     const terminalEvent = terminal as Extract<ModelGatewayEvent, { kind: 'end' }> | null
     const completed = result?.status === 'completed' && terminalEvent !== null && !cancelled
     const status = completed ? 'completed' : cancelled ? 'cancelled' : 'failed'
-    if (completed && terminalEvent) content = terminalEvent.content
+    if (completed && terminalEvent) {
+      content = terminalEvent.content
+      if (assistantParts.some((part) => part.kind === 'image')) {
+        const images = assistantParts.filter((part) => part.kind === 'image')
+        assistantParts.splice(0, assistantParts.length, ...images)
+        if (content) assistantParts.push({ kind: 'text', text: content })
+      }
+    }
     const error = completed
       ? null
       : cancelled
@@ -379,7 +436,7 @@ export class StreamSessionService {
     const endRecord = await this.options.repositories.finishStreamTask({
       request: persistedRequest,
       task,
-      assistantMessage: { ...initialAssistant, content: { text: content } },
+      assistantMessage: { ...initialAssistant, content: assistantContent() },
       event: this.runtimeEvent(request, 'response.end', sequence, {
         status,
         content,
@@ -645,6 +702,16 @@ export class StreamSessionService {
         modelName: payload.modelName
       })
     }
+    if (record.type === 'response.image') {
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        asset: payload.asset,
+        contentIndex: payload.contentIndex,
+        callId: payload.callId,
+        index: payload.index
+      })
+    }
     if (record.type.startsWith('activity.')) {
       const activity = payload as {
         activityId: string | null
@@ -682,6 +749,8 @@ export class StreamSessionService {
         stream?: string
         delta?: string
         output?: unknown
+        asset?: unknown
+        index?: unknown
         error?: unknown
         durationMs?: unknown
         sequence?: number
@@ -715,6 +784,7 @@ export class StreamSessionService {
               delta: rawToolIO ? boundedText(tool.delta, maxRawBytes).value : '工具输出已接收'
             }
           : {}),
+        ...(record.type === 'tool.asset' ? { asset: tool.asset, index: tool.index } : {}),
         ...(record.type === 'tool.completed'
           ? {
               durationMs: typeof tool.durationMs === 'number' ? tool.durationMs : 0,
@@ -786,6 +856,22 @@ function messageParts(content: unknown): MessageContentPart[] | null {
   )
     return null
   return content.parts as MessageContentPart[]
+}
+
+function isImageAssetRef(value: unknown): value is ImageAssetRef {
+  if (!value || typeof value !== 'object') return false
+  const asset = value as Partial<ImageAssetRef>
+  return (
+    typeof asset.assetId === 'string' &&
+    typeof asset.sessionId === 'string' &&
+    (asset.mimeType === 'image/png' ||
+      asset.mimeType === 'image/jpeg' ||
+      asset.mimeType === 'image/webp') &&
+    typeof asset.width === 'number' &&
+    typeof asset.height === 'number' &&
+    typeof asset.byteLength === 'number' &&
+    asset.source === 'generated'
+  )
 }
 
 function toStreamError(value: unknown): {

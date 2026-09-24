@@ -53,6 +53,85 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('projects generated images once and retains them after final text and snapshot', () => {
+    const image = {
+      assetId: 'asset-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
+    }
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'response.image',
+      ...identity,
+      eventId: 'image-1',
+      cursor: 1,
+      sequence: 0,
+      asset: image,
+      contentIndex: 0,
+      callId: 'call-1',
+      index: 0
+    })
+    projection.apply({
+      type: 'response.image',
+      ...identity,
+      eventId: 'image-1',
+      cursor: 1,
+      sequence: 0,
+      asset: image,
+      contentIndex: 0,
+      callId: 'call-1',
+      index: 0
+    })
+    projection.apply({
+      type: 'response.end',
+      ...identity,
+      eventId: 'end-image',
+      cursor: 2,
+      sequence: 1,
+      status: 'completed',
+      content: '完成',
+      finishReason: 'stop',
+      usage: null,
+      durationMs: 10,
+      error: null
+    })
+    expect(projection.snapshot()?.messages.at(-1)).toMatchObject({
+      content: '完成',
+      parts: [
+        { kind: 'image', asset: image },
+        { kind: 'text', text: '完成' }
+      ]
+    })
+    projection.apply({
+      type: 'response.snapshot',
+      ...identity,
+      eventId: 'snapshot-image',
+      cursor: 3,
+      sequence: 2,
+      status: 'completed',
+      messages: [
+        { id: 'user-1', role: 'user', content: '写代码', createdAt: identity.occurredAt },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '完成',
+          parts: [
+            { kind: 'image', asset: image },
+            { kind: 'text', text: '完成' }
+          ],
+          createdAt: identity.occurredAt
+        }
+      ],
+      tools: [],
+      error: null
+    })
+    expect(projection.snapshot()?.messages.at(-1)?.parts).toHaveLength(2)
+  })
   it('shows tool preparation only while the model is preparing its call', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())

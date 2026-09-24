@@ -84,6 +84,72 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('streams completed images and keeps them in the final assistant snapshot', async () => {
+    let harness!: ReturnType<typeof createHarness>
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer, onToolEvent) {
+        const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+        for (const index of [1, 0]) {
+          const asset = await harness.assets.saveGenerated(request.sessionId!, png)
+          const record = await harness.repositories.events.append({
+            taskId: request.taskId,
+            threadId: request.sessionId!,
+            checkpointId: 'tool:0',
+            eventKey: `tool.asset:${index}`,
+            type: 'tool.asset',
+            payload: {
+              callId: 'call-1',
+              toolId: 'image.generate',
+              modelName: 'image_generate',
+              summary: '生成图片',
+              argumentsHash: '',
+              activityId: null,
+              index,
+              asset
+            },
+            occurredAt: '2026-09-23T00:00:01.000Z',
+            eventId: `tool-asset-${index}`,
+            requestId: request.streamRequestId!,
+            sequence: index
+          })
+          await onToolEvent?.(record)
+        }
+        await observer?.({ kind: 'end', content: '已生成图片', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '已生成图片',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
+    }
+    harness = createHarness(graphRunner)
+    const events = await runToEnd(harness.service, createEvent)
+    expect(events.filter((event) => event.type === 'response.image')).toHaveLength(2)
+    const imageEvents = events.filter((event) => event.type === 'response.image')
+    expect(imageEvents.map((event) => ('contentIndex' in event ? event.contentIndex : -1))).toEqual(
+      [0, 1]
+    )
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([
+      'image',
+      'image',
+      'text'
+    ])
+    expect(JSON.stringify(snapshot)).not.toContain('data:image/')
+    harness.repositories.close()
+  })
   it('persists an image-only user turn and gives the graph an image reference', async () => {
     let graphInput: Parameters<GraphRunner['run']>[0] | null = null
     const graphRunner: GraphRunner = {
