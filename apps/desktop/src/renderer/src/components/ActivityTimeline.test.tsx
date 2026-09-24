@@ -26,13 +26,13 @@ const task = (status: TaskProjection['status']): TaskProjection => ({
   tools: [
     {
       callId: 'read',
-      toolId: 'sandbox.fs.read',
-      modelName: 'sandbox_fs_read',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '读取 README',
       argumentsHash: '',
       activityId: 'research',
       status: 'completed',
-      rawInput: '{"path":"README.md"}',
+      rawInput: '{"command":"cat README.md"}',
       rawOutput: '内容',
       rawOutputTruncated: false
     }
@@ -51,6 +51,49 @@ describe('ActivityTimeline', () => {
     expect(document.querySelector('.activity-group')).toBeNull()
     expect(container.querySelector('.activity-timeline-items')).toBeNull()
     expect(container.querySelector('.activity-timeline')).toHaveClass('is-initial-thinking')
+  })
+
+  it('shows a preparing tool name without an empty activity group or raw arguments', () => {
+    const preparing = task('running')
+    preparing.activityTimeline = []
+    preparing.activities = []
+    preparing.tools = []
+    preparing.preparingToolName = 'shell_run'
+    const { container } = render(<ActivityTimeline task={preparing} />)
+    expect(screen.getByRole('status')).toHaveTextContent('正在准备 Shell 命令')
+    expect(container.querySelector('.activity-group')).toBeNull()
+    expect(container).not.toHaveTextContent('command')
+  })
+
+  it('names a TypeScript tool while its arguments are still streaming', () => {
+    const preparing = task('running')
+    preparing.activityTimeline = []
+    preparing.activities = []
+    preparing.tools = []
+    preparing.preparingToolName = 'ts_run'
+    render(<ActivityTimeline task={preparing} />)
+    expect(screen.getByRole('status')).toHaveTextContent('正在准备 TypeScript 脚本')
+  })
+
+  it('renders inline script source as terminal input instead of a JSON wrapper', () => {
+    const scripted = task('running')
+    scripted.tools![0]!.rawInput = JSON.stringify({ script: 'echo hello', args: ['one'] })
+    render(<ActivityTimeline task={scripted} />)
+    screen.getByText('调研实现').closest('summary')!.click()
+    screen.getByText('读取 README').click()
+    expect(screen.getByText(/\$ zsh - one/)).toHaveTextContent('echo hello')
+    expect(screen.queryByText('{"script":"echo hello","args":["one"]}')).not.toBeInTheDocument()
+  })
+
+  it('shows tool preparation after streamed process text in the same model response', () => {
+    const preparing = task('running')
+    preparing.activityTimeline = [{ id: 'text:plan', kind: 'text', content: '先检查输入', phase: 'pending' }]
+    preparing.activities = []
+    preparing.tools = []
+    preparing.preparingToolName = 'python_run'
+    render(<ActivityTimeline task={preparing} />)
+    expect(screen.getByText('先检查输入')).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('正在准备 Python 脚本')
   })
 
   it('keeps process text between groups and archives it after completion', () => {
@@ -251,24 +294,23 @@ describe('ActivityTimeline', () => {
     render(<ActivityTimeline task={task('running')} />)
     screen.getByText('调研实现').closest('summary')!.click()
     expect(screen.getByText('读取 README').closest('.activity-tool')).toContainElement(
-      document.querySelector('.activity-tool .lucide-book-open')
+      document.querySelector('.activity-tool .lucide-square-terminal')
     )
     expect(screen.queryByText('⌘')).not.toBeInTheDocument()
     expect(screen.queryByText('输入与输出')).not.toBeInTheDocument()
     screen.getByText('读取 README').click()
-    expect(screen.getByText('{"path":"README.md"}')).toBeVisible()
-    expect(screen.getByText('内容')).toBeVisible()
+    expect(screen.getByText(/\$ cat README.md/)).toHaveTextContent('内容')
   })
 
-  it('underlines the actual file name in a file tool row without changing its summary', () => {
+  it('shows a shell summary without file-specific decoration', () => {
     const read = task('running')
     read.tools![0]!.summary = '访问文件 README.md'
     const { container } = render(<ActivityTimeline task={read} />)
     expect(container.querySelector('.activity-tool-label')).toHaveTextContent('访问文件 README.md')
-    expect(container.querySelector('.activity-tool-path')).toHaveTextContent('README.md')
+    expect(container.querySelector('.activity-tool-path')).toBeNull()
   })
 
-  it('uses a wrench for a mixed tool activity and distinct book, search and terminal child icons', () => {
+  it('uses a wrench for a mixed tool activity and distinct web and terminal child icons', () => {
     const mixed = task('running')
     mixed.activities![0]!.title = '加载了工具读取文件运行了命令'
     mixed.activities![0]!.items.push({ id: 'tool:shell', kind: 'tool', callId: 'shell' })
@@ -284,8 +326,8 @@ describe('ActivityTimeline', () => {
     })
     mixed.tools!.push({
       callId: 'search',
-      toolId: 'sandbox.fs.search',
-      modelName: 'sandbox_fs_search',
+      toolId: 'web.search',
+      modelName: 'web_search',
       summary: '查找 agent-graph.ts',
       argumentsHash: '',
       activityId: 'research',
@@ -293,9 +335,8 @@ describe('ActivityTimeline', () => {
     })
     const { container } = render(<ActivityTimeline task={mixed} />)
     expect(container.querySelector('.activity-group > summary .lucide-wrench')).not.toBeNull()
-    expect(container.querySelector('.activity-tool .lucide-book-open')).not.toBeNull()
     expect(container.querySelector('.activity-tool .lucide-square-terminal')).not.toBeNull()
-    expect(container.querySelector('.activity-tool .lucide-search')).not.toBeNull()
+    expect(container.querySelector('.activity-tool .lucide-globe-2')).not.toBeNull()
   })
 
   it('follows the active tool icon and stops group and tool sheen at terminal state', () => {
@@ -321,25 +362,11 @@ describe('ActivityTimeline', () => {
     mixed.tools![1] = { ...mixed.tools![1]!, title: '已执行命令', status: 'completed' }
     mixed.activities![0]!.title = '已执行 2 项操作'
     rerender(<ActivityTimeline task={{ ...mixed }} />)
-    expect(container.querySelector('.activity-group > summary .lucide-wrench')).not.toBeNull()
+    expect(
+      container.querySelector('.activity-group > summary .lucide-square-terminal')
+    ).not.toBeNull()
     expect(screen.getByText('已执行 2 项操作')).not.toHaveClass('activity-active-title')
     expect(screen.getByText('已执行命令')).not.toHaveClass('activity-active-title')
-  })
-
-  it('keeps a book group icon when multiple different tools only read files', () => {
-    const files = task('running')
-    files.activities![0]!.items.push({ id: 'tool:list', kind: 'tool', callId: 'list' })
-    files.tools!.push({
-      callId: 'list',
-      toolId: 'sandbox.fs.list',
-      modelName: 'sandbox_fs_list',
-      summary: '访问文件目录',
-      argumentsHash: '',
-      activityId: 'research',
-      status: 'completed'
-    })
-    const { container } = render(<ActivityTimeline task={files} />)
-    expect(container.querySelector('.activity-group > summary .lucide-book-open')).not.toBeNull()
   })
 
   it('renders shell input and output as a terminal transcript without JSON wrappers', () => {
@@ -369,16 +396,37 @@ describe('ActivityTimeline', () => {
   })
 
   it('renders Python and Node input as expandable terminal details', () => {
-    for (const [toolId, modelName, title, input, command] of ([
-      ['local.python.run', 'python_run', '已运行 Python', '{"code":"print(1)"}', '$ python3 -c "print(1)"'],
-      ['local.node.run', 'node_run', '已运行 Node.js', '{"file":"script.js","args":["hi"]}', '$ node "script.js" hi']
-    ] as const)) {
+    for (const [toolId, modelName, title, input, command] of [
+      [
+        'local.python.run',
+        'python_run',
+        '已运行 Python',
+        '{"code":"print(1)"}',
+        '$ python3 -c "print(1)"'
+      ],
+      [
+        'local.node.run',
+        'node_run',
+        '已运行 Node.js',
+        '{"file":"script.js","args":["hi"]}',
+        '$ node "script.js" hi'
+      ]
+    ] as const) {
       const script = task('running')
-      script.tools = [{
-        callId: 'script', toolId, modelName, title, summary: title, argumentsHash: '',
-        activityId: 'research', status: 'completed', rawInput: input,
-        rawOutput: '{"stdout":"1\\n","result":{"exitCode":0}}'
-      }]
+      script.tools = [
+        {
+          callId: 'script',
+          toolId,
+          modelName,
+          title,
+          summary: title,
+          argumentsHash: '',
+          activityId: 'research',
+          status: 'completed',
+          rawInput: input,
+          rawOutput: '{"stdout":"1\\n","result":{"exitCode":0}}'
+        }
+      ]
       script.activities![0]!.items = [{ id: 'tool:script', kind: 'tool', callId: 'script' }]
       const { container, unmount } = render(<ActivityTimeline task={script} />)
       screen.getByText(title).click()
@@ -430,15 +478,15 @@ describe('ActivityTimeline', () => {
     expect(screen.getByRole('region', { name: '任务过程' }).querySelector('svg')).toBeNull()
   })
 
-  it('renders a standalone tool from a legacy or snapshot task in the same timeline', () => {
+  it('renders a standalone tool from a snapshot task in the same timeline', () => {
     const standalone = task('succeeded')
     standalone.activities = []
     standalone.activityTimeline = []
     standalone.tools = [
       {
         callId: 'list',
-        toolId: 'sandbox.fs.list',
-        modelName: 'sandbox_fs_list',
+        toolId: 'local.shell.run',
+        modelName: 'shell_run',
         summary: '访问文件 /',
         argumentsHash: '',
         activityId: null,

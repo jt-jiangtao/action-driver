@@ -5,10 +5,11 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 import {
   FakeOpenAiStreamServer,
   firstTurnPrompt,
@@ -42,7 +43,7 @@ test.afterEach(async () => {
   application = undefined
 })
 
-async function launch(reuseDirectories = false): Promise<Page> {
+async function launch(reuseDirectories = false, environment: NodeJS.ProcessEnv = {}): Promise<Page> {
   if (!reuseDirectories) {
     userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-data-'))
     homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
@@ -55,7 +56,10 @@ async function launch(reuseDirectories = false): Promise<Page> {
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
+      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
+      ...Object.fromEntries(
+        Object.entries(environment).filter((entry): entry is [string, string] => Boolean(entry[1]))
+      )
     }
   })
   application.process().stderr?.on('data', (chunk: Buffer) => {
@@ -114,7 +118,7 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(page.url()).toBe('actiondriver://renderer/index.html')
   expect(await page.evaluate(() => window.location.origin)).toBe('actiondriver://renderer')
   expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort()))
-    .toEqual(['getEnvironment', 'runtimeConnection'])
+    .toEqual(['getEnvironment', 'runtimeConnection', 'skillFolders'])
   const requestPromise = page.waitForRequest((request) =>
     request.url().endsWith('/model-connections'))
   const result = await page.evaluate(async () => {
@@ -131,7 +135,7 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(result).toEqual({ status: 200 })
 })
 
-test('saves the main prompt through Runtime and keeps Browser and Computer unavailable', async () => {
+test('saves the main prompt through Runtime and lists enabled system Skills', async () => {
   const page = await launch()
   await page.getByRole('button', { name: '设置' }).click()
   await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
@@ -151,10 +155,86 @@ test('saves the main prompt through Runtime and keeps Browser and Computer unava
     .toContainText('Runtime 持有的提示词')
   await page.getByTestId('e2e/settings/sidebar/skills#button').click()
   await expect(page.getByTestId('e2e/settings/skills/page#page')).toBeVisible()
-  await expect(page.getByTestId('e2e/settings/skills/items/browser-tools#button')
-    .locator('..').getByText('不可用')).toBeVisible()
-  await expect(page.getByTestId('e2e/settings/skills/items/computer-tools#button')
-    .locator('..').getByText('不可用')).toBeVisible()
+  for (const id of ['browser-tools', 'computer-tools', 'skill-creator']) {
+    await expect(page.getByTestId(`e2e/settings/skills/items/${id}#button`)).toBeVisible()
+    await expect(page.getByTestId(`e2e/settings/skills/toggles/${id}#switch`))
+      .toHaveAttribute('aria-checked', 'true')
+  }
+})
+
+test('installs a local instruction Skill into the desktop list and keeps its source on uninstall', async () => {
+  const page = await launch()
+  const source = join(homeDirectory, 'incoming', 'e2e-notes')
+  mkdirSync(source, { recursive: true })
+  writeFileSync(join(source, 'SKILL.md'), '# E2E Notes\n\nWrite concise notes.\n')
+  const installed = await page.evaluate(async (path) => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    url.pathname = '/agent-files/skills/install'
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${connection.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ source: 'local', path })
+    })
+    return response.json() as Promise<{ ok: boolean; value?: { id: string; source: string } }>
+  }, source)
+  expect(installed).toMatchObject({ ok: true, value: { id: 'e2e-notes', source: 'local' } })
+  await application?.close()
+  application = undefined
+  const reopened = await launch(true)
+  await reopened.getByRole('button', { name: '设置' }).click()
+  await reopened.getByTestId('e2e/settings/sidebar/skills#button').click()
+  await expect(reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button')).toBeVisible()
+  await reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button').click()
+  await expect(reopened.getByRole('dialog', { name: 'E2E Notes' })).toContainText('Write concise notes.')
+  await reopened.getByTestId('e2e/settings/skills/detail/uninstall#button').click()
+  await reopened.getByTestId('e2e/settings/skills/dialog/submit#button').click()
+  await expect(reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button')).toHaveCount(0)
+  expect(existsSync(join(source, 'SKILL.md'))).toBe(true)
+})
+
+test('installs a GitHub Skill through existing Git configuration and updates the desktop state', async () => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'actiondriver-github-e2e-'))
+  const repo = join(fixtureRoot, 'private-repo')
+  const config = join(fixtureRoot, 'gitconfig')
+  mkdirSync(join(repo, 'skills', 'e2e-github'), { recursive: true })
+  writeFileSync(join(repo, 'skills', 'e2e-github', 'SKILL.md'), '# E2E GitHub\n\nReview local changes.\n')
+  execFileSync('git', ['init', '-q', repo])
+  execFileSync('git', ['-C', repo, 'add', '.'])
+  execFileSync('git', ['-C', repo, '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'])
+  const branch = execFileSync('git', ['-C', repo, 'branch', '--show-current'], { encoding: 'utf8' }).trim()
+  writeFileSync(config, `[url "file://${repo}"]\n\tinsteadOf = https://github.com/acme/private.git\n`)
+  const page = await launch(false, { GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' })
+  const installed = await page.evaluate(async (urlValue) => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    url.pathname = '/agent-files/skills/install'
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${connection.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ source: 'github', url: urlValue })
+    })
+    return response.json() as Promise<{ ok: boolean; value?: { id: string; source: string } }>
+  }, `https://github.com/acme/private.git/tree/${branch}/skills/e2e-github`)
+  expect(installed).toMatchObject({ ok: true, value: { id: 'e2e-github', source: 'github' } })
+  await page.getByRole('button', { name: '设置' }).click()
+  await page.getByTestId('e2e/settings/sidebar/skills#button').click()
+  const row = page.getByTestId('e2e/settings/skills/items/e2e-github#button').locator('..')
+  await expect(row.locator('.skill-source')).toHaveText('GitHub')
+  await row.getByRole('switch').click()
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+  await row.getByRole('switch').click()
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
+  await row.getByRole('button', { name: /E2E GitHub/ }).click()
+  await expect(page.getByRole('dialog', { name: 'E2E GitHub' })).toContainText('Review local changes.')
 })
 
 test('streams two real turns in one persisted session without local logs', async () => {

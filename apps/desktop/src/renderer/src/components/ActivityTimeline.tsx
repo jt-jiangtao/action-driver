@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ChevronRight, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
+import { ChevronRight, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
 import type {
   ActivityToolProjection,
   TaskProjection,
@@ -32,7 +32,8 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
   const hasActiveTool = [...tools.values()].some((tool) =>
     ['proposed', 'queued', 'running', 'waiting_approval'].includes(tool.status)
   )
-  const showThinking = task.status === 'running' && !hasPendingText && !hasActiveTool
+  const showThinking =
+    task.status === 'running' && !hasActiveTool && (!hasPendingText || !!task.preparingToolName)
   const fallbackStartedAt = useRef(Date.now())
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -130,7 +131,9 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           {hasVisibleContent ? body : null}
           {showThinking ? (
             <div className="activity-thinking activity-active-title" role="status">
-              正在思考
+              {task.preparingToolName
+                ? `正在准备 ${preparingToolLabel(task.preparingToolName)}`
+                : '正在思考'}
             </div>
           ) : null}
         </>
@@ -147,6 +150,15 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
       )}
     </section>
   )
+}
+
+function preparingToolLabel(modelName: string): string {
+  if (modelName === 'shell_run') return 'Shell 命令'
+  if (modelName === 'python_run') return 'Python 脚本'
+  if (modelName === 'node_run') return 'Node.js 脚本'
+  if (modelName === 'ts_run') return 'TypeScript 脚本'
+  if (modelName === 'web_search') return '网页搜索'
+  return modelName
 }
 
 function formatRunningDuration(value: number): string {
@@ -175,9 +187,8 @@ function ActivityIcon({
   const toolKinds = new Set(
     (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
       if (/web/.test(toolId)) return 'web'
-      if (/shell|command|python|node\.run/.test(toolId)) return 'shell'
+      if (/shell|command|python|node\.run|typescript/.test(toolId)) return 'shell'
       if (/search|find|grep|rg/.test(toolId)) return 'search'
-      if (/fs|file/.test(toolId)) return 'file'
       return 'other'
     })
   )
@@ -185,9 +196,7 @@ function ActivityIcon({
   if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={16} />
   if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={16} />
   if (toolKinds.has('search')) return <Search aria-hidden="true" size={16} />
-  if (toolKinds.has('file')) return <BookOpen aria-hidden="true" size={16} />
   if (/搜索|网页/.test(title)) return <Globe2 aria-hidden="true" size={16} />
-  if (/文件|读取/.test(title)) return <BookOpen aria-hidden="true" size={16} />
   if (/命令|脚本/.test(title)) return <SquareTerminal aria-hidden="true" size={16} />
   return <Wrench aria-hidden="true" size={16} />
 }
@@ -202,11 +211,11 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
       <ToolIcon tool={tool} />
       <span className={`activity-tool-label${active ? ' activity-active-title' : ''}`}>
         {tool.title ? (
-          toolSummary(tool, tool.title)
+          tool.title
         ) : (
           <>
             <span>{toolAction(tool)}</span>
-            <span>{toolSummary(tool)}</span>
+            <span>{tool.summary}</span>
           </>
         )}
       </span>
@@ -265,39 +274,30 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   )
 }
 
-function toolSummary(tool: ToolInvocationProjection, label = tool.summary) {
-  if (!/fs|file/.test(tool.toolId) || !tool.rawInput) return label
-  const path = parseObject(tool.rawInput)?.path
-  if (typeof path !== 'string') return label
-  const fileName = path.split(/[\\/]/).filter(Boolean).at(-1)
-  if (!fileName) return label
-  const start = label.indexOf(fileName)
-  if (start < 0) return label
-  return (
-    <>
-      {label.slice(0, start)}
-      <span className="activity-tool-path">{fileName}</span>
-      {label.slice(start + fileName.length)}
-    </>
-  )
-}
-
 function shellToolTranscript(
   tool: ToolInvocationProjection
 ): { text: string; exitCode: number | null } | null {
-  if (!/shell|command|python|node\.run/.test(tool.toolId) || !tool.rawInput) return null
+  if (!/shell|command|python|node\.run|typescript/.test(tool.toolId) || !tool.rawInput) return null
   const input = parseObject(tool.rawInput)
   const args = input?.args === undefined ? [] : input.args
   if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) return null
-  const command = typeof input?.command === 'string'
-    ? input.command
-    : typeof input?.code === 'string'
-      ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${/python/.test(tool.toolId) ? '-c' : '-e'} ${JSON.stringify(input.code)}`
-      : typeof input?.file === 'string'
-        ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${JSON.stringify(input.file)}`
-        : null
-  if (command === null) return null
-  const invocation = [command, ...args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))].join(' ')
+  const command =
+    typeof input?.command === 'string'
+      ? input.command
+      : typeof input?.code === 'string'
+        ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${/python/.test(tool.toolId) ? '-c' : '-e'} ${JSON.stringify(input.code)}`
+        : typeof input?.file === 'string'
+          ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${JSON.stringify(input.file)}`
+          : null
+  const script = typeof input?.script === 'string' ? input.script : null
+  if (command === null && script === null) return null
+  const runtime = /typescript/.test(tool.toolId) ? 'node --input-type=module-typescript'
+    : /python/.test(tool.toolId) ? 'python3'
+      : /node\.run/.test(tool.toolId) ? 'node' : 'zsh'
+  const escapedArgs = args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
+  const invocation = script === null
+    ? `$ ${[command, ...escapedArgs].join(' ')}`
+    : `$ ${[runtime, '-', ...escapedArgs].join(' ')}\n${script}`
   const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
   const chunks = output
     ? [output.stdout, output.stderr, output.content].filter(
@@ -318,7 +318,7 @@ function shellToolTranscript(
       ? result.exitCode
       : null
   return {
-    text: [`$ ${invocation}`, response, tool.rawOutputTruncated ? '…输出已截断' : '']
+    text: [invocation, response, tool.rawOutputTruncated ? '…输出已截断' : '']
       .filter(Boolean)
       .join('\n'),
     exitCode
@@ -338,9 +338,9 @@ function parseObject(value: string): Record<string, unknown> | null {
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
   if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
-  if (/shell|command|python|node\.run/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={16} />
+  if (/shell|command|python|node\.run|typescript/.test(tool.toolId))
+    return <SquareTerminal aria-hidden="true" size={16} />
   if (/search|find|grep|rg/.test(tool.toolId)) return <Search aria-hidden="true" size={16} />
-  if (/fs|file/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
   return <Wrench aria-hidden="true" size={16} />
 }
 
@@ -353,8 +353,7 @@ function toolAction(tool: ToolInvocationProjection): string {
     return '正在运行 '
   if (/web/.test(tool.toolId)) return '已搜索网页：'
   if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
-  if (/shell|command|python|node\.run/.test(tool.toolId)) return '已运行 '
-  if (/fs|file/.test(tool.toolId)) return '已读取 '
+  if (/shell|command|python|node\.run|typescript/.test(tool.toolId)) return '已运行 '
   return '已调用 '
 }
 
@@ -362,8 +361,8 @@ function toolTitle(tool: ToolInvocationProjection): string {
   if (/shell|command/.test(tool.toolId)) return 'Shell'
   if (/python/.test(tool.toolId)) return 'Python'
   if (/node\.run/.test(tool.toolId)) return 'Node.js'
+  if (/typescript/.test(tool.toolId)) return 'TypeScript'
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
-  if (/fs|file/.test(tool.toolId)) return '文件'
   return '工具'
 }

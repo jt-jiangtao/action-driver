@@ -53,6 +53,37 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('shows tool preparation only while the model is preparing its call', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply(start())
+    projection.apply({
+      type: 'response.tool_preparing',
+      ...identity,
+      eventId: 'preparing-1',
+      cursor: 3,
+      sequence: 1,
+      index: 0,
+      modelName: 'shell_run'
+    })
+    expect(projection.snapshot()).toMatchObject({ preparingToolName: 'shell_run' })
+    projection.apply({
+      type: 'tool.proposed',
+      ...identity,
+      eventId: 'proposed-1',
+      cursor: 4,
+      sequence: 2,
+      callId: 'call-1',
+      callSequence: 0,
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
+      summary: '执行命令',
+      argumentsHash: 'hash',
+      activityId: null
+    })
+    expect(projection.snapshot()?.preparingToolName).toBeUndefined()
+  })
+
   it('preserves partial content and shows unknown tool outcome after Runtime interruption', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach({
@@ -451,8 +482,8 @@ describe('StreamTaskProjection', () => {
       sequence: 2,
       callId: 'call-first',
       callSequence: 1,
-      toolId: 'sandbox.fs.read',
-      modelName: 'sandbox_fs_read',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '读取 README',
       argumentsHash: '',
       activityId: 'first-tool'
@@ -497,8 +528,8 @@ describe('StreamTaskProjection', () => {
       sequence: 1,
       callId: 'call-cursor',
       callSequence: 3,
-      toolId: 'sandbox.fs.read',
-      modelName: 'sandbox_fs_read',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '已读取 README.md',
       argumentsHash: '',
       activityId: 'research',
@@ -521,8 +552,8 @@ describe('StreamTaskProjection', () => {
       cursor: 3,
       callId: 'call-standalone',
       callSequence: 2,
-      toolId: 'sandbox.fs.list',
-      modelName: 'sandbox_fs_list',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '访问文件 /',
       argumentsHash: '',
       activityId: null,
@@ -607,8 +638,8 @@ describe('StreamTaskProjection', () => {
       tools: [
         {
           callId: 'call-snapshot-activity',
-          toolId: 'sandbox.fs.read',
-          modelName: 'sandbox_fs_read',
+          toolId: 'local.shell.run',
+          modelName: 'shell_run',
           summary: '读取 README.md',
           argumentsHash: '',
           status: 'completed',

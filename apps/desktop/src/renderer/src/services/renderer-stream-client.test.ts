@@ -76,21 +76,43 @@ describe('RendererStreamClient', () => {
               })
               const events: StreamServerEvent[] = [
                 {
-                  type: 'response.start', ...common, eventId: 'start-property', cursor: 3,
-                  sequence: 1, model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+                  type: 'response.start',
+                  ...common,
+                  eventId: 'start-property',
+                  cursor: 3,
+                  sequence: 1,
+                  model: { connectionId: 'connection-1', modelId: 'gpt-real' }
                 },
                 {
-                  type: 'response.content', ...common, eventId: 'a-property', cursor: 5,
-                  sequence: 2, delta: 'A', contentIndex: 0
+                  type: 'response.content',
+                  ...common,
+                  eventId: 'a-property',
+                  cursor: 5,
+                  sequence: 2,
+                  delta: 'A',
+                  contentIndex: 0
                 },
                 {
-                  type: 'response.content', ...common, eventId: 'b-property', cursor: 7,
-                  sequence: 3, delta: 'B', contentIndex: 0
+                  type: 'response.content',
+                  ...common,
+                  eventId: 'b-property',
+                  cursor: 7,
+                  sequence: 3,
+                  delta: 'B',
+                  contentIndex: 0
                 },
                 {
-                  type: 'response.end', ...common, eventId: 'end-property', cursor: 9,
-                  sequence: 4, status: 'completed', content: 'AB', finishReason: 'stop',
-                  usage: null, durationMs: 1, error: null
+                  type: 'response.end',
+                  ...common,
+                  eventId: 'end-property',
+                  cursor: 9,
+                  sequence: 4,
+                  status: 'completed',
+                  content: 'AB',
+                  finishReason: 'stop',
+                  usage: null,
+                  durationMs: 1,
+                  error: null
                 }
               ]
               for (const sequence of order) send(socket, events[sequence - 1]!)
@@ -99,23 +121,30 @@ describe('RendererStreamClient', () => {
           })
           client = new RendererStreamClient({
             getConnection: async () => ({
-              wsUrl, protocol: 'actiondriver.stream.v2', accessToken: 'token'
+              wsUrl,
+              protocol: 'actiondriver.stream.v2',
+              accessToken: 'token'
             }),
             createWebSocket: (url, protocols) => new WebSocket(url, protocols),
             id: () => 'request-property'
           })
           const delivered: number[] = []
-          const ended = new Promise<void>((resolve) => client!.subscribe((event) => {
-            if ('sequence' in event) delivered.push(event.sequence)
-            if (event.type === 'response.end') resolve()
-          }))
+          const ended = new Promise<void>((resolve) =>
+            client!.subscribe((event) => {
+              if ('sequence' in event) delivered.push(event.sequence)
+              if (event.type === 'response.end') resolve()
+            })
+          )
           try {
             await client.create({
-              goal: 'property', model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+              goal: 'property',
+              model: { connectionId: 'connection-1', modelId: 'gpt-real' }
             })
             await Promise.race([
               ended,
-              new Promise((_, reject) => setTimeout(() => reject(new Error('sequence stalled')), 500))
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('sequence stalled')), 500)
+              )
             ])
             expect(delivered).toEqual([0, 1, 2, 3, 4])
           } finally {
@@ -352,8 +381,8 @@ describe('RendererStreamClient', () => {
             occurredAt: '2026-09-23T00:00:04.000Z',
             callId: 'call-order',
             callSequence: 3,
-            toolId: 'sandbox.fs.read',
-            modelName: 'sandbox_fs_read',
+            toolId: 'local.shell.run',
+            modelName: 'shell_run',
             summary: '读取文件',
             argumentsHash: '',
             activityId: 'activity-order',
@@ -508,6 +537,72 @@ describe('RendererStreamClient', () => {
       'activity.started:7',
       'activity.completed:8'
     ])
+  })
+
+  it('resumes a restored running request from its cursor and accepts later content', async () => {
+    const wsUrl = await listen()
+    const frames: Array<{ type: string; afterCursor?: number }> = []
+    server!.on('connection', (socket) => {
+      socket.on('message', (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; afterCursor?: number }
+        frames.push(frame)
+        if (frame.type === 'auth') {
+          send(socket, {
+            type: 'session.ready',
+            protocol: 'actiondriver.stream.v2',
+            eventId: 'ready-restored',
+            connectionId: 'connection-1',
+            capabilities: ['request.resume'],
+            occurredAt: '2026-09-23T00:00:00.000Z'
+          })
+        }
+        if (frame.type === 'request.resume') {
+          send(socket, {
+            type: 'response.content',
+            ...identity,
+            eventId: 'content-restored',
+            cursor: 6,
+            sequence: 3,
+            occurredAt: '2026-09-23T00:00:06.000Z',
+            delta: '继续',
+            contentIndex: 0
+          })
+        }
+      })
+    })
+    client = new RendererStreamClient({
+      getConnection: async () => ({
+        wsUrl,
+        protocol: 'actiondriver.stream.v2',
+        accessToken: 'token'
+      }),
+      createWebSocket: (url, protocols) => new WebSocket(url, protocols)
+    })
+    const content = new Promise<void>((resolve) =>
+      client!.subscribe((event) => {
+        if (event.type === 'response.content') resolve()
+      })
+    )
+    await client.watchExisting({
+      requestId: identity.requestId,
+      responseId: identity.responseId,
+      taskId: identity.taskId,
+      cursor: 5,
+      sequence: 2
+    })
+    await Promise.race([
+      content,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('restored content stalled')), 500)
+      )
+    ])
+    await client.cancel(identity.taskId)
+    expect(frames).toContainEqual(
+      expect.objectContaining({ type: 'request.resume', afterCursor: 5 })
+    )
+    await vi.waitFor(() =>
+      expect(frames).toContainEqual(expect.objectContaining({ type: 'request.cancel' }))
+    )
   })
 
   it('does not expose the launch token through authentication errors', async () => {

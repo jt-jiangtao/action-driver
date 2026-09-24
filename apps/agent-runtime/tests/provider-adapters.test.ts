@@ -8,7 +8,10 @@ import {
   RateLimitError
 } from 'openai'
 import {
-  HttpTransportError, type HttpRequest, type HttpResponse, type HttpTransport
+  HttpTransportError,
+  type HttpRequest,
+  type HttpResponse,
+  type HttpTransport
 } from '../src/model-connections/http-transport'
 import {
   ModelStreamError,
@@ -249,12 +252,12 @@ describe('OpenAI compatible adapter', () => {
                 {
                   index: 1,
                   id: 'provider-2',
-                  function: { name: 'sandbox_fs_list', arguments: '{"pa' }
+                  function: { name: 'shell_run', arguments: '{"pa' }
                 },
                 {
                   index: 0,
                   id: 'provider-1',
-                  function: { name: 'sandbox_fs_read', arguments: '{"pa' }
+                  function: { name: 'shell_run', arguments: '{"pa' }
                 }
               ]
             },
@@ -289,9 +292,9 @@ describe('OpenAI compatible adapter', () => {
       messages: [{ role: 'user', content: 'read files' }],
       tools: [
         {
-          id: 'sandbox.fs.read',
+          id: 'local.shell.run',
           version: 1,
-          modelName: 'sandbox_fs_read',
+          modelName: 'shell_run',
           description: 'Read a workspace file',
           inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
           risk: 'low',
@@ -310,7 +313,7 @@ describe('OpenAI compatible adapter', () => {
           {
             type: 'function',
             function: {
-              name: 'sandbox_fs_read',
+              name: 'shell_run',
               description: 'Read a workspace file',
               parameters: { type: 'object', properties: { path: { type: 'string' } } }
             }
@@ -321,6 +324,8 @@ describe('OpenAI compatible adapter', () => {
       expect.anything()
     )
     expect(events).toEqual([
+      { kind: 'tool-call-preparing', index: 1, modelName: 'shell_run' },
+      { kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' },
       expect.objectContaining({
         kind: 'end',
         result: {
@@ -328,12 +333,12 @@ describe('OpenAI compatible adapter', () => {
           calls: [
             {
               providerCallId: 'provider-1',
-              modelName: 'sandbox_fs_read',
+              modelName: 'shell_run',
               arguments: { path: 'README.md' }
             },
             {
               providerCallId: 'provider-2',
-              modelName: 'sandbox_fs_list',
+              modelName: 'shell_run',
               arguments: { path: 'src' }
             }
           ]
@@ -353,7 +358,7 @@ describe('OpenAI compatible adapter', () => {
                 {
                   index: 0,
                   id: 'provider-1',
-                  function: { name: 'sandbox_fs_read', arguments: '{invalid' }
+                  function: { name: 'shell_run', arguments: '{invalid' }
                 }
               ]
             },
@@ -378,6 +383,80 @@ describe('OpenAI compatible adapter', () => {
     }
 
     await expect(consume()).rejects.toMatchObject({ code: 'invalid-response' })
+  })
+
+  it('streams the recognized tool name before its arguments are complete without exposing arguments', async () => {
+    const sdk = openAiFactory([
+      chunk({
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'provider-1',
+                  function: {
+                    name: 'shell_run',
+                    arguments: '{"command":"secret'
+                  }
+                }
+              ]
+            },
+            finish_reason: null
+          }
+        ]
+      }),
+      chunk({
+        choices: [
+          {
+            index: 0,
+            delta: { tool_calls: [{ index: 0, function: { arguments: '"}' } }] },
+            finish_reason: 'tool_calls'
+          }
+        ]
+      })
+    ])
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory
+    )
+    const iterable = adapter.stream({
+      ...endpoint,
+      modelId: 'gpt-real',
+      messages: [{ role: 'user', content: 'run a command' }],
+      tools: [
+        {
+          id: 'local.shell.run',
+          version: 1,
+          modelName: 'shell_run',
+          description: 'Run command',
+          inputSchema: { type: 'object', properties: { command: { type: 'string' } } },
+          risk: 'high',
+          sideEffects: { filesystem: 'write', network: true },
+          timeoutMs: 10_000
+        }
+      ],
+      parameters: {}
+    })
+    const stream = iterable[Symbol.asyncIterator]()
+    const first = await stream.next()
+    expect(first.value).toEqual({ kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' })
+    expect(JSON.stringify(first.value)).not.toContain('secret')
+    const terminal = await stream.next()
+    expect(terminal.value).toMatchObject({
+      kind: 'end',
+      result: {
+        kind: 'tool-calls',
+        calls: [
+          {
+            providerCallId: 'provider-1',
+            modelName: 'shell_run',
+            arguments: { command: 'secret' }
+          }
+        ]
+      }
+    })
   })
 
   it.each([

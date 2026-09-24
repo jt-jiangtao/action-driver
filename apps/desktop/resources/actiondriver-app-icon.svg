@@ -9,7 +9,7 @@
   <rect x="140" y="126" width="974" height="974" rx="248" fill="#FFFFFF" filter="url(#tile-shadow)"/>
   <image
     x="280"
-    y="280"
+    y="256"
     width="694"
     height="694"
     preserveAspectRatio="xMidYMid meet"

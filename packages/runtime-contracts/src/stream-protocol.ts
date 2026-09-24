@@ -178,6 +178,15 @@ const responseContentEventSchema = z
   })
   .strict()
 
+const responseToolPreparingEventSchema = z
+  .object({
+    type: z.literal('response.tool_preparing'),
+    ...streamIdentity,
+    index: z.number().int().nonnegative(),
+    modelName: idSchema
+  })
+  .strict()
+
 const responseEndEventSchema = z
   .object({
     type: z.literal('response.end'),
@@ -289,6 +298,7 @@ const responseSnapshotEventSchema = z
       )
       .optional(),
     durationMs: z.number().nonnegative().optional(),
+    preparingToolName: idSchema.optional(),
     error: streamErrorSchema.nullable()
   })
   .strict()
@@ -393,6 +403,7 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   requestErrorEventSchema,
   responseStartEventSchema,
   responseContentEventSchema,
+  responseToolPreparingEventSchema,
   responseEndEventSchema,
   runtimeInterruptedEventSchema,
   responseSnapshotEventSchema,
@@ -408,7 +419,11 @@ export type ResponseStartEvent = z.infer<typeof responseStartEventSchema>
 export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
-export type StreamResponseEvent = ResponseStartEvent | ResponseContentEvent | ResponseEndEvent
+export type StreamResponseEvent =
+  | ResponseStartEvent
+  | ResponseContentEvent
+  | z.infer<typeof responseToolPreparingEventSchema>
+  | ResponseEndEvent
 export type ActivityStreamEvent = Extract<StreamServerEvent, { type: `activity.${string}` }>
 export type ToolStreamEvent = Extract<StreamServerEvent, { type: `tool.${string}` }>
 

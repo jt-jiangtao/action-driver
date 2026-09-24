@@ -5,6 +5,7 @@ import {
   AgentFilePathError,
   type AgentFilesService,
   type CreateAgentSkillInput,
+  type InstallSkillInput,
   type SaveAgentFileInput
 } from '../models/agent-files'
 
@@ -57,6 +58,14 @@ export class DesktopAgentFilesService implements AgentFilesService {
   createSkill(input: CreateAgentSkillInput) {
     return call(() => this.api.createSkill(input))
   }
+
+  installSkill(input: InstallSkillInput) {
+    return call(() => this.api.installSkill(input))
+  }
+
+  chooseLocalSkillFolder() { return window.actionDriverDesktop.skillFolders.choose() }
+  browseSkillDirectory() { return window.actionDriverDesktop.skillFolders.browse() }
+  revealSkillFolder(skillId: string) { return window.actionDriverDesktop.skillFolders.reveal(skillId) }
 
   renameSkill(skillId: string, name: string) {
     return call(() => this.api.renameSkill(skillId, name))

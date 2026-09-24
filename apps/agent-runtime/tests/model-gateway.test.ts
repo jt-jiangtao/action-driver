@@ -268,6 +268,51 @@ describe('ModelGateway boundary', () => {
     })
   })
 
+  it('forwards tool preparation before the terminal without recording partial arguments', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('unexpected complete')
+      },
+      async *stream() {
+        yield { kind: 'tool-call-preparing' as const, index: 0, modelName: 'shell_run' }
+        await gate
+        yield {
+          kind: 'end' as const,
+          result: {
+            kind: 'tool-calls' as const,
+            calls: [
+              {
+                providerCallId: 'call-1',
+                modelName: 'shell_run',
+                arguments: { command: 'secret' }
+              }
+            ]
+          },
+          content: '',
+          finishReason: 'tool_calls',
+          usage: null,
+          requestBody: { model: 'gpt-real' },
+          responseBody: { toolCalls: [] },
+          status: 200
+        }
+      }
+    }
+    const { gateway, interactions } = createGateway(service)
+    const stream = gateway.stream(realRequest)[Symbol.asyncIterator]()
+    expect((await stream.next()).value).toEqual({
+      kind: 'tool-call-preparing',
+      index: 0,
+      modelName: 'shell_run'
+    })
+    release()
+    expect((await stream.next()).value).toMatchObject({ kind: 'end' })
+    expect((await interactions.list({ limit: 20 })).records).toHaveLength(1)
+  })
+
   it('forwards a streamed tool-call terminal without turning it into assistant text', async () => {
     const stream = vi.fn(async function* (): AsyncIterable<ModelCompletionEvent> {
       yield {
@@ -277,7 +322,7 @@ describe('ModelGateway boundary', () => {
           calls: [
             {
               providerCallId: 'provider-call-1',
-              modelName: 'sandbox_fs_read',
+              modelName: 'shell_run',
               arguments: { path: 'README.md' }
             }
           ]

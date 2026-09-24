@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import Editor from '@monaco-editor/react'
+import { lazy, Suspense, useState } from 'react'
 import { AppIcon } from '../ui/AppIcon'
 import { e2eId } from '../../testing/e2e-id'
 import { MarkdownVisualEditor } from './MarkdownVisualEditor'
+
+const LocalSourceEditor = lazy(() => import('./LocalSourceEditor'))
 
 export type EditorSaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
@@ -91,25 +92,9 @@ export function AgentMarkdownEditor({
             'editor-id': editorId
           })}
         >
-          <Editor
-            language="markdown"
-            value={value}
-            onChange={(nextValue) => onChange(nextValue ?? '')}
-            options={{
-              automaticLayout: true,
-              ariaLabel: `${ariaLabel} 源码`,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              fontSize: 13,
-              lineHeight: 22,
-              lineNumbers: 'on',
-              minimap: { enabled: false },
-              padding: { top: 20, bottom: 24 },
-              renderLineHighlight: 'line',
-              scrollBeyondLastLine: false,
-              wordWrap: 'on'
-            }}
-            theme="vs"
-          />
+          <Suspense fallback={<div className="agent-monaco-loading">正在加载源码编辑器…</div>}>
+            <LocalSourceEditor value={value} onChange={onChange} ariaLabel={ariaLabel} />
+          </Suspense>
         </div>
       ) : (
         <MarkdownVisualEditor

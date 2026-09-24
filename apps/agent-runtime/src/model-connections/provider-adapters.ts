@@ -193,6 +193,8 @@ export function createOpenAiCompatibleAdapter(
         number,
         { providerCallId: string; modelName: string; argumentsText: string }
       >()
+      const knownToolNames = new Set(tools.map((tool) => tool.modelName))
+      const preparingToolIndexes = new Set<number>()
       try {
         for await (const chunk of stream) {
           const choice = chunk.choices[0]
@@ -213,6 +215,18 @@ export function createOpenAiCompatibleAdapter(
               current.argumentsText += toolCall.function.arguments
             }
             pendingToolCalls.set(toolCall.index, current)
+            if (
+              !choice?.finish_reason &&
+              knownToolNames.has(current.modelName) &&
+              !preparingToolIndexes.has(toolCall.index)
+            ) {
+              preparingToolIndexes.add(toolCall.index)
+              yield {
+                kind: 'tool-call-preparing',
+                index: toolCall.index,
+                modelName: current.modelName
+              }
+            }
           }
           if (choice?.finish_reason) finishReason = choice.finish_reason
           if (chunk.usage) {

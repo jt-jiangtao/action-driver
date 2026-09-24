@@ -28,6 +28,7 @@ import { attachLocalCapabilityService } from './local-capability-service'
 import type { RuntimeSkillRegistry } from '../skill-registry'
 import { AgentFileStoreError } from '../agent-files/agent-file-store'
 import type { AgentFileStore } from '../agent-files/agent-file-store'
+import type { SkillInstaller } from '../agent-files/skill-installer'
 import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
 
 export type { ServiceStreamSessionPort } from './websocket-service'
@@ -49,6 +50,7 @@ export type ServiceModelConnectionPort = {
 export type ServiceHttpOptions = {
   service: ServiceModelConnectionPort
   agentFiles?: AgentFileStore
+  skillInstaller?: SkillInstaller
   taskControl?: { execute(command: string, input: unknown): Promise<unknown> }
   token: string
   runtimeVersion: string
@@ -93,6 +95,10 @@ const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
 const enabledSchema = z.object({ enabled: z.boolean() }).strict()
 const saveAgentFileSchema = z.object({ path: id, content: z.string(), expectedDigest: id }).strict()
 const createAgentSkillSchema = z.object({ name: id, description: z.string() }).strict()
+const installSkillSchema = z.discriminatedUnion('source', [
+  z.object({ source: z.literal('local'), path: id }).strict(),
+  z.object({ source: z.literal('github'), url: z.url() }).strict()
+])
 const renameAgentSkillSchema = z.object({ name: id }).strict()
 const resetPromptSchema = z.object({ expectedDigest: id }).strict()
 const taskInputSchema = z.object({ value: z.unknown() }).strict()
@@ -304,6 +310,10 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       context.json(success(await files.resetMainPrompt(context.req.valid('json').expectedDigest))))
     app.get('/agent-files/skills', async (context) =>
       context.json(success(await files.listSkills())))
+    if (options.skillInstaller) {
+      app.post('/agent-files/skills/install', validate(installSkillSchema), async (context) =>
+        context.json(success(await options.skillInstaller!.installSkill(context.req.valid('json')))))
+    }
     app.get('/agent-files/skills/:skillId/tree', async (context) =>
       context.json(success(await files.getSkillTree(context.req.param('skillId')))))
     app.post('/agent-files/skills', validate(createAgentSkillSchema), async (context) =>

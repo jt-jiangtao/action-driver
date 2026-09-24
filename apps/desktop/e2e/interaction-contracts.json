@@ -315,7 +315,17 @@
     "target": "e2e/shared/sidebar/collapse#button",
     "route": "shared",
     "type": "button",
-    "coverage": "visual-only"
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "hides and restores the sidebar on home without losing the draft"
+  },
+  {
+    "target": "e2e/shared/sidebar/restore#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "restores the sidebar from the browser-only task view without changing layout"
   },
   {
     "target": "e2e/shared/sidebar/mcp#button",
@@ -756,5 +766,77 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
     "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/browse#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/add#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/add-github#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/add-local#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/detail/toggle#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
+  },
+  {
+    "target": "e2e/settings/skills/detail/reveal#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/detail/copy#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
+  },
+  {
+    "target": "e2e/settings/skills/detail/uninstall#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "shows uninstall for a personal Skill in the detail footer"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/github-url#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
   }
 ]

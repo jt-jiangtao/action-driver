@@ -9,9 +9,9 @@ const executor: ToolExecutor = {
 }
 
 const readTool: ToolDefinition = {
-  id: 'sandbox.fs.read',
+  id: 'local.shell.run',
   version: 1,
-  modelName: 'sandbox_fs_read',
+  modelName: 'shell_run',
   description: 'Read a workspace file',
   inputSchema: {
     type: 'object',
@@ -29,8 +29,8 @@ describe('RuntimeToolRegistry', () => {
     const registry = new RuntimeToolRegistry()
     registry.register(readTool, executor)
 
-    expect(registry.resolveModelName('sandbox_fs_read')).toEqual({ definition: readTool, executor })
-    expect(registry.resolve('sandbox.fs.read', 1)).toEqual({ definition: readTool, executor })
+    expect(registry.resolveModelName('shell_run')).toEqual({ definition: readTool, executor })
+    expect(registry.resolve('local.shell.run', 1)).toEqual({ definition: readTool, executor })
   })
 
   it('rejects duplicate model names without replacing the first registration', () => {
@@ -39,7 +39,7 @@ describe('RuntimeToolRegistry', () => {
 
     expect(() =>
       registry.register(
-        { ...readTool, id: 'sandbox.fs.list', modelName: readTool.modelName },
+        { ...readTool, id: 'local.node.run', modelName: readTool.modelName },
         executor
       )
     ).toThrow('TOOL_MODEL_NAME_CONFLICT')

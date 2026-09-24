@@ -128,6 +128,9 @@ export interface TaskProjection {
   activityTimeline?: TaskTimelineProjectionItem[]
   activityStartedAt?: string
   activityDurationMs?: number | undefined
+  preparingToolName?: string
+  streamRequestId?: string
+  streamResponseId?: string
   priorActivityTurns?: PriorActivityTurnProjection[]
   streamCursor?: number
   streamSequence?: number

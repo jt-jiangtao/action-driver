@@ -8,12 +8,17 @@ import type {
 } from '@actiondriver/model-connections'
 import type {
   AgentFileNodeDto, AgentSkillSummaryDto, AgentTextFileDto, CreateAgentSkillDto,
-  SaveAgentFileDto
+  SaveAgentFileDto, InstallSkillInput
 } from '@actiondriver/runtime-contracts'
 import {
   RUNTIME_CONNECTION_IPC_CHANNEL,
   type RuntimeConnectionDesktopApi, type RuntimeConnectionInfo
 } from '../shared/runtime-connection-contract'
+import {
+  SKILL_FOLDER_BROWSE_CHANNEL,
+  SKILL_FOLDER_CHOOSE_CHANNEL,
+  SKILL_FOLDER_REVEAL_CHANNEL
+} from '../shared/skill-folder-contract'
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
@@ -50,6 +55,7 @@ export interface AgentFilesDesktopApi {
   readFile(path: string): Promise<AgentTextFileDto>
   saveFile(input: SaveAgentFileDto): Promise<AgentTextFileDto>
   createSkill(input: CreateAgentSkillDto): Promise<AgentSkillSummaryDto>
+  installSkill(input: InstallSkillInput): Promise<AgentSkillSummaryDto>
   renameSkill(skillId: string, name: string): Promise<AgentSkillSummaryDto>
   deleteSkill(skillId: string): Promise<void>
   setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummaryDto>
@@ -59,6 +65,11 @@ export interface AgentFilesDesktopApi {
 export interface DesktopApi {
   getEnvironment(): { platform: NodeJS.Platform; version: string }
   runtimeConnection: RuntimeConnectionDesktopApi
+  skillFolders: {
+    choose(): Promise<string | null>
+    browse(): Promise<void>
+    reveal(skillId: string): Promise<void>
+  }
 }
 
 export function createDesktopApi(
@@ -70,6 +81,11 @@ export function createDesktopApi(
     getEnvironment: () => ({ platform, version }),
     runtimeConnection: {
       get: async () => await ipc.invoke(RUNTIME_CONNECTION_IPC_CHANNEL, {}) as RuntimeConnectionInfo
+    },
+    skillFolders: {
+      choose: async () => await ipc.invoke(SKILL_FOLDER_CHOOSE_CHANNEL, {}) as string | null,
+      browse: async () => { await ipc.invoke(SKILL_FOLDER_BROWSE_CHANNEL, {}) },
+      reveal: async (skillId) => { await ipc.invoke(SKILL_FOLDER_REVEAL_CHANNEL, { skillId }) }
     }
   }
 }

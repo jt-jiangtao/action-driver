@@ -1,21 +1,30 @@
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
+import { SidebarRestoreButton } from '../navigation/SidebarRestoreButton'
 
 export function TaskHeader({
   title,
+  sidebarCollapsed = false,
+  onExpandSidebar,
   browserCollapsed,
   onExpandBrowser
 }: {
   title: string
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: (() => void) | undefined
   browserCollapsed: boolean
   onExpandBrowser(): void
 }) {
   return (
-    <header className="task-header">
+    <header className={`task-header${sidebarCollapsed ? ' has-sidebar-restore' : ''}`}>
+      {sidebarCollapsed && onExpandSidebar ? (
+        <SidebarRestoreButton onClick={onExpandSidebar} />
+      ) : null}
       <AppIcon name="folder" />
       <strong>{title}</strong>
       {browserCollapsed ? (
         <IconButton
+          className="task-browser-expand"
           icon="panel-right"
           aria-label="展开浏览器"
           onClick={onExpandBrowser}

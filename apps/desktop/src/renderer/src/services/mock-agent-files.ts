@@ -6,11 +6,14 @@ import {
   type AgentSkillSummary,
   type AgentTextFile,
   type CreateAgentSkillInput,
+  type InstallSkillInput,
   type SaveAgentFileInput
 } from '../models/agent-files'
 
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_ROOT = '.action-driver/skills/'
+const skillRoot = (skill: AgentSkillSummary): string =>
+  `${SKILLS_ROOT}${skill.source === 'builtin' ? '.system/' : ''}${skill.id}`
 const DEFAULT_MAIN_PROMPT = `# ActionDriver 主提示词
 
 你是 ActionDriver 的执行助手。你的职责是准确理解用户目标，在当前可用能力范围内完成任务，并返回可验证的结果。
@@ -50,6 +53,7 @@ function assertManagedPath(path: string): void {
 const builtInSkills: AgentSkillSummary[] = [
   {
     id: 'browser-tools',
+    source: 'builtin',
     name: 'browser-tools',
     description: '通过浏览器搜索、读取并整理网页信息。',
     enabled: true,
@@ -60,24 +64,50 @@ const builtInSkills: AgentSkillSummary[] = [
     modifiedAt: '2026-09-20T09:30:00.000Z'
   },
   {
+    id: 'computer-tools',
+    source: 'builtin',
+    name: 'computer-tools',
+    description: '操作桌面应用并完成本地交互。',
+    enabled: true,
+    available: true,
+    executorId: 'computer-use',
+    unavailableReason: null,
+    protected: true,
+    modifiedAt: '2026-09-20T09:30:00.000Z'
+  },
+  {
     id: 'report-writer',
+    source: 'builtin',
     name: 'report-writer',
     description: '将任务结果组织为结构化 Markdown 报告。',
     enabled: true,
     available: true,
     executorId: 'report-use',
     unavailableReason: null,
-    protected: false,
+    protected: true,
     modifiedAt: '2026-09-19T14:18:00.000Z'
   },
   {
+    id: 'skill-creator',
+    source: 'builtin',
+    name: 'Skill Creator',
+    description: '创建可复用的 Skill，并从本地文件夹安装。',
+    enabled: true,
+    available: true,
+    executorId: null,
+    unavailableReason: null,
+    protected: true,
+    modifiedAt: '2026-09-20T09:30:00.000Z'
+  },
+  {
     id: 'data-inspector',
+    source: 'local',
     name: 'data-inspector',
     description: '检查本地数据文件并输出质量摘要。',
     enabled: false,
-    available: false,
+    available: true,
     executorId: null,
-    unavailableReason: 'missing-executor',
+    unavailableReason: null,
     protected: false,
     modifiedAt: '2026-09-17T08:42:00.000Z'
   }
@@ -97,14 +127,14 @@ export class MockAgentFilesService implements AgentFilesService {
     ...builtInSkills.flatMap(
       (skill): Array<[string, StoredFile]> => [
         [
-          `${SKILLS_ROOT}${skill.id}/SKILL.md`,
+          `${skillRoot(skill)}/SKILL.md`,
           {
             content: `# ${skill.name}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。`,
             modifiedAt: skill.modifiedAt
           }
         ],
         [
-          `${SKILLS_ROOT}${skill.id}/references/README.md`,
+          `${skillRoot(skill)}/references/README.md`,
           {
             content: `# ${skill.name} references\n\n在这里放置该 Skill 使用的参考资料。`,
             modifiedAt: skill.modifiedAt
@@ -131,22 +161,30 @@ export class MockAgentFilesService implements AgentFilesService {
   }
 
   async getSkillTree(skillId: string): Promise<AgentFileNode[]> {
-    this.getSkill(skillId)
-    return [
-      { name: 'SKILL.md', path: `${SKILLS_ROOT}${skillId}/SKILL.md`, kind: 'file' },
+    const root = skillRoot(this.getSkill(skillId))
+    const nodes: AgentFileNode[] = [
+      { name: 'SKILL.md', path: `${root}/SKILL.md`, kind: 'file' },
       {
         name: 'references',
-        path: `${SKILLS_ROOT}${skillId}/references`,
+        path: `${root}/references`,
         kind: 'directory',
         children: [
           {
             name: 'README.md',
-            path: `${SKILLS_ROOT}${skillId}/references/README.md`,
+            path: `${root}/references/README.md`,
             kind: 'file'
           }
         ]
       }
     ]
+    if (skillId === 'skill-creator') {
+      nodes.push({
+        name: 'assets', path: `${root}/assets`, kind: 'directory', children: [
+          { name: 'skill-creator.png', path: `${root}/assets/skill-creator.png`, kind: 'file' }
+        ]
+      })
+    }
+    return nodes
   }
 
   async readFile(path: string): Promise<AgentTextFile> {
@@ -162,6 +200,7 @@ export class MockAgentFilesService implements AgentFilesService {
   }
 
   async saveFile(input: SaveAgentFileInput): Promise<AgentTextFile> {
+    if (input.path.startsWith(`${SKILLS_ROOT}.system/`)) throw new AgentFilePathError()
     const current = await this.readFile(input.path)
     if (current.digest !== input.expectedDigest) throw new AgentFileConflictError()
     this.files.set(input.path, { content: input.content, modifiedAt: now() })
@@ -178,11 +217,12 @@ export class MockAgentFilesService implements AgentFilesService {
     }
     const skill: AgentSkillSummary = {
       id,
+      source: 'local',
       name: id,
       description: input.description.trim() || '暂无描述',
       enabled: true,
       available: true,
-      executorId: 'mock-custom-use',
+      executorId: null,
       unavailableReason: null,
       protected: false,
       modifiedAt: now()
@@ -198,6 +238,19 @@ export class MockAgentFilesService implements AgentFilesService {
     })
     return { ...skill }
   }
+
+  async installSkill(input: InstallSkillInput): Promise<AgentSkillSummary> {
+    const value = input.source === 'local' ? input.path : new URL(input.url).pathname
+    const name = value.split('/').filter(Boolean).at(-1) ?? ''
+    const created = await this.createSkill({ name, description: `从${input.source === 'local' ? '本地' : 'GitHub'}安装的 Skill` })
+    const stored = this.getSkill(created.id)
+    stored.source = input.source
+    return { ...stored }
+  }
+
+  async chooseLocalSkillFolder(): Promise<string | null> { return null }
+  async browseSkillDirectory(): Promise<void> {}
+  async revealSkillFolder(skillId: string): Promise<void> { this.getSkill(skillId) }
 
   async renameSkill(skillId: string, name: string): Promise<AgentSkillSummary> {
     const skill = this.getSkill(skillId)

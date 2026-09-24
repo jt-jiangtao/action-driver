@@ -1,5 +1,6 @@
 import { ActionDriverLogo } from '../components/ActionDriverLogo'
 import { AgentComposer } from '../components/AgentComposer'
+import { SidebarRestoreButton } from '../components/navigation/SidebarRestoreButton'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 
@@ -7,16 +8,23 @@ export function HomePage({
   modelSelection,
   onSelectModel,
   onSubmit,
-  onRetryModels
+  onRetryModels,
+  sidebarCollapsed = false,
+  onExpandSidebar
 }: {
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
   onSubmit(goal: string): void
   onRetryModels?(): void
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: (() => void) | undefined
 }) {
   return (
     <main className="home-page">
       <header className="home-topbar">
+        {sidebarCollapsed && onExpandSidebar ? (
+          <SidebarRestoreButton onClick={onExpandSidebar} />
+        ) : null}
       </header>
       <div className="home-body">
         <section className="home-hero">
@@ -43,7 +51,9 @@ export function HomePage({
             </div>
           ) : null}
           {modelSelection.state === 'empty' ? (
-            <div className="model-selection-notice" role="status">请先在设置中添加可用模型</div>
+            <div className="model-selection-notice" role="status">
+              请先在设置中添加可用模型
+            </div>
           ) : null}
           <AgentComposer
             modelSelection={modelSelection}

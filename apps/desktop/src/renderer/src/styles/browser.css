@@ -38,6 +38,10 @@
 .browser-tabbar button {
   -webkit-app-region: no-drag;
 }
+.browser-tabbar.has-sidebar-restore {
+  gap: 10px;
+  padding-left: 88px;
+}
 .browser-tab {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) 16px;

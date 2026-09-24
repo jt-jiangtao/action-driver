@@ -1,5 +1,5 @@
 import { cp, mkdir } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 import { join } from 'node:path'
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url))

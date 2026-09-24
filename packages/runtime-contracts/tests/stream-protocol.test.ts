@@ -53,6 +53,31 @@ describe('agent stream protocol', () => {
     })
   })
 
+  it('accepts a persisted tool preparation event without raw arguments', () => {
+    const event = parseStreamServerEvent({
+      type: 'response.tool_preparing',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'event-preparing',
+      cursor: 3,
+      sequence: 2,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt,
+      index: 0,
+      modelName: 'shell_run'
+    })
+    expect(event).toMatchObject({
+      type: 'response.tool_preparing',
+      index: 0,
+      modelName: 'shell_run'
+    })
+    expect(() => parseStreamServerEvent({ ...event, arguments: '{"command":"secret"}' })).toThrow()
+  })
+
   it('accepts create, cancel, and resume client commands', () => {
     expect(
       parseStreamClientEvent({

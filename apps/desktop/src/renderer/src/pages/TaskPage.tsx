@@ -12,6 +12,8 @@ import type { ModelRef } from '@actiondriver/contracts'
 export function TaskPage({
   mode,
   task,
+  sidebarCollapsed = false,
+  onExpandSidebar,
   modelSelection,
   onSelectModel,
   onModeChange,
@@ -23,6 +25,8 @@ export function TaskPage({
 }: {
   mode: TaskLayoutMode
   task: TaskProjection
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: (() => void) | undefined
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
   onModeChange(mode: TaskLayoutMode): void
@@ -66,7 +70,8 @@ export function TaskPage({
     }
   }
   const precedingMessages = task.messages.slice(0, Math.max(0, currentUserIndex))
-  const precedingTurns: Array<{ user: AgentMessageProjection; replies: AgentMessageProjection[] }> = []
+  const precedingTurns: Array<{ user: AgentMessageProjection; replies: AgentMessageProjection[] }> =
+    []
   for (const message of precedingMessages) {
     if (message.role === 'user') precedingTurns.push({ user: message, replies: [] })
     else precedingTurns.at(-1)?.replies.push(message)
@@ -100,6 +105,8 @@ export function TaskPage({
       >
         <TaskHeader
           title={task.title}
+          sidebarCollapsed={sidebarCollapsed && agentWidth !== 0}
+          onExpandSidebar={onExpandSidebar}
           browserCollapsed={hasBrowser && mode === 'browser-collapsed'}
           onExpandBrowser={() => onModeChange('split')}
         />
@@ -160,6 +167,8 @@ export function TaskPage({
           {task.browser ? (
             <BrowserPanel
               mode={mode === 'browser-expanded' ? 'browser-expanded' : 'split'}
+              sidebarCollapsed={sidebarCollapsed}
+              onExpandSidebar={onExpandSidebar}
               projection={task.browser}
               onModeChange={onModeChange}
               onPause={onPause}

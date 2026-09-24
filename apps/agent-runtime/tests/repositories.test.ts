@@ -47,40 +47,88 @@ describe('SQLite runtime repositories', () => {
   it('recovers an orphan request once without discarding partial text or retrying a running tool', async () => {
     const repositories = createRepositories()
     const request: PersistedStreamRequest = {
-      requestId: 'request-restart', idempotencyKey: 'key-restart', sessionId: task.sessionId,
-      taskId: task.id, responseId: 'response-restart', streamId: 'stream-restart',
-      messageId: 'assistant-restart', status: 'running', lastSequence: -1,
-      createdAt: task.createdAt, updatedAt: task.updatedAt
+      requestId: 'request-restart',
+      idempotencyKey: 'key-restart',
+      sessionId: task.sessionId,
+      taskId: task.id,
+      responseId: 'response-restart',
+      streamId: 'stream-restart',
+      messageId: 'assistant-restart',
+      status: 'running',
+      lastSequence: -1,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
     }
     await repositories.createStreamTask({
-      request, task,
-      userMessage: { id: 'user-restart', taskId: task.id, role: 'user',
-        content: { text: 'goal' }, createdAt: task.createdAt },
-      assistantMessage: { id: request.messageId, taskId: task.id, role: 'assistant',
-        content: { text: 'partial answer' }, createdAt: task.createdAt },
+      request,
+      task,
+      userMessage: {
+        id: 'user-restart',
+        taskId: task.id,
+        role: 'user',
+        content: { text: 'goal' },
+        createdAt: task.createdAt
+      },
+      assistantMessage: {
+        id: request.messageId,
+        taskId: task.id,
+        role: 'assistant',
+        content: { text: 'partial answer' },
+        createdAt: task.createdAt
+      },
       acceptedEvent: {
-        taskId: task.id, threadId: task.sessionId, checkpointId: request.responseId,
-        eventKey: 'request.accepted', type: 'request.accepted', payload: {},
-        occurredAt: task.createdAt, eventId: 'accepted-restart', requestId: request.requestId,
-        responseId: request.responseId, streamId: request.streamId,
-        messageId: request.messageId, sequence: null
+        taskId: task.id,
+        threadId: task.sessionId,
+        checkpointId: request.responseId,
+        eventKey: 'request.accepted',
+        type: 'request.accepted',
+        payload: {},
+        occurredAt: task.createdAt,
+        eventId: 'accepted-restart',
+        requestId: request.requestId,
+        responseId: request.responseId,
+        streamId: request.streamId,
+        messageId: request.messageId,
+        sequence: null
       }
     })
     await repositories.toolInvocations.save({
-      id: 'tool-restart', providerCallId: 'provider-restart', taskId: task.id,
-      toolId: 'sandbox.shell.run', toolVersion: 1, argumentsHash: 'hash', decision: 'allow',
-      status: 'running', input: { command: 'touch marker' }, output: null, error: null,
-      createdAt: task.createdAt, updatedAt: task.updatedAt
+      id: 'tool-restart',
+      providerCallId: 'provider-restart',
+      taskId: task.id,
+      toolId: 'sandbox.shell.run',
+      toolVersion: 1,
+      argumentsHash: 'hash',
+      decision: 'allow',
+      status: 'running',
+      input: { command: 'touch marker' },
+      output: null,
+      error: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
     })
     await repositories.events.append({
-      taskId: task.id, threadId: task.sessionId, checkpointId: request.responseId,
-      eventKey: 'tool.running:tool-restart', type: 'tool.running',
-      payload: { callId: 'tool-restart', toolId: 'sandbox.shell.run',
-        modelName: 'sandbox_shell_run', summary: 'touch marker', argumentsHash: 'hash',
-        activityId: null, callSequence: 0 }, occurredAt: task.createdAt,
-      eventId: 'tool-running-restart', requestId: request.requestId,
-      responseId: request.responseId, streamId: request.streamId,
-      messageId: request.messageId, sequence: null
+      taskId: task.id,
+      threadId: task.sessionId,
+      checkpointId: request.responseId,
+      eventKey: 'tool.running:tool-restart',
+      type: 'tool.running',
+      payload: {
+        callId: 'tool-restart',
+        toolId: 'sandbox.shell.run',
+        modelName: 'sandbox_shell_run',
+        summary: 'touch marker',
+        argumentsHash: 'hash',
+        activityId: null,
+        callSequence: 0
+      },
+      occurredAt: task.createdAt,
+      eventId: 'tool-running-restart',
+      requestId: request.requestId,
+      responseId: request.responseId,
+      streamId: request.streamId,
+      messageId: request.messageId,
+      sequence: null
     })
 
     const first = await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
@@ -88,8 +136,12 @@ describe('SQLite runtime repositories', () => {
     expect(first.map((event) => event.type)).toEqual(['tool.unknown', 'runtime.interrupted'])
     expect(second).toEqual([])
     expect((await repositories.tasks.get(task.id))?.status).toBe('failed')
-    expect((await repositories.streamRequests.getByRequestId(request.requestId))?.lastSequence).toBe(3)
-    expect((await repositories.messages.listByTask(task.id)).at(-1)?.content).toEqual({ text: 'partial answer' })
+    expect(
+      (await repositories.streamRequests.getByRequestId(request.requestId))?.lastSequence
+    ).toBe(3)
+    expect((await repositories.messages.listByTask(task.id)).at(-1)?.content).toEqual({
+      text: 'partial answer'
+    })
     expect((await repositories.toolInvocations.listByTask(task.id))[0]?.status).toBe('unknown')
     const service = new StreamSessionService({
       repositories,
@@ -98,12 +150,24 @@ describe('SQLite runtime repositories', () => {
       now: () => task.updatedAt
     })
     const replayed: string[] = []
-    await service.handle({
-      type: 'request.resume', protocol: 'actiondriver.stream.v2', eventId: 'resume-restart',
-      createdAt: task.updatedAt, requestId: request.requestId, afterCursor: 0
-    }, (event) => { replayed.push(event.type) })
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: 'actiondriver.stream.v2',
+        eventId: 'resume-restart',
+        createdAt: task.updatedAt,
+        requestId: request.requestId,
+        afterCursor: 0
+      },
+      (event) => {
+        replayed.push(event.type)
+      }
+    )
     expect(replayed).toEqual([
-      'request.accepted', 'tool.running', 'tool.unknown', 'runtime.interrupted'
+      'request.accepted',
+      'tool.running',
+      'tool.unknown',
+      'runtime.interrupted'
     ])
     repositories.close()
   })
@@ -126,7 +190,12 @@ describe('SQLite runtime repositories', () => {
       }
       await repositories.createStreamTask({
         request,
-        task: { ...task, id: request.taskId, threadId: request.taskId, sessionId: request.sessionId },
+        task: {
+          ...task,
+          id: request.taskId,
+          threadId: request.taskId,
+          sessionId: request.sessionId
+        },
         userMessage: {
           id: `user-${id}`,
           taskId: request.taskId,
@@ -176,12 +245,12 @@ describe('SQLite runtime repositories', () => {
       })
     }
     const events = await repositories.events.listAfter(0)
-    expect(events.filter((event) => event.requestId === 'a').map((event) => event.sequence)).toEqual([
-      0, 1, 2
-    ])
-    expect(events.filter((event) => event.requestId === 'b').map((event) => event.sequence)).toEqual([
-      0, 1, 2
-    ])
+    expect(
+      events.filter((event) => event.requestId === 'a').map((event) => event.sequence)
+    ).toEqual([0, 1, 2])
+    expect(
+      events.filter((event) => event.requestId === 'b').map((event) => event.sequence)
+    ).toEqual([0, 1, 2])
     expect((await repositories.streamRequests.getByRequestId('a'))?.lastSequence).toBe(2)
     repositories.close()
   })
@@ -305,7 +374,7 @@ describe('SQLite runtime repositories', () => {
       id: 'call-atomic',
       providerCallId: 'provider-atomic',
       taskId: task.id,
-      toolId: 'sandbox.fs.read',
+      toolId: 'local.shell.run',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -526,7 +595,7 @@ describe('SQLite runtime repositories', () => {
       id: 'call-1',
       providerCallId: 'provider-call-1',
       taskId: task.id,
-      toolId: 'sandbox.fs.read',
+      toolId: 'local.shell.run',
       toolVersion: 1,
       argumentsHash: 'sha256:test',
       decision: 'allow',

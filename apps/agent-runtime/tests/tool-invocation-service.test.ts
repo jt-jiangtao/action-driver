@@ -18,9 +18,9 @@ import {
 } from '../src/index'
 
 const readDefinition: ToolDefinition = {
-  id: 'sandbox.fs.read',
+  id: 'local.shell.run',
   version: 1,
-  modelName: 'sandbox_fs_read',
+  modelName: 'shell_run',
   description: 'Read one workspace file',
   inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
   risk: 'low',
@@ -55,7 +55,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(readDefinition, executor)
     const events = await collect(
-      fixture.service.execute(readCall(), context(['sandbox.fs.read@1']))
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
     )
 
     expect(events.map((event) => event.type)).toEqual([
@@ -83,7 +83,7 @@ describe('ToolInvocationService', () => {
     const logs = await fixture.interactionStore.list({ limit: 20 })
     expect(logs.records).toHaveLength(1)
     expect(logs.records[0]).toMatchObject({
-      operation: 'sandbox.fs.read',
+      operation: 'local.shell.run',
       outcome: 'ok',
       taskId: 'task-1'
     })
@@ -139,7 +139,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(definition, { execute })
     const invalid = { ...readCall(), arguments: { unexpected: true } }
-    const events = await collect(fixture.service.execute(invalid, context(['sandbox.fs.read@1'])))
+    const events = await collect(fixture.service.execute(invalid, context(['local.shell.run@1'])))
     expect(execute).not.toHaveBeenCalled()
     expect(events.at(-1)).toMatchObject({
       type: 'tool.failed',
@@ -158,18 +158,18 @@ describe('ToolInvocationService', () => {
       { maxOutputBytes: 5 }
     )
     expect(
-      (await collect(oversized.service.execute(readCall(), context(['sandbox.fs.read@1'])))).at(-1)
+      (await collect(oversized.service.execute(readCall(), context(['local.shell.run@1'])))).at(-1)
     ).toMatchObject({ type: 'tool.failed', error: { code: 'SANDBOX_OUTPUT_LIMIT' } })
 
     const timed = createFixture({ ...readDefinition, timeoutMs: 5 }, blockingExecutor())
     expect(
-      (await collect(timed.service.execute(readCall(), context(['sandbox.fs.read@1'])))).at(-1)
+      (await collect(timed.service.execute(readCall(), context(['local.shell.run@1'])))).at(-1)
     ).toMatchObject({ type: 'tool.failed', error: { code: 'TOOL_TIMEOUT' } })
 
     const controller = new AbortController()
     const cancelled = createFixture(readDefinition, blockingExecutor())
     const pending = collect(
-      cancelled.service.execute(readCall(), context(['sandbox.fs.read@1']), controller.signal)
+      cancelled.service.execute(readCall(), context(['local.shell.run@1']), controller.signal)
     )
     await waitFor(() => cancelled.commits.some(({ invocation }) => invocation.status === 'running'))
     controller.abort()
@@ -225,7 +225,7 @@ function readCall(): ToolCall {
   return {
     callId: 'call-1',
     providerCallId: 'provider-1',
-    modelName: 'sandbox_fs_read',
+    modelName: 'shell_run',
     arguments: { path: 'README.md' }
   }
 }

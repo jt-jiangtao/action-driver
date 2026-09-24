@@ -23,6 +23,7 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
     saveFile: async (input) => ({ ...input, digest: 'c', modifiedAt: 'later' }),
     createSkill: async (input) => ({
       id: input.name,
+      source: 'local',
       name: input.name,
       description: input.description,
       enabled: true,
@@ -32,8 +33,14 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
       protected: false,
       modifiedAt: 'now'
     }),
+    installSkill: async () => ({
+      id: 'installed', source: 'local', name: 'installed', description: '',
+      enabled: true, available: true, executorId: null, unavailableReason: null,
+      protected: false, modifiedAt: 'now'
+    }),
     renameSkill: async (skillId, name) => ({
       id: skillId,
+      source: 'local',
       name,
       description: '',
       enabled: true,
@@ -46,6 +53,7 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
     deleteSkill: async () => undefined,
     setSkillEnabled: async (skillId, enabled) => ({
       id: skillId,
+      source: 'local',
       name: skillId,
       description: '',
       enabled,

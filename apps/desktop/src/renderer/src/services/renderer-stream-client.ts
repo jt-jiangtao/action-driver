@@ -12,6 +12,13 @@ import type { RuntimeConnectionInfo } from '../../../shared/runtime-connection-c
 
 export type RuntimeStreamAccepted = Extract<StreamServerEvent, { type: 'request.accepted' }>
 export type RuntimeStreamListener = (event: StreamServerEvent) => void
+export type RunningStreamIdentity = {
+  requestId: string
+  responseId: string
+  taskId: string
+  cursor: number
+  sequence: number
+}
 
 type SocketEvent = { data?: unknown; code?: number; reason?: string }
 export interface RendererWebSocket {
@@ -40,7 +47,10 @@ export class RendererStreamClient {
       timer: ReturnType<typeof setTimeout>
     }
   >()
-  private readonly acceptedByTask = new Map<string, RuntimeStreamAccepted>()
+  private readonly acceptedByTask = new Map<
+    string,
+    Pick<RuntimeStreamAccepted, 'requestId' | 'taskId' | 'responseId'>
+  >()
   private readonly cursors = new Map<string, number>()
   private readonly sequences = new Map<string, number>()
   private readonly activeRequests = new Set<string>()
@@ -119,6 +129,22 @@ export class RendererStreamClient {
       taskId: accepted.taskId,
       responseId: accepted.responseId
     })
+  }
+
+  async watchExisting(input: RunningStreamIdentity): Promise<void> {
+    if (this.activeRequests.has(input.requestId)) return
+    this.cursors.set(input.requestId, input.cursor)
+    this.sequences.set(input.requestId, input.sequence)
+    this.acceptedByTask.set(input.taskId, input)
+    if (input.sequence >= 1) {
+      const guard = new StreamLifecycleGuard()
+      guard.restoreStarted(input.responseId)
+      this.lifecycleGuards.set(input.responseId, guard)
+    }
+    await this.requireReady()
+    if (this.activeRequests.has(input.requestId)) return
+    this.activeRequests.add(input.requestId)
+    this.resume(input.requestId)
   }
 
   subscribe(listener: RuntimeStreamListener): () => void {
@@ -272,6 +298,7 @@ export class RendererStreamClient {
     if (
       event.type === 'response.start' ||
       event.type === 'response.content' ||
+      event.type === 'response.tool_preparing' ||
       event.type === 'response.end'
     ) {
       const guard = this.lifecycleGuards.get(event.responseId) ?? new StreamLifecycleGuard()
@@ -283,7 +310,14 @@ export class RendererStreamClient {
         return
       }
     }
-    if (event.type === 'response.snapshot') this.lifecycleGuards.delete(event.responseId)
+    if (event.type === 'response.snapshot') {
+      this.lifecycleGuards.delete(event.responseId)
+      if (event.status === 'running' && event.sequence >= 1) {
+        const guard = new StreamLifecycleGuard()
+        guard.restoreStarted(event.responseId)
+        this.lifecycleGuards.set(event.responseId, guard)
+      }
+    }
 
     for (const listener of this.listeners) listener(event)
     this.remember(event.eventId)

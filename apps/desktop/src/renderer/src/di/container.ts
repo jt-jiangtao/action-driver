@@ -2,7 +2,8 @@ import type {
   AgentCommandService,
   AgentSessionRepository,
   SkillCapability,
-  SkillGateway
+  SkillGateway,
+  TaskProjection
 } from '@actiondriver/contracts'
 import type { AgentFilesService } from '../models/agent-files'
 import { SKILL_IDS } from '@actiondriver/contracts'
@@ -34,6 +35,7 @@ export interface AppServices {
   modelConnectionsService: ModelConnectionsService
   agentFilesService: AgentFilesService
   taskCatalog: TaskCatalog
+  restoreTaskStream?: (task: TaskProjection) => Promise<void>
 }
 
 interface RendererOverrides extends Partial<AppServices> {
@@ -53,6 +55,7 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
   let localAgentFilesService: AgentFilesService | null = null
   let localAgentApi: RuntimeAgentHttpApi | null = null
   let localModelApi: RuntimeModelHttpApi | null = null
+  let restoreTaskStream: AppServices['restoreTaskStream']
 
   if (options.mode === 'local') {
     if (!options.desktopApi) throw new Error('Local renderer services require DesktopApi')
@@ -60,9 +63,7 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
     const streamClient = new RendererStreamClient({
       getConnection: () => options.desktopApi!.runtimeConnection.get()
     })
-    const http = new RuntimeHttpClient(
-      () => options.desktopApi!.runtimeConnection.get()
-    )
+    const http = new RuntimeHttpClient(() => options.desktopApi!.runtimeConnection.get())
     localAgentFilesService = new RuntimeAgentFilesService(http)
     localAgentApi = new RuntimeAgentHttpApi(http)
     localModelApi = new RuntimeModelHttpApi(http)
@@ -72,6 +73,7 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
       streamClient,
       async () => (await agentFiles.getMainPrompt()).content
     )
+    restoreTaskStream = (task) => agentAdapter.restoreTaskStream(task)
     agentCommandService = options.agentCommandService ?? agentAdapter
     agentSessionRepository = options.agentSessionRepository ?? agentAdapter
     skillGateway = options.skillGateway ?? new DesktopSkillGateway(localAgentApi)
@@ -107,6 +109,7 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
       options.taskCatalog ??
       (options.mode === 'local' && options.desktopApi
         ? new DesktopTaskCatalog(localAgentApi!)
-        : new MockTaskCatalog())
+        : new MockTaskCatalog()),
+    ...(restoreTaskStream ? { restoreTaskStream } : {})
   }
 }

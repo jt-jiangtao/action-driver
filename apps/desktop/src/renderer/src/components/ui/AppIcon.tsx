@@ -33,6 +33,7 @@ import {
   Network,
   PanelLeft,
   PanelRight,
+  Package,
   Pause,
   Terminal,
   Timer,
@@ -79,6 +80,7 @@ export type AppIconName =
   | 'more-vertical'
   | 'panel-left'
   | 'panel-right'
+  | 'package'
   | 'pause'
   | 'play'
   | 'plus'
@@ -131,6 +133,7 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   'more-vertical': MoreVertical,
   'panel-left': PanelLeft,
   'panel-right': PanelRight,
+  package: Package,
   pause: Pause,
   play: Play,
   plus: Plus,

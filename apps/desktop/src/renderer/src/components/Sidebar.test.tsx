@@ -7,6 +7,7 @@ describe('Sidebar', () => {
   it('renders the Codex-inspired navigation without a user footer', () => {
     render(
       <Sidebar
+        onCollapse={vi.fn()}
         active="new"
         activeTaskId={null}
         onNewTask={vi.fn()}
@@ -34,6 +35,7 @@ describe('Sidebar', () => {
     const onOpenTask = vi.fn()
     render(
       <Sidebar
+        onCollapse={vi.fn()}
         active="task"
         activeTaskId="research-task"
         onNewTask={vi.fn()}

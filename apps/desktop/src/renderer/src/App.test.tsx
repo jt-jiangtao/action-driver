@@ -50,7 +50,9 @@ describe('App', () => {
       'aria-current',
       'page'
     )
-    expect(screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')).toBeVisible()
+    expect(
+      screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')
+    ).toBeVisible()
   })
 
   it('restores the active task even when the recent-task list fails to load', async () => {
@@ -74,7 +76,9 @@ describe('App', () => {
       'data-task-id',
       'hotel-task'
     )
-    expect(screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')).toBeVisible()
+    expect(
+      screen.getByText('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')
+    ).toBeVisible()
   })
 
   it('submits the home goal into the mock task without adding extra pages', async () => {
@@ -110,6 +114,46 @@ describe('App', () => {
     )
     await user.click(screen.getByLabelText('展开浏览器'))
     expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
+  })
+
+  it('hides and restores the sidebar on home without losing the draft', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    const editor = screen.getByLabelText('任务描述')
+    editor.textContent = 'draft text'
+    fireEvent.input(editor)
+    await user.click(screen.getByRole('button', { name: '折叠侧栏' }))
+
+    expect(screen.queryByTestId('e2e/shared/sidebar/root#nav')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('任务描述')).toHaveTextContent('draft text')
+    await user.click(screen.getByRole('button', { name: '展开侧栏' }))
+
+    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toBeVisible()
+    expect(screen.getByLabelText('任务描述')).toHaveTextContent('draft text')
+  })
+
+  it('restores the sidebar from the browser-only task view without changing layout', async () => {
+    const user = userEvent.setup()
+    renderApp('task')
+    await screen.findByTestId('e2e/tasks/detail/page#page')
+
+    await user.click(screen.getByRole('button', { name: '折叠侧栏' }))
+    expect(screen.queryByTestId('e2e/shared/sidebar/root#nav')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '展开侧栏' })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: '放大浏览器' }))
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-expanded'
+    )
+    await user.click(screen.getByRole('button', { name: '展开侧栏' }))
+
+    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toBeVisible()
+    expect(screen.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-expanded'
+    )
   })
 
   it('reopens the current mock task from Recent Tasks after returning home', async () => {

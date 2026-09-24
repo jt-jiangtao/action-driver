@@ -9,6 +9,7 @@ export function Sidebar({
   active,
   activeTaskId,
   recentTasks,
+  onCollapse,
   onNewTask,
   onOpenTask,
   onOpenSettings,
@@ -19,6 +20,7 @@ export function Sidebar({
   active: 'new' | 'task'
   activeTaskId: string | null
   recentTasks: readonly RecentTaskSummary[]
+  onCollapse(): void
   onNewTask(): void
   onOpenTask?(taskId: string): void
   onOpenSettings?(): void
@@ -34,6 +36,7 @@ export function Sidebar({
           className="sidebar-collapse"
           icon="panel-left"
           aria-label="折叠侧栏"
+          onClick={onCollapse}
           testId="e2e/shared/sidebar/collapse#button"
         />
       </div>

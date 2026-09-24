@@ -15,6 +15,15 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.is-sidebar-collapsed .task-page[data-mode='split'] {
+  grid-template-columns: minmax(0, 45%) minmax(0, 55%);
+}
+
+.is-sidebar-collapsed .task-page[data-mode='browser-expanded'],
+.is-sidebar-collapsed .task-page[data-mode='browser-collapsed'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .agent-panel,
 .browser-panel-slot {
   width: auto;
@@ -171,6 +180,13 @@
   border-bottom: 1px solid var(--ad-color-border-default);
   -webkit-app-region: drag;
 }
+.task-header.has-sidebar-restore {
+  padding-left: 88px;
+}
+.task-header .sidebar-restore-button {
+  margin-right: 2px;
+  -webkit-app-region: no-drag;
+}
 .task-header > svg {
   flex: 0 0 16px;
   width: 16px;
@@ -185,7 +201,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.task-header .icon-button {
+.task-header .task-browser-expand {
   margin-left: auto;
   -webkit-app-region: no-drag;
 }
@@ -430,12 +446,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.activity-tool-path {
-  color: #a1a5aa;
-  text-decoration: underline dotted;
-  text-decoration-color: #b5b8bc;
-  text-underline-offset: 3px;
 }
 .activity-tool.is-failed .activity-tool-label {
   color: #ad493f;

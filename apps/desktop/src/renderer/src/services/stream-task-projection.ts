@@ -62,6 +62,7 @@ export class StreamTaskProjection {
       )
       this.task = {
         ...this.task,
+        ...(event.preparingToolName ? { preparingToolName: event.preparingToolName } : {}),
         status: toTaskStatus(event.status),
         streamCursor: event.cursor,
         streamSequence: event.sequence,
@@ -75,6 +76,7 @@ export class StreamTaskProjection {
         ...(event.activities ? { activities: event.activities } : {}),
         ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {})
       }
+      if (!event.preparingToolName) delete this.task.preparingToolName
       this.flush()
       return
     }
@@ -88,12 +90,14 @@ export class StreamTaskProjection {
       return
     }
     if (event.type.startsWith('activity.')) {
+      delete this.task.preparingToolName
       if (event.cursor <= this.activityState.cursor) return
       this.applyActivityProjection(event)
       this.flush()
       return
     }
     if (event.type.startsWith('tool.')) {
+      delete this.task.preparingToolName
       const toolEvent = event as Extract<StreamServerEvent, { type: `tool.${string}` }>
       if (toolEvent.cursor <= this.activityState.cursor) return
       this.applyActivityProjection(toolEvent)
@@ -145,12 +149,14 @@ export class StreamTaskProjection {
             : step
         )
       }
+      delete this.task.preparingToolName
       this.flush()
       return
     }
     if (
       event.type !== 'response.start' &&
       event.type !== 'response.content' &&
+      event.type !== 'response.tool_preparing' &&
       event.type !== 'response.end'
     ) {
       this.flush()
@@ -164,11 +170,18 @@ export class StreamTaskProjection {
         activityStartedAt: event.occurredAt,
         streamSequence: event.sequence
       }
+      delete this.task.preparingToolName
+      this.scheduleEmit()
+      return
+    }
+    if (event.type === 'response.tool_preparing') {
+      this.task = { ...this.task, preparingToolName: event.modelName }
       this.scheduleEmit()
       return
     }
     if (event.type === 'response.content') {
       this.task = { ...this.task, streamSequence: event.sequence }
+      delete this.task.preparingToolName
       this.replaceAssistantContent(
         event.messageId,
         `${this.assistantMessage(event.messageId)?.content ?? ''}${event.delta}`
@@ -195,6 +208,7 @@ export class StreamTaskProjection {
         )
       ]
     }
+    delete this.task.preparingToolName
     this.flush()
   }
 

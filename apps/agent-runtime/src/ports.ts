@@ -35,6 +35,7 @@ export type ModelResult =
 
 export type ModelGatewayEvent =
   | { kind: 'content'; delta: string }
+  | { kind: 'tool-call-preparing'; index: number; modelName: string }
   | {
       kind: 'end'
       result?: ModelTerminal

@@ -6,13 +6,11 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   if (toolId === 'web.search@1' && isRecord(input) && typeof input.query === 'string') {
     return `搜索 “${truncate(input.query, 120)}”`
   }
-  if (toolId.startsWith('sandbox.fs.') && isRecord(input) && typeof input.path === 'string') {
-    return `访问文件 ${truncate(input.path, 120)}`
-  }
   if (toolId === 'sandbox.shell.run') return '执行命令'
   if (toolId === 'local.shell.run') return '执行命令'
   if (toolId === 'local.python.run') return '运行 Python'
   if (toolId === 'local.node.run') return '运行 Node.js'
+  if (toolId === 'local.typescript.run') return '运行 TypeScript'
   return `运行 ${toolId}`
 }
 
@@ -25,36 +23,31 @@ export function toolActivityTitle(
   const action =
     type === 'web.search'
       ? '搜索网页'
-      : type === 'sandbox.fs.read'
-        ? '读取'
-        : type === 'sandbox.fs.list'
-          ? '列出'
-          : type === 'sandbox.fs.search'
-            ? '搜索文件'
-            : type.startsWith('sandbox.fs.')
-              ? '编辑'
-              : type === 'sandbox.shell.run'
-                ? '执行命令'
-                : type === 'local.shell.run'
-                  ? '执行命令'
-                  : type === 'local.python.run'
-                    ? '运行 Python'
-                    : type === 'local.node.run'
-                      ? '运行 Node.js'
-                : '调用工具'
+      : type === 'sandbox.shell.run'
+        ? '执行命令'
+        : type === 'local.shell.run'
+          ? '执行命令'
+          : type === 'local.python.run'
+            ? '运行 Python'
+            : type === 'local.node.run'
+              ? '运行 Node.js'
+              : type === 'local.typescript.run'
+                ? '运行 TypeScript'
+              : '调用工具'
   const target =
     type === 'web.search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
-      : type.startsWith('sandbox.fs.') && isRecord(input) && typeof input.path === 'string'
-        ? ` ${truncate(input.path.split(/[\\/]/).filter(Boolean).at(-1) ?? '/', 80)}`
-        : ''
+      : ''
   const label = `${action}${target}`
   if (status === 'completed') return `已${label}`
-  if (status === 'failed') return type === 'local.python.run'
-    ? 'Python 执行失败'
-    : type === 'local.node.run'
-      ? 'Node.js 执行失败'
-      : `${label}失败`
+  if (status === 'failed')
+    return type === 'local.python.run'
+      ? 'Python 执行失败'
+      : type === 'local.node.run'
+        ? 'Node.js 执行失败'
+        : type === 'local.typescript.run'
+          ? 'TypeScript 执行失败'
+        : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
   if (status === 'unknown') return `${label}结果未知`
   if (status === 'waiting_approval') return `等待批准：${label}`

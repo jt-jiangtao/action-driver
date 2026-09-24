@@ -15,16 +15,15 @@ import { StreamSessionService } from './stream-session-service'
 import { SERVICE_STREAM_PATH, SERVICE_STREAM_PROTOCOL } from './service/websocket-service'
 import { createFetchHttpTransport } from './model-connections/http-transport'
 import { ModelConnectionService } from './model-connections/service'
-import {
-  createInteractionLogRecorder
-} from '@actiondriver/observability'
+import { createInteractionLogRecorder } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
-import { createSandboxTools } from './sandbox'
 import { createScriptTools } from './execution/tools'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerSearxngTool } from './searxng/runtime-tools'
 import { AgentFileStore } from './agent-files/agent-file-store'
+import { SkillInstaller } from './agent-files/skill-installer'
+import { createSkillRuntimeTools } from './agent-files/runtime-tools'
 import type { RuntimeSkillRegistry } from './skill-registry'
 
 type ParentMessageEvent = { data: unknown }
@@ -39,16 +38,21 @@ export async function startAgentRuntimeProcess(
   if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
   // LangGraph remains in use, but inherited LangChain flags must not enable its LangSmith exporter.
   for (const key of [
-    'LANGSMITH_TRACING_V2', 'LANGCHAIN_TRACING_V2',
-    'LANGSMITH_TRACING', 'LANGCHAIN_TRACING'
-  ]) process.env[key] = 'false'
-  const sandboxTools = await createSandboxTools({ workspaceRoot })
+    'LANGSMITH_TRACING_V2',
+    'LANGCHAIN_TRACING_V2',
+    'LANGSMITH_TRACING',
+    'LANGCHAIN_TRACING'
+  ])
+    process.env[key] = 'false'
   const runtimeEntry = fileURLToPath(import.meta.url)
   const runtimeDist = resolve(dirname(runtimeEntry), runtimeEntry.endsWith('.ts') ? '../dist' : '.')
   const timeoutOverride = Number(environment.ACTIONDRIVER_SCRIPT_TIMEOUT_MS)
   const scriptTools = await createScriptTools({
-    workspaceRoot, runtimeDist,
-    ...(Number.isSafeInteger(timeoutOverride) && timeoutOverride >= 1_000 && timeoutOverride <= 600_000
+    workspaceRoot,
+    runtimeDist,
+    ...(Number.isSafeInteger(timeoutOverride) &&
+    timeoutOverride >= 1_000 &&
+    timeoutOverride <= 600_000
       ? { timeoutMs: timeoutOverride }
       : {})
   })
@@ -92,6 +96,10 @@ export async function startAgentRuntimeProcess(
     )
   })
   await agentFiles.initialize()
+  const skillInstaller = new SkillInstaller({
+    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot,
+    store: agentFiles
+  })
   const modelGateway = new ConnectionModelGateway({
     service,
     interactions,
@@ -105,16 +113,21 @@ export async function startAgentRuntimeProcess(
     modelGateway,
     interactions
   })
-  for (const tool of [...sandboxTools, ...scriptTools]) {
+  for (const tool of scriptTools) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
   registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
+  for (const tool of createSkillRuntimeTools({ store: agentFiles, installer: skillInstaller })) {
+    local.toolRuntime.registry.register(tool.definition, tool.executor)
+    local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+  }
   const streamSessions = new StreamSessionService({
     repositories,
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),
+    listEnabledSkills: () => agentFiles.listEnabledSkillDescriptions(),
     rawToolIO: { enabled: true }
   })
   const server = createLocalRuntimeServer({
@@ -129,6 +142,7 @@ export async function startAgentRuntimeProcess(
     httpServer = await startServiceHttpServer({
       service,
       agentFiles,
+      skillInstaller,
       taskControl: server,
       token: serviceToken,
       runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',

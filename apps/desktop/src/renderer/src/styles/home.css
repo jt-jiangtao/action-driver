@@ -19,6 +19,10 @@
 .home-topbar button {
   -webkit-app-region: no-drag;
 }
+.is-sidebar-collapsed .home-topbar {
+  justify-content: flex-start;
+  padding-left: 88px;
+}
 .home-body {
   display: flex;
   flex: 1 1 auto;

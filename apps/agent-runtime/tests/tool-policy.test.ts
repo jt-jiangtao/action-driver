@@ -4,9 +4,9 @@ import { RuntimeToolPolicy } from '../src/tool-policy'
 import { createSearxngSearchTool } from '../src/searxng/search-tool'
 
 const readTool: ToolDefinition = {
-  id: 'sandbox.fs.read',
+  id: 'local.shell.run',
   version: 1,
-  modelName: 'sandbox_fs_read',
+  modelName: 'shell_run',
   description: 'Read one workspace file',
   inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
   risk: 'low',
@@ -24,19 +24,19 @@ const shellTool: ToolDefinition = {
 describe('RuntimeToolPolicy', () => {
   it('only exposes explicitly granted tools and denies calls outside the grant', () => {
     const policy = new RuntimeToolPolicy()
-    expect(policy.discover([readTool, shellTool], { grants: ['sandbox.fs.read@1'] })).toEqual([
+    expect(policy.discover([readTool, shellTool], { grants: ['local.shell.run@1'] })).toEqual([
       readTool
     ])
 
     const denied = policy.decide(shellTool, call(shellTool, { command: 'rg' }), {
-      grants: ['sandbox.fs.read@1']
+      grants: ['local.shell.run@1']
     })
     expect(denied).toMatchObject({ kind: 'deny', error: { code: 'TOOL_DENIED' } })
   })
 
   it('allows granted reads and shell calls without per-call approval', () => {
     const policy = new RuntimeToolPolicy()
-    const grants = ['sandbox.fs.read@1', 'sandbox.shell.run@1']
+    const grants = ['local.shell.run@1', 'sandbox.shell.run@1']
     expect(policy.decide(readTool, call(readTool, { path: 'README.md' }), { grants })).toEqual({
       kind: 'allow'
     })

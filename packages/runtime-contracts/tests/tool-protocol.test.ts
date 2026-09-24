@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { parseToolCall, parseToolDefinition, parseToolEvent, type ToolDefinition } from '../src'
 
 const definition: ToolDefinition = {
-  id: 'sandbox.fs.read',
+  id: 'local.shell.run',
   version: 1,
-  modelName: 'sandbox_fs_read',
+  modelName: 'shell_run',
   description: 'Read a UTF-8 file in the workspace',
   inputSchema: {
     type: 'object',
@@ -24,13 +24,13 @@ describe('tool protocol', () => {
       parseToolCall({
         callId: 'call-1',
         providerCallId: 'provider-1',
-        modelName: 'sandbox_fs_read',
+        modelName: 'shell_run',
         arguments: { path: 'README.md' }
       })
     ).toEqual({
       callId: 'call-1',
       providerCallId: 'provider-1',
-      modelName: 'sandbox_fs_read',
+      modelName: 'shell_run',
       arguments: { path: 'README.md' }
     })
   })
@@ -41,7 +41,7 @@ describe('tool protocol', () => {
       parseToolCall({
         callId: 'call-1',
         providerCallId: 'provider-1',
-        modelName: 'sandbox_fs_read',
+        modelName: 'shell_run',
         arguments: { callback: () => undefined }
       })
     ).toThrow()

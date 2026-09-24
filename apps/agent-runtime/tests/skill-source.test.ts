@@ -34,4 +34,23 @@ describe('GitHub Skill source', () => {
     expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toContain('Review changes.')
     await expect(readFile(join(destination, 'outside.txt'))).rejects.toThrow()
   })
+
+  it('uses existing Git configuration for a private-repository credential stand-in', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'actiondriver-git-auth-'))
+    const repository = join(root, 'private-repo')
+    const destination = join(root, 'installed', 'private-skill')
+    const gitConfig = join(root, 'gitconfig')
+    await mkdir(join(repository, 'skills', 'private-skill'), { recursive: true })
+    await writeFile(join(repository, 'skills', 'private-skill', 'SKILL.md'), '# Private Skill\n')
+    await run('git', ['init', '-q', repository])
+    await run('git', ['-C', repository, 'add', '.'])
+    await run('git', ['-C', repository, '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'])
+    await writeFile(gitConfig, `[url "file://${repository}"]\n\tinsteadOf = https://github.com/acme/private.git\n`)
+    await cloneGitSkill({
+      repository: 'https://github.com/acme/private.git', ref: null,
+      subdir: 'skills/private-skill', destination,
+      environment: { ...process.env, GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: '1' }
+    })
+    expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toContain('Private Skill')
+  })
 })

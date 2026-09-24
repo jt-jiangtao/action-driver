@@ -105,27 +105,18 @@ export class AgentFileStore {
     await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), DEFAULT_PROMPT)
     await this.migrateLegacyBuiltIns()
     for (const skill of DEFAULT_SKILLS) {
-      const directory = join(this.systemRoot, skill.id)
-      await mkdir(directory, { recursive: true })
-      await this.writeDefaultIfMissing(
-        join(directory, 'SKILL.md'),
-        this.defaultSkillContent(skill)
-      )
+      await this.seedSystemSkill(skill.id)
       if (skill.executorId) await this.migrateDefaultExecutor(skill)
-      const references = join(directory, 'references')
-      await mkdir(references, { recursive: true })
-      await this.writeDefaultIfMissing(
-        join(references, 'README.md'),
-        `# ${skill.id} references\n\n在这里放置该 Skill 使用的参考资料。\n`
-      )
     }
-    const creator = join(this.systemRoot, 'skill-creator')
-    try {
-      await lstat(creator)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      await cp(join(this.systemSkillsSourceRoot, 'skill-creator'), creator, { recursive: true, errorOnExist: true })
-    }
+    await this.seedSystemSkill('skill-creator')
+  }
+
+  private async seedSystemSkill(id: string): Promise<void> {
+    await cp(join(this.systemSkillsSourceRoot, id), join(this.systemRoot, id), {
+      recursive: true,
+      force: false,
+      errorOnExist: false
+    })
   }
 
   async getMainPrompt(): Promise<AgentTextFileDto> {
@@ -459,7 +450,7 @@ export class AgentFileStore {
       try {
         await lstat(newPath)
         let suffix = 0
-        do {
+        for (;;) {
           destination = join(this.skillsRoot, `${id}-legacy${suffix ? `-${suffix}` : ''}`)
           suffix++
           try {
@@ -468,7 +459,7 @@ export class AgentFileStore {
             if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
             throw error
           }
-        } while (true)
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }

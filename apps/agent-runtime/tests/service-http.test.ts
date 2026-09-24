@@ -11,6 +11,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
 import type { AgentFileStore } from '../src/agent-files/agent-file-store'
+import type { SkillInstaller } from '../src/agent-files/skill-installer'
 
 const connection: ModelConnectionDto = {
   id: 'company-gateway',
@@ -100,6 +101,21 @@ describe('service HTTP surface', () => {
     const skills = await authorized('/agent-files/skills')
     expect(skills.status).toBe(200)
     await expect(skills.json()).resolves.toMatchObject({ ok: true, value: [] })
+  })
+
+  it('routes Skill installation through the shared installer', async () => {
+    const installSkill = vi.fn(async () => ({ id: 'writer', source: 'local' }))
+    server = await startServiceHttpServer({
+      service: serviceStub(), token: 'service-token', runtimeVersion: '0.1.0',
+      agentFiles: { listSkills: async () => [] } as unknown as AgentFileStore,
+      skillInstaller: { installSkill } as unknown as SkillInstaller
+    })
+    const response = await authorized('/agent-files/skills/install', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'local', path: '/tmp/writer' })
+    })
+    expect(response.status).toBe(200)
+    expect(installSkill).toHaveBeenCalledWith({ source: 'local', path: '/tmp/writer' })
   })
 
   it('serves task reads and controls from the Runtime task service', async () => {

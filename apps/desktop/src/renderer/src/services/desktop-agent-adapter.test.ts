@@ -65,6 +65,7 @@ function harness() {
       occurredAt: '2026-09-23T00:00:00.000Z'
     })),
     cancel: vi.fn(async () => undefined),
+    watchExisting: vi.fn(async () => undefined),
     subscribe: vi.fn((listener: (event: StreamServerEvent) => void) => {
       streamListener = listener
       return () => {
@@ -90,6 +91,51 @@ function harness() {
 }
 
 describe('DesktopAgentAdapter', () => {
+  it('reattaches a running task snapshot and applies the following live events', async () => {
+    const { adapter, streamClient, emitStream } = harness()
+    const restored: TaskProjection = {
+      ...task(),
+      streamRequestId: 'request-1',
+      streamResponseId: 'response-1',
+      streamCursor: 5,
+      streamSequence: 2,
+      preparingToolName: 'shell_run'
+    }
+    await adapter.restoreTaskStream(restored)
+    await adapter.restoreTaskStream(restored)
+    expect(streamClient.watchExisting).toHaveBeenCalledTimes(1)
+    expect(streamClient.watchExisting).toHaveBeenCalledWith({
+      requestId: 'request-1',
+      responseId: 'response-1',
+      taskId: 'task-1',
+      cursor: 5,
+      sequence: 2
+    })
+    expect(adapter.getTask('task-1')?.preparingToolName).toBe('shell_run')
+    emitStream({
+      type: 'response.end',
+      protocol: 'actiondriver.stream.v2',
+      eventId: 'restored-end',
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      cursor: 6,
+      sequence: 3,
+      occurredAt: '2026-09-23T00:00:02.000Z',
+      status: 'completed',
+      content: '完成',
+      finishReason: 'stop',
+      usage: null,
+      durationMs: 1,
+      error: null
+    })
+    expect(adapter.getTask('task-1')).toMatchObject({ status: 'succeeded' })
+    expect(adapter.getTask('task-1')?.preparingToolName).toBeUndefined()
+  })
+
   it('subscribes before submit and projects the live stream without the legacy subscription', async () => {
     const { adapter, api, streamClient, emitStream } = harness()
     const listener = vi.fn()

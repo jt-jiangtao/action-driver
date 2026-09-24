@@ -12,18 +12,18 @@ function renderWithQuery(element: ReactElement) {
   return render(<QueryClientProvider client={client}>{element}</QueryClientProvider>)
 }
 
-vi.mock('@monaco-editor/react', () => ({
+vi.mock('../components/settings/LocalSourceEditor', () => ({
   default: ({
     value,
     onChange,
-    options
+    ariaLabel
   }: {
     value: string
     onChange(value: string): void
-    options: { ariaLabel: string }
+    ariaLabel: string
   }) => (
     <textarea
-      aria-label={options.ariaLabel}
+      aria-label={`${ariaLabel} 源码`}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -77,7 +77,7 @@ describe('Agent settings pages', () => {
     expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '源码' }))
     await user.type(
-      screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }),
+      await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' }),
       '\n\n## 新约束'
     )
     expect(screen.getByRole('button', { name: '保存更改' })).toBeEnabled()
@@ -89,7 +89,9 @@ describe('Agent settings pages', () => {
 
   it('switches the same main prompt panel into source mode', async () => {
     const user = userEvent.setup()
-    renderWithQuery(<MainPromptPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    renderWithQuery(
+      <MainPromptPage service={new MockAgentFilesService()} onBack={() => undefined} />
+    )
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
@@ -108,7 +110,10 @@ describe('Agent settings pages', () => {
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
-    await user.type(screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }), '保留草稿')
+    await user.type(
+      await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' }),
+      '保留草稿'
+    )
     await user.click(screen.getByRole('button', { name: '保存更改' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('文件已在外部更改')
@@ -123,7 +128,7 @@ describe('Agent settings pages', () => {
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
-    const source = screen.getByRole('textbox', { name: '主提示词 Markdown 源码' })
+    const source = await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' })
     await user.clear(source)
     await user.type(source, '# 临时提示词')
     await user.click(screen.getByRole('button', { name: '恢复默认' }))
@@ -153,7 +158,7 @@ describe('Agent settings pages', () => {
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
-    await user.type(screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }), '草稿')
+    await user.type(await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' }), '草稿')
     await user.click(screen.getByRole('button', { name: '模型连接' }))
 
     const dialog = screen.getByRole('dialog', { name: '离开主提示词？' })
@@ -182,7 +187,10 @@ describe('Agent settings pages', () => {
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
     await user.click(screen.getByRole('button', { name: '源码' }))
-    await user.type(screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }), '\n保存后离开')
+    await user.type(
+      await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' }),
+      '\n保存后离开'
+    )
     await user.click(screen.getByRole('button', { name: '模型连接' }))
     await user.click(screen.getByRole('button', { name: '保存并离开' }))
 
@@ -193,34 +201,38 @@ describe('Agent settings pages', () => {
   it('opens a skill into its file tree and saves the selected file', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
+    await service.createSkill({ name: 'note-writer', description: 'Write notes.' })
     renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     expect(await screen.findByRole('heading', { name: 'Skills' })).toBeVisible()
     expect(await screen.findByText('browser-tools')).toBeVisible()
-    expect(screen.getByText('不可用')).toBeVisible()
+    expect(screen.queryByText('不可用')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /browser-tools/ }))
+    await user.click(screen.getByRole('button', { name: /note-writer/ }))
     expect(await screen.findByRole('tree', { name: 'Skill 文件' })).toBeVisible()
     expect(screen.getByRole('treeitem', { name: 'SKILL.md' })).toBeVisible()
     await screen.findByRole('textbox', { name: 'Skill Markdown' })
     await user.click(screen.getByRole('treeitem', { name: 'README.md' }))
     expect(
-      await screen.findByRole('heading', { name: 'browser-tools references', level: 1 })
+      await screen.findByRole('heading', { name: 'References', level: 1 })
     ).toBeVisible()
     await user.click(screen.getByRole('treeitem', { name: 'SKILL.md' }))
     expect(
       await within(screen.getByTestId('e2e/settings/agent-editors/skill/content#input')).findByRole(
         'heading',
-        { name: 'browser-tools', level: 1 }
+        { name: 'note-writer', level: 1 }
       )
     ).toBeVisible()
     await user.click(screen.getByRole('button', { name: '源码' }))
-    await user.type(screen.getByRole('textbox', { name: 'Skill Markdown 源码' }), '\n\n## 安全边界')
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Skill Markdown 源码' }),
+      '\n\n## 安全边界'
+    )
     await user.click(screen.getByRole('button', { name: '保存更改' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled())
     expect(
-      (await service.readFile('.action-driver/skills/browser-tools/SKILL.md')).content
+      (await service.readFile('.action-driver/skills/note-writer/SKILL.md')).content
     ).toContain('安全边界')
   })
 
@@ -229,47 +241,112 @@ describe('Agent settings pages', () => {
     renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: /report-writer/ }))
-    await user.click(await screen.findByRole('button', { name: '返回 Skills' }))
+    await user.click(await screen.findByRole('button', { name: '关闭 Skill 详情' }))
     expect(screen.getByRole('heading', { name: 'Skills' })).toBeVisible()
     expect(screen.getByText('data-inspector')).toBeVisible()
   })
 
-  it('refreshes executor availability after saving SKILL.md before returning to the list', async () => {
+  it('shows system Skills in the Codex-style list and opens a read-only detail dialog', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    expect(await screen.findByRole('button', { name: /browser-tools/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Skill Creator/ })).toBeVisible()
+    expect(screen.getAllByText('系统').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: /browser-tools/ }))
+    const detail = screen.getByRole('dialog', { name: 'browser-tools' })
+    expect(detail).toBeVisible()
+    expect(within(detail).getByText('系统 Skill')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Skills' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '保存更改' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '卸载' })).not.toBeInTheDocument()
+    expect(document.activeElement).toHaveAttribute('aria-label', '关闭 Skill 详情')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'browser-tools' })).not.toBeInTheDocument()
+  })
+
+  it('shows uninstall for a personal Skill in the detail footer', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /data-inspector/ }))
+    const detail = screen.getByRole('dialog', { name: 'data-inspector' })
+    expect(within(detail).getByText('个人 Skill')).toBeVisible()
+    await user.click(within(detail).getByRole('button', { name: '卸载' }))
+    expect(screen.getByRole('dialog', { name: '删除 Skill' })).toBeVisible()
+  })
+
+  it('lists skill-creator assets without trying to render image bytes as Markdown', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /Skill Creator/ }))
+    await user.click(screen.getByRole('treeitem', { name: 'skill-creator.png' }))
+    expect(screen.getByText('此文件无法在这里预览')).toBeVisible()
+    expect(screen.getByRole('treeitem', { name: 'skill-creator.png' }))
+      .toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('toggles a system Skill and copies its Markdown from the detail menu', async () => {
     const user = userEvent.setup()
     const service = new MockAgentFilesService()
-    const originalSaveFile = service.saveFile.bind(service)
-    const originalSkills = await service.listSkills()
-    let executorSaved = false
-    vi.spyOn(service, 'saveFile').mockImplementation(async (input) => {
-      const saved = await originalSaveFile(input)
-      if (input.path.endsWith('/data-inspector/SKILL.md')) executorSaved = true
-      return saved
-    })
-    vi.spyOn(service, 'listSkills').mockImplementation(async () =>
-      originalSkills.map((skill) =>
-        skill.id === 'data-inspector' && executorSaved
-          ? {
-              ...skill,
-              executorId: 'browser-use',
-              unavailableReason: null,
-              available: true,
-              enabled: false
-            }
-          : { ...skill }
-      )
-    )
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /Skill Creator/ }))
+    const detail = screen.getByRole('dialog', { name: 'Skill Creator' })
+    await user.click(within(detail).getByRole('switch', { name: '停用 Skill Creator' }))
+    expect(await within(detail).findByRole('switch', { name: '启用 Skill Creator' }))
+      .toHaveAttribute('aria-checked', 'false')
+    expect((await service.listSkills()).find((skill) => skill.id === 'skill-creator')?.enabled)
+      .toBe(false)
+
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText')
+    await user.click(screen.getByRole('button', { name: 'Skill 操作' }))
+    await user.click(screen.getByRole('menuitem', { name: '复制 Markdown' }))
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('# Skill Creator'))
+  })
+
+  it('adds Skills from GitHub and a selected local folder', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    vi.spyOn(service, 'chooseLocalSkillFolder').mockResolvedValue('/tmp/local-helper')
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: '添加' }))
+    await user.click(screen.getByRole('menuitem', { name: '从 GitHub 安装' }))
+    await user.type(screen.getByRole('textbox', { name: 'GitHub URL' }), 'https://github.com/acme/tools/tree/main/github-helper')
+    await user.click(screen.getByRole('button', { name: '安装 Skill' }))
+    expect(await screen.findByText('github-helper')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '添加' }))
+    await user.click(screen.getByRole('menuitem', { name: '从本地文件夹安装' }))
+    expect(await screen.findByText('local-helper')).toBeVisible()
+  })
+
+  it('keeps the Skill list visible when a local installation fails', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    vi.spyOn(service, 'chooseLocalSkillFolder').mockResolvedValue('/tmp/broken-skill')
+    vi.spyOn(service, 'installSkill').mockRejectedValue(new Error('Skill 文件夹缺少 SKILL.md'))
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
+
+    await user.click(await screen.findByRole('button', { name: '添加' }))
+    await user.click(screen.getByRole('menuitem', { name: '从本地文件夹安装' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('缺少 SKILL.md')
+    expect(screen.getByRole('button', { name: /browser-tools/ })).toBeVisible()
+  })
+
+  it('keeps an instruction Skill available after saving SKILL.md without an executor', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
     renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     await user.click(await screen.findByRole('button', { name: /data-inspector/ }))
     await user.click(await screen.findByRole('button', { name: '源码' }))
-    const source = screen.getByRole('textbox', { name: 'Skill Markdown 源码' })
+    const source = await screen.findByRole('textbox', { name: 'Skill Markdown 源码' })
     await user.clear(source)
-    await user.type(source, '---\nexecutor: browser-use\n---\n# data-inspector\n')
+    await user.type(source, '# Data Inspector\n\nInspect local files.\n')
     await user.click(screen.getByRole('button', { name: '保存更改' }))
     await waitFor(() => expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled())
-    await user.click(await screen.findByRole('button', { name: '返回 Skills' }))
+    await user.click(await screen.findByRole('button', { name: '关闭 Skill 详情' }))
 
     expect(await screen.findByRole('switch', { name: '启用 data-inspector' })).toBeEnabled()
+    expect((await service.listSkills()).find((skill) => skill.id === 'data-inspector'))
+      .toMatchObject({ available: true, executorId: null })
   })
 
   it('creates a skill through the validated dialog and exposes protected actions safely', async () => {

@@ -12,12 +12,23 @@ describe('MockAgentFilesService', () => {
     expect(prompt).not.toContain('记录每一次模型与工具调用')
   })
 
-  it('lists mock skills and persists edits in memory', async () => {
+  it('lists system skills from the read-only system directory and persists personal edits', async () => {
     const service = new MockAgentFilesService()
     const skills = await service.listSkills()
 
-    expect(skills.map((skill) => skill.name)).toEqual(['browser-tools', 'report-writer', 'data-inspector'])
-    const file = await service.readFile('.action-driver/skills/browser-tools/SKILL.md')
+    expect(skills.map((skill) => skill.name)).toEqual([
+      'browser-tools', 'computer-tools', 'report-writer', 'Skill Creator', 'data-inspector'
+    ])
+    const systemTree = await service.getSkillTree('skill-creator')
+    expect(systemTree[0]?.path).toBe('.action-driver/skills/.system/skill-creator/SKILL.md')
+    const systemFile = await service.readFile(systemTree[0]!.path)
+    await expect(service.saveFile({
+      path: systemFile.path,
+      content: 'changed',
+      expectedDigest: systemFile.digest
+    })).rejects.toBeInstanceOf(AgentFilePathError)
+
+    const file = await service.readFile('.action-driver/skills/data-inspector/SKILL.md')
     const saved = await service.saveFile({
       path: file.path,
       content: `${file.content}\n\n## Notes\nUpdated`,

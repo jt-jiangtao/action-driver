@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mkdtempSync } from 'node:fs'
-import { mkdir, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +41,25 @@ describe('Runtime Agent file ownership', () => {
     expect(await readFile(join(skillsRoot, '.system', 'browser-tools', 'SKILL.md'), 'utf8')).toContain('System.')
     expect(await readFile(join(skillsRoot, 'browser-tools-legacy', 'SKILL.md'), 'utf8')).toContain('Legacy.')
     expect((await readdir(skillsRoot)).filter((name) => name.startsWith('browser-tools-legacy'))).toEqual(['browser-tools-legacy'])
+  })
+
+  it('seeds every skill-creator resource and restores missing files without replacing the entry', async () => {
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-skill-creator-'))
+    const root = join(homeDirectory, '.action-driver', 'skills', '.system', 'skill-creator')
+    const store = new AgentFileStore({ homeDirectory })
+    await store.initialize()
+    for (const path of [
+      'scripts/init_skill.py', 'scripts/quick_validate.py', 'scripts/generate_openai_yaml.py',
+      'references/openai_yaml.md', 'agents/openai.yaml',
+      'assets/skill-creator-small.svg', 'assets/skill-creator.png', 'license.txt'
+    ]) {
+      expect((await readFile(join(root, path))).length).toBeGreaterThan(0)
+    }
+    await writeFile(join(root, 'SKILL.md'), '# Customized creator\n')
+    await rm(join(root, 'scripts', 'quick_validate.py'))
+    await store.initialize()
+    expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toBe('# Customized creator\n')
+    expect((await readFile(join(root, 'scripts', 'quick_validate.py'))).length).toBeGreaterThan(0)
   })
 
   it('enables and reads an ordinary Skill without an executor, then respects disabling', async () => {

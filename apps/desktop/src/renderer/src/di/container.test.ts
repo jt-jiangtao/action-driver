@@ -31,6 +31,11 @@ function createDesktopApi(): DesktopApi {
         protocol: 'actiondriver.stream.v2',
         accessToken: 'launch-token'
       })
+    },
+    skillFolders: {
+      choose: async () => null,
+      browse: async () => undefined,
+      reveal: async () => undefined
     }
   }
 }

@@ -98,6 +98,7 @@ export function ModelSelector({
         connectionName={selected?.connection.name ?? modelSelectionLabel(projection)}
         controls={menuId}
         modelName={selected?.model.name ?? ''}
+        selected={selected !== null && selected !== undefined}
         disabled={projection.state === 'loading' || projection.state === 'empty'}
         onClick={() => setMenuOpen(!open)}
         onKeyDown={(event) => {

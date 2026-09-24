@@ -44,57 +44,94 @@ describe('local Runtime server composition', () => {
           type: 'response.snapshot',
           taskId,
           durationMs: 5_000,
-          activities: [{
-            activityId: 'first-group',
-            title: '测试工具',
-            titleRevision: 1,
-            status: 'completed',
-            items: [{ id: 'tool:first', kind: 'tool', callId: 'first' }]
-          }],
-          activityTimeline: [{ id: 'activity:first-group', kind: 'activity', activityId: 'first-group' }],
-          tools: [{
-            callId: 'first', toolId: 'web.search@1', modelName: 'web_search',
-            summary: '搜索网页', argumentsHash: 'hash', status: 'completed'
-          }]
+          activities: [
+            {
+              activityId: 'first-group',
+              title: '测试工具',
+              titleRevision: 1,
+              status: 'completed',
+              items: [{ id: 'tool:first', kind: 'tool', callId: 'first' }]
+            }
+          ],
+          activityTimeline: [
+            { id: 'activity:first-group', kind: 'activity', activityId: 'first-group' }
+          ],
+          tools: [
+            {
+              callId: 'first',
+              toolId: 'web.search@1',
+              modelName: 'web_search',
+              summary: '搜索网页',
+              argumentsHash: 'hash',
+              status: 'completed'
+            }
+          ]
         } as Extract<StreamServerEvent, { type: 'response.snapshot' }>
       }
     }
-    const harness = createHarness({ async complete() { return { kind: 'finish', content: '第一答' } } }, snapshots)
-    const first = await harness.server.execute('task.submit', {
-      goal: '测试所有工具', model, skills: []
-    }) as { taskId: string }
+    const harness = createHarness(
+      {
+        async complete() {
+          return { kind: 'finish', content: '第一答' }
+        }
+      },
+      snapshots
+    )
+    const first = (await harness.server.execute('task.submit', {
+      goal: '测试所有工具',
+      model,
+      skills: []
+    })) as { taskId: string }
     firstTaskId = first.taskId
     await vi.waitFor(async () => {
-      await expect(harness.repositories.tasks.get(firstTaskId)).resolves.toMatchObject({ status: 'completed' })
+      await expect(harness.repositories.tasks.get(firstTaskId)).resolves.toMatchObject({
+        status: 'completed'
+      })
     })
     const firstRecord = (await harness.repositories.tasks.get(firstTaskId))!
-    const firstUser = (await harness.repositories.messages.listByTask(firstTaskId)).find((message) => message.role === 'user')!
+    const firstUser = (await harness.repositories.messages.listByTask(firstTaskId)).find(
+      (message) => message.role === 'user'
+    )!
     const secondStartedAt = new Date(Date.parse(firstRecord.createdAt) + 1_000).toISOString()
     const secondEndedAt = new Date(Date.parse(firstRecord.createdAt) + 2_000).toISOString()
     await harness.repositories.tasks.save({
-      ...firstRecord, id: 'second-task', threadId: 'second-task', goal: '111',
-      createdAt: secondStartedAt, updatedAt: secondEndedAt
+      ...firstRecord,
+      id: 'second-task',
+      threadId: 'second-task',
+      goal: '111',
+      createdAt: secondStartedAt,
+      updatedAt: secondEndedAt
     })
     await harness.repositories.messages.save({
-      id: 'second-user', taskId: 'second-task', role: 'user', content: '111',
+      id: 'second-user',
+      taskId: 'second-task',
+      role: 'user',
+      content: '111',
       createdAt: secondStartedAt
     })
     await harness.repositories.messages.save({
-      id: 'second-answer', taskId: 'second-task', role: 'assistant', content: '第二答',
+      id: 'second-answer',
+      taskId: 'second-task',
+      role: 'assistant',
+      content: '第二答',
       createdAt: secondEndedAt
     })
-    const { task } = await harness.server.execute('task.get', { taskId: 'second-task' }) as {
+    const { task } = (await harness.server.execute('task.get', { taskId: 'second-task' })) as {
       task: { priorActivityTurns?: unknown[] }
     }
-    expect(task.priorActivityTurns).toMatchObject([{
-      taskId: firstTaskId,
-      userMessageId: firstUser.id,
-      durationMs: 5_000,
-      activities: [{ activityId: 'first-group' }],
-      activityTimeline: [{ activityId: 'first-group' }],
-      tools: [{ callId: 'first' }]
-    }])
-    const { task: reopenedFirst } = await harness.server.execute('task.get', { taskId: firstTaskId }) as {
+    expect(task.priorActivityTurns).toMatchObject([
+      {
+        taskId: firstTaskId,
+        userMessageId: firstUser.id,
+        durationMs: 5_000,
+        activities: [{ activityId: 'first-group' }],
+        activityTimeline: [{ activityId: 'first-group' }],
+        tools: [{ callId: 'first' }]
+      }
+    ])
+    const { task: reopenedFirst } = (await harness.server.execute('task.get', {
+      taskId: firstTaskId
+    })) as {
       task: { messages: Array<{ content: string }> }
     }
     expect(reopenedFirst.messages.map((message) => message.content)).not.toContain('111')
@@ -128,8 +165,8 @@ describe('local Runtime server composition', () => {
           tools: [
             {
               callId: 'call',
-              toolId: 'sandbox.fs.read',
-              modelName: 'sandbox_fs_read',
+              toolId: 'local.shell.run',
+              modelName: 'shell_run',
               summary: 'README',
               argumentsHash: 'hash',
               status: 'completed',
@@ -150,13 +187,15 @@ describe('local Runtime server composition', () => {
       },
       snapshots
     )
-    const { taskId } = await harness.server.execute('task.submit', {
+    const { taskId } = (await harness.server.execute('task.submit', {
       goal: '读取 README',
       model,
       skills: []
-    }) as { taskId: string }
+    })) as { taskId: string }
     await vi.waitFor(async () => {
-      const { task } = await harness.server.execute('task.get', { taskId }) as { task: Record<string, unknown> }
+      const { task } = (await harness.server.execute('task.get', { taskId })) as {
+        task: Record<string, unknown>
+      }
       expect(task).toMatchObject({
         streamCursor: 8,
         streamSequence: 3,
@@ -176,14 +215,16 @@ describe('local Runtime server composition', () => {
         return { kind: 'finish', content: 'Real model answer' }
       }
     })
-    const { taskId } = await harness.server.execute('task.submit', {
+    const { taskId } = (await harness.server.execute('task.submit', {
       goal: 'Book a hotel',
       model,
       skills: []
-    }) as { taskId: string }
+    })) as { taskId: string }
 
     await vi.waitFor(async () => {
-      const { task } = await harness.server.execute('task.get', { taskId }) as { task: Record<string, unknown> }
+      const { task } = (await harness.server.execute('task.get', { taskId })) as {
+        task: Record<string, unknown>
+      }
       expect(task?.status).toBe('succeeded')
       expect(task?.messages).toEqual([
         expect.objectContaining({ role: 'user', content: 'Book a hotel' }),
@@ -218,11 +259,11 @@ describe('local Runtime server composition', () => {
         })
       }
     })
-    const { taskId } = await harness.server.execute('task.submit', {
+    const { taskId } = (await harness.server.execute('task.submit', {
       goal: 'Use the selected model',
       model,
       skills: []
-    }) as { taskId: string }
+    })) as { taskId: string }
 
     await vi.waitFor(async () => {
       await expect(harness.repositories.tasks.get(taskId)).resolves.toMatchObject({

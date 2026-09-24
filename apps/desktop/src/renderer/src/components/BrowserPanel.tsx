@@ -9,6 +9,8 @@ export type TaskLayoutMode = 'split' | 'browser-expanded' | 'browser-collapsed'
 
 export function BrowserPanel({
   mode,
+  sidebarCollapsed = false,
+  onExpandSidebar,
   projection,
   onModeChange,
   onPause,
@@ -16,6 +18,8 @@ export function BrowserPanel({
   onTakeOver
 }: {
   mode: Exclude<TaskLayoutMode, 'browser-collapsed'>
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: (() => void) | undefined
   projection: BrowserSkillProjection
   onModeChange(mode: TaskLayoutMode): void
   onPause(): Promise<unknown> | void
@@ -25,7 +29,13 @@ export function BrowserPanel({
   const expanded = mode === 'browser-expanded'
   return (
     <section className={`browser-panel browser-panel-${mode}`} aria-label="内嵌浏览器占位">
-      <BrowserTabBar expanded={expanded} title={projection.title} onModeChange={onModeChange} />
+      <BrowserTabBar
+        expanded={expanded}
+        title={projection.title}
+        onModeChange={onModeChange}
+        sidebarCollapsed={sidebarCollapsed}
+        onExpandSidebar={onExpandSidebar}
+      />
       <BrowserNavigationBar expanded={expanded} url={projection.url} />
       <div className="browser-content">
         {expanded ? (

@@ -14,6 +14,8 @@
 
 - 当前已确认的工作方式是在 `main` 直接修改；工作区已有其他未提交修改，提交时只暂存本任务文件，不重置或覆盖它们。
 - 个人 Skill 根目录是 `~/.action-driver/skills/<id>`；既有 `SKILL.md` 和 `.disabled` 原样保留，生产路径由用户 home 决定，测试可以覆写隔离 home。
+- 系统 Skill 位于 `~/.action-driver/skills/.system/<id>`，内容只读但可启停；旧三个内置目录原样迁移，目标冲突时保留 legacy 副本。包内 `skill-creator` 不要求 executor 或新的创建工具。
+- 系统与个人 Skill 都展示在同一列表；按用户给出的 Codex 参考布局呈现细线图标、名称、单行摘要、来源和右侧开关，详情用可滚动弹层；系统正文只读。
 - 普通 Skill 不需要 executor；`SKILL.md` 不能授予任何工具权限，安装不执行脚本、不安装 npm/pip 依赖。
 - 首版来源是 GitHub 仓库子目录与本地文件夹；重名拒绝，失败后不得留半安装结果。
 - 四个工具分别叫 `shell_run`、`python_run`、`node_run`、`ts_run`；新输入恰为非空 `script` 与可选 `args: string[]`，源码走 stdin，不猜测语言。
@@ -38,6 +40,7 @@
 | `packages/runtime-contracts/src/{agent-file-contract,stream-protocol}.ts` | Skill DTO、安装输入、任务摘要契约 |
 | `apps/agent-runtime/src/agent-files/agent-file-store.ts` | 目录事实、声明解析、启停和按需读取 |
 | `apps/agent-runtime/src/agent-files/skill-installer.ts` | 本地/GitHub 内容准备、校验及原子导入 |
+| `apps/agent-runtime/resources/system-skills/skill-creator/SKILL.md` | 系统 Skill 创建指导，随包种子安装 |
 | `apps/agent-runtime/src/agent-files/skill-source.ts` | GitHub URL/仓库子路径归一化与获取 |
 | `apps/agent-runtime/src/service/http-service.ts` | 设置页安装 API |
 | `apps/agent-runtime/src/stream-session-service.ts` | 新任务 Skill 摘要快照 |
@@ -102,31 +105,33 @@ return enabled.map(({ id, description }) => ({ skillId: id, description }))
 - [ ] **Step 4: 重跑定向测试与 `corepack pnpm --filter @actiondriver/agent-runtime typecheck`。**
 - [ ] **Step 5: 仅暂存本 Task 文件与新增依赖锁文件并提交 `feat: enable instruction skills without executors`。**
 
-### Task 3: 本地文件夹原子安装
+### Task 3: 系统 Skill 迁移与本地文件夹原子安装
 
 **Files:**
 - Create: `apps/agent-runtime/src/agent-files/skill-installer.ts`
 - Modify: `apps/agent-runtime/src/agent-files/agent-file-store.ts`
+- Create: `apps/agent-runtime/resources/system-skills/skill-creator/SKILL.md`
 - Test: `apps/agent-runtime/tests/skill-installer.test.ts`
+- Test: `apps/agent-runtime/tests/agent-file-store.test.ts`
 
 **Interfaces:**
 - Consumes: Task 1 的 `InstallSkillInput`、Task 2 的声明解析。
 - Produces: `installSkill(input: InstallSkillInput): Promise<AgentSkillSummaryDto>`；同一入口供 HTTP 和 Agent 工具调用。
 
-- [ ] **Step 1: 写失败测试。**从临时源文件夹导入 `SKILL.md` 和 references；断言默认启用、复制快照、重名原目标未变。覆盖源目录等于目标、越界符号链接、过大文件、缺入口、复制中断，断言没有临时目录残留。
+- [ ] **Step 1: 写失败测试。**从临时源文件夹导入 `SKILL.md` 和 references；断言默认启用、复制快照、重名原目标未变。覆盖源目录等于目标、越界符号链接、过大文件、缺入口、复制中断，断言没有临时目录残留。另在旧根目录修改内置 Skill 的正文和 `.disabled`，重启后断言 `.system` 内容逐字节保留；目标冲突时两个版本均存在且第二次启动不重复迁移。系统正文编辑、重命名、删除被拒，启停仍可用。
 ```ts
 const installed = await installer.installSkill({ source: 'local', path: sourceDir })
 expect(installed).toMatchObject({ id: 'plain', source: 'local', available: true })
 await expect(installer.installSkill({ source: 'local', path: sourceDir })).rejects.toThrow('已存在')
 ```
 - [ ] **Step 2: 运行 `corepack pnpm exec vitest run apps/agent-runtime/tests/skill-installer.test.ts`，确认缺少服务而失败。**
-- [ ] **Step 3: 实现目录扫描、文件数/总字节数上限、符号链接拒绝、入口校验与目标同级临时目录复制。**目标名称只来自通过目录 id 校验的 Skill 名称；写入来源元数据后原子 rename，异常时清理临时目录；源文件夹始终不被修改。
+- [ ] **Step 3: 先迁移旧内置目录到 `.system` 再填充缺失默认内容及包内 `skill-creator`，实现系统内容保护和双目录扫描；再实现普通 Skill 的目录扫描、文件数/总字节数上限、符号链接拒绝、入口校验与目标同级临时目录复制。**目标名称不得占用系统 Skill id；写入来源元数据后原子 rename，异常时清理临时目录；源文件夹始终不被修改。`skill-creator` 的说明指向工作区写文件加 `skill_install`，不自行授予写权限。
 ```ts
 const staging = join(skillsRoot, `.install-${randomUUID()}`)
 try { await copyValidated(sourceDir, staging); await rename(staging, destination) }
 finally { await rm(staging, { recursive: true, force: true }) }
 ```
-- [ ] **Step 4: 重跑安装测试和文件服务测试；确认失败后重新安装同一 id 可成功。**
+- [ ] **Step 4: 重跑安装测试和文件服务测试；确认失败后重新安装同一 id 可成功，系统 Skill 和 legacy 副本在重启后不丢失。**
 - [ ] **Step 5: 仅暂存本 Task 文件并提交 `feat: install local instruction skills atomically`。**
 
 ### Task 4: GitHub 子目录安装
@@ -145,7 +150,7 @@ finally { await rm(staging, { recursive: true, force: true }) }
 expect(parseGithubSkillUrl('https://github.com/acme/tools/tree/main/skills/review')).toEqual({ owner: 'acme', repo: 'tools', ref: 'main', subdir: 'skills/review' })
 ```
 - [ ] **Step 2: 运行 `corepack pnpm exec vitest run apps/agent-runtime/tests/skill-source.test.ts apps/agent-runtime/tests/skill-installer.test.ts`，确认失败。**
-- [ ] **Step 3: 实现 GitHub 来源获取到临时目录，公有下载失败时按设计使用本机 Git 认证做 sparse checkout。**路径解析后仅拷贝选定子目录；将内容交 Task 3 的统一校验，不执行仓库中的安装脚本，不持久化凭据。
+- [ ] **Step 3: 使用本机 Git sparse checkout 将 GitHub 来源获取到临时目录。**公有仓库直接读取，私有仓库沿用本机 Git 认证；路径解析后仅拷贝选定子目录；将内容交 Task 3 的统一校验，不执行仓库中的安装脚本，不持久化凭据。
 - [ ] **Step 4: 重跑定向测试与 Runtime typecheck；断言 GitHub 重名/失败没有覆盖本地 Skill。**
 - [ ] **Step 5: 仅暂存本 Task 文件并提交 `feat: install GitHub skill subdirectories`。**
 
@@ -182,7 +187,7 @@ await expect(readTool({ skillId: 'plain' })).rejects.toThrow()
 - Consumes: Task 1 的 `InstallSkillInput`、Task 5 的 HTTP 安装路由。
 - Produces: `AgentFilesService.installSkill(input: InstallSkillInput): Promise<AgentSkillSummary>`；桌面桥 `chooseSkillFolder(): Promise<string | null>`、`revealSkillFolder(skillId: string): Promise<void>`；设置页添加菜单和详情状态。
 
-- [ ] **Step 1: 写失败 UI/服务测试。**“添加”可选择 GitHub URL 或本地文件夹，安装成功即时列出来源，错误可见；开关、Markdown、附属文件、复制、打开目录和卸载仍可用；键盘能触达操作。
+- [ ] **Step 1: 写失败 UI/服务测试。**“添加”可选择 GitHub URL 或本地文件夹，安装成功即时列出来源，错误可见；开关、Markdown、附属文件、复制、打开目录和卸载仍可用；系统 Skill 详情正文只读、禁止重命名和卸载但开关可用；键盘能触达操作。
 ```tsx
 await user.click(screen.getByRole('button', { name: '添加 Skill' }))
 await user.click(screen.getByRole('menuitem', { name: '从 GitHub 安装' }))
@@ -248,7 +253,7 @@ expect(JSON.stringify(await collect(tsTool, { script: 'const n: number = 2; cons
 - Consumes: Tasks 1–8 的端到端能力；不新增公开接口。
 - Produces: 两架构包内运行时、离线脚本与 Skill 安装/发现的可复现验收结果。
 
-- [ ] **Step 1: 写失败端到端场景。**从本地文件夹和 GitHub fixture 安装 Skill，开启新任务检查摘要、按需读取正文、停用后不发现；四种脚本各执行一次，重开旧记录不再执行；打包环境屏蔽系统 Python/Node 与网络仍运行包内脚本。
+- [ ] **Step 1: 写失败端到端场景。**从本地文件夹和 GitHub fixture 安装 Skill，开启新任务检查摘要、按需读取正文、停用后不发现；读取 `.system/skill-creator` 后用已有脚本工具在工作区生成普通 Skill 并导入；四种脚本各执行一次，重开旧记录不再执行；打包环境屏蔽系统 Python/Node 与网络仍运行包内脚本。
 - [ ] **Step 2: 跑受影响 E2E 定向命令，确认 fixture/接口待接通处失败。**`corepack pnpm exec playwright test apps/desktop/e2e/tool-runtime.spec.ts apps/desktop/e2e/packaged-runtime.spec.ts`。
 - [ ] **Step 3: 更新模型 fixture 与交互契约；按可运行架构构建 `.app` 并执行 `corepack pnpm test:e2e:packaged:macos`。**另一架构至少校验包内二进制架构与路径，若 CI 提供对应架构则运行同一打包 E2E；记录当前机器未执行的架构限制。
 - [ ] **Step 4: 运行 `corepack pnpm typecheck`、`corepack pnpm lint`、`corepack pnpm test`、`corepack pnpm build`、`corepack pnpm exec openspec validate install-instruction-skills-and-run-inline-scripts --strict`、`git diff --check`；只对实际失败或剩余风险扩展测试。**

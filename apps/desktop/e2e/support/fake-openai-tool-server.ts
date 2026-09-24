@@ -1,7 +1,18 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 
-type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'python-blocking' | 'node' | 'triple' | 'text' | 'web'
+type ToolMode =
+  | 'activity'
+  | 'read'
+  | 'shell'
+  | 'shell-timeout'
+  | 'python'
+  | 'python-blocking'
+  | 'node'
+  | 'triple'
+  | 'text'
+  | 'tool-preparing'
+  | 'web'
 
 export type CapturedToolCompletion = {
   model: string
@@ -15,6 +26,7 @@ export class FakeOpenAiToolServer {
   private server: Server | null = null
   private releaseTextStartResponse: (() => void) | null = null
   private releaseTextResponse: (() => void) | null = null
+  private releaseToolResponse: (() => void) | null = null
   readonly completions: CapturedToolCompletion[] = []
   baseUrl = ''
 
@@ -66,13 +78,22 @@ export class FakeOpenAiToolServer {
         response.end('data: [DONE]\n\n')
         return
       }
-      if (turn === 1 || (this.mode === 'activity' && turn === 2) || (this.mode === 'triple' && turn <= 3)) {
-        const toolMode = this.mode === 'triple'
-          ? turn === 1 ? 'python' : turn === 2 ? 'node' : 'shell'
-          : this.mode
+      if (
+        turn === 1 ||
+        (this.mode === 'activity' && turn === 2) ||
+        (this.mode === 'triple' && turn <= 3)
+      ) {
+        const toolMode =
+          this.mode === 'triple'
+            ? turn === 1
+              ? 'python'
+              : turn === 2
+                ? 'node'
+                : 'shell'
+            : this.mode
         const toolName =
           toolMode === 'read' || toolMode === 'activity'
-            ? 'sandbox_fs_read'
+            ? 'shell_run'
             : toolMode === 'web'
               ? 'web_search'
               : toolMode === 'python' || toolMode === 'python-blocking'
@@ -82,18 +103,18 @@ export class FakeOpenAiToolServer {
                   : 'shell_run'
         const argumentsJson =
           toolMode === 'read' || toolMode === 'activity'
-            ? '{"path":"README.md"}'
+            ? '{"script":"cat README.md"}'
             : toolMode === 'web'
               ? '{"query":"ActionDriver","maxResults":1}'
               : toolMode === 'python'
-                ? '{"code":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
+                ? '{"script":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
                 : toolMode === 'python-blocking'
-                  ? '{"code":"import time; time.sleep(60)"}'
-                : toolMode === 'node'
-                  ? '{"code":"console.log(JSON.stringify({executable:process.execPath}))"}'
-                  : toolMode === 'shell-timeout'
-                    ? '{"command":"sleep 12"}'
-                    : '{"command":"rg needle README.md"}'
+                  ? '{"script":"import time; time.sleep(60)"}'
+                  : toolMode === 'node'
+                    ? '{"script":"console.log(JSON.stringify({executable:process.execPath}))"}'
+                    : toolMode === 'shell-timeout'
+                      ? '{"script":"sleep 12"}'
+                      : '{"script":"rg needle README.md"}'
         const midpoint = Math.ceil(argumentsJson.length / 2)
         if (this.mode === 'activity') {
           response.write(sseChunk({ content: turn === 1 ? '正文 A' : '正文 B' }, null))
@@ -113,6 +134,9 @@ export class FakeOpenAiToolServer {
             null
           )
         )
+        if (this.mode === 'tool-preparing') {
+          await new Promise<void>((resolve) => { this.releaseToolResponse = resolve })
+        }
         response.write(
           sseChunk(
             {
@@ -149,6 +173,7 @@ export class FakeOpenAiToolServer {
   async close(): Promise<void> {
     this.releaseTextStart()
     this.releaseText()
+    this.releaseTool()
     if (!this.server) return
     const server = this.server
     this.server = null
@@ -164,6 +189,11 @@ export class FakeOpenAiToolServer {
   releaseText(): void {
     this.releaseTextResponse?.()
     this.releaseTextResponse = null
+  }
+
+  releaseTool(): void {
+    this.releaseToolResponse?.()
+    this.releaseToolResponse = null
   }
 }
 

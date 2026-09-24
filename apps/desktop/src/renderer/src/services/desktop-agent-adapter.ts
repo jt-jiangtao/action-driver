@@ -23,7 +23,10 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 
   constructor(
     private readonly api: AgentControlApi,
-    private readonly streamClient: Pick<RendererStreamClient, 'create' | 'cancel' | 'subscribe'>,
+    private readonly streamClient: Pick<
+      RendererStreamClient,
+      'create' | 'cancel' | 'subscribe' | 'watchExisting'
+    >,
     private readonly getSystemPrompt?: () => Promise<string>
   ) {
     this.streamClient.subscribe((event) => this.handleStreamEvent(event))
@@ -94,6 +97,37 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   getTask(taskId: string): TaskProjection | null {
     const task = this.tasks.get(taskId)
     return task ? structuredClone(task) : null
+  }
+
+  async restoreTaskStream(task: TaskProjection): Promise<void> {
+    if (
+      task.status !== 'running' ||
+      !task.streamRequestId ||
+      !task.streamResponseId ||
+      this.streamProjections.has(task.id)
+    )
+      return
+    const projection = new StreamTaskProjection({
+      onChange: (updated) => {
+        this.tasks.set(updated.id, updated)
+        this.emit(updated)
+      }
+    })
+    projection.attach(task)
+    this.streamProjections.set(task.id, projection)
+    this.tasks.set(task.id, structuredClone(task))
+    try {
+      await this.streamClient.watchExisting({
+        requestId: task.streamRequestId,
+        responseId: task.streamResponseId,
+        taskId: task.id,
+        cursor: task.streamCursor ?? 0,
+        sequence: task.streamSequence ?? -1
+      })
+    } catch (error) {
+      this.streamProjections.delete(task.id)
+      throw mapAgentError(error)
+    }
   }
 
   subscribe(listener: (task: TaskProjection) => void): () => void {

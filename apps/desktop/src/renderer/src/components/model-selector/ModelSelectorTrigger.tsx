@@ -4,6 +4,7 @@ import { AppIcon } from '../ui/AppIcon'
 export function ModelSelectorTrigger({
   connectionName,
   modelName,
+  selected,
   open,
   controls,
   onClick,
@@ -12,6 +13,7 @@ export function ModelSelectorTrigger({
 }: {
   connectionName: string
   modelName: string
+  selected: boolean
   open: boolean
   controls: string
   onClick(): void
@@ -27,6 +29,7 @@ export function ModelSelectorTrigger({
       className="model-selector-trigger"
       disabled={disabled}
       data-state={open ? 'open' : 'default'}
+      data-selected={selected}
       data-testid="e2e/shared/model-selector/trigger#button"
       onClick={onClick}
       onKeyDown={onKeyDown}

@@ -11,7 +11,7 @@ describe('preload Runtime bootstrap', () => {
     }
     const invoke = vi.fn(async () => connection)
     const api = createDesktopApi('darwin', '0.1.0', { invoke })
-    expect(Object.keys(api).sort()).toEqual(['getEnvironment', 'runtimeConnection'])
+    expect(Object.keys(api).sort()).toEqual(['getEnvironment', 'runtimeConnection', 'skillFolders'])
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
     await expect(api.runtimeConnection.get()).resolves.toEqual(connection)
     expect(invoke).toHaveBeenCalledWith(RUNTIME_CONNECTION_IPC_CHANNEL, {})

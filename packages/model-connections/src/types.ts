@@ -59,6 +59,7 @@ export type ModelUsage = {
 
 export type ModelCompletionEvent =
   | { kind: 'content'; delta: string }
+  | { kind: 'tool-call-preparing'; index: number; modelName: string }
   | {
       kind: 'end'
       result?: ModelTerminal

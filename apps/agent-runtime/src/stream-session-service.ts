@@ -5,7 +5,10 @@ import {
   type StreamClientEvent,
   type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
-import { emptyActivityTimelineState, reduceActivityProjection } from '@actiondriver/activity-projection'
+import {
+  emptyActivityTimelineState,
+  reduceActivityProjection
+} from '@actiondriver/activity-projection'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -46,6 +49,7 @@ export class StreamSessionService {
       ids: IdGenerator
       now(): string
       rawToolIO?: { enabled: boolean; maxBytes?: number }
+      listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
     }
   ) {}
 
@@ -248,7 +252,7 @@ export class StreamSessionService {
           ...(createEvent.payload.systemPrompt === undefined
             ? {}
             : { systemPrompt: createEvent.payload.systemPrompt }),
-          skills: [],
+          skills: await this.options.listEnabledSkills?.() ?? [],
           streamRequestId: request.requestId
         },
         signal,
@@ -262,6 +266,19 @@ export class StreamSessionService {
                 null,
                 activity,
                 `activity.${activity.type}:${activity.activityId}:${activitySequence++}`
+              )
+            )
+            await this.publishThrough(request, record.cursor, emit)
+            return
+          }
+          if (event.kind === 'tool-call-preparing') {
+            const record = await this.options.repositories.events.append(
+              this.runtimeEvent(
+                request,
+                'response.tool_preparing',
+                null,
+                { index: event.index, modelName: event.modelName },
+                `response.tool_preparing:${activitySequence++}`
               )
             )
             await this.publishThrough(request, record.cursor, emit)
@@ -393,7 +410,11 @@ export class StreamSessionService {
     }
     let cursor = afterCursor
     while (true) {
-      const events = await this.options.repositories.events.listForRequestAfter(requestId, cursor, 256)
+      const events = await this.options.repositories.events.listForRequestAfter(
+        requestId,
+        cursor,
+        256
+      )
       if (events.length === 0) break
       for (const event of events) {
         await emit(this.toServerEvent(request, event))
@@ -417,6 +438,21 @@ export class StreamSessionService {
     const error = toStreamError(task?.error)
     const end = [...events].reverse().find((event) => event.type === 'response.end')
     const durationMs = (end?.payload as { durationMs?: unknown } | undefined)?.durationMs
+    let preparingToolName: string | null = null
+    if (request.status === 'running') {
+      for (const event of events) {
+        if (event.type === 'response.tool_preparing') {
+          const modelName = (event.payload as { modelName?: unknown }).modelName
+          preparingToolName = typeof modelName === 'string' ? modelName : null
+        } else if (
+          event.type === 'response.content' ||
+          event.type === 'activity.text' ||
+          event.type.startsWith('tool.')
+        ) {
+          preparingToolName = null
+        }
+      }
+    }
     return parseStreamServerEvent({
       type: 'response.snapshot',
       protocol: STREAM_PROTOCOL,
@@ -462,14 +498,15 @@ export class StreamSessionService {
       ...(activity.activities.length ? { activities: activity.activities } : {}),
       ...(activity.timeline.length ? { activityTimeline: activity.timeline } : {}),
       ...(typeof durationMs === 'number' ? { durationMs } : {}),
+      ...(preparingToolName ? { preparingToolName } : {}),
       error
     }) as SnapshotEvent
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {
-    const event = (await this.options.repositories.events.listForRequestAfter(requestId, 0, 1)).find(
-      (candidate) => candidate.type === type
-    )
+    const event = (
+      await this.options.repositories.events.listForRequestAfter(requestId, 0, 1)
+    ).find((candidate) => candidate.type === type)
     if (!event) throw new Error(`Missing persisted ${type} event for ${requestId}`)
     return event
   }
@@ -561,6 +598,14 @@ export class StreamSessionService {
         error: payload.error
       })
     }
+    if (record.type === 'response.tool_preparing') {
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        index: payload.index,
+        modelName: payload.modelName
+      })
+    }
     if (record.type.startsWith('activity.')) {
       const activity = payload as {
         activityId: string | null
@@ -640,15 +685,18 @@ export class StreamSessionService {
                 : {})
             }
           : {}),
-        ...(record.type === 'tool.failed' || record.type === 'tool.cancelled' || record.type === 'tool.unknown'
+        ...(record.type === 'tool.failed' ||
+        record.type === 'tool.cancelled' ||
+        record.type === 'tool.unknown'
           ? {
-              error: tool.error && typeof tool.error === 'object' && 'code' in tool.error
-                ? tool.error
-                : {
-                    code: 'tool-failed',
-                    message: toolActivityErrorSummary(tool.error),
-                    retryable: false
-                  }
+              error:
+                tool.error && typeof tool.error === 'object' && 'code' in tool.error
+                  ? tool.error
+                  : {
+                      code: 'tool-failed',
+                      message: toolActivityErrorSummary(tool.error),
+                      retryable: false
+                    }
             }
           : {})
       })

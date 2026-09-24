@@ -16,7 +16,8 @@ const temporaryDirectories: string[] = []
 
 function createHarness(
   graphRunner: GraphRunner,
-  rawToolIO?: { enabled: boolean; maxBytes?: number }
+  rawToolIO?: { enabled: boolean; maxBytes?: number },
+  listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
@@ -36,7 +37,8 @@ function createHarness(
     graphRunner,
     ids,
     now: () => new Date(now++).toISOString(),
-    ...(rawToolIO ? { rawToolIO } : {})
+    ...(rawToolIO ? { rawToolIO } : {}),
+    ...(listEnabledSkills ? { listEnabledSkills } : {})
   })
   return { database, repositories, service }
 }
@@ -78,6 +80,87 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('discovers currently enabled Skills for a new task', async () => {
+    let discovered: unknown = null
+    const graphRunner: GraphRunner = {
+      async run(request) {
+        discovered = request.skills
+        return { taskId: request.taskId, threadId: request.taskId, status: 'completed', output: 'done', error: null, trace: [] }
+      },
+      interrupt: () => false,
+      async continue() { throw new Error('unused') },
+      async provideInput() { throw new Error('unused') }
+    }
+    const { service } = createHarness(graphRunner, undefined,
+      async () => [{ skillId: 'skill-creator', description: 'Create a Skill' }])
+    await runToEnd(service, createEvent)
+    expect(discovered).toEqual([{ skillId: 'skill-creator', description: 'Create a Skill' }])
+  })
+  it('publishes tool preparation before model completion and omits it from completed snapshots', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        await observer?.({ kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' })
+        await gate
+        await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: 'done',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const events: StreamServerEvent[] = []
+    let reachedPreparation!: () => void
+    let reachedEnd!: () => void
+    const preparation = new Promise<void>((resolve) => {
+      reachedPreparation = resolve
+    })
+    const end = new Promise<void>((resolve) => {
+      reachedEnd = resolve
+    })
+    await service.handle(createEvent, (event) => {
+      events.push(event)
+      if (event.type === 'response.tool_preparing') reachedPreparation()
+      if (event.type === 'response.end') reachedEnd()
+    })
+    await preparation
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
+    expect(events.map((event) => event.type)).toContain('response.tool_preparing')
+    const progress = events.find((event) => event.type === 'response.tool_preparing')
+    expect(progress).toMatchObject({ index: 0, modelName: 'shell_run' })
+    expect(JSON.stringify(progress)).not.toContain('command')
+    const runningSnapshot = await service.getTaskSnapshot(accepted.taskId)
+    expect(runningSnapshot).toMatchObject({ status: 'running', preparingToolName: 'shell_run' })
+    release()
+    await end
+    const completedSnapshot = await service.getTaskSnapshot(accepted.taskId)
+    expect(completedSnapshot).toMatchObject({ status: 'completed' })
+    expect(completedSnapshot).not.toHaveProperty('preparingToolName')
+    expect(events.filter((event) => 'sequence' in event).map((event) => event.sequence)).toEqual(
+      events
+        .filter((event) => 'sequence' in event)
+        .map((event) => event.sequence)
+        .sort((a, b) => a - b)
+    )
+    repositories.close()
+  })
+
   it('publishes concurrent activity callbacks in persisted cursor order', async () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
@@ -649,9 +732,7 @@ describe('StreamSessionService', () => {
       'response.content',
       'response.end'
     ])
-    expect(published.map((event) => 'sequence' in event && event.sequence)).toEqual([
-      0, 1, 2, 3, 4
-    ])
+    expect(published.map((event) => 'sequence' in event && event.sequence)).toEqual([0, 1, 2, 3, 4])
     const accepted = published[0]
     if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
     expect(accepted).toMatchObject({
@@ -774,7 +855,7 @@ describe('StreamSessionService', () => {
           event: {
             type: 'started',
             activityId: 'activity-snapshot',
-            title: '正在读取文件',
+            title: '正在执行命令',
             titleRevision: 1
           }
         } as never)
@@ -827,7 +908,7 @@ describe('StreamSessionService', () => {
       id: 'call-snapshot',
       providerCallId: 'provider-snapshot',
       taskId: accepted.taskId,
-      toolId: 'sandbox.fs.read',
+      toolId: 'local.shell.run',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -865,11 +946,17 @@ describe('StreamSessionService', () => {
           expect.objectContaining({ role: 'user', content: 'Return **real Markdown**' }),
           expect.objectContaining({ role: 'assistant', content: 'final answer' })
         ],
-        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed', title: '已读取 README.md' })],
+        tools: [
+          expect.objectContaining({
+            callId: 'call-snapshot',
+            status: 'completed',
+            title: '已执行命令'
+          })
+        ],
         activities: [
           expect.objectContaining({
             activityId: 'activity-snapshot',
-            title: '正在读取文件',
+            title: '正在执行命令',
             status: 'completed',
             items: [
               expect.objectContaining({ kind: 'text', content: '已准备读取。', phase: 'pending' })

@@ -49,6 +49,10 @@ export type GraphToolRuntime = {
   grants: string[]
 }
 
+const MAX_TOOL_CALLS = 512
+const MAX_TOOL_ROUNDS = 512
+const GRAPH_RECURSION_LIMIT = MAX_TOOL_ROUNDS * 2 + 16
+
 const replace = <T>(_current: T, update: T): T => update
 
 const AgentState = Annotation.Root({
@@ -210,7 +214,8 @@ export class LangGraphRunner implements GraphRunner {
     try {
       const state = await this.graph.invoke(input as Parameters<typeof this.graph.invoke>[0], {
         configurable: { thread_id: threadId },
-        signal: controller.signal
+        signal: controller.signal,
+        recursionLimit: GRAPH_RECURSION_LIMIT
       })
 
       if (isInterrupted(state)) {
@@ -329,7 +334,10 @@ export class LangGraphRunner implements GraphRunner {
               trace: ['plan']
             }
           }
-          if (state.toolRound >= 8 || state.toolCallCount + plan.calls.length > 16) {
+          if (
+            state.toolRound >= MAX_TOOL_ROUNDS ||
+            state.toolCallCount + plan.calls.length > MAX_TOOL_CALLS
+          ) {
             return {
               status: 'failed' as const,
               error: 'TOOL_BUDGET_EXCEEDED',
@@ -684,21 +692,15 @@ export function activityTitleForTool(
   const normalized = modelName.toLowerCase()
   const action = normalized.includes('web')
     ? '搜索网页'
-    : normalized.includes('fs_search') || normalized.includes('file_search')
-      ? '搜索文件'
-      : normalized.includes('shell') || normalized.includes('command')
-        ? '执行命令'
-        : normalized.includes('python')
-          ? '运行 Python'
-          : normalized.includes('node_run') || normalized.includes('node.run')
-            ? '运行 Node.js'
-        : normalized.includes('fs_write') ||
-            normalized.includes('file_write') ||
-            normalized.includes('fs_edit')
-          ? '编辑文件'
-          : normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')
-            ? '读取文件'
-            : '调用工具'
+    : normalized.includes('shell') || normalized.includes('command')
+      ? '执行命令'
+      : normalized.includes('python')
+        ? '运行 Python'
+        : normalized.includes('ts_run') || normalized.includes('typescript')
+          ? '运行 TypeScript'
+        : normalized.includes('node_run') || normalized.includes('node.run')
+          ? '运行 Node.js'
+          : '调用工具'
   if (status === 'running') return `正在${action}`
   if (status === 'completed') return `已${action}`
   if (status === 'cancelled') return `已取消${action}`
@@ -715,20 +717,14 @@ export function activityTitleForTools(
   const count = modelNames.length
   const category = [...kinds]
     .map((kind) =>
-      kind === 'web'
-        ? '网页'
-        : kind === 'file-search'
-          ? '文件搜索'
-          : kind === 'shell'
-            ? '命令'
-            : kind === 'script'
-              ? '脚本'
-            : kind === 'file'
-              ? '文件'
-              : '其他工具'
+      kind === 'web' ? '网页' : kind === 'shell' ? '命令' : kind === 'script' ? '脚本' : '其他工具'
     )
     .join('、')
-  const firstSentence = goal.trim().replace(/\s+/g, ' ').split(/[。！？\n]/)[0]?.trim()
+  const firstSentence = goal
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(/[。！？\n]/)[0]
+    ?.trim()
   const shortGoal = firstSentence?.replace(/[，,；;:：]$/, '')
   if (shortGoal && /[\u3400-\u9fff]/.test(shortGoal) && shortGoal.length <= 24) {
     const detail =
@@ -736,7 +732,7 @@ export function activityTitleForTools(
         ? ''
         : kinds.size > 1
           ? `：${category}`
-          : ` · ${count} ${kinds.has('file') ? '个文件' : kinds.has('shell') ? '条命令' : '项操作'}`
+          : ` · ${count} ${kinds.has('shell') ? '条命令' : '项操作'}`
     const summary = `${shortGoal}${detail}`
     if (status === 'running') return `正在${summary}`
     if (status === 'failed' && count === 1) return `${summary}（执行失败）`
@@ -756,31 +752,29 @@ export function activityTitleForTools(
     return `${summary}失败`
   }
   const subject =
-    kinds.size === 1 && kinds.has('file')
-      ? `${count} 个文件`
-      : kinds.size === 1 && kinds.has('web')
-        ? `${count} 项网页搜索`
-        : kinds.size === 1 && kinds.has('file-search')
-          ? `${count} 项文件搜索`
-          : kinds.size === 1 && kinds.has('shell')
-            ? `${count} 条命令`
-            : `${count} 项操作`
-  if (status === 'running')
-    return `正在${kinds.size === 1 && kinds.has('file') ? '读取' : '执行'} ${subject}`
+    kinds.size === 1 && kinds.has('web')
+      ? `${count} 项网页搜索`
+      : kinds.size === 1 && kinds.has('shell')
+        ? `${count} 条命令`
+        : `${count} 项操作`
+  if (status === 'running') return `正在执行 ${subject}`
   if (issueCount > 0) return `已处理 ${subject}（${issueCount} 项未完成）`
-  if (status === 'completed')
-    return `已${kinds.size === 1 && kinds.has('file') ? '读取' : '执行'} ${subject}`
+  if (status === 'completed') return `已执行 ${subject}`
   if (status === 'cancelled') return `已取消 ${subject}`
   return `${subject}执行失败`
 }
 
-function activityToolKind(modelName: string): 'web' | 'file-search' | 'shell' | 'script' | 'file' | 'other' {
+function activityToolKind(modelName: string): 'web' | 'shell' | 'script' | 'other' {
   const normalized = modelName.toLowerCase()
   if (normalized.includes('web')) return 'web'
-  if (normalized.includes('fs_search') || normalized.includes('file_search')) return 'file-search'
   if (normalized.includes('shell') || normalized.includes('command')) return 'shell'
-  if (normalized.includes('python') || normalized.includes('node_run') || normalized.includes('node.run')) return 'script'
-  if (normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.'))
-    return 'file'
+  if (
+    normalized.includes('python') ||
+    normalized.includes('ts_run') ||
+    normalized.includes('typescript') ||
+    normalized.includes('node_run') ||
+    normalized.includes('node.run')
+  )
+    return 'script'
   return 'other'
 }

@@ -33,6 +33,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
   const [task, setTask] = useState<TaskProjection | null>(null)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modelSelection, setModelSelection] =
     useState<ModelSelectionProjection>(loadingModelSelection)
   const [recentTasks, setRecentTasks] = useState<readonly RecentTaskSummary[]>([])
@@ -131,6 +132,13 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     [services]
   )
 
+  useEffect(() => {
+    if (!task || task.status !== 'running') return
+    void services.restoreTaskStream?.(task).catch((error: unknown) => {
+      console.error('Failed to restore running task stream', error)
+    })
+  }, [services, task])
+
   const openHome = () => {
     restoredTaskId.current = null
     rememberActiveTaskId(null)
@@ -193,9 +201,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
 
   const mainRoute: MainAppRoute =
-    route.kind === 'settings' ||
-    route.kind === 'main-prompt' ||
-    route.kind === 'skills'
+    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills'
       ? route.returnTo
       : route
 
@@ -251,20 +257,25 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        active={route.kind === 'home' ? 'new' : 'task'}
-        activeTaskId={route.kind === 'task' ? route.taskId : null}
-        onNewTask={openHome}
-        onOpenTask={(taskId) => void openTask(taskId)}
-        onOpenSettings={openSettings}
-        recentTasks={recentTasks}
-        recentTasksLoading={recentTasksLoading}
-        recentTasksError={recentTasksError}
-        onRetryRecentTasks={() => void loadRecentTasks()}
-      />
+    <div className={`app-shell${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}`}>
+      {!sidebarCollapsed ? (
+        <Sidebar
+          active={route.kind === 'home' ? 'new' : 'task'}
+          activeTaskId={route.kind === 'task' ? route.taskId : null}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onNewTask={openHome}
+          onOpenTask={(taskId) => void openTask(taskId)}
+          onOpenSettings={openSettings}
+          recentTasks={recentTasks}
+          recentTasksLoading={recentTasksLoading}
+          recentTasksError={recentTasksError}
+          onRetryRecentTasks={() => void loadRecentTasks()}
+        />
+      ) : null}
       {route.kind === 'home' ? (
         <HomePage
+          sidebarCollapsed={sidebarCollapsed}
+          onExpandSidebar={() => setSidebarCollapsed(false)}
           modelSelection={modelSelection}
           onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
           onRetryModels={() => void loadModels(modelSelection.selected)}
@@ -272,6 +283,8 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         />
       ) : task ? (
         <TaskPage
+          sidebarCollapsed={sidebarCollapsed}
+          onExpandSidebar={() => setSidebarCollapsed(false)}
           mode={mode}
           task={task}
           modelSelection={modelSelection}

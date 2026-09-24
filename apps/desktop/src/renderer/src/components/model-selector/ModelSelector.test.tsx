@@ -6,6 +6,22 @@ import { mockModelSelection } from '../../testing/model-selection-fixture'
 import { ModelSelector } from './ModelSelector'
 
 describe('ModelSelector', () => {
+  it('marks the trigger selected only when a model is selected', () => {
+    const view = render(
+      <ModelSelector projection={{ ...mockModelSelection, selected: null }} onSelect={vi.fn()} />
+    )
+    expect(screen.getByRole('button', { name: '选择模型' })).toHaveAttribute(
+      'data-selected',
+      'false'
+    )
+
+    view.rerender(<ModelSelector projection={mockModelSelection} onSelect={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /当前模型/ })).toHaveAttribute(
+      'data-selected',
+      'true'
+    )
+  })
+
   it('expands the selected connection after an asynchronous model load', async () => {
     const user = userEvent.setup()
     const view = render(

@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, nativeImage, net, protocol, safeStorage } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { randomBytes } from 'node:crypto'
-import { unlinkSync } from 'node:fs'
+import { mkdirSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
@@ -22,6 +22,11 @@ import { resolveCredentialKey } from './credential-key'
 import { resolveModuleDirectory } from './module-directory'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 import { PACKAGED_RENDERER_URL, resolveRendererAssetPath } from './renderer-protocol'
+import {
+  SKILL_FOLDER_BROWSE_CHANNEL,
+  SKILL_FOLDER_CHOOSE_CHANNEL,
+  SKILL_FOLDER_REVEAL_CHANNEL
+} from '../shared/skill-folder-contract'
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'actiondriver',
@@ -80,14 +85,33 @@ app.whenReady().then(async () => {
   })
   applyDesktopBranding()
   logging = await createMainLogging()
+  const agentHomeDirectory =
+    !app.isPackaged && process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
+      ? process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
+      : app.getPath('home')
+  const skillsDirectory = join(agentHomeDirectory, '.action-driver', 'skills')
+  ipcMain.handle(SKILL_FOLDER_CHOOSE_CHANNEL, async () => {
+    const chosen = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+    return chosen.canceled ? null : chosen.filePaths[0] ?? null
+  })
+  ipcMain.handle(SKILL_FOLDER_BROWSE_CHANNEL, async () => {
+    mkdirSync(skillsDirectory, { recursive: true })
+    const error = await shell.openPath(skillsDirectory)
+    if (error) throw new Error(error)
+  })
+  ipcMain.handle(SKILL_FOLDER_REVEAL_CHANNEL, (_event, input: unknown) => {
+    const skillId = (input as { skillId?: unknown })?.skillId
+    if (typeof skillId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillId)) {
+      throw new Error('Skill 标识无效。')
+    }
+    const system = new Set(['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'])
+    const path = join(skillsDirectory, system.has(skillId) ? '.system' : '', skillId)
+    shell.showItemInFolder(path)
+  })
   if (compositionMode === 'mock') {
     services = createMainServices({ mode: 'mock' })
   } else {
     const skillProviderHost = createProductionSkillProviderHost()
-    const agentHomeDirectory =
-      !app.isPackaged && process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
-        ? process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
-        : app.getPath('home')
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),

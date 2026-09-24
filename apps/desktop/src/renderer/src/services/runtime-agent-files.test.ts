@@ -8,10 +8,12 @@ describe('RuntimeAgentFilesService', () => {
     const files = new RuntimeAgentFilesService({ request } as unknown as RuntimeHttpClient)
     await files.getMainPrompt()
     await files.listSkills()
+    await files.installSkill({ source: 'github', url: 'https://github.com/acme/tools/tree/main/writer' })
     await files.saveFile({ path: '.action-driver/prompts/main.md', content: '# New', expectedDigest: 'old' })
     expect(request.mock.calls).toEqual([
       ['/agent-files/main-prompt'],
       ['/agent-files/skills'],
+      ['/agent-files/skills/install', { method: 'POST', body: { source: 'github', url: 'https://github.com/acme/tools/tree/main/writer' } }],
       ['/agent-files/file', { method: 'POST', body: {
         path: '.action-driver/prompts/main.md', content: '# New', expectedDigest: 'old'
       } }]

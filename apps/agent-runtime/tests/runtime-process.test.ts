@@ -6,14 +6,20 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
 import { startAgentRuntimeProcess } from '../src/runtime-process'
-import { createSandboxTools } from '../src/sandbox'
 import { createScriptTools } from '../src/execution/tools'
-import { RuntimeToolPolicy, RuntimeToolRegistry, SqliteRuntimeRepositories, openRuntimeDatabase } from '../src/index'
+import {
+  RuntimeToolPolicy,
+  RuntimeToolRegistry,
+  SqliteRuntimeRepositories,
+  openRuntimeDatabase
+} from '../src/index'
 
 const phoenixConstruction = vi.hoisted(() => vi.fn())
 vi.mock('../src/phoenix-model-observability', () => ({
   PhoenixModelObservability: class {
-    constructor(tracer: unknown) { phoenixConstruction(tracer) }
+    constructor(tracer: unknown) {
+      phoenixConstruction(tracer)
+    }
     async start() {}
     async finish() {}
   }
@@ -23,12 +29,13 @@ class FakeParentPort extends EventEmitter {
   readonly postMessage = vi.fn()
 }
 
-
 describe('Agent Runtime process entry', () => {
   it('disables inherited LangChain tracing flags before running the graph', async () => {
     const keys = [
-      'LANGSMITH_TRACING_V2', 'LANGCHAIN_TRACING_V2',
-      'LANGSMITH_TRACING', 'LANGCHAIN_TRACING'
+      'LANGSMITH_TRACING_V2',
+      'LANGCHAIN_TRACING_V2',
+      'LANGSMITH_TRACING',
+      'LANGCHAIN_TRACING'
     ] as const
     const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
     for (const key of keys) process.env[key] = 'true'
@@ -39,7 +46,11 @@ describe('Agent Runtime process entry', () => {
         parentPort,
         join(mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-')), 'runtime.db'),
         exit,
-        { ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-root-')) }
+        {
+          ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(
+            join(tmpdir(), 'actiondriver-no-langsmith-root-')
+          )
+        }
       )
       for (const key of keys) expect(process.env[key]).toBe('false')
     } finally {
@@ -60,15 +71,20 @@ describe('Agent Runtime process entry', () => {
     await startAgentRuntimeProcess(parentPort, databasePath, exit, {
       ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
     })
-    expect(phoenixConstruction).toHaveBeenCalledWith(expect.objectContaining({
-      startSpan: expect.any(Function)
-    }))
+    expect(phoenixConstruction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startSpan: expect.any(Function)
+      })
+    )
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
   })
 
   it('refuses a second live Runtime before it can recover the first Runtime tasks', async () => {
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-')), 'runtime.db')
+    const databasePath = join(
+      mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-')),
+      'runtime.db'
+    )
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-root-'))
     const firstParent = new FakeParentPort()
     const firstExit = vi.fn()
@@ -81,7 +97,7 @@ describe('Agent Runtime process entry', () => {
       const secondStart = startAgentRuntimeProcess(secondParent, databasePath, vi.fn(), {
         ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
       })
-        await expect(secondStart).rejects.toThrow('RUNTIME_ALREADY_RUNNING')
+      await expect(secondStart).rejects.toThrow('RUNTIME_ALREADY_RUNNING')
       expect(secondParent.postMessage).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: 'runtime.ready' })
       )
@@ -97,40 +113,91 @@ describe('Agent Runtime process entry', () => {
     const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath))
     const timestamp = '2026-01-01T00:00:00.000Z'
     await repositories.createStreamTask({
-      request: { requestId: 'orphan', idempotencyKey: 'orphan-key', sessionId: 'orphan-session',
-        taskId: 'orphan-task', responseId: 'orphan-response', streamId: 'orphan-stream',
-        messageId: 'orphan-assistant', status: 'running', lastSequence: -1,
-        createdAt: timestamp, updatedAt: timestamp },
-      task: { id: 'orphan-task', threadId: 'orphan-task', sessionId: 'orphan-session', goal: 'work',
-        model: { connectionId: 'connection', modelId: 'model' }, status: 'running',
-        error: null, lastCheckpointId: null, createdAt: timestamp, updatedAt: timestamp },
-      userMessage: { id: 'orphan-user', taskId: 'orphan-task', role: 'user',
-        content: { text: 'work' }, createdAt: timestamp },
-      assistantMessage: { id: 'orphan-assistant', taskId: 'orphan-task', role: 'assistant',
-        content: { text: '' }, createdAt: timestamp },
-      acceptedEvent: { taskId: 'orphan-task', threadId: 'orphan-session',
-        checkpointId: 'orphan-response', eventKey: 'request.accepted', type: 'request.accepted',
-        payload: {}, occurredAt: timestamp, eventId: 'orphan-accepted', requestId: 'orphan',
-        responseId: 'orphan-response', streamId: 'orphan-stream', messageId: 'orphan-assistant',
-        sequence: null }
+      request: {
+        requestId: 'orphan',
+        idempotencyKey: 'orphan-key',
+        sessionId: 'orphan-session',
+        taskId: 'orphan-task',
+        responseId: 'orphan-response',
+        streamId: 'orphan-stream',
+        messageId: 'orphan-assistant',
+        status: 'running',
+        lastSequence: -1,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      task: {
+        id: 'orphan-task',
+        threadId: 'orphan-task',
+        sessionId: 'orphan-session',
+        goal: 'work',
+        model: { connectionId: 'connection', modelId: 'model' },
+        status: 'running',
+        error: null,
+        lastCheckpointId: null,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      userMessage: {
+        id: 'orphan-user',
+        taskId: 'orphan-task',
+        role: 'user',
+        content: { text: 'work' },
+        createdAt: timestamp
+      },
+      assistantMessage: {
+        id: 'orphan-assistant',
+        taskId: 'orphan-task',
+        role: 'assistant',
+        content: { text: '' },
+        createdAt: timestamp
+      },
+      acceptedEvent: {
+        taskId: 'orphan-task',
+        threadId: 'orphan-session',
+        checkpointId: 'orphan-response',
+        eventKey: 'request.accepted',
+        type: 'request.accepted',
+        payload: {},
+        occurredAt: timestamp,
+        eventId: 'orphan-accepted',
+        requestId: 'orphan',
+        responseId: 'orphan-response',
+        streamId: 'orphan-stream',
+        messageId: 'orphan-assistant',
+        sequence: null
+      }
     })
     await repositories.toolInvocations.save({
-      id: 'orphan-tool', providerCallId: 'orphan-provider', taskId: 'orphan-task',
-      toolId: 'sandbox.shell.run', toolVersion: 1, argumentsHash: 'hash', decision: 'allow',
-      status: 'running', input: { command: 'touch marker' }, output: null, error: null,
-      createdAt: timestamp, updatedAt: timestamp
+      id: 'orphan-tool',
+      providerCallId: 'orphan-provider',
+      taskId: 'orphan-task',
+      toolId: 'sandbox.shell.run',
+      toolVersion: 1,
+      argumentsHash: 'hash',
+      decision: 'allow',
+      status: 'running',
+      input: { command: 'touch marker' },
+      output: null,
+      error: null,
+      createdAt: timestamp,
+      updatedAt: timestamp
     })
     repositories.close()
 
-    const child = spawn(process.execPath, [
-      '-e',
-      "const Database = require('better-sqlite3'); const db = new Database(process.argv[1]); " +
-        "db.prepare('INSERT INTO runtime_process_owner (singleton, pid, token, acquired_at) VALUES (1, ?, ?, ?)').run(process.pid, 'crashed-owner', new Date().toISOString()); " +
-        "db.prepare('UPDATE messages SET content_json = ? WHERE id = ?').run(" +
-        "JSON.stringify({ text: 'partial' }), 'orphan-assistant'); " +
-        "process.stdout.write('persisted\\n'); setInterval(() => {}, 1000)",
-      databasePath
-    ], { cwd: join(process.cwd(), 'apps/agent-runtime') })
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        "const Database = require('better-sqlite3'); const db = new Database(process.argv[1]); " +
+          "db.prepare('INSERT INTO runtime_process_owner (singleton, pid, token, acquired_at) VALUES (1, ?, ?, ?)').run(process.pid, 'crashed-owner', new Date().toISOString()); " +
+          "db.prepare('UPDATE messages SET content_json = ? WHERE id = ?').run(" +
+          "JSON.stringify({ text: 'partial' }), 'orphan-assistant'); " +
+          "process.stdout.write('persisted\\n'); setInterval(() => {}, 1000)",
+        databasePath
+      ],
+      { cwd: join(process.cwd(), 'apps/agent-runtime') }
+    )
     await new Promise<void>((resolve, reject) => {
       child.stdout.once('data', () => resolve())
       child.once('error', reject)
@@ -149,10 +216,14 @@ describe('Agent Runtime process entry', () => {
       await started
       const read = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath))
       expect((await read.streamRequests.getByRequestId('orphan'))?.status).toBe('failed')
-      expect((await read.events.listForRequestAfter('orphan', 0, 10)).filter(
-        (event) => event.type === 'runtime.interrupted'
-      )).toHaveLength(1)
-      expect((await read.messages.listByTask('orphan-task')).at(-1)?.content).toEqual({ text: 'partial' })
+      expect(
+        (await read.events.listForRequestAfter('orphan', 0, 10)).filter(
+          (event) => event.type === 'runtime.interrupted'
+        )
+      ).toHaveLength(1)
+      expect((await read.messages.listByTask('orphan-task')).at(-1)?.content).toEqual({
+        text: 'partial'
+      })
       expect((await read.toolInvocations.listByTask('orphan-task'))[0]?.status).toBe('unknown')
       read.close()
       parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
@@ -262,37 +333,25 @@ describe('Agent Runtime process entry', () => {
     )
   })
 
-  it('registers file and shell tools for automatic use within the grant', async () => {
+  it('registers only current script tools for automatic use within the grant', async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-policy-workspace-'))
     const registry = new RuntimeToolRegistry()
     const policy = new RuntimeToolPolicy()
-    const tools = [
-      ...(await createSandboxTools({ workspaceRoot })),
-      ...(await createScriptTools({ workspaceRoot, runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') }))
-    ]
+    const tools = await createScriptTools({
+      workspaceRoot,
+      runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist')
+    })
     for (const tool of tools) registry.register(tool.definition, tool.executor)
     const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
     expect(registry.list().map((tool) => tool.id)).toEqual([
-      'sandbox.fs.list',
-      'sandbox.fs.read',
       'local.shell.run',
       'local.python.run',
-      'local.node.run'
+      'local.node.run',
+      'local.typescript.run'
     ])
-    const read = registry.resolveModelName('sandbox_fs_read').definition
+    expect(() => registry.resolveModelName('sandbox_fs_read')).toThrow('TOOL_UNAVAILABLE')
+    expect(() => registry.resolveModelName('sandbox_fs_list')).toThrow('TOOL_UNAVAILABLE')
     const shell = registry.resolveModelName('shell_run').definition
-    expect(
-      policy.decide(
-        read,
-        {
-          callId: 'read',
-          providerCallId: 'provider-read',
-          modelName: read.modelName,
-          arguments: { path: 'README.md' }
-        },
-        { grants }
-      )
-    ).toEqual({ kind: 'allow' })
     expect(
       policy.decide(
         shell,
@@ -300,7 +359,7 @@ describe('Agent Runtime process entry', () => {
           callId: 'shell',
           providerCallId: 'provider-shell',
           modelName: shell.modelName,
-          arguments: { command: 'rg', args: ['needle', '.'] }
+          arguments: { script: 'rg needle .' }
         },
         { grants }
       )

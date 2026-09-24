@@ -25,6 +25,11 @@ export class StreamLifecycleGuard {
   private readonly appliedEventIds = new Set<string>()
   private readonly responses = new Map<string, ResponseState>()
 
+  restoreStarted(responseId: string): void {
+    if (!this.responses.has(responseId))
+      this.responses.set(responseId, { started: true, ended: false })
+  }
+
   apply(event: StreamResponseEvent): 'applied' | 'duplicate' {
     if (this.appliedEventIds.has(event.eventId)) return 'duplicate'
 

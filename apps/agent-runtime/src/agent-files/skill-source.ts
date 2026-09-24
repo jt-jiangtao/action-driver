@@ -42,12 +42,14 @@ export async function cloneGitSkill({
   repository,
   ref,
   subdir,
-  destination
+  destination,
+  environment = process.env
 }: {
   repository: string
   ref: string | null
   subdir: string
   destination: string
+  environment?: NodeJS.ProcessEnv
 }): Promise<void> {
   const temporaryRoot = await mkdtemp(join(tmpdir(), 'actiondriver-github-skill-'))
   const checkout = join(temporaryRoot, 'repo')
@@ -55,7 +57,7 @@ export async function cloneGitSkill({
     const args = ['clone', '--quiet', '--depth', '1', '--filter=blob:none', '--sparse']
     if (ref) args.push('--branch', ref)
     args.push(repository, checkout)
-    await run('git', args, { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, timeout: 60_000 })
+    await run('git', args, { env: { ...environment, GIT_TERMINAL_PROMPT: '0' }, timeout: 60_000 })
     if (subdir) {
       await run('git', ['-C', checkout, 'sparse-checkout', 'set', '--', subdir], { timeout: 60_000 })
     }

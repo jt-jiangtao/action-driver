@@ -3,31 +3,44 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  _electron as electron,
+  type ElectronApplication,
+  type Page
+} from '@playwright/test'
 
 const sourceProfile = process.env.ACTIONDRIVER_REAL_SMOKE_PROFILE
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 
 test.skip(!sourceProfile, 'Set ACTIONDRIVER_REAL_SMOKE_PROFILE to run against a saved connection')
 
-async function runtimeTask(page: Page, taskId: string): Promise<{
-  status: string; messages: Array<{ content: unknown }>
+async function runtimeTask(
+  page: Page,
+  taskId: string
+): Promise<{
+  status: string
+  messages: Array<{ content: unknown }>
 } | null> {
   return await page.evaluate(async (id) => {
     const connection = await window.actionDriverDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = `/tasks/${encodeURIComponent(id)}`
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${connection.accessToken}` } })
-    const body = await response.json() as {
-      ok: boolean; value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${connection.accessToken}` }
+    })
+    const body = (await response.json()) as {
+      ok: boolean
+      value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
     }
     if (!response.ok || !body.ok) throw new Error('Runtime task query failed')
     return body.value.task
   }, taskId)
 }
 
-test('calls a saved real model and observes a real sandbox file read', async () => {
+test('calls a saved real model and observes a real shell file read', async () => {
   test.setTimeout(90_000)
   const temporaryProfile = mkdtempSync(join(tmpdir(), 'actiondriver-real-tool-smoke-'))
   const userDataPath = join(temporaryProfile, 'user-data')
@@ -63,18 +76,16 @@ test('calls a saved real model and observes a real sandbox file read', async () 
     await page.getByRole('option', { name: 'qwen3.7-max' }).click()
     await page
       .getByLabel('任务描述')
-      .fill('请调用 sandbox_fs_read 读取工作区 README.md，准确返回第一行。不要猜测文件内容。')
+      .fill('请调用 shell_run 读取工作区 README.md，准确返回第一行。不要猜测文件内容。')
     await page.getByLabel('发送').click()
     const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
     await expect(taskPage).toBeVisible()
     const taskId = await taskPage.getAttribute('data-task-id')
     expect(taskId).toMatch(/^task-/)
     await expect
-      .poll(
-        async () =>
-          runtimeTask(page, taskId!).then((task) => task?.status),
-        { timeout: 75_000 }
-      )
+      .poll(async () => runtimeTask(page, taskId!).then((task) => task?.status), {
+        timeout: 75_000
+      })
       .not.toBe('running')
     const persisted = await runtimeTask(page, taskId!)
     expect(persisted?.messages.at(-1)?.content).toContain(

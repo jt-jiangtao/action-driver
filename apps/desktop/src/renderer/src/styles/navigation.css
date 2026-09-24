@@ -134,6 +134,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  padding-right: 10px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: #a8adb6 transparent;

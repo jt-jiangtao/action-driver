@@ -19,35 +19,30 @@ import { activityTitleForTool, activityTitleForTools } from '../src/agent-graph'
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
-  it('distinguishes workspace search from web search in group titles', () => {
-    expect(activityTitleForTool('sandbox_fs_search')).toBe('正在搜索文件')
+  it('distinguishes shell commands from web search in group titles', () => {
+    expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
   })
   it('updates a mixed group summary as its tools and outcomes change', () => {
     const goal = '测试所有工具'
-    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_shell_run'])).toBe(
-      '正在测试所有工具：文件、命令'
+    expect(activityTitleForTools(goal, ['shell_run', 'python_run'])).toBe(
+      '正在测试所有工具：命令、脚本'
+    )
+    expect(activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'])).toBe(
+      '正在测试所有工具：命令、脚本、网页'
     )
     expect(
-      activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_shell_run', 'web_search'])
-    ).toBe('正在测试所有工具：文件、命令、网页')
-    expect(
-      activityTitleForTools(
-        goal,
-        ['sandbox_fs_read', 'sandbox_shell_run', 'web_search'],
-        'completed',
-        1
-      )
-    ).toBe('测试所有工具：文件、命令、网页（1 项未完成）')
+      activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'], 'completed', 1)
+    ).toBe('测试所有工具：命令、脚本、网页（1 项未完成）')
   })
   it('uses a concise task intent for a single tool and a homogeneous group', () => {
     const goal = '读取 README 的第一段'
-    expect(activityTitleForTools(goal, ['sandbox_fs_read'])).toBe('正在读取 README 的第一段')
-    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_fs_read'])).toBe(
-      '正在读取 README 的第一段 · 2 个文件'
+    expect(activityTitleForTools(goal, ['shell_run'])).toBe('正在读取 README 的第一段')
+    expect(activityTitleForTools(goal, ['shell_run', 'shell_run'])).toBe(
+      '正在读取 README 的第一段 · 2 条命令'
     )
-    expect(activityTitleForTools(goal, ['sandbox_fs_read', 'sandbox_fs_read'], 'completed')).toBe(
-      '已完成读取 README 的第一段 · 2 个文件'
+    expect(activityTitleForTools(goal, ['shell_run', 'shell_run'], 'completed')).toBe(
+      '已完成读取 README 的第一段 · 2 条命令'
     )
     expect(
       activityTitleForTools('在阻塞文件中查找 needle', ['sandbox_shell_run'], 'failed', 1)
@@ -63,19 +58,19 @@ describe('minimal agent StateGraph', () => {
       async complete(request) {
         round += 1
         if (round === 1) {
-          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
+          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
           return {
             kind: 'tool-calls',
             calls: [
               {
                 providerCallId: 'provider-read-first',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'README.md' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat README.md' }
               },
               {
                 providerCallId: 'provider-read-second',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'package.json' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat package.json' }
               }
             ]
           }
@@ -122,7 +117,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'started',
           activityId: 'activity:task-activity:default',
-          title: '正在读取文件',
+          title: '正在执行命令',
           titleRevision: 1
         }
       },
@@ -131,7 +126,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '已读取文件',
+          title: '已执行命令',
           titleRevision: 2
         }
       },
@@ -140,7 +135,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '正在读取 2 个文件',
+          title: '正在执行 2 条命令',
           titleRevision: 3
         }
       },
@@ -149,7 +144,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '已读取 2 个文件',
+          title: '已执行 2 条命令',
           titleRevision: 4
         }
       },
@@ -165,8 +160,8 @@ describe('minimal agent StateGraph', () => {
           typeof record.payload.callId === 'string'
       )
     ).toBe(true)
-    expect(toolRecords[0]?.payload.title).toBe('正在读取 README.md')
-    expect(toolRecords[3]?.payload.title).toBe('已读取 README.md')
+    expect(toolRecords[0]?.payload.title).toBe('正在执行命令')
+    expect(toolRecords[3]?.payload.title).toBe('已执行命令')
     expect(commits).toEqual([
       'proposed',
       'queued',
@@ -180,11 +175,11 @@ describe('minimal agent StateGraph', () => {
   })
 
   it.each([
-    ['failed', new Error('read failed'), '读取文件失败'],
+    ['failed', new Error('read failed'), '执行命令失败'],
     [
       'cancelled',
       Object.assign(new Error('read cancelled'), { name: 'AbortError' }),
-      '已取消读取文件'
+      '已取消执行命令'
     ]
   ])('updates the group title when a tool is %s', async (_status, failure, title) => {
     let round = 0
@@ -198,8 +193,8 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'provider-read',
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: 'README.md' }
+                  modelName: 'shell_run',
+                  arguments: { command: 'cat README.md' }
                 }
               ]
             }
@@ -243,13 +238,13 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'first',
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: 'first.txt' }
+                  modelName: 'shell_run',
+                  arguments: { command: 'cat first.txt' }
                 },
                 {
                   providerCallId: 'second',
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: 'second.txt' }
+                  modelName: 'shell_run',
+                  arguments: { command: 'cat second.txt' }
                 }
               ]
             }
@@ -275,7 +270,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-partial-failure:default',
-        title: '已处理 2 个文件（1 项未完成）',
+        title: '已处理 2 条命令（1 项未完成）',
         titleRevision: 4
       }
     })
@@ -294,13 +289,13 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-read-first',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'README.md' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat README.md' }
               },
               {
                 providerCallId: 'provider-read-second',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'package.json' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat package.json' }
               }
             ]
           }
@@ -330,7 +325,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'started',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在读取文件',
+        title: '正在执行命令',
         titleRevision: 1
       }
     })
@@ -343,7 +338,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '已读取文件',
+        title: '已执行命令',
         titleRevision: 2
       }
     })
@@ -352,7 +347,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在读取 2 个文件',
+        title: '正在执行 2 条命令',
         titleRevision: 3
       }
     })
@@ -361,7 +356,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '已读取 2 个文件',
+        title: '已执行 2 条命令',
         titleRevision: 4
       }
     })
@@ -424,8 +419,8 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'read-a',
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: 'README.md' }
+                  modelName: 'shell_run',
+                  arguments: { command: 'cat README.md' }
                 }
               ]
             }
@@ -481,7 +476,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'started',
         activityId: 'activity:task:default',
-        title: '正在读取文件',
+        title: '正在执行命令',
         titleRevision: 1
       }
     })
@@ -560,8 +555,8 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: `provider-${round}`,
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: `file-${round}.txt` }
+                  modelName: 'shell_run',
+                  arguments: { command: `cat file-${round}.txt` }
                 }
               ]
             }
@@ -617,17 +612,17 @@ describe('minimal agent StateGraph', () => {
     expect(activityEvents.filter((event) => event.type === 'started')).toEqual([
       expect.objectContaining({
         activityId: 'activity:task-groups:default',
-        title: '正在读取文件'
+        title: '正在执行命令'
       }),
       expect.objectContaining({
         activityId: 'activity:task-groups:tools:3:0',
-        title: '正在读取文件'
+        title: '正在执行命令'
       })
     ])
     expect(activityEvents).toContainEqual(
       expect.objectContaining({
         activityId: 'activity:task-groups:default',
-        title: '正在读取 2 个文件'
+        title: '正在执行 2 条命令'
       })
     )
     const secondText = activityEvents.findIndex(
@@ -692,8 +687,8 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-read-1',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'README.md' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat README.md' }
               }
             ]
           }
@@ -714,7 +709,7 @@ describe('minimal agent StateGraph', () => {
 
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['sandbox_fs_read'])
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
     expect(requests[1]?.messages.at(-2)).toMatchObject({
       role: 'assistant',
       toolCalls: [{ providerCallId: 'provider-read-1' }]
@@ -744,8 +739,8 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'provider-stream-1',
-                  modelName: 'sandbox_fs_read',
-                  arguments: { path: 'README.md' }
+                  modelName: 'shell_run',
+                  arguments: { command: 'cat README.md' }
                 }
               ]
             },
@@ -816,8 +811,8 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-denied',
-                modelName: 'sandbox_fs_read',
-                arguments: { path: 'README.md' }
+                modelName: 'shell_run',
+                arguments: { command: 'cat README.md' }
               }
             ]
           }
@@ -851,8 +846,8 @@ describe('minimal agent StateGraph', () => {
           return {
             kind: 'tool-calls',
             calls: [
-              { providerCallId: 'first', modelName: 'sandbox_fs_read', arguments: { path: 'a' } },
-              { providerCallId: 'second', modelName: 'sandbox_fs_read', arguments: { path: 'b' } }
+              { providerCallId: 'first', modelName: 'shell_run', arguments: { command: 'cat a' } },
+              { providerCallId: 'second', modelName: 'shell_run', arguments: { command: 'cat b' } }
             ]
           }
         }
@@ -861,14 +856,14 @@ describe('minimal agent StateGraph', () => {
     }
     const { runner } = toolRunner(model, {
       async *execute(call) {
-        order.push(String(call.arguments.path))
-        yield { kind: 'result', output: { path: call.arguments.path } }
+        order.push(String(call.arguments.command))
+        yield { kind: 'result', output: { command: call.arguments.command } }
       }
     })
     expect((await runner.run({ taskId: 'task-multi', goal: 'read', model: modelRef })).status).toBe(
       'completed'
     )
-    expect(order).toEqual(['a', 'b'])
+    expect(order).toEqual(['cat a', 'cat b'])
 
     let callCount = 0
     const endless: ModelGateway = {
@@ -878,8 +873,8 @@ describe('minimal agent StateGraph', () => {
           calls: [
             {
               providerCallId: `provider-${++callCount}`,
-              modelName: 'sandbox_fs_read',
-              arguments: { path: 'README.md' }
+              modelName: 'shell_run',
+              arguments: { command: 'cat README.md' }
             }
           ]
         }
@@ -896,8 +891,8 @@ describe('minimal agent StateGraph', () => {
       model: modelRef
     })
     expect(exhausted).toMatchObject({ status: 'failed', error: 'TOOL_BUDGET_EXCEEDED' })
-    expect(budget.commits.filter((status) => status === 'completed')).toHaveLength(8)
-  })
+    expect(budget.commits.filter((status) => status === 'completed')).toHaveLength(512)
+  }, 120_000)
 
   it('rejects a model response exceeding the call budget before invoking a tool', async () => {
     const execute = vi.fn(async function* () {
@@ -907,10 +902,10 @@ describe('minimal agent StateGraph', () => {
       async complete() {
         return {
           kind: 'tool-calls',
-          calls: Array.from({ length: 17 }, (_, index) => ({
+          calls: Array.from({ length: 513 }, (_, index) => ({
             providerCallId: `provider-${index}`,
-            modelName: 'sandbox_fs_read',
-            arguments: { path: 'README.md' }
+            modelName: 'shell_run',
+            arguments: { command: 'cat README.md' }
           }))
         }
       }
@@ -920,6 +915,121 @@ describe('minimal agent StateGraph', () => {
     expect(result).toMatchObject({ status: 'failed', error: 'TOOL_BUDGET_EXCEEDED' })
     expect(execute).not.toHaveBeenCalled()
   })
+
+  it('executes 100 calls of each current tool in one task before generating the final answer', async () => {
+    const names = ['shell_run', 'python_run', 'node_run', 'web_search'] as const
+    const executed: string[] = []
+    let modelTurns = 0
+    const model: ModelGateway = {
+      async complete(request) {
+        modelTurns += 1
+        if (modelTurns === 1) {
+          return {
+            kind: 'tool-calls',
+            calls: Array.from({ length: 400 }, (_, index) => ({
+              providerCallId: `batch-${index}`,
+              modelName: names[index % names.length]!,
+              arguments: { command: `item-${index}` }
+            }))
+          }
+        }
+        expect(request.messages.filter((message) => message.role === 'tool')).toHaveLength(400)
+        return { kind: 'finish', content: '400 complete' }
+      }
+    }
+    const registry = new RuntimeToolRegistry()
+    const policy = new RuntimeToolPolicy()
+    for (const name of names) {
+      registry.register(
+        { ...shellTool, id: `test.${name}`, modelName: name },
+        {
+          async *execute(call) {
+            executed.push(call.modelName)
+            yield { kind: 'result', output: call.arguments.command }
+          }
+        }
+      )
+    }
+    let cursor = 0
+    const invocations = new ToolInvocationService({
+      registry,
+      policy,
+      persistence: {
+        async commitToolInvocationWithEvent(_invocation, event) {
+          return { ...event, cursor: ++cursor }
+        }
+      },
+      clock: { now: () => new Date().toISOString() }
+    })
+    const runner = new LangGraphRunner(model, new MockSkillRegistry(), undefined, {
+      registry,
+      policy,
+      invocations,
+      grants: names.map((name) => `test.${name}@1`)
+    })
+    const result = await runner.run({ taskId: 'task-400', goal: 'test all tools', model: modelRef })
+    expect(result).toMatchObject({ status: 'completed', output: '400 complete' })
+    for (const name of names) {
+      expect(executed.filter((value) => value === name)).toHaveLength(100)
+    }
+  }, 60_000)
+
+  it('allows 400 single-call rounds and still refuses call 513 before execution', async () => {
+    let turns = 0
+    let executions = 0
+    const model: ModelGateway = {
+      async complete() {
+        turns += 1
+        if (turns === 401) return { kind: 'finish', content: 'rounds complete' }
+        return {
+          kind: 'tool-calls',
+          calls: [
+            {
+              providerCallId: `round-${turns}`,
+              modelName: 'shell_run',
+              arguments: { command: 'printf ok' }
+            }
+          ]
+        }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        executions += 1
+        yield { kind: 'result', output: 'ok' }
+      }
+    })
+    const result = await runner.run({ taskId: 'task-400-rounds', goal: 'loop', model: modelRef })
+    expect(result).toMatchObject({ status: 'completed', output: 'rounds complete' })
+    expect(executions).toBe(400)
+
+    const tooMany: ModelGateway = {
+      async complete() {
+        return {
+          kind: 'tool-calls',
+          calls: Array.from({ length: 513 }, (_, index) => ({
+            providerCallId: `excess-${index}`,
+            modelName: 'shell_run',
+            arguments: { command: 'printf no' }
+          }))
+        }
+      }
+    }
+    let excessExecutions = 0
+    const excess = toolRunner(tooMany, {
+      async *execute() {
+        excessExecutions += 1
+        yield { kind: 'result', output: 'not reached' }
+      }
+    })
+    expect(
+      await excess.runner.run({ taskId: 'task-513', goal: 'loop', model: modelRef })
+    ).toMatchObject({
+      status: 'failed',
+      error: 'TOOL_BUDGET_EXCEEDED'
+    })
+    expect(excessExecutions).toBe(0)
+  }, 120_000)
 
   it('propagates cancellation to the active executor before the run resolves', async () => {
     const controller = new AbortController()
@@ -935,8 +1045,8 @@ describe('minimal agent StateGraph', () => {
           calls: [
             {
               providerCallId: 'provider-cancel',
-              modelName: 'sandbox_fs_read',
-              arguments: { path: 'README.md' }
+              modelName: 'shell_run',
+              arguments: { command: 'cat README.md' }
             }
           ]
         }
@@ -1230,25 +1340,25 @@ describe('minimal agent StateGraph', () => {
   })
 })
 
-const readTool: ToolDefinition = {
-  id: 'sandbox.fs.read',
+const shellTool: ToolDefinition = {
+  id: 'local.shell.run',
   version: 1,
-  modelName: 'sandbox_fs_read',
-  description: 'Read a workspace file',
+  modelName: 'shell_run',
+  description: 'Run a shell command',
   inputSchema: {
     type: 'object',
-    properties: { path: { type: 'string' } },
-    required: ['path'],
+    properties: { command: { type: 'string' } },
+    required: ['command'],
     additionalProperties: false
   },
-  risk: 'low',
-  sideEffects: { filesystem: 'read', network: false },
+  risk: 'high',
+  sideEffects: { filesystem: 'write', network: true },
   timeoutMs: 1_000
 }
 
 function toolRunner(model: ModelGateway, executor: ToolExecutor) {
   const registry = new RuntimeToolRegistry()
-  registry.register(readTool, executor)
+  registry.register(shellTool, executor)
   const policy = new RuntimeToolPolicy()
   const commits: string[] = []
   const invocations = new ToolInvocationService({
@@ -1267,7 +1377,7 @@ function toolRunner(model: ModelGateway, executor: ToolExecutor) {
       registry,
       policy,
       invocations,
-      grants: ['sandbox.fs.read@1']
+      grants: ['local.shell.run@1']
     }),
     commits
   }

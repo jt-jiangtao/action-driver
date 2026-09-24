@@ -16,6 +16,7 @@ export interface AgentTextFile {
 
 export interface AgentSkillSummary {
   id: string
+  source: 'builtin' | 'local' | 'github'
   name: string
   description: string
   enabled: boolean
@@ -41,6 +42,10 @@ export interface CreateAgentSkillInput {
   name: string
   description: string
 }
+
+export type InstallSkillInput =
+  | { source: 'local'; path: string }
+  | { source: 'github'; url: string }
 
 export class AgentFileConflictError extends Error {
   constructor(message = '文件已在外部更改，请重新加载后再保存。') {
@@ -71,6 +76,10 @@ export interface AgentFilesService {
   readFile(path: string): Promise<AgentTextFile>
   saveFile(input: SaveAgentFileInput): Promise<AgentTextFile>
   createSkill(input: CreateAgentSkillInput): Promise<AgentSkillSummary>
+  installSkill(input: InstallSkillInput): Promise<AgentSkillSummary>
+  chooseLocalSkillFolder(): Promise<string | null>
+  browseSkillDirectory(): Promise<void>
+  revealSkillFolder(skillId: string): Promise<void>
   renameSkill(skillId: string, name: string): Promise<AgentSkillSummary>
   deleteSkill(skillId: string): Promise<void>
   setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummary>

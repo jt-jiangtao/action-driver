@@ -60,6 +60,10 @@ export class ConnectionModelGateway implements ModelGateway {
           yield event
           continue
         }
+        if (event.kind === 'tool-call-preparing') {
+          yield event
+          continue
+        }
 
         ended = true
         const completedAt = this.options.now()

@@ -48,6 +48,22 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       return { authorized: authorized.status, unauthorized: unauthorized.status }
     })
     expect(result).toEqual({ authorized: 200, unauthorized: 401 })
+    const packagedSkills = await page.evaluate(async () => {
+      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const url = new URL(connection.wsUrl)
+      url.protocol = 'http:'
+      url.pathname = '/agent-files/skills'
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${connection.accessToken}` }
+      })
+      return response.json() as Promise<{ ok: boolean; value: Array<{ id: string; source: string }> }>
+    })
+    expect(packagedSkills.ok).toBe(true)
+    expect(packagedSkills.value).toEqual(expect.arrayContaining(
+      ['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'].map((id) =>
+        expect.objectContaining({ id, source: 'builtin' })
+      )
+    ))
     const root = join(appPath!, 'Contents', 'Resources', 'agent-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
     const env = { ...process.env, HOME: '/nonexistent-actiondriver-home', PATH: '/usr/bin:/bin' }
@@ -84,7 +100,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 30_000 })
     expect(provider.completions).toHaveLength(4)
     const modelTools = provider.completions[0]?.tools?.map((tool) => tool.function?.name)
-    expect(modelTools).toEqual(expect.arrayContaining(['shell_run', 'python_run', 'node_run']))
+    expect(modelTools).toEqual(expect.arrayContaining(['shell_run', 'python_run', 'node_run', 'ts_run']))
     const messages = JSON.stringify(provider.completions.at(-1)?.messages)
     expect(messages).toContain(root)
     expect(messages).toContain('needle is present')

@@ -39,6 +39,21 @@ try {
   const builtRuntimeDist = join(root, 'apps', 'agent-runtime', 'dist')
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
+  run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
+  for (const skill of ['browser-tools', 'computer-tools', 'report-writer', 'skill-creator']) {
+    if (!existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) {
+      throw new Error(`PACKAGED_SYSTEM_SKILL_MISSING: ${skill}`)
+    }
+  }
+  for (const relativePath of [
+    'scripts/init_skill.py', 'scripts/quick_validate.py', 'scripts/generate_openai_yaml.py',
+    'references/openai_yaml.md', 'references/codex-skill-creator.md',
+    'agents/openai.yaml', 'assets/skill-creator-small.svg', 'assets/skill-creator.png', 'license.txt'
+  ]) {
+    if (!existsSync(join(runtimeDist, 'system-skills', 'skill-creator', relativePath))) {
+      throw new Error(`PACKAGED_SKILL_CREATOR_RESOURCE_MISSING: ${relativePath}`)
+    }
+  }
   const arch = process.arch
   for (const binary of [
     join(runtimeDist, 'runtimes', `darwin-${arch}`, 'python', 'bin', 'python3'),

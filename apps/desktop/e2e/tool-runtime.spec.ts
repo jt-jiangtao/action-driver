@@ -40,7 +40,7 @@ test.afterEach(async () => {
 })
 
 async function launch(
-  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'node' | 'text' | 'web'
+  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'node' | 'text' | 'tool-preparing' | 'web'
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
@@ -142,6 +142,23 @@ test('shows only elapsed time and streamed text until a tool is actually called'
   await expect(
     page.getByRole('region', { name: '任务过程' }).locator('.activity-group')
   ).toHaveCount(0)
+})
+
+test('streams the tool name while arguments are incomplete without creating a tool row', async () => {
+  const page = await launch('tool-preparing')
+  await sendGoal(page, '运行命令')
+  const process = page.getByRole('region', { name: '任务过程' })
+  try {
+    await expect(process.getByRole('status')).toContainText('正在准备 Shell 命令')
+    await expect(process.locator('.activity-group')).toHaveCount(0)
+    await expect(process).not.toContainText('rg needle')
+    await page.reload()
+    await expect(process.getByRole('status')).toContainText('正在准备 Shell 命令')
+  } finally {
+    provider!.releaseTool()
+  }
+  await expect(page.getByTestId('e2e/tasks/detail/markdown#section').last()).toContainText('已读取')
+  await expect(process.getByRole('status')).toHaveCount(0)
 })
 
 async function runtimeTask(
@@ -246,13 +263,13 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
   )
   await expect.poll(() => provider!.completions.length).toBe(2)
   const [first, second] = provider!.completions
-  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('sandbox_fs_read')
+  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('shell_run')
   expect(first?.tool_choice).toBe('auto')
   expect(second?.messages).toContainEqual(
     expect.objectContaining({
       role: 'tool',
       tool_call_id: 'provider-tool-1',
-      name: 'sandbox_fs_read'
+      name: 'shell_run'
     })
   )
   expect(JSON.stringify(second?.messages)).toContain('E2E workspace')
@@ -315,7 +332,7 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   const items = group.locator('.activity-items > *')
   await expect(items).toHaveCount(1)
   const live = await items.allTextContents()
-  expect(live[0]).toContain('已读取 README.md')
+  expect(live[0]).toContain('已执行命令')
   await expect(groups.nth(1).locator('.activity-items > *')).toHaveCount(1)
   await expect(group).not.toContainText('正文 A')
   await expect(group).not.toContainText('正文 B')
@@ -423,7 +440,9 @@ for (const mode of ['python', 'node'] as const) {
     const page = await launch(mode)
     await sendGoal(page, `运行 ${mode}`)
     await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
-    expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(`${mode}_run`)
+    expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
+      `${mode}_run`
+    )
     expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('/dist/runtimes/darwin-')
     await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   })

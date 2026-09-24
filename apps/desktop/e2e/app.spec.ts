@@ -81,7 +81,6 @@ test('captures all Home and Task Figma states through public controls', async ()
   await auditRenderedInteractions(page, contracts, [
     'e2e/home/main/composer#section',
     'e2e/shared/sidebar/root#nav',
-    'e2e/shared/sidebar/collapse#button',
     'e2e/shared/sidebar/search#button',
     'e2e/shared/sidebar/skills#button',
     'e2e/shared/sidebar/mcp#button',
@@ -230,6 +229,7 @@ test('captures all eight Settings Figma states through public controls', async (
   await expect(page.getByRole('menu')).toBeVisible()
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-skill-actions')
+  await page.getByTestId('e2e/settings/skills/detail/back#button').click()
 
   await expect(page.getByTestId('e2e/settings/sidebar/logs#button')).toHaveCount(0)
   await expect(page.getByTestId('e2e/settings/sidebar/model-connections#button')).toBeVisible()

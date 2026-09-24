@@ -2,18 +2,26 @@ import type { TaskLayoutMode } from '../BrowserPanel'
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
 import { BrowserSizeToggle } from './BrowserSizeToggle'
+import { SidebarRestoreButton } from '../navigation/SidebarRestoreButton'
 
 export function BrowserTabBar({
   expanded,
   title,
-  onModeChange
+  onModeChange,
+  sidebarCollapsed = false,
+  onExpandSidebar
 }: {
   expanded: boolean
   title: string
   onModeChange(mode: TaskLayoutMode): void
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: (() => void) | undefined
 }) {
   return (
-    <div className="browser-tabbar">
+    <div className={`browser-tabbar${expanded && sidebarCollapsed ? ' has-sidebar-restore' : ''}`}>
+      {expanded && sidebarCollapsed && onExpandSidebar ? (
+        <SidebarRestoreButton onClick={onExpandSidebar} />
+      ) : null}
       <div className="browser-tab">
         <AppIcon name="globe" />
         <span>{expanded ? '新标签页' : title}</span>
