@@ -40,7 +40,7 @@ test.afterEach(async () => {
 })
 
 async function launch(
-  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'web'
+  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'text' | 'web'
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
@@ -77,13 +77,23 @@ async function launch(
       url.pathname = '/model-connections'
       const response = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${connection.accessToken}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          draft: { name: 'E2E Tool Provider', protocol: 'openai-compatible', baseUrl, apiKey: secret },
-          models: [{ id: 'e2e-tool-model', name: 'e2e-tool-model', enabled: true, testState: 'success' }]
+          draft: {
+            name: 'E2E Tool Provider',
+            protocol: 'openai-compatible',
+            baseUrl,
+            apiKey: secret
+          },
+          models: [
+            { id: 'e2e-tool-model', name: 'e2e-tool-model', enabled: true, testState: 'success' }
+          ]
         })
       })
-      if (!response.ok || !(await response.json() as { ok: boolean }).ok) {
+      if (!response.ok || !((await response.json()) as { ok: boolean }).ok) {
         throw new Error('Runtime model connection setup failed')
       }
     },
@@ -96,17 +106,56 @@ async function launch(
   return page
 }
 
-async function runtimeTask(page: Page, taskId: string): Promise<{
-  status: string; messages: Array<{ content: unknown }>
+test('shows only elapsed time and streamed text until a tool is actually called', async () => {
+  const page = await launch('text')
+  const taskId = await sendGoal(page, '直接回答')
+  const process = page.getByRole('region', { name: '任务过程' })
+  try {
+    await expect(process).toContainText('正在思考')
+    await expect(process.locator('.activity-group')).toHaveCount(0)
+    await expect.poll(() => provider!.completions.length).toBe(1)
+    provider!.releaseTextStart()
+    await expect(page.getByTestId('e2e/tasks/detail/markdown#section').last()).toContainText(
+      '纯文本'
+    )
+    await expect(process).toContainText('已处理')
+    await expect(process.locator('.activity-group')).toHaveCount(0)
+    await expect(process).not.toContainText('正在处理请求')
+  } finally {
+    provider!.releaseTextStart()
+    provider!.releaseText()
+  }
+  await expect(page.getByTestId('e2e/tasks/detail/markdown#section').last()).toContainText(
+    '纯文本回答'
+  )
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-task-id',
+    taskId
+  )
+  await expect(
+    page.getByRole('region', { name: '任务过程' }).locator('.activity-group')
+  ).toHaveCount(0)
+})
+
+async function runtimeTask(
+  page: Page,
+  taskId: string
+): Promise<{
+  status: string
+  messages: Array<{ content: unknown }>
 } | null> {
   return await page.evaluate(async (id) => {
     const connection = await window.actionDriverDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = `/tasks/${encodeURIComponent(id)}`
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${connection.accessToken}` } })
-    const body = await response.json() as {
-      ok: boolean; value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${connection.accessToken}` }
+    })
+    const body = (await response.json()) as {
+      ok: boolean
+      value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
     }
     if (!response.ok || !body.ok) throw new Error('Runtime task query failed')
     return body.value.task
@@ -191,9 +240,7 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
 
   await page.reload()
   await expect
-    .poll(async () =>
-      runtimeTask(page, taskId).then((task) => task?.messages.at(-1)?.content)
-    )
+    .poll(async () => runtimeTask(page, taskId).then((task) => task?.messages.at(-1)?.content))
     .toContain('已读取')
 })
 
@@ -217,10 +264,13 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await expect(archiveArrow).toHaveCSS('opacity', '1')
   const archiveDetails = archive.locator('..')
   await expect(archiveDetails).not.toHaveAttribute('open', '')
+  await expect(page.locator('.activity-process-text')).toHaveCount(2)
+  await expect(page.locator('.activity-process-text').first()).toBeHidden()
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible()
   await archive.click()
-  const group = page.locator('.activity-group')
-  await expect(group).toHaveCount(1)
+  const groups = page.locator('.activity-group')
+  await expect(groups).toHaveCount(2)
+  const group = groups.first()
   await group.locator('summary').first().click()
   const groupHeading = group.locator(':scope > summary')
   const groupArrow = groupHeading.locator('.activity-chevron')
@@ -236,12 +286,17 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await groupHeading.focus()
   await expect(groupArrow).toHaveCSS('opacity', '1')
   const items = group.locator('.activity-items > *')
-  await expect(items).toHaveCount(2)
+  await expect(items).toHaveCount(1)
   const live = await items.allTextContents()
-  expect(live[0]).toContain('README')
-  expect(live[1]).toContain('README')
+  expect(live[0]).toContain('已读取 README.md')
+  await expect(groups.nth(1).locator('.activity-items > *')).toHaveCount(1)
   await expect(group).not.toContainText('正文 A')
   await expect(group).not.toContainText('正文 B')
+  await expect(page.getByRole('region', { name: '任务过程' })).toContainText('正文 A')
+  await expect(page.getByRole('region', { name: '任务过程' })).toContainText('正文 B')
+  expect(
+    (await page.locator('.activity-process-text').allTextContents()).map((text) => text.trim())
+  ).toEqual(['正文 A', '正文 B'])
   await expect(page.getByTestId('e2e/tasks/detail/activity/raw-io#button')).toHaveCount(2)
   const toolHeading = page.getByTestId('e2e/tasks/detail/activity/raw-io#button').first()
   const toolArrow = toolHeading.locator('.activity-chevron')
@@ -304,10 +359,12 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   )
   await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
-  const restoredGroup = page.locator('.activity-group')
+  const restoredGroups = page.locator('.activity-group')
+  await expect(restoredGroups).toHaveCount(2)
+  const restoredGroup = restoredGroups.first()
   await restoredGroup.locator('summary').first().click()
   const restoredItems = restoredGroup.locator('.activity-items > *')
-  await expect(restoredItems).toHaveCount(2)
+  await expect(restoredItems).toHaveCount(1)
   expect(await restoredItems.allTextContents()).toEqual(live)
   await expect(restoredGroup).not.toContainText('正文 A')
   await expect(restoredGroup).not.toContainText('正文 B')
@@ -339,10 +396,23 @@ test('times out a granted shell process and reports the terminal error', async (
   test.setTimeout(30_000)
   const page = await launch('shell-timeout')
   await sendGoal(page, '在阻塞文件中查找 needle')
+  const runningTool = page.locator('.activity-tool.is-running')
+  await expect(runningTool).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.activity-group > summary span')).toHaveClass(/activity-active-title/)
+  await expect(runningTool.locator('.activity-tool-label')).toHaveClass(/activity-active-title/)
+  await expect(runningTool.locator('.activity-tool-label')).toHaveCSS(
+    'animation-name',
+    'activity-title-sheen'
+  )
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(runningTool.locator('.activity-tool-label')).toHaveCSS('animation-name', 'none')
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
   await expect(page.locator('.activity-group > summary')).toContainText('执行命令失败')
+  await expect(page.locator('.activity-group > summary span')).not.toHaveClass(
+    /activity-active-title/
+  )
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('TOOL_TIMEOUT')
   expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain('needle is present')
 })
@@ -355,9 +425,7 @@ test('cancels a running granted shell command without an approval step', async (
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await page.getByLabel('中断任务').click()
   await expect
-    .poll(async () =>
-      runtimeTask(page, taskId).then((task) => task?.status)
-    )
+    .poll(async () => runtimeTask(page, taskId).then((task) => task?.status))
     .toBe('paused')
   expect(provider!.completions).toHaveLength(1)
 })

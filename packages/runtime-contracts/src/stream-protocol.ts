@@ -224,6 +224,7 @@ const responseSnapshotEventSchema = z
             toolId: idSchema,
             modelName: idSchema,
             summary: z.string(),
+            title: z.string().optional(),
             argumentsHash: z.string(),
             status: z.enum([
               'proposed',
@@ -342,6 +343,7 @@ const toolStreamBase = {
   toolId: idSchema,
   modelName: idSchema,
   summary: z.string(),
+  title: z.string().optional(),
   argumentsHash: z.string(),
   activityId: idSchema.nullable(),
   rawInput: z.string().optional(),

@@ -66,6 +66,8 @@ const AgentState = Annotation.Root({
   activeActivityId: Annotation<string | null>({ reducer: replace, default: () => null }),
   activityTitleRevision: Annotation<number>({ reducer: replace, default: () => 0 }),
   activityCapturesProgress: Annotation<boolean>({ reducer: replace, default: () => false }),
+  activityToolNames: Annotation<string[]>({ reducer: replace, default: () => [] }),
+  activityIssueCount: Annotation<number>({ reducer: replace, default: () => 0 }),
   pendingToolCalls: Annotation<ProviderToolCall[]>({ reducer: replace, default: () => [] }),
   planRoute: Annotation<PlanRoute>({ reducer: replace, default: () => 'skill' }),
   skills: Annotation<Array<{ skillId: string; description: string }>>({
@@ -128,16 +130,6 @@ export class LangGraphRunner implements GraphRunner {
     if (toolObserver) this.toolObservers.set(request.taskId, toolObserver)
     if (request.streamRequestId) this.streamRequestIds.set(request.taskId, request.streamRequestId)
     try {
-      const initialActivityId = defaultActivityId(request.taskId)
-      await observer?.({
-        kind: 'activity',
-        event: {
-          type: 'started',
-          activityId: initialActivityId,
-          title: '正在处理请求',
-          titleRevision: 1
-        }
-      })
       return await this.execute(
         request.taskId,
         {
@@ -158,9 +150,11 @@ export class LangGraphRunner implements GraphRunner {
           toolGrants: request.toolGrants ?? this.toolRuntime?.grants ?? [],
           toolRound: 0,
           toolCallCount: 0,
-          activeActivityId: initialActivityId,
-          activityTitleRevision: 1,
+          activeActivityId: null,
+          activityTitleRevision: 0,
           activityCapturesProgress: false,
+          activityToolNames: [],
+          activityIssueCount: 0,
           pendingToolCalls: [],
           planRoute: 'skill',
           skills: request.skills ?? [],
@@ -267,7 +261,8 @@ export class LangGraphRunner implements GraphRunner {
         trace: ['acceptGoal']
       }))
       .addNode('plan', async (state, config) => {
-        let plan
+        let plan: ModelResult
+        let activityClosed = false
         try {
           const discoveredTools: ToolDefinition[] = this.toolRuntime
             ? this.toolRuntime.policy.discover(this.toolRuntime.registry.list(), {
@@ -285,14 +280,18 @@ export class LangGraphRunner implements GraphRunner {
             skills: state.skills,
             parameters: { temperature: 0 }
           }
-          plan = this.modelGateway.stream
-            ? await this.consumeModelStream(
-                this.modelGateway.stream(request, config.signal),
-                this.modelObservers.get(state.taskId),
-                state.activeActivityId,
-                request.requestId
-              )
-            : await this.modelGateway.complete(request, config.signal)
+          if (this.modelGateway.stream) {
+            const streamed = await this.consumeModelStream(
+              this.modelGateway.stream(request, config.signal),
+              this.modelObservers.get(state.taskId),
+              state.activeActivityId,
+              request.requestId
+            )
+            plan = streamed.result
+            activityClosed = streamed.activityClosed
+          } else {
+            plan = await this.modelGateway.complete(request, config.signal)
+          }
         } catch (error) {
           if (config.signal?.aborted || this.isAbortError(error)) throw error
           return {
@@ -303,11 +302,12 @@ export class LangGraphRunner implements GraphRunner {
           }
         }
 
+        const activeActivityId = activityClosed ? null : state.activeActivityId
         if (plan.kind === 'finish') {
-          if (state.activeActivityId) {
+          if (activeActivityId) {
             await this.modelObservers.get(state.taskId)?.({
               kind: 'activity',
-              event: { type: 'completed', activityId: state.activeActivityId }
+              event: { type: 'completed', activityId: activeActivityId }
             })
           }
           return {
@@ -341,6 +341,10 @@ export class LangGraphRunner implements GraphRunner {
             status: 'planned' as const,
             pendingToolCalls: plan.calls,
             planRoute: 'tools' as const,
+            activeActivityId,
+            activityTitleRevision: activityClosed ? 0 : state.activityTitleRevision,
+            activityToolNames: activityClosed ? [] : state.activityToolNames,
+            activityIssueCount: activityClosed ? 0 : state.activityIssueCount,
             toolRound: state.toolRound + 1,
             toolCallCount: state.toolCallCount + plan.calls.length,
             trace: ['plan']
@@ -360,12 +364,15 @@ export class LangGraphRunner implements GraphRunner {
         let activeActivityId = state.activeActivityId
         let activityTitleRevision = state.activityTitleRevision
         let activityCapturesProgress = state.activityCapturesProgress
+        let activityToolNames = state.activityToolNames
+        let activityIssueCount = state.activityIssueCount
         for (const [index, providerCall] of state.pendingToolCalls.entries()) {
           if (config.signal?.aborted) throw config.signal.reason
           if (!this.toolRuntime) {
             return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
           }
-          const toolTitle = activityTitleForTool(providerCall.modelName)
+          activityToolNames = [...activityToolNames, providerCall.modelName]
+          const toolTitle = activityTitleForTools(activityToolNames)
           if (activeActivityId) {
             activityTitleRevision += 1
             await this.modelObservers.get(state.taskId)?.({
@@ -378,7 +385,10 @@ export class LangGraphRunner implements GraphRunner {
               }
             })
           } else {
-            activeActivityId = nextActivityId(state.taskId, state.toolRound, index)
+            activeActivityId =
+              state.toolRound === 1 && index === 0
+                ? defaultActivityId(state.taskId)
+                : nextActivityId(state.taskId, state.toolRound, index)
             activityTitleRevision = 1
             activityCapturesProgress = false
             await this.modelObservers.get(state.taskId)?.({
@@ -460,19 +470,21 @@ export class LangGraphRunner implements GraphRunner {
                   }
             )
           })
+          if (terminal?.type !== 'tool.completed') activityIssueCount += 1
           activityTitleRevision += 1
           await this.modelObservers.get(state.taskId)?.({
             kind: 'activity',
             event: {
               type: 'updated',
               activityId: activeActivityId,
-              title: activityTitleForTool(
-                providerCall.modelName,
+              title: activityTitleForTools(
+                activityToolNames,
                 terminal?.type === 'tool.completed'
                   ? 'completed'
                   : terminal?.type === 'tool.cancelled'
                     ? 'cancelled'
-                    : 'failed'
+                    : 'failed',
+                activityIssueCount
               ),
               titleRevision: activityTitleRevision
             }
@@ -488,6 +500,8 @@ export class LangGraphRunner implements GraphRunner {
           activeActivityId,
           activityTitleRevision,
           activityCapturesProgress,
+          activityToolNames,
+          activityIssueCount,
           trace: ['executeTools']
         }
       })
@@ -590,15 +604,25 @@ export class LangGraphRunner implements GraphRunner {
     observer?: ModelEventObserver,
     activityId: string | null = null,
     textId = 'plan'
-  ): Promise<ModelResult> {
+  ): Promise<{ result: ModelResult; activityClosed: boolean }> {
     let terminal: ModelResult | null = null
     let hasText = false
+    let activityClosed = false
     for await (const event of events) {
       if (event.kind === 'content' && event.delta) {
+        if (activityId && !activityClosed) {
+          await observer?.({ kind: 'activity', event: { type: 'completed', activityId } })
+          activityClosed = true
+        }
         hasText = true
         await observer?.({
           kind: 'activity',
-          event: { type: 'text', activityId, textId, delta: event.delta }
+          event: {
+            type: 'text',
+            activityId: activityClosed ? null : activityId,
+            textId,
+            delta: event.delta
+          }
         })
       }
       await observer?.(event)
@@ -615,13 +639,13 @@ export class LangGraphRunner implements GraphRunner {
         kind: 'activity',
         event: {
           type: 'text.done',
-          activityId,
+          activityId: activityClosed ? null : activityId,
           textId,
           phase: terminal.kind === 'finish' ? 'final' : 'process'
         }
       })
     }
-    return terminal
+    return { result: terminal, activityClosed }
   }
 
   private routeAfterVerification(output: unknown, error: string | null): AgentGraphRoute {
@@ -652,21 +676,63 @@ function nextActivityId(taskId: string, toolRound: number, index: number): strin
   return `activity:${taskId}:tools:${toolRound}:${index}`
 }
 
-function activityTitleForTool(
+export function activityTitleForTool(
   modelName: string,
   status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running'
 ): string {
   const normalized = modelName.toLowerCase()
-  const action =
-    normalized.includes('web') || normalized.includes('search')
-      ? '搜索网页'
+  const action = normalized.includes('web')
+    ? '搜索网页'
+    : normalized.includes('fs_search') || normalized.includes('file_search')
+      ? '搜索文件'
       : normalized.includes('shell') || normalized.includes('command')
         ? '执行命令'
-        : normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')
-          ? '读取文件'
-          : '调用工具'
+        : normalized.includes('fs_write') ||
+            normalized.includes('file_write') ||
+            normalized.includes('fs_edit')
+          ? '编辑文件'
+          : normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.')
+            ? '读取文件'
+            : '调用工具'
   if (status === 'running') return `正在${action}`
   if (status === 'completed') return `已${action}`
   if (status === 'cancelled') return `已取消${action}`
   return `${action}失败`
+}
+
+function activityTitleForTools(
+  modelNames: string[],
+  status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running',
+  issueCount = 0
+): string {
+  if (modelNames.length === 1) return activityTitleForTool(modelNames[0]!, status)
+  const kinds = new Set(modelNames.map(activityToolKind))
+  const count = modelNames.length
+  const subject =
+    kinds.size === 1 && kinds.has('file')
+      ? `${count} 个文件`
+      : kinds.size === 1 && kinds.has('web')
+        ? `${count} 项网页搜索`
+        : kinds.size === 1 && kinds.has('file-search')
+          ? `${count} 项文件搜索`
+          : kinds.size === 1 && kinds.has('shell')
+            ? `${count} 条命令`
+            : `${count} 项操作`
+  if (status === 'running')
+    return `正在${kinds.size === 1 && kinds.has('file') ? '读取' : '执行'} ${subject}`
+  if (issueCount > 0) return `已处理 ${subject}（${issueCount} 项未完成）`
+  if (status === 'completed')
+    return `已${kinds.size === 1 && kinds.has('file') ? '读取' : '执行'} ${subject}`
+  if (status === 'cancelled') return `已取消 ${subject}`
+  return `${subject}执行失败`
+}
+
+function activityToolKind(modelName: string): 'web' | 'file-search' | 'shell' | 'file' | 'other' {
+  const normalized = modelName.toLowerCase()
+  if (normalized.includes('web')) return 'web'
+  if (normalized.includes('fs_search') || normalized.includes('file_search')) return 'file-search'
+  if (normalized.includes('shell') || normalized.includes('command')) return 'shell'
+  if (normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.'))
+    return 'file'
+  return 'other'
 }

@@ -40,6 +40,93 @@ const task = (status: TaskProjection['status']): TaskProjection => ({
 })
 
 describe('ActivityTimeline', () => {
+  it('shows thinking without a tool group while waiting for model output', () => {
+    const waiting = task('running')
+    waiting.activityTimeline = []
+    waiting.activities = []
+    waiting.tools = []
+    render(<ActivityTimeline task={waiting} />)
+    expect(screen.getByText('正在思考')).toHaveClass('activity-active-title')
+    expect(screen.queryByText('正在处理请求')).toBeNull()
+    expect(document.querySelector('.activity-group')).toBeNull()
+  })
+
+  it('keeps process text between groups and archives it after completion', () => {
+    const mixed = task('running')
+    mixed.activityTimeline = [
+      { id: 'text:first', kind: 'text', content: '先说明', phase: 'process' },
+      { id: 'activity:research', kind: 'activity', activityId: 'research' },
+      { id: 'text:second', kind: 'text', content: '再说明', phase: 'process' },
+      { id: 'activity:second', kind: 'activity', activityId: 'second' },
+      { id: 'text:final', kind: 'text', content: '最后回答', phase: 'pending' }
+    ]
+    mixed.activities!.push({
+      activityId: 'second',
+      title: '已执行命令',
+      titleRevision: 2,
+      status: 'completed',
+      items: [{ id: 'tool:shell', kind: 'tool', callId: 'shell' }]
+    })
+    mixed.tools!.push({
+      callId: 'shell',
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: '执行命令',
+      title: '已执行命令',
+      argumentsHash: '',
+      activityId: 'second',
+      status: 'completed'
+    })
+    const { rerender } = render(<ActivityTimeline task={mixed} />)
+    const region = screen.getByRole('region', { name: '任务过程' })
+    expect(region.textContent).toMatch(/先说明.*调研实现.*再说明.*已执行命令.*最后回答/s)
+    expect(region.querySelectorAll('.activity-group')).toHaveLength(2)
+    rerender(
+      <ActivityTimeline
+        task={{
+          ...mixed,
+          status: 'succeeded',
+          activityTimeline: mixed.activityTimeline!.map((item) =>
+            item.id === 'text:final' && item.kind === 'text'
+              ? { ...item, phase: 'final' as const }
+              : item
+          )
+        }}
+      />
+    )
+    expect(screen.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
+    expect(region).toHaveTextContent('先说明')
+    expect(region).toHaveTextContent('再说明')
+    expect(region).not.toHaveTextContent('最后回答')
+  })
+
+  it('collapses an earlier completed group while the next group is running', () => {
+    const mixed = task('running')
+    mixed.activities![0]!.status = 'completed'
+    mixed.activities!.push({
+      activityId: 'next',
+      title: '正在执行命令',
+      titleRevision: 1,
+      status: 'running',
+      items: [{ id: 'tool:next', kind: 'tool', callId: 'next' }]
+    })
+    mixed.activityTimeline!.push({ id: 'activity:next', kind: 'activity', activityId: 'next' })
+    mixed.tools!.push({
+      callId: 'next',
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: '执行命令',
+      argumentsHash: '',
+      activityId: 'next',
+      status: 'running'
+    })
+    const { container } = render(<ActivityTimeline task={mixed} />)
+    const groups = container.querySelectorAll<HTMLDetailsElement>('details.activity-group')
+    expect(groups).toHaveLength(2)
+    expect(groups[0]?.open).toBe(false)
+    expect(groups[1]?.open).toBe(true)
+  })
+
   it('formats a completed duration over one minute like the reference header', () => {
     const completed = task('succeeded')
     completed.activityDurationMs = 7 * 60_000 + 22_000
@@ -63,9 +150,11 @@ describe('ActivityTimeline', () => {
     render(<ActivityTimeline task={mixed} />)
     const process = screen.getByRole('region', { name: '任务过程' })
     expect(process).toHaveTextContent('读取 README')
-    expect(process).not.toHaveTextContent('组外模型正文')
-    expect(process).not.toHaveTextContent('正文 A')
-    expect(process).not.toHaveTextContent('最终结论')
+    expect(process).toHaveTextContent('组外模型正文')
+    const group = process.querySelector('.activity-group')
+    expect(group).not.toHaveTextContent('组外模型正文')
+    expect(group).not.toHaveTextContent('正文 A')
+    expect(group).not.toHaveTextContent('最终结论')
   })
 
   it('renders a group without visible tool content as a static title', () => {
@@ -167,6 +256,34 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool .lucide-search')).not.toBeNull()
   })
 
+  it('follows the active tool icon and stops group and tool sheen at terminal state', () => {
+    const mixed = task('running')
+    mixed.activities![0]!.title = '正在执行 2 项操作'
+    mixed.activities![0]!.items.push({ id: 'tool:shell', kind: 'tool', callId: 'shell' })
+    mixed.tools!.push({
+      callId: 'shell',
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: '执行命令',
+      title: '正在执行命令',
+      argumentsHash: '',
+      activityId: 'research',
+      status: 'running'
+    })
+    const { container, rerender } = render(<ActivityTimeline task={mixed} />)
+    expect(
+      container.querySelector('.activity-group > summary .lucide-square-terminal')
+    ).not.toBeNull()
+    expect(screen.getByText('正在执行 2 项操作')).toHaveClass('activity-active-title')
+    expect(screen.getByText('正在执行命令')).toHaveClass('activity-active-title')
+    mixed.tools![1] = { ...mixed.tools![1]!, title: '已执行命令', status: 'completed' }
+    mixed.activities![0]!.title = '已执行 2 项操作'
+    rerender(<ActivityTimeline task={{ ...mixed }} />)
+    expect(container.querySelector('.activity-group > summary .lucide-wrench')).not.toBeNull()
+    expect(screen.getByText('已执行 2 项操作')).not.toHaveClass('activity-active-title')
+    expect(screen.getByText('已执行命令')).not.toHaveClass('activity-active-title')
+  })
+
   it('keeps a book group icon when multiple different tools only read files', () => {
     const files = task('running')
     files.activities![0]!.items.push({ id: 'tool:list', kind: 'tool', callId: 'list' })
@@ -211,7 +328,7 @@ describe('ActivityTimeline', () => {
 
   it('does not add a thinking text row to the task group', () => {
     render(<ActivityTimeline task={task('running')} />)
-    expect(screen.queryByText('正在思考')).toBeNull()
+    expect(screen.getByText('正在思考').closest('.activity-group')).toBeNull()
   })
 
   it('archives completed process closed under an elapsed-time summary', () => {

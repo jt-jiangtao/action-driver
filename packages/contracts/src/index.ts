@@ -55,6 +55,7 @@ export interface ToolInvocationProjection {
   toolId: string
   modelName: string
   summary: string
+  title?: string
   argumentsHash: string
   activityId?: string | null
   rawInput?: string

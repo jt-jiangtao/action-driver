@@ -70,6 +70,12 @@ export function TaskPage({
     task.status === 'succeeded' || task.status === 'running'
       ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
       : []
+  const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false
+  const visibleAssistantMessages =
+    task.status === 'running' &&
+    (hasTimelineText || assistantMessages.every((message) => message.content.length === 0))
+      ? []
+      : assistantMessages
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}`
   return (
     <main
@@ -96,9 +102,9 @@ export function TaskPage({
               ) : null}
               <ConversationMessages messages={processMessages} generating={false} />
               <ActivityTimeline task={task} />
-              {assistantMessages.length > 0 ? (
+              {visibleAssistantMessages.length > 0 ? (
                 <ConversationMessages
-                  messages={assistantMessages}
+                  messages={visibleAssistantMessages}
                   generating={task.status === 'running'}
                 />
               ) : null}

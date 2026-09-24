@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 
-type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'web'
+type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'text' | 'web'
 
 export type CapturedToolCompletion = {
   model: string
@@ -13,6 +13,8 @@ export type CapturedToolCompletion = {
 
 export class FakeOpenAiToolServer {
   private server: Server | null = null
+  private releaseTextStartResponse: (() => void) | null = null
+  private releaseTextResponse: (() => void) | null = null
   readonly completions: CapturedToolCompletion[] = []
   baseUrl = ''
 
@@ -46,6 +48,19 @@ export class FakeOpenAiToolServer {
         'cache-control': 'no-cache',
         connection: 'keep-alive'
       })
+      if (this.mode === 'text') {
+        await new Promise<void>((resolve) => {
+          this.releaseTextStartResponse = resolve
+        })
+        response.write(sseChunk({ content: '纯文本' }, null))
+        await new Promise<void>((resolve) => {
+          this.releaseTextResponse = resolve
+        })
+        response.write(sseChunk({ content: '回答' }, null))
+        response.write(sseChunk({}, 'stop'))
+        response.end('data: [DONE]\n\n')
+        return
+      }
       if (turn === 1 || (this.mode === 'activity' && turn === 2)) {
         const toolName =
           this.mode === 'read' || this.mode === 'activity'
@@ -114,11 +129,23 @@ export class FakeOpenAiToolServer {
   }
 
   async close(): Promise<void> {
+    this.releaseTextStart()
+    this.releaseText()
     if (!this.server) return
     const server = this.server
     this.server = null
     server.close()
     await once(server, 'close')
+  }
+
+  releaseTextStart(): void {
+    this.releaseTextStartResponse?.()
+    this.releaseTextStartResponse = null
+  }
+
+  releaseText(): void {
+    this.releaseTextResponse?.()
+    this.releaseTextResponse = null
   }
 }
 

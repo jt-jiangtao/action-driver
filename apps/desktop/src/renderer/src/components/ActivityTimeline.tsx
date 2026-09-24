@@ -5,6 +5,7 @@ import type {
   TaskProjection,
   ToolInvocationProjection
 } from '@actiondriver/contracts'
+import { MarkdownContent } from './MarkdownContent'
 
 export function ActivityTimeline({ task }: { task: TaskProjection }) {
   const activities = new Map(
@@ -20,10 +21,18 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           callId: tool.callId
         }))
   const hasVisibleContent = timeline.some((item) =>
-    item.kind === 'tool'
-      ? tools.has(item.callId)
-      : item.kind === 'activity' && activities.has(item.activityId)
+    item.kind === 'text'
+      ? item.phase !== 'final' && item.content.length > 0
+      : item.kind === 'tool'
+        ? tools.has(item.callId)
+        : activities.has(item.activityId)
   )
+  const latestItem = timeline.at(-1)
+  const hasPendingText = latestItem?.kind === 'text' && latestItem.phase === 'pending'
+  const hasActiveTool = [...tools.values()].some((tool) =>
+    ['proposed', 'queued', 'running', 'waiting_approval'].includes(tool.status)
+  )
+  const showThinking = task.status === 'running' && !hasPendingText && !hasActiveTool
   const fallbackStartedAt = useRef(Date.now())
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -43,7 +52,16 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
   const body = (
     <div className="activity-timeline-items">
       {timeline.map((item) => {
-        if (item.kind === 'text') return null
+        if (item.kind === 'text') {
+          if (task.status !== 'running' && item.phase === 'final') return null
+          return (
+            <MarkdownContent
+              key={item.id}
+              className="activity-process-text markdown-content"
+              content={item.content}
+            />
+          )
+        }
         if (item.kind === 'tool') return <ToolRow key={item.id} tool={tools.get(item.callId)} />
         const activity = activities.get(item.activityId)
         if (!activity) return null
@@ -61,6 +79,12 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
             <ActivityIcon
               title={activity.title}
               toolIds={visibleToolItems.map((child) => tools.get(child.callId)?.toolId ?? '')}
+              currentToolId={
+                latestTool &&
+                ['proposed', 'queued', 'running', 'waiting_approval'].includes(latestTool.status)
+                  ? latestTool.toolId
+                  : null
+              }
             />
             <span className={titleIsActive ? 'activity-active-title' : undefined}>
               {activity.title}
@@ -75,7 +99,11 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           )
         }
         return (
-          <details key={item.id} className="activity-group" open={task.status === 'running'}>
+          <details
+            key={item.id}
+            className="activity-group"
+            open={task.status === 'running' && activity.status === 'running'}
+          >
             <summary data-testid="e2e/tasks/detail/activity/toggle#button">
               {heading}
               <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
@@ -99,6 +127,11 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
             已处理 {formatRunningDuration(elapsedMs)}
           </div>
           {body}
+          {showThinking ? (
+            <div className="activity-thinking activity-active-title" role="status">
+              正在思考
+            </div>
+          ) : null}
         </>
       ) : hasVisibleContent ? (
         <details className="activity-archive">
@@ -129,9 +162,17 @@ function formatDuration(value?: number): string {
   return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
 }
 
-function ActivityIcon({ title, toolIds }: { title: string; toolIds: string[] }) {
+function ActivityIcon({
+  title,
+  toolIds,
+  currentToolId
+}: {
+  title: string
+  toolIds: string[]
+  currentToolId: string | null
+}) {
   const toolKinds = new Set(
-    toolIds.filter(Boolean).map((toolId) => {
+    (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
       if (/web/.test(toolId)) return 'web'
       if (/shell|command/.test(toolId)) return 'shell'
       if (/search|find|grep|rg/.test(toolId)) return 'search'
@@ -159,8 +200,14 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
     <>
       <ToolIcon tool={tool} />
       <span className={`activity-tool-label${active ? ' activity-active-title' : ''}`}>
-        <span>{toolAction(tool)}</span>
-        <span>{toolSummary(tool)}</span>
+        {tool.title ? (
+          toolSummary(tool, tool.title)
+        ) : (
+          <>
+            <span>{toolAction(tool)}</span>
+            <span>{toolSummary(tool)}</span>
+          </>
+        )}
       </span>
       {hasRawIO ? <ChevronRight aria-hidden="true" className="activity-chevron" size={16} /> : null}
     </>
@@ -217,19 +264,19 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   )
 }
 
-function toolSummary(tool: ToolInvocationProjection) {
-  if (!/fs|file/.test(tool.toolId) || !tool.rawInput) return tool.summary
+function toolSummary(tool: ToolInvocationProjection, label = tool.summary) {
+  if (!/fs|file/.test(tool.toolId) || !tool.rawInput) return label
   const path = parseObject(tool.rawInput)?.path
-  if (typeof path !== 'string') return tool.summary
+  if (typeof path !== 'string') return label
   const fileName = path.split(/[\\/]/).filter(Boolean).at(-1)
-  if (!fileName) return tool.summary
-  const start = tool.summary.indexOf(fileName)
-  if (start < 0) return tool.summary
+  if (!fileName) return label
+  const start = label.indexOf(fileName)
+  if (start < 0) return label
   return (
     <>
-      {tool.summary.slice(0, start)}
+      {label.slice(0, start)}
       <span className="activity-tool-path">{fileName}</span>
-      {tool.summary.slice(start + fileName.length)}
+      {label.slice(start + fileName.length)}
     </>
   )
 }

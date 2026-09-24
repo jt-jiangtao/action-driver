@@ -279,8 +279,42 @@ describe('ActionDriver pages', () => {
       />
     )
     const process = screen.getByRole('region', { name: '任务过程' })
-    expect(process).not.toHaveTextContent('好的，我来测试')
-    expect(screen.getByText('好的，我来测试').closest('.agent-message')).not.toBeNull()
+    expect(process).toHaveTextContent('好的，我来测试')
+    expect(screen.getAllByText('好的，我来测试')).toHaveLength(1)
+  })
+
+  it('keeps only the final text visible after folding earlier process text', () => {
+    render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'succeeded',
+          browser: null,
+          messages: [
+            { id: 'current-user', role: 'user', content: '测试工具' },
+            { id: 'final-agent', role: 'agent', content: '最终回答' }
+          ],
+          activityTimeline: [
+            { id: 'text:process', kind: 'text', content: '过程说明', phase: 'process' },
+            { id: 'text:final', kind: 'text', content: '最终回答', phase: 'final' }
+          ],
+          activities: [],
+          tools: []
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    expect(screen.getByText('最终回答')).toBeVisible()
+    expect(screen.getByText('过程说明')).not.toBeVisible()
+    expect(screen.getAllByText('最终回答')).toHaveLength(1)
   })
 
   it('preserves previous conversation turns and does not show failed process text as a conclusion', () => {

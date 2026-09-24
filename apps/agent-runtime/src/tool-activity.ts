@@ -13,6 +13,41 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   return `运行 ${toolId}`
 }
 
+export function toolActivityTitle(
+  toolId: string,
+  input: unknown,
+  status: PersistedToolInvocation['status']
+): string {
+  const type = toolId.split('@')[0] ?? toolId
+  const action =
+    type === 'web.search'
+      ? '搜索网页'
+      : type === 'sandbox.fs.read'
+        ? '读取'
+        : type === 'sandbox.fs.list'
+          ? '列出'
+          : type === 'sandbox.fs.search'
+            ? '搜索文件'
+            : type.startsWith('sandbox.fs.')
+              ? '编辑'
+              : type === 'sandbox.shell.run'
+                ? '执行命令'
+                : '调用工具'
+  const target =
+    type === 'web.search' && isRecord(input) && typeof input.query === 'string'
+      ? `“${truncate(input.query, 80)}”`
+      : type.startsWith('sandbox.fs.') && isRecord(input) && typeof input.path === 'string'
+        ? ` ${truncate(input.path.split(/[\\/]/).filter(Boolean).at(-1) ?? '/', 80)}`
+        : ''
+  const label = `${action}${target}`
+  if (status === 'completed') return `已${label}`
+  if (status === 'failed') return `${label}失败`
+  if (status === 'cancelled') return `已取消${label}`
+  if (status === 'unknown') return `${label}结果未知`
+  if (status === 'waiting_approval') return `等待批准：${label}`
+  return `正在${label}`
+}
+
 export function toolActivityResultSummary(toolId: string, output: unknown): string {
   const result = isRecord(output) && 'result' in output ? output.result : output
   if (toolId === 'web.search@1' && isRecord(result) && Array.isArray(result.results)) {
@@ -25,9 +60,10 @@ export function toolActivityResultSummary(toolId: string, output: unknown): stri
 }
 
 export function toolActivityErrorSummary(error: unknown): string {
-  const code = isRecord(error) && typeof (error as ToolErrorLike).code === 'string'
-    ? (error as { code: string }).code
-    : ''
+  const code =
+    isRecord(error) && typeof (error as ToolErrorLike).code === 'string'
+      ? (error as { code: string }).code
+      : ''
   if (code === 'TOOL_REJECTED') return '已被拒绝'
   if (code === 'TOOL_CANCELLED') return '已取消'
   if (code === 'TOOL_TIMEOUT') return '执行超时'
@@ -45,10 +81,13 @@ export function toolActivityDurationMs(startedAt: string, endedAt: string): numb
 export function persistedToolActivity(invocation: PersistedToolInvocation) {
   return {
     summary: toolActivitySummary(invocation.toolId, invocation.input),
+    title: toolActivityTitle(invocation.toolId, invocation.input, invocation.status),
     durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
     ...(invocation.status === 'completed'
       ? { resultSummary: toolActivityResultSummary(invocation.toolId, invocation.output) }
-      : invocation.status === 'failed' || invocation.status === 'cancelled' || invocation.status === 'unknown'
+      : invocation.status === 'failed' ||
+          invocation.status === 'cancelled' ||
+          invocation.status === 'unknown'
         ? { errorSummary: toolActivityErrorSummary(invocation.error) }
         : {})
   }

@@ -16,7 +16,7 @@ import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
-import { toolActivityDurationMs, toolActivitySummary } from './tool-activity'
+import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from './tool-activity'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -84,6 +84,7 @@ export class ToolInvocationService {
           toolId: definition.id,
           modelName: definition.modelName,
           summary: toolActivitySummary(definition.id, call.arguments),
+          title: toolActivityTitle(definition.id, call.arguments, invocation.status),
           durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,

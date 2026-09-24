@@ -865,7 +865,7 @@ describe('StreamSessionService', () => {
           expect.objectContaining({ role: 'user', content: 'Return **real Markdown**' }),
           expect.objectContaining({ role: 'assistant', content: 'final answer' })
         ],
-        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed' })],
+        tools: [expect.objectContaining({ callId: 'call-snapshot', status: 'completed', title: '已读取 README.md' })],
         activities: [
           expect.objectContaining({
             activityId: 'activity-snapshot',

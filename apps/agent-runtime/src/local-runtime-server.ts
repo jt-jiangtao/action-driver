@@ -167,6 +167,7 @@ export function createLocalRuntimeServer(
                     toolId: tool.toolId,
                     modelName: tool.modelName,
                     summary: tool.summary,
+                    ...(tool.title === undefined ? {} : { title: tool.title }),
                     argumentsHash: tool.argumentsHash,
                     status: tool.status,
                     durationMs: tool.durationMs,

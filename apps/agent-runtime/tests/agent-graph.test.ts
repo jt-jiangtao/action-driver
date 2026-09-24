@@ -14,14 +14,21 @@ import {
   type SkillProvider,
   type SkillRegistry
 } from '../src/index'
+import { activityTitleForTool } from '../src/agent-graph'
 
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('distinguishes workspace search from web search in group titles', () => {
+    expect(activityTitleForTool('sandbox_fs_search')).toBe('正在搜索文件')
+    expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
+  })
   it('keeps activity titles and tool associations in the runtime without a model activity tool', async () => {
     let round = 0
     const observed: unknown[] = []
-    const toolRecords: Array<{ payload: { activityId?: string | null; callId?: string } }> = []
+    const toolRecords: Array<{
+      payload: { activityId?: string | null; callId?: string; title?: string }
+    }> = []
     const model: ModelGateway = {
       async complete(request) {
         round += 1
@@ -65,7 +72,9 @@ describe('minimal agent StateGraph', () => {
         observed.push(event)
       },
       (record) => {
-        toolRecords.push(record as { payload: { activityId?: string | null; callId?: string } })
+        toolRecords.push(
+          record as { payload: { activityId?: string | null; callId?: string; title?: string } }
+        )
       }
     )
 
@@ -83,7 +92,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'started',
           activityId: 'activity:task-activity:default',
-          title: '正在处理请求',
+          title: '正在读取文件',
           titleRevision: 1
         }
       },
@@ -92,7 +101,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '正在读取文件',
+          title: '已读取文件',
           titleRevision: 2
         }
       },
@@ -101,7 +110,7 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '已读取文件',
+          title: '正在读取 2 个文件',
           titleRevision: 3
         }
       },
@@ -110,17 +119,8 @@ describe('minimal agent StateGraph', () => {
         event: {
           type: 'updated',
           activityId: 'activity:task-activity:default',
-          title: '正在读取文件',
+          title: '已读取 2 个文件',
           titleRevision: 4
-        }
-      },
-      {
-        kind: 'activity',
-        event: {
-          type: 'updated',
-          activityId: 'activity:task-activity:default',
-          title: '已读取文件',
-          titleRevision: 5
         }
       },
       {
@@ -135,6 +135,8 @@ describe('minimal agent StateGraph', () => {
           typeof record.payload.callId === 'string'
       )
     ).toBe(true)
+    expect(toolRecords[0]?.payload.title).toBe('正在读取 README.md')
+    expect(toolRecords[3]?.payload.title).toBe('已读取 README.md')
     expect(commits).toEqual([
       'proposed',
       'queued',
@@ -193,7 +195,58 @@ describe('minimal agent StateGraph', () => {
         type: 'updated',
         activityId: `activity:task-${_status}:default`,
         title,
-        titleRevision: 3
+        titleRevision: 2
+      }
+    })
+  })
+
+  it('keeps a failed tool visible in the final multi-tool group title', async () => {
+    let round = 0
+    let invocation = 0
+    const observed: unknown[] = []
+    const model: ModelGateway = {
+      async complete() {
+        round += 1
+        return round === 1
+          ? {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: 'first',
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: 'first.txt' }
+                },
+                {
+                  providerCallId: 'second',
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: 'second.txt' }
+                }
+              ]
+            }
+          : { kind: 'finish' as const, content: 'done' }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        invocation += 1
+        if (invocation === 1) throw new Error('read failed')
+        yield { kind: 'result', output: 'second file' }
+      }
+    })
+    await runner.run(
+      { taskId: 'task-partial-failure', goal: 'read files', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      }
+    )
+    expect(observed).toContainEqual({
+      kind: 'activity',
+      event: {
+        type: 'updated',
+        activityId: 'activity:task-partial-failure:default',
+        title: '已处理 2 个文件（1 项未完成）',
+        titleRevision: 4
       }
     })
   })
@@ -247,7 +300,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'started',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在处理请求',
+        title: '正在读取文件',
         titleRevision: 1
       }
     })
@@ -260,7 +313,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在读取文件',
+        title: '已读取文件',
         titleRevision: 2
       }
     })
@@ -269,7 +322,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '已读取文件',
+        title: '正在读取 2 个文件',
         titleRevision: 3
       }
     })
@@ -278,17 +331,8 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-fallback-activity:default',
-        title: '正在读取文件',
+        title: '已读取 2 个文件',
         titleRevision: 4
-      }
-    })
-    expect(observed).toContainEqual({
-      kind: 'activity',
-      event: {
-        type: 'updated',
-        activityId: 'activity:task-fallback-activity:default',
-        title: '已读取文件',
-        titleRevision: 5
       }
     })
     expect(toolRecords).toHaveLength(8)
@@ -308,7 +352,7 @@ describe('minimal agent StateGraph', () => {
     ])
   })
 
-  it('starts and completes a default activity even without tools', async () => {
+  it('does not create a tool activity for a text-only answer', async () => {
     const observed: unknown[] = []
     const model: ModelGateway = {
       async complete(request) {
@@ -326,21 +370,7 @@ describe('minimal agent StateGraph', () => {
     )
 
     expect(result).toMatchObject({ status: 'completed', output: '最终结论' })
-    expect(observed).toEqual([
-      {
-        kind: 'activity',
-        event: {
-          type: 'started',
-          activityId: 'activity:task-activity-text:default',
-          title: '正在处理请求',
-          titleRevision: 1
-        }
-      },
-      {
-        kind: 'activity',
-        event: { type: 'completed', activityId: 'activity:task-activity-text:default' }
-      }
-    ])
+    expect(observed).toEqual([])
   })
 
   it('streams ordered process text before a tool and final text after it', async () => {
@@ -397,13 +427,41 @@ describe('minimal agent StateGraph', () => {
     )
 
     expect(result).toMatchObject({ status: 'completed', output: '最终结论' })
+    const firstToolActivity = observed.findIndex(
+      (event) =>
+        typeof event === 'object' &&
+        event !== null &&
+        'kind' in event &&
+        event.kind === 'activity' &&
+        'event' in event &&
+        typeof event.event === 'object' &&
+        event.event !== null &&
+        'type' in event.event &&
+        event.event.type === 'started'
+    )
+    expect(firstToolActivity).toBeGreaterThan(0)
+    expect(observed.slice(0, firstToolActivity)).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'activity',
+        event: expect.objectContaining({ type: 'started' })
+      })
+    )
+    expect(observed[firstToolActivity]).toEqual({
+      kind: 'activity',
+      event: {
+        type: 'started',
+        activityId: 'activity:task:default',
+        title: '正在读取文件',
+        titleRevision: 1
+      }
+    })
     expect(observed).toEqual(
       expect.arrayContaining([
         {
           kind: 'activity',
           event: {
             type: 'text',
-            activityId: 'activity:task:default',
+            activityId: null,
             textId: 'plan:task',
             delta: '正文 A'
           }
@@ -412,7 +470,7 @@ describe('minimal agent StateGraph', () => {
           kind: 'activity',
           event: {
             type: 'text.done',
-            activityId: 'activity:task:default',
+            activityId: null,
             textId: 'plan:task',
             phase: 'process'
           }
@@ -421,7 +479,7 @@ describe('minimal agent StateGraph', () => {
           kind: 'activity',
           event: {
             type: 'text',
-            activityId: 'activity:task:default',
+            activityId: null,
             textId: 'plan:task:1',
             delta: '最终结论'
           }
@@ -430,7 +488,7 @@ describe('minimal agent StateGraph', () => {
           kind: 'activity',
           event: {
             type: 'text.done',
-            activityId: 'activity:task:default',
+            activityId: null,
             textId: 'plan:task:1',
             phase: 'final'
           }
@@ -446,6 +504,114 @@ describe('minimal agent StateGraph', () => {
       { kind: 'content', delta: '正文 A' },
       { kind: 'content', delta: '最终结论' }
     ])
+  })
+
+  it('keeps contiguous tools together and starts a new group after visible text', async () => {
+    let round = 0
+    const observed: unknown[] = []
+    const toolActivityIds: Array<string | null | undefined> = []
+    const model: ModelGateway = {
+      async complete() {
+        throw new Error('stream path expected')
+      },
+      async *stream() {
+        round += 1
+        if (round === 1 || round === 3) {
+          yield { kind: 'content' as const, delta: round === 1 ? '先说明' : '再说明' }
+        }
+        if (round < 4) {
+          yield {
+            kind: 'end' as const,
+            content: '',
+            finishReason: 'tool_calls',
+            usage: null,
+            result: {
+              kind: 'tool-calls' as const,
+              calls: [
+                {
+                  providerCallId: `provider-${round}`,
+                  modelName: 'sandbox_fs_read',
+                  arguments: { path: `file-${round}.txt` }
+                }
+              ]
+            }
+          }
+          return
+        }
+        yield { kind: 'content' as const, delta: '最终回答' }
+        yield {
+          kind: 'end' as const,
+          content: '最终回答',
+          finishReason: 'stop',
+          usage: null,
+          result: { kind: 'final-text' as const, content: '最终回答' }
+        }
+      }
+    }
+    const { runner } = toolRunner(model, {
+      async *execute() {
+        yield { kind: 'result', output: 'ok' }
+      }
+    })
+    await runner.run(
+      { taskId: 'task-groups', goal: 'read', model: modelRef },
+      undefined,
+      (event) => {
+        observed.push(event)
+      },
+      (record) => {
+        if (record.type === 'tool.proposed') {
+          toolActivityIds.push((record.payload as { activityId?: string | null }).activityId)
+        }
+      }
+    )
+    expect(toolActivityIds).toEqual([
+      'activity:task-groups:default',
+      'activity:task-groups:default',
+      'activity:task-groups:tools:3:0'
+    ])
+    const activityEvents = observed
+      .filter(
+        (
+          event
+        ): event is {
+          kind: 'activity'
+          event: { type: string; activityId?: string | null; title?: string }
+        } =>
+          typeof event === 'object' &&
+          event !== null &&
+          'kind' in event &&
+          event.kind === 'activity'
+      )
+      .map(({ event }) => event)
+    expect(activityEvents.filter((event) => event.type === 'started')).toEqual([
+      expect.objectContaining({
+        activityId: 'activity:task-groups:default',
+        title: '正在读取文件'
+      }),
+      expect.objectContaining({
+        activityId: 'activity:task-groups:tools:3:0',
+        title: '正在读取文件'
+      })
+    ])
+    expect(activityEvents).toContainEqual(
+      expect.objectContaining({
+        activityId: 'activity:task-groups:default',
+        title: '正在读取 2 个文件'
+      })
+    )
+    const secondText = activityEvents.findIndex(
+      (event) =>
+        event.type === 'text' &&
+        event.activityId === null &&
+        'delta' in event &&
+        event.delta === '再说明'
+    )
+    expect(
+      activityEvents.findIndex(
+        (event) => event.type === 'completed' && event.activityId === 'activity:task-groups:default'
+      )
+    ).toBeLessThan(secondText)
   })
 
   it('does not classify interrupted streamed text as a completed final answer', async () => {
@@ -472,7 +638,7 @@ describe('minimal agent StateGraph', () => {
       kind: 'activity',
       event: {
         type: 'text',
-        activityId: 'activity:task-stream-error:default',
+        activityId: null,
         textId: 'plan:task-stream-error',
         delta: '部分内容'
       }
@@ -856,17 +1022,8 @@ describe('minimal agent StateGraph', () => {
       {
         kind: 'activity',
         event: {
-          type: 'started',
-          activityId: 'activity:task-streaming:default',
-          title: '正在处理请求',
-          titleRevision: 1
-        }
-      },
-      {
-        kind: 'activity',
-        event: {
           type: 'text',
-          activityId: 'activity:task-streaming:default',
+          activityId: null,
           textId: 'plan:task-streaming',
           delta: '# Real'
         }
@@ -883,17 +1040,8 @@ describe('minimal agent StateGraph', () => {
       {
         kind: 'activity',
         event: {
-          type: 'started',
-          activityId: 'activity:task-streaming:default',
-          title: '正在处理请求',
-          titleRevision: 1
-        }
-      },
-      {
-        kind: 'activity',
-        event: {
           type: 'text',
-          activityId: 'activity:task-streaming:default',
+          activityId: null,
           textId: 'plan:task-streaming',
           delta: '# Real'
         }
@@ -903,7 +1051,7 @@ describe('minimal agent StateGraph', () => {
         kind: 'activity',
         event: {
           type: 'text',
-          activityId: 'activity:task-streaming:default',
+          activityId: null,
           textId: 'plan:task-streaming',
           delta: ' answer'
         }
@@ -919,14 +1067,10 @@ describe('minimal agent StateGraph', () => {
         kind: 'activity',
         event: {
           type: 'text.done',
-          activityId: 'activity:task-streaming:default',
+          activityId: null,
           textId: 'plan:task-streaming',
           phase: 'final'
         }
-      },
-      {
-        kind: 'activity',
-        event: { type: 'completed', activityId: 'activity:task-streaming:default' }
       }
     ])
   })
@@ -1046,7 +1190,10 @@ describe('minimal agent StateGraph', () => {
     const contractSources = await Promise.all([
       readFile(resolve(process.cwd(), 'packages/contracts/src/index.ts'), 'utf8'),
       readFile(resolve(process.cwd(), 'packages/runtime-contracts/src/runtime-event.ts'), 'utf8'),
-      readFile(resolve(process.cwd(), 'packages/runtime-contracts/src/local-capability-protocol.ts'), 'utf8')
+      readFile(
+        resolve(process.cwd(), 'packages/runtime-contracts/src/local-capability-protocol.ts'),
+        'utf8'
+      )
     ])
 
     expect(contractSources.join('\n')).not.toMatch(/@langchain\/(?:langgraph|core)/)

@@ -65,18 +65,31 @@ describe('StreamTaskProjection', () => {
       ]
     })
     projection.apply({
-      type: 'tool.unknown', ...identity, eventId: 'unknown-tool', cursor: 6, sequence: 3,
-      callId: 'call-1', callSequence: 2, toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run', summary: '运行命令', argumentsHash: 'hash',
+      type: 'tool.unknown',
+      ...identity,
+      eventId: 'unknown-tool',
+      cursor: 6,
+      sequence: 3,
+      callId: 'call-1',
+      callSequence: 2,
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: '运行命令',
+      argumentsHash: 'hash',
       activityId: null,
       error: { code: 'TOOL_OUTCOME_UNKNOWN', message: '工具结果未知', retryable: false }
     })
     projection.apply({
-      type: 'runtime.interrupted', ...identity, eventId: 'interrupted', cursor: 7, sequence: 4,
+      type: 'runtime.interrupted',
+      ...identity,
+      eventId: 'interrupted',
+      cursor: 7,
+      sequence: 4,
       error: { code: 'RUNTIME_RESTARTED', message: 'Runtime 异常退出', retryable: false }
     })
     expect(projection.snapshot()).toMatchObject({
-      status: 'failed', streamSequence: 4,
+      status: 'failed',
+      streamSequence: 4,
       messages: [{ role: 'user' }, { role: 'agent', content: '部分结果' }],
       tools: [{ callId: 'call-1', status: 'unknown', errorSummary: '工具结果未知' }]
     })
@@ -314,11 +327,16 @@ describe('StreamTaskProjection', () => {
       toolId: 'sandbox.shell.run',
       modelName: 'sandbox_shell_run',
       summary: 'rg TODO README.md',
+      title: '正在执行命令',
       argumentsHash: 'sha256:abc',
       activityId: null
     })
     expect(projection.snapshot()?.tools).toEqual([
-      expect.objectContaining({ callId: 'call-1', status: 'waiting_approval' })
+      expect.objectContaining({
+        callId: 'call-1',
+        status: 'waiting_approval',
+        title: '正在执行命令'
+      })
     ])
     expect(projection.snapshot()?.messages.at(-1)?.content).toBe('')
   })
@@ -413,6 +431,49 @@ describe('StreamTaskProjection', () => {
         content: '已完成第一阶段，开始下一阶段。',
         phase: 'pending'
       }
+    ])
+    expect(projection.snapshot()?.activities).toEqual([])
+    projection.apply({
+      type: 'activity.started',
+      ...identity,
+      eventId: 'first-tool-activity',
+      cursor: 3,
+      sequence: 1,
+      activityId: 'first-tool',
+      title: '正在读取文件',
+      titleRevision: 1
+    })
+    projection.apply({
+      type: 'tool.running',
+      ...identity,
+      eventId: 'first-tool-running',
+      cursor: 4,
+      sequence: 2,
+      callId: 'call-first',
+      callSequence: 1,
+      toolId: 'sandbox.fs.read',
+      modelName: 'sandbox_fs_read',
+      summary: '读取 README',
+      argumentsHash: '',
+      activityId: 'first-tool'
+    })
+    const restored = new StreamTaskProjection({ onChange: vi.fn() })
+    restored.attach(projection.snapshot()!)
+    expect(restored.snapshot()?.activityTimeline).toEqual([
+      {
+        id: 'text:between-activities',
+        kind: 'text',
+        content: '已完成第一阶段，开始下一阶段。',
+        phase: 'pending'
+      },
+      { id: 'activity:first-tool', kind: 'activity', activityId: 'first-tool' }
+    ])
+    expect(restored.snapshot()?.activities).toEqual([
+      expect.objectContaining({
+        activityId: 'first-tool',
+        title: '正在读取文件',
+        items: [{ id: 'tool:call-first', kind: 'tool', callId: 'call-first' }]
+      })
     ])
   })
 

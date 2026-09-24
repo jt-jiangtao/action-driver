@@ -106,6 +106,7 @@ export class StreamTaskProjection {
           toolId: toolEvent.toolId,
           modelName: toolEvent.modelName,
           summary: toolEvent.summary,
+          ...(toolEvent.title === undefined ? {} : { title: toolEvent.title }),
           argumentsHash: toolEvent.argumentsHash,
           activityId: toolEvent.activityId,
           ...(toolEvent.rawInput === undefined ? {} : { rawInput: toolEvent.rawInput }),
@@ -118,7 +119,9 @@ export class StreamTaskProjection {
           status,
           ...(toolEvent.type === 'tool.completed'
             ? { durationMs: toolEvent.durationMs, resultSummary: toolEvent.resultSummary }
-            : toolEvent.type === 'tool.failed' || toolEvent.type === 'tool.cancelled' || toolEvent.type === 'tool.unknown'
+            : toolEvent.type === 'tool.failed' ||
+                toolEvent.type === 'tool.cancelled' ||
+                toolEvent.type === 'tool.unknown'
               ? { errorSummary: toolEvent.error?.message ?? '工具已取消' }
               : {})
         }
@@ -273,6 +276,7 @@ function toToolProjection(
     toolId: tool.toolId,
     modelName: tool.modelName,
     summary: tool.summary,
+    ...(tool.title === undefined ? {} : { title: tool.title }),
     argumentsHash: tool.argumentsHash,
     status: tool.status,
     durationMs: tool.durationMs,

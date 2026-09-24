@@ -591,6 +591,7 @@ export class StreamSessionService {
         toolId: string
         modelName: string
         summary: string
+        title?: string
         argumentsHash: string
         activityId?: string | null
         input?: unknown
@@ -620,6 +621,7 @@ export class StreamSessionService {
         toolId: tool.toolId,
         modelName: tool.modelName,
         summary: tool.summary,
+        ...(tool.title ? { title: tool.title } : {}),
         argumentsHash: tool.argumentsHash,
         activityId: tool.activityId ?? null,
         ...(rawInput ? { rawInput: rawInput.value, rawOutputTruncated: rawInput.truncated } : {}),

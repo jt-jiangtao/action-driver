@@ -344,6 +344,13 @@
   display: grid;
   gap: 10px;
 }
+.activity-process-text {
+  color: var(--ad-color-text-primary);
+}
+.activity-thinking {
+  width: max-content;
+  color: #747981;
+}
 .activity-archive .activity-timeline-items {
   padding-top: 16px;
 }
