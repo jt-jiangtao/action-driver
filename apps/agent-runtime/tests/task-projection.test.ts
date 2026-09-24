@@ -4,10 +4,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   SqliteRuntimeRepositories,
-  buildModelLogSessionProjection,
   buildTaskProjection,
   openRuntimeDatabase,
-  type PersistedModelCall,
   type RuntimeTaskRecord
 } from '../src/index'
 
@@ -28,38 +26,7 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
   }
 }
 
-function call(
-  taskId: string,
-  status: PersistedModelCall['status'],
-  response: unknown,
-  error: unknown
-): PersistedModelCall {
-  return {
-    id: `call-${taskId}`,
-    taskId,
-    requestId: `plan:${taskId}`,
-    correlationId: `correlation-${taskId}`,
-    model,
-    status,
-    request: {
-      model: 'gpt-real',
-      messages: [
-        { role: 'system', content: 'Be concise.' },
-        {
-          role: 'user',
-          content: taskId === 'task-success' ? 'Summarize the report' : 'Fail safely'
-        }
-      ],
-      stream: false
-    },
-    response,
-    error,
-    startedAt: '2026-09-23T01:00:00.000Z',
-    completedAt: '2026-09-23T01:00:02.000Z'
-  }
-}
-
-describe('repository-backed task and model-log projections', () => {
+describe('repository-backed task projections', () => {
   it('retains the persisted start time when reopening a running task', () => {
     expect(buildTaskProjection(task('task-running', 'running'), []).activityStartedAt).toBe(
       '2026-09-23T01:00:00.000Z'
@@ -76,29 +43,7 @@ describe('repository-backed task and model-log projections', () => {
       status: 'paused',
       steps: [{ detail: '任务已暂停' }]
     })
-    expect(buildModelLogSessionProjection(cancelled, [], []).status).toBe('failed')
   })
-  it('projects one session with multiple task calls and complete conversation messages', () => {
-    const first = task('task-1', 'completed')
-    const second = {
-      ...task('task-2', 'completed'),
-      goal: 'Continue',
-      createdAt: '2026-09-23T01:01:00.000Z',
-      updatedAt: '2026-09-23T01:01:02.000Z'
-    }
-    const projection = buildModelLogSessionProjection(
-      [first, second],
-      [],
-      [call(first.id, 'completed', {}, null), call(second.id, 'completed', {}, null)]
-    )
-
-    expect(projection).toMatchObject({
-      id: 'session-1',
-      sessionId: 'session-1',
-      tasks: [{ id: 'task-1' }, { id: 'task-2' }]
-    })
-  })
-
   it('projects structured text messages written by the streaming session', () => {
     const projection = buildTaskProjection(task('task-success', 'running'), [
       {
@@ -154,21 +99,6 @@ describe('repository-backed task and model-log projections', () => {
       content: failed.goal,
       createdAt: failed.createdAt
     })
-    await first.modelCalls.save(
-      call(
-        completed.id,
-        'completed',
-        { choices: [{ message: { content: 'Short summary' } }] },
-        null
-      )
-    )
-    await first.modelCalls.save(
-      call(failed.id, 'failed', null, {
-        code: 'provider-error',
-        message: 'upstream unavailable',
-        retryable: true
-      })
-    )
     first.close()
 
     const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
@@ -197,44 +127,6 @@ describe('repository-backed task and model-log projections', () => {
       steps: [{ state: 'failed' }]
     })
 
-    const completedLog = buildModelLogSessionProjection(
-      completed,
-      await reopened.messages.listByTask(completed.id),
-      await reopened.modelCalls.listByTask(completed.id)
-    )
-    expect(completedLog.tasks[0]?.calls[0]?.sections.map((section) => section.id)).toEqual([
-      'system-prompt',
-      'user-input',
-      'model-request',
-      'model-response',
-      'metadata'
-    ])
-    expect(completedLog.tasks[0]?.calls[0]).toMatchObject({
-      requestId: 'plan:task-success',
-      correlationId: 'correlation-task-success',
-      status: 'completed'
-    })
-
-    const failedLog = buildModelLogSessionProjection(
-      failed,
-      await reopened.messages.listByTask(failed.id),
-      await reopened.modelCalls.listByTask(failed.id)
-    )
-    expect(failedLog.tasks[0]?.calls[0]?.sections.map((section) => section.id)).toEqual([
-      'system-prompt',
-      'user-input',
-      'model-request',
-      'metadata'
-    ])
-    expect(failedLog.tasks[0]?.calls[0]).toMatchObject({
-      status: 'failed',
-      sections: [
-        {},
-        {},
-        {},
-        { id: 'metadata', content: expect.stringContaining('upstream unavailable') }
-      ]
-    })
     reopened.close()
   })
 })

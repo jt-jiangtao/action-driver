@@ -7,10 +7,9 @@ import {
   type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
 import { createRuntimeServices } from './composition-root'
-import { buildRecentTaskProjection, buildTaskProjection } from './model-log-projection'
+import { buildRecentTaskProjection, buildTaskProjection } from './task-projection'
 import type {
   MessageRepository,
-  ModelCallRepository,
   RuntimeAdapters,
   RuntimeTaskRecord
 } from './ports'
@@ -24,7 +23,6 @@ export function createLocalRuntimeServer(
   options: {
     adapters: RuntimeAdapters
     messages: MessageRepository
-    modelCalls: ModelCallRepository
     streamSnapshots?: {
       getTaskSnapshot(
         taskId: string

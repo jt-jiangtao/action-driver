@@ -73,10 +73,8 @@ export async function startAgentRuntimeProcess(
   await agentFiles.initialize()
   const modelGateway = new ConnectionModelGateway({
     service,
-    modelCalls: repositories.modelCalls,
     interactions,
     traces: modelTraces,
-    callId: () => `model-call:${randomUUID()}`,
     correlationId: randomUUID,
     now: () => new Date().toISOString()
   })
@@ -101,7 +99,6 @@ export async function startAgentRuntimeProcess(
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
     messages: repositories.messages,
-    modelCalls: repositories.modelCalls,
     streamSnapshots: streamSessions
   })
 

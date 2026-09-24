@@ -13,23 +13,9 @@ import {
   LangGraphRunner,
   MockSkillRegistry,
   createRuntimeServices,
-  type ModelCallRepository,
   type ModelGateway,
-  type ModelRequest,
-  type PersistedModelCall
+  type ModelRequest
 } from '../src/index'
-
-class MemoryModelCallRepository implements ModelCallRepository {
-  readonly records = new Map<string, PersistedModelCall>()
-
-  async save(call: PersistedModelCall): Promise<void> {
-    this.records.set(call.id, structuredClone(call))
-  }
-
-  async listByTask(taskId: string): Promise<PersistedModelCall[]> {
-    return [...this.records.values()].filter((call) => call.taskId === taskId)
-  }
-}
 
 function completionService(outcome: ModelCompletionOutcome): ModelCompletionServicePort {
   return {
@@ -48,22 +34,19 @@ function createGateway(
     finish(id: string, result: unknown): Promise<void>
   }
 ) {
-  const modelCalls = new MemoryModelCallRepository()
   const interactions = new MemoryInteractionLogStore()
   const gateway = new ConnectionModelGateway({
     service,
-    modelCalls,
     interactions: createInteractionLogRecorder({
       store: interactions,
       ids: { eventId: () => 'event-1', correlationId: () => 'unused-correlation' },
       clock: () => 1_000
     }),
-    callId: () => 'call-1',
     correlationId: () => 'correlation-1',
     now: () => '2026-01-01T00:00:00.000Z',
     ...(traces ? { traces } : {})
   })
-  return { gateway, modelCalls, interactions }
+  return { gateway, interactions }
 }
 
 const realRequest: ModelRequest = {
@@ -97,7 +80,7 @@ describe('ModelGateway boundary', () => {
     }
   })
 
-  it('finishes a LangSmith trace for a streamed model result', async () => {
+  it('finishes a model trace for a streamed model result', async () => {
     const starts: unknown[] = []
     const finishes: unknown[] = []
     const traces = {
@@ -136,7 +119,7 @@ describe('ModelGateway boundary', () => {
     expect(finishes[0]).toMatchObject({ output: { content: 'done' }, usage: { inputTokens: 1 } })
   })
 
-  it('finishes LangSmith traces for successful and failed nonstream calls', async () => {
+  it('finishes model traces for successful and failed nonstream calls', async () => {
     const finishes: unknown[] = []
     const traces = {
       start: async () => {},
@@ -172,7 +155,7 @@ describe('ModelGateway boundary', () => {
     await expect(failure.gateway.complete(realRequest)).rejects.toThrow()
     expect(finishes[1]).toMatchObject({ error: 'Bearer secret rejected' })
   })
-  it('forwards content before provider completion and commits one aggregate call at end', async () => {
+  it('forwards content before provider completion and records an interaction at end', async () => {
     let releaseEnd!: () => void
     const endGate = new Promise<void>((resolve) => {
       releaseEnd = resolve
@@ -200,17 +183,13 @@ describe('ModelGateway boundary', () => {
         }
       }
     }
-    const { gateway, modelCalls, interactions } = createGateway(service)
+    const { gateway, interactions } = createGateway(service)
     const iterator = gateway.stream(realRequest)[Symbol.asyncIterator]()
 
     await expect(iterator.next()).resolves.toEqual({
       done: false,
       value: { kind: 'content', delta: '**real' }
     })
-    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
-      expect.objectContaining({ status: 'running', response: null })
-    ])
-
     releaseEnd()
     await expect(iterator.next()).resolves.toEqual({
       done: false,
@@ -222,16 +201,6 @@ describe('ModelGateway boundary', () => {
     })
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined })
 
-    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
-      expect.objectContaining({
-        status: 'completed',
-        response: {
-          content: '**real answer**',
-          finishReason: 'stop',
-          usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 }
-        }
-      })
-    ])
     expect((await interactions.list({ limit: 20 })).records).toHaveLength(1)
     expect((await interactions.list({ limit: 20 })).records[0]).toMatchObject({
       correlationId: 'correlation-1',
@@ -240,7 +209,7 @@ describe('ModelGateway boundary', () => {
     })
   })
 
-  it('persists a streamed tool-call terminal without turning it into assistant text', async () => {
+  it('forwards a streamed tool-call terminal without turning it into assistant text', async () => {
     const stream = vi.fn(async function* (): AsyncIterable<ModelCompletionEvent> {
       yield {
         kind: 'end',
@@ -268,7 +237,7 @@ describe('ModelGateway boundary', () => {
       },
       stream
     }
-    const { gateway, modelCalls } = createGateway(service)
+    const { gateway } = createGateway(service)
     const events = []
 
     for await (const event of gateway.stream({
@@ -285,17 +254,10 @@ describe('ModelGateway boundary', () => {
       })
     ])
     expect(stream).toHaveBeenCalledWith(expect.objectContaining({ tools: [] }), undefined)
-    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
-      expect.objectContaining({
-        status: 'completed',
-        request: { model: 'gpt-real', tools: [{ type: 'function' }] },
-        response: { toolCalls: [{ id: 'provider-call-1' }] }
-      })
-    ])
   })
 
-  it('persists and logs a completed real model call with one correlation id', async () => {
-    const { gateway, modelCalls, interactions } = createGateway(
+  it('logs a completed real model call with one correlation id', async () => {
+    const { gateway, interactions } = createGateway(
       completionService({
         ok: true,
         value: {
@@ -312,15 +274,6 @@ describe('ModelGateway boundary', () => {
       kind: 'finish',
       content: 'real answer'
     })
-    await expect(modelCalls.listByTask('task-1')).resolves.toEqual([
-      expect.objectContaining({
-        id: 'call-1',
-        correlationId: 'correlation-1',
-        requestId: 'plan:task-1',
-        status: 'completed',
-        response: { choices: [{ message: { content: 'real answer' } }] }
-      })
-    ])
     expect((await interactions.list({ limit: 20 })).records[0]).toMatchObject({
       correlationId: 'correlation-1',
       direction: 'service->model',
@@ -331,8 +284,8 @@ describe('ModelGateway boundary', () => {
     })
   })
 
-  it('persists a structured model failure without leaking a credential', async () => {
-    const { gateway, modelCalls, interactions } = createGateway(
+  it('logs a structured model failure without leaking a credential', async () => {
+    const { gateway, interactions } = createGateway(
       completionService({
         ok: false,
         failure: { code: 'unauthorized', message: 'authentication failed', retryable: false },
@@ -346,10 +299,7 @@ describe('ModelGateway boundary', () => {
       code: 'unauthorized',
       retryable: false
     })
-    const serialized = JSON.stringify({
-      calls: await modelCalls.listByTask('task-1'),
-      detail: await interactions.getDetail('event-1')
-    })
+    const serialized = JSON.stringify(await interactions.getDetail('event-1'))
     expect(serialized).not.toContain('secret-key')
     expect(serialized).toContain('authentication failed')
   })

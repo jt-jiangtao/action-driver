@@ -27,7 +27,6 @@ function createHarness(
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
     messages: repositories.messages,
-    modelCalls: repositories.modelCalls,
     ...(streamSnapshots ? { streamSnapshots } : {})
   })
   return { server, repositories, checkpointer }
@@ -127,19 +126,6 @@ describe('local Runtime server composition', () => {
       expect.objectContaining({ role: 'user', content: 'Book a hotel' }),
       expect.objectContaining({ role: 'assistant', content: 'Real model answer' })
     ])
-    await harness.repositories.modelCalls.save({
-      id: 'call-1',
-      taskId,
-      requestId: `plan:${taskId}`,
-      correlationId: 'correlation-1',
-      model,
-      status: 'completed',
-      request: { model: 'gpt-real', messages: [{ role: 'user', content: 'Book a hotel' }] },
-      response: { choices: [{ message: { content: 'Real model answer' } }] },
-      error: null,
-      startedAt: '2026-09-23T01:00:00.000Z',
-      completedAt: '2026-09-23T01:00:01.000Z'
-    })
     await expect(harness.server.execute('task.list', { limit: 100 })).resolves.toMatchObject({
       tasks: [
         {

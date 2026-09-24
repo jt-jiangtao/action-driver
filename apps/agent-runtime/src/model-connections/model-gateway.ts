@@ -2,7 +2,7 @@ import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import type { ModelTraceFinish, ModelTracePort } from '../model-trace-port'
-import type { ModelCallRepository, ModelGateway, ModelRequest, PersistedModelCall } from '../ports'
+import type { ModelGateway, ModelRequest } from '../ports'
 
 export class ModelExecutionError extends Error {
   constructor(
@@ -19,9 +19,7 @@ export class ConnectionModelGateway implements ModelGateway {
   constructor(
     private readonly options: {
       service: ModelCompletionServicePort
-      modelCalls: ModelCallRepository
       interactions: InteractionLogRecorder
-      callId(): string
       correlationId(): string
       now(): string
       traces?: ModelTracePort
@@ -29,26 +27,11 @@ export class ConnectionModelGateway implements ModelGateway {
   ) {}
 
   async *stream(request: ModelRequest, signal?: AbortSignal) {
-    const id = this.options.callId()
     const correlationId = this.options.correlationId()
     const startedAt = this.options.now()
     const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, true))
     const traceId = randomUUID()
     await this.startTrace(traceId, request, correlationId, startedAt, requestBody)
-    const running: PersistedModelCall = {
-      id,
-      taskId: request.taskId,
-      requestId: request.requestId,
-      correlationId,
-      model: request.model,
-      status: 'running',
-      request: requestBody,
-      response: null,
-      error: null,
-      startedAt,
-      completedAt: null
-    }
-    await this.options.modelCalls.save(running)
     const finishInteraction = await this.options.interactions.start({
       correlationId,
       transport: 'http',
@@ -79,15 +62,7 @@ export class ConnectionModelGateway implements ModelGateway {
 
         ended = true
         const completedAt = this.options.now()
-        const safeRequest = sanitizeCredentialFields(event.requestBody)
         const safeResponse = sanitizeCredentialFields(event.responseBody)
-        await this.options.modelCalls.save({
-          ...running,
-          status: 'completed',
-          request: safeRequest,
-          response: safeResponse,
-          completedAt
-        })
         await finishInteraction({
           outcome: 'ok',
           status: event.status,
@@ -120,12 +95,6 @@ export class ConnectionModelGateway implements ModelGateway {
               retryable: caught.retryable
             }
           : toStructuredError(caught)
-      await this.options.modelCalls.save({
-        ...running,
-        status: 'failed',
-        error,
-        completedAt
-      })
       await finishInteraction({
         outcome: 'error',
         error: { code: error.code, message: error.message }
@@ -136,26 +105,11 @@ export class ConnectionModelGateway implements ModelGateway {
   }
 
   async complete(request: ModelRequest, signal?: AbortSignal) {
-    const id = this.options.callId()
     const correlationId = this.options.correlationId()
     const startedAt = this.options.now()
     const requestBody = sanitizeCredentialFields(toOpenAiRequestBody(request, false))
     const traceId = randomUUID()
     await this.startTrace(traceId, request, correlationId, startedAt, requestBody)
-    const running: PersistedModelCall = {
-      id,
-      taskId: request.taskId,
-      requestId: request.requestId,
-      correlationId,
-      model: request.model,
-      status: 'running',
-      request: requestBody,
-      response: null,
-      error: null,
-      startedAt,
-      completedAt: null
-    }
-    await this.options.modelCalls.save(running)
     const finishInteraction = await this.options.interactions.start({
       correlationId,
       transport: 'http',
@@ -180,15 +134,7 @@ export class ConnectionModelGateway implements ModelGateway {
       )
       const completedAt = this.options.now()
       if (outcome.ok) {
-        const safeRequest = sanitizeCredentialFields(outcome.value.requestBody)
         const safeResponse = sanitizeCredentialFields(outcome.value.responseBody)
-        await this.options.modelCalls.save({
-          ...running,
-          status: 'completed',
-          request: safeRequest,
-          response: safeResponse,
-          completedAt
-        })
         await finishInteraction({
           outcome: 'ok',
           status: outcome.value.status,
@@ -198,21 +144,12 @@ export class ConnectionModelGateway implements ModelGateway {
         return { kind: 'finish' as const, content: outcome.value.content }
       }
 
-      const safeRequest = sanitizeCredentialFields(outcome.requestBody)
       const safeResponse = sanitizeCredentialFields(outcome.responseBody)
       const error = {
         code: outcome.failure.code,
         message: outcome.failure.message,
         retryable: outcome.failure.retryable
       }
-      await this.options.modelCalls.save({
-        ...running,
-        status: 'failed',
-        request: safeRequest,
-        response: safeResponse,
-        error,
-        completedAt
-      })
       await finishInteraction({
         outcome: 'error',
         ...(outcome.status === null ? {} : { status: outcome.status }),
@@ -227,12 +164,6 @@ export class ConnectionModelGateway implements ModelGateway {
       if (caught instanceof ModelExecutionError) throw caught
       const completedAt = this.options.now()
       const error = toStructuredError(caught)
-      await this.options.modelCalls.save({
-        ...running,
-        status: 'failed',
-        error,
-        completedAt
-      })
       await finishInteraction({
         outcome: 'error',
         error: { code: error.code, message: error.message }

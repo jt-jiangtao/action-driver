@@ -8,7 +8,6 @@ import {
   openRuntimeDatabase,
   type GraphRunner,
   type PersistedMessage,
-  type PersistedModelCall,
   type PersistedStreamRequest,
   type PersistedSkillInvocation,
   type PersistedStep,
@@ -565,7 +564,7 @@ describe('SQLite runtime repositories', () => {
     repositories.close()
   })
 
-  it('lists recent tasks and persisted model calls in stable order after reopening', async () => {
+  it('lists recent tasks in stable order after reopening', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'actiondriver-repositories-reopen-'))
     temporaryDirectories.push(directory)
     const path = join(directory, 'actiondriver.db')
@@ -580,20 +579,6 @@ describe('SQLite runtime repositories', () => {
       createdAt: '2026-01-01T00:01:00.000Z',
       updatedAt: '2026-01-01T00:01:00.000Z'
     })
-    const modelCall: PersistedModelCall = {
-      id: 'call-1',
-      taskId: task.id,
-      requestId: 'plan:task-1',
-      correlationId: 'correlation-1',
-      model: task.model,
-      status: 'completed',
-      request: { messages: [{ role: 'user', content: 'hello' }] },
-      response: { choices: [{ message: { content: 'answer' } }] },
-      error: null,
-      startedAt: '2026-01-01T00:00:00.000Z',
-      completedAt: '2026-01-01T00:00:01.000Z'
-    }
-    await first.modelCalls.save(modelCall)
     first.close()
 
     const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
@@ -601,7 +586,6 @@ describe('SQLite runtime repositories', () => {
       expect.objectContaining({ id: 'task-2' }),
       expect.objectContaining({ id: 'task-1' })
     ])
-    await expect(reopened.modelCalls.listByTask(task.id)).resolves.toEqual([modelCall])
     reopened.close()
   })
 

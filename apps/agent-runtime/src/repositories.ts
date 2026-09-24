@@ -1,7 +1,6 @@
 import type Database from 'better-sqlite3'
 import type {
   PersistedMessage,
-  PersistedModelCall,
   PersistedStreamRequest,
   PersistedToolInvocation,
   RuntimeEventRecord,
@@ -11,7 +10,6 @@ import type {
 
 export type {
   PersistedMessage,
-  PersistedModelCall,
   PersistedStreamRequest,
   PersistedToolInvocation
 } from './ports'
@@ -91,44 +89,6 @@ export class SqliteRuntimeRepositories {
           .all(limit) as TaskRow[]
       ).map(taskFromRow),
     save: async (task: RuntimeTaskRecord): Promise<void> => saveTask(this.database, task)
-  }
-
-  readonly modelCalls = {
-    save: async (call: PersistedModelCall): Promise<void> => {
-      assertPersistablePayload(call.request, 'modelCall.request')
-      assertPersistablePayload(call.response, 'modelCall.response')
-      assertPersistablePayload(call.error, 'modelCall.error')
-      this.database
-        .prepare(
-          `INSERT INTO model_calls
-            (id, task_id, request_id, correlation_id, connection_id, model_id, status,
-             request_json, response_json, error_json, started_at, completed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET status = excluded.status,
-             response_json = excluded.response_json, error_json = excluded.error_json,
-             completed_at = excluded.completed_at`
-        )
-        .run(
-          call.id,
-          call.taskId,
-          call.requestId,
-          call.correlationId,
-          call.model.connectionId,
-          call.model.modelId,
-          call.status,
-          JSON.stringify(call.request),
-          nullableJson(call.response),
-          nullableJson(call.error),
-          call.startedAt,
-          call.completedAt
-        )
-    },
-    listByTask: async (taskId: string): Promise<PersistedModelCall[]> =>
-      (
-        this.database
-          .prepare('SELECT * FROM model_calls WHERE task_id = ? ORDER BY started_at, id')
-          .all(taskId) as ModelCallRow[]
-      ).map(modelCallFromRow)
   }
 
   readonly messages = {
@@ -875,22 +835,6 @@ function messageFromRow(row: MessageRow): PersistedMessage {
   }
 }
 
-function modelCallFromRow(row: ModelCallRow): PersistedModelCall {
-  return {
-    id: row.id,
-    taskId: row.task_id,
-    requestId: row.request_id,
-    correlationId: row.correlation_id,
-    model: { connectionId: row.connection_id, modelId: row.model_id },
-    status: row.status,
-    request: JSON.parse(row.request_json) as unknown,
-    response: parseNullableJson(row.response_json),
-    error: parseNullableJson(row.error_json),
-    startedAt: row.started_at,
-    completedAt: row.completed_at
-  }
-}
-
 function eventFromRow(row: EventRow): RuntimeEventRecord {
   return {
     cursor: row.cursor,
@@ -961,20 +905,6 @@ type TaskRow = {
   last_checkpoint_id: string | null
   created_at: string
   updated_at: string
-}
-type ModelCallRow = {
-  id: string
-  task_id: string
-  request_id: string
-  correlation_id: string
-  connection_id: string
-  model_id: string
-  status: PersistedModelCall['status']
-  request_json: string
-  response_json: string | null
-  error_json: string | null
-  started_at: string
-  completed_at: string | null
 }
 type MessageRow = {
   id: string

@@ -113,25 +113,6 @@ export interface TaskRepository {
   save(task: RuntimeTaskRecord): Promise<void>
 }
 
-export type PersistedModelCall = {
-  id: string
-  taskId: string
-  requestId: string
-  correlationId: string
-  model: ModelRef
-  status: 'running' | 'completed' | 'failed'
-  request: unknown
-  response: unknown | null
-  error: unknown | null
-  startedAt: string
-  completedAt: string | null
-}
-
-export interface ModelCallRepository {
-  save(call: PersistedModelCall): Promise<void>
-  listByTask(taskId: string): Promise<PersistedModelCall[]>
-}
-
 export type PersistedToolInvocation = {
   id: string
   providerCallId: string

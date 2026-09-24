@@ -3,7 +3,9 @@ import Database from 'better-sqlite3'
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { createInteractionLogRecorder } from '@actiondriver/observability'
 import {
+  ConnectionModelGateway,
   DEFAULT_RUNTIME_MIGRATIONS,
   openRuntimeDatabase,
   type RuntimeMigration
@@ -24,6 +26,56 @@ afterEach(() => {
 })
 
 describe('runtime SQLite database', () => {
+  it('keeps historical model calls while new model completions do not append rows', async () => {
+    const path = databasePath()
+    const old = openRuntimeDatabase(path)
+    old.prepare(`INSERT INTO tasks
+      (id, thread_id, session_id, goal, status, created_at, updated_at, connection_id, model_id)
+      VALUES ('historic-task', 'historic-task', 'historic-session', 'old', 'completed',
+        '2026-01-01', '2026-01-01', 'connection', 'model')`).run()
+    old.prepare(`INSERT INTO model_calls
+      (id, task_id, request_id, correlation_id, connection_id, model_id, status,
+       request_json, response_json, started_at)
+      VALUES ('historic-call', 'historic-task', 'historic-request', 'historic-correlation',
+        'connection', 'model', 'completed', '{"prompt":"historic input"}',
+        '{"text":"historic output"}', '2026-01-01')`).run()
+    old.close()
+
+    const upgraded = openRuntimeDatabase(path)
+    const gateway = new ConnectionModelGateway({
+      service: {
+        complete: async () => ({
+          ok: true as const,
+          value: {
+            content: 'new result', providerProtocol: 'openai-compatible' as const,
+            requestBody: { prompt: 'new input' }, responseBody: { text: 'new result' }, status: 200
+          }
+        }),
+        async *stream() { throw new Error('unused') }
+      },
+      interactions: createInteractionLogRecorder({
+        ids: { eventId: () => 'new-event', correlationId: () => 'new-correlation' },
+        clock: () => 1
+      }),
+      correlationId: () => 'new-correlation',
+      now: () => '2026-09-24T00:00:00Z'
+    })
+    await expect(gateway.complete({
+      taskId: 'new-task', requestId: 'new-request',
+      model: { connectionId: 'connection', modelId: 'model' },
+      messages: [{ role: 'user', content: 'new input' }],
+      skills: [], parameters: { temperature: 0 }
+    })).resolves.toEqual({ kind: 'finish', content: 'new result' })
+    expect(upgraded.prepare('SELECT id, request_json, response_json FROM model_calls').all()).toEqual([
+      {
+        id: 'historic-call',
+        request_json: '{"prompt":"historic input"}',
+        response_json: '{"text":"historic output"}'
+      }
+    ])
+    upgraded.close()
+  })
+
   it('backfills interleaved legacy requests to contiguous per-request sequences', () => {
     const path = databasePath()
     const legacy = openRuntimeDatabase(path, DEFAULT_RUNTIME_MIGRATIONS.slice(0, 4))
