@@ -102,7 +102,7 @@ describe('ActivityTimeline', () => {
     expect(region).not.toHaveTextContent('最后回答')
   })
 
-  it('collapses an earlier completed group while the next group is running', () => {
+  it('starts both completed and running groups collapsed', () => {
     const mixed = task('running')
     mixed.activities![0]!.status = 'completed'
     mixed.activities!.push({
@@ -126,7 +126,7 @@ describe('ActivityTimeline', () => {
     const groups = container.querySelectorAll<HTMLDetailsElement>('details.activity-group')
     expect(groups).toHaveLength(2)
     expect(groups[0]?.open).toBe(false)
-    expect(groups[1]?.open).toBe(true)
+    expect(groups[1]?.open).toBe(false)
   })
 
   it('formats a completed duration over one minute like the reference header', () => {
@@ -179,7 +179,46 @@ describe('ActivityTimeline', () => {
     const group = screen.getByText('调研实现').closest('.activity-group')
     expect(group?.querySelector('summary')).not.toBeNull()
     expect(group?.querySelector('.activity-chevron')).not.toBeNull()
+    expect((group as HTMLDetailsElement).open).toBe(false)
     expect(screen.getByText('调研实现')).toHaveClass('activity-active-title')
+  })
+
+  it('only animates the group and tool rows that are actually running', () => {
+    const mixed = task('running')
+    mixed.tools![0]!.status = 'running'
+    mixed.activities![0]!.items.push({ id: 'tool:queued', kind: 'tool', callId: 'queued' })
+    mixed.tools!.push({
+      callId: 'queued',
+      toolId: 'sandbox.shell.run',
+      modelName: 'sandbox_shell_run',
+      summary: '等待执行命令',
+      argumentsHash: '',
+      activityId: 'research',
+      status: 'queued'
+    })
+    const { rerender } = render(<ActivityTimeline task={mixed} />)
+    const group = screen.getByText('调研实现').closest('details') as HTMLDetailsElement
+    expect(group.open).toBe(false)
+    expect(screen.getByText('调研实现')).toHaveClass('activity-active-title')
+    expect(screen.getByText('读取 README').closest('.activity-tool-label')).toHaveClass(
+      'activity-active-title'
+    )
+    expect(screen.getByText('等待执行命令').closest('.activity-tool-label')).not.toHaveClass(
+      'activity-active-title'
+    )
+
+    group.querySelector('summary')!.click()
+    expect(group.open).toBe(true)
+    rerender(<ActivityTimeline task={{ ...mixed, activities: [...mixed.activities!] }} />)
+    expect(group.open).toBe(true)
+
+    mixed.tools![0] = { ...mixed.tools![0]!, status: 'completed' }
+    rerender(<ActivityTimeline task={{ ...mixed, tools: [...mixed.tools!] }} />)
+    expect(group.open).toBe(true)
+    expect(screen.getByText('调研实现')).not.toHaveClass('activity-active-title')
+    expect(screen.getByText('读取 README').closest('.activity-tool-label')).not.toHaveClass(
+      'activity-active-title'
+    )
   })
 
   it('stops animating a group title once its latest tool reaches a terminal state', () => {
@@ -210,6 +249,7 @@ describe('ActivityTimeline', () => {
 
   it('uses a tool action row and expands its raw input and output directly', () => {
     render(<ActivityTimeline task={task('running')} />)
+    screen.getByText('调研实现').closest('summary')!.click()
     expect(screen.getByText('读取 README').closest('.activity-tool')).toContainElement(
       document.querySelector('.activity-tool .lucide-book-open')
     )

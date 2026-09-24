@@ -218,7 +218,8 @@ test('preserves the first turn duration and archive after a follow-up and reload
   await sendGoal(page, '测试所有工具')
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
-    'data-state', 'idle'
+    'data-state',
+    'idle'
   )
   await sendGoal(page, '111')
   await expect(page.getByRole('heading', { name: '已读取' })).toHaveCount(2, { timeout: 15_000 })
@@ -421,9 +422,13 @@ test('times out a granted shell process and reports the terminal error', async (
   test.setTimeout(30_000)
   const page = await launch('shell-timeout')
   await sendGoal(page, '在阻塞文件中查找 needle')
+  const group = page.locator('details.activity-group')
+  await expect(group.locator(':scope > summary span')).toHaveClass(/activity-active-title/)
+  await expect(group).not.toHaveAttribute('open', '')
+  await group.locator(':scope > summary').click()
+  await expect(group).toHaveAttribute('open', '')
   const runningTool = page.locator('.activity-tool.is-running')
   await expect(runningTool).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.activity-group > summary span')).toHaveClass(/activity-active-title/)
   await expect(runningTool.locator('.activity-tool-label')).toHaveClass(/activity-active-title/)
   await expect(runningTool.locator('.activity-tool-label')).toHaveCSS(
     'animation-name',
@@ -431,6 +436,7 @@ test('times out a granted shell process and reports the terminal error', async (
   )
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(runningTool.locator('.activity-tool-label')).toHaveCSS('animation-name', 'none')
+  await expect(group).toHaveAttribute('open', '')
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '已超时' })).toBeVisible({ timeout: 20_000 })
   await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
@@ -446,7 +452,8 @@ test('cancels a running granted shell command without an approval step', async (
   test.skip(process.platform === 'win32', 'This POSIX test uses a named pipe')
   const page = await launch('shell-timeout')
   const taskId = await sendGoal(page, '在阻塞文件中查找 needle')
-  await expect(page.locator('.activity-tool.is-running')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.activity-tool.is-running')).toHaveCount(1, { timeout: 15_000 })
+  await expect(page.locator('details.activity-group')).not.toHaveAttribute('open', '')
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await page.getByLabel('中断任务').click()
   await expect

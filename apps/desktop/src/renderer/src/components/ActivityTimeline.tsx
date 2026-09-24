@@ -70,20 +70,22 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
             child.kind === 'tool' && tools.has(child.callId)
         )
         const latestTool = tools.get(visibleToolItems.at(-1)?.callId ?? '')
-        const titleIsActive =
-          activity.status === 'running' &&
-          (!latestTool ||
-            ['proposed', 'queued', 'running', 'waiting_approval'].includes(latestTool.status))
+        const runningTool = [...visibleToolItems]
+          .reverse()
+          .map((child) => tools.get(child.callId))
+          .find((tool) => tool?.status === 'running')
+        const titleIsActive = runningTool !== undefined
         const heading = (
           <>
             <ActivityIcon
               title={activity.title}
               toolIds={visibleToolItems.map((child) => tools.get(child.callId)?.toolId ?? '')}
               currentToolId={
-                latestTool &&
-                ['proposed', 'queued', 'running', 'waiting_approval'].includes(latestTool.status)
+                runningTool?.toolId ??
+                (latestTool &&
+                ['proposed', 'queued', 'waiting_approval'].includes(latestTool.status)
                   ? latestTool.toolId
-                  : null
+                  : null)
               }
             />
             <span className={titleIsActive ? 'activity-active-title' : undefined}>
@@ -99,11 +101,7 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           )
         }
         return (
-          <details
-            key={item.id}
-            className="activity-group"
-            open={task.status === 'running' && activity.status === 'running'}
-          >
+          <details key={item.id} className="activity-group">
             <summary data-testid="e2e/tasks/detail/activity/toggle#button">
               {heading}
               <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
@@ -198,7 +196,7 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   if (!tool) return null
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
   const shellTranscript = shellToolTranscript(tool)
-  const active = ['proposed', 'queued', 'running'].includes(tool.status)
+  const active = tool.status === 'running'
   const row = (
     <>
       <ToolIcon tool={tool} />
