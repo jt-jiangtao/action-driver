@@ -1,5 +1,6 @@
 import { SpanStatusCode, type Span, type Tracer } from '@opentelemetry/api'
 import type { ModelTraceFinish, ModelTracePort, ModelTraceStart } from './model-trace-port'
+import { isModelCredentialKey } from './model-credential-key'
 
 /** Complete model content lives on OpenInference spans routed to the local Phoenix collector. */
 export class PhoenixModelObservability implements ModelTracePort {
@@ -19,26 +20,40 @@ export class PhoenixModelObservability implements ModelTracePort {
         'correlation.id': run.correlationId
       }
     })
-    span.setAttribute('input.value', JSON.stringify(withoutCredentials(run.input)))
-    span.setAttribute('input.mime_type', 'application/json')
-    this.active.set(run.id, span)
+    try {
+      span.setAttribute('input.value', JSON.stringify(withoutCredentials(run.input)))
+      span.setAttribute('input.mime_type', 'application/json')
+      this.active.set(run.id, span)
+    } catch (error) {
+      try {
+        span.end()
+      } catch {
+        /* Preserve the original recording error. */
+      }
+      throw error
+    }
   }
 
   async finish(id: string, result: ModelTraceFinish): Promise<void> {
     const span = this.active.get(id)
     if (!span) return
     this.active.delete(id)
-    if (result.output !== undefined) {
-      span.setAttribute('output.value', JSON.stringify(withoutCredentials(result.output)))
-      span.setAttribute('output.mime_type', 'application/json')
+    try {
+      if (result.output !== undefined) {
+        span.setAttribute('output.value', JSON.stringify(withoutCredentials(result.output)))
+        span.setAttribute('output.mime_type', 'application/json')
+      }
+      if (result.usage !== undefined) {
+        span.setAttribute('llm.token_count', JSON.stringify(result.usage))
+      }
+      span.setStatus(
+        result.error === undefined
+          ? { code: SpanStatusCode.OK }
+          : { code: SpanStatusCode.ERROR, message: redactCredentialText(result.error) }
+      )
+    } finally {
+      span.end(new Date(result.completedAt))
     }
-    if (result.usage !== undefined) {
-      span.setAttribute('llm.token_count', JSON.stringify(result.usage))
-    }
-    span.setStatus(result.error === undefined
-      ? { code: SpanStatusCode.OK }
-      : { code: SpanStatusCode.ERROR, message: redactCredentialText(result.error) })
-    span.end(new Date(result.completedAt))
   }
 }
 
@@ -46,11 +61,11 @@ function withoutCredentials(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutCredentials)
   if (typeof value === 'string') return redactCredentialText(value)
   if (value === null || typeof value !== 'object') return value
-  return Object.fromEntries(Object.entries(value).flatMap(([key, nested]) =>
-    /^(api[-_]?key|authorization|cookie|password|token)$/i.test(key)
-      ? []
-      : [[key, withoutCredentials(nested)]]
-  ))
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, nested]) =>
+      isModelCredentialKey(key) ? [] : [[key, withoutCredentials(nested)]]
+    )
+  )
 }
 
 function redactCredentialText(value: string): string {

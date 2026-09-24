@@ -2,6 +2,7 @@ import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import type { ModelTraceFinish, ModelTracePort } from '../model-trace-port'
+import { isModelCredentialKey } from '../model-credential-key'
 import type { ModelGateway, ModelRequest } from '../ports'
 
 export class ModelExecutionError extends Error {
@@ -262,22 +263,7 @@ function sanitizeCredentialFields(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, nested]) =>
-      isCredentialKey(key) ? [] : [[key, sanitizeCredentialFields(nested)]]
+      isModelCredentialKey(key) ? [] : [[key, sanitizeCredentialFields(nested)]]
     )
   )
-}
-
-function isCredentialKey(key: string): boolean {
-  const normalized = key.toLowerCase().replaceAll(/[-_]/g, '')
-  return [
-    'apikey',
-    'authorization',
-    'proxyauthorization',
-    'cookie',
-    'cookies',
-    'setcookie',
-    'xapikey',
-    'sessiontoken',
-    'sessiontokens'
-  ].includes(normalized)
 }

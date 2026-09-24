@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { SpanStatusCode, type Tracer } from '@opentelemetry/api'
 import type {
   ModelCompletionEvent,
   ModelCompletionOutcome,
@@ -16,6 +17,7 @@ import {
   type ModelGateway,
   type ModelRequest
 } from '../src/index'
+import { PhoenixModelObservability } from '../src/phoenix-model-observability'
 
 function completionService(outcome: ModelCompletionOutcome): ModelCompletionServicePort {
   return {
@@ -72,11 +74,18 @@ describe('ModelGateway boundary', () => {
     }
     for (const failingMethod of ['start', 'finish'] as const) {
       const traces = {
-        start: async () => { if (failingMethod === 'start') throw new Error('collector down') },
-        finish: async () => { if (failingMethod === 'finish') throw new Error('collector down') }
+        start: async () => {
+          if (failingMethod === 'start') throw new Error('collector down')
+        },
+        finish: async () => {
+          if (failingMethod === 'finish') throw new Error('collector down')
+        }
       }
       const { gateway } = createGateway(completionService(outcome), traces)
-      await expect(gateway.complete(realRequest)).resolves.toEqual({ kind: 'finish', content: 'done' })
+      await expect(gateway.complete(realRequest)).resolves.toEqual({
+        kind: 'finish',
+        content: 'done'
+      })
     }
   })
 
@@ -117,6 +126,56 @@ describe('ModelGateway boundary', () => {
       requestId: 'plan:task-1'
     })
     expect(finishes[0]).toMatchObject({ output: { content: 'done' }, usage: { inputTokens: 1 } })
+  })
+
+  it('keeps delivered stream content and closes the Phoenix span when the provider fails', async () => {
+    const setStatus = vi.fn()
+    const end = vi.fn()
+    const tracer = {
+      startSpan: () => ({ setAttribute: vi.fn(), setStatus, end })
+    } as unknown as Tracer
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('unexpected complete')
+      },
+      async *stream(): AsyncIterable<ModelCompletionEvent> {
+        yield { kind: 'content', delta: 'partial answer' }
+        throw new Error('upstream disconnected')
+      }
+    }
+    const { gateway } = createGateway(service, new PhoenixModelObservability(tracer))
+    const iterator = gateway.stream(realRequest)[Symbol.asyncIterator]()
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { kind: 'content', delta: 'partial answer' }
+    })
+    await expect(iterator.next()).rejects.toThrow('upstream disconnected')
+    expect(setStatus).toHaveBeenCalledWith({
+      code: SpanStatusCode.ERROR,
+      message: 'upstream disconnected'
+    })
+    expect(end).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the upstream stream error when trace completion throws', async () => {
+    const service: ModelCompletionServicePort = {
+      complete: async () => {
+        throw new Error('unexpected complete')
+      },
+      async *stream(): AsyncIterable<ModelCompletionEvent> {
+        yield { kind: 'content', delta: 'partial answer' }
+        throw new Error('upstream disconnected')
+      }
+    }
+    const { gateway } = createGateway(service, {
+      start: async () => {},
+      finish: async () => {
+        throw new Error('collector disconnected')
+      }
+    })
+    const iterator = gateway.stream(realRequest)[Symbol.asyncIterator]()
+    await expect(iterator.next()).resolves.toMatchObject({ value: { delta: 'partial answer' } })
+    await expect(iterator.next()).rejects.toThrow('upstream disconnected')
   })
 
   it('finishes model traces for successful and failed nonstream calls', async () => {
