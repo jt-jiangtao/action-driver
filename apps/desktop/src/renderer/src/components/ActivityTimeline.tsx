@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ChevronDown, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
+import { BookOpen, ChevronRight, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
 import type {
   ActivityToolProjection,
   TaskProjection,
@@ -78,7 +78,7 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
           <details key={item.id} className="activity-group" open={task.status === 'running'}>
             <summary data-testid="e2e/tasks/detail/activity/toggle#button">
               {heading}
-              <ChevronDown aria-hidden="true" className="activity-chevron" size={18} />
+              <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
             </summary>
             <div className="activity-items">
               {visibleToolItems.map((child) => (
@@ -104,7 +104,7 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
         <details className="activity-archive">
           <summary data-testid="e2e/tasks/detail/activity/archive#button">
             <span>用时 {formatDuration(task.activityDurationMs)}</span>
-            <ChevronDown aria-hidden="true" className="activity-chevron" size={18} />
+            <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
           </summary>
           {body}
         </details>
@@ -139,15 +139,15 @@ function ActivityIcon({ title, toolIds }: { title: string; toolIds: string[] }) 
       return 'other'
     })
   )
-  if (toolKinds.size > 1) return <Wrench aria-hidden="true" size={18} />
-  if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={18} />
-  if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={18} />
-  if (toolKinds.has('search')) return <Search aria-hidden="true" size={18} />
-  if (toolKinds.has('file')) return <BookOpen aria-hidden="true" size={18} />
-  if (/搜索|网页/.test(title)) return <Globe2 aria-hidden="true" size={18} />
-  if (/文件|读取/.test(title)) return <BookOpen aria-hidden="true" size={18} />
-  if (/命令|脚本/.test(title)) return <SquareTerminal aria-hidden="true" size={18} />
-  return <Wrench aria-hidden="true" size={18} />
+  if (toolKinds.size > 1) return <Wrench aria-hidden="true" size={16} />
+  if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={16} />
+  if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={16} />
+  if (toolKinds.has('search')) return <Search aria-hidden="true" size={16} />
+  if (toolKinds.has('file')) return <BookOpen aria-hidden="true" size={16} />
+  if (/搜索|网页/.test(title)) return <Globe2 aria-hidden="true" size={16} />
+  if (/文件|读取/.test(title)) return <BookOpen aria-hidden="true" size={16} />
+  if (/命令|脚本/.test(title)) return <SquareTerminal aria-hidden="true" size={16} />
+  return <Wrench aria-hidden="true" size={16} />
 }
 
 function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
@@ -162,7 +162,7 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
         <span>{toolAction(tool)}</span>
         <span>{toolSummary(tool)}</span>
       </span>
-      {hasRawIO ? <ChevronDown aria-hidden="true" className="activity-chevron" size={18} /> : null}
+      {hasRawIO ? <ChevronRight aria-hidden="true" className="activity-chevron" size={16} /> : null}
     </>
   )
   if (!hasRawIO) {
@@ -288,11 +288,11 @@ function parseObject(value: string): Record<string, unknown> | null {
 }
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
-  if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={18} />
-  if (/shell|command/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={18} />
-  if (/search|find|grep|rg/.test(tool.toolId)) return <Search aria-hidden="true" size={18} />
-  if (/fs|file/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={18} />
-  return <Wrench aria-hidden="true" size={18} />
+  if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
+  if (/shell|command/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={16} />
+  if (/search|find|grep|rg/.test(tool.toolId)) return <Search aria-hidden="true" size={16} />
+  if (/fs|file/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
+  return <Wrench aria-hidden="true" size={16} />
 }
 
 function toolAction(tool: ToolInvocationProjection): string {

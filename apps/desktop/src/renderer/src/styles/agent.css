@@ -405,7 +405,7 @@
 }
 .activity-tool-line {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  grid-template-columns: 16px minmax(0, 1fr) 16px;
   align-items: center;
   gap: 6px;
   min-height: 28px;

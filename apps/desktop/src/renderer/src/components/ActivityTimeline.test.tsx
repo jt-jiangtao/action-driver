@@ -222,6 +222,25 @@ describe('ActivityTimeline', () => {
     expect(screen.queryByText('正在思考')).toBeNull()
   })
 
+  it('uses right-facing arrows for every expandable activity row', () => {
+    render(<ActivityTimeline task={task('succeeded')} />)
+    const arrows = screen
+      .getByRole('region', { name: '任务过程' })
+      .querySelectorAll('.activity-chevron')
+    expect(arrows).toHaveLength(3)
+    for (const arrow of arrows) expect(arrow).toHaveClass('lucide-chevron-right')
+  })
+
+  it('uses 16px icons throughout the activity area', () => {
+    render(<ActivityTimeline task={task('succeeded')} />)
+    const icons = screen.getByRole('region', { name: '任务过程' }).querySelectorAll('svg')
+    expect(icons.length).toBeGreaterThan(0)
+    for (const icon of icons) {
+      expect(icon).toHaveAttribute('width', '16')
+      expect(icon).toHaveAttribute('height', '16')
+    }
+  })
+
   it('renders an elapsed line without an arrow when there is no process to expand', () => {
     const empty = task('succeeded')
     empty.activityTimeline = []
