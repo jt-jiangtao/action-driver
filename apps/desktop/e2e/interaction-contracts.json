@@ -116,6 +116,14 @@
     "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
+    "target": "e2e/settings/add-model-set/manual-image#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "saves a manually named Images API model without discovery or chat testing"
+  },
+  {
     "target": "e2e/settings/add-model-set/save#button",
     "route": "settings",
     "type": "button",
@@ -224,6 +232,30 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/components/settings/settings-components.test.tsx",
     "testName": "runs the reusable page title and model library row actions"
+  },
+  {
+    "target": "e2e/settings/model-connections/models/:model-id/image-input#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures image input and generation with one default model"
+  },
+  {
+    "target": "e2e/settings/model-connections/models/:model-id/image-generation#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures image input and generation with one default model"
+  },
+  {
+    "target": "e2e/settings/model-connections/models/:model-id/default-image#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "configures image input and generation with one default model"
   },
   {
     "target": "e2e/settings/model-connections/page#page",

@@ -84,7 +84,7 @@ export function TaskPage({
   )
   const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
   const assistantMessages =
-    task.status === 'succeeded' || task.status === 'running'
+    task.status === 'succeeded' || task.status === 'running' || task.status === 'paused'
       ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
       : []
   const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false

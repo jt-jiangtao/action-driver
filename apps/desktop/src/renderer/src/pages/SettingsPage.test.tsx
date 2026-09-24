@@ -12,6 +12,62 @@ function renderWithQuery(element: ReactElement, options?: RenderOptions) {
 }
 
 describe('SettingsPage model connections', () => {
+  it('saves a manually named Images API model without discovery or chat testing', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0, seed: [] })
+    const discover = vi.spyOn(service, 'discover')
+    const testConnection = vi.spyOn(service, 'testConnection')
+    const testModels = vi.spyOn(service, 'testModels')
+    const add = vi.spyOn(service, 'add')
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await screen.findByText('还没有模型集')
+    await user.click(screen.getByRole('button', { name: '添加模型集' }))
+    const dialog = await screen.findByRole('dialog', { name: '添加模型集' })
+    await user.type(within(dialog).getByLabelText('名称'), '专用生图网关')
+    await user.type(within(dialog).getByLabelText('接口地址'), 'https://images.example.com/v1')
+    await user.type(within(dialog).getByLabelText('API 密钥'), 'sk-images')
+    await user.click(within(dialog).getByRole('button', { name: '手动配置生图模型' }))
+    await user.click(within(dialog).getByRole('button', { name: '手动添加模型' }))
+    await user.clear(within(dialog).getByLabelText('手动模型名称'))
+    await user.type(within(dialog).getByLabelText('手动模型名称'), 'image-alpha')
+    await user.click(within(dialog).getByRole('button', { name: '保存' }))
+    expect(add).toHaveBeenCalledWith(expect.objectContaining({ name: '专用生图网关' }), [
+      expect.objectContaining({
+        id: 'image-alpha',
+        imageGenerationEnabled: true,
+        testState: 'untested'
+      })
+    ])
+    expect(discover).not.toHaveBeenCalled()
+    expect(testConnection).not.toHaveBeenCalled()
+    expect(testModels).not.toHaveBeenCalled()
+    expect(
+      await screen.findByRole('button', { name: '设为默认生图模型：image-alpha' })
+    ).toBeVisible()
+  })
+
+  it('configures image input and generation with one default model', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const generate = vi.spyOn(service, 'setModelImageCapability')
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await screen.findByText('公司模型网关')
+    const input = screen.getByRole('switch', { name: 'gpt-5.2 支持图片输入' })
+    const generation = screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' })
+    expect(input).toHaveAttribute('aria-checked', 'false')
+    expect(generation).toHaveAttribute('aria-checked', 'false')
+    await user.click(input)
+    await user.click(generation)
+    expect(generate).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'input', true)
+    expect(generate).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'generation', true)
+    await user.click(await screen.findByRole('button', { name: '设为默认生图模型：gpt-5.2' }))
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: 'company-gateway',
+      modelId: 'gpt-5.2'
+    })
+    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
+    expect(await service.getDefaultImageModel()).toBeNull()
+  })
   it('reuses cached connections when the settings page is reopened', async () => {
     const service = new MockModelConnectionsService({ delayMs: 0 })
     const list = vi.spyOn(service, 'list')
@@ -32,7 +88,9 @@ describe('SettingsPage model connections', () => {
 
   it('renders connection cards and expands or collapses their model rows', async () => {
     const user = userEvent.setup()
-    renderWithQuery(<SettingsPage service={new MockModelConnectionsService({ delayMs: 0 })} onBack={() => {}} />)
+    renderWithQuery(
+      <SettingsPage service={new MockModelConnectionsService({ delayMs: 0 })} onBack={() => {}} />
+    )
 
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
     expect(await screen.findByText('公司模型网关')).toBeVisible()
@@ -62,7 +120,11 @@ describe('SettingsPage model connections', () => {
 
     await user.click(await screen.findByRole('button', { name: '公司模型网关的更多操作' }))
     await user.click(screen.getByRole('menuitem', { name: '删除模型集' }))
-    await user.click(within(screen.getByRole('dialog', { name: '删除模型集' })).getByRole('button', { name: '确认删除' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: '删除模型集' })).getByRole('button', {
+        name: '确认删除'
+      })
+    )
 
     expect(deleteSpy).toHaveBeenCalledOnce()
     expect(screen.queryByText('公司模型网关')).not.toBeInTheDocument()

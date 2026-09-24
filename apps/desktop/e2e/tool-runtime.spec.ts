@@ -6,7 +6,15 @@ import {
   type Page
 } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,7 +48,21 @@ test.afterEach(async () => {
 })
 
 async function launch(
-  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'node' | 'text' | 'tool-preparing' | 'web'
+  mode:
+    | 'activity'
+    | 'read'
+    | 'shell'
+    | 'shell-timeout'
+    | 'python'
+    | 'node'
+    | 'text'
+    | 'tool-preparing'
+    | 'web'
+    | 'image'
+    | 'image-partial'
+    | 'image-cancel'
+    | 'image-replay'
+    | 'vision'
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
@@ -120,6 +142,9 @@ test('shows only elapsed time and streamed text until a tool is actually called'
     expect(thinkingBox!.y - (elapsedBox!.y + elapsedBox!.height)).toBeLessThan(12)
     await expect(process.locator('.activity-group')).toHaveCount(0)
     await expect.poll(() => provider!.completions.length).toBe(1)
+    expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).not.toContain(
+      'image_generate'
+    )
     provider!.releaseTextStart()
     await expect(page.getByTestId('e2e/tasks/detail/markdown#section').last()).toContainText(
       '纯文本'
@@ -165,6 +190,7 @@ async function runtimeTask(
   page: Page,
   taskId: string
 ): Promise<{
+  sessionId: string
   status: string
   messages: Array<{ content: unknown }>
 } | null> {
@@ -178,12 +204,150 @@ async function runtimeTask(
     })
     const body = (await response.json()) as {
       ok: boolean
-      value: { task: { status: string; messages: Array<{ content: unknown }> } | null }
+      value: {
+        task: { sessionId: string; status: string; messages: Array<{ content: unknown }> } | null
+      }
     }
     if (!response.ok || !body.ok) throw new Error('Runtime task query failed')
     return body.value.task
   }, taskId)
 }
+
+async function enableImageCapability(page: Page, kind: 'input' | 'generation'): Promise<void> {
+  await page.evaluate(async (imageKind) => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    const headers = {
+      Authorization: `Bearer ${connection.accessToken}`,
+      'Content-Type': 'application/json'
+    }
+    url.pathname = '/model-connections'
+    const listResponse = await fetch(url, { headers })
+    const list = (await listResponse.json()) as {
+      ok: boolean
+      value: Array<{ id: string }>
+    }
+    if (!listResponse.ok || !list.ok || !list.value[0]) throw new Error('Missing model connection')
+    url.pathname = `/model-connections/${encodeURIComponent(list.value[0].id)}/models/e2e-tool-model/image-capability`
+    const toggleResponse = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ kind: imageKind, enabled: true })
+    })
+    if (!toggleResponse.ok) throw new Error('Cannot enable image capability')
+    if (imageKind === 'generation') {
+      url.pathname = '/model-connections/default-image-model'
+      const defaultResponse = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: { connectionId: list.value[0].id, modelId: 'e2e-tool-model' }
+        })
+      })
+      if (!defaultResponse.ok) throw new Error('Cannot select default image model')
+    }
+  }, kind)
+  await page.reload()
+}
+
+test('uploads an image for model recognition and restores it from session assets', async () => {
+  const page = await launch('vision')
+  await enableImageCapability(page, 'input')
+  await page.getByLabel('添加图片').setInputFiles({
+    name: 'tiny.png',
+    mimeType: 'image/png',
+    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+  })
+  await page.getByLabel('任务描述').fill('识别图片')
+  await page.getByLabel('发送').click()
+  const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
+  const taskId = await taskPage.getAttribute('data-task-id')
+  expect(taskId).toMatch(/^task-/)
+  await expect(page.getByText('识别到了图片')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
+  expect(JSON.stringify(provider!.completions[0]?.messages)).toContain('data:image/png;base64,')
+  expect(JSON.stringify(await runtimeTask(page, taskId!))).not.toContain('data:image/png;base64,')
+  const task = await runtimeTask(page, taskId!)
+  expect(task).not.toBeNull()
+  const uploads = join(
+    userDataDirectory,
+    'data',
+    'sessions',
+    task!.sessionId,
+    'attachments',
+    'uploads'
+  )
+  expect(readdirSync(uploads)).toHaveLength(1)
+  expect(readFileSync(join(uploads, readdirSync(uploads)[0]!))).toEqual(
+    readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+  )
+  await page.reload()
+  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
+  await expect(page.getByText('识别到了图片')).toBeVisible()
+})
+
+test('shows four independently completed images and restores them after reload', async () => {
+  const page = await launch('image')
+  await enableImageCapability(page, 'generation')
+  const taskId = await sendGoal(page, '生成四张图')
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(4, { timeout: 20_000 })
+  await expect(page.getByText('图片已生成')).toBeVisible()
+  expect(provider!.imageGenerations).toHaveLength(4)
+  expect(provider!.imageGenerations.every((request) => request.n === 1)).toBe(true)
+  expect(provider!.imageCompletions).toHaveLength(4)
+  expect(provider!.imageCompletions[0]).not.toBe('one')
+  expect(JSON.stringify(await runtimeTask(page, taskId))).not.toContain('iVBORw0KGgo')
+  const task = await runtimeTask(page, taskId)
+  expect(task).not.toBeNull()
+  expect(
+    readdirSync(
+      join(userDataDirectory, 'data', 'sessions', task!.sessionId, 'attachments', 'generated')
+    )
+  ).toHaveLength(4)
+  await page.reload()
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(4)
+  await expect(page.getByText('图片已生成')).toBeVisible()
+})
+
+test('retains successful generated images when one request fails', async () => {
+  const page = await launch('image-partial')
+  await enableImageCapability(page, 'generation')
+  await sendGoal(page, '生成四张图，其中一张失败')
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(3, { timeout: 20_000 })
+  await expect(page.getByText('图片已生成')).toBeVisible()
+  expect(provider!.imageGenerations).toHaveLength(4)
+  expect(provider!.imageCompletions).toHaveLength(3)
+})
+
+test('replays an in-progress image batch after reload without repeating generation', async () => {
+  const page = await launch('image-replay')
+  await enableImageCapability(page, 'generation')
+  const taskId = await sendGoal(page, '生成四张图并恢复进度')
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1, { timeout: 20_000 })
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+    'data-task-id',
+    taskId
+  )
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(4, { timeout: 20_000 })
+  expect(provider!.imageGenerations).toHaveLength(4)
+  await expect(page.getByText('图片已生成')).toBeVisible()
+})
+
+test('stops pending image requests without late successful images', async () => {
+  const page = await launch('image-cancel')
+  await enableImageCapability(page, 'generation')
+  await sendGoal(page, '生成图片后取消')
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1, { timeout: 20_000 })
+  await page.getByLabel('中断任务').click()
+  await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+    'data-state',
+    'idle'
+  )
+  await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1)
+  expect(provider!.imageCompletions).toEqual(['one'])
+})
 
 test('runs local SearXNG without approval, records only normalized results, and restores history', async () => {
   const page = await launch('web')
@@ -192,6 +356,7 @@ test('runs local SearXNG without approval, records only normalized results, and 
     timeout: 15_000
   })
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
+  await expect.poll(() => provider!.completions.length).toBeGreaterThan(0)
   expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
     'web_search'
   )

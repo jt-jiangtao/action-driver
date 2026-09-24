@@ -153,6 +153,36 @@ describe('model connection service', () => {
     expect(requests.every((request) => request.url.endsWith('/models'))).toBe(true)
   })
 
+  it('keeps a configured image-only model when discovery does not list it', async () => {
+    const { service } = createService(() => ({
+      status: 200,
+      body: { data: [{ id: 'chat' }] },
+      text: ''
+    }))
+    const connection = await service.add({
+      draft,
+      models: [
+        { id: 'chat', name: 'chat', enabled: true, testState: 'success' },
+        { id: 'image-only', name: 'image-only', enabled: true, testState: 'untested' }
+      ]
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'image-only',
+      kind: 'generation',
+      enabled: true
+    })
+    await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image-only' })
+    expect(await service.refresh(connection.id)).toMatchObject([
+      { id: 'chat' },
+      { id: 'image-only', imageGenerationEnabled: true }
+    ])
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'image-only'
+    })
+  })
+
   it('streams a duplicate model id through the exact selected connection', async () => {
     const clientOptions: Array<Record<string, unknown>> = []
     const chunks: OpenAiStreamChunk[] = [

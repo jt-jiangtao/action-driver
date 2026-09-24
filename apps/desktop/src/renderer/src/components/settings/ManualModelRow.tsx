@@ -9,12 +9,14 @@ export function ManualModelRow({
   model,
   onChangeName,
   onTest,
-  onToggle
+  onToggle,
+  allowTest = true
 }: {
   model: ModelOption
   onChangeName(name: string): void
   onTest(): void
   onToggle(enabled: boolean): void
+  allowTest?: boolean
 }) {
   return (
     <div className="model-picker-row manual-model-row">
@@ -27,15 +29,17 @@ export function ManualModelRow({
         value={model.name}
         onChange={(event) => onChangeName(event.currentTarget.value)}
       />
-      <ModelStatusPill state={model.testState} />
-      <IconButton
-        aria-label={`测试${model.name}`}
-        icon="play"
-        onClick={onTest}
-        testId={e2eId('e2e/settings/add-model-set/models/:model-id/test#button', {
-          'model-id': model.id
-        })}
-      />
+      {allowTest ? <ModelStatusPill state={model.testState} /> : <span>生图专用</span>}
+      {allowTest ? (
+        <IconButton
+          aria-label={`测试${model.name}`}
+          icon="play"
+          onClick={onTest}
+          testId={e2eId('e2e/settings/add-model-set/models/:model-id/test#button', {
+            'model-id': model.id
+          })}
+        />
+      ) : null}
       <ModelToggle
         label={`选择${model.name}`}
         checked={model.enabled}

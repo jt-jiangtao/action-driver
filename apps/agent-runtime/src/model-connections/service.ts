@@ -142,7 +142,15 @@ export class ModelConnectionService
       apiKey: this.decrypt(connection)
     })
     if (!result.ok) throw toServiceError(result.failure)
-    connection.models = result.value.map((id) => mergeDiscoveredModel(connection, id))
+    const discovered = new Set(result.value)
+    connection.models = [
+      ...result.value.map((id) => mergeDiscoveredModel(connection, id)),
+      ...connection.models.filter(
+        (model) =>
+          !discovered.has(model.id) &&
+          (model.imageInputEnabled === true || model.imageGenerationEnabled === true)
+      )
+    ]
     this.write(connections)
     return connection.models.map((model) => ({ ...model }))
   }

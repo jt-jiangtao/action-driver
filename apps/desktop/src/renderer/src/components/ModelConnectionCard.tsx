@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { ModelLibrary } from './settings/ModelLibrary'
 import { AppIcon } from './ui/AppIcon'
 import { e2eId } from '../testing/e2e-id'
+import type { ModelRef } from '@actiondriver/contracts'
 
 export function ModelConnectionCard({
   connection,
@@ -14,7 +15,10 @@ export function ModelConnectionCard({
   onDelete,
   onRefresh,
   onTestModel,
-  onToggleModel
+  onToggleModel,
+  onToggleImageCapability,
+  defaultImageModel,
+  onToggleDefaultImageModel
 }: {
   connection: ModelConnection
   expanded: boolean
@@ -25,6 +29,9 @@ export function ModelConnectionCard({
   onRefresh(): Promise<unknown> | void
   onTestModel(modelId: string): void
   onToggleModel(modelId: string, enabled: boolean): void
+  onToggleImageCapability?(modelId: string, kind: 'input' | 'generation', enabled: boolean): void
+  defaultImageModel?: ModelRef | null
+  onToggleDefaultImageModel?(modelId: string): void
 }) {
   const refreshPendingRef = useRef(false)
   const [refreshPending, setRefreshPending] = useState(false)
@@ -62,7 +69,8 @@ export function ModelConnectionCard({
         <div className="connection-copy">
           <strong>{connection.name}</strong>
           <span>
-            {modelProtocolLabel(connection.protocol)} · {connection.baseUrl} · {connection.apiKeyHint}
+            {modelProtocolLabel(connection.protocol)} · {connection.baseUrl} ·{' '}
+            {connection.apiKeyHint}
           </span>
         </div>
         <span className="connection-counts">
@@ -122,6 +130,9 @@ export function ModelConnectionCard({
           connection={connection}
           onTestModel={onTestModel}
           onToggleModel={onToggleModel}
+          {...(onToggleImageCapability ? { onToggleImageCapability } : {})}
+          {...(defaultImageModel !== undefined ? { defaultImageModel } : {})}
+          {...(onToggleDefaultImageModel ? { onToggleDefaultImageModel } : {})}
         />
       ) : null}
     </article>

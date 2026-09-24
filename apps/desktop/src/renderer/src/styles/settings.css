@@ -315,13 +315,15 @@
 }
 .model-table {
   border-top: 1px solid #e8e8ea;
+  overflow-x: auto;
 }
 .model-table-head,
 .model-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px 76px;
+  grid-template-columns: minmax(160px, 1fr) 138px 64px 64px 64px 94px;
   align-items: center;
-  padding: 0 18px 0 58px;
+  min-width: 700px;
+  padding: 0 18px 0 28px;
 }
 .model-table-head {
   height: 36px;
@@ -330,8 +332,24 @@
   font-size: 12px;
 }
 .model-row {
-  height: 48px;
+  min-height: 52px;
   border-top: 1px solid #f0f0f1;
+}
+.model-image-default {
+  justify-self: start;
+  padding: 5px 9px;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  color: #5d6470;
+  font-size: 12px;
+}
+.model-image-default.is-selected {
+  border-color: #3978e5;
+  background: #eef4ff;
+  color: #2863cc;
+}
+.model-image-default-empty {
+  color: #a4aab4;
 }
 .model-name-cell,
 .model-state-cell {
@@ -1377,7 +1395,6 @@
 }
 
 .logs-toolbar,
-
 .logs-search {
   min-width: 290px;
   background: #fff;
@@ -2557,7 +2574,6 @@
   max-width: min(36vw, 420px);
 }
 
-
 .segmented-control button {
   min-width: 76px;
   height: 32px;
@@ -2566,7 +2582,6 @@
   color: #687386;
   font-size: 12px;
 }
-
 
 .model-auto-refresh {
   margin-left: auto;
@@ -2749,7 +2764,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 
 .model-task-grid {
   display: grid;

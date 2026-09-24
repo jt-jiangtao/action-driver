@@ -6,6 +6,7 @@ export type AddModelSetState = {
   connectionState: 'idle' | 'testing' | 'success' | 'failed'
   models: readonly ModelOption[]
   discovering: boolean
+  imageOnlyMode: boolean
 }
 
 export type AddModelSetAction =
@@ -13,6 +14,7 @@ export type AddModelSetAction =
   | { type: 'connection-testing' }
   | { type: 'connection-result'; ok: boolean }
   | { type: 'enter-models' }
+  | { type: 'enter-image-models' }
   | { type: 'models-discovered'; models: readonly ModelOption[] }
   | { type: 'model-testing'; modelIds: readonly string[] }
   | { type: 'model-result'; results: readonly ModelTestResult[] }
@@ -26,7 +28,8 @@ export const initialAddModelSetState: AddModelSetState = {
   draft: { name: '', protocol: 'openai-compatible', baseUrl: '', apiKey: '' },
   connectionState: 'idle',
   models: [],
-  discovering: false
+  discovering: false,
+  imageOnlyMode: false
 }
 
 export function addModelSetReducer(
@@ -41,7 +44,14 @@ export function addModelSetReducer(
     case 'connection-result':
       return { ...state, connectionState: action.ok ? 'success' : 'failed' }
     case 'enter-models':
-      return { ...state, step: 'models', discovering: state.models.length === 0 }
+      return {
+        ...state,
+        step: 'models',
+        discovering: state.models.length === 0,
+        imageOnlyMode: false
+      }
+    case 'enter-image-models':
+      return { ...state, step: 'models', discovering: false, imageOnlyMode: true }
     case 'models-discovered':
       return { ...state, models: action.models.map((model) => ({ ...model })), discovering: false }
     case 'model-testing':

@@ -13,6 +13,11 @@ type ToolMode =
   | 'text'
   | 'tool-preparing'
   | 'web'
+  | 'image'
+  | 'image-partial'
+  | 'image-cancel'
+  | 'image-replay'
+  | 'vision'
 
 export type CapturedToolCompletion = {
   model: string
@@ -28,6 +33,8 @@ export class FakeOpenAiToolServer {
   private releaseTextResponse: (() => void) | null = null
   private releaseToolResponse: (() => void) | null = null
   readonly completions: CapturedToolCompletion[] = []
+  readonly imageGenerations: Array<{ model: string; prompt: string; n: number }> = []
+  readonly imageCompletions: string[] = []
   baseUrl = ''
 
   constructor(private mode: ToolMode) {}
@@ -35,6 +42,8 @@ export class FakeOpenAiToolServer {
   setMode(mode: ToolMode): void {
     this.mode = mode
     this.completions.length = 0
+    this.imageGenerations.length = 0
+    this.imageCompletions.length = 0
   }
 
   async start(): Promise<void> {
@@ -42,6 +51,50 @@ export class FakeOpenAiToolServer {
       if (request.method === 'GET' && request.url === '/v1/models') {
         response.writeHead(200, { 'content-type': 'application/json' })
         response.end(JSON.stringify({ object: 'list', data: [{ id: 'e2e-tool-model' }] }))
+        return
+      }
+      if (request.method === 'POST' && request.url === '/v1/images/generations') {
+        const chunks: Buffer[] = []
+        for await (const chunk of request) chunks.push(Buffer.from(chunk))
+        const input = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+          model: string
+          prompt: string
+          n: number
+        }
+        const index = this.imageGenerations.push(input) - 1
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(
+            resolve,
+            this.mode === 'image-cancel' && index > 0
+              ? 8_000
+              : this.mode === 'image-replay' && index > 0
+                ? 1_500
+                : ([280, 40, 190, 120][index] ?? 40)
+          )
+          response.once('close', () => {
+            clearTimeout(timer)
+            resolve()
+          })
+        })
+        if (response.destroyed) return
+        if (this.mode === 'image-partial' && input.prompt === 'fail') {
+          response
+            .writeHead(429, { 'content-type': 'application/json' })
+            .end('{"error":"rate-limited"}')
+          return
+        }
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(
+          JSON.stringify({
+            data: [
+              {
+                b64_json:
+                  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVkAAAAASUVORK5CYII='
+              }
+            ]
+          })
+        )
+        this.imageCompletions.push(input.prompt)
         return
       }
       if (request.method !== 'POST' || request.url !== '/v1/chat/completions') {
@@ -65,6 +118,12 @@ export class FakeOpenAiToolServer {
         'cache-control': 'no-cache',
         connection: 'keep-alive'
       })
+      if (this.mode === 'vision') {
+        response.write(sseChunk({ content: '识别到了图片' }, null))
+        response.write(sseChunk({}, 'stop'))
+        response.end('data: [DONE]\n\n')
+        return
+      }
       if (this.mode === 'text') {
         await new Promise<void>((resolve) => {
           this.releaseTextStartResponse = resolve
@@ -83,6 +142,37 @@ export class FakeOpenAiToolServer {
         (this.mode === 'activity' && turn === 2) ||
         (this.mode === 'triple' && turn <= 3)
       ) {
+        if (
+          this.mode === 'image' ||
+          this.mode === 'image-partial' ||
+          this.mode === 'image-cancel' ||
+          this.mode === 'image-replay'
+        ) {
+          const prompts =
+            this.mode === 'image-partial'
+              ? ['one', 'two', 'fail', 'four']
+              : ['one', 'two', 'three', 'four']
+          response.write(
+            sseChunk(
+              {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: 'provider-image-1',
+                    type: 'function',
+                    function: {
+                      name: 'image_generate',
+                      arguments: JSON.stringify({ images: prompts.map((prompt) => ({ prompt })) })
+                    }
+                  }
+                ]
+              },
+              'tool_calls'
+            )
+          )
+          response.end('data: [DONE]\n\n')
+          return
+        }
         const toolMode =
           this.mode === 'triple'
             ? turn === 1
@@ -135,7 +225,9 @@ export class FakeOpenAiToolServer {
           )
         )
         if (this.mode === 'tool-preparing') {
-          await new Promise<void>((resolve) => { this.releaseToolResponse = resolve })
+          await new Promise<void>((resolve) => {
+            this.releaseToolResponse = resolve
+          })
         }
         response.write(
           sseChunk(
@@ -155,9 +247,14 @@ export class FakeOpenAiToolServer {
         ? '## 已超时\n\n命令超时，未获得文件内容。'
         : rejected
           ? '## 已拒绝\n\n未执行命令。'
-          : this.mode === 'web'
-            ? '## 搜索完成\n\n已根据搜索结果完成回答。'
-            : '## 已读取\n\n已根据工具结果完成回答。'
+          : this.mode === 'image' ||
+              this.mode === 'image-partial' ||
+              this.mode === 'image-cancel' ||
+              this.mode === 'image-replay'
+            ? '图片已生成'
+            : this.mode === 'web'
+              ? '## 搜索完成\n\n已根据搜索结果完成回答。'
+              : '## 已读取\n\n已根据工具结果完成回答。'
       response.write(sseChunk({ content: reply.slice(0, 6) }, null))
       response.write(sseChunk({ content: reply.slice(6) }, null))
       response.write(sseChunk({}, 'stop'))

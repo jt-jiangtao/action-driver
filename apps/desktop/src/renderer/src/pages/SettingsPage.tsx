@@ -29,12 +29,19 @@ export function SettingsPage({
     retry: false
   })
   const connections = connectionsQuery.data ?? EMPTY_CONNECTIONS
+  const defaultImageQuery = useQuery({
+    queryKey: ['default-image-model'],
+    queryFn: () => service.getDefaultImageModel(),
+    staleTime: 30_000,
+    retry: false
+  })
   const [expandedIds, setExpandedIds] = useState(() => new Set<string>())
   const loadError = connectionsQuery.error?.message ?? null
   const loading = connectionsQuery.isPending
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ModelConnection | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     setExpandedIds((current) => {
@@ -51,6 +58,17 @@ export function SettingsPage({
   }, [connections])
 
   const syncConnections = () => queryClient.invalidateQueries({ queryKey: ['model-connections'] })
+  const syncImageDefault = () =>
+    queryClient.invalidateQueries({ queryKey: ['default-image-model'] })
+  const runImageAction = async (action: () => Promise<void>) => {
+    setActionError(null)
+    try {
+      await action()
+      await Promise.all([syncConnections(), syncImageDefault()])
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '图片模型配置失败')
+    }
+  }
 
   return (
     <div className="settings-shell" data-testid="e2e/settings/model-connections/page#page">
@@ -106,9 +124,7 @@ export function SettingsPage({
                           ? {
                               ...item,
                               models: item.models.map((model) =>
-                                model.id === modelId
-                                  ? { ...model, testState: 'testing' }
-                                  : model
+                                model.id === modelId ? { ...model, testState: 'testing' } : model
                               )
                             }
                           : item
@@ -119,8 +135,24 @@ export function SettingsPage({
                   }}
                   onToggleModel={async (modelId, enabled) => {
                     await service.setModelEnabled(connection.id, modelId, enabled)
-                    await syncConnections()
+                    await Promise.all([syncConnections(), syncImageDefault()])
                   }}
+                  defaultImageModel={defaultImageQuery.data ?? null}
+                  onToggleImageCapability={(modelId, kind, enabled) =>
+                    void runImageAction(() =>
+                      service.setModelImageCapability(connection.id, modelId, kind, enabled)
+                    )
+                  }
+                  onToggleDefaultImageModel={(modelId) =>
+                    void runImageAction(() =>
+                      service.setDefaultImageModel(
+                        defaultImageQuery.data?.connectionId === connection.id &&
+                          defaultImageQuery.data.modelId === modelId
+                          ? null
+                          : { connectionId: connection.id, modelId }
+                      )
+                    )
+                  }
                 />
               ))}
             </div>
@@ -128,6 +160,11 @@ export function SettingsPage({
           {loadError ? (
             <p className="settings-error" role="alert">
               无法读取模型连接：{loadError}
+            </p>
+          ) : null}
+          {actionError ? (
+            <p className="settings-error" role="alert">
+              {actionError}
             </p>
           ) : null}
         </div>

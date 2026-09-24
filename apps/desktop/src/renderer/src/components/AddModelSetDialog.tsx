@@ -82,7 +82,9 @@ export function AddModelSetDialog({
     dispatch({ type: 'model-testing', modelIds })
     try {
       const results = await service.testModels(state.draft, [...modelIds])
-      const currentResults = results.filter((result) => modelTokens.current.get(result.modelId) === token)
+      const currentResults = results.filter(
+        (result) => modelTokens.current.get(result.modelId) === token
+      )
       if (currentResults.length) dispatch({ type: 'model-result', results: currentResults })
     } catch (error) {
       dispatch({
@@ -106,7 +108,13 @@ export function AddModelSetDialog({
     }
     dispatch({
       type: 'add-manual-model',
-      model: { id, name: id, enabled: true, testState: 'untested' }
+      model: {
+        id,
+        name: id,
+        enabled: true,
+        testState: 'untested',
+        ...(state.imageOnlyMode ? { imageGenerationEnabled: true } : {})
+      }
     })
   }
 
@@ -138,7 +146,8 @@ export function AddModelSetDialog({
           </div>
           <i aria-hidden="true" />
           <div className={state.step === 'models' ? 'is-active' : ''}>
-            <span>2</span><strong>选择模型</strong>
+            <span>2</span>
+            <strong>选择模型</strong>
           </div>
         </div>
 
@@ -199,14 +208,23 @@ export function AddModelSetDialog({
                   onClick={() => void testConnection()}
                   type="button"
                 >
-                  <AppIcon name={state.connectionState === 'testing' ? 'loader' : 'play'} className={state.connectionState === 'testing' ? 'spin-icon' : ''} />
+                  <AppIcon
+                    name={state.connectionState === 'testing' ? 'loader' : 'play'}
+                    className={state.connectionState === 'testing' ? 'spin-icon' : ''}
+                  />
                   {state.connectionState === 'testing' ? '测试中' : '测试连接'}
                 </button>
                 {state.connectionState === 'success' ? (
-                  <span className="connection-test-result is-success"><AppIcon name="check" />连接成功</span>
+                  <span className="connection-test-result is-success">
+                    <AppIcon name="check" />
+                    连接成功
+                  </span>
                 ) : null}
                 {state.connectionState === 'failed' ? (
-                  <span className="connection-test-result is-failed"><AppIcon name="close" />连接失败</span>
+                  <span className="connection-test-result is-failed">
+                    <AppIcon name="close" />
+                    连接失败
+                  </span>
                 ) : null}
               </div>
               {failure && state.connectionState === 'failed' ? (
@@ -218,7 +236,14 @@ export function AddModelSetDialog({
           ) : (
             <div className="model-picker">
               <div className="model-picker-toolbar">
-                <div><strong>发现的模型</strong><span>选择并测试要启用的模型</span></div>
+                <div>
+                  <strong>{state.imageOnlyMode ? '生图模型' : '发现的模型'}</strong>
+                  <span>
+                    {state.imageOnlyMode
+                      ? '输入 Images API 模型 ID，无需聊天测试'
+                      : '选择并测试要启用的模型'}
+                  </span>
+                </div>
                 <IconButton
                   aria-label="手动添加模型"
                   className="plain-icon-action"
@@ -227,36 +252,51 @@ export function AddModelSetDialog({
                   testId="e2e/settings/add-model-set/add-manual-model#button"
                   title="手动添加模型"
                 />
-                <button
-                  className="secondary-button"
-                  disabled={state.discovering || state.models.length === 0}
-                  data-testid="e2e/settings/add-model-set/test-all-models#button"
-                  onClick={() => void testModels(state.models.map((model) => model.id))}
-                  type="button"
-                >
-                  <AppIcon name="play" />测试全部模型
-                </button>
+                {!state.imageOnlyMode ? (
+                  <button
+                    className="secondary-button"
+                    disabled={state.discovering || state.models.length === 0}
+                    data-testid="e2e/settings/add-model-set/test-all-models#button"
+                    onClick={() => void testModels(state.models.map((model) => model.id))}
+                    type="button"
+                  >
+                    <AppIcon name="play" />
+                    测试全部模型
+                  </button>
+                ) : null}
               </div>
               {state.discovering ? (
-                <div className="model-picker-loading"><AppIcon className="spin-icon" name="loader" />正在发现模型…</div>
+                <div className="model-picker-loading">
+                  <AppIcon className="spin-icon" name="loader" />
+                  正在发现模型…
+                </div>
               ) : (
                 <div className="model-picker-list">
-                  {state.models.map((model) => model.id.startsWith('custom-model') ? (
-                    <ManualModelRow
-                      key={model.id}
-                      model={model}
-                      onChangeName={(name) => dispatch({ type: 'rename-model', modelId: model.id, name })}
-                      onTest={() => void testModels([model.id])}
-                      onToggle={(enabled) => dispatch({ type: 'toggle-model', modelId: model.id, enabled })}
-                    />
-                  ) : (
-                    <ModelPickerRow
-                      key={model.id}
-                      model={model}
-                      onTest={() => void testModels([model.id])}
-                      onToggle={(enabled) => dispatch({ type: 'toggle-model', modelId: model.id, enabled })}
-                    />
-                  ))}
+                  {state.models.map((model) =>
+                    model.id.startsWith('custom-model') ? (
+                      <ManualModelRow
+                        key={model.id}
+                        model={model}
+                        onChangeName={(name) =>
+                          dispatch({ type: 'rename-model', modelId: model.id, name })
+                        }
+                        onTest={() => void testModels([model.id])}
+                        allowTest={!state.imageOnlyMode}
+                        onToggle={(enabled) =>
+                          dispatch({ type: 'toggle-model', modelId: model.id, enabled })
+                        }
+                      />
+                    ) : (
+                      <ModelPickerRow
+                        key={model.id}
+                        model={model}
+                        onTest={() => void testModels([model.id])}
+                        onToggle={(enabled) =>
+                          dispatch({ type: 'toggle-model', modelId: model.id, enabled })
+                        }
+                      />
+                    )
+                  )}
                 </div>
               )}
               {failure && !state.discovering ? (
@@ -276,42 +316,77 @@ export function AddModelSetDialog({
               type="button"
               onClick={() => dispatch({ type: 'back' })}
             >
-              <AppIcon name="arrow-left" />上一步
+              <AppIcon name="arrow-left" />
+              上一步
             </button>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           <div>
             <button
               className="secondary-button"
               data-testid="e2e/settings/add-model-set/cancel#button"
               type="button"
               onClick={onClose}
-            >取消</button>
+            >
+              取消
+            </button>
             {state.step === 'connection' ? (
-              <button
-                className="primary-button"
-                disabled={state.connectionState !== 'success'}
-                data-testid="e2e/settings/add-model-set/next#button"
-                onClick={() => void enterModelStep()}
-                type="button"
-              >下一步</button>
+              <>
+                {state.draft.protocol === 'openai-compatible' ? (
+                  <button
+                    className="secondary-button"
+                    disabled={!fieldsComplete}
+                    data-testid="e2e/settings/add-model-set/manual-image#button"
+                    type="button"
+                    onClick={() => dispatch({ type: 'enter-image-models' })}
+                  >
+                    手动配置生图模型
+                  </button>
+                ) : null}
+                <button
+                  className="primary-button"
+                  disabled={state.connectionState !== 'success'}
+                  data-testid="e2e/settings/add-model-set/next#button"
+                  onClick={() => void enterModelStep()}
+                  type="button"
+                >
+                  下一步
+                </button>
+              </>
             ) : (
               <button
                 className="primary-button"
-                disabled={!state.models.some((model) => model.testState === 'success')}
+                disabled={
+                  state.imageOnlyMode
+                    ? !state.models.some((model) => model.enabled && model.name.trim())
+                    : !state.models.some((model) => model.testState === 'success')
+                }
                 data-testid="e2e/settings/add-model-set/save#button"
                 onClick={async () => {
                   if (savePending.current) return
                   setFailure(null)
                   savePending.current = true
                   try {
-                    await service.add(state.draft, [...state.models])
+                    await service.add(
+                      state.draft,
+                      state.models.map((model) =>
+                        model.id.startsWith('custom-model')
+                          ? { ...model, id: model.name.trim(), name: model.name.trim() }
+                          : model
+                      )
+                    )
                     onSaved()
                   } catch (error) {
                     setFailure({ code: 'unknown', message: toMessage(error) })
-                  } finally { savePending.current = false }
+                  } finally {
+                    savePending.current = false
+                  }
                 }}
                 type="button"
-              >保存</button>
+              >
+                保存
+              </button>
             )}
           </div>
         </footer>
