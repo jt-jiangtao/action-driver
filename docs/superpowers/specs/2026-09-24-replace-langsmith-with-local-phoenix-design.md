@@ -2,7 +2,7 @@
 
 ## 目标与现状
 
-用户要移除 LangSmith，同时扫描并删除没有实际用途的代码、模块和依赖。最终裁决是保留完整模型调用追踪，但把它接到已部署的本地 Phoenix。成功标准是：一次真实模型调用可在 Phoenix 中查看输入、输出和错误；相同调用的 Tempo/Loki 记录不含原文或鉴权凭据；Phoenix 停机不会改变任务结果；生产包不再包含 LangSmith 运行路径或 SDK。
+用户要移除 LangSmith 主动追踪，同时扫描并删除没有实际用途的代码、模块和依赖。最终裁决是保留完整模型调用追踪，但把它接到已部署的本地 Phoenix。成功标准是：一次真实模型调用可在 Phoenix 中查看输入、输出和错误；相同调用的 Tempo/Loki 记录不含原文或鉴权凭据；Phoenix 停机不会改变任务结果；ActionDriver 不主动向 LangSmith 出站。LangGraph 间接携带的惰性 SDK 保留。
 
 现有 Runtime 启动时注入 LangSmith 适配器，配置 `LANGSMITH_API_KEY` 后会发送内容。Phoenix 适配器已实现但未装配，且其类型反向引用 LangSmith 文件。Desktop 的模型日志列表、LangSmith 内嵌视图、旧日志 IPC 与本地日志读取模块没有生产入口。SQLite `model_calls` 有新增写入但没有生产读取方；历史行可能包含完整请求和响应。Main 的旧模型连接 JSON 迁移仍在每次生产启动路径中，不能误删。
 
@@ -32,7 +32,9 @@ Phoenix 通过现有本地 Docker Compose 和持久卷部署。Alloy 继续保�
 
 ## 清理边界
 
-从 Electron Main、Preload、Renderer、Runtime、包公开入口、脚本和设计验收入口建立引用图。仅有静态零引用不足以删除；还须核对动态导入、打包配置、旧数据迁移和当前验收用途。删除 LangSmith SDK/适配器、没有生产入口的模型日志 DTO/服务与内嵌视图、旧日志 IPC/本地读取、以及与这些路径一起退役的依赖和测试。仍服务视觉审计或有效 Mock 场景的组件可以保留，并记录理由。
+从 Electron Main、Preload、Renderer、Runtime、包公开入口、脚本和设计验收入口建立引用图。仅有静态零引用不足以删除；还须核对动态导入、打包配置、旧数据迁移和当前验收用途。删除 ActionDriver 对 LangSmith 的直接依赖/适配器、没有生产入口的模型日志 DTO/服务与内嵌视图、旧日志 IPC/本地读取、以及与这些路径一起退役的依赖和测试。仍服务视觉审计或有效 Mock 场景的组件可以保留，并记录理由。
+
+实施中发现 LangGraph 通过 `@langchain/core` 间接携带 LangSmith。用户比较彻底替换 LangGraph 与保留其惰性依赖后选择后者；Runtime 必须关闭继承的 LangChain/LangSmith 自动追踪环境开关，并验证无 LangSmith 出站。代价是生产依赖和打包代码中仍存在惰性 LangSmith SDK。
 
 新模型调用不再向 `model_calls` 写完整请求/响应；保留历史 SQLite 表与行，不自动清除用户数据，也不改任务、消息、事件和 checkpoint。已归档的旧 OpenSpec 决策保留历史原貌；当前主规范、运维文档和未完成的 LangSmith 变更状态改为新方向。
 

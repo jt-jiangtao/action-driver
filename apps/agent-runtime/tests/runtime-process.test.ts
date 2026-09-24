@@ -24,6 +24,33 @@ class FakeParentPort extends EventEmitter {
 
 
 describe('Agent Runtime process entry', () => {
+  it('disables inherited LangChain tracing flags before running the graph', async () => {
+    const keys = [
+      'LANGSMITH_TRACING_V2', 'LANGCHAIN_TRACING_V2',
+      'LANGSMITH_TRACING', 'LANGCHAIN_TRACING'
+    ] as const
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+    for (const key of keys) process.env[key] = 'true'
+    const parentPort = new FakeParentPort()
+    const exit = vi.fn()
+    try {
+      await startAgentRuntimeProcess(
+        parentPort,
+        join(mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-')), 'runtime.db'),
+        exit,
+        { ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-root-')) }
+      )
+      for (const key of keys) expect(process.env[key]).toBe('false')
+    } finally {
+      parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
+      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+      for (const key of keys) {
+        if (previous[key] === undefined) delete process.env[key]
+        else process.env[key] = previous[key]
+      }
+    }
+  })
+
   it('wires the process tracer into Phoenix model observability', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()

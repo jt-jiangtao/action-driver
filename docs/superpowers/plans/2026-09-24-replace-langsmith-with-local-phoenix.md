@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Phoenix 是新模型调用原文的唯一观测来源；Tempo/Loki 不得保存输入、输出或鉴权凭据。
+- Phoenix 是新模型调用原文的唯一观测来源；Tempo/Loki 不得保存输入、输出或鉴权凭据。用户裁决保留 LangGraph 间接携带的惰性 LangSmith SDK，Runtime 必须关闭继承的自动追踪开关。
 - 观测失败不改变任务执行结果；不为缺失追踪提供 Mock 或旧 SQLite 回退。
 - 不删除现有 `model_calls` 表、索引或历史行；不删除旧模型连接 JSON 迁移。
 - 不新增应用内 Phoenix/日志入口；历史 OpenSpec 归档只保留原决策，不改写为当前方案。
@@ -138,7 +138,7 @@
 
 - [ ] **Step 2: 跑红。** `corepack pnpm exec vitest run apps/agent-runtime/tests/model-gateway.test.ts apps/agent-runtime/tests/database.test.ts apps/agent-runtime/tests/model-log-projection.test.ts`，确认新任务写入旧表导致断言失败。
 - [ ] **Step 3: 删旧路径。** 移除网关的 `modelCalls` 参数和 `save` 调用、仓储 `modelCalls` 属性、`ModelCallRepository`/`PersistedModelCall`、未用模型日志投影；保留数据库 v3 迁移的建表语句与历史行。删除 LangSmith 源码、单测、Runtime 导出和直接依赖，使用 `corepack pnpm install --lockfile-only` 更新锁文件。
-- [ ] **Step 4: 跑绿并提交。** 运行上述定向测试、Runtime 类型检查与构建、`rg -n 'langsmith|LANGSMITH_' apps packages package.json pnpm-lock.yaml`（预期无生产匹配）；提交 `refactor: retire LangSmith and model call projection`。
+- [ ] **Step 4: 跑绿并提交。** 运行上述定向测试、Runtime 类型检查与构建，检查 ActionDriver 源码无 LangSmith 主动调用与直接依赖；锁文件允许由 `@langchain/core` 带入的间接 SDK。用行为测试确认继承追踪环境变量不会启用 LangSmith；提交退役修改。
 
 ### Task 4: 删除遗留模型/接口日志代码并审计其他候选
 
@@ -191,5 +191,5 @@
 
 - [ ] **Step 1: 运行全量检查。** `corepack pnpm check:all`；记录单元测试、类型、Lint、构建及视觉/本地 E2E 结果。若失败，按系统化调试处理，不把失败当作无关项跳过。
 - [ ] **Step 2: 验证打包与恢复。** `corepack pnpm test:e2e:packaged:macos`，并运行 Runtime 所有权、重启与旧库定向测试，确认打包 Runtime 能启动且历史数据未被破坏。
-- [ ] **Step 3: 检查差异与范围。** `git diff --check`、依赖闭包审计、当前规范与生产引用搜索；确认 Phoenix 唯一模型原文出口、无 LangSmith SDK、无旧模型日志 UI 与新 SQLite 模型调用写入。
+- [ ] **Step 3: 检查差异与范围。** `git diff --check`、依赖闭包审计、当前规范与生产引用搜索；确认 Phoenix 是唯一启用的模型原文出口、LangSmith 仅作为 LangGraph 惰性间接依赖、无旧模型日志 UI 与新 SQLite 模型调用写入。
 - [ ] **Step 4: 归档并提交。** OpenSpec 严格验证后同步 delta、归档新变更；仅在全部验收完成时勾选清单并提交最终收尾改动。若真实本地 Docker 环境不可用，保留未验收任务并明确报告，不声称完成。

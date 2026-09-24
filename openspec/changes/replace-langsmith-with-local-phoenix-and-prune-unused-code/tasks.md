@@ -6,7 +6,7 @@
 
 ## 2. LangSmith 与旧模型日志退役
 
-- [ ] 2.1 删除 LangSmith SDK、适配器、环境配置、测试和未装配的 Electron 详情/Renderer 列表路径；更新锁文件，并用引用搜索、类型检查和生产构建验证无 LangSmith 出站或生产引用。
+- [ ] 2.1 删除 ActionDriver 对 LangSmith 的直接依赖、适配器、环境配置、测试和未装配的 Electron 详情/Renderer 列表路径；保留 LangGraph 间接惰性 SDK，显式关闭继承的 LangChain/LangSmith 自动追踪环境开关，并用行为测试、类型检查和生产构建验证无 LangSmith 出站。
 - [ ] 2.2 移除未被生产读取的模型日志 DTO、查询/投影与 `model_calls` 新写入路径，保留既有 SQLite 表和历史行；用旧库夹具验证升级启动后历史数据仍在且新任务正常完成。
 - [ ] 2.3 清理旧日志 IPC、本地日志读取/存储与对应测试，只保留正在使用的 OTel 运行摘要；用 Main/Runtime 日志测试验证无本机新增日志文件和无旧读取接口。
 

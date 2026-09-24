@@ -34,6 +34,11 @@ export async function startAgentRuntimeProcess(
 ): Promise<void> {
   const workspaceRoot = environment.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
   if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
+  // LangGraph remains in use, but inherited LangChain flags must not enable its LangSmith exporter.
+  for (const key of [
+    'LANGSMITH_TRACING_V2', 'LANGCHAIN_TRACING_V2',
+    'LANGSMITH_TRACING', 'LANGCHAIN_TRACING'
+  ]) process.env[key] = 'false'
   const sandboxTools = await createSandboxTools({ workspaceRoot })
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
   const database = openRuntimeDatabase(databasePath)

@@ -7,7 +7,7 @@
 **Goals:**
 
 - 使模型调用原文只进入本地 Phoenix 观测路径，运行日志和 Tempo 链路保持不含原文；模型追踪失败不影响任务结果。
-- 删除 LangSmith SDK、配置、适配器、未装配的列表/详情与旧日志路径，并按真实入口审计移除其他无用实现和直接依赖。
+- 删除 ActionDriver 直接依赖及主动使用的 LangSmith 配置、适配器、未装配的列表/详情与旧日志路径，并按真实入口审计移除其他无用实现和直接依赖。
 - 保持既有任务事实、数据库历史记录、旧模型连接迁移以及设计/测试基础设施中仍有明确用途的资源。
 
 **Non-Goals:**
@@ -15,6 +15,7 @@
 - 不新建应用内日志页面或 Phoenix 导航入口，不把 Phoenix 历史导入 SQLite，也不迁移或删除远端 LangSmith 历史数据。
 - 不删除现有 `model_calls` 表或历史行，不以一次静态扫描结果为唯一依据删除动态加载、打包入口、迁移代码或设计验收夹具。
 - 不重做本次范围外的任务、模型连接、Browser/Computer 能力与 UI 架构。
+- 不为删除 LangGraph 的间接 LangSmith SDK 而重写图编排与 checkpoint；该依赖只允许保持惰性，不允许自动出站。
 
 ## Decisions
 
@@ -23,6 +24,8 @@
 最终裁决：用户选择移除 LangSmith 并改接本地 Phoenix。Runtime 向已有 `ProcessObservability.tracer` 取得模型 span；把追踪起止的窄接口和数据类型放在 Runtime 内部独立模块，模型网关不再引用任何 LangSmith 类型。模型 span 携带会话、任务、请求、关联 ID，完整输入输出只放在 OpenInference 内容属性；错误状态和用量在终态写入。Alloy 继续把同一 trace 送 Phoenix，并在进入 Tempo 前按允许字段剥离原文。凭据在写 span 前过滤。模型网关对追踪错误维持尽力而为处理，任务结果只由模型上游和业务持久化决定。
 
 真实替代方案是连模型内容追踪一并移除，仅保留 OTel 摘要和任务消息；依赖与隐私面更小，但无法查看完整调用。另一方案是继续使用 LangSmith，具备现成的远端查询和 UI，但与用户要求的本地观测和精简依赖冲突。已向用户说明本机完整原文持久化、服务运维和采集链路停机时的丢失风险，用户选择 Phoenix。
+
+实施中发现 `@langchain/core` 作为 LangGraph 依赖会间接安装并打包 LangSmith SDK。比较了替换 LangGraph 以彻底移除 SDK 与保留 LangGraph、仅移除主动追踪两种可执行方案；前者增加图编排、checkpoint 和恢复语义的高返工风险。用户裁决保留 LangGraph 的惰性间接依赖。Runtime 启动时显式关闭 LangChain/LangSmith 自动追踪环境开关，并以行为测试确认继承的环境变量不会造成 LangSmith 出站。
 
 ### 2. 旧模型调用存储只退役代码，不破坏历史数据
 
@@ -43,6 +46,7 @@
 - [Tempo/Loki 泄漏模型原文] → 用唯一标记的真实模型调用验证 Phoenix 可查而 Tempo/Loki 全局不可查，并核对 Alloy 过滤规则。
 - [误删测试或打包需要的模块] → 对候选做入口追踪、打包冒烟和全量检查；静态“零引用”只构成候选，不直接等于删除结论。
 - [旧数据库含历史模型原文] → 不删除或迁移现有表；文档说明旧版本残留数据的保留与清理边界。
+- [LangGraph 继续携带 LangSmith SDK] → 只保留间接依赖，关闭所有 LangChain/LangSmith 自动追踪开关并验证无外部出站；未来升级依赖时复核开关语义。
 
 ## Migration Plan
 
