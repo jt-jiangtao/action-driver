@@ -18,4 +18,4 @@
 ## 4. 规范、文档与全量验收
 
 - [x] 4.1 将当前主规范和运维文档更新为 Phoenix 事实来源，处理被取代的 `use-langsmith-model-logs` 变更，保留归档历史；用 OpenSpec 严格验证和全局引用搜索确认当前文档无相反指引。
-- [ ] 4.2 运行 `corepack pnpm check:all`、Runtime 并发/重启相关测试和 `corepack pnpm test:e2e:packaged:macos`；核对本地 Phoenix 模型原文、Tempo/Loki 脱敏、平台停机时任务继续执行，并记录任何外部环境限制。
+- [x] 4.2 运行 `corepack pnpm check:all`、Runtime 并发/重启相关测试和 `corepack pnpm test:e2e:packaged:macos`；核对本地 Phoenix 模型原文、Tempo/Loki 脱敏、平台停机时任务继续执行，并记录任何外部环境限制。
