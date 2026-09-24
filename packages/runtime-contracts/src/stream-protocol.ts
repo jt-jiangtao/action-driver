@@ -80,7 +80,7 @@ const newSessionRequestCreateEventSchema = z
         input: requestInputSchema,
         model: modelRefSchema,
         systemPrompt: z.string().optional(),
-        skills: z.tuple([])
+        skills: z.array(z.object({ skillId: idSchema, description: z.string() }).strict()).max(256)
       })
       .strict()
   })
@@ -94,7 +94,7 @@ const continuationRequestCreateEventSchema = z
       .object({
         input: requestInputSchema,
         systemPrompt: z.string().optional(),
-        skills: z.tuple([])
+        skills: z.array(z.object({ skillId: idSchema, description: z.string() }).strict()).max(256)
       })
       .strict()
   })

@@ -28,7 +28,7 @@
 主提示词使用稳定路径保存单个全局 Markdown 文件；保存采用临时文件加原子替换，页面维护未保存草稿，任务仅在启动时读取最近一次成功保存的内容。替代方案是首版支持提示词档案及 Agent/模型/任务覆盖优先级，但会显著扩大页面、合并规则和迁移复杂度，因此后置。
 
 ### 3. Skill 以目录与文件为事实来源
-每个 Skill 是 `~/.action-driver/skills/<skill>/` 下的目录，`SKILL.md` 为主要声明文件，可包含 references、scripts 等子目录。页面允许通过文件树查看与编辑目录中的文本文件；非 Markdown 文本使用 Monaco。文件存在不代表可执行，实际调用仍需 Runtime 中已注册的执行器与权限边界；缺少执行器时明确标记不可用。
+每个 Skill 是 `~/.action-driver/skills/<skill>/` 下的目录，`SKILL.md` 为主要声明文件，可包含 references、scripts 等子目录。页面允许通过文件树查看与编辑目录中的文本文件；非 Markdown 文本使用 Monaco。文件存在不代表可执行；普通说明型 Skill 可以启用，可执行工具仍需 Registry 与 Policy Gate 授权。
 
 ### 4. 设置区域是唯一管理入口
 设置侧栏按“模型 / Agent / 诊断”分组：模型连接；主提示词、Skills；日志。应用主侧栏 Skills 只作为跳转到设置 Skills 的快捷入口，不维护第二套路由状态或页面实例。替代方案是继续保留顶层 Skill 工作区并只把主提示词放在设置，会让配置入口分裂，因此不采用。
@@ -63,9 +63,9 @@ Icon Button、Sidebar Entry、Recent Task、Model Selector Trigger、Checkbox、
 Codex 视觉基线固定为白色内容区、中性灰边框、黑色主操作、蓝色仅用于选中/焦点/链接、语义色仅用于成功/运行/失败；普通按钮和表格行不使用装饰性阴影。模态框、菜单和抽屉使用克制悬浮阴影，圆角、控件高度、下拉箭头和间距由同一组件契约控制。模型配置遗留的蓝色主按钮、日志多套下拉样式和跨页不一致的按钮尺寸必须在页面回归阶段统一。
 
 ### 10. Skill 声明通过 `executor` 显式映射运行时能力
-`~/.action-driver/skills/<skill>/SKILL.md` 的 frontmatter 可以声明 `executor: <runtime-skill-id>`。目录名继续承担用户可读的配置标识和文件路径，`executor` 承担 Runtime 能力标识；二者不得通过同名约定隐式绑定。Main 在任务启动时把目录声明、`.disabled` 状态与 `SkillProviderHost` 的已注册执行器取交集，只把已启用且可用的执行器快照传入 Runtime。Runtime 的模型规划仅暴露该快照，并在实际调用前再次校验，避免模型输出或旧状态绕过禁用规则。
+`~/.action-driver/skills/<skill>/SKILL.md` 的 frontmatter 可以声明 `executor: <runtime-skill-id>`，用于既有执行器映射。目录名继续承担用户可读的配置标识和文件路径；二者不得通过同名约定隐式绑定。普通 Skill 的启用不要求 executor，任务启动时读取已启用目录的摘要；工具调用仍经过 Tool Registry 与 Policy Gate 校验。后续具体实现见 `install-instruction-skills-and-run-inline-scripts`。
 
-内置映射首版保留既有目录并显式声明：`browser-tools` 映射 `browser-use`，新增 `computer-tools` 映射 `computer-use`。没有可执行器的 `report-writer` 以及普通自定义 Skill 保留文件编辑能力，但显示为不可用，直到声明的执行器真实注册。启用不可用 Skill 必须返回可诊断错误，不能只在页面禁用按钮。
+内置映射保留既有目录并显式声明：`browser-tools` 映射 `browser-use`，`computer-tools` 映射 `computer-use`。没有可执行器的 `report-writer` 与普通自定义 Skill 作为说明型 Skill 可启用；映射不授予任何工具权限。
 
 替代方案是强制目录名等于执行器 ID，并把 `browser-tools` 迁移为 `browser-use`。该方案减少一个字段，但会破坏既有用户目录、耦合展示名称与内部协议，并使未来一个执行器支持多个声明时再次迁移，因此不采用。显式映射的代价是需要解析 frontmatter，并在 Main 与 Runtime 之间携带每次任务的能力快照；该成本换取了稳定文件路径和明确权限边界。
 
@@ -74,9 +74,9 @@ Codex 视觉基线固定为白色内容区、中性灰边框、黑色主操作�
 - [全局主提示词未来扩展为多个配置时需要迁移] → 保留稳定默认路径，未来增加清单文件但不改变 `main.md` 的含义。
 - [用户误改主提示词导致任务行为异常] → 显式保存、未保存离开确认、恢复默认值，并在保存失败时保留草稿。
 - [Markdown 内容带来注入风险] → 禁止原始 HTML 与脚本，限制链接协议，渲染器使用统一安全策略。
-- [自定义 Skill 描述与实际执行能力不一致] → 只有已注册执行器的 Skill 可调用，缺少执行器时显示不可用并返回可诊断结果。
-- [任务启动后 Skill 状态发生变化] → 任务请求携带启动时快照用于可重复规划；实际调用仍由 Main 的当前启用状态与执行器注册表复核，停用立即生效。
-- [`executor` frontmatter 拼写错误或未知] → 解析为不可用而不是回退目录名，页面展示可诊断原因，避免意外授予能力。
+- [自定义 Skill 描述与实际执行能力不一致] → 说明型 Skill 不授予执行权限，实际工具调用由 Registry 与 Policy Gate 校验。
+- [任务启动后 Skill 状态发生变化] → 任务请求携带启动时摘要快照用于可重复规划；按需读取再次校验当前启用状态，工具调用仍由独立策略复核。
+- [`executor` frontmatter 拼写错误或未知] → 不隐式回退目录名，也不授予能力；普通说明内容仍可按有效 `SKILL.md` 启用。
 - [外部程序修改文件导致页面草稿冲突] → 读取文件修改时间或内容摘要；保存前检测冲突并允许重新加载或另存。
 - [路径穿越或符号链接越界] → Runtime 规范化并校验真实路径，拒绝越出 `~/.action-driver/prompts` 和 `skills` 的访问。
 - [生产路径意外回退 Mock] → 组合根测试断言生产绑定为真实服务，空数据展示空状态而不是示例数据。

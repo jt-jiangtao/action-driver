@@ -8,6 +8,27 @@ import {
 const occurredAt = '2026-09-23T00:00:00.000Z'
 
 describe('agent stream protocol', () => {
+  it('preserves enabled skill descriptions on a new request', () => {
+    const event = parseStreamClientEvent({
+      type: 'request.create',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'client-with-skill',
+      requestId: 'request-with-skill',
+      idempotencyKey: 'idem-with-skill',
+      sessionId: null,
+      createdAt: occurredAt,
+      payload: {
+        input: { role: 'user', content: '整理资料' },
+        model: { connectionId: 'connection-1', modelId: 'gpt-real' },
+        skills: [{ skillId: 'plain', description: '整理资料' }]
+      }
+    })
+    expect(event.type).toBe('request.create')
+    if (event.type === 'request.create') {
+      expect(event.payload.skills).toEqual([{ skillId: 'plain', description: '整理资料' }])
+    }
+  })
+
   it('accepts a persisted request acknowledgement with stable identities', () => {
     const accepted = parseStreamServerEvent({
       type: 'request.accepted',

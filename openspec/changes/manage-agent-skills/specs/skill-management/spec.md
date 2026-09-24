@@ -70,19 +70,19 @@
 - **THEN** Runtime 使用临时文件和原子替换保存，并返回新的修改时间或内容摘要
 
 ### Requirement: 管理 Skill 生命周期
-系统 SHALL 允许启用与停用 Skill，并 SHALL 在停用后阻止 Agent 调用该 Skill；删除自定义 Skill MUST 清理其定义并从列表移除。系统 SHALL 从 `SKILL.md` 的可选 `executor` frontmatter 读取运行时执行器 ID，目录名 MUST NOT 被隐式当作执行器 ID。只有映射执行器已注册时 Skill 才可用；缺少映射、映射格式无效或执行器未注册时，系统 SHALL 将其标记为不可用并拒绝启用。
+系统 SHALL 允许启用与停用普通说明型 Skill，并 SHALL 在停用后阻止 Agent 读取该 Skill；删除自定义 Skill MUST 清理其定义并从列表移除。系统 MAY 从 `SKILL.md` 的可选 `executor` frontmatter 读取既有运行时执行器 ID，目录名 MUST NOT 被隐式当作执行器 ID。没有 executor 的有效普通 Skill SHALL 可启用；任何 Skill 的启用 MUST NOT 授予可执行工具权限。
 
 #### Scenario: 解析执行器映射
 - **WHEN** 一个 Skill 的 `SKILL.md` 声明 `executor: browser-use` 且该执行器已注册
-- **THEN** Skill 列表返回该执行器 ID 与可用状态，任务运行上下文可以在 Skill 已启用时暴露该能力
+- **THEN** Skill 列表返回该执行器 ID 供诊断；是否能调用对应工具仍由 Tool Registry 与 Policy Gate 决定
 
 #### Scenario: 目录名与执行器 ID 不同
 - **WHEN** `browser-tools` 目录的 `SKILL.md` 映射到 `browser-use`
 - **THEN** 系统保留目录名作为 Skill 配置标识，并使用 `browser-use` 作为运行时能力标识，不重命名目录
 
 #### Scenario: 执行器未注册
-- **WHEN** Skill 缺少有效 `executor` 映射或映射到当前未注册的执行器
-- **THEN** 页面显示不可用，启用请求被拒绝，任务上下文不暴露该能力
+- **WHEN** Skill 缺少 `executor` 映射或映射到当前未注册的执行器
+- **THEN** 普通说明内容仍可启用，但任务上下文不因此暴露该执行器能力
 
 #### Scenario: 停用后不可调用
 - **WHEN** 一个 Skill 被停用
@@ -90,7 +90,7 @@
 
 #### Scenario: 任务使用启动时技能快照
 - **WHEN** 用户启动一个任务
-- **THEN** Main 从本地 Skill 目录与执行器注册表生成已启用且可用的执行器快照，并随任务请求传给 Runtime
+- **THEN** Runtime 从本地 Skill 目录生成已启用说明型 Skill 的摘要快照，执行器可用性仍由独立工具注册与策略决定
 
 #### Scenario: 删除自定义 Skill
 - **WHEN** 用户删除一个自定义 Skill
@@ -133,8 +133,8 @@
 - **THEN** 页面依赖布局约束重新排布，按钮、下拉框和编辑器不通过固定绝对坐标互相覆盖
 
 ### Requirement: 首版不执行任意 Skill 脚本
-系统 MUST 仅允许启用已注册执行器的 Skill；自定义 Skill 声明 MUST NOT 被页面直接解释为可执行脚本，缺少执行器时 SHALL 显示不可用状态。
+系统 MUST 允许启用没有 executor 的有效普通 Skill；自定义 Skill 声明 MUST NOT 被页面直接解释为可执行脚本，启用 SHALL NOT 自动授予工具权限。
 
 #### Scenario: 自定义 Skill 没有执行器
 - **WHEN** 用户查看或启用一个只有声明但没有已注册执行器的自定义 Skill
-- **THEN** 页面标记执行器不可用，Runtime 拒绝实际调用并返回可诊断结果
+- **THEN** 页面允许启用说明内容，Runtime 仍拒绝未授权工具调用并返回可诊断结果

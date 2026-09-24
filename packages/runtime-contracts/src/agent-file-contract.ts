@@ -29,6 +29,7 @@ export interface AgentSkillSummaryDto {
   id: string
   name: string
   description: string
+  source: 'builtin' | 'local' | 'github'
   enabled: boolean
   available: boolean
   executorId: string | null
@@ -52,3 +53,7 @@ export interface CreateAgentSkillDto {
   name: string
   description: string
 }
+
+export type InstallSkillInput =
+  | { source: 'local'; path: string }
+  | { source: 'github'; url: string }

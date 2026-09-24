@@ -49,6 +49,8 @@
 
 ## 6. Runtime（Skill 执行器映射与任务约束）
 
+以下已勾选项目记录当时完成的实现；其“缺少 executor 不可用”验收条件已被后续用户裁决覆盖，普通 Skill 启用与任务发现的替代实现由 `install-instruction-skills-and-run-inline-scripts` 追踪。
+
 - [x] 6.1 解析 `SKILL.md` 的可选 `executor` frontmatter，并为 `browser-tools → browser-use`、`computer-tools → computer-use` 写入内置声明；缺少、无效或未知执行器的 Skill 返回不可用状态且不隐式使用目录名。
 - [x] 6.2 让 Agent 文件服务基于 `SkillProviderHost` 的已注册执行器计算可用性，并在服务端拒绝启用不可用 Skill；验证自定义声明、内置声明和重启后的 `.disabled` 状态。
 - [x] 6.3 扩展任务提交契约，在任务启动时携带已启用且可用的执行器快照；Runtime 模型规划仅暴露该快照，不再硬编码全部 Skill。
