@@ -1,3 +1,5 @@
+> 历史状态：本变更被 `replace-langsmith-with-local-phoenix-and-prune-unused-code` 取代。以下内容保留当时决策原貌；未完成的真实 LangSmith 项目验收不再执行。
+
 ## Why
 
 当前模型层日志由本地 Runtime 的 `model_calls` 投影生成，详情页还会在应用内复制请求与响应。用户已明确选择将 LangSmith 作为唯一模型层日志来源：保留会话列表的快速浏览体验，但把调用详情交给 LangSmith UI，避免两套日志事实来源不一致。
