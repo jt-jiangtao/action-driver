@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, renameSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -35,6 +35,21 @@ try {
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
+  const runtimeDist = join(app, 'Contents', 'Resources', 'agent-runtime', 'dist')
+  const builtRuntimeDist = join(root, 'apps', 'agent-runtime', 'dist')
+  run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
+  run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
+  const arch = process.arch
+  for (const binary of [
+    join(runtimeDist, 'runtimes', `darwin-${arch}`, 'python', 'bin', 'python3'),
+    join(runtimeDist, 'runtimes', `darwin-${arch}`, 'node', 'bin', 'node'),
+    join(runtimeDist, 'bin', 'rg')
+  ]) {
+    if (!existsSync(binary) || !(statSync(binary).mode & 0o111)) {
+      throw new Error(`PACKAGED_RUNTIME_MISSING: ${binary}`)
+    }
+    run('/usr/bin/file', [binary])
+  }
   renameSync(join(app, 'Contents', 'MacOS', 'Electron'),
     join(app, 'Contents', 'MacOS', 'ActionDriver'))
   run('/usr/libexec/PlistBuddy', [

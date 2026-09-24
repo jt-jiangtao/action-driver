@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript、Node.js child_process、Electron UtilityProcess、Vitest、Playwright、OpenSpec。
 
-**Spec:** [设计文档](../specs/2026-09-24-bundled-script-runtimes-design.md)，[OpenSpec 变更](../../../openspec/changes/add-bundled-script-runtimes/design.md)。
+**Spec:** [设计文档](../specs/2026-09-24-bundled-script-runtimes-design.md)，[OpenSpec 变更](../../../openspec/changes/archive/2026-09-24-add-bundled-script-runtimes/design.md)。
 
 ## Global Constraints
 

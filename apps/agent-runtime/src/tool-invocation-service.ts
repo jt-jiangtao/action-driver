@@ -17,6 +17,7 @@ import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
 import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from './tool-activity'
+import { ProcessExitError, ProcessOutputLimitError } from './execution/process-runner'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -190,6 +191,13 @@ export class ToolInvocationService {
         invocation.output = caught.output
         controller.abort(caught)
       }
+      if (caught instanceof ProcessOutputLimitError) {
+        invocation.output = { ...collector.snapshot(), truncated: true }
+        controller.abort(caught)
+      }
+      if (caught instanceof ProcessExitError) {
+        invocation.output = { ...collector.snapshot(), result: { exitCode: caught.exitCode } }
+      }
       const timedOut =
         controller.signal.aborted &&
         !signal?.aborted &&
@@ -200,6 +208,10 @@ export class ToolInvocationService {
       const error =
         caught instanceof ToolOutputLimitError
           ? toolError(caught.code, caught.message)
+          : caught instanceof ProcessOutputLimitError
+            ? toolError(caught.code, caught.message)
+          : caught instanceof ProcessExitError
+            ? toolError(caught.code, caught.message)
           : timedOut
             ? toolError('TOOL_TIMEOUT', 'Tool execution timed out')
             : toolError(

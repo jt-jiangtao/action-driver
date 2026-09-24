@@ -8,3 +8,4 @@ test-results/
 .superpowers/
 .DS_Store
 *.log
+apps/agent-runtime/.runtime-cache/

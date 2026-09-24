@@ -688,6 +688,10 @@ export function activityTitleForTool(
       ? '搜索文件'
       : normalized.includes('shell') || normalized.includes('command')
         ? '执行命令'
+        : normalized.includes('python')
+          ? '运行 Python'
+          : normalized.includes('node_run') || normalized.includes('node.run')
+            ? '运行 Node.js'
         : normalized.includes('fs_write') ||
             normalized.includes('file_write') ||
             normalized.includes('fs_edit')
@@ -717,6 +721,8 @@ export function activityTitleForTools(
           ? '文件搜索'
           : kind === 'shell'
             ? '命令'
+            : kind === 'script'
+              ? '脚本'
             : kind === 'file'
               ? '文件'
               : '其他工具'
@@ -768,11 +774,12 @@ export function activityTitleForTools(
   return `${subject}执行失败`
 }
 
-function activityToolKind(modelName: string): 'web' | 'file-search' | 'shell' | 'file' | 'other' {
+function activityToolKind(modelName: string): 'web' | 'file-search' | 'shell' | 'script' | 'file' | 'other' {
   const normalized = modelName.toLowerCase()
   if (normalized.includes('web')) return 'web'
   if (normalized.includes('fs_search') || normalized.includes('file_search')) return 'file-search'
   if (normalized.includes('shell') || normalized.includes('command')) return 'shell'
+  if (normalized.includes('python') || normalized.includes('node_run') || normalized.includes('node.run')) return 'script'
   if (normalized.includes('file') || normalized.includes('fs_') || normalized.includes('fs.'))
     return 'file'
   return 'other'

@@ -35,4 +35,11 @@ describe('tool activity titles', () => {
       )
     ).toBe('已读取 README.md')
   })
+
+  it('uses runtime-specific titles without putting source code in the row', () => {
+    expect(toolActivityTitle('local.shell.run', { command: 'echo secret' }, 'running')).toBe('正在执行命令')
+    expect(toolActivityTitle('local.python.run', { code: 'print("secret")' }, 'completed')).toBe('已运行 Python')
+    expect(toolActivityTitle('local.node.run', { code: 'console.log("secret")' }, 'failed')).toBe('Node.js 执行失败')
+    expect(toolActivityTitle('local.python.run', { code: 'x' }, 'cancelled')).toBe('已取消运行 Python')
+  })
 })

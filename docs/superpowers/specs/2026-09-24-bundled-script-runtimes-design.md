@@ -30,4 +30,4 @@
 
 应用体积和构建维护成本上升。通用命令与脚本能够写文件或联网；用户已明确暂不采用旧沙箱限制。正式签名分发及第三方包离线仓库属于后续独立范围。
 
-对应的 OpenSpec 规划见 [add-bundled-script-runtimes](../../../openspec/changes/add-bundled-script-runtimes/proposal.md)。
+对应的 OpenSpec 规划见 [add-bundled-script-runtimes](../../../openspec/changes/archive/2026-09-24-add-bundled-script-runtimes/proposal.md)。

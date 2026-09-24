@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
 import { startAgentRuntimeProcess } from '../src/runtime-process'
 import { createSandboxTools } from '../src/sandbox'
+import { createScriptTools } from '../src/execution/tools'
 import { RuntimeToolPolicy, RuntimeToolRegistry, SqliteRuntimeRepositories, openRuntimeDatabase } from '../src/index'
 
 const phoenixConstruction = vi.hoisted(() => vi.fn())
@@ -265,16 +266,21 @@ describe('Agent Runtime process entry', () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-policy-workspace-'))
     const registry = new RuntimeToolRegistry()
     const policy = new RuntimeToolPolicy()
-    const tools = await createSandboxTools({ workspaceRoot })
+    const tools = [
+      ...(await createSandboxTools({ workspaceRoot })),
+      ...(await createScriptTools({ workspaceRoot, runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') }))
+    ]
     for (const tool of tools) registry.register(tool.definition, tool.executor)
     const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
     expect(registry.list().map((tool) => tool.id)).toEqual([
       'sandbox.fs.list',
       'sandbox.fs.read',
-      'sandbox.shell.run'
+      'local.shell.run',
+      'local.python.run',
+      'local.node.run'
     ])
     const read = registry.resolveModelName('sandbox_fs_read').definition
-    const shell = registry.resolveModelName('sandbox_shell_run').definition
+    const shell = registry.resolveModelName('shell_run').definition
     expect(
       policy.decide(
         read,

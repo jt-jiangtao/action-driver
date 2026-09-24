@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 
-type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'text' | 'web'
+type ToolMode = 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'python-blocking' | 'node' | 'triple' | 'text' | 'web'
 
 export type CapturedToolCompletion = {
   model: string
@@ -18,7 +18,12 @@ export class FakeOpenAiToolServer {
   readonly completions: CapturedToolCompletion[] = []
   baseUrl = ''
 
-  constructor(private readonly mode: ToolMode) {}
+  constructor(private mode: ToolMode) {}
+
+  setMode(mode: ToolMode): void {
+    this.mode = mode
+    this.completions.length = 0
+  }
 
   async start(): Promise<void> {
     this.server = createServer(async (request, response) => {
@@ -61,21 +66,34 @@ export class FakeOpenAiToolServer {
         response.end('data: [DONE]\n\n')
         return
       }
-      if (turn === 1 || (this.mode === 'activity' && turn === 2)) {
+      if (turn === 1 || (this.mode === 'activity' && turn === 2) || (this.mode === 'triple' && turn <= 3)) {
+        const toolMode = this.mode === 'triple'
+          ? turn === 1 ? 'python' : turn === 2 ? 'node' : 'shell'
+          : this.mode
         const toolName =
-          this.mode === 'read' || this.mode === 'activity'
+          toolMode === 'read' || toolMode === 'activity'
             ? 'sandbox_fs_read'
-            : this.mode === 'web'
+            : toolMode === 'web'
               ? 'web_search'
-              : 'sandbox_shell_run'
+              : toolMode === 'python' || toolMode === 'python-blocking'
+                ? 'python_run'
+                : toolMode === 'node'
+                  ? 'node_run'
+                  : 'shell_run'
         const argumentsJson =
-          this.mode === 'read' || this.mode === 'activity'
+          toolMode === 'read' || toolMode === 'activity'
             ? '{"path":"README.md"}'
-            : this.mode === 'web'
+            : toolMode === 'web'
               ? '{"query":"ActionDriver","maxResults":1}'
-              : this.mode === 'shell-timeout'
-                ? '{"command":"rg","args":["needle","BLOCKING_FIFO"]}'
-                : '{"command":"rg","args":["needle","README.md"]}'
+              : toolMode === 'python'
+                ? '{"code":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
+                : toolMode === 'python-blocking'
+                  ? '{"code":"import time; time.sleep(60)"}'
+                : toolMode === 'node'
+                  ? '{"code":"console.log(JSON.stringify({executable:process.execPath}))"}'
+                  : toolMode === 'shell-timeout'
+                    ? '{"command":"sleep 12"}'
+                    : '{"command":"rg needle README.md"}'
         const midpoint = Math.ceil(argumentsJson.length / 2)
         if (this.mode === 'activity') {
           response.write(sseChunk({ content: turn === 1 ? '正文 A' : '正文 B' }, null))

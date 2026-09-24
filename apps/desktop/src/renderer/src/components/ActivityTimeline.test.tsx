@@ -368,6 +368,26 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"stdout"')
   })
 
+  it('renders Python and Node input as expandable terminal details', () => {
+    for (const [toolId, modelName, title, input, command] of ([
+      ['local.python.run', 'python_run', '已运行 Python', '{"code":"print(1)"}', '$ python3 -c "print(1)"'],
+      ['local.node.run', 'node_run', '已运行 Node.js', '{"file":"script.js","args":["hi"]}', '$ node "script.js" hi']
+    ] as const)) {
+      const script = task('running')
+      script.tools = [{
+        callId: 'script', toolId, modelName, title, summary: title, argumentsHash: '',
+        activityId: 'research', status: 'completed', rawInput: input,
+        rawOutput: '{"stdout":"1\\n","result":{"exitCode":0}}'
+      }]
+      script.activities![0]!.items = [{ id: 'tool:script', kind: 'tool', callId: 'script' }]
+      const { container, unmount } = render(<ActivityTimeline task={script} />)
+      screen.getByText(title).click()
+      expect(container.querySelector('.activity-tool-io pre')?.textContent).toContain(command)
+      expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
+      unmount()
+    }
+  })
+
   it('does not add a thinking text row to the task group', () => {
     render(<ActivityTimeline task={task('running')} />)
     expect(screen.getByText('正在思考').closest('.activity-group')).toBeNull()

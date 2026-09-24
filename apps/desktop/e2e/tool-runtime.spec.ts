@@ -40,7 +40,7 @@ test.afterEach(async () => {
 })
 
 async function launch(
-  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'text' | 'web'
+  mode: 'activity' | 'read' | 'shell' | 'shell-timeout' | 'python' | 'node' | 'text' | 'web'
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
@@ -63,6 +63,7 @@ async function launch(
       ),
       HOME: homeDirectory,
       ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
+      ...(mode === 'shell-timeout' ? { ACTIONDRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {}),
       ...(search ? { ACTIONDRIVER_SEARXNG_ENDPOINT: search.endpoint } : {})
     }
   })
@@ -416,6 +417,17 @@ test('runs a granted shell command without approval and answers', async () => {
   expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('needle is present')
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
 })
+
+for (const mode of ['python', 'node'] as const) {
+  test(`runs bundled ${mode} through the model tool lifecycle`, async () => {
+    const page = await launch(mode)
+    await sendGoal(page, `运行 ${mode}`)
+    await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
+    expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(`${mode}_run`)
+    expect(JSON.stringify(provider!.completions[1]?.messages)).toContain('/dist/runtimes/darwin-')
+    await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
+  })
+}
 
 test('times out a granted shell process and reports the terminal error', async () => {
   test.skip(process.platform === 'win32', 'This POSIX test uses a named pipe')

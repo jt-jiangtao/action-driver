@@ -20,6 +20,9 @@ import {
 } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import { createSandboxTools } from './sandbox'
+import { createScriptTools } from './execution/tools'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { registerSearxngTool } from './searxng/runtime-tools'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import type { RuntimeSkillRegistry } from './skill-registry'
@@ -40,6 +43,15 @@ export async function startAgentRuntimeProcess(
     'LANGSMITH_TRACING', 'LANGCHAIN_TRACING'
   ]) process.env[key] = 'false'
   const sandboxTools = await createSandboxTools({ workspaceRoot })
+  const runtimeEntry = fileURLToPath(import.meta.url)
+  const runtimeDist = resolve(dirname(runtimeEntry), runtimeEntry.endsWith('.ts') ? '../dist' : '.')
+  const timeoutOverride = Number(environment.ACTIONDRIVER_SCRIPT_TIMEOUT_MS)
+  const scriptTools = await createScriptTools({
+    workspaceRoot, runtimeDist,
+    ...(Number.isSafeInteger(timeoutOverride) && timeoutOverride >= 1_000 && timeoutOverride <= 600_000
+      ? { timeoutMs: timeoutOverride }
+      : {})
+  })
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
   const database = openRuntimeDatabase(databasePath)
   let ownership: ReturnType<typeof claimRuntimeOwnership>
@@ -89,7 +101,7 @@ export async function startAgentRuntimeProcess(
     modelGateway,
     interactions
   })
-  for (const tool of sandboxTools) {
+  for (const tool of [...sandboxTools, ...scriptTools]) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }

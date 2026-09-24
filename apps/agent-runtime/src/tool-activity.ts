@@ -10,6 +10,9 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
     return `访问文件 ${truncate(input.path, 120)}`
   }
   if (toolId === 'sandbox.shell.run') return '执行命令'
+  if (toolId === 'local.shell.run') return '执行命令'
+  if (toolId === 'local.python.run') return '运行 Python'
+  if (toolId === 'local.node.run') return '运行 Node.js'
   return `运行 ${toolId}`
 }
 
@@ -32,6 +35,12 @@ export function toolActivityTitle(
               ? '编辑'
               : type === 'sandbox.shell.run'
                 ? '执行命令'
+                : type === 'local.shell.run'
+                  ? '执行命令'
+                  : type === 'local.python.run'
+                    ? '运行 Python'
+                    : type === 'local.node.run'
+                      ? '运行 Node.js'
                 : '调用工具'
   const target =
     type === 'web.search' && isRecord(input) && typeof input.query === 'string'
@@ -41,7 +50,11 @@ export function toolActivityTitle(
         : ''
   const label = `${action}${target}`
   if (status === 'completed') return `已${label}`
-  if (status === 'failed') return `${label}失败`
+  if (status === 'failed') return type === 'local.python.run'
+    ? 'Python 执行失败'
+    : type === 'local.node.run'
+      ? 'Node.js 执行失败'
+      : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
   if (status === 'unknown') return `${label}结果未知`
   if (status === 'waiting_approval') return `等待批准：${label}`
@@ -68,6 +81,11 @@ export function toolActivityErrorSummary(error: unknown): string {
   if (code === 'TOOL_CANCELLED') return '已取消'
   if (code === 'TOOL_TIMEOUT') return '执行超时'
   if (code === 'TOOL_INPUT_INVALID') return '参数无效'
+  if (code === 'PROCESS_OUTPUT_LIMIT') return '输出超限'
+  if (code === 'PROCESS_EXIT_NONZERO' && isRecord(error) && typeof error.message === 'string') {
+    const exitCode = error.message.match(/PROCESS_EXIT_NONZERO: (\d+)/)?.[1]
+    if (exitCode) return `退出码 ${exitCode}`
+  }
   if (code === 'TOOL_OUTCOME_UNKNOWN') return '工具结果未知'
   return '工具执行失败'
 }

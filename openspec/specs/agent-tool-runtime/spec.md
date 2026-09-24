@@ -43,7 +43,7 @@
 系统 SHALL 对本轮已授予且通过工具定义、名称与参数校验的调用自动执行，并以 `proposed`、`queued`、`running`、`completed`、`failed`、`cancelled` 表达新工具调用，为每次状态变化发布可序列化事件。系统 MUST NOT 为新调用产生 `waiting_approval` 或等待人工批准；未授予、未注册、名称不匹配或输入无效的调用 MUST 在执行器运行前失败。旧 `waiting_approval` 历史事件 SHALL 可只读解析，且不得因升级自动执行仍悬挂的旧调用。
 
 #### Scenario: 已授权 Shell 与 Web Search 自动运行
-- **WHEN** 模型请求本轮已授予的受限 Shell 或 Web Search，且参数通过校验
+- **WHEN** 模型请求本轮已授予的 `shell_run`、`python_run`、`node_run` 或 Web Search，且参数通过校验
 - **THEN** 调用无需人工操作，按 `proposed → queued → running → completed|failed` 转移，结果继续交回模型
 
 #### Scenario: 自动允许的只读工具
@@ -51,7 +51,7 @@
 - **THEN** 调用无需人工操作，按 `proposed → queued → running → completed|failed` 转移
 
 #### Scenario: 需要批准的工具
-- **WHEN** 旧策略原本要求逐次批准的 Shell 或网络工具已获本轮授权并通过校验
+- **WHEN** 旧策略原本要求逐次批准的工具已获本轮授权并通过校验
 - **THEN** 新策略不再产生 `waiting_approval`，调用直接进入 `queued`
 
 #### Scenario: 用户拒绝工具

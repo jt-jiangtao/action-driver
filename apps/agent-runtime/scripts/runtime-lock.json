@@ -1,0 +1,10 @@
+{
+  "darwin-arm64": {
+    "python": { "file": "cpython-3.13.15+20260901-aarch64-apple-darwin-install_only.tar.gz", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260901/cpython-3.13.15+20260901-aarch64-apple-darwin-install_only.tar.gz", "sha256": "b9054a9d3d54f4cb5573d44907fddb29874b08909bde73f29f2868cf872223ee" },
+    "node": { "file": "node-v22.22.1-darwin-arm64.tar.gz", "url": "https://nodejs.org/dist/v22.22.1/node-v22.22.1-darwin-arm64.tar.gz", "sha256": "679ad4966339e4ef4900f57996714864e4211b898825bb840c3086c419fbcef2" }
+  },
+  "darwin-x64": {
+    "python": { "file": "cpython-3.13.15+20260901-x86_64-apple-darwin-install_only.tar.gz", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260901/cpython-3.13.15+20260901-x86_64-apple-darwin-install_only.tar.gz", "sha256": "49f0d97f506b855eed60b74a8ac138595c5b39799a6aa5e0d7ca8abe1019a4d4" },
+    "node": { "file": "node-v22.22.1-darwin-x64.tar.gz", "url": "https://nodejs.org/dist/v22.22.1/node-v22.22.1-darwin-x64.tar.gz", "sha256": "07b13722d558790fca20bb1ecf61bde24b7a4863111f7be77fc57251a407359a" }
+  }
+}

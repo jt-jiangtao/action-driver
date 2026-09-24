@@ -175,7 +175,7 @@ function ActivityIcon({
   const toolKinds = new Set(
     (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
       if (/web/.test(toolId)) return 'web'
-      if (/shell|command/.test(toolId)) return 'shell'
+      if (/shell|command|python|node\.run/.test(toolId)) return 'shell'
       if (/search|find|grep|rg/.test(toolId)) return 'search'
       if (/fs|file/.test(toolId)) return 'file'
       return 'other'
@@ -285,18 +285,19 @@ function toolSummary(tool: ToolInvocationProjection, label = tool.summary) {
 function shellToolTranscript(
   tool: ToolInvocationProjection
 ): { text: string; exitCode: number | null } | null {
-  if (!/shell|command/.test(tool.toolId) || !tool.rawInput) return null
+  if (!/shell|command|python|node\.run/.test(tool.toolId) || !tool.rawInput) return null
   const input = parseObject(tool.rawInput)
-  if (
-    typeof input?.command !== 'string' ||
-    !Array.isArray(input.args) ||
-    !input.args.every((arg) => typeof arg === 'string')
-  )
-    return null
-  const command = [
-    input.command,
-    ...input.args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
-  ].join(' ')
+  const args = input?.args === undefined ? [] : input.args
+  if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) return null
+  const command = typeof input?.command === 'string'
+    ? input.command
+    : typeof input?.code === 'string'
+      ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${/python/.test(tool.toolId) ? '-c' : '-e'} ${JSON.stringify(input.code)}`
+      : typeof input?.file === 'string'
+        ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${JSON.stringify(input.file)}`
+        : null
+  if (command === null) return null
+  const invocation = [command, ...args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))].join(' ')
   const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
   const chunks = output
     ? [output.stdout, output.stderr, output.content].filter(
@@ -317,7 +318,7 @@ function shellToolTranscript(
       ? result.exitCode
       : null
   return {
-    text: [`$ ${command}`, response, tool.rawOutputTruncated ? '…输出已截断' : '']
+    text: [`$ ${invocation}`, response, tool.rawOutputTruncated ? '…输出已截断' : '']
       .filter(Boolean)
       .join('\n'),
     exitCode
@@ -337,7 +338,7 @@ function parseObject(value: string): Record<string, unknown> | null {
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
   if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
-  if (/shell|command/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={16} />
+  if (/shell|command|python|node\.run/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={16} />
   if (/search|find|grep|rg/.test(tool.toolId)) return <Search aria-hidden="true" size={16} />
   if (/fs|file/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
   return <Wrench aria-hidden="true" size={16} />
@@ -352,13 +353,15 @@ function toolAction(tool: ToolInvocationProjection): string {
     return '正在运行 '
   if (/web/.test(tool.toolId)) return '已搜索网页：'
   if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
-  if (/shell|command/.test(tool.toolId)) return '已运行 '
+  if (/shell|command|python|node\.run/.test(tool.toolId)) return '已运行 '
   if (/fs|file/.test(tool.toolId)) return '已读取 '
   return '已调用 '
 }
 
 function toolTitle(tool: ToolInvocationProjection): string {
   if (/shell|command/.test(tool.toolId)) return 'Shell'
+  if (/python/.test(tool.toolId)) return 'Python'
+  if (/node\.run/.test(tool.toolId)) return 'Node.js'
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   if (/fs|file/.test(tool.toolId)) return '文件'
