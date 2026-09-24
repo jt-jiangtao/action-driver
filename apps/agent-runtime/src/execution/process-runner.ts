@@ -8,6 +8,7 @@ export type ProcessSpec = {
   cwd: string
   env: NodeJS.ProcessEnv
   maxOutputBytes: number
+  stdin?: string
 }
 
 export class ProcessOutputLimitError extends Error {
@@ -30,9 +31,12 @@ export class ProcessExitError extends Error {
 
 export async function* runProcess(spec: ProcessSpec, signal?: AbortSignal): AsyncIterable<ToolExecutorEvent> {
   if (signal?.aborted) throw Object.assign(new Error('PROCESS_CANCELLED'), { name: 'AbortError' })
+  if (spec.stdin !== undefined && Buffer.byteLength(spec.stdin, 'utf8') > 1024 * 1024) {
+    throw new Error('PROCESS_INPUT_LIMIT: script source exceeded limit')
+  }
   const child = spawn(spec.executable, spec.args, {
     shell: false, detached: true, cwd: spec.cwd, env: spec.env,
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: [spec.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe']
   })
   const events: ToolExecutorEvent[] = []
   const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') }
@@ -43,6 +47,7 @@ export async function* runProcess(spec: ProcessSpec, signal?: AbortSignal): Asyn
   let bytes = 0
   let aborted = false
   let outputLimit = false
+  let stdinFinished = spec.stdin === undefined
   let killTimer: ReturnType<typeof setTimeout> | undefined
   const notify = () => { wake?.(); wake = undefined }
   const killGroup = (kind: NodeJS.Signals) => {
@@ -53,9 +58,13 @@ export async function* runProcess(spec: ProcessSpec, signal?: AbortSignal): Asyn
     killGroup('SIGTERM')
     killTimer ??= setTimeout(() => killGroup('SIGKILL'), 500)
   }
-  const onAbort = () => { aborted = true; terminate(); notify() }
+  const onAbort = () => { aborted = true; child.stdin?.destroy(); terminate(); notify() }
   signal?.addEventListener('abort', onAbort, { once: true })
   if (signal?.aborted) onAbort()
+  if (spec.stdin !== undefined && child.stdin) {
+    child.stdin.on('error', (error) => { if (!aborted) failure = error; notify() })
+    child.stdin.end(spec.stdin, () => { stdinFinished = true; notify() })
+  }
   const onData = (stream: 'stdout' | 'stderr') => (data: Buffer) => {
     const allowance = Math.max(0, spec.maxOutputBytes - bytes)
     const accepted = data.subarray(0, allowance)
@@ -67,8 +76,8 @@ export async function* runProcess(spec: ProcessSpec, signal?: AbortSignal): Asyn
     if (accepted.length < data.length) { outputLimit = true; terminate() }
     notify()
   }
-  child.stdout.on('data', onData('stdout'))
-  child.stderr.on('data', onData('stderr'))
+  child.stdout!.on('data', onData('stdout'))
+  child.stderr!.on('data', onData('stderr'))
   child.on('error', (error) => { failure = error; closed = true; notify() })
   child.on('close', (exitCode) => { code = exitCode; closed = true; notify() })
   try {
@@ -85,6 +94,7 @@ export async function* runProcess(spec: ProcessSpec, signal?: AbortSignal): Asyn
     if (aborted) throw Object.assign(new Error('PROCESS_CANCELLED'), { name: 'AbortError' })
     if (outputLimit) throw new ProcessOutputLimitError()
     if (failure) throw failure
+    if (!stdinFinished) throw new Error('PROCESS_INPUT_INCOMPLETE: child exited before reading source')
     if (code !== 0) throw new ProcessExitError(code)
     yield { kind: 'result', output: { exitCode: code, byteLength: bytes } }
   } finally {
