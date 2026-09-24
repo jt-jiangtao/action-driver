@@ -251,9 +251,11 @@ export interface GraphRunner {
   run(
     request: {
       taskId: string
+      sessionId?: string
       goal: string
       model: ModelRef
       messages?: RuntimeMessage[]
+      currentMessage?: RuntimeMessage
       systemPrompt?: string
       skills?: ModelSkillDescription[]
       toolGrants?: string[]

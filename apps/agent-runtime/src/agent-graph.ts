@@ -120,6 +120,7 @@ export class LangGraphRunner implements GraphRunner {
       goal: string
       model: ModelRef
       messages?: RuntimeMessage[]
+      currentMessage?: RuntimeMessage
       systemPrompt?: string
       skills?: Array<{ skillId: string; description: string }>
       toolGrants?: string[]
@@ -149,7 +150,7 @@ export class LangGraphRunner implements GraphRunner {
               ? [{ role: 'system' as const, content: request.systemPrompt }]
               : []),
             ...(request.messages ?? []),
-            { role: 'user' as const, content: request.goal }
+            request.currentMessage ?? { role: 'user' as const, content: request.goal }
           ],
           toolGrants: request.toolGrants ?? this.toolRuntime?.grants ?? [],
           toolRound: 0,
@@ -698,9 +699,9 @@ export function activityTitleForTool(
         ? '运行 Python'
         : normalized.includes('ts_run') || normalized.includes('typescript')
           ? '运行 TypeScript'
-        : normalized.includes('node_run') || normalized.includes('node.run')
-          ? '运行 Node.js'
-          : '调用工具'
+          : normalized.includes('node_run') || normalized.includes('node.run')
+            ? '运行 Node.js'
+            : '调用工具'
   if (status === 'running') return `正在${action}`
   if (status === 'completed') return `已${action}`
   if (status === 'cancelled') return `已取消${action}`

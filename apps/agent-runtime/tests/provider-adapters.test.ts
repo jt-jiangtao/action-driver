@@ -85,6 +85,55 @@ function failingOpenAiFactory(error: Error): OpenAiClientFactory {
 }
 
 describe('OpenAI compatible adapter', () => {
+  it('resolves image references only for the outgoing vision request and redacts returned metadata', async () => {
+    const sdk = openAiFactory([
+      chunk({ choices: [{ index: 0, delta: { content: '一只猫' }, finish_reason: 'stop' }] })
+    ])
+    const adapter = createOpenAiCompatibleAdapter(
+      transportOf(() => ({ status: 200, body: {}, text: '' })),
+      sdk.factory,
+      async () => ({ bytes: Uint8Array.from([1, 2, 3]), mimeType: 'image/png' })
+    )
+    const events = []
+    for await (const event of adapter.stream({
+      ...endpoint,
+      modelId: 'vision',
+      parameters: {},
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { kind: 'text', text: '这是什么？' },
+            {
+              kind: 'image',
+              asset: {
+                assetId: 'asset-1',
+                sessionId: 'session-1',
+                mimeType: 'image/png',
+                width: 2,
+                height: 2,
+                byteLength: 3,
+                source: 'upload'
+              }
+            }
+          ]
+        }
+      ]
+    }))
+      events.push(event)
+    expect(sdk.create.mock.calls[0]?.[0]).toMatchObject({
+      messages: [
+        {
+          content: [
+            { type: 'text', text: '这是什么？' },
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,AQID' } }
+          ]
+        }
+      ]
+    })
+    expect(JSON.stringify(events)).not.toContain('AQID')
+  })
+
   it('consumes a real local SSE response through the official SDK', async () => {
     let capturedBody = ''
     let capturedAuthorization = ''

@@ -1,4 +1,11 @@
-import type { RecentTaskProjection, SkillExecutionState, TaskProjection } from '@actiondriver/contracts'
+import {
+  readMessageContentParts,
+  type MessageContent,
+  type MessageContentPart,
+  type RecentTaskProjection,
+  type SkillExecutionState,
+  type TaskProjection
+} from '@actiondriver/contracts'
 import type { PersistedMessage, RuntimeTaskRecord } from './ports'
 
 export function buildTaskProjection(
@@ -21,7 +28,8 @@ export function buildTaskProjection(
         {
           id: message.id,
           role: message.role === 'assistant' ? ('agent' as const) : ('user' as const),
-          content
+          content,
+          ...(messageParts(message.content) ? { parts: messageParts(message.content)! } : {})
         }
       ]
     }),
@@ -76,6 +84,23 @@ function errorMessage(error: unknown): string | null {
 
 function messageText(content: unknown): string | null {
   if (typeof content === 'string') return content
+  const parts = messageParts(content)
+  if (parts)
+    return parts
+      .filter((part) => part.kind === 'text')
+      .map((part) => part.text)
+      .join('')
   if (!content || typeof content !== 'object' || !('text' in content)) return null
   return typeof content.text === 'string' ? content.text : null
+}
+
+function messageParts(content: unknown): MessageContentPart[] | null {
+  if (
+    !content ||
+    typeof content !== 'object' ||
+    !('parts' in content) ||
+    !Array.isArray(content.parts)
+  )
+    return null
+  return readMessageContentParts(content as MessageContent)
 }

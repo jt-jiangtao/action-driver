@@ -23,6 +23,12 @@ import type {
   ModelUsage
 } from '@actiondriver/model-connections'
 import type { ToolDefinition } from '@actiondriver/runtime-contracts'
+import type { ImageAssetRef } from '@actiondriver/contracts'
+
+export type ImageResolver = (asset: ImageAssetRef) => Promise<{
+  bytes: Uint8Array
+  mimeType: ImageAssetRef['mimeType']
+}>
 
 export type ProviderFailure = {
   code: ModelFailureCode
@@ -124,16 +130,18 @@ const CONNECTION_PROBE_MODEL = 'connection-probe'
 export function createModelProviderAdapter(
   protocol: ModelProtocol,
   transport: HttpTransport,
-  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory
+  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory,
+  imageResolver?: ImageResolver
 ): ModelProviderAdapter {
   return protocol === 'anthropic'
     ? createAnthropicAdapter(transport)
-    : createOpenAiCompatibleAdapter(transport, openAiClientFactory)
+    : createOpenAiCompatibleAdapter(transport, openAiClientFactory, imageResolver)
 }
 
 export function createOpenAiCompatibleAdapter(
   transport: HttpTransport,
-  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory
+  openAiClientFactory: OpenAiClientFactory = defaultOpenAiClientFactory,
+  imageResolver?: ImageResolver
 ): ModelProviderAdapter {
   const discover: ModelProviderAdapter['discover'] = async ({ baseUrl, apiKey }) => {
     const response = await send(transport, {
@@ -160,7 +168,14 @@ export function createOpenAiCompatibleAdapter(
   return {
     discover,
     async *stream({ baseUrl, apiKey, modelId, messages, tools = [], parameters }, signal) {
-      const requestBody = streamRequestBody(modelId, messages, tools, parameters)
+      const requestBody = await streamRequestBody(
+        modelId,
+        messages,
+        tools,
+        parameters,
+        imageResolver
+      )
+      const safeRequestBody = redactImageData(requestBody)
       if (signal?.aborted) {
         throw new ModelStreamError('cancelled', 'Model request was cancelled')
       }
@@ -261,12 +276,21 @@ export function createOpenAiCompatibleAdapter(
         providerRequestId,
         ...(result.kind === 'tool-calls' ? { toolCalls: result.calls } : {})
       }
-      yield { kind: 'end', result, content, finishReason, usage, requestBody, responseBody, status }
+      yield {
+        kind: 'end',
+        result,
+        content,
+        finishReason,
+        usage,
+        requestBody: safeRequestBody,
+        responseBody,
+        status
+      }
     },
     async complete({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
       const requestBody = {
         model: modelId,
-        messages: toOpenAiMessages(messages),
+        messages: await toOpenAiMessages(messages, imageResolver),
         ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
         ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
         stream: false
@@ -274,7 +298,7 @@ export function createOpenAiCompatibleAdapter(
       if (signal?.aborted) {
         return completionFailure(
           failure('cancelled', 'Model request was cancelled'),
-          requestBody,
+          redactImageData(requestBody),
           null,
           null
         )
@@ -289,7 +313,7 @@ export function createOpenAiCompatibleAdapter(
           timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
           ...(signal ? { signal } : {})
         },
-        requestBody
+        redactImageData(requestBody)
       )
       if (!response.ok) return response
 
@@ -297,7 +321,7 @@ export function createOpenAiCompatibleAdapter(
       if (!content) {
         return completionFailure(
           failure('invalid-response', 'Model response is missing assistant text'),
-          requestBody,
+          redactImageData(requestBody),
           response.value.body,
           response.value.status
         )
@@ -307,7 +331,7 @@ export function createOpenAiCompatibleAdapter(
         value: {
           content,
           providerProtocol: 'openai-compatible',
-          requestBody,
+          requestBody: redactImageData(requestBody),
           responseBody: response.value.body,
           status: response.value.status
         }
@@ -397,15 +421,16 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
   }
 }
 
-function streamRequestBody(
+async function streamRequestBody(
   modelId: string,
   messages: ProviderCompletionInput['messages'],
   tools: ToolDefinition[],
-  parameters: ProviderCompletionInput['parameters']
-): Record<string, unknown> {
+  parameters: ProviderCompletionInput['parameters'],
+  imageResolver?: ImageResolver
+): Promise<Record<string, unknown>> {
   return {
     model: modelId,
-    messages: toOpenAiMessages(messages),
+    messages: await toOpenAiMessages(messages, imageResolver),
     ...(parameters.temperature === undefined ? {} : { temperature: parameters.temperature }),
     ...(parameters.maxTokens === undefined ? {} : { max_tokens: parameters.maxTokens }),
     stream: true,
@@ -426,29 +451,61 @@ function streamRequestBody(
   }
 }
 
-function toOpenAiMessages(messages: ModelInputMessage[]): Array<Record<string, unknown>> {
-  return messages.map((message) => {
-    if ('toolCalls' in message) {
-      return {
-        role: 'assistant',
-        content: null,
-        tool_calls: message.toolCalls.map((call) => ({
-          id: call.providerCallId,
-          type: 'function',
-          function: { name: call.modelName, arguments: JSON.stringify(call.arguments) }
-        }))
+async function toOpenAiMessages(
+  messages: ModelInputMessage[],
+  imageResolver?: ImageResolver
+): Promise<Array<Record<string, unknown>>> {
+  return Promise.all(
+    messages.map(async (message) => {
+      if ('toolCalls' in message) {
+        return {
+          role: 'assistant',
+          content: null,
+          tool_calls: message.toolCalls.map((call) => ({
+            id: call.providerCallId,
+            type: 'function',
+            function: { name: call.modelName, arguments: JSON.stringify(call.arguments) }
+          }))
+        }
       }
-    }
-    if (message.role === 'tool') {
-      return {
-        role: 'tool',
-        tool_call_id: message.toolCallId,
-        name: message.name,
-        content: message.content
+      if (message.role === 'tool') {
+        return {
+          role: 'tool',
+          tool_call_id: message.toolCallId,
+          name: message.name,
+          content: message.content
+        }
       }
-    }
-    return message
-  })
+      if (message.role === 'user' && Array.isArray(message.content)) {
+        const content = await Promise.all(
+          message.content.map(async (part) => {
+            if (part.kind === 'text') return { type: 'text', text: part.text }
+            if (!imageResolver)
+              throw new ModelStreamError('invalid-request', 'Image input is unavailable')
+            const image = await imageResolver(part.asset)
+            return {
+              type: 'image_url',
+              image_url: {
+                url: `data:${image.mimeType};base64,${Buffer.from(image.bytes).toString('base64')}`
+              }
+            }
+          })
+        )
+        return { role: 'user', content }
+      }
+      return message
+    })
+  )
+}
+
+function redactImageData(value: unknown): unknown {
+  if (typeof value === 'string' && value.startsWith('data:image/')) return '[image bytes omitted]'
+  if (Array.isArray(value)) return value.map(redactImageData)
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, redactImageData(nested)])
+    )
+  return value
 }
 
 function parsePendingToolCalls(

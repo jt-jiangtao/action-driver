@@ -41,6 +41,7 @@ export interface AgentMessageProjection {
   id: string
   role: 'user' | 'agent'
   content: string
+  parts?: MessageContentPart[]
 }
 
 export type ImageAssetRef = {

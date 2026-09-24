@@ -27,6 +27,51 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
 }
 
 describe('repository-backed task projections', () => {
+  it('projects ordered image and text parts while preserving legacy text', () => {
+    const image = {
+      assetId: 'asset-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 2,
+      height: 2,
+      byteLength: 12,
+      source: 'upload' as const
+    }
+    const projection = buildTaskProjection(task('task-success', 'completed'), [
+      {
+        id: 'new',
+        taskId: 'task-success',
+        role: 'user',
+        createdAt: '2026-09-23',
+        content: {
+          parts: [
+            { kind: 'text', text: '识别' },
+            { kind: 'image', asset: image }
+          ]
+        }
+      },
+      {
+        id: 'old',
+        taskId: 'task-success',
+        role: 'assistant',
+        createdAt: '2026-09-23',
+        content: { text: '旧回复' }
+      }
+    ])
+    expect(projection.messages).toEqual([
+      {
+        id: 'new',
+        role: 'user',
+        content: '识别',
+        parts: [
+          { kind: 'text', text: '识别' },
+          { kind: 'image', asset: image }
+        ]
+      },
+      { id: 'old', role: 'agent', content: '旧回复' }
+    ])
+  })
+
   it('retains the persisted start time when reopening a running task', () => {
     expect(buildTaskProjection(task('task-running', 'running'), []).activityStartedAt).toBe(
       '2026-09-23T01:00:00.000Z'

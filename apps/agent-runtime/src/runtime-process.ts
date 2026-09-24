@@ -89,7 +89,8 @@ export async function startAgentRuntimeProcess(
     cipher: createCredentialCipher(
       credentialSecret ? createCredentialKey(credentialSecret) : Buffer.alloc(0)
     ),
-    transport: createFetchHttpTransport()
+    transport: createFetchHttpTransport(),
+    imageResolver: (asset) => assets.read(asset.assetId, asset.sessionId)
   })
   const modelTraces = new PhoenixModelObservability(logging.tracer)
   const agentFiles = new AgentFileStore({
@@ -128,6 +129,7 @@ export async function startAgentRuntimeProcess(
   }
   const streamSessions = new StreamSessionService({
     repositories,
+    assets,
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),

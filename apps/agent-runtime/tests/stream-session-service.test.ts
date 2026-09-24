@@ -11,6 +11,8 @@ import {
   type GraphRunner,
   type IdGenerator
 } from '../src/index'
+import { SessionAssetStore } from '../src/media/session-asset-store'
+import { readFileSync } from 'node:fs'
 
 const temporaryDirectories: string[] = []
 
@@ -23,6 +25,7 @@ function createHarness(
   temporaryDirectories.push(directory)
   const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
   const repositories = new SqliteRuntimeRepositories(database)
+  const assets = new SessionAssetStore({ database, rootDirectory: directory })
   const counters = new Map<string, number>()
   const ids: IdGenerator = {
     next(prefix) {
@@ -34,13 +37,14 @@ function createHarness(
   let now = Date.parse('2026-09-23T00:00:00.000Z')
   const service = new StreamSessionService({
     repositories,
+    assets,
     graphRunner,
     ids,
     now: () => new Date(now++).toISOString(),
     ...(rawToolIO ? { rawToolIO } : {}),
     ...(listEnabledSkills ? { listEnabledSkills } : {})
   })
-  return { database, repositories, service }
+  return { database, repositories, service, assets }
 }
 
 afterEach(() => {
@@ -80,19 +84,89 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('persists an image-only user turn and gives the graph an image reference', async () => {
+    let graphInput: Parameters<GraphRunner['run']>[0] | null = null
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer) {
+        graphInput = request
+        await observer?.({ kind: 'end', content: '看到了图片', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '看到了图片',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
+    }
+    const { service, assets, repositories } = createHarness(graphRunner)
+    const image = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+    const staged = await assets.stageUpload(image)
+    const request: RequestCreateEvent = {
+      ...createEvent,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '', imageAssetIds: [staged.assetId] }
+      }
+    }
+    const events = await runToEnd(service, request)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('Expected accepted request')
+    const task = await repositories.tasks.get(accepted.taskId)
+    expect(task?.goal).toBe('图片消息')
+    const messages = await repositories.messages.listByTask(accepted.taskId)
+    expect(messages[0]?.content).toMatchObject({
+      parts: [{ kind: 'image', asset: { assetId: staged.assetId, sessionId: accepted.sessionId } }]
+    })
+    expect(graphInput).toMatchObject({
+      currentMessage: {
+        role: 'user',
+        content: [{ kind: 'image', asset: { assetId: staged.assetId } }]
+      }
+    })
+    const snapshot = await service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.messages[0]).toMatchObject({
+      parts: [{ kind: 'image', asset: { assetId: staged.assetId } }]
+    })
+    expect(JSON.stringify(snapshot)).not.toContain('data:image/')
+    await service.handle(request, () => undefined)
+    expect(await repositories.messages.listByTask(accepted.taskId)).toHaveLength(2)
+    repositories.close()
+  })
+
   it('discovers currently enabled Skills for a new task', async () => {
     let discovered: unknown = null
     const graphRunner: GraphRunner = {
       async run(request) {
         discovered = request.skills
-        return { taskId: request.taskId, threadId: request.taskId, status: 'completed', output: 'done', error: null, trace: [] }
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: 'done',
+          error: null,
+          trace: []
+        }
       },
       interrupt: () => false,
-      async continue() { throw new Error('unused') },
-      async provideInput() { throw new Error('unused') }
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
     }
-    const { service } = createHarness(graphRunner, undefined,
-      async () => [{ skillId: 'skill-creator', description: 'Create a Skill' }])
+    const { service } = createHarness(graphRunner, undefined, async () => [
+      { skillId: 'skill-creator', description: 'Create a Skill' }
+    ])
     await runToEnd(service, createEvent)
     expect(discovered).toEqual([{ skillId: 'skill-creator', description: 'Create a Skill' }])
   })
@@ -744,7 +818,10 @@ describe('StreamSessionService', () => {
       goal: 'Return **real Markdown**'
     })
     await expect(repositories.messages.listByTask(accepted.taskId)).resolves.toEqual([
-      expect.objectContaining({ role: 'user', content: { text: 'Return **real Markdown**' } }),
+      expect.objectContaining({
+        role: 'user',
+        content: { parts: [{ kind: 'text', text: 'Return **real Markdown**' }] }
+      }),
       expect.objectContaining({ role: 'assistant', content: { text: '**real answer**' } })
     ])
     await expect(

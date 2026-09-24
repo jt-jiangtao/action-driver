@@ -1,5 +1,5 @@
 import type { HttpTransport } from './http-transport'
-import type { OpenAiClientFactory, ProviderFailure } from './provider-adapters'
+import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import type { SecretCipher } from './credential-cipher'
 import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
@@ -28,6 +28,7 @@ export type ModelConnectionServiceOptions = {
   cipher: SecretCipher
   transport: HttpTransport
   openAiClientFactory?: OpenAiClientFactory
+  imageResolver?: ImageResolver
 }
 
 export class ModelConnectionService
@@ -67,7 +68,8 @@ export class ModelConnectionService
     const adapter = createModelProviderAdapter(
       connection.protocol,
       this.options.transport,
-      this.options.openAiClientFactory
+      this.options.openAiClientFactory,
+      this.options.imageResolver
     )
     return await adapter.complete(
       {
@@ -90,7 +92,8 @@ export class ModelConnectionService
     const adapter = createModelProviderAdapter(
       connection.protocol,
       this.options.transport,
-      this.options.openAiClientFactory
+      this.options.openAiClientFactory,
+      this.options.imageResolver
     )
     yield* adapter.stream(
       {

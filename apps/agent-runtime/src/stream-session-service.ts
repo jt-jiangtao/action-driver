@@ -9,6 +9,9 @@ import {
   emptyActivityTimelineState,
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
+import type { MessageContentPart } from '@actiondriver/contracts'
+import type { ModelInputMessage } from '@actiondriver/model-connections'
+import type { SessionAssetStore } from './media/session-asset-store'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -50,6 +53,7 @@ export class StreamSessionService {
       now(): string
       rawToolIO?: { enabled: boolean; maxBytes?: number }
       listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
+      assets?: Pick<SessionAssetStore, 'bindStaged'>
     }
   ) {}
 
@@ -120,6 +124,36 @@ export class StreamSessionService {
       await this.emitRequestError(event.requestId, 'session-not-found', 'Unknown session', emit)
       return
     }
+    const imageIds = event.payload.input.imageAssetIds ?? []
+    if (imageIds.length > 0 && !this.options.assets) {
+      await this.emitRequestError(
+        event.requestId,
+        'image-unavailable',
+        'Image storage is unavailable',
+        emit
+      )
+      return
+    }
+    let boundAssets: Awaited<ReturnType<SessionAssetStore['bindStaged']>>[] = []
+    try {
+      boundAssets = await Promise.all(
+        imageIds.map((assetId) => this.options.assets!.bindStaged(assetId, sessionId))
+      )
+    } catch {
+      await this.emitRequestError(
+        event.requestId,
+        'image-invalid',
+        'Image cannot be attached',
+        emit
+      )
+      return
+    }
+    const userParts: MessageContentPart[] = [
+      ...(event.payload.input.content
+        ? [{ kind: 'text' as const, text: event.payload.input.content }]
+        : []),
+      ...boundAssets.map((asset) => ({ kind: 'image' as const, asset }))
+    ]
     const history = previous ? await this.sessionHistory(previous.sessionId) : []
     const userMessageId = this.options.ids.next('message')
     const assistantMessageId = this.options.ids.next('message')
@@ -140,7 +174,7 @@ export class StreamSessionService {
       id: request.taskId,
       threadId: request.taskId,
       sessionId: request.sessionId,
-      goal: event.payload.input.content,
+      goal: event.payload.input.content.trim() || '图片消息',
       model,
       status: 'running',
       error: null,
@@ -152,7 +186,7 @@ export class StreamSessionService {
       id: userMessageId,
       taskId: request.taskId,
       role: 'user',
-      content: { text: event.payload.input.content },
+      content: { parts: userParts },
       createdAt: now
     }
     const assistantMessage: PersistedMessage = {
@@ -196,6 +230,7 @@ export class StreamSessionService {
       task,
       assistantMessage,
       history,
+      boundAssets.length > 0 ? { role: 'user', content: userParts } : undefined,
       controller.signal,
       (event) => delivery.emit(event)
     ).finally(() => {
@@ -224,7 +259,8 @@ export class StreamSessionService {
     request: PersistedStreamRequest,
     initialTask: RuntimeTaskRecord,
     initialAssistant: PersistedMessage,
-    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    history: ModelInputMessage[],
+    currentMessage: ModelInputMessage | undefined,
     signal: AbortSignal,
     emit: Emit
   ): Promise<void> {
@@ -246,13 +282,15 @@ export class StreamSessionService {
       result = await this.options.graphRunner.run(
         {
           taskId: request.taskId,
+          sessionId: request.sessionId,
           goal: initialTask.goal,
           model: initialTask.model,
           messages: history,
+          ...(currentMessage ? { currentMessage } : {}),
           ...(createEvent.payload.systemPrompt === undefined
             ? {}
             : { systemPrompt: createEvent.payload.systemPrompt }),
-          skills: await this.options.listEnabledSkills?.() ?? [],
+          skills: (await this.options.listEnabledSkills?.()) ?? [],
           streamRequestId: request.requestId
         },
         signal,
@@ -473,6 +511,7 @@ export class StreamSessionService {
           id: message.id,
           role: message.role,
           content: messageText(message.content),
+          ...(messageParts(message.content) ? { parts: messageParts(message.content) } : {}),
           createdAt: message.createdAt
         })),
       tools: toolInvocations.map((invocation) => {
@@ -511,9 +550,7 @@ export class StreamSessionService {
     return event
   }
 
-  private async sessionHistory(
-    sessionId: string
-  ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  private async sessionHistory(sessionId: string): Promise<ModelInputMessage[]> {
     const [tasks, messages] = await Promise.all([
       this.options.repositories.tasks.listBySession(sessionId),
       this.options.repositories.messages.listBySession(sessionId)
@@ -521,10 +558,12 @@ export class StreamSessionService {
     const terminalTaskIds = new Set(
       tasks.filter((task) => task.status !== 'running').map((task) => task.id)
     )
-    return messages.flatMap((message) => {
+    return messages.flatMap<ModelInputMessage>((message): ModelInputMessage[] => {
       if (!terminalTaskIds.has(message.taskId)) return []
       if (message.role !== 'user' && message.role !== 'assistant') return []
-      return [{ role: message.role, content: messageText(message.content) }]
+      return message.role === 'user'
+        ? [{ role: 'user' as const, content: messageText(message.content) }]
+        : [{ role: 'assistant' as const, content: messageText(message.content) }]
     })
   }
 
@@ -725,11 +764,28 @@ function boundedText(value: unknown, maxBytes: number): { value: string; truncat
 
 function messageText(content: unknown): string {
   if (typeof content === 'string') return content
+  const parts = messageParts(content)
+  if (parts)
+    return parts
+      .filter((part) => part.kind === 'text')
+      .map((part) => part.text)
+      .join('')
   if (content && typeof content === 'object' && 'text' in content) {
     const text = (content as { text?: unknown }).text
     if (typeof text === 'string') return text
   }
   return ''
+}
+
+function messageParts(content: unknown): MessageContentPart[] | null {
+  if (
+    !content ||
+    typeof content !== 'object' ||
+    !('parts' in content) ||
+    !Array.isArray(content.parts)
+  )
+    return null
+  return content.parts as MessageContentPart[]
 }
 
 function toStreamError(value: unknown): {

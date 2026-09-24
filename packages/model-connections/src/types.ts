@@ -1,4 +1,4 @@
-import type { ModelRef } from '@actiondriver/contracts'
+import type { MessageContentPart, ModelRef } from '@actiondriver/contracts'
 import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
@@ -43,7 +43,8 @@ export type ProviderToolCall = {
 }
 
 export type ModelInputMessage =
-  | { role: 'system' | 'user' | 'assistant'; content: string }
+  | { role: 'system' | 'assistant'; content: string }
+  | { role: 'user'; content: string | MessageContentPart[] }
   | { role: 'assistant'; toolCalls: ProviderToolCall[] }
   | { role: 'tool'; toolCallId: string; name: string; content: string }
 
