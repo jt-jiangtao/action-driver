@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { readMessageContentParts } from '@actiondriver/contracts'
 import {
   SqliteRuntimeRepositories,
   StreamSessionService,
@@ -44,6 +45,10 @@ const task: RuntimeTaskRecord = {
 }
 
 describe('SQLite runtime repositories', () => {
+  it('reads legacy text content as one ordered text part', () => {
+    expect(readMessageContentParts({ text: '旧任务' })).toEqual([{ kind: 'text', text: '旧任务' }])
+  })
+
   it('recovers an orphan request once without discarding partial text or retrying a running tool', async () => {
     const repositories = createRepositories()
     const request: PersistedStreamRequest = {

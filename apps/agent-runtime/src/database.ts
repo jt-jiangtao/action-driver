@@ -274,6 +274,40 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         );
       `)
     }
+  },
+  {
+    version: 9,
+    name: 'add-conversation-image-assets-and-model-capabilities',
+    up(database) {
+      database.exec(`
+        ALTER TABLE model_connection_models ADD COLUMN image_input_enabled INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE model_connection_models ADD COLUMN image_generation_enabled INTEGER NOT NULL DEFAULT 0;
+
+        CREATE TABLE default_image_model (
+          singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+          connection_id TEXT,
+          model_id TEXT,
+          CHECK ((connection_id IS NULL) = (model_id IS NULL))
+        );
+
+        CREATE TABLE session_assets (
+          asset_id TEXT PRIMARY KEY,
+          session_id TEXT,
+          mime_type TEXT NOT NULL CHECK (mime_type IN ('image/png', 'image/jpeg', 'image/webp')),
+          width INTEGER NOT NULL CHECK (width > 0),
+          height INTEGER NOT NULL CHECK (height > 0),
+          byte_length INTEGER NOT NULL CHECK (byte_length > 0),
+          source TEXT NOT NULL CHECK (source IN ('upload', 'generated')),
+          status TEXT NOT NULL CHECK (status IN ('staged', 'bound')),
+          created_at TEXT NOT NULL,
+          bound_at TEXT,
+          CHECK ((status = 'staged' AND session_id IS NULL AND bound_at IS NULL)
+              OR (status = 'bound' AND session_id IS NOT NULL AND bound_at IS NOT NULL))
+        );
+        CREATE INDEX session_assets_session_idx ON session_assets(session_id, created_at);
+        CREATE INDEX session_assets_staged_idx ON session_assets(created_at) WHERE status = 'staged';
+      `)
+    }
   }
 ]
 
@@ -301,9 +335,9 @@ function backupBeforeMigration(
   migrations: readonly RuntimeMigration[]
 ): void {
   if (path === ':memory:') return
-  const row = database
-    .prepare('SELECT MAX(version) AS version FROM schema_migrations')
-    .get() as { version: number | null }
+  const row = database.prepare('SELECT MAX(version) AS version FROM schema_migrations').get() as {
+    version: number | null
+  }
   if (row.version === null || !migrations.some((migration) => migration.version > row.version!)) {
     return
   }

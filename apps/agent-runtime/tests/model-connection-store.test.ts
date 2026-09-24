@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { openRuntimeDatabase } from '../src/database'
-import { createCredentialCipher, createCredentialKey } from '../src/model-connections/credential-cipher'
+import {
+  createCredentialCipher,
+  createCredentialKey
+} from '../src/model-connections/credential-cipher'
 import { createSqliteModelConnectionStore } from '../src/model-connections/sqlite-store'
 
 function databasePath(): string {
@@ -26,6 +29,20 @@ const connection: StoredModelConnection = {
 }
 
 describe('service-side model connection storage', () => {
+  it('migrates model image capability flags and a nullable default image model', () => {
+    const database = openRuntimeDatabase(databasePath())
+    const columns = database.prepare('PRAGMA table_info(model_connection_models)').all() as Array<{
+      name: string
+    }>
+    expect(columns.map((column) => column.name)).toContain('image_input_enabled')
+    expect(columns.map((column) => column.name)).toContain('image_generation_enabled')
+    const defaultRows = database
+      .prepare('SELECT connection_id, model_id FROM default_image_model')
+      .all()
+    expect(defaultRows).toEqual([])
+    database.close()
+  })
+
   it('round-trips connections and models through the runtime database', () => {
     const database = openRuntimeDatabase(databasePath())
     const store = createSqliteModelConnectionStore(database)

@@ -8,6 +8,75 @@ import {
 const occurredAt = '2026-09-23T00:00:00.000Z'
 
 describe('agent stream protocol', () => {
+  it('accepts an image-only request but rejects an empty request without images', () => {
+    const event = {
+      type: 'request.create' as const,
+      protocol: STREAM_PROTOCOL,
+      eventId: 'image-only',
+      requestId: 'image-request',
+      idempotencyKey: 'image-key',
+      sessionId: null,
+      createdAt: occurredAt,
+      payload: {
+        input: { role: 'user' as const, content: '', imageAssetIds: ['asset-1'] },
+        model: { connectionId: 'connection-1', modelId: 'vision' },
+        skills: []
+      }
+    }
+    expect(parseStreamClientEvent(event)).toMatchObject({
+      payload: { input: { content: '', imageAssetIds: ['asset-1'] } }
+    })
+    expect(() =>
+      parseStreamClientEvent({
+        ...event,
+        payload: { ...event.payload, input: { ...event.payload.input, imageAssetIds: [] } }
+      })
+    ).toThrow()
+  })
+
+  it('accepts ordered text and image parts in a restored snapshot', () => {
+    const asset = {
+      assetId: 'asset-1',
+      sessionId: 'session-1',
+      mimeType: 'image/png',
+      width: 32,
+      height: 24,
+      byteLength: 100,
+      source: 'upload'
+    }
+    const snapshot = {
+      type: 'response.snapshot',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'snapshot-images',
+      cursor: 4,
+      sequence: 3,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt,
+      status: 'completed',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: '',
+          createdAt: occurredAt,
+          parts: [
+            { kind: 'text', text: '识别' },
+            { kind: 'image', asset }
+          ]
+        }
+      ],
+      error: null
+    }
+    expect(parseStreamServerEvent(snapshot)).toMatchObject({
+      messages: [{ parts: [{ kind: 'text' }, { kind: 'image', asset }] }]
+    })
+  })
+
   it('preserves enabled skill descriptions on a new request', () => {
     const event = parseStreamClientEvent({
       type: 'request.create',

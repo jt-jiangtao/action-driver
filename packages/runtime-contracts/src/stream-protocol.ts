@@ -13,6 +13,23 @@ const modelRefSchema = z
   })
   .strict() satisfies z.ZodType<ModelRef>
 
+const imageAssetSchema = z
+  .object({
+    assetId: idSchema,
+    sessionId: idSchema,
+    mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    byteLength: z.number().int().positive(),
+    source: z.enum(['upload', 'generated'])
+  })
+  .strict()
+
+const messagePartSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('text'), text: z.string() }).strict(),
+  z.object({ kind: z.literal('image'), asset: imageAssetSchema }).strict()
+])
+
 const clientBase = {
   protocol: protocolSchema,
   eventId: idSchema,
@@ -67,9 +84,13 @@ const requestCreateBase = {
 const requestInputSchema = z
   .object({
     role: z.literal('user'),
-    content: idSchema
+    content: z.string(),
+    imageAssetIds: z.array(idSchema).max(4).optional()
   })
   .strict()
+  .refine((input) => input.content.trim().length > 0 || (input.imageAssetIds?.length ?? 0) > 0, {
+    message: 'Text or image is required'
+  })
 
 const newSessionRequestCreateEventSchema = z
   .object({
@@ -221,6 +242,7 @@ const responseSnapshotEventSchema = z
           id: idSchema,
           role: z.enum(['user', 'assistant']),
           content: z.string(),
+          parts: z.array(messagePartSchema).optional(),
           createdAt: timestampSchema
         })
         .strict()

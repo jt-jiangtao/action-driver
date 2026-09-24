@@ -43,6 +43,26 @@ export interface AgentMessageProjection {
   content: string
 }
 
+export type ImageAssetRef = {
+  assetId: string
+  sessionId: string
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp'
+  width: number
+  height: number
+  byteLength: number
+  source: 'upload' | 'generated'
+}
+
+export type MessageContentPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'image'; asset: ImageAssetRef }
+
+export type MessageContent = { text: string } | { parts: MessageContentPart[] }
+
+export function readMessageContentParts(content: MessageContent): MessageContentPart[] {
+  return 'parts' in content ? content.parts : [{ kind: 'text', text: content.text }]
+}
+
 export interface ExecutionStepProjection {
   id: string
   title: string

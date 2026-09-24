@@ -29,16 +29,24 @@ describe('runtime SQLite database', () => {
   it('keeps historical model calls while new model completions do not append rows', async () => {
     const path = databasePath()
     const old = openRuntimeDatabase(path)
-    old.prepare(`INSERT INTO tasks
+    old
+      .prepare(
+        `INSERT INTO tasks
       (id, thread_id, session_id, goal, status, created_at, updated_at, connection_id, model_id)
       VALUES ('historic-task', 'historic-task', 'historic-session', 'old', 'completed',
-        '2026-01-01', '2026-01-01', 'connection', 'model')`).run()
-    old.prepare(`INSERT INTO model_calls
+        '2026-01-01', '2026-01-01', 'connection', 'model')`
+      )
+      .run()
+    old
+      .prepare(
+        `INSERT INTO model_calls
       (id, task_id, request_id, correlation_id, connection_id, model_id, status,
        request_json, response_json, started_at)
       VALUES ('historic-call', 'historic-task', 'historic-request', 'historic-correlation',
         'connection', 'model', 'completed', '{"prompt":"historic input"}',
-        '{"text":"historic output"}', '2026-01-01')`).run()
+        '{"text":"historic output"}', '2026-01-01')`
+      )
+      .run()
     old.close()
 
     const upgraded = openRuntimeDatabase(path)
@@ -47,11 +55,17 @@ describe('runtime SQLite database', () => {
         complete: async () => ({
           ok: true as const,
           value: {
-            content: 'new result', providerProtocol: 'openai-compatible' as const,
-            requestBody: { prompt: 'new input' }, responseBody: { text: 'new result' }, status: 200
+            content: 'new result',
+            providerProtocol: 'openai-compatible' as const,
+            requestBody: { prompt: 'new input' },
+            responseBody: { text: 'new result' },
+            status: 200
           }
         }),
-        async *stream() { yield* []; throw new Error('unused') }
+        async *stream() {
+          yield* []
+          throw new Error('unused')
+        }
       },
       interactions: createInteractionLogRecorder({
         ids: { eventId: () => 'new-event', correlationId: () => 'new-correlation' },
@@ -60,13 +74,19 @@ describe('runtime SQLite database', () => {
       correlationId: () => 'new-correlation',
       now: () => '2026-09-24T00:00:00Z'
     })
-    await expect(gateway.complete({
-      taskId: 'new-task', requestId: 'new-request',
-      model: { connectionId: 'connection', modelId: 'model' },
-      messages: [{ role: 'user', content: 'new input' }],
-      skills: [], parameters: { temperature: 0 }
-    })).resolves.toEqual({ kind: 'finish', content: 'new result' })
-    expect(upgraded.prepare('SELECT id, request_json, response_json FROM model_calls').all()).toEqual([
+    await expect(
+      gateway.complete({
+        taskId: 'new-task',
+        requestId: 'new-request',
+        model: { connectionId: 'connection', modelId: 'model' },
+        messages: [{ role: 'user', content: 'new input' }],
+        skills: [],
+        parameters: { temperature: 0 }
+      })
+    ).resolves.toEqual({ kind: 'finish', content: 'new result' })
+    expect(
+      upgraded.prepare('SELECT id, request_json, response_json FROM model_calls').all()
+    ).toEqual([
       {
         id: 'historic-call',
         request_json: '{"prompt":"historic input"}',
@@ -134,7 +154,9 @@ describe('runtime SQLite database', () => {
       { request_id: 'b', cursor: 4, sequence: 1 }
     ])
     expect(
-      upgraded.prepare('SELECT request_id, last_sequence FROM stream_requests ORDER BY request_id').all()
+      upgraded
+        .prepare('SELECT request_id, last_sequence FROM stream_requests ORDER BY request_id')
+        .all()
     ).toEqual([
       { request_id: 'a', last_sequence: 1 },
       { request_id: 'b', last_sequence: 1 }
@@ -162,9 +184,9 @@ describe('runtime SQLite database', () => {
         .run()
     ).toThrow()
     upgraded.close()
-    expect(readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v8-'))).toBe(
-      true
-    )
+    expect(
+      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v9-'))
+    ).toBe(true)
   })
   it('creates the business schema with production pragmas before becoming ready', () => {
     const path = databasePath()
@@ -184,6 +206,8 @@ describe('runtime SQLite database', () => {
         'model_calls',
         'model_connection_models',
         'model_connections',
+        'default_image_model',
+        'session_assets',
         'runtime_events',
         'runtime_process_owner',
         'schema_migrations',
@@ -202,7 +226,8 @@ describe('runtime SQLite database', () => {
       { version: 5 },
       { version: 6 },
       { version: 7 },
-      { version: 8 }
+      { version: 8 },
+      { version: 9 }
     ])
 
     expect(
@@ -248,7 +273,8 @@ describe('runtime SQLite database', () => {
       { version: 5, count: 1 },
       { version: 6, count: 1 },
       { version: 7, count: 1 },
-      { version: 8, count: 1 }
+      { version: 8, count: 1 },
+      { version: 9, count: 1 }
     ])
 
     database.close()
@@ -257,7 +283,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 9,
+      version: 10,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -267,7 +293,7 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 9 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 10 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
@@ -278,7 +304,8 @@ describe('runtime SQLite database', () => {
       { version: 5 },
       { version: 6 },
       { version: 7 },
-      { version: 8 }
+      { version: 8 },
+      { version: 9 }
     ])
     expect(
       database

@@ -106,6 +106,8 @@ export type ModelOptionDto = {
   name: string
   enabled: boolean
   testState: ModelTestState
+  imageInputEnabled?: boolean
+  imageGenerationEnabled?: boolean
 }
 
 export type ModelConnectionDto = {
