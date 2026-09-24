@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mkdtemp, mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AgentFileStore } from '../src/agent-files/agent-file-store'
@@ -58,5 +58,37 @@ describe('SkillInstaller local source', () => {
     await writeFile(join(source, 'SKILL.md'), '# Replacement\n\nShould not install.\n')
     await expect(installer.installSkill({ source: 'local', path: source })).rejects.toThrow()
     expect(await readdir(join(homeDirectory, '.action-driver', 'skills'))).not.toContain('skill-creator')
+  })
+
+  it('uses the same validation and persistent source label for GitHub imports', async () => {
+    const { homeDirectory, source, store } = await fixture()
+    const installer = new SkillInstaller({
+      homeDirectory, store,
+      fetchGithub: async (_location, destination) => { await cp(source, destination, { recursive: true }) }
+    })
+    const installed = await installer.installSkill({ source: 'github', url: 'https://github.com/acme/tools/tree/main/skills/plain' })
+    expect(installed).toMatchObject({ id: 'plain', source: 'github' })
+    const restarted = new AgentFileStore({ homeDirectory })
+    await restarted.initialize()
+    expect((await restarted.listSkills()).find((skill) => skill.id === 'plain')?.source).toBe('github')
+  })
+
+  it('does not replace an installed Skill when GitHub fetch fails or duplicates its name', async () => {
+    const { homeDirectory, source, store } = await fixture()
+    const failing = new SkillInstaller({
+      homeDirectory, store,
+      fetchGithub: async () => { throw new Error('network down') }
+    })
+    const url = 'https://github.com/acme/tools/tree/main/skills/plain'
+    await expect(failing.installSkill({ source: 'github', url })).rejects.toThrow('network down')
+    expect(await readdir(join(homeDirectory, '.action-driver', 'skills'))).not.toContain('plain')
+    const working = new SkillInstaller({
+      homeDirectory, store,
+      fetchGithub: async (_location, destination) => { await cp(source, destination, { recursive: true }) }
+    })
+    await working.installSkill({ source: 'github', url })
+    await expect(working.installSkill({ source: 'github', url })).rejects.toThrow('已存在')
+    expect(await readFile(join(homeDirectory, '.action-driver', 'skills', 'plain', 'SKILL.md'), 'utf8'))
+      .toContain('Helps with notes.')
   })
 })

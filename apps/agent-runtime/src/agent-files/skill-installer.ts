@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { copyFile, lstat, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, join, relative, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import type { AgentSkillSummaryDto, InstallSkillInput } from '@actiondriver/runtime-contracts'
 import { AgentFileStore, AgentFileStoreError } from './agent-file-store'
 import { parseSkillDeclaration } from './skill-declaration'
+import { cloneGitSkill, parseGithubSkillUrl, type GithubSkillLocation } from './skill-source'
 
 const MAX_FILES = 256
 const MAX_BYTES = 10 * 1024 * 1024
@@ -13,15 +15,35 @@ const SYSTEM_SKILL_IDS = new Set(['browser-tools', 'computer-tools', 'report-wri
 export class SkillInstaller {
   private readonly skillsRoot: string
 
-  constructor(private readonly options: { homeDirectory: string; store: AgentFileStore }) {
+  constructor(private readonly options: {
+    homeDirectory: string
+    store: AgentFileStore
+    fetchGithub?: (location: GithubSkillLocation, destination: string) => Promise<void>
+  }) {
     this.skillsRoot = join(options.homeDirectory, '.action-driver', 'skills')
   }
 
   async installSkill(input: InstallSkillInput): Promise<AgentSkillSummaryDto> {
-    if (input.source !== 'local') {
-      throw new AgentFileStoreError('VALIDATION', '暂不支持该 Skill 来源。')
+    if (input.source === 'local') return this.installDirectory(input.path, 'local')
+    const location = parseGithubSkillUrl(input.url)
+    const id = basename(location.subdir || location.repo).toLowerCase()
+    if (!SKILL_ID.test(id) || SYSTEM_SKILL_IDS.has(id)) {
+      throw new AgentFileStoreError('VALIDATION', 'GitHub Skill 目录名无效或占用系统名称。')
     }
-    return this.installDirectory(input.path, 'local')
+    const temporaryRoot = await mkdtemp(join(tmpdir(), 'actiondriver-skill-source-'))
+    const selected = join(temporaryRoot, id)
+    try {
+      if (this.options.fetchGithub) await this.options.fetchGithub(location, selected)
+      else await cloneGitSkill({
+        repository: `https://github.com/${location.owner}/${location.repo}.git`,
+        ref: location.ref,
+        subdir: location.subdir,
+        destination: selected
+      })
+      return await this.installDirectory(selected, 'github')
+    } finally {
+      await rm(temporaryRoot, { recursive: true, force: true })
+    }
   }
 
   async installDirectory(sourcePath: string, source: 'local' | 'github'): Promise<AgentSkillSummaryDto> {
