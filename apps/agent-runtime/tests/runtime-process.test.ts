@@ -9,12 +9,36 @@ import { startAgentRuntimeProcess } from '../src/runtime-process'
 import { createSandboxTools } from '../src/sandbox'
 import { RuntimeToolPolicy, RuntimeToolRegistry, SqliteRuntimeRepositories, openRuntimeDatabase } from '../src/index'
 
+const phoenixConstruction = vi.hoisted(() => vi.fn())
+vi.mock('../src/phoenix-model-observability', () => ({
+  PhoenixModelObservability: class {
+    constructor(tracer: unknown) { phoenixConstruction(tracer) }
+    async start() {}
+    async finish() {}
+  }
+}))
+
 class FakeParentPort extends EventEmitter {
   readonly postMessage = vi.fn()
 }
 
 
 describe('Agent Runtime process entry', () => {
+  it('wires the process tracer into Phoenix model observability', async () => {
+    const parentPort = new FakeParentPort()
+    const exit = vi.fn()
+    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-')), 'runtime.db')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-root-'))
+    await startAgentRuntimeProcess(parentPort, databasePath, exit, {
+      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+    })
+    expect(phoenixConstruction).toHaveBeenCalledWith(expect.objectContaining({
+      startSpan: expect.any(Function)
+    }))
+    parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+  })
+
   it('refuses a second live Runtime before it can recover the first Runtime tasks', async () => {
     const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-')), 'runtime.db')
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-root-'))

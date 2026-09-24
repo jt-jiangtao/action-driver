@@ -6,7 +6,7 @@ import { claimRuntimeOwnership } from './runtime-ownership'
 import { SqliteRuntimeRepositories } from './repositories'
 import { createSqliteCheckpointer } from './sqlite-checkpointer'
 import { ConnectionModelGateway } from './model-connections/model-gateway'
-import { LangSmithObservability } from './langsmith-observability'
+import { PhoenixModelObservability } from './phoenix-model-observability'
 import { createSqliteModelConnectionStore } from './model-connections/sqlite-store'
 import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
 import { createServiceLogger } from './service/logger'
@@ -66,7 +66,7 @@ export async function startAgentRuntimeProcess(
     ),
     transport: createFetchHttpTransport()
   })
-  const modelTraces = new LangSmithObservability(environment)
+  const modelTraces = new PhoenixModelObservability(logging.tracer)
   const agentFiles = new AgentFileStore({
     homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
   })

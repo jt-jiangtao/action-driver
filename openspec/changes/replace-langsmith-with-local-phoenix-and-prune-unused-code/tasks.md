@@ -1,6 +1,6 @@
 ## 1. Phoenix 模型追踪接线
 
-- [ ] 1.1 在 Runtime 内抽出独立的模型追踪端口与数据类型，使网关和 Phoenix 适配器不再依赖 LangSmith 文件；用模型网关及 Phoenix 适配器测试验证成功、流式终态、失败和凭据过滤。
+- [x] 1.1 在 Runtime 内抽出独立的模型追踪端口与数据类型，使网关和 Phoenix 适配器不再依赖 LangSmith 文件；用模型网关及 Phoenix 适配器测试验证成功、流式终态、失败和凭据过滤。
 - [ ] 1.2 将 Phoenix 适配器接到 Runtime 的现有 OTel tracer，验证真实模型调用产生带会话、任务、请求和关联标识的模型 span，并与上层调用共享 trace ID。
 - [ ] 1.3 用受控采集器故障测试证明追踪失败不改变模型执行结果；用本地 Alloy/Phoenix/Tempo/Loki 带唯一标记的集成验收证明 Phoenix 有原文、Tempo/Loki 无原文与凭据。
 
