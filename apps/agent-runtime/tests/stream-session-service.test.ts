@@ -84,11 +84,73 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('persists batch positions before images and leaves final text after both batches', async () => {
+    const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+    const runningSnapshots: Array<Awaited<ReturnType<StreamSessionService['getTaskSnapshot']>>> = []
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer, onToolEvent) {
+        const appendToolEvent = async (type: string, callId: string, index?: number) => {
+          const asset = index === undefined ? undefined : await harness.assets.saveGenerated(request.sessionId!, png)
+          const record = await harness.repositories.events.append({
+            taskId: request.taskId,
+            threadId: request.sessionId!,
+            checkpointId: 'tool:0',
+            eventKey: `${type}:${callId}:${index ?? 'start'}`,
+            type,
+            payload: {
+              callId,
+              toolId: 'image.generate',
+              modelName: 'image_generate',
+              summary: '生成图片',
+              argumentsHash: '',
+              activityId: null,
+              imageCount: 2,
+              ...(index === undefined ? {} : { index, asset })
+            },
+            occurredAt: '2026-09-23T00:00:01.000Z',
+            eventId: `${type}-${callId}-${index ?? 'start'}`,
+            requestId: request.streamRequestId!,
+            sequence: index ?? 1
+          })
+          await onToolEvent?.(record)
+        }
+        await observer?.({ kind: 'content', delta: '过程一' })
+        await appendToolEvent('tool.running', 'a')
+        runningSnapshots.push(await harness.service.getTaskSnapshot(request.taskId))
+        await observer?.({ kind: 'content', delta: '过程二' })
+        await appendToolEvent('tool.running', 'b')
+        for (const [callId, index] of [['b', 1], ['a', 1], ['b', 0], ['a', 0]] as const)
+          await appendToolEvent('tool.asset', callId, index)
+        await observer?.({ kind: 'content', delta: '全部完成' })
+        await observer?.({ kind: 'end', content: '全部完成', finishReason: 'stop', usage: null })
+        return { taskId: request.taskId, threadId: request.taskId, status: 'completed', output: '全部完成', error: null, trace: [] }
+      },
+      interrupt: () => false,
+      async continue() { throw new Error('unused') },
+      async provideInput() { throw new Error('unused') }
+    }
+    const harness = createHarness(graphRunner)
+    const events = await runToEnd(harness.service, createEvent)
+    expect(events.filter((event) => event.type === 'response.image_batch').map((event) => event.callId)).toEqual(['a', 'b'])
+    expect(events.map((event) => event.type).indexOf('response.image_batch')).toBeLessThan(events.map((event) => event.type).indexOf('response.image'))
+    expect(runningSnapshots[0]?.messages.at(-1)?.parts).toContainEqual({ kind: 'image-batch', callId: 'a', imageCount: 2 })
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind !== 'image')).toEqual([
+      { kind: 'image-batch', callId: 'a', imageCount: 2 },
+      { kind: 'image-batch', callId: 'b', imageCount: 2 },
+      { kind: 'text', text: '全部完成' }
+    ])
+    expect(JSON.stringify(events)).not.toContain('data:image/')
+    harness.repositories.close()
+  })
+
   it('streams completed images and keeps them in the final assistant snapshot', async () => {
+    const completionOrder = [15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)]
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer, onToolEvent) {
         const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
-        const completionOrder = [15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)]
         for (const index of completionOrder) {
           const asset = await harness.assets.saveGenerated(request.sessionId!, png)
           const record = await harness.repositories.events.append({
@@ -143,8 +205,8 @@ describe('StreamSessionService', () => {
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
-    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual(['text', ...Array(16).fill('image')])
-    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual(Array.from({ length: 16 }, (_, index) => index))
+    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([...Array(16).fill('image'), 'text'])
+    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual(completionOrder)
     expect(JSON.stringify(snapshot)).not.toContain('data:image/')
     harness.repositories.close()
   })

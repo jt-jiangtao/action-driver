@@ -270,7 +270,7 @@ export class StreamSessionService {
     const assistantParts: MessageContentPart[] = []
     const seenImages = new Set<string>()
     const assistantContent = () =>
-      assistantParts.some((part) => part.kind === 'image')
+      assistantParts.some((part) => part.kind === 'image' || part.kind === 'image-batch')
         ? { parts: normalizeAssistantParts(assistantParts) }
         : { text: content }
     let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
@@ -334,23 +334,58 @@ export class StreamSessionService {
           }
           sequence += 1
           content += event.delta
-          if (assistantParts.length > 0) {
-            const last = assistantParts.at(-1)
-            if (last?.kind === 'text') last.text += event.delta
-            else assistantParts.push({ kind: 'text', text: event.delta })
-          }
+          const last = assistantParts.at(-1)
+          const contentIndex = last?.kind === 'text' ? assistantParts.length - 1 : assistantParts.length
+          if (last?.kind === 'text') last.text += event.delta
+          else assistantParts.push({ kind: 'text', text: event.delta })
           const record = await this.options.repositories.commitAssistantContentWithEvent(
             request,
             { ...initialAssistant, content: assistantContent() },
             this.runtimeEvent(request, 'response.content', sequence, {
               delta: event.delta,
-              contentIndex: 0
+              contentIndex
             })
           )
           await this.publishThrough(request, record.cursor, emit)
         },
         async (record) => {
           if (record.requestId === request.requestId) {
+            if (record.type === 'tool.running') {
+              const payload = record.payload as { callId?: unknown; toolId?: unknown; imageCount?: unknown }
+              if (
+                payload.toolId === 'image.generate' &&
+                typeof payload.callId === 'string' &&
+                typeof payload.imageCount === 'number' &&
+                Number.isInteger(payload.imageCount) &&
+                payload.imageCount >= 1 &&
+                payload.imageCount <= 16 &&
+                !assistantParts.some((part) => part.kind === 'image-batch' && part.callId === payload.callId)
+              ) {
+                const contentIndex = assistantParts.length
+                assistantParts.push({ kind: 'image-batch', callId: payload.callId, imageCount: payload.imageCount })
+                sequence += 1
+                let batchRecord
+                try {
+                  batchRecord = await this.options.repositories.commitAssistantContentWithEvent(
+                    request,
+                    { ...initialAssistant, content: assistantContent() },
+                    this.runtimeEvent(
+                      request,
+                      'response.image_batch',
+                      sequence,
+                      { callId: payload.callId, imageCount: payload.imageCount, contentIndex },
+                      `response.image_batch:${payload.callId}`
+                    )
+                  )
+                } catch (error) {
+                  assistantParts.pop()
+                  sequence -= 1
+                  throw error
+                }
+                await this.publishThrough(request, batchRecord.cursor, emit)
+                return
+              }
+            }
             await this.publishThrough(request, record.cursor, emit)
             if (record.type === 'tool.asset') {
               const payload = record.payload as {
@@ -405,9 +440,9 @@ export class StreamSessionService {
     const status = completed ? 'completed' : cancelled ? 'cancelled' : 'failed'
     if (completed && terminalEvent) {
       content = terminalEvent.content
-      if (assistantParts.some((part) => part.kind === 'image')) {
-        const images = assistantParts.filter((part) => part.kind === 'image')
-        assistantParts.splice(0, assistantParts.length, ...(content ? [{ kind: 'text' as const, text: content }] : []), ...images)
+      if (assistantParts.some((part) => part.kind === 'image' || part.kind === 'image-batch')) {
+        const visualParts = assistantParts.filter((part) => part.kind !== 'text')
+        assistantParts.splice(0, assistantParts.length, ...visualParts, ...(content ? [{ kind: 'text' as const, text: content }] : []))
       }
     }
     const error = completed
@@ -714,6 +749,15 @@ export class StreamSessionService {
         contentIndex: payload.contentIndex,
         callId: payload.callId,
         index: payload.index
+      })
+    }
+    if (record.type === 'response.image_batch') {
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        callId: payload.callId,
+        imageCount: payload.imageCount,
+        contentIndex: payload.contentIndex
       })
     }
     if (record.type.startsWith('activity.')) {
