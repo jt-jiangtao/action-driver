@@ -125,10 +125,12 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(page.url()).toBe('actiondriver://renderer/index.html')
   expect(await page.evaluate(() => window.location.origin)).toBe('actiondriver://renderer')
   expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort())).toEqual([
+    'computerUse',
     'externalLinks',
     'getEnvironment',
     'runtimeConnection',
-    'skillFolders'
+    'skillFolders',
+    'taskOutput'
   ])
   const requestPromise = page.waitForRequest((request) =>
     request.url().endsWith('/model-connections')

@@ -11,12 +11,14 @@ export function MainPromptPage({
   service,
   onBack,
   onOpenConnections,
-  onOpenSkills
+  onOpenSkills,
+  onOpenComputerUse
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenSkills?(): void
+  onOpenComputerUse?(): void
 }) {
   const queryClient = useQueryClient()
   const [file, setFile] = useState<AgentTextFile | null>(null)
@@ -99,6 +101,7 @@ export function MainPromptPage({
           ? { onOpenConnections: () => requestNavigation(onOpenConnections) }
           : {})}
         {...(onOpenSkills ? { onOpenSkills: () => requestNavigation(onOpenSkills) } : {})}
+        {...(onOpenComputerUse ? { onOpenComputerUse: () => requestNavigation(onOpenComputerUse) } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className="agent-page">

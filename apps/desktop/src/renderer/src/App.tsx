@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { TaskPage } from './pages/TaskPage'
 import { MainPromptPage } from './pages/MainPromptPage'
 import { SkillsPage } from './pages/SkillsPage'
+import { ComputerUsePage } from './pages/ComputerUsePage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
 import type { MainAppRoute } from './models/app-route'
 import {
@@ -250,7 +251,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
 
   const mainRoute: MainAppRoute =
-    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills'
+    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills' || route.kind === 'computer-use'
       ? route.returnTo
       : route
 
@@ -269,6 +270,11 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setRoute({ kind: 'skills', returnTo: mainRoute })
   }
 
+  const openComputerUse = () => {
+    if (route.kind === 'computer-use') return
+    setRoute({ kind: 'computer-use', returnTo: mainRoute })
+  }
+
   if (route.kind === 'settings') {
     return (
       <SettingsPage
@@ -279,6 +285,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         }}
         onOpenMainPrompt={openMainPrompt}
         onOpenSkills={openSkills}
+        onOpenComputerUse={openComputerUse}
       />
     )
   }
@@ -290,6 +297,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenSkills={openSkills}
+        onOpenComputerUse={openComputerUse}
       />
     )
   }
@@ -301,8 +309,15 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenMainPrompt={openMainPrompt}
+        onOpenComputerUse={openComputerUse}
       />
     )
+  }
+
+  if (route.kind === 'computer-use') {
+    return <ComputerUsePage onBack={() => setRoute(route.returnTo)}
+      onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+      onOpenMainPrompt={openMainPrompt} onOpenSkills={openSkills} />
   }
 
   return (
@@ -341,9 +356,14 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           modelSelection={modelSelection}
           onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
           onModeChange={setMode}
-          onPause={() => services.skillGateway.pause('browser-invocation')}
-          onResume={() => services.skillGateway.resume('browser-invocation')}
-          onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
+          onPause={() => services.skillGateway.pause(
+            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
+          onResume={() => services.skillGateway.resume(
+            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
+          onTakeOver={() => services.skillGateway.takeOver(
+            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
+          onComputerDecision={(approved, providerCallId) =>
+            services.agentCommandService.provideInput(task.id, { approved, providerCallId })}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
           readImage={services.imageAssets ? readImage : undefined}
           readOutputFile={services.outputFiles ? readOutputFile : undefined}

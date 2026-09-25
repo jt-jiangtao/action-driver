@@ -30,6 +30,7 @@ import type { RuntimeSkillRegistry } from '../skill-registry'
 import { AgentFileStoreError } from '../agent-files/agent-file-store'
 import type { AgentFileStore } from '../agent-files/agent-file-store'
 import type { SkillInstaller } from '../agent-files/skill-installer'
+import type { VolatileComputerImages } from '../computer-use/volatile-images'
 import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
 import { AssetError, MAX_IMAGE_BYTES, type SessionAssetStore } from '../media/session-asset-store'
 import {
@@ -71,6 +72,7 @@ export type ServiceHttpOptions = {
   interactions?: InteractionLogRecorder
   streamSessions?: ServiceStreamSessionPort
   skillRegistry?: RuntimeSkillRegistry
+  computerImages?: VolatileComputerImages
   assets?: SessionAssetStore
   inputFiles?: SessionInputFileStore
   outputs?: SessionOutputStore
@@ -643,8 +645,9 @@ export async function startServiceHttpServer(
       })
     : null
   const localCapabilities = options.skillRegistry
-    ? attachLocalCapabilityService(server, {
+      ? attachLocalCapabilityService(server, {
         registry: options.skillRegistry,
+        ...(options.computerImages ? { images: options.computerImages } : {}),
         tokenMatches: (token) => tokenMatches(token, tokenDigest)
       })
     : null

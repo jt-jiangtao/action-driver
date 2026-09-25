@@ -6,13 +6,15 @@ export function SettingsSidebar({
   active = 'model-connections',
   onOpenConnections,
   onOpenMainPrompt,
-  onOpenSkills
+  onOpenSkills,
+  onOpenComputerUse
 }: {
   onBack(): void
-  active?: 'model-connections' | 'main-prompt' | 'skills'
+  active?: 'model-connections' | 'main-prompt' | 'skills' | 'computer-use'
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
   onOpenSkills?(): void
+  onOpenComputerUse?(): void
 }) {
   return (
     <aside className="settings-sidebar">
@@ -73,6 +75,12 @@ export function SettingsSidebar({
           MCP
           <span className="settings-nav-soon">稍后</span>
         </button>
+        {onOpenComputerUse && <button
+          className={`settings-nav-item ${active === 'computer-use' ? 'is-active' : ''}`}
+          data-testid="e2e/settings/sidebar/computer-use#button"
+          type="button"
+          onClick={active === 'computer-use' ? undefined : onOpenComputerUse}
+        >Computer Use</button>}
       </div>
       </nav>
       <div className="settings-brand">

@@ -309,6 +309,11 @@ export interface TaskProjection {
    */
   orderedTranscript?: boolean
   browser: BrowserSkillProjection | null
+  pendingComputerApproval?: {
+    providerCallId: string
+    observationId: string
+    action: Record<string, unknown>
+  }
 }
 
 export type ModelRef = {
@@ -398,6 +403,7 @@ export interface AgentCommandService {
   submitGoal(request: AgentGoalRequest): Promise<TaskProjection>
   interrupt(taskId: string): Promise<void>
   continueTask(taskId: string): Promise<void>
+  provideInput(taskId: string, value: unknown): Promise<void>
 }
 
 export interface TaskQueryService {

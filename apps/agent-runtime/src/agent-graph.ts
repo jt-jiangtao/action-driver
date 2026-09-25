@@ -3,13 +3,14 @@ import {
   type BaseCheckpointSaver,
   Command,
   END,
+  INTERRUPT,
   MemorySaver,
   START,
   StateGraph,
   interrupt as langGraphInterrupt,
   isInterrupted
 } from '@langchain/langgraph'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
 import type { ProviderToolCall } from '@actiondriver/model-connections'
 import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
 import type { RuntimeToolRegistry } from './tool-registry'
@@ -42,6 +43,37 @@ type AgentGraphStatus =
 type AgentGraphRoute = 'finish' | 'awaitUser' | 'failed'
 type PlanRoute = 'tools' | 'skill'
 
+function isVolatileComputerImage(value: unknown): value is ImageAssetRef {
+  if (typeof value !== 'object' || value === null) return false
+  const image = value as Partial<ImageAssetRef>
+  return typeof image.assetId === 'string' && image.assetId.startsWith('volatile-computer:') &&
+    image.sessionId === 'computer-use' && image.mimeType === 'image/jpeg' &&
+    typeof image.width === 'number' && typeof image.height === 'number' &&
+    typeof image.byteLength === 'number' && image.source === 'upload'
+}
+
+function stripVolatileScreenshotMessages(messages: RuntimeMessage[]): RuntimeMessage[] {
+  return messages.filter((message) => {
+    if (message.role !== 'user' || !Array.isArray(message.content)) return true
+    return !message.content.some((part) => part.kind === 'image' &&
+      part.asset.assetId.startsWith('volatile-computer:'))
+  })
+}
+
+function volatileScreenshotIds(messages: RuntimeMessage[]): string[] {
+  return messages.flatMap((message) => message.role === 'user' && Array.isArray(message.content)
+    ? message.content.flatMap((part) => part.kind === 'image' &&
+      part.asset.assetId.startsWith('volatile-computer:') ? [part.asset.assetId] : [])
+    : [])
+}
+
+function requiresComputerApproval(call: ProviderToolCall): boolean {
+  if (call.modelName !== 'computer_act') return false
+  const action = call.arguments.action
+  if (typeof action !== 'object' || action === null || !('type' in action)) return true
+  return action.type !== 'wait' && action.type !== 'scroll'
+}
+
 export type GraphToolRuntime = {
   registry: RuntimeToolRegistry
   policy: RuntimeToolPolicy
@@ -49,6 +81,7 @@ export type GraphToolRuntime = {
   grants: string[]
   isAvailable?: (definition: ToolDefinition) => Promise<boolean>
   capabilityNotice?: () => Promise<string | null>
+  releaseVolatileImage?: (assetId: string) => void
 }
 
 const MAX_TOOL_CALLS = 512
@@ -235,7 +268,8 @@ export class LangGraphRunner implements GraphRunner {
       })
 
       if (isInterrupted(state)) {
-        return this.toResult(state, taskId, 'waiting-user')
+        const interrupted = this.toResult(state, taskId, 'waiting-user')
+        return { ...interrupted, output: state[INTERRUPT][0]?.value ?? null }
       }
 
       return this.toResult(state, taskId)
@@ -328,13 +362,18 @@ export class LangGraphRunner implements GraphRunner {
           if (config.signal?.aborted || this.isAbortError(error)) throw error
           return {
             status: 'failed' as const,
+            modelMessages: stripVolatileScreenshotMessages(state.modelMessages),
             error: `MODEL_GATEWAY_ERROR: ${error instanceof Error ? error.message : String(error)}`,
             planRoute: 'skill' as const,
             trace: ['plan']
           }
+        } finally {
+          for (const id of volatileScreenshotIds(state.modelMessages))
+            this.toolRuntime?.releaseVolatileImage?.(id)
         }
 
         const activeActivityId = activityClosed ? null : state.activeActivityId
+        const retainedMessages = stripVolatileScreenshotMessages(state.modelMessages)
         if (plan.kind === 'finish') {
           if (activeActivityId) {
             await this.modelObservers.get(state.taskId)?.({
@@ -344,6 +383,7 @@ export class LangGraphRunner implements GraphRunner {
           }
           return {
             status: 'planned' as const,
+            modelMessages: retainedMessages,
             output: plan.content,
             requestedSkillId: null,
             planRoute: 'skill' as const,
@@ -356,6 +396,7 @@ export class LangGraphRunner implements GraphRunner {
           if (plan.calls.length > 0 && !this.toolRuntime) {
             return {
               status: 'failed' as const,
+              modelMessages: retainedMessages,
               error: 'TOOL_CALLS_NOT_CONFIGURED',
               planRoute: 'skill' as const,
               trace: ['plan']
@@ -367,6 +408,7 @@ export class LangGraphRunner implements GraphRunner {
           ) {
             return {
               status: 'failed' as const,
+              modelMessages: retainedMessages,
               error: 'TOOL_BUDGET_EXCEEDED',
               planRoute: 'skill' as const,
               trace: ['plan']
@@ -374,6 +416,7 @@ export class LangGraphRunner implements GraphRunner {
           }
           return {
             status: 'planned' as const,
+            modelMessages: retainedMessages,
             pendingToolCalls: plan.calls,
             planRoute: 'tools' as const,
             activeActivityId,
@@ -388,6 +431,7 @@ export class LangGraphRunner implements GraphRunner {
 
         return {
           status: 'planned' as const,
+          modelMessages: retainedMessages,
           requestedSkillId: plan.skillId,
           skillInput: plan.input,
           planRoute: 'skill' as const,
@@ -396,6 +440,22 @@ export class LangGraphRunner implements GraphRunner {
       })
       .addNode('executeTools', async (state, config) => {
         const results: RuntimeMessage[] = []
+        const screenshots: ImageAssetRef[] = []
+        const approvalCall = state.pendingToolCalls.find(requiresComputerApproval)
+        let approved = true
+        if (approvalCall) {
+          if (state.pendingToolCalls.length !== 1)
+            throw new Error('COMPUTER_ACTION_BATCH_UNSUPPORTED: call one modifying action at a time')
+          const decision = langGraphInterrupt({
+            reason: 'computer-action-approval', taskId: state.taskId,
+            providerCallId: approvalCall.providerCallId,
+            action: approvalCall.arguments.action,
+            observationId: approvalCall.arguments.observationId
+          }) as unknown
+          approved = typeof decision === 'object' && decision !== null &&
+            'approved' in decision && decision.approved === true &&
+            'providerCallId' in decision && decision.providerCallId === approvalCall.providerCallId
+        }
         let activeActivityId = state.activeActivityId
         let activityTitleRevision = state.activityTitleRevision
         let activityCapturesProgress = state.activityCapturesProgress
@@ -442,6 +502,15 @@ export class LangGraphRunner implements GraphRunner {
             modelName: providerCall.modelName,
             arguments: providerCall.arguments
           })
+          if (providerCall === approvalCall && !approved) {
+            results.push({ role: 'tool', toolCallId: providerCall.providerCallId,
+              name: providerCall.modelName,
+              content: JSON.stringify({ ok: false, error: {
+                code: 'USER_DENIED', message: 'The user declined this Computer Use action'
+              } }) })
+            activityIssueCount += 1
+            continue
+          }
           let terminal: Extract<
             ToolEvent,
             { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
@@ -505,6 +574,11 @@ export class LangGraphRunner implements GraphRunner {
                   }
             )
           })
+          if (providerCall.modelName === 'computer_capture' && terminal?.type === 'tool.completed') {
+            const output = terminal.output as { result?: { screenshot?: unknown } }
+            const asset = output?.result?.screenshot
+            if (isVolatileComputerImage(asset)) screenshots.push(asset)
+          }
           if (terminal?.type !== 'tool.completed') activityIssueCount += 1
           activityTitleRevision += 1
           await this.modelObservers.get(state.taskId)?.({
@@ -530,7 +604,14 @@ export class LangGraphRunner implements GraphRunner {
           modelMessages: [
             ...state.modelMessages,
             { role: 'assistant' as const, toolCalls: state.pendingToolCalls },
-            ...results
+            ...results,
+            ...screenshots.map((asset): RuntimeMessage => ({
+              role: 'user',
+              content: [
+                { kind: 'text', text: 'Current desktop screenshot. Use its matching observation ID for the next action.' },
+                { kind: 'image', asset }
+              ]
+            }))
           ],
           pendingToolCalls: [],
           activeActivityId,

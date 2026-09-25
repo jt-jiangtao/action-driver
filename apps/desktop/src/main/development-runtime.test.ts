@@ -19,7 +19,8 @@ describe('desktop development runtime', () => {
     ) as { scripts: Record<string, string> }
 
     expect(packageJson.scripts.predev).toBe(
-      'corepack pnpm --filter @actiondriver/agent-runtime build'
+      'corepack pnpm --filter @actiondriver/agent-runtime build' +
+      ' && corepack pnpm --dir ../.. build:native:computer-use'
     )
   })
 })

@@ -966,5 +966,77 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/components/agent/TaskOutputFiles.test.tsx",
     "testName": "shows each deliverable with format, name, size and an open action"
+  },
+  {
+    "target": "e2e/settings/computer-use/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "shows each live permission and rechecks after the user returns from System Settings"
+  },
+  {
+    "target": "e2e/settings/computer-use/open-settings#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "shows each live permission and rechecks after the user returns from System Settings"
+  },
+  {
+    "target": "e2e/settings/computer-use/recheck#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "shows each live permission and rechecks after the user returns from System Settings"
+  },
+  {
+    "target": "e2e/settings/sidebar/computer-use#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/pause#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "wires Computer Use pause, takeover, and resume to the desktop task controls"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/resume#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "wires Computer Use pause, takeover, and resume to the desktop task controls"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/take-over#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "wires Computer Use pause, takeover, and resume to the desktop task controls"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/approval-deny#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "shows the exact Computer Use action and sends a single-call approval"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/approval-approve#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "shows the exact Computer Use action and sends a single-call approval"
   }
 ]

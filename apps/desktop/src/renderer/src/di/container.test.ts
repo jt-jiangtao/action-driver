@@ -38,7 +38,12 @@ function createDesktopApi(): DesktopApi {
       reveal: async () => undefined
     },
     externalLinks: { open: async () => undefined },
-    taskOutput: { open: async () => undefined }
+    taskOutput: { open: async () => undefined },
+    computerUse: {
+      permissions: async () => ({ accessibility: false, screenRecording: false,
+        eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
+      openSystemSettings: async () => undefined
+    }
   }
 }
 
@@ -158,6 +163,7 @@ describe('renderer composition root', () => {
       submitGoal: async () => projection,
       interrupt: async () => undefined,
       continueTask: async () => undefined,
+      provideInput: async () => undefined,
       getTask: () => projection,
       subscribe: () => () => undefined
     }

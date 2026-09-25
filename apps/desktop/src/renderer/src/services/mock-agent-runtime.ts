@@ -95,6 +95,7 @@ export class MockAgentRuntime implements AgentCommandService, AgentSessionReposi
     if (taskId !== this.task.id || !this.task.browser) return
     await this.skillGateway.resume(BROWSER_INVOCATION_ID)
   }
+  async provideInput(_taskId: string, _value: unknown): Promise<void> { }
   getTask(taskId: string): TaskProjection | null {
     return taskId === this.task.id ? structuredClone(this.task) : null
   }

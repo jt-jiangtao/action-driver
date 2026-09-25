@@ -81,12 +81,14 @@ export function SkillsPage({
   service,
   onBack,
   onOpenConnections,
-  onOpenMainPrompt
+  onOpenMainPrompt,
+  onOpenComputerUse
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
+  onOpenComputerUse?(): void
 }) {
   const queryClient = useQueryClient()
   const [skills, setSkills] = useState<AgentSkillSummary[] | null>(null)
@@ -270,6 +272,7 @@ export function SkillsPage({
         active="skills"
         {...(onOpenConnections ? { onOpenConnections } : {})}
         {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
+        {...(onOpenComputerUse ? { onOpenComputerUse } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className="agent-page">

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, unlinkSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
@@ -17,6 +18,9 @@ import { createSecretCipher } from './model-connections/secret-cipher'
 import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
 import { createProductionSkillProviderHost } from './skill-provider-host'
+import { ComputerUseClient } from './computer-use-client'
+import { createComputerUseProvider } from './computer-use-provider'
+import { registerComputerUsePermissionsIpc } from './computer-use-permissions-ipc'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
 import { resolveModuleDirectory } from './module-directory'
@@ -44,6 +48,7 @@ const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 let services: MainServices
 let logging: MainLogging | undefined
 let quitting = false
+let computerUseClient: ComputerUseClient | null = null
 
 applyApplicationName(app)
 
@@ -122,6 +127,16 @@ app.whenReady().then(async () => {
       userDataPath: app.getPath('userData'),
       platform: process.platform,
       arch: process.arch
+    })
+    if (existsSync(paths.computerHelperPath)) {
+      computerUseClient = new ComputerUseClient(() =>
+        spawn(paths.computerHelperPath, [], { stdio: ['pipe', 'pipe', 'ignore'] })
+      )
+      skillProviderHost.register(createComputerUseProvider(computerUseClient))
+    }
+    registerComputerUsePermissionsIpc(ipcMain, computerUseClient, async () => {
+      const error = await shell.openPath('/System/Applications/System Settings.app')
+      if (error) throw new Error(error)
     })
     const serviceToken = randomBytes(24).toString('base64url')
     const credentialKey = resolveCredentialKey({
@@ -208,6 +223,7 @@ async function migrateLegacyModelConnections(
 
 app.on('window-all-closed', () => app.quit())
 app.on('before-quit', (event) => {
+  computerUseClient?.close()
   if (!services?.runtimeSupervisor || quitting) return
   event.preventDefault()
   quitting = true

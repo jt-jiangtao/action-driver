@@ -11,6 +11,7 @@ export type RuntimePathOptions = {
 
 export type RuntimePaths = {
   runtimeEntryPath: string
+  computerHelperPath: string
   databasePath: string
   workspaceRoot: string
 }
@@ -27,6 +28,9 @@ export function resolveRuntimePaths(options: RuntimePathOptions): RuntimePaths {
     runtimeEntryPath: options.isPackaged
       ? resolve(options.resourcesPath, 'agent-runtime', 'dist', 'index.js')
       : resolve(options.appPath, '..', 'agent-runtime', 'dist', 'index.js'),
+    computerHelperPath: options.isPackaged
+      ? resolve(options.resourcesPath, '..', 'Helpers', 'ActionDriver Computer Use.app', 'Contents', 'MacOS', 'actiondriver-computer-use')
+      : resolve(options.appPath, '..', 'native-computer-use-helper', 'dist', options.arch, 'ActionDriver Computer Use.app', 'Contents', 'MacOS', 'actiondriver-computer-use'),
     databasePath: resolve(options.userDataPath, 'data', 'actiondriver.db'),
     workspaceRoot: resolve(options.userDataPath, 'workspace')
   }

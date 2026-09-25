@@ -6,7 +6,9 @@ import { createRendererServices } from './di/container'
 import { AppServicesProvider } from './di/services-context'
 import { MockModelConnectionsService } from './services/mock-model-connections'
 
-function renderApp(initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' = 'home') {
+function renderApp(
+  initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' | 'computer-use' = 'home'
+) {
   const services = createRendererServices({ mode: 'mock' })
   return render(
     <AppServicesProvider services={services}>
@@ -351,6 +353,9 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Skills' }))
     expect(await screen.findByTestId('e2e/settings/skills/page#page')).toBeVisible()
 
+    await user.click(screen.getByTestId('e2e/settings/sidebar/computer-use#button'))
+    expect(await screen.findByTestId('e2e/settings/computer-use/page#page')).toBeVisible()
+
     await user.click(screen.getByRole('button', { name: '模型连接' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
   })
@@ -403,7 +408,8 @@ describe('App', () => {
     services.agentCommandService = {
       submitGoal,
       interrupt: async () => undefined,
-      continueTask: async () => undefined
+      continueTask: async () => undefined,
+      provideInput: async () => undefined
     }
 
     render(

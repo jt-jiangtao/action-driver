@@ -34,6 +34,9 @@ import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
 import { createImageGenerationTool } from './media/image-generation-tool'
+import { createComputerUseTools } from './computer-use/tools'
+import { VolatileComputerImages } from './computer-use/volatile-images'
+import { ComputerUseControlGate } from './computer-use/control-gate'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -82,6 +85,7 @@ export async function startAgentRuntimeProcess(
   }
   const repositories = new SqliteRuntimeRepositories(database)
   const assets = new SessionAssetStore({ database, rootDirectory: dirname(databasePath) })
+  const computerImages = new VolatileComputerImages()
   const workspaces = new SessionWorkspaceStore({ workspaceRoot })
   const inputFiles = new SessionInputFileStore({
     database,
@@ -115,7 +119,9 @@ export async function startAgentRuntimeProcess(
       credentialSecret ? createCredentialKey(credentialSecret) : Buffer.alloc(0)
     ),
     transport: createFetchHttpTransport(),
-    imageResolver: (asset) => assets.read(asset.assetId, asset.sessionId)
+    imageResolver: (asset) => asset.assetId.startsWith('volatile-computer:')
+      ? Promise.resolve(computerImages.read(asset))
+      : assets.read(asset.assetId, asset.sessionId)
   })
   const modelTraces = new PhoenixModelObservability(logging.tracer)
   const executionContexts = new SessionExecutionContextResolver({
@@ -152,6 +158,19 @@ export async function startAgentRuntimeProcess(
     interactions,
     executionContext: (taskId) => executionContexts.resolve(taskId)
   })
+  local.toolRuntime.releaseVolatileImage = (assetId) => computerImages.discard(assetId)
+  const computerControl = new ComputerUseControlGate()
+  if (process.platform === 'darwin') {
+    const computerTools = createComputerUseTools(async (input, signal) => {
+      const provider = local.adapters.skillRegistry.resolve('computer-use', 1)
+      const result = await provider.execute({ invocationId: randomUUID(), input }, signal)
+      return result.input
+    }, computerControl)
+    for (const tool of computerTools) {
+      local.toolRuntime.registry.register(tool.definition, tool.executor)
+      local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+    }
+  }
   for (const tool of scriptTools) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
@@ -167,8 +186,15 @@ export async function startAgentRuntimeProcess(
   })
   local.toolRuntime.registry.register(imageTool.definition, imageTool.executor)
   local.toolRuntime.grants.push(`${imageTool.definition.id}@${imageTool.definition.version}`)
-  local.toolRuntime.isAvailable = async (definition) =>
-    definition.id !== imageTool.definition.id || (await service.getDefaultImageModel()) !== null
+  local.toolRuntime.isAvailable = async (definition) => {
+    if (definition.id === imageTool.definition.id)
+      return (await service.getDefaultImageModel()) !== null
+    if (definition.id.startsWith('computer.')) {
+      try { local.adapters.skillRegistry.resolve('computer-use', 1); return true }
+      catch { return false }
+    }
+    return true
+  }
   local.toolRuntime.capabilityNotice = async () =>
     (await service.getDefaultImageModel()) === null
       ? '本应用支持图片生成，但当前没有配置默认生图模型。若用户请求生成图片，请说明需前往“设置 → 模型连接”启用一个模型的图片生成能力并设为默认模型；不要说应用完全没有生图工具。'
@@ -207,6 +233,7 @@ export async function startAgentRuntimeProcess(
   })
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
+    computerControl,
     messages: repositories.messages,
     streamSnapshots: streamSessions,
     outputFiles: (taskId) => outputs.listByTask(taskId)
@@ -229,6 +256,7 @@ export async function startAgentRuntimeProcess(
       interactions,
       streamSessions,
       skillRegistry: local.adapters.skillRegistry as RuntimeSkillRegistry,
+      computerImages,
       ...(environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
         ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
         : {})

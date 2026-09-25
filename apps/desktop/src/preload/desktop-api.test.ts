@@ -13,6 +13,7 @@ describe('preload Runtime bootstrap', () => {
     const invoke = vi.fn(async () => connection)
     const api = createDesktopApi('darwin', '0.1.0', { invoke })
     expect(Object.keys(api).sort()).toEqual([
+      'computerUse',
       'externalLinks',
       'getEnvironment',
       'runtimeConnection',

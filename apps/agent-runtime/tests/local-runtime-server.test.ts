@@ -11,6 +11,7 @@ import {
   openRuntimeDatabase,
   type ModelGateway
 } from '../src/index'
+import { ComputerUseControlGate } from '../src/computer-use/control-gate'
 
 function createHarness(
   modelGateway: ModelGateway,
@@ -18,7 +19,8 @@ function createHarness(
     getTaskSnapshot(
       taskId: string
     ): Promise<Extract<StreamServerEvent, { type: 'response.snapshot' }> | null>
-  }
+  },
+  computerControl?: ComputerUseControlGate
 ) {
   const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-server-')), 'actiondriver.db')
   const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
@@ -26,6 +28,7 @@ function createHarness(
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
+    ...(computerControl ? { computerControl } : {}),
     messages: repositories.messages,
     ...(streamSnapshots ? { streamSnapshots } : {})
   })
@@ -35,6 +38,31 @@ function createHarness(
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('local Runtime server composition', () => {
+  it('interrupts a Computer Use task on takeover and resumes only after control returns', async () => {
+    const gate = new ComputerUseControlGate()
+    let started!: () => void
+    const firstStarted = new Promise<void>((resolve) => { started = resolve })
+    let calls = 0
+    const harness = createHarness({ async complete(_request, signal) {
+      if (++calls > 1) return { kind: 'finish', content: '完成' }
+      started()
+      return await new Promise((_, reject) => signal?.addEventListener('abort',
+        () => reject(new DOMException('aborted', 'AbortError')), { once: true }))
+    } }, undefined, gate)
+    const { taskId } = await harness.server.execute('task.submit', {
+      goal: '操作桌面', model, skills: []
+    }) as { taskId: string }
+    await firstStarted
+    const taken = await harness.server.execute('skill.control', {
+      invocationId: taskId, command: 'take-over'
+    }) as { event: { skillId: string; state: string } }
+    expect(taken.event).toMatchObject({ skillId: 'computer-use', state: 'taken-over' })
+    expect(() => gate.assertRunning(taskId)).toThrow('COMPUTER_USE_TAKEN_OVER')
+    await harness.server.execute('skill.control', { invocationId: taskId, command: 'resume' })
+    await vi.waitFor(async () => expect((await harness.repositories.tasks.get(taskId))?.status)
+      .toBe('completed'))
+    expect(() => gate.assertRunning(taskId)).not.toThrow()
+  })
   it('restores the first turn duration and activity when opening a later turn', async () => {
     let firstTaskId = ''
     const snapshots = {

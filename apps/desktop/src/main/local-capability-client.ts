@@ -27,6 +27,26 @@ export async function connectLocalCapabilityHost(options: {
   const send = (frame: LocalCapabilityFrame) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(frame))
   }
+  const sendCapture = (invocationId: string, output: unknown): unknown => {
+    if (typeof output !== 'object' || output === null || Array.isArray(output))
+      throw new Error('INVALID_CAPTURE: helper did not return an image')
+    const capture = output as Record<string, unknown>
+    if (capture.mimeType !== 'image/jpeg' || typeof capture.base64 !== 'string' ||
+        !Number.isInteger(capture.width) || !Number.isInteger(capture.height))
+      throw new Error('INVALID_CAPTURE: image metadata is missing')
+    const bytes = Buffer.from(capture.base64, 'base64')
+    if (bytes.length < 1 || bytes.length > 8 * 1024 * 1024)
+      throw new Error('INVALID_CAPTURE: image exceeds the volatile channel limit')
+    send({ type: 'media-begin', invocationId, mimeType: 'image/jpeg',
+      width: capture.width as number, height: capture.height as number, byteLength: bytes.length })
+    for (let offset = 0, index = 0; offset < bytes.length; offset += 256 * 1024, index++) {
+      send({ type: 'media-chunk', invocationId, index,
+        base64: bytes.subarray(offset, offset + 256 * 1024).toString('base64') })
+    }
+    send({ type: 'media-end', invocationId })
+    const { base64: _base64, ...metadata } = capture
+    return { ...metadata, screenshot: true }
+  }
   const providers = options.host.listProviders()
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => finish(new Error('Local capability registration timed out')), 5_000)
@@ -81,8 +101,14 @@ export async function connectLocalCapabilityHost(options: {
       providerVersion: frame.providerVersion,
       input: frame.input
     }, frame.deadlineUnixMs, options.authorize, controller.signal).then(
-      (result) => send({ type: 'result', invocationId: frame.invocationId, output: result.output }),
-      (error: unknown) => send({ type: 'error', invocationId: frame.invocationId,
+      (result) => {
+        const output = frame.skillId === 'computer-use' &&
+          typeof frame.input === 'object' && frame.input !== null &&
+          'operation' in frame.input && frame.input.operation === 'capture'
+          ? sendCapture(frame.invocationId, result.output) : result.output
+        send({ type: 'result', invocationId: frame.invocationId, output })
+      }
+    ).catch((error: unknown) => send({ type: 'error', invocationId: frame.invocationId,
         code: error instanceof Error && 'code' in error &&
           (error.code === 'CAPABILITY_UNAVAILABLE' || error.code === 'SKILL_TIMEOUT')
           ? error.code : 'SKILL_PROVIDER_FAILED',

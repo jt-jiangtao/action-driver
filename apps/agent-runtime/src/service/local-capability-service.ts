@@ -6,17 +6,20 @@ import {
 import { WebSocket, WebSocketServer } from 'ws'
 import type { RuntimeSkillRegistry } from '../skill-registry'
 import type { SkillProviderResult } from '../ports'
+import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { VolatileComputerImages } from '../computer-use/volatile-images'
 
 type Pending = { providerId: string; resolve(value: SkillProviderResult): void; reject(error: Error): void; cleanup(): void }
 
 export function attachLocalCapabilityService(
   server: Server,
-  options: { tokenMatches(token: string): boolean; registry: RuntimeSkillRegistry }
+  options: { tokenMatches(token: string): boolean; registry: RuntimeSkillRegistry; images?: VolatileComputerImages }
 ): { close(): Promise<void> } {
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 1_000_000 })
   let active: WebSocket | null = null
   const pending = new Map<string, Pending>()
   const seen = new Set<string>()
+  const completedMedia = new Map<string, ImageAssetRef>()
   let registered: LocalCapabilityProvider[] = []
 
   const unavailable = () => new Error('CAPABILITY_UNAVAILABLE: local provider disconnected')
@@ -29,9 +32,12 @@ export function attachLocalCapabilityService(
     clearProviders()
     for (const [id, item] of pending) {
       pending.delete(id)
+      options.images?.discard(id)
       item.cleanup()
       item.reject(unavailable())
     }
+    for (const asset of completedMedia.values()) options.images?.discard(asset.assetId)
+    completedMedia.clear()
   }
   const send = (frame: LocalCapabilityFrame) => {
     if (active?.readyState !== WebSocket.OPEN) throw unavailable()
@@ -77,16 +83,29 @@ export function attachLocalCapabilityService(
           })
         }
         webSocket.send(JSON.stringify({ type: 'registered', providerCount: registered.length }))
+      } else if (frame.type === 'media-begin' || frame.type === 'media-chunk' || frame.type === 'media-end') {
+        if (!pending.has(frame.invocationId) || !options.images) return
+        try {
+          if (frame.type === 'media-begin') options.images.begin(frame.invocationId, frame)
+          if (frame.type === 'media-chunk') options.images.chunk(frame.invocationId, frame.index, frame.base64)
+          if (frame.type === 'media-end') completedMedia.set(frame.invocationId, options.images.finish(frame.invocationId))
+        } catch {
+          webSocket.close(1002, 'Invalid volatile image frame')
+        }
       } else if (frame.type === 'result' || frame.type === 'error') {
         const item = pending.get(frame.invocationId)
         if (!item) return // A late result cannot revive a timed out or cancelled invocation.
         pending.delete(frame.invocationId)
         item.cleanup()
+        const asset = completedMedia.get(frame.invocationId)
+        completedMedia.delete(frame.invocationId)
+        if (frame.type === 'error' && asset) options.images?.discard(asset.assetId)
         if (frame.type === 'error') item.reject(new Error(`${frame.code}: ${frame.message}`))
         else item.resolve({
           ok: true,
           providerId: item.providerId,
-          input: frame.output,
+          input: asset && typeof frame.output === 'object' && frame.output !== null
+            ? { ...frame.output, screenshot: asset } : frame.output,
           ...(typeof frame.output === 'object' && frame.output !== null &&
             'needsUser' in frame.output && frame.output.needsUser === true ? { needsUser: true } : {})
         })
@@ -105,6 +124,10 @@ export function attachLocalCapabilityService(
       const cancel = () => {
         if (!pending.has(invocationId)) return
         pending.delete(invocationId)
+        options.images?.discard(invocationId)
+        const asset = completedMedia.get(invocationId)
+        if (asset) options.images?.discard(asset.assetId)
+        completedMedia.delete(invocationId)
         cleanup()
         try { send({ type: 'cancel', invocationId }) } catch { /* disconnected */ }
         reject(new Error('SKILL_TIMEOUT: invocation cancelled'))

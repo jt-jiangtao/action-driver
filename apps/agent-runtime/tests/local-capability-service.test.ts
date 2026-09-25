@@ -3,22 +3,40 @@ import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/h
 import { RuntimeSkillRegistry } from '../src/skill-registry'
 import { SkillProviderHost } from '../../desktop/src/main/skill-provider-host'
 import { connectLocalCapabilityHost } from '../../desktop/src/main/local-capability-client'
+import { VolatileComputerImages } from '../src/computer-use/volatile-images'
 
 let server: ServiceHttpServer | undefined
 let client: { close(): void } | undefined
 afterEach(async () => { client?.close(); await server?.close(); client = undefined; server = undefined })
 
-async function setup(host: SkillProviderHost) {
+async function setup(host: SkillProviderHost, images?: VolatileComputerImages) {
   const registry = new RuntimeSkillRegistry()
   server = await startServiceHttpServer({
-    service: {} as never, token: 'local-secret', runtimeVersion: 'test', skillRegistry: registry
+    service: {} as never, token: 'local-secret', runtimeVersion: 'test', skillRegistry: registry,
+    ...(images ? { computerImages: images } : {})
   })
   client = await connectLocalCapabilityHost({ baseUrl: server.url, token: 'local-secret', host })
-  await vi.waitFor(() => expect(() => registry.resolve('browser-use', 1)).not.toThrow())
+  await vi.waitFor(() => expect(() => registry.resolve(host.hasSkill('browser-use') ? 'browser-use' : 'computer-use', 1)).not.toThrow())
   return registry
 }
 
 describe('local capability port', () => {
+  it('transports screenshot chunks into volatile memory and returns only a handle', async () => {
+    const images = new VolatileComputerImages()
+    const bytes = Buffer.from('jpeg bytes')
+    const host = new SkillProviderHost()
+    host.register({ providerId: 'native.computer-use', providerVersion: '1', skillId: 'computer-use',
+      execute: async () => ({ mimeType: 'image/jpeg', width: 10, height: 5,
+        base64: bytes.toString('base64'), observationId: 'obs-1' }) })
+    const registry = await setup(host, images)
+    const response = await registry.resolve('computer-use', 1).execute({
+      invocationId: 'capture-1', input: { operation: 'capture', maxWidth: 10, maxHeight: 5 }
+    })
+    const result = response.input as { base64?: string; screenshot: Parameters<typeof images.read>[0] }
+    expect(JSON.stringify(response)).not.toContain(bytes.toString('base64'))
+    expect(result.base64).toBeUndefined()
+    expect(images.read(result.screenshot).bytes).toEqual(bytes)
+  })
   it('dispatches an advertised provider once and rejects a duplicate invocation ID', async () => {
     const execute = vi.fn(async (input: unknown) => ({ input }))
     const host = new SkillProviderHost()

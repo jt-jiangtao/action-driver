@@ -12,6 +12,7 @@ import {
   toOutputFileProjection
 } from './task-projection'
 import type { MessageRepository, RuntimeAdapters, RuntimeTaskRecord } from './ports'
+import type { ComputerUseControlGate } from './computer-use/control-gate'
 
 export type LocalRuntimeServer = {
   close(): Promise<void>
@@ -20,6 +21,7 @@ export type LocalRuntimeServer = {
 
 export function createLocalRuntimeServer(options: {
   adapters: RuntimeAdapters
+  computerControl?: ComputerUseControlGate
   messages: MessageRepository
   streamSnapshots?: {
     getTaskSnapshot(
@@ -93,7 +95,9 @@ export function createLocalRuntimeServer(options: {
       await saveStatus(
         taskId,
         result.status,
-        result.error ? { code: 'MODEL_GATEWAY_ERROR', message: result.error } : null
+        result.status === 'waiting-user' && isComputerActionApproval(result.output)
+          ? { code: 'COMPUTER_ACTION_APPROVAL', ...result.output }
+          : result.error ? { code: 'MODEL_GATEWAY_ERROR', message: result.error } : null
       )
     } catch (error) {
       await saveStatus(taskId, 'failed', {
@@ -260,10 +264,22 @@ export function createLocalRuntimeServer(options: {
       }
       const state = control === 'pause' ? 'paused' : control === 'resume' ? 'running' : 'taken-over'
       skillStates.set(invocationId, state)
+      const computerTask = options.computerControl ? await taskRepository.get(invocationId) : null
+      if (computerTask && options.computerControl) {
+        options.computerControl.set(invocationId, state)
+        if (control === 'resume') {
+          await active.get(invocationId)
+          await saveStatus(invocationId, 'running')
+          track(invocationId, runTask(invocationId, graphRunner.continue(invocationId)))
+        } else {
+          graphRunner.interrupt(invocationId)
+          await saveStatus(invocationId, 'interrupted')
+        }
+      }
       const event: SkillExecutionEvent = {
         id: ids.next('skill-event'),
         invocationId,
-        skillId: 'browser-use',
+        skillId: computerTask ? 'computer-use' : 'browser-use',
         state,
         occurredAt: new Date().toISOString()
       }
@@ -279,6 +295,21 @@ export function createLocalRuntimeServer(options: {
       await Promise.allSettled(active.values())
     }
   }
+}
+
+function isComputerActionApproval(value: unknown): value is {
+  reason: 'computer-action-approval'
+  providerCallId: string
+  observationId: string
+  action: Record<string, unknown>
+} {
+  if (typeof value !== 'object' || value === null) return false
+  const approval = value as Record<string, unknown>
+  return approval.reason === 'computer-action-approval' &&
+    typeof approval.providerCallId === 'string' &&
+    typeof approval.observationId === 'string' &&
+    typeof approval.action === 'object' && approval.action !== null &&
+    !Array.isArray(approval.action)
 }
 
 function toToolProjection(

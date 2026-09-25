@@ -20,6 +20,7 @@ function run(command, args, env = process.env) {
 
 try {
   run('corepack', ['pnpm', 'build:native:electron'])
+  run('corepack', ['pnpm', 'build:native:computer-use'])
   run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'build'])
   run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'build'])
   run('corepack', [
@@ -49,6 +50,16 @@ try {
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
+  const computerHelperSource = join(root, 'apps', 'native-computer-use-helper',
+    'dist', process.arch, 'ActionDriver Computer Use.app')
+  const computerHelperBundle = join(app, 'Contents', 'Helpers', 'ActionDriver Computer Use.app')
+  run('ditto', [computerHelperSource, computerHelperBundle])
+  const computerHelper = join(computerHelperBundle, 'Contents', 'MacOS', 'actiondriver-computer-use')
+  if (!(statSync(computerHelper).mode & 0o111)) {
+    throw new Error('PACKAGED_COMPUTER_HELPER_NOT_EXECUTABLE')
+  }
+  run('/usr/bin/file', [computerHelper])
+  run('codesign', ['--verify', '--strict', '--verbose=2', computerHelperBundle])
   const runtimeDist = join(app, 'Contents', 'Resources', 'agent-runtime', 'dist')
   const builtRuntimeDist = join(root, 'apps', 'agent-runtime', 'dist')
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])

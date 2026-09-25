@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop dev",
     "build": "pnpm validate:e2e-interactions && pnpm --filter @actiondriver/desktop build",
     "build:native:electron": "node scripts/build-electron-native.mjs",
+    "build:native:computer-use": "node scripts/build-computer-use-helper.mjs",
     "typecheck": "pnpm -r typecheck",
     "validate:e2e-interactions": "node scripts/validate-e2e-interactions.mjs",
     "lint": "pnpm validate:e2e-interactions && eslint .",

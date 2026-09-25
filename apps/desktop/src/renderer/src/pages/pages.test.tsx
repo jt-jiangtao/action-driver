@@ -7,6 +7,49 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import { mockModelSelection } from '../testing/model-selection-fixture'
 
 describe('ActionDriver pages', () => {
+  it('shows the exact Computer Use action and sends a single-call approval', async () => {
+    const onComputerDecision = vi.fn(async () => undefined)
+    render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null,
+      status: 'waiting-user',
+      pendingComputerApproval: { providerCallId: 'call-one', observationId: 'obs-one',
+        action: { type: 'type', text: '发送前请确认' } }
+    }} modelSelection={mockModelSelection} onSelectModel={vi.fn()}
+      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
+      onTakeOver={vi.fn()} onComputerDecision={onComputerDecision}
+      onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByText('输入文本：发送前请确认')).toBeVisible()
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-deny#button'))
+    expect(onComputerDecision).toHaveBeenCalledWith(false, 'call-one')
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
+    expect(onComputerDecision).toHaveBeenCalledWith(true, 'call-one')
+  })
+  it('wires Computer Use pause, takeover, and resume to the desktop task controls', async () => {
+    const onPause = vi.fn()
+    const onResume = vi.fn()
+    const onTakeOver = vi.fn()
+    const computerTask = {
+      ...mockTaskFixture,
+      browser: null,
+      status: 'running' as const,
+      tools: [{
+        callId: 'computer-call', toolId: 'computer.observe', modelName: 'computer_observe',
+        summary: '观察当前桌面', argumentsHash: 'hash', status: 'completed' as const
+      }]
+    }
+    const props = {
+      mode: 'split' as const, modelSelection: mockModelSelection, onSelectModel: vi.fn(),
+      onModeChange: vi.fn(), onPause, onResume, onTakeOver, onInterrupt: vi.fn(), onSubmit: vi.fn()
+    }
+    const view = render(<TaskPage {...props} task={computerTask} />)
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/pause#button'))
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/take-over#button'))
+    expect(onPause).toHaveBeenCalledOnce()
+    expect(onTakeOver).toHaveBeenCalledOnce()
+    view.rerender(<TaskPage {...props} task={{ ...computerTask, status: 'paused' }} />)
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/resume#button'))
+    expect(onResume).toHaveBeenCalledOnce()
+    view.unmount()
+  })
   it('shows image slots before the first asset and keeps new assistant text above them', () => {
     const task = {
       ...mockTaskFixture,

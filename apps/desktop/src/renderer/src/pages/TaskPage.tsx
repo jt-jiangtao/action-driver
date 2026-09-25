@@ -1,5 +1,5 @@
 import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
@@ -28,6 +28,7 @@ export function TaskPage({
   onPause,
   onResume,
   onTakeOver,
+  onComputerDecision,
   onInterrupt,
   readImage,
   readOutputFile,
@@ -44,12 +45,15 @@ export function TaskPage({
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
   onTakeOver(): Promise<unknown> | void
+  onComputerDecision?(approved: boolean, providerCallId: string): Promise<unknown> | void
   onInterrupt(): void
   readImage?: ImageReader | undefined
   readOutputFile?: OutputFileReader | undefined
   onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
+  const [approvalError, setApprovalError] = useState<string | null>(null)
+  const hasComputer = (task.tools ?? []).some((tool) => tool.toolId.startsWith('computer.'))
   const pageMode = hasBrowser ? mode : 'agent-only'
   const agentWidth = !hasBrowser
     ? 1192
@@ -154,6 +158,15 @@ export function TaskPage({
           browserCollapsed={hasBrowser && mode === 'browser-collapsed'}
           onExpandBrowser={() => onModeChange('split')}
         />
+        {hasComputer && !hasBrowser && <div className="computer-task-controls" aria-label="Computer Use 控制">
+          {task.status === 'paused'
+            ? <button type="button" data-testid="e2e/tasks/detail/computer/resume#button"
+                onClick={() => { void onResume() }}>继续 Agent</button>
+            : <button type="button" data-testid="e2e/tasks/detail/computer/pause#button"
+                onClick={() => { void onPause() }}>暂停</button>}
+          <button type="button" data-testid="e2e/tasks/detail/computer/take-over#button"
+            onClick={() => { void onTakeOver() }}>人工接管</button>
+        </div>}
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
@@ -200,6 +213,23 @@ export function TaskPage({
                 readImage={readImage}
               />
               <ActivityTimeline task={task} />
+              {task.status === 'waiting-user' && task.pendingComputerApproval &&
+                <section className="computer-action-approval" aria-label="Computer Use 动作确认">
+                  <h2>确认这一步桌面操作</h2>
+                  <p>ActionDriver 将在当前应用执行以下动作。确认仅适用于这一次调用。</p>
+                  <pre>{describeComputerAction(task.pendingComputerApproval.action)}</pre>
+                  {approvalError && <p role="alert">{approvalError}</p>}
+                  <div>
+                    <button type="button" data-testid="e2e/tasks/detail/computer/approval-deny#button"
+                      onClick={() => { void Promise.resolve(onComputerDecision?.(
+                      false, task.pendingComputerApproval!.providerCallId)).catch((error: unknown) =>
+                      setApprovalError(error instanceof Error ? error.message : String(error))) }}>拒绝</button>
+                    <button type="button" data-testid="e2e/tasks/detail/computer/approval-approve#button"
+                      onClick={() => { void Promise.resolve(onComputerDecision?.(
+                      true, task.pendingComputerApproval!.providerCallId)).catch((error: unknown) =>
+                      setApprovalError(error instanceof Error ? error.message : String(error))) }}>确认执行</button>
+                  </div>
+                </section>}
               {visibleAssistantMessages.length > 0 ? (
                 <ConversationMessages
                   messages={visibleAssistantMessages}
@@ -256,4 +286,14 @@ export function TaskPage({
       ) : null}
     </main>
   )
+}
+
+function describeComputerAction(action: Record<string, unknown>): string {
+  switch (action.type) {
+    case 'click': return `点击坐标 (${String(action.x)}, ${String(action.y)})`
+    case 'click-element': return `点击界面元素 ${String(action.elementRef)}`
+    case 'type': return `输入文本：${String(action.text)}`
+    case 'key': return `按键：${[...(Array.isArray(action.modifiers) ? action.modifiers : []), action.key].join(' + ')}`
+    default: return JSON.stringify(action)
+  }
 }

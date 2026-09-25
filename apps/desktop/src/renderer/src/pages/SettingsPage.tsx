@@ -14,12 +14,14 @@ export function SettingsPage({
   service,
   onBack,
   onOpenMainPrompt,
-  onOpenSkills
+  onOpenSkills,
+  onOpenComputerUse
 }: {
   service: ModelConnectionsService
   onBack(): void
   onOpenMainPrompt?(): void
   onOpenSkills?(): void
+  onOpenComputerUse?(): void
 }) {
   const queryClient = useQueryClient()
   const connectionsQuery = useQuery({
@@ -140,6 +142,7 @@ export function SettingsPage({
         active="model-connections"
         {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
         {...(onOpenSkills ? { onOpenSkills } : {})}
+        {...(onOpenComputerUse ? { onOpenComputerUse } : {})}
       />
 
       <main className="settings-main">

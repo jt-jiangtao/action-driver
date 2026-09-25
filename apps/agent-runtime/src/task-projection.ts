@@ -45,8 +45,19 @@ export function buildTaskProjection(
       }
     ],
     browser: null,
+    ...(computerApproval(task.error) ? { pendingComputerApproval: computerApproval(task.error)! } : {}),
     ...(outputFiles.length > 0 ? { outputFiles: [...outputFiles] } : {})
   }
+}
+
+function computerApproval(error: unknown): TaskProjection['pendingComputerApproval'] | null {
+  if (typeof error !== 'object' || error === null) return null
+  const value = error as Record<string, unknown>
+  if (value.code !== 'COMPUTER_ACTION_APPROVAL' ||
+      typeof value.providerCallId !== 'string' || typeof value.observationId !== 'string' ||
+      typeof value.action !== 'object' || value.action === null || Array.isArray(value.action)) return null
+  return { providerCallId: value.providerCallId, observationId: value.observationId,
+    action: value.action as Record<string, unknown> }
 }
 
 export function toOutputFileProjection(file: {

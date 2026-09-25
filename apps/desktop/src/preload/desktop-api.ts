@@ -33,6 +33,8 @@ import {
 } from '../shared/skill-folder-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
 import { TASK_OUTPUT_OPEN_CHANNEL } from '../shared/task-output-contract'
+import { COMPUTER_PERMISSIONS_CHECK_CHANNEL, COMPUTER_PERMISSIONS_SETTINGS_CHANNEL,
+  type ComputerPermissionStatus } from '../shared/computer-use-contract'
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
@@ -94,6 +96,10 @@ export interface DesktopApi {
   taskOutput: {
     open(input: { fileId: string; taskId: string; sessionId: string }): Promise<void>
   }
+  computerUse: {
+    permissions(): Promise<ComputerPermissionStatus>
+    openSystemSettings(): Promise<void>
+  }
 }
 
 export function createDesktopApi(
@@ -125,6 +131,10 @@ export function createDesktopApi(
       open: async (input) => {
         await ipc.invoke(TASK_OUTPUT_OPEN_CHANNEL, input)
       }
+    },
+    computerUse: {
+      permissions: async () => (await ipc.invoke(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {})) as ComputerPermissionStatus,
+      openSystemSettings: async () => { await ipc.invoke(COMPUTER_PERMISSIONS_SETTINGS_CHANNEL, {}) }
     }
   }
 }

@@ -14,6 +14,7 @@ describe('Runtime paths', () => {
       })
     ).toEqual({
       runtimeEntryPath: '/repo/apps/agent-runtime/dist/index.js',
+      computerHelperPath: '/repo/apps/native-computer-use-helper/dist/arm64/ActionDriver Computer Use.app/Contents/MacOS/actiondriver-computer-use',
       databasePath:
         '/Users/test/Library/Application Support/ActionDriver/data/actiondriver.db',
       workspaceRoot: '/Users/test/Library/Application Support/ActionDriver/workspace'
@@ -34,6 +35,7 @@ describe('Runtime paths', () => {
         })
       ).toEqual({
         runtimeEntryPath: `/Applications/ActionDriver-${arch}.app/Contents/Resources/agent-runtime/dist/index.js`,
+        computerHelperPath: `/Applications/ActionDriver-${arch}.app/Contents/Helpers/ActionDriver Computer Use.app/Contents/MacOS/actiondriver-computer-use`,
         databasePath: '/tmp/actiondriver-user-data/data/actiondriver.db',
         workspaceRoot: '/tmp/actiondriver-user-data/workspace'
       })
