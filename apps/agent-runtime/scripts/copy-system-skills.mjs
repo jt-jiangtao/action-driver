@@ -10,3 +10,9 @@ for (const id of ['browser-tools', 'computer-tools', 'report-writer']) {
   await rm(join(destination, id), { recursive: true, force: true })
 }
 await cp(source, destination, { recursive: true, force: true })
+
+// The main prompt is a local resource too, seeded into the agent home on first run.
+await cp(join(appRoot, 'resources', 'prompts'), join(appRoot, 'dist', 'prompts'), {
+  recursive: true,
+  force: true
+})

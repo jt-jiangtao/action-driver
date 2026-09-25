@@ -127,6 +127,10 @@ export async function startAgentRuntimeProcess(
     systemSkillsSourceRoot: resolve(
       runtimeEntry.endsWith('.ts') ? dirname(runtimeEntry) : runtimeDist,
       runtimeEntry.endsWith('.ts') ? '../resources/system-skills' : 'system-skills'
+    ),
+    promptSourceRoot: resolve(
+      runtimeEntry.endsWith('.ts') ? dirname(runtimeEntry) : runtimeDist,
+      runtimeEntry.endsWith('.ts') ? '../resources/prompts' : 'prompts'
     )
   })
   await agentFiles.initialize()

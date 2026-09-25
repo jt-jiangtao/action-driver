@@ -27,22 +27,22 @@ import { parseSkillDeclaration } from './skill-declaration'
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
-const BUILT_IN_SKILLS = new Set(['documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'])
+const BUILT_IN_SKILLS = new Set([
+  'documents',
+  'imagegen',
+  'pdf',
+  'presentations',
+  'skill-creator',
+  'spreadsheets'
+])
 const RETIRED_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
 
-const DEFAULT_PROMPT = `# ActionDriver 主提示词
 
-你是 ActionDriver 的执行助手。你的职责是准确理解用户目标，在当前可用能力范围内完成任务，并返回可验证的结果。
-
-## 工作原则
-
-- 先识别用户目标、约束和成功标准；信息不足且会影响结果时，只提出必要的澄清问题。
-- 能直接执行时立即行动，不重复确认，不输出内部执行进度。
-- 只陈述已知事实、实际执行的操作和真实结果；不得虚构工具调用、外部结果或完成状态。
-- 遇到不确定性时，明确说明假设、限制和风险；无法继续时说明具体阻塞点。
-- 保持任务边界，不擅自扩大范围或执行无关操作。
-- 优先给出结果，使用简洁、清晰的 Markdown；只有在有助于理解时才补充过程或细节。
-`
+/**
+ * Shipped defaults we have superseded. A prompt file that still matches one of
+ * them was never customized, so it is refreshed in place instead of blocking
+ * the improved default; anything else is treated as a user edit and kept.
+ */
 
 export class AgentFileStoreError extends Error {
   constructor(
@@ -60,22 +60,27 @@ export class AgentFileStore {
   private readonly skillsRoot: string
   private readonly systemRoot: string
   private readonly systemSkillsSourceRoot: string
+  private readonly promptSourceRoot: string
+  private defaultPrompt = ''
   private managedRootRealPath: string | null = null
   private readonly isExecutorRegistered: (executorId: string) => boolean
 
   constructor({
     homeDirectory,
     isExecutorRegistered = () => false,
-    systemSkillsSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/system-skills')
+    systemSkillsSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/system-skills'),
+    promptSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/prompts')
   }: {
     homeDirectory: string
     isExecutorRegistered?: (executorId: string) => boolean
     systemSkillsSourceRoot?: string
+    promptSourceRoot?: string
   }) {
     this.managedRoot = join(homeDirectory, MANAGED_DIRECTORY)
     this.skillsRoot = join(this.managedRoot, 'skills')
     this.systemRoot = join(this.skillsRoot, '.system')
     this.systemSkillsSourceRoot = systemSkillsSourceRoot
+    this.promptSourceRoot = promptSourceRoot
     this.isExecutorRegistered = isExecutorRegistered
   }
 
@@ -84,7 +89,9 @@ export class AgentFileStore {
     await mkdir(this.skillsRoot, { recursive: true })
     await mkdir(this.systemRoot, { recursive: true })
     this.managedRootRealPath = await realpath(this.managedRoot)
-    await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), DEFAULT_PROMPT)
+    this.defaultPrompt = await this.readPromptResource('main.md')
+    await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), this.defaultPrompt)
+    await this.refreshLegacyDefaultPrompt()
     for (const id of RETIRED_BUILT_INS) {
       await rm(join(this.systemRoot, id), { recursive: true, force: true })
     }
@@ -103,12 +110,40 @@ export class AgentFileStore {
     })
   }
 
+  private async readPromptResource(name: string): Promise<string> {
+    return readFile(join(this.promptSourceRoot, name), 'utf8')
+  }
+
+  private async isSupersededDefault(trimmed: string): Promise<boolean> {
+    const legacyRoot = join(this.promptSourceRoot, 'legacy')
+    const entries = await readdir(legacyRoot, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+      const content = await readFile(join(legacyRoot, entry.name), 'utf8').catch(() => '')
+      if (content.trim() === trimmed) return true
+    }
+    return false
+  }
+
+  private async refreshLegacyDefaultPrompt(): Promise<void> {
+    const path = join(this.managedRoot, 'prompts', 'main.md')
+    let current: string
+    try {
+      current = await readFile(path, 'utf8')
+    } catch {
+      return
+    }
+    const trimmed = current.trim()
+    if (!(await this.isSupersededDefault(trimmed))) return
+    await writeFile(path, this.defaultPrompt, 'utf8')
+  }
+
   async getMainPrompt(): Promise<AgentTextFileDto> {
     return this.readFile(MAIN_PROMPT_PATH)
   }
 
   async resetMainPrompt(expectedDigest: string): Promise<AgentTextFileDto> {
-    return this.saveFile({ path: MAIN_PROMPT_PATH, content: DEFAULT_PROMPT, expectedDigest })
+    return this.saveFile({ path: MAIN_PROMPT_PATH, content: this.defaultPrompt, expectedDigest })
   }
 
   async listSkills(): Promise<AgentSkillSummaryDto[]> {
@@ -247,17 +282,25 @@ export class AgentFileStore {
       .map(({ id, description }) => ({ skillId: id, description }))
   }
 
-  async readEnabledSkillFile(skillId: string, relativePath = 'SKILL.md'): Promise<AgentTextFileDto> {
+  async readEnabledSkillFile(
+    skillId: string,
+    relativePath = 'SKILL.md'
+  ): Promise<AgentTextFileDto> {
     const id = this.validateSkillId(skillId)
     if (
-      !relativePath || isAbsolute(relativePath) || relativePath.includes('\\') ||
+      !relativePath ||
+      isAbsolute(relativePath) ||
+      relativePath.includes('\\') ||
       relativePath.split('/').some((part) => !part || part === '.' || part === '..')
-    ) throw new AgentFileStoreError('PATH_REJECTED', 'Skill 文件路径无效。')
+    )
+      throw new AgentFileStoreError('PATH_REJECTED', 'Skill 文件路径无效。')
     const skill = (await this.listSkills()).find((item) => item.id === id)
     if (!skill?.available || !skill.enabled) {
       throw new AgentFileStoreError('VALIDATION', `Skill 未启用：${id}`)
     }
-    const skillRoot = await realpath(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id))
+    const skillRoot = await realpath(
+      join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id)
+    )
     const requested = await realpath(join(skillRoot, relativePath))
     const withinSkill = relative(skillRoot, requested)
     if (withinSkill === '..' || withinSkill.startsWith(`..${sep}`) || isAbsolute(withinSkill)) {
@@ -282,7 +325,9 @@ export class AgentFileStore {
   private async summarizeSkill(id: string): Promise<AgentSkillSummaryDto> {
     const skillFile = await this.readFile(`${this.skillPublicPath(id)}/SKILL.md`)
     const declaration = parseSkillDeclaration(skillFile.content)
-    const disabled = await lstat(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id, '.disabled'))
+    const disabled = await lstat(
+      join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id, '.disabled')
+    )
       .then(() => true)
       .catch((error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return false
@@ -306,7 +351,9 @@ export class AgentFileStore {
   }
 
   private async summarizeInvalidSkill(id: string): Promise<AgentSkillSummaryDto> {
-    const directoryStat = await stat(join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id))
+    const directoryStat = await stat(
+      join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id)
+    )
     return {
       id,
       name: id,

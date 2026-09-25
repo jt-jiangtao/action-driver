@@ -54,6 +54,10 @@ try {
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
+  run('ditto', [join(builtRuntimeDist, 'prompts'), join(runtimeDist, 'prompts')])
+  if (!existsSync(join(runtimeDist, 'prompts', 'main.md'))) {
+    throw new Error('PACKAGED_MAIN_PROMPT_MISSING')
+  }
   // The verifier stages the local dependency tree the same way it stages the
   // bundled runtimes; release packaging keeps its own decision on this tree.
   if (!existsSync(join(builtRuntimeDist, 'dependencies'))) {
