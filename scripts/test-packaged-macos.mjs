@@ -40,9 +40,19 @@ try {
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
-  for (const skill of ['browser-tools', 'computer-tools', 'report-writer', 'skill-creator']) {
+  for (const skill of ['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator']) {
     if (!existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) {
       throw new Error(`PACKAGED_SYSTEM_SKILL_MISSING: ${skill}`)
+    }
+  }
+  for (const relativePath of [
+    'LICENSE.txt', 'agents/openai.yaml', 'assets/imagegen-small.svg', 'assets/imagegen.png',
+    'references/cli.md', 'references/codex-network.md', 'references/codex-original-skill.md',
+    'references/image-api.md', 'references/prompting.md', 'references/sample-prompts.md',
+    'scripts/image_gen.py', 'scripts/remove_chroma_key.py'
+  ]) {
+    if (!existsSync(join(runtimeDist, 'system-skills', 'imagegen', relativePath))) {
+      throw new Error(`PACKAGED_IMAGEGEN_RESOURCE_MISSING: ${relativePath}`)
     }
   }
   for (const relativePath of [

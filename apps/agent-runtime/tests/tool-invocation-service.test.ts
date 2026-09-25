@@ -45,6 +45,24 @@ const shellDefinition: ToolDefinition = {
 }
 
 describe('ToolInvocationService', () => {
+  it('publishes a safe image count when image generation begins', async () => {
+    const definition: ToolDefinition = {
+      ...readDefinition,
+      id: 'image.generate',
+      modelName: 'image_generate',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          images: { type: 'array', items: { type: 'object', properties: { prompt: { type: 'string' } }, required: ['prompt'] } }
+        },
+        required: ['images']
+      }
+    }
+    const fixture = createFixture(definition, { async *execute() { yield { kind: 'result', output: {} } } })
+    await collect(fixture.service.execute({ ...readCall(), modelName: 'image_generate', arguments: { images: [{ prompt: 'one' }, { prompt: 'two' }] } }, context(['image.generate@1'])))
+    const running = fixture.commits.find(({ event }) => event.type === 'tool.running')?.event
+    expect(running?.payload).toMatchObject({ imageCount: 2 })
+  })
   it('persists generated asset references as separate tool events', async () => {
     const image = {
       assetId: 'asset-1',

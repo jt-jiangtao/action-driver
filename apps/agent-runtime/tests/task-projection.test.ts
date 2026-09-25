@@ -27,6 +27,14 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
 }
 
 describe('repository-backed task projections', () => {
+  it('normalizes a persisted image-first assistant message without changing a user bubble', () => {
+    const asset = { assetId: 'old-generated', sessionId: 'session-1', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const }
+    const projection = buildTaskProjection(task('task-success', 'completed'), [{
+      id: 'old-image-first', taskId: 'task-success', role: 'assistant', createdAt: '2026-09-23',
+      content: { parts: [{ kind: 'image', asset }, { kind: 'text', text: '说明' }] }
+    }])
+    expect(projection.messages[0]?.parts).toEqual([{ kind: 'text', text: '说明' }, { kind: 'image', asset }])
+  })
   it('projects ordered image and text parts while preserving legacy text', () => {
     const image = {
       assetId: 'asset-1',

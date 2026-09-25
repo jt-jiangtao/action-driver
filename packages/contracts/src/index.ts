@@ -56,12 +56,37 @@ export type ImageAssetRef = {
 
 export type MessageContentPart =
   | { kind: 'text'; text: string }
-  | { kind: 'image'; asset: ImageAssetRef }
+  | { kind: 'image'; asset: ImageAssetRef; generation?: { callId: string; index: number } | undefined }
 
 export type MessageContent = { text: string } | { parts: MessageContentPart[] }
 
 export function readMessageContentParts(content: MessageContent): MessageContentPart[] {
   return 'parts' in content ? content.parts : [{ kind: 'text', text: content.text }]
+}
+
+export function normalizeAssistantParts(parts: readonly MessageContentPart[]): MessageContentPart[] {
+  const text = parts.filter((part): part is Extract<MessageContentPart, { kind: 'text' }> => part.kind === 'text').map((part) => part.text).join('')
+  const images = parts.filter((part): part is Extract<MessageContentPart, { kind: 'image' }> => part.kind === 'image')
+  const callOrder = new Map<string, number>()
+  const seen = new Set<string>()
+  for (const image of images) {
+    const callId = image.generation?.callId
+    if (callId && !callOrder.has(callId)) callOrder.set(callId, callOrder.size)
+  }
+  const sorted = images.map((part, position) => ({ part, position })).sort((left, right) => {
+    const a = left.part.generation
+    const b = right.part.generation
+    if (!a && !b) return left.position - right.position
+    if (!a) return 1
+    if (!b) return -1
+    return (callOrder.get(a.callId)! - callOrder.get(b.callId)!) || (a.index - b.index)
+  }).map(({ part }) => part).filter((part) => {
+    const key = part.generation ? `${part.generation.callId}:${part.generation.index}` : part.asset.assetId
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return [...(text ? [{ kind: 'text' as const, text }] : []), ...sorted]
 }
 
 export interface ExecutionStepProjection {
@@ -85,6 +110,7 @@ export interface ToolInvocationProjection {
   durationMs?: number
   resultSummary?: string
   errorSummary?: string
+  imageCount?: number
   status:
     | 'proposed'
     | 'waiting_approval'

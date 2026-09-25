@@ -8,6 +8,44 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('keeps assistant text above stable image slots while individual images complete', () => {
+    const asset = {
+      assetId: 'generated-2', sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    }
+    const tools = [{
+      callId: 'call-gallery', toolId: 'image.generate', modelName: 'image_generate',
+      summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 3
+    }]
+    const readImage = () => new Promise<Blob>(() => {})
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了' }} tools={tools} readImage={readImage} generating />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
+    expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent('准备好了')
+    view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了', parts: [
+      { kind: 'text', text: '准备好了' }, { kind: 'image', asset, generation: { callId: 'call-gallery', index: 2 } }
+    ] }} tools={tools} readImage={readImage} generating />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
+    expect(view.container.querySelectorAll('.image-gallery-slot')[2]).toContainElement(view.container.querySelector('.conversation-image-loading'))
+  })
+  it('keeps all four slots after partial failure or cancellation', () => {
+    const base = { callId: 'four', toolId: 'image.generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', imageCount: 4 }
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'running' }]} generating />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(4)
+    expect(screen.getAllByRole('status', { name: '正在生成图片' })).toHaveLength(4)
+    view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'completed' }]} />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(4)
+    expect(screen.getAllByRole('status', { name: '图片生成失败' })).toHaveLength(4)
+    view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'cancelled' }]} />)
+    expect(screen.getAllByRole('status', { name: '图片生成已取消' })).toHaveLength(4)
+    expect(agentStyles).toMatch(/prefers-reduced-motion:\s*reduce/)
+  })
+  it('uses one column for a single generated image', () => {
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '' }} tools={[{
+      callId: 'single', toolId: 'image.generate', modelName: 'image_generate',
+      summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 1
+    }]} generating />)
+    expect(view.container.querySelector('.image-gallery-grid')).toHaveClass('is-single')
+  })
   it('places uploaded images above the text inside one user bubble', () => {
     const asset = {
       assetId: 'asset-above-text',

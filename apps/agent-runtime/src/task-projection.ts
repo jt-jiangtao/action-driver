@@ -1,5 +1,6 @@
 import {
   readMessageContentParts,
+  normalizeAssistantParts,
   type MessageContent,
   type MessageContentPart,
   type RecentTaskProjection,
@@ -29,7 +30,7 @@ export function buildTaskProjection(
           id: message.id,
           role: message.role === 'assistant' ? ('agent' as const) : ('user' as const),
           content,
-          ...(messageParts(message.content) ? { parts: messageParts(message.content)! } : {})
+          ...(messageParts(message.content) ? { parts: message.role === 'assistant' ? normalizeAssistantParts(messageParts(message.content)!) : messageParts(message.content)! } : {})
         }
       ]
     }),

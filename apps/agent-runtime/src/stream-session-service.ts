@@ -9,7 +9,7 @@ import {
   emptyActivityTimelineState,
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
-import type { ImageAssetRef, MessageContentPart } from '@actiondriver/contracts'
+import { normalizeAssistantParts, type ImageAssetRef, type MessageContentPart } from '@actiondriver/contracts'
 import type { ModelInputMessage } from '@actiondriver/model-connections'
 import type { SessionAssetStore } from './media/session-asset-store'
 import type {
@@ -271,7 +271,7 @@ export class StreamSessionService {
     const seenImages = new Set<string>()
     const assistantContent = () =>
       assistantParts.some((part) => part.kind === 'image')
-        ? { parts: assistantParts.map((part) => ({ ...part })) }
+        ? { parts: normalizeAssistantParts(assistantParts) }
         : { text: content }
     let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
     const startedAt = Date.parse(request.createdAt)
@@ -371,7 +371,7 @@ export class StreamSessionService {
               if (assistantParts.length === 0 && content)
                 assistantParts.push({ kind: 'text', text: content })
               const contentIndex = assistantParts.length
-              assistantParts.push({ kind: 'image', asset: payload.asset })
+              assistantParts.push({ kind: 'image', asset: payload.asset, generation: { callId: payload.callId, index: payload.index } })
               sequence += 1
               const imageRecord = await this.options.repositories.commitAssistantImageWithEvent(
                 request,
@@ -407,8 +407,7 @@ export class StreamSessionService {
       content = terminalEvent.content
       if (assistantParts.some((part) => part.kind === 'image')) {
         const images = assistantParts.filter((part) => part.kind === 'image')
-        assistantParts.splice(0, assistantParts.length, ...images)
-        if (content) assistantParts.push({ kind: 'text', text: content })
+        assistantParts.splice(0, assistantParts.length, ...(content ? [{ kind: 'text' as const, text: content }] : []), ...images)
       }
     }
     const error = completed
@@ -568,7 +567,7 @@ export class StreamSessionService {
           id: message.id,
           role: message.role,
           content: messageText(message.content),
-          ...(messageParts(message.content) ? { parts: messageParts(message.content) } : {}),
+          ...(messageParts(message.content) ? { parts: message.role === 'assistant' ? normalizeAssistantParts(messageParts(message.content)!) : messageParts(message.content)! } : {}),
           createdAt: message.createdAt
         })),
       tools: toolInvocations.map((invocation) => {
@@ -584,6 +583,11 @@ export class StreamSessionService {
           modelName: invocation.toolId,
           ...persisted,
           argumentsHash: invocation.argumentsHash,
+          ...(invocation.toolId === 'image.generate' && Array.isArray((invocation.input as { images?: unknown }).images)
+            && (invocation.input as { images: unknown[] }).images.length >= 1
+            && (invocation.input as { images: unknown[] }).images.length <= 4
+            ? { imageCount: (invocation.input as { images: unknown[] }).images.length }
+            : {}),
           status: invocation.status,
           activityId,
           ...(rawInput ? { rawInput: rawInput.value } : {}),
@@ -742,6 +746,7 @@ export class StreamSessionService {
         toolId: string
         modelName: string
         summary: string
+        imageCount?: unknown
         title?: string
         argumentsHash: string
         activityId?: string | null
@@ -774,6 +779,7 @@ export class StreamSessionService {
         toolId: tool.toolId,
         modelName: tool.modelName,
         summary: tool.summary,
+        ...(typeof tool.imageCount === 'number' ? { imageCount: tool.imageCount } : {}),
         ...(tool.title ? { title: tool.title } : {}),
         argumentsHash: tool.argumentsHash,
         activityId: tool.activityId ?? null,

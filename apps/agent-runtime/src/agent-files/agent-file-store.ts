@@ -27,7 +27,7 @@ import { parseSkillDeclaration } from './skill-declaration'
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
-const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'])
+const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'])
 const LEGACY_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
 
 const DEFAULT_PROMPT = `# ActionDriver 主提示词
@@ -109,6 +109,7 @@ export class AgentFileStore {
       if (skill.executorId) await this.migrateDefaultExecutor(skill)
     }
     await this.seedSystemSkill('skill-creator')
+    await this.seedSystemSkill('imagegen')
   }
 
   private async seedSystemSkill(id: string): Promise<void> {

@@ -10,7 +10,7 @@ import { cloneGitSkill, parseGithubSkillUrl, type GithubSkillLocation } from './
 const MAX_FILES = 256
 const MAX_BYTES = 10 * 1024 * 1024
 const SKILL_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const SYSTEM_SKILL_IDS = new Set(['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'])
+const SYSTEM_SKILL_IDS = new Set(['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'])
 
 export class SkillInstaller {
   private readonly skillsRoot: string

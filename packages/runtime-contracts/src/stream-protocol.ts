@@ -27,7 +27,7 @@ const imageAssetSchema = z
 
 const messagePartSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string() }).strict(),
-  z.object({ kind: z.literal('image'), asset: imageAssetSchema }).strict()
+  z.object({ kind: z.literal('image'), asset: imageAssetSchema, generation: z.object({ callId: idSchema, index: z.number().int().nonnegative() }).strict().optional() }).strict()
 ])
 
 const clientBase = {
@@ -268,6 +268,7 @@ const responseSnapshotEventSchema = z
             summary: z.string(),
             title: z.string().optional(),
             argumentsHash: z.string(),
+            imageCount: z.number().int().min(1).max(4).optional(),
             status: z.enum([
               'proposed',
               'waiting_approval',
@@ -388,6 +389,7 @@ const toolStreamBase = {
   summary: z.string(),
   title: z.string().optional(),
   argumentsHash: z.string(),
+  imageCount: z.number().int().min(1).max(4).optional(),
   activityId: idSchema.nullable(),
   rawInput: z.string().optional(),
   rawOutputTruncated: z.boolean().optional()

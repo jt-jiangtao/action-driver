@@ -652,12 +652,17 @@
 .agent-failure strong {
   font-weight: 600;
 }
-.user-message-with-images,
-.agent-message-with-images {
+.user-message-with-images {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
+}
+.agent-message-with-images {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
 }
 .user-message-with-images {
   padding: 8px;
@@ -667,7 +672,78 @@
   padding: 4px 6px;
 }
 .agent-message-with-images .markdown-content {
-  flex-basis: 100%;
+  width: 100%;
+}
+.image-gallery {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 576px);
+}
+.image-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.image-gallery-grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 282px;
+}
+.image-gallery-slot {
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #f4f4f6;
+}
+.image-gallery-slot .conversation-image-item,
+.image-gallery-slot .conversation-image-open,
+.image-gallery-slot .conversation-image-open img,
+.image-gallery-slot .conversation-image-loading,
+.image-gallery-slot .conversation-image-missing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: inherit;
+  object-fit: contain;
+}
+.image-gallery-slot .conversation-image-item {
+  position: relative;
+}
+.image-gallery-slot.is-ready {
+  animation: image-gallery-reveal 240ms ease-out both;
+}
+.image-gallery-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ad-color-text-secondary);
+  font-size: 13px;
+}
+.image-gallery-dots {
+  width: 72%;
+  height: 72%;
+  background-image: radial-gradient(circle, #b8bbc4 0.8px, transparent 1px);
+  background-size: 13px 13px;
+  mask-image: radial-gradient(circle, #000 15%, transparent 73%);
+  animation: image-gallery-shimmer 2.2s ease-in-out infinite;
+}
+@keyframes image-gallery-shimmer {
+  50% { opacity: 0.42; }
+}
+@keyframes image-gallery-reveal {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+@media (max-width: 560px) {
+  .image-gallery-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .image-gallery-dots,
+  .image-gallery-slot.is-ready { animation: none; }
 }
 .conversation-image-item {
   position: relative;

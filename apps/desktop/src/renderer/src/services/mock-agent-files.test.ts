@@ -17,7 +17,7 @@ describe('MockAgentFilesService', () => {
     const skills = await service.listSkills()
 
     expect(skills.map((skill) => skill.name)).toEqual([
-      'browser-tools', 'computer-tools', 'report-writer', 'Skill Creator', 'data-inspector'
+      'browser-tools', 'computer-tools', 'Imagegen', 'report-writer', 'Skill Creator', 'data-inspector'
     ])
     const systemTree = await service.getSkillTree('skill-creator')
     expect(systemTree[0]?.path).toBe('.action-driver/skills/.system/skill-creator/SKILL.md')

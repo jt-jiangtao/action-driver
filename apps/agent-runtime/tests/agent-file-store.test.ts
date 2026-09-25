@@ -62,6 +62,27 @@ describe('Runtime Agent file ownership', () => {
     expect((await readFile(join(root, 'scripts', 'quick_validate.py'))).length).toBeGreaterThan(0)
   })
 
+  it('installs the complete imagegen system Skill and keeps it read-only', async () => {
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-imagegen-'))
+    const store = new AgentFileStore({ homeDirectory })
+    await store.initialize()
+    const root = join(homeDirectory, '.action-driver', 'skills', '.system', 'imagegen')
+    for (const path of [
+      'SKILL.md', 'LICENSE.txt', 'agents/openai.yaml', 'assets/imagegen-small.svg',
+      'assets/imagegen.png', 'references/cli.md', 'references/codex-network.md',
+      'references/image-api.md', 'references/prompting.md', 'references/sample-prompts.md',
+      'scripts/image_gen.py', 'scripts/remove_chroma_key.py'
+    ]) expect((await readFile(join(root, path))).length).toBeGreaterThan(0)
+    expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toContain('image.generate')
+    expect((await store.listSkills()).find((skill) => skill.id === 'imagegen')).toMatchObject({ protected: true, source: 'builtin' })
+    const skill = await store.readFile('.action-driver/skills/.system/imagegen/SKILL.md')
+    await expect(store.saveFile({ path: skill.path, content: 'edit', expectedDigest: skill.digest })).rejects.toThrow()
+    await expect(store.deleteSkill('imagegen')).rejects.toThrow()
+    await store.setSkillEnabled('imagegen', false)
+    await store.initialize()
+    expect((await store.listSkills()).find((entry) => entry.id === 'imagegen')?.enabled).toBe(false)
+  })
+
   it('enables and reads an ordinary Skill without an executor, then respects disabling', async () => {
     const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-ordinary-skill-'))
     const store = new AgentFileStore({ homeDirectory })
@@ -99,7 +120,7 @@ describe('Runtime Agent file ownership', () => {
     await second.initialize()
     expect((await second.getMainPrompt()).content).toBe('# Custom prompt')
     expect((await second.listSkills()).map((skill) => skill.id)).toEqual([
-      'browser-tools', 'computer-tools', 'report-writer', 'skill-creator'
+      'browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'
     ])
   })
 })

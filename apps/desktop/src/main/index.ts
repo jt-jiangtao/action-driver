@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
     if (typeof skillId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillId)) {
       throw new Error('Skill 标识无效。')
     }
-    const system = new Set(['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'])
+    const system = new Set(['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'])
     const path = join(skillsDirectory, system.has(skillId) ? '.system' : '', skillId)
     shell.showItemInFolder(path)
   })

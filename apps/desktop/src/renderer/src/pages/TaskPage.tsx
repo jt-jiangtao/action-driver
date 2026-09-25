@@ -90,8 +90,10 @@ export function TaskPage({
       ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
       : []
   const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false
+  const hasRunningImageGallery = task.tools?.some((tool) => tool.toolId === 'image.generate' && tool.imageCount && ['running', 'completed', 'failed', 'cancelled', 'unknown'].includes(tool.status)) ?? false
   const visibleAssistantMessages =
     task.status === 'running' &&
+    !hasRunningImageGallery &&
     !assistantMessages.some((message) => message.parts?.some((part) => part.kind === 'image')) &&
     (hasTimelineText ||
       assistantMessages.every(
@@ -103,8 +105,8 @@ export function TaskPage({
   const renderedAssistantMessages =
     task.status === 'running'
       ? visibleAssistantMessages.map((message) => {
-          const images = message.parts?.filter((part) => part.kind === 'image') ?? []
-          return images.length ? { ...message, content: '', parts: images } : message
+          const timelineText = task.activityTimeline?.filter((item) => item.kind === 'text').map((item) => item.content).join('') ?? ''
+          return timelineText && timelineText === message.content ? { ...message, content: '' } : message
         })
       : visibleAssistantMessages
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}:${latestMessage?.parts?.length ?? 0}`
@@ -155,6 +157,7 @@ export function TaskPage({
                     <ConversationMessages
                       messages={turn.replies}
                       generating={false}
+                      tools={activity?.tools ?? []}
                       readImage={readImage}
                     />
                   </Fragment>
@@ -170,6 +173,7 @@ export function TaskPage({
                 <ConversationMessages
                   messages={renderedAssistantMessages}
                   generating={task.status === 'running'}
+                  tools={task.tools ?? []}
                   readImage={readImage}
                 />
               ) : null}

@@ -54,6 +54,9 @@ export class ToolInvocationService {
     const registered = this.options.registry.resolveModelName(call.modelName)
     const definition = registered.definition
     const decision = this.options.policy.decide(definition, call, context)
+    const imageCount = definition.id === 'image.generate' && Array.isArray(call.arguments.images)
+      ? call.arguments.images.length
+      : undefined
     const startedAt = this.options.clock.now()
     const invocation: PersistedToolInvocation = {
       id: call.callId,
@@ -89,6 +92,7 @@ export class ToolInvocationService {
           durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,
+          ...(imageCount && imageCount >= 1 && imageCount <= 4 ? { imageCount } : {}),
           input: call.arguments
         },
         occurredAt: invocation.updatedAt,

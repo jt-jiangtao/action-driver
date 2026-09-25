@@ -67,7 +67,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(packagedSkills.ok).toBe(true)
     expect(packagedSkills.value).toEqual(
       expect.arrayContaining(
-        ['browser-tools', 'computer-tools', 'report-writer', 'skill-creator'].map((id) =>
+        ['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'].map((id) =>
           expect.objectContaining({ id, source: 'builtin' })
         )
       )
@@ -153,26 +153,6 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     )
     expect(provider.completions).toHaveLength(1)
     provider.setMode('vision')
-    await page.evaluate(async () => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
-      const url = new URL(connection.wsUrl)
-      url.protocol = 'http:'
-      url.pathname = '/model-connections'
-      const headers = {
-        Authorization: `Bearer ${connection.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-      const connections = (await (await fetch(url, { headers })).json()) as {
-        value: Array<{ id: string }>
-      }
-      url.pathname = `/model-connections/${connections.value[0]!.id}/models/e2e-tool-model/image-capability`
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ kind: 'input', enabled: true })
-      })
-      if (!response.ok) throw new Error('Packaged image capability setup failed')
-    })
     await page.reload()
     await page.getByLabel('添加图片').setInputFiles({
       name: 'tiny.png',

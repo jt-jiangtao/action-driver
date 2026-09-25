@@ -272,6 +272,7 @@ function toToolProjection(
     summary: tool.summary,
     ...(tool.title === undefined ? {} : { title: tool.title }),
     argumentsHash: tool.argumentsHash,
+    ...(tool.imageCount === undefined ? {} : { imageCount: tool.imageCount }),
     status: tool.status,
     durationMs: tool.durationMs,
     ...(tool.activityId === undefined ? {} : { activityId: tool.activityId }),

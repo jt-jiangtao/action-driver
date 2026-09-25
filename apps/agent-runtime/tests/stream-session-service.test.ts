@@ -88,7 +88,7 @@ describe('StreamSessionService', () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer, onToolEvent) {
         const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
-        for (const index of [1, 0]) {
+        for (const index of [3, 1, 0, 2]) {
           const asset = await harness.assets.saveGenerated(request.sessionId!, png)
           const record = await harness.repositories.events.append({
             taskId: request.taskId,
@@ -133,19 +133,23 @@ describe('StreamSessionService', () => {
     }
     const harness = createHarness(graphRunner)
     const events = await runToEnd(harness.service, createEvent)
-    expect(events.filter((event) => event.type === 'response.image')).toHaveLength(2)
+    expect(events.filter((event) => event.type === 'response.image')).toHaveLength(4)
     const imageEvents = events.filter((event) => event.type === 'response.image')
+    expect(imageEvents.map((event) => ('index' in event ? event.index : -1))).toEqual([3, 1, 0, 2])
     expect(imageEvents.map((event) => ('contentIndex' in event ? event.contentIndex : -1))).toEqual(
-      [0, 1]
+      [0, 1, 2, 3]
     )
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
     expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([
+      'text',
       'image',
       'image',
-      'text'
+      'image',
+      'image'
     ])
+    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual([0, 1, 2, 3])
     expect(JSON.stringify(snapshot)).not.toContain('data:image/')
     harness.repositories.close()
   })

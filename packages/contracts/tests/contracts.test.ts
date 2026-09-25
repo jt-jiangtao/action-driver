@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   SKILL_IDS,
   isSerializableContract,
+  normalizeAssistantParts,
   type BrowserSkillInvocation,
   type ComputerUseSkillInvocation,
   type BrowserSkillProjection,
@@ -12,6 +13,20 @@ import {
 } from '../src/index'
 
 describe('agent skill contracts', () => {
+  it('keeps assistant text first and sorts generated images by call slot', () => {
+    const asset = (assetId: string) => ({ assetId, sessionId: 's', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const })
+    expect(normalizeAssistantParts([
+      { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } },
+      { kind: 'text', text: '前' },
+      { kind: 'image', asset: asset('zero'), generation: { callId: 'call', index: 0 } },
+      { kind: 'text', text: '后' },
+      { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } }
+    ])).toEqual([
+      { kind: 'text', text: '前后' },
+      { kind: 'image', asset: asset('zero'), generation: { callId: 'call', index: 0 } },
+      { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } }
+    ])
+  })
   it('keeps Browser Use and Computer Use as separate skills', () => {
     expect(SKILL_IDS.browser).not.toBe(SKILL_IDS.computer)
     expect(SKILL_IDS).toEqual({ browser: 'browser-use', computer: 'computer-use' })

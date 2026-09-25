@@ -1,4 +1,4 @@
-import type { TaskProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import { normalizeAssistantParts, type TaskProjection, type ToolInvocationProjection } from '@actiondriver/contracts'
 import {
   emptyActivityTimelineState,
   reduceActivityProjection,
@@ -28,6 +28,7 @@ export class StreamTaskProjection {
 
   attach(task: TaskProjection): void {
     this.task = structuredClone(task)
+    this.task.messages = this.task.messages.map((message) => message.role === 'agent' && message.parts ? { ...message, parts: normalizeAssistantParts(message.parts) } : message)
     this.lastCursor = task.streamCursor ?? 0
     this.lastSequence = task.streamSequence ?? -1
     this.activityState = activityStateFromTask(task, this.lastCursor)
@@ -60,8 +61,9 @@ export class StreamTaskProjection {
         },
         event.cursor
       )
+      const currentTask = this.task
       this.task = {
-        ...this.task,
+        ...currentTask,
         ...(event.preparingToolName ? { preparingToolName: event.preparingToolName } : {}),
         status: toTaskStatus(event.status),
         streamCursor: event.cursor,
@@ -70,9 +72,9 @@ export class StreamTaskProjection {
           id: message.id,
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content,
-          ...(message.parts ? { parts: message.parts } : {})
+          ...(message.parts ? { parts: message.role === 'assistant' ? normalizeAssistantParts(message.parts) : message.parts } : {})
         })),
-        tools: event.tools?.map(toToolProjection) ?? this.task.tools ?? [],
+        tools: event.tools?.map(toToolProjection) ?? currentTask.tools ?? [],
         ...(event.durationMs === undefined ? {} : { activityDurationMs: event.durationMs }),
         ...(event.activities ? { activities: event.activities } : {}),
         ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {})
@@ -113,6 +115,7 @@ export class StreamTaskProjection {
           summary: toolEvent.summary,
           ...(toolEvent.title === undefined ? {} : { title: toolEvent.title }),
           argumentsHash: toolEvent.argumentsHash,
+          ...(toolEvent.imageCount === undefined ? {} : { imageCount: toolEvent.imageCount }),
           activityId: toolEvent.activityId,
           ...(toolEvent.rawInput === undefined ? {} : { rawInput: toolEvent.rawInput }),
           ...(toolEvent.type === 'tool.completed' && toolEvent.rawOutput !== undefined
@@ -191,10 +194,10 @@ export class StreamTaskProjection {
       const assistant = this.assistantMessage(event.messageId)
       if (assistant?.parts?.some((part) => part.kind === 'image')) {
         const parts = [...assistant.parts]
-        const trailing = parts.at(-1)
-        if (trailing?.kind === 'text') trailing.text += event.delta
-        else parts.push({ kind: 'text', text: event.delta })
-        this.replaceAssistantParts(event.messageId, parts)
+        const text = parts.find((part) => part.kind === 'text')
+        if (text) text.text += event.delta
+        else parts.unshift({ kind: 'text', text: event.delta })
+        this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
       this.scheduleEmit()
       return
@@ -210,8 +213,8 @@ export class StreamTaskProjection {
       if (
         !parts.some((part) => part.kind === 'image' && part.asset.assetId === event.asset.assetId)
       ) {
-        parts.splice(event.contentIndex, 0, { kind: 'image', asset: event.asset })
-        this.replaceAssistantParts(event.messageId, parts)
+        parts.push({ kind: 'image', asset: event.asset, generation: { callId: event.callId, index: event.index } })
+        this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
       this.flush()
       return
@@ -223,7 +226,7 @@ export class StreamTaskProjection {
     if (images.length)
       this.replaceAssistantParts(
         event.messageId,
-        event.content ? [...images, { kind: 'text', text: event.content }] : images
+        normalizeAssistantParts(event.content ? [{ kind: 'text', text: event.content }, ...images] : images)
       )
     const completed = event.status === 'completed'
     const detail = completed
@@ -339,6 +342,7 @@ function toToolProjection(
     summary: tool.summary,
     ...(tool.title === undefined ? {} : { title: tool.title }),
     argumentsHash: tool.argumentsHash,
+    ...(tool.imageCount === undefined ? {} : { imageCount: tool.imageCount }),
     status: tool.status,
     durationMs: tool.durationMs,
     ...(tool.resultSummary === undefined ? {} : { resultSummary: tool.resultSummary }),

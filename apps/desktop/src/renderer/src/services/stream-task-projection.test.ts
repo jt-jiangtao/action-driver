@@ -103,8 +103,8 @@ describe('StreamTaskProjection', () => {
     expect(projection.snapshot()?.messages.at(-1)).toMatchObject({
       content: '完成',
       parts: [
-        { kind: 'image', asset: image },
-        { kind: 'text', text: '完成' }
+        { kind: 'text', text: '完成' },
+        { kind: 'image', asset: image }
       ]
     })
     projection.apply({
@@ -131,6 +131,7 @@ describe('StreamTaskProjection', () => {
       error: null
     })
     expect(projection.snapshot()?.messages.at(-1)?.parts).toHaveLength(2)
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.[0]).toEqual({ kind: 'text', text: '完成' })
   })
   it('shows tool preparation only while the model is preparing its call', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })

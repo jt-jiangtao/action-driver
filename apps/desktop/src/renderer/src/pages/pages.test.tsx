@@ -7,6 +7,28 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import { mockModelSelection } from '../testing/model-selection-fixture'
 
 describe('ActionDriver pages', () => {
+  it('shows image slots before the first asset and keeps new assistant text above them', () => {
+    const task = {
+      ...mockTaskFixture,
+      status: 'running' as const,
+      browser: null,
+      messages: [
+        { id: 'user-gallery', role: 'user' as const, content: '生成两张' },
+        { id: 'assistant-gallery', role: 'agent' as const, content: '' }
+      ],
+      tools: [{ callId: 'call-gallery', toolId: 'image.generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 2 }]
+    }
+    const props = { mode: 'split' as const, task, modelSelection: mockModelSelection,
+      onSelectModel: vi.fn(), onModeChange: vi.fn(), onPause: vi.fn(), onResume: vi.fn(),
+      onTakeOver: vi.fn(), onInterrupt: vi.fn(), onSubmit: vi.fn() }
+    const view = render(<TaskPage {...props} />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(2)
+    view.rerender(<TaskPage {...props} task={{ ...task, messages: [
+      task.messages[0]!, { id: 'assistant-gallery', role: 'agent', content: '正在绘制' }
+    ] }} />)
+    expect(view.container.querySelector('.agent-message-with-images')?.firstElementChild).toHaveTextContent('正在绘制')
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(2)
+  })
   it('shows completed generated images while process text stays in the activity group', async () => {
     const asset = {
       assetId: 'generated-1',

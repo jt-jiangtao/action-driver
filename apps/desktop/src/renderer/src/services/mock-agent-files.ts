@@ -76,6 +76,18 @@ const builtInSkills: AgentSkillSummary[] = [
     modifiedAt: '2026-09-20T09:30:00.000Z'
   },
   {
+    id: 'imagegen',
+    source: 'builtin',
+    name: 'Imagegen',
+    description: '使用生图工具创建图片。',
+    enabled: true,
+    available: true,
+    executorId: null,
+    unavailableReason: null,
+    protected: true,
+    modifiedAt: '2026-09-25T09:30:00.000Z'
+  },
+  {
     id: 'report-writer',
     source: 'builtin',
     name: 'report-writer',
