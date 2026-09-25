@@ -54,11 +54,13 @@ export function toModelSelectionProjection(
           (model) =>
             connection.protocol === 'openai-compatible' &&
             model.enabled &&
-            (model.probeCandidates
-              ? model.probeCandidates.includes('text')
-              : !model.catalogLabels?.length &&
-                !(model.capabilities?.image_generation && !model.capabilities.text) &&
-                model.kind !== 'image')
+            (model.chatCandidate !== undefined
+              ? model.chatCandidate
+              : model.probeCandidates
+                ? model.probeCandidates.includes('text')
+                : !model.catalogLabels?.length &&
+                  !(model.capabilities?.image_generation && !model.capabilities.text) &&
+                  model.kind !== 'image')
         )
         .map((model) => {
           return {

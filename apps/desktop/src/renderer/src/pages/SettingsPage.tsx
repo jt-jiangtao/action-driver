@@ -196,14 +196,13 @@ export function SettingsPage({
                       ...current,
                       [connection.id]: { done: 0, total: 0, phase: 'discovering' }
                     }))
+                    let batchModelKeys: string[] = []
                     try {
                       const models = await service.refresh(connection.id)
                       await syncConnections()
-                      const probeable = models.filter((model) =>
-                        model.probeCandidates
-                          ? model.probeCandidates.length > 0
-                          : !model.catalogLabels?.length
-                      )
+                      const probeable = models
+                      batchModelKeys = probeable.map((model) => modelKey(connection.id, model.id))
+                      setTestingModels((current) => new Set([...current, ...batchModelKeys]))
                       setBatchProgress((current) => ({
                         ...current,
                         [connection.id]: { done: 0, total: probeable.length, phase: 'testing' }
@@ -243,6 +242,11 @@ export function SettingsPage({
                         return next
                       })
                     } finally {
+                      setTestingModels((current) => {
+                        const next = new Set(current)
+                        for (const key of batchModelKeys) next.delete(key)
+                        return next
+                      })
                       batchConnectionsRef.current.delete(connection.id)
                     }
                   }}

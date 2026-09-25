@@ -288,17 +288,7 @@ export function AddModelSetDialog({
                   className="secondary-button"
                   disabled={state.discovering || state.models.length === 0}
                   data-testid="e2e/settings/add-model-set/test-all-models#button"
-                  onClick={() =>
-                    void testModels(
-                      state.models
-                        .filter((model) =>
-                          model.probeCandidates
-                            ? model.probeCandidates.length > 0
-                            : !model.catalogLabels?.length
-                        )
-                        .map((model) => model.id)
-                    )
-                  }
+                  onClick={() => void testModels(state.models.map((model) => model.id))}
                   type="button"
                 >
                   <AppIcon name="play" />

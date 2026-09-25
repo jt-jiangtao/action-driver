@@ -11,37 +11,44 @@ describe('capabilityCandidates', () => {
     })
   })
 
-  it('does not claim vision for the listed text-only qwen model', () => {
+  it('tests vision for the listed text-only qwen model instead of trusting its name', () => {
     expect(capabilityCandidates('qwen3.7-max', tokenPlanUrl)).toEqual({
-      probes: ['text', 'reasoning'],
+      probes: ['text', 'reasoning', 'vision'],
       displayOnly: []
     })
   })
 
-  it('uses only image generation for Wan', () => {
+  it('tests all three chat capabilities as well as image generation for Wan', () => {
     expect(capabilityCandidates('wan2.7-image', tokenPlanUrl)).toEqual({
-      probes: ['image_generation'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: []
     })
   })
 
-  it('lists video without probing it', () => {
+  it('probes all three chat capabilities for a video model without testing video generation', () => {
     expect(capabilityCandidates('happyhorse-1.1-t2v', tokenPlanUrl)).toEqual({
-      probes: [],
+      probes: ['text', 'reasoning', 'vision'],
       displayOnly: ['text_to_video']
+    })
+  })
+
+  it('probes all three chat capabilities for an audio model without testing audio', () => {
+    expect(capabilityCandidates('qwen-audio-3.0-asr-flash', tokenPlanUrl)).toEqual({
+      probes: ['text', 'reasoning', 'vision'],
+      displayOnly: ['speech_recognition']
     })
   })
 
   it('probes generic compatible models without treating a name as proof', () => {
     expect(capabilityCandidates('custom-model', 'https://example.com/v1')).toEqual({
-      probes: ['text', 'vision', 'image_generation'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: []
     })
   })
 
   it('does not apply Token Plan catalog outside the official gateway', () => {
     expect(capabilityCandidates('qwen3.7-max', 'https://example.com/v1')).toEqual({
-      probes: ['text', 'vision', 'image_generation'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: []
     })
   })

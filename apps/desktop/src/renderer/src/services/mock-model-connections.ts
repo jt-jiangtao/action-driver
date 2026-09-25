@@ -73,13 +73,21 @@ const defaultConnections: ModelConnection[] = [
 function cloneModels(models: ModelOption[]): ModelOption[] {
   return models.map((model) => ({
     ...model,
-    probeCandidates:
-      model.probeCandidates ??
-      (model.catalogLabels?.length
-        ? []
-        : Object.keys(model.capabilities ?? {}).length
-          ? (Object.keys(model.capabilities ?? {}) as ModelOption['probeCandidates'])
-          : ['text', 'vision', 'image_generation']),
+    chatCandidate:
+      model.chatCandidate ??
+      (model.kind !== 'image' &&
+        !model.catalogLabels?.length &&
+        !(model.capabilities?.image_generation && !model.capabilities.text)),
+    probeCandidates: [
+      'text',
+      'reasoning',
+      'vision',
+      ...(model.probeCandidates?.includes('image_generation') ||
+      model.capabilities?.image_generation ||
+      model.imageGenerationEnabled
+        ? (['image_generation'] as const)
+        : [])
+    ],
     kind: model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat')
   }))
 }
@@ -115,7 +123,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
   async discover(draft: ModelConnectionDraft): Promise<ModelOption[]> {
     await this.wait()
     if (!draft.baseUrl.trim()) return []
-    return discoveredModels.map((model) => ({ ...model, testState: 'untested' }))
+    return cloneModels(discoveredModels).map((model) => ({ ...model, testState: 'untested' }))
   }
 
   async refresh(connectionId: string): Promise<ModelOption[]> {
@@ -144,6 +152,8 @@ export class MockModelConnectionsService implements ModelConnectionsService {
         state: success ? 'success' : 'failed',
         capabilities: {
           text: { state: success ? 'success' : 'failed', source: 'probe' },
+          reasoning: { state: success ? 'success' : 'failed', source: 'probe' },
+          vision: { state: success ? 'success' : 'failed', source: 'probe' },
           ...(modelId.includes('image')
             ? {
                 image_generation: {

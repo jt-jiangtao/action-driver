@@ -12,7 +12,7 @@ import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
 import { ModelServiceError } from '@actiondriver/model-connections'
-import { capabilityCandidates } from './model-capability-catalog'
+import { capabilityCandidates, isChatCandidate } from './model-capability-catalog'
 import { probeCapability } from './capability-probes'
 import type {
   ModelAddRequestDto,
@@ -122,6 +122,7 @@ export class ModelConnectionService
         enabled: true,
         testState: 'untested' as const,
         probeCandidates: probes,
+        chatCandidate: isChatCandidate(id, validated.baseUrl),
         ...(labels.length ? { catalogLabels: labels } : {})
       }
     })
@@ -401,8 +402,7 @@ export class ModelConnectionService
     if (!model.enabled) {
       throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
     }
-    const candidates = capabilityCandidates(model.id, connection.baseUrl).probes
-    if (!candidates.includes('text')) {
+    if (!isChatCandidate(model.id, connection.baseUrl)) {
       throw new ModelServiceError('invalid-request', `Model ${model.id} does not support chat`)
     }
     if (connection.protocol !== 'openai-compatible') {
@@ -444,7 +444,12 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
 
 function withCatalogLabels(model: ModelOptionDto, baseUrl: string): ModelOptionDto {
   const { probes, displayOnly: labels } = capabilityCandidates(model.id, baseUrl)
-  return { ...model, probeCandidates: probes, ...(labels.length ? { catalogLabels: labels } : {}) }
+  return {
+    ...model,
+    probeCandidates: probes,
+    chatCandidate: isChatCandidate(model.id, baseUrl),
+    ...(labels.length ? { catalogLabels: labels } : {})
+  }
 }
 
 function isImageEligible(model: ModelOptionDto): boolean {

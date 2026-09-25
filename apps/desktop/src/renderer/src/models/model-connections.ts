@@ -50,6 +50,7 @@ export interface ModelOption {
   imageGenerationApi?: ImageGenerationApi
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
   probeCandidates?: ModelCapability[] | undefined
+  chatCandidate?: boolean | undefined
   catalogLabels?: string[] | undefined
 }
 

@@ -132,6 +132,7 @@ export type ModelOptionDto = {
   imageGenerationApi?: ImageGenerationApi | undefined
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
   probeCandidates?: ModelCapability[] | undefined
+  chatCandidate?: boolean | undefined
   catalogLabels?: string[] | undefined
 }
 

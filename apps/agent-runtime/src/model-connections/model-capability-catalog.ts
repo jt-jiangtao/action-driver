@@ -15,7 +15,10 @@ const IMAGE: readonly ModelCapability[] = ['image_generation']
 const GENERIC: readonly ModelCapability[] = ['text', 'vision', 'image_generation']
 
 const TOKEN_PLAN_CATALOG: Readonly<
-  Record<string, { probes: readonly ModelCapability[]; displayOnly: readonly DisplayOnlyCapability[] }>
+  Record<
+    string,
+    { probes: readonly ModelCapability[]; displayOnly: readonly DisplayOnlyCapability[] }
+  >
 > = {
   'qwen3.8-max': { probes: TEXT_REASONING_VISION, displayOnly: [] },
   'qwen3.8-flash': { probes: TEXT_REASONING_VISION, displayOnly: [] },
@@ -45,7 +48,15 @@ export function capabilityCandidates(
 ): { probes: ModelCapability[]; displayOnly: DisplayOnlyCapability[] } {
   const known = isTokenPlanBaseUrl(baseUrl) ? TOKEN_PLAN_CATALOG[modelId] : undefined
   return {
-    probes: [...(known?.probes ?? GENERIC)],
+    probes: [
+      ...TEXT_REASONING_VISION,
+      ...((known?.probes ?? GENERIC).includes('image_generation') ? IMAGE : [])
+    ],
     displayOnly: [...(known?.displayOnly ?? [])]
   }
+}
+
+export function isChatCandidate(modelId: string, baseUrl: string): boolean {
+  const known = isTokenPlanBaseUrl(baseUrl) ? TOKEN_PLAN_CATALOG[modelId] : undefined
+  return known ? known.probes.includes('text') : true
 }

@@ -192,6 +192,7 @@ function mapModel(value: unknown): ModelOption {
           )
         }
       : {}),
+    ...(typeof value.chatCandidate === 'boolean' ? { chatCandidate: value.chatCandidate } : {}),
     ...(Array.isArray(value.catalogLabels)
       ? {
           catalogLabels: value.catalogLabels.filter(

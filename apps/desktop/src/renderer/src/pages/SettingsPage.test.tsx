@@ -14,16 +14,28 @@ function renderWithQuery(element: ReactElement, options?: RenderOptions) {
 describe('SettingsPage model connections', () => {
   it('starts four model tests concurrently and starts the fifth after one finishes', async () => {
     const user = userEvent.setup()
-    const service = new MockModelConnectionsService({ delayMs: 0 })
-    vi.spyOn(service, 'refresh').mockResolvedValue(
-      Array.from({ length: 5 }, (_, index) => ({
-        id: `model-${index}`,
-        name: `model-${index}`,
-        enabled: true,
-        testState: 'untested' as const,
-        probeCandidates: ['text' as const]
-      }))
-    )
+    const models = Array.from({ length: 5 }, (_, index) => ({
+      id: `model-${index}`,
+      name: `model-${index}`,
+      enabled: true,
+      testState: 'untested' as const,
+      probeCandidates: ['text' as const, 'reasoning' as const, 'vision' as const]
+    }))
+    const service = new MockModelConnectionsService({
+      delayMs: 0,
+      seed: [
+        {
+          id: 'company-gateway',
+          name: '公司模型网关',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://example.com/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models
+        }
+      ]
+    })
+    vi.spyOn(service, 'refresh').mockResolvedValue(models)
     const finish: Array<() => void> = []
     const test = vi.spyOn(service, 'testConnectionModels').mockImplementation(
       async (_connectionId, ids) =>
@@ -33,7 +45,11 @@ describe('SettingsPage model connections', () => {
               {
                 modelId: ids[0]!,
                 state: 'success',
-                capabilities: { text: { state: 'success', source: 'probe' } }
+                capabilities: {
+                  text: { state: 'success', source: 'probe' },
+                  reasoning: { state: 'success', source: 'probe' },
+                  vision: { state: 'success', source: 'probe' }
+                }
               }
             ])
           )
@@ -42,6 +58,10 @@ describe('SettingsPage model connections', () => {
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
     await waitFor(() => expect(test).toHaveBeenCalledTimes(4))
+    const queuedRow = screen.getByText('model-4').closest<HTMLElement>('.model-row')!
+    expect(within(queuedRow).getByText('文本 · 测试中')).toBeVisible()
+    expect(within(queuedRow).getByText('推理 · 测试中')).toBeVisible()
+    expect(within(queuedRow).getByText('视觉 · 测试中')).toBeVisible()
     finish[0]?.()
     await waitFor(() => expect(test).toHaveBeenCalledTimes(5))
     for (const release of finish.slice(1)) release()
@@ -65,14 +85,15 @@ describe('SettingsPage model connections', () => {
     const test = vi.spyOn(service, 'testConnectionModels')
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
-    await waitFor(() => expect(test).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(4))
     expect(refresh).toHaveBeenCalledExactlyOnceWith('company-gateway')
     expect(test.mock.calls.map((call) => call[1])).toEqual([
       ['gpt-5.2'],
       ['gpt-5.2-mini'],
-      ['gpt-4.1']
+      ['gpt-4.1'],
+      ['audio-only']
     ])
-    expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
+    expect(await screen.findByText('测试完成 · 4/4')).toBeVisible()
   })
 
   it('continues a refresh batch after one model request fails', async () => {

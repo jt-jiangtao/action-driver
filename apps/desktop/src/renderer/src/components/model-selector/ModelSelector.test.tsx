@@ -6,6 +6,50 @@ import { mockModelSelection } from '../../testing/model-selection-fixture'
 import { ModelSelector } from './ModelSelector'
 
 describe('ModelSelector', () => {
+  it('does not treat universal probe coverage as permission to chat', () => {
+    const projection = toModelSelectionProjection(
+      [
+        {
+          id: 'gateway',
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'chat',
+              name: 'chat',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['text', 'reasoning', 'vision'],
+              chatCandidate: true
+            },
+            {
+              id: 'image',
+              name: 'image',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['text', 'reasoning', 'vision', 'image_generation'],
+              chatCandidate: false
+            },
+            {
+              id: 'audio',
+              name: 'audio',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['text', 'reasoning', 'vision'],
+              chatCandidate: false,
+              catalogLabels: ['speech_recognition']
+            }
+          ]
+        }
+      ],
+      null
+    )
+    expect(projection.connections[0]?.models.map((model) => model.id)).toEqual(['chat'])
+  })
+
   it('offers untested and failed chat candidates without a selection warning', () => {
     const projection = toModelSelectionProjection(
       [

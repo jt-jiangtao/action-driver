@@ -37,6 +37,27 @@ describe('MockModelConnectionsService', () => {
     ])
   })
 
+  it('shows three probe candidates without making audio models chat candidates', async () => {
+    const connection = (await new MockModelConnectionsService({ delayMs: 0 }).list())[0]!
+    const audio = {
+      id: 'audio-only',
+      name: 'audio-only',
+      enabled: true,
+      testState: 'untested' as const,
+      catalogLabels: ['speech_recognition']
+    }
+    const service = new MockModelConnectionsService({
+      delayMs: 0,
+      seed: [{ ...connection, models: [audio] }]
+    })
+    expect((await service.list())[0]!.models[0]).toMatchObject({
+      probeCandidates: ['text', 'reasoning', 'vision'],
+      chatCandidate: false
+    })
+    const [result] = await service.testConnectionModels(connection.id, ['audio-only'])
+    expect(Object.keys(result!.capabilities ?? {})).toEqual(['text', 'reasoning', 'vision'])
+  })
+
   it('supports deterministic partial-failure and all-success model tests', async () => {
     const draft = {
       name: '公司模型网关',
@@ -52,8 +73,24 @@ describe('MockModelConnectionsService', () => {
 
     const partialResults = await partial.testModels(draft, ['gpt-5.2', 'gpt-5.2-mini'])
     expect(partialResults).toEqual([
-      expect.objectContaining({ modelId: 'gpt-5.2', state: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }),
-      expect.objectContaining({ modelId: 'gpt-5.2-mini', state: 'failed', capabilities: { text: { state: 'failed', source: 'probe' } } })
+      expect.objectContaining({
+        modelId: 'gpt-5.2',
+        state: 'success',
+        capabilities: {
+          text: { state: 'success', source: 'probe' },
+          reasoning: { state: 'success', source: 'probe' },
+          vision: { state: 'success', source: 'probe' }
+        }
+      }),
+      expect.objectContaining({
+        modelId: 'gpt-5.2-mini',
+        state: 'failed',
+        capabilities: {
+          text: { state: 'failed', source: 'probe' },
+          reasoning: { state: 'failed', source: 'probe' },
+          vision: { state: 'failed', source: 'probe' }
+        }
+      })
     ])
     await expect(allSuccess.testModels(draft, ['gpt-5.2', 'gpt-5.2-mini'])).resolves.toEqual([
       expect.objectContaining({ modelId: 'gpt-5.2', state: 'success' }),
@@ -73,9 +110,9 @@ describe('MockModelConnectionsService', () => {
     const service = new MockModelConnectionsService({ delayMs: 0 })
 
     await service.setModelEnabled('company-gateway', 'gpt-4.1', true)
-    expect(
-      (await service.list())[0]!.models.find((model) => model.id === 'gpt-4.1')?.enabled
-    ).toBe(true)
+    expect((await service.list())[0]!.models.find((model) => model.id === 'gpt-4.1')?.enabled).toBe(
+      true
+    )
 
     const created = await service.add(
       {

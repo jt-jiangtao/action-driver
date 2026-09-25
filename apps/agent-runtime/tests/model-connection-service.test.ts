@@ -101,7 +101,7 @@ const validPng = Buffer.from(
 )
 
 describe('model connection service', () => {
-  it('lists current probe candidates without storing audio/video labels as results', async () => {
+  it('lists three probe candidates for audio models without storing audio labels as results', async () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
     const created = await service.add({
       draft: {
@@ -119,7 +119,8 @@ describe('model connection service', () => {
       ]
     })
     expect(created.models[0]?.probeCandidates).toEqual(['text', 'reasoning', 'vision'])
-    expect(created.models[1]?.probeCandidates).toEqual([])
+    expect(created.models[1]?.probeCandidates).toEqual(['text', 'reasoning', 'vision'])
+    expect(created.models[1]?.chatCandidate).toBe(false)
     expect((await service.list())[0]?.models[0]?.probeCandidates).toEqual([
       'text',
       'reasoning',
@@ -162,7 +163,7 @@ describe('model connection service', () => {
       },
       modelIds: ['qwen3.7-max', 'deepseek-v4-pro', 'glm-5.2', 'qwen3.8-max', 'qwen3.8-flash']
     })
-    await vi.waitFor(() => expect(requests).toHaveLength(9))
+    await vi.waitFor(() => expect(requests).toHaveLength(12))
     expect(requests.some((request) => JSON.stringify(request.body).includes('qwen3.8-flash'))).toBe(
       false
     )
@@ -173,8 +174,8 @@ describe('model connection service', () => {
         text: ''
       })
     }
-    await vi.waitFor(() => expect(requests).toHaveLength(12))
-    for (const release of releases.slice(9)) {
+    await vi.waitFor(() => expect(requests).toHaveLength(15))
+    for (const release of releases.slice(12)) {
       release({
         status: 200,
         body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
@@ -190,7 +191,7 @@ describe('model connection service', () => {
     ])
   })
 
-  it('replaces obsolete capability results on retest', async () => {
+  it('replaces legacy results with three real probes on image model retest', async () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
     const created = await service.add({
       draft: {
@@ -212,8 +213,9 @@ describe('model connection service', () => {
     })
     await service.testConnectionModels({ connectionId: created.id, modelIds: ['wan2.7-image'] })
     const saved = (await service.list())[0]?.models[0]
-    expect(saved?.capabilities?.text).toBeUndefined()
-    expect(saved?.capabilities?.vision).toBeUndefined()
+    expect(saved?.capabilities?.text?.source).toBe('probe')
+    expect(saved?.capabilities?.reasoning?.source).toBe('probe')
+    expect(saved?.capabilities?.vision?.source).toBe('probe')
   })
 
   it('keeps both model results when saved tests complete in reverse order', async () => {
@@ -243,7 +245,7 @@ describe('model connection service', () => {
       connectionId: connection.id,
       modelIds: ['deepseek-v4-pro']
     })
-    await vi.waitFor(() => expect(requests).toHaveLength(4))
+    await vi.waitFor(() => expect(requests).toHaveLength(6))
     const response = {
       status: 200,
       body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
@@ -289,10 +291,12 @@ describe('model connection service', () => {
     expect(requests).toHaveLength(3)
   })
 
-  it('does not probe catalog audio or video models', async () => {
-    const { service, requests } = createService(() => {
-      throw new Error('Audio and video tests must not call a provider')
-    })
+  it('actually probes text, reasoning and vision on audio and video models', async () => {
+    const { service, requests } = createService(() => ({
+      status: 200,
+      body: { choices: [{ message: { content: 'red', reasoning_content: 'reason' } }] },
+      text: ''
+    }))
     const results = await service.testModels({
       draft: {
         ...draft,
@@ -300,8 +304,16 @@ describe('model connection service', () => {
       },
       modelIds: ['qwen-audio-3.0-asr-flash', 'happyhorse-1.1-t2v']
     })
-    expect(results.map((result) => result.capabilities)).toEqual([{}, {}])
-    expect(requests).toHaveLength(0)
+    expect(requests).toHaveLength(6)
+    expect(results.map((result) => Object.keys(result.capabilities ?? {}).sort())).toEqual([
+      ['reasoning', 'text', 'vision'],
+      ['reasoning', 'text', 'vision']
+    ])
+    expect(
+      results.every((result) =>
+        Object.values(result.capabilities ?? {}).every((item) => item.state === 'success')
+      )
+    ).toBe(true)
   })
 
   it('does not restore a model that was disabled while its capability test ran', async () => {
@@ -911,14 +923,16 @@ describe('model connection service', () => {
         name: 'qwen3.7-plus',
         enabled: true,
         testState: 'untested',
-        probeCandidates: ['text', 'vision', 'image_generation']
+        probeCandidates: ['text', 'reasoning', 'vision', 'image_generation'],
+        chatCandidate: true
       },
       {
         id: 'qwen3.8-max',
         name: 'qwen3.8-max',
         enabled: true,
         testState: 'untested',
-        probeCandidates: ['text', 'vision', 'image_generation']
+        probeCandidates: ['text', 'reasoning', 'vision', 'image_generation'],
+        chatCandidate: true
       }
     ])
 
