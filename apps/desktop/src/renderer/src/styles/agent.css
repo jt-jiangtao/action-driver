@@ -724,24 +724,19 @@
   font-size: 13px;
 }
 .image-gallery-dots {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-.image-gallery-dots::before {
-  position: absolute;
-  inset: -26px;
-  content: '';
-  background-image: radial-gradient(circle, #aeb3c0 0.8px, transparent 1px);
+  width: 72%;
+  height: 72%;
+  background-image: radial-gradient(circle, #b8bbc4 0.8px, transparent 1px);
   background-size: 13px 13px;
-  opacity: 0.58;
-  animation: image-gallery-drift 2.8s linear infinite;
+  mask-image: radial-gradient(circle, #000 15%, transparent 73%);
+  animation: image-gallery-wander 6.8s ease-in-out infinite;
 }
-@keyframes image-gallery-drift {
-  0% { opacity: 0.48; transform: translate3d(0, 0, 0); }
-  50% { opacity: 0.92; }
-  100% { opacity: 0.48; transform: translate3d(13px, -26px, 0); }
+@keyframes image-gallery-wander {
+  0%, 100% { opacity: 0.88; transform: translate3d(0, 0, 0); }
+  18% { opacity: 0.68; transform: translate3d(21%, -22%, 0); }
+  40% { opacity: 1; transform: translate3d(23%, 21%, 0); }
+  63% { opacity: 0.66; transform: translate3d(-22%, 25%, 0); }
+  83% { opacity: 0.96; transform: translate3d(-20%, -21%, 0); }
 }
 @keyframes image-gallery-reveal {
   from { opacity: 0.4; }
@@ -751,7 +746,7 @@
   .image-gallery-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .image-gallery-dots::before,
+  .image-gallery-dots,
   .image-gallery-slot.is-ready { animation: none; }
 }
 .conversation-image-item {
