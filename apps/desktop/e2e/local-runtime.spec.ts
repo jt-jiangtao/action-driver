@@ -43,7 +43,10 @@ test.afterEach(async () => {
   application = undefined
 })
 
-async function launch(reuseDirectories = false, environment: NodeJS.ProcessEnv = {}): Promise<Page> {
+async function launch(
+  reuseDirectories = false,
+  environment: NodeJS.ProcessEnv = {}
+): Promise<Page> {
   if (!reuseDirectories) {
     userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-data-'))
     homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
@@ -89,19 +92,23 @@ async function configureProvider(page: Page): Promise<void> {
           authorization: `Bearer ${connection.accessToken}`,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ draft: {
-          name: 'E2E Stream Provider',
-          protocol: 'openai-compatible',
-          baseUrl,
-          apiKey: secret
-        }, models: [
-          {
-            id: 'e2e-stream-model',
-            name: 'e2e-stream-model',
-            enabled: true,
-            testState: 'success'
-          }
-        ] })
+        body: JSON.stringify({
+          draft: {
+            name: 'E2E Stream Provider',
+            protocol: 'openai-compatible',
+            baseUrl,
+            apiKey: secret
+          },
+          models: [
+            {
+              id: 'e2e-stream-model',
+              name: 'e2e-stream-model',
+              enabled: true,
+              testState: 'success',
+              imageInputEnabled: true
+            }
+          ]
+        })
       })
       if (!response.ok || !(await response.json()).ok) throw new Error('Cannot configure E2E model')
     },
@@ -117,10 +124,15 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   const page = await launch()
   expect(page.url()).toBe('actiondriver://renderer/index.html')
   expect(await page.evaluate(() => window.location.origin)).toBe('actiondriver://renderer')
-  expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort()))
-    .toEqual(['getEnvironment', 'runtimeConnection', 'skillFolders'])
+  expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort())).toEqual([
+    'externalLinks',
+    'getEnvironment',
+    'runtimeConnection',
+    'skillFolders'
+  ])
   const requestPromise = page.waitForRequest((request) =>
-    request.url().endsWith('/model-connections'))
+    request.url().endsWith('/model-connections')
+  )
   const result = await page.evaluate(async () => {
     const connection = await window.actionDriverDesktop.runtimeConnection.get()
     const httpUrl = new URL(connection.wsUrl)
@@ -146,19 +158,23 @@ test('saves the main prompt through Runtime and lists enabled system Skills', as
   await page.keyboard.press('Meta+A')
   await page.keyboard.insertText('# Runtime 持有的提示词\n')
   await page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button').click()
-  await expect(page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button'))
-    .toBeDisabled()
+  await expect(
+    page.getByTestId('e2e/settings/agent-editors/main-prompt/save#button')
+  ).toBeDisabled()
   await page.reload()
   await page.getByRole('button', { name: '设置' }).click()
   await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
-  await expect(page.getByTestId('e2e/settings/main-prompt/page#page'))
-    .toContainText('Runtime 持有的提示词')
+  await expect(page.getByTestId('e2e/settings/main-prompt/page#page')).toContainText(
+    'Runtime 持有的提示词'
+  )
   await page.getByTestId('e2e/settings/sidebar/skills#button').click()
   await expect(page.getByTestId('e2e/settings/skills/page#page')).toBeVisible()
   for (const id of ['browser-tools', 'computer-tools', 'skill-creator']) {
     await expect(page.getByTestId(`e2e/settings/skills/items/${id}#button`)).toBeVisible()
-    await expect(page.getByTestId(`e2e/settings/skills/toggles/${id}#switch`))
-      .toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByTestId(`e2e/settings/skills/toggles/${id}#switch`)).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
   }
 })
 
@@ -190,7 +206,9 @@ test('installs a local instruction Skill into the desktop list and keeps its sou
   await reopened.getByTestId('e2e/settings/sidebar/skills#button').click()
   await expect(reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button')).toBeVisible()
   await reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button').click()
-  await expect(reopened.getByRole('dialog', { name: 'E2E Notes' })).toContainText('Write concise notes.')
+  await expect(reopened.getByRole('dialog', { name: 'E2E Notes' })).toContainText(
+    'Write concise notes.'
+  )
   await reopened.getByTestId('e2e/settings/skills/detail/uninstall#button').click()
   await reopened.getByTestId('e2e/settings/skills/dialog/submit#button').click()
   await expect(reopened.getByTestId('e2e/settings/skills/items/e2e-notes#button')).toHaveCount(0)
@@ -202,12 +220,30 @@ test('installs a GitHub Skill through existing Git configuration and updates the
   const repo = join(fixtureRoot, 'private-repo')
   const config = join(fixtureRoot, 'gitconfig')
   mkdirSync(join(repo, 'skills', 'e2e-github'), { recursive: true })
-  writeFileSync(join(repo, 'skills', 'e2e-github', 'SKILL.md'), '# E2E GitHub\n\nReview local changes.\n')
+  writeFileSync(
+    join(repo, 'skills', 'e2e-github', 'SKILL.md'),
+    '# E2E GitHub\n\nReview local changes.\n'
+  )
   execFileSync('git', ['init', '-q', repo])
   execFileSync('git', ['-C', repo, 'add', '.'])
-  execFileSync('git', ['-C', repo, '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'])
-  const branch = execFileSync('git', ['-C', repo, 'branch', '--show-current'], { encoding: 'utf8' }).trim()
-  writeFileSync(config, `[url "file://${repo}"]\n\tinsteadOf = https://github.com/acme/private.git\n`)
+  execFileSync('git', [
+    '-C',
+    repo,
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-qm',
+    'fixture'
+  ])
+  const branch = execFileSync('git', ['-C', repo, 'branch', '--show-current'], {
+    encoding: 'utf8'
+  }).trim()
+  writeFileSync(
+    config,
+    `[url "file://${repo}"]\n\tinsteadOf = https://github.com/acme/private.git\n`
+  )
   const page = await launch(false, { GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' })
   const installed = await page.evaluate(async (urlValue) => {
     const connection = await window.actionDriverDesktop.runtimeConnection.get()
@@ -234,7 +270,9 @@ test('installs a GitHub Skill through existing Git configuration and updates the
   await row.getByRole('switch').click()
   await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
   await row.getByRole('button', { name: /E2E GitHub/ }).click()
-  await expect(page.getByRole('dialog', { name: 'E2E GitHub' })).toContainText('Review local changes.')
+  await expect(page.getByRole('dialog', { name: 'E2E GitHub' })).toContainText(
+    'Review local changes.'
+  )
 })
 
 test('streams two real turns in one persisted session without local logs', async () => {
@@ -289,13 +327,15 @@ test('streams two real turns in one persisted session without local logs', async
       const connection = await window.actionDriverDesktop.runtimeConnection.get()
       const baseUrl = new URL(connection.wsUrl)
       baseUrl.protocol = baseUrl.protocol === 'wss:' ? 'https:' : 'http:'
-      return Promise.all([firstId, secondId].map(async (taskId) => {
-        const url = new URL(`/tasks/${encodeURIComponent(taskId)}`, baseUrl)
-        const response = await fetch(url, {
-          headers: { authorization: `Bearer ${connection.accessToken}` }
+      return Promise.all(
+        [firstId, secondId].map(async (taskId) => {
+          const url = new URL(`/tasks/${encodeURIComponent(taskId)}`, baseUrl)
+          const response = await fetch(url, {
+            headers: { authorization: `Bearer ${connection.accessToken}` }
+          })
+          return (await response.json()).value.task
         })
-        return (await response.json()).value.task
-      }))
+      )
     },
     [firstTaskId!, secondTaskId!] as const
   )
@@ -328,4 +368,47 @@ test('streams two real turns in one persisted session without local logs', async
   await application!.close()
   application = undefined
   expect(existsSync(join(userDataDirectory, 'logs'))).toBe(false)
+})
+
+test('keeps a wide uploaded image visible in the composer, sent message, and restored session', async ({}, testInfo) => {
+  let page = await launch()
+  await configureProvider(page)
+  const base64 = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1600
+    canvas.height = 600
+    const context = canvas.getContext('2d')!
+    context.fillStyle = '#fff'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = '#111'
+    context.font = 'bold 110px sans-serif'
+    context.fillText('WIDE IMAGE TEST', 80, 320)
+    return canvas.toDataURL('image/png').split(',')[1]!
+  })
+  await page.getByLabel('添加图片').setInputFiles({
+    name: 'wide-image.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(base64, 'base64')
+  })
+  const preview = page.locator('.composer-image-preview')
+  await expect(preview.getByRole('img', { name: 'wide-image.png' })).toBeVisible()
+  await expect(preview.getByText('wide-image.png')).toBeVisible()
+  await expect(preview.getByRole('button', { name: '移除 wide-image.png' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('wide-image-composer.png') })
+  await page.getByLabel('任务描述').fill('请描述这张图片')
+  await page.getByLabel('发送').click()
+  const userImage = page.locator('.conversation-stream .user-message img[alt="上传的图片"]')
+  await expect(userImage).toBeVisible({ timeout: 10_000 })
+  await expect(userImage).toHaveJSProperty('naturalWidth', 1600)
+  await page.screenshot({ path: testInfo.outputPath('wide-image-message.png') })
+  await expect(page.getByRole('heading', { name: '未知请求' })).toBeVisible({ timeout: 10_000 })
+  await application!.close()
+  application = undefined
+  page = await launch(true)
+  await page.locator('[data-testid^="e2e/shared/sidebar/tasks/"]').first().click()
+  const restoredImage = page.locator('.conversation-stream .user-message img[alt="上传的图片"]')
+  await expect(restoredImage).toBeVisible({ timeout: 10_000 })
+  await expect(restoredImage).toHaveJSProperty('naturalWidth', 1600)
+  await page.getByRole('button', { name: '放大图片' }).click()
+  await expect(page.getByRole('dialog', { name: '图片预览' })).toBeVisible()
 })

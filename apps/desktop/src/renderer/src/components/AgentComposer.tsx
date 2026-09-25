@@ -151,18 +151,22 @@ export function AgentComposer({
         <div className="composer-image-previews">
           {previews.map((preview, index) => (
             <div className="composer-image-preview" key={`${preview.file.name}:${index}`}>
-              {preview.url ? <img src={preview.url} alt="待发送图片预览" /> : null}
-              <span>{preview.file.name}</span>
-              <button
-                type="button"
-                aria-label={`移除 ${preview.file.name}`}
-                data-testid={e2eId('e2e/shared/composer/images/:image-index/remove#button', {
-                  'image-index': String(index)
-                })}
-                onClick={() => setImageFiles((files) => files.filter((_, at) => at !== index))}
-              >
-                <X size={14} />
-              </button>
+              <div className="composer-image-preview-frame">
+                {preview.url ? <img src={preview.url} alt={preview.file.name} /> : null}
+              </div>
+              <div className="composer-image-preview-meta">
+                <span title={preview.file.name}>{preview.file.name}</span>
+                <button
+                  type="button"
+                  aria-label={`移除 ${preview.file.name}`}
+                  data-testid={e2eId('e2e/shared/composer/images/:image-index/remove#button', {
+                    'image-index': String(index)
+                  })}
+                  onClick={() => setImageFiles((files) => files.filter((_, at) => at !== index))}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -19,9 +19,9 @@ export function UserMessage({
             asset={part.asset}
             readImage={readImage}
           />
-        ) : (
+        ) : part.text.trim() ? (
           <span key={`text:${index}`}>{part.text}</span>
-        )
+        ) : null
       )}
     </div>
   )

@@ -102,22 +102,39 @@
 }
 .composer-image-preview {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  max-width: 190px;
-  padding: 4px 7px 4px 4px;
+  flex-direction: column;
+  width: 172px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--ad-color-border-default);
   border-radius: 10px;
+  background: var(--ad-color-bg-surface, #fff);
   color: var(--ad-color-text-secondary);
   font-size: 12px;
 }
-.composer-image-preview img {
-  width: 30px;
-  height: 30px;
-  object-fit: cover;
-  border-radius: 6px;
+.composer-image-preview-frame {
+  display: grid;
+  place-items: center;
+  height: 104px;
+  padding: 4px;
+  background: #f8f9fa;
 }
-.composer-image-preview span {
+.composer-image-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.composer-image-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 5px 0 8px;
+}
+.composer-image-preview-meta span {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -617,6 +634,13 @@
   align-items: flex-start;
   gap: 8px;
 }
+.user-message-with-images {
+  padding: 8px;
+}
+.user-message-with-images > span:not(.conversation-image-item) {
+  flex-basis: 100%;
+  padding: 4px 6px;
+}
 .agent-message-with-images .markdown-content {
   flex-basis: 100%;
 }
@@ -627,16 +651,17 @@
 .conversation-image-open {
   display: block;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--ad-color-border-default);
   border-radius: 10px;
+  background: #fff;
   overflow: hidden;
   cursor: zoom-in;
 }
 .conversation-image-open img {
   display: block;
   width: auto;
-  max-width: min(220px, 100%);
-  max-height: 220px;
+  max-width: min(320px, 100%);
+  max-height: 240px;
   object-fit: contain;
 }
 .conversation-image-download {

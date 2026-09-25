@@ -8,6 +8,55 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('shows one complete uploaded image without an empty text fragment', async () => {
+    const previousCreate = URL.createObjectURL
+    const previousRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:wide-image')
+    URL.revokeObjectURL = vi.fn()
+    const asset = {
+      assetId: 'asset-wide',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1600,
+      height: 600,
+      byteLength: 32,
+      source: 'upload' as const
+    }
+    let view: ReturnType<typeof render> | undefined
+    try {
+      view = render(
+        <UserMessage
+          message={{
+            id: 'u',
+            role: 'user',
+            content: '',
+            parts: [
+              { kind: 'text', text: '' },
+              { kind: 'image', asset }
+            ]
+          }}
+          readImage={async () => new Blob(['png'], { type: 'image/png' })}
+        />
+      )
+      const image = await screen.findByRole('img', { name: '上传的图片' })
+      expect(image).toHaveAttribute('src', 'blob:wide-image')
+      expect(view.container.querySelectorAll('.conversation-image-item')).toHaveLength(1)
+      expect(
+        view.container.querySelector(
+          '.user-message-with-images > span:not(.conversation-image-item)'
+        )
+      ).toBeNull()
+      expect(agentStyles).toMatch(/\.conversation-image-open img\s*\{[^}]*object-fit:\s*contain/s)
+      expect(agentStyles).toMatch(/\.conversation-image-open\s*\{[^}]*border:\s*1px/s)
+      view.unmount()
+      view = undefined
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:wide-image')
+    } finally {
+      view?.unmount()
+      URL.createObjectURL = previousCreate
+      URL.revokeObjectURL = previousRevoke
+    }
+  })
   it('loads a generated image, opens it with the keyboard, and offers download', async () => {
     const previousCreate = URL.createObjectURL
     const previousRevoke = URL.revokeObjectURL

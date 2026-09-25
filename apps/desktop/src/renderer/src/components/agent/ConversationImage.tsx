@@ -69,7 +69,11 @@ export function ConversationImage({
         })}
         onClick={() => setZoomed(true)}
       >
-        <img src={url} alt={asset.source === 'generated' ? '生成的图片' : '上传的图片'} />
+        <img
+          src={url}
+          alt={asset.source === 'generated' ? '生成的图片' : '上传的图片'}
+          onError={() => setError(true)}
+        />
       </button>
       <a
         href={url}

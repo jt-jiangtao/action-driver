@@ -3,8 +3,31 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AgentComposer } from './AgentComposer'
 import { mockModelSelection } from '../testing/model-selection-fixture'
+import agentStyles from '../styles/agent.css?raw'
 
 describe('AgentComposer', () => {
+  it('keeps the full wide image visible with a separate file action row', async () => {
+    const user = userEvent.setup()
+    const previousCreate = URL.createObjectURL
+    const previousRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:wide-preview')
+    URL.revokeObjectURL = vi.fn()
+    try {
+      const view = render(<AgentComposer onSubmit={() => undefined} />)
+      const image = new File(['wide screenshot'], 'wide-screenshot.png', { type: 'image/png' })
+      await user.upload(screen.getByLabelText('添加图片'), image)
+      const preview = screen.getByText('wide-screenshot.png').closest('.composer-image-preview')
+      expect(preview).toBeInTheDocument()
+      expect(preview?.querySelector('.composer-image-preview-frame')).not.toBeNull()
+      expect(preview?.querySelector('.composer-image-preview-meta')).not.toBeNull()
+      expect(preview?.querySelector('img')).toHaveAttribute('alt', 'wide-screenshot.png')
+      expect(agentStyles).toMatch(/\.composer-image-preview img\s*\{[^}]*object-fit:\s*contain/s)
+      view.unmount()
+    } finally {
+      URL.createObjectURL = previousCreate
+      URL.revokeObjectURL = previousRevoke
+    }
+  })
   it('uses the plus and send actions and submits Slate text', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
