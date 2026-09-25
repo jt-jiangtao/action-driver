@@ -280,6 +280,52 @@ describe('model connection service', () => {
     }
   })
 
+  it('rejects an in-flight image after its default model is disabled', async () => {
+    let releaseProvider!: (response: Response) => void
+    let providerStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      providerStarted = resolve
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        providerStarted()
+        return new Promise<Response>((resolve) => {
+          releaseProvider = resolve
+        })
+      })
+    )
+    try {
+      const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+      const connection = await service.add({
+        draft,
+        models: [
+          {
+            id: 'image',
+            name: 'image',
+            enabled: true,
+            testState: 'untested',
+            imageGenerationEnabled: true
+          }
+        ]
+      })
+      const model = { connectionId: connection.id, modelId: 'image' }
+      await service.setDefaultImageModel(model)
+      const pending = service.generateImage({ model, prompt: 'cat' })
+      await started
+      await service.setModelImageCapability({ ...model, kind: 'generation', enabled: false })
+      expect(await service.getDefaultImageModel()).toBeNull()
+      releaseProvider(
+        new Response(
+          JSON.stringify({ data: [{ b64_json: Buffer.from('image').toString('base64') }] })
+        )
+      )
+      await expect(pending).rejects.toThrow('Default image model changed')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('keeps a configured image-only model when discovery does not list it', async () => {
     const { service } = createService(() => ({
       status: 200,

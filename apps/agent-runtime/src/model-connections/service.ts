@@ -285,7 +285,7 @@ export class ModelConnectionService
       model.imageGenerationApi === 'token-plan'
         ? createTokenPlanImageGenerationAdapter()
         : createImageGenerationAdapter()
-    return adapter.generate(
+    const bytes = await adapter.generate(
       {
         baseUrl: connection.baseUrl,
         apiKey: this.decrypt(connection),
@@ -294,6 +294,24 @@ export class ModelConnectionService
       },
       signal
     )
+    const currentDefault = await this.getDefaultImageModel()
+    if (
+      !currentDefault ||
+      currentDefault.connectionId !== selected.connectionId ||
+      currentDefault.modelId !== selected.modelId
+    )
+      throw new ModelServiceError('invalid-request', 'Default image model changed')
+    const currentConnection = this.read().find(
+      (candidate) => candidate.id === selected.connectionId
+    )
+    const currentModel = currentConnection?.models.find(
+      (candidate) => candidate.id === selected.modelId
+    )
+    if (!currentModel?.enabled || !currentModel.imageGenerationEnabled)
+      throw new ModelServiceError('invalid-request', 'Image model is unavailable')
+    if (currentModel.imageGenerationApi !== model.imageGenerationApi)
+      throw new ModelServiceError('invalid-request', 'Image generation API changed')
+    return bytes
   }
 
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {

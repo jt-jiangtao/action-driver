@@ -12,8 +12,9 @@ describe('AgentComposer', () => {
     const previousRevoke = URL.revokeObjectURL
     URL.createObjectURL = vi.fn(() => 'blob:wide-preview')
     URL.revokeObjectURL = vi.fn()
+    let view: ReturnType<typeof render> | undefined
     try {
-      const view = render(<AgentComposer onSubmit={() => undefined} />)
+      view = render(<AgentComposer onSubmit={() => undefined} />)
       const image = new File(['wide screenshot'], 'wide-screenshot.png', { type: 'image/png' })
       await user.upload(screen.getByLabelText('添加图片'), image)
       const preview = screen.getByText('wide-screenshot.png').closest('.composer-image-preview')
@@ -22,8 +23,19 @@ describe('AgentComposer', () => {
       expect(preview?.querySelector('.composer-image-preview-meta')).not.toBeNull()
       expect(preview?.querySelector('img')).toHaveAttribute('alt', 'wide-screenshot.png')
       expect(agentStyles).toMatch(/\.composer-image-preview img\s*\{[^}]*object-fit:\s*contain/s)
+      await user.click(screen.getByRole('button', { name: '放大 wide-screenshot.png' }))
+      expect(screen.getByRole('dialog', { name: '待发送图片预览' })).toBeVisible()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog', { name: '待发送图片预览' })).not.toBeInTheDocument()
+      screen.getByRole('button', { name: '放大 wide-screenshot.png' }).focus()
+      await user.keyboard('{Enter}')
+      expect(screen.getByRole('dialog', { name: '待发送图片预览' })).toBeVisible()
+      await user.click(screen.getByRole('button', { name: '关闭待发送图片预览' }))
+      expect(screen.queryByRole('dialog', { name: '待发送图片预览' })).not.toBeInTheDocument()
       view.unmount()
+      view = undefined
     } finally {
+      view?.unmount()
       URL.createObjectURL = previousCreate
       URL.revokeObjectURL = previousRevoke
     }

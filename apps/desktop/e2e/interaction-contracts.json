@@ -306,6 +306,22 @@
     "testName": "uses the plus and send actions and submits Slate text"
   },
   {
+    "target": "e2e/shared/composer/images/:image-index/open#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "keeps the full wide image visible with a separate file action row"
+  },
+  {
+    "target": "e2e/shared/composer/images/preview-close#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "keeps the full wide image visible with a separate file action row"
+  },
+  {
     "target": "e2e/shared/composer/images/:image-index/remove#button",
     "route": "shared",
     "type": "button",

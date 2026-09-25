@@ -36,6 +36,7 @@ export function AgentComposer({
   const editorRootRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [zoomedPreviewIndex, setZoomedPreviewIndex] = useState<number | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const previews = useMemo(
@@ -52,6 +53,14 @@ export function AgentComposer({
     },
     [previews]
   )
+  useEffect(() => {
+    if (zoomedPreviewIndex === null) return
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setZoomedPreviewIndex(null)
+    }
+    window.addEventListener('keydown', onEscape)
+    return () => window.removeEventListener('keydown', onEscape)
+  }, [zoomedPreviewIndex])
   const initialValue = useMemo<Descendant[]>(
     () => [{ type: 'paragraph', children: [{ text: initialText }] } as Paragraph],
     [initialText]
@@ -97,6 +106,7 @@ export function AgentComposer({
       )
       .finally(() => setSubmitting(false))
   }
+  const zoomedPreview = zoomedPreviewIndex === null ? null : previews[zoomedPreviewIndex]
 
   return (
     <div
@@ -152,7 +162,19 @@ export function AgentComposer({
           {previews.map((preview, index) => (
             <div className="composer-image-preview" key={`${preview.file.name}:${index}`}>
               <div className="composer-image-preview-frame">
-                {preview.url ? <img src={preview.url} alt={preview.file.name} /> : null}
+                {preview.url ? (
+                  <button
+                    type="button"
+                    className="composer-image-preview-open"
+                    aria-label={`放大 ${preview.file.name}`}
+                    data-testid={e2eId('e2e/shared/composer/images/:image-index/open#button', {
+                      'image-index': String(index)
+                    })}
+                    onClick={() => setZoomedPreviewIndex(index)}
+                  >
+                    <img src={preview.url} alt={preview.file.name} />
+                  </button>
+                ) : null}
               </div>
               <div className="composer-image-preview-meta">
                 <span title={preview.file.name}>{preview.file.name}</span>
@@ -162,13 +184,34 @@ export function AgentComposer({
                   data-testid={e2eId('e2e/shared/composer/images/:image-index/remove#button', {
                     'image-index': String(index)
                   })}
-                  onClick={() => setImageFiles((files) => files.filter((_, at) => at !== index))}
+                  onClick={() => {
+                    setZoomedPreviewIndex(null)
+                    setImageFiles((files) => files.filter((_, at) => at !== index))
+                  }}
                 >
                   <X size={14} />
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      ) : null}
+      {zoomedPreview?.url ? (
+        <div
+          className="conversation-image-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="待发送图片预览"
+        >
+          <button
+            type="button"
+            aria-label="关闭待发送图片预览"
+            data-testid="e2e/shared/composer/images/preview-close#button"
+            onClick={() => setZoomedPreviewIndex(null)}
+          >
+            <X size={20} />
+          </button>
+          <img src={zoomedPreview.url} alt={zoomedPreview.file.name} />
         </div>
       ) : null}
       {submitError ? (
