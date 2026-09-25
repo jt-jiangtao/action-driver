@@ -112,14 +112,14 @@ export function AddModelSetDialog({
           modelId: originalIdByRequestId.get(result.modelId) ?? result.modelId
         }))
       if (currentResults.length) dispatch({ type: 'model-result', results: currentResults })
-    } catch (error) {
+    } catch {
       const currentIds = modelIds.filter((modelId) => modelTokens.current.get(modelId) === token)
       if (currentIds.length) {
         dispatch({
           type: 'model-result',
           results: currentIds.map((modelId) => ({ modelId, state: 'failed' as const }))
         })
-        setFailure({ code: 'unknown', message: toMessage(error) })
+        setFailure({ code: 'unknown', message: '测试失败' })
       }
     } finally {
       for (const modelId of modelIds) {
@@ -291,7 +291,11 @@ export function AddModelSetDialog({
                   onClick={() =>
                     void testModels(
                       state.models
-                        .filter((model) => !model.catalogLabels?.length)
+                        .filter((model) =>
+                          model.probeCandidates
+                            ? model.probeCandidates.length > 0
+                            : !model.catalogLabels?.length
+                        )
                         .map((model) => model.id)
                     )
                   }

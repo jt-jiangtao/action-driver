@@ -639,7 +639,7 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "keeps a text and image draft when vision testing has not succeeded"
+    "testName": "sends an image with a chat candidate even when its vision test failed"
   },
   {
     "target": "e2e/shared/composer/root#section",

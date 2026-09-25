@@ -12,6 +12,42 @@ function renderWithQuery(element: ReactElement, options?: RenderOptions) {
 }
 
 describe('SettingsPage model connections', () => {
+  it('starts four model tests concurrently and starts the fifth after one finishes', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    vi.spyOn(service, 'refresh').mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `model-${index}`,
+        name: `model-${index}`,
+        enabled: true,
+        testState: 'untested' as const,
+        probeCandidates: ['text' as const]
+      }))
+    )
+    const finish: Array<() => void> = []
+    const test = vi.spyOn(service, 'testConnectionModels').mockImplementation(
+      async (_connectionId, ids) =>
+        new Promise((resolve) => {
+          finish.push(() =>
+            resolve([
+              {
+                modelId: ids[0]!,
+                state: 'success',
+                capabilities: { text: { state: 'success', source: 'probe' } }
+              }
+            ])
+          )
+        })
+    )
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(4))
+    finish[0]?.()
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(5))
+    for (const release of finish.slice(1)) release()
+    expect(await screen.findByText('测试完成 · 5/5')).toBeVisible()
+  })
+
   it('refreshes and tests every probeable model with visible batch progress', async () => {
     const user = userEvent.setup()
     const service = new MockModelConnectionsService({ delayMs: 0 })
@@ -49,9 +85,8 @@ describe('SettingsPage model connections', () => {
       .mockImplementation((connectionId, modelIds) => actualTest(connectionId, modelIds))
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
-    expect(await screen.findByRole('alert', { name: 'gpt-5.2 测试错误' })).toHaveTextContent(
-      '服务暂不可用'
-    )
+    expect(await screen.findAllByText('文本 · 失败')).not.toHaveLength(0)
+    expect(screen.queryByText('服务暂不可用')).not.toBeInTheDocument()
     await waitFor(() => expect(test).toHaveBeenCalledTimes(3))
     expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
   })
@@ -62,7 +97,8 @@ describe('SettingsPage model connections', () => {
     const refresh = vi.spyOn(service, 'refresh').mockRejectedValueOnce(new Error('连接超时'))
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('刷新或测试失败：连接超时')
+    expect(await screen.findByRole('alert')).toHaveTextContent('刷新失败')
+    expect(screen.queryByText('连接超时')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /刷新并测试公司模型网关/ }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2))
     expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
@@ -76,9 +112,8 @@ describe('SettingsPage model connections', () => {
       .mockRejectedValueOnce(new Error('连接超时'))
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await user.click(await screen.findByRole('button', { name: '测试gpt-5.2' }))
-    expect(await screen.findByRole('alert', { name: 'gpt-5.2 测试错误' })).toHaveTextContent(
-      '连接超时'
-    )
+    expect(await screen.findAllByText('文本 · 失败')).not.toHaveLength(0)
+    expect(screen.queryByText('连接超时')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
     await waitFor(() => expect(test).toHaveBeenCalledTimes(2))
   })
@@ -280,7 +315,7 @@ describe('SettingsPage model connections', () => {
     await user.click(within(dialog).getByRole('button', { name: '下一步' }))
     expect(within(dialog).getByText('gpt-5.2')).toBeVisible()
     await user.click(within(dialog).getByRole('button', { name: '测试全部模型' }))
-    expect(await within(dialog).findAllByText('文本 · 通过')).toHaveLength(3)
+    expect(await within(dialog).findAllByText('文本 · 成功')).toHaveLength(3)
     expect(dialog).toHaveAttribute('data-view-state', 'models-success')
     await user.click(within(dialog).getByRole('button', { name: '保存' }))
 
@@ -317,7 +352,7 @@ describe('SettingsPage model connections', () => {
     expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
     expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
     expect(await within(dialog).findByText('文本 · 失败')).toBeVisible()
-    expect(within(dialog).getAllByText('文本 · 通过')).toHaveLength(2)
+    expect(within(dialog).getAllByText('文本 · 成功')).toHaveLength(2)
     expect(dialog).toHaveAttribute('data-view-state', 'models-partial-failure')
   })
 })

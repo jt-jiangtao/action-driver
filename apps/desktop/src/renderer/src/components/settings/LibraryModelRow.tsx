@@ -29,9 +29,6 @@ export function LibraryModelRow({
     externalTesting ||
     model.testState === 'testing' ||
     Object.values(model.capabilities ?? {}).some((result) => result?.state === 'testing')
-  const capabilityError = Object.values(model.capabilities ?? {}).find(
-    (result) => result?.state === 'failed'
-  )?.failure?.message
   return (
     <div className="model-row">
       <span className="model-name-cell">
@@ -39,32 +36,17 @@ export function LibraryModelRow({
         {model.name}
       </span>
       <span className="model-state-cell">
-        {testing ? (
-          <span className="model-capability is-testing" role="status">
-            测试中
-          </span>
-        ) : (
-          <ModelCapabilityResults
-            capabilities={model.capabilities}
-            catalogLabels={model.catalogLabels}
-          />
-        )}
-        {requestError || capabilityError ? (
-          <span
-            className="model-test-error"
-            role="alert"
-            aria-label={`${model.name} 测试错误`}
-            title={requestError ?? capabilityError}
-          >
-            {requestError ?? capabilityError}
-          </span>
-        ) : null}
+        <ModelCapabilityResults
+          capabilities={model.capabilities}
+          probeCandidates={model.probeCandidates}
+          catalogLabels={model.catalogLabels}
+          testing={testing}
+          requestFailed={Boolean(requestError)}
+        />
       </span>
       <span className="model-row-actions">
-        {model.catalogLabels?.length &&
-        !Object.values(model.capabilities ?? {}).some(
-          (result) => result?.state === 'success'
-        ) ? null : (
+        {model.probeCandidates?.length === 0 ||
+        (model.probeCandidates === undefined && model.catalogLabels?.length) ? null : (
           <IconButton
             aria-label={`测试${model.name}`}
             title="逐项测试模型能力；生图测试会生成一张测试图，可能产生费用"

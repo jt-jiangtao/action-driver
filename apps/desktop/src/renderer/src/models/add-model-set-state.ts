@@ -76,7 +76,14 @@ export function addModelSetReducer(
             ? {
                 ...model,
                 testState: result.state,
-                capabilities: { ...model.capabilities, ...result.capabilities }
+                capabilities:
+                  result.capabilities ??
+                  Object.fromEntries(
+                    (model.probeCandidates ?? []).map((capability) => [
+                      capability,
+                      { state: 'failed' as const, source: 'probe' as const }
+                    ])
+                  )
               }
             : model
         })

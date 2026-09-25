@@ -189,8 +189,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     async (goal: string, imageFiles: File[] = []) => {
       const selected = findSelectedModel(modelSelection)
       if (!selected) throw new Error('请选择可用模型')
-      if (imageFiles.length && !selected.model.visionVerified)
-        throw new Error('当前模型的视觉测试尚未通过，请到模型设置中测试')
       const imageAssetIds = await stageImages(imageFiles)
       const projection = await services.agentCommandService.submitGoal({
         goal,
@@ -208,11 +206,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const submitContinuation = useCallback(
     async (goal: string, imageFiles: File[] = []) => {
       if (!task) return
-      const inheritedModel = modelSelection.connections
-        .flatMap((connection) => connection.models)
-        .find((model) => model.ref.connectionId === task.model.connectionId && model.ref.modelId === task.model.modelId)
-      if (imageFiles.length && !inheritedModel?.visionVerified)
-        throw new Error('当前模型的视觉测试尚未通过，请到模型设置中测试')
       const imageAssetIds = await stageImages(imageFiles)
       const previousTaskId = task.id
       const projection = await services.agentCommandService.submitGoal({
@@ -222,7 +215,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       })
       presentSubmittedTask(projection, previousTaskId)
     },
-    [modelSelection, presentSubmittedTask, services, stageImages, task]
+    [presentSubmittedTask, services, stageImages, task]
   )
 
   const mainRoute: MainAppRoute =

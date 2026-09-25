@@ -50,15 +50,23 @@ export function toModelSelectionProjection(
       id: connection.id,
       name: connection.name,
       models: connection.models
-        .filter((model) => !model.catalogLabels?.length && !(model.capabilities?.image_generation && !model.capabilities.text))
+        .filter(
+          (model) =>
+            connection.protocol === 'openai-compatible' &&
+            model.enabled &&
+            (model.probeCandidates
+              ? model.probeCandidates.includes('text')
+              : !model.catalogLabels?.length &&
+                !(model.capabilities?.image_generation && !model.capabilities.text) &&
+                model.kind !== 'image')
+        )
         .map((model) => {
-          const disabledReason = getDisabledReason(connection, model)
           return {
             id: model.id,
             name: model.name,
             ref: { connectionId: connection.id, modelId: model.id },
-            disabled: disabledReason !== null,
-            disabledReason,
+            disabled: false,
+            disabledReason: null,
             visionVerified: model.capabilities?.vision?.state === 'success'
           }
         })
@@ -94,16 +102,4 @@ export function findSelectedModel(projection: ModelSelectionProjection) {
     (candidate) => candidate.id === projection.selected?.modelId
   )
   return connection && model ? { connection, model } : null
-}
-
-function getDisabledReason(
-  connection: ModelConnection,
-  model: ModelConnection['models'][number]
-): string | null {
-  if (connection.protocol === 'anthropic') return 'Agent 调用暂未接入'
-  if (!model.enabled) return '模型已停用'
-  if (model.capabilities?.text?.state === 'failed') return '文本测试失败'
-  if (model.capabilities?.text?.state === 'unsupported') return '不支持文本生成'
-  if (model.capabilities?.text?.state !== 'success') return '文本测试尚未通过'
-  return null
 }

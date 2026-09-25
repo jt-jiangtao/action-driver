@@ -125,17 +125,49 @@ describe('App', () => {
     )
   })
 
-  it('keeps a text and image draft when vision testing has not succeeded', async () => {
+  it('sends an image with a chat candidate even when its vision test failed', async () => {
     const user = userEvent.setup()
     const services = createRendererServices({ mode: 'mock' })
-    services.modelConnectionsService = new MockModelConnectionsService({ delayMs: 0, seed: [{
-      id: 'text-gateway', name: '文本网关', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKeyHint: '••••1234', expanded: true,
-      models: [{ id: 'text-only', name: 'text-only', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, vision: { state: 'unsupported', source: 'probe' } } }]
-    }] })
-    const uploadImage = vi.fn()
+    services.modelConnectionsService = new MockModelConnectionsService({
+      delayMs: 0,
+      seed: [
+        {
+          id: 'text-gateway',
+          name: '文本网关',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example.com/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'text-only',
+              name: 'text-only',
+              enabled: true,
+              testState: 'success',
+              capabilities: {
+                text: { state: 'success', source: 'probe' },
+                vision: { state: 'unsupported', source: 'probe' }
+              }
+            }
+          ]
+        }
+      ]
+    })
+    const uploadImage = vi.fn(async () => ({
+      assetId: 'staged-vision',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'upload' as const
+    }))
     services.imageAssets = { uploadImage, readImage: vi.fn() }
     const submitGoal = vi.spyOn(services.agentCommandService, 'submitGoal')
-    render(<AppServicesProvider services={services}><App /></AppServicesProvider>)
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
     await screen.findByRole('button', { name: /文本网关 \/ text-only/ })
     const editor = screen.getByLabelText('任务描述')
     editor.textContent = '分析这张图'
@@ -143,13 +175,11 @@ describe('App', () => {
     const image = new File([new Uint8Array([137, 80, 78, 71])], 'draft.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('添加图片'), image)
     await user.click(screen.getByRole('button', { name: '发送' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('视觉测试尚未通过')
-    expect(uploadImage).not.toHaveBeenCalled()
-    expect(submitGoal).not.toHaveBeenCalled()
-    expect(screen.getByText('draft.png')).toBeVisible()
-    expect(editor).toHaveTextContent('分析这张图')
-    await user.click(screen.getByRole('button', { name: '打开模型设置' }))
-    expect(await screen.findByRole('heading', { name: '模型连接' })).toBeVisible()
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
+    expect(uploadImage).toHaveBeenCalledWith(image)
+    expect(submitGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ goal: '分析这张图', imageAssetIds: ['staged-vision'] })
+    )
   })
 
   it('switches between split, expanded, and collapsed browser layouts', async () => {
@@ -309,7 +339,15 @@ describe('App', () => {
           baseUrl: 'https://real.example/v1',
           apiKeyHint: '••••real',
           expanded: true,
-          models: [{ id: 'real-model', name: 'real-model', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }]
+          models: [
+            {
+              id: 'real-model',
+              name: 'real-model',
+              enabled: true,
+              testState: 'success',
+              capabilities: { text: { state: 'success', source: 'probe' } }
+            }
+          ]
         }
       ]
     })
@@ -376,7 +414,13 @@ describe('App', () => {
             apiKeyHint: '••••retry',
             expanded: true,
             models: [
-              { id: 'retry-model', name: 'retry-model', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }
+              {
+                id: 'retry-model',
+                name: 'retry-model',
+                enabled: true,
+                testState: 'success',
+                capabilities: { text: { state: 'success', source: 'probe' } }
+              }
             ]
           }
         ]
@@ -423,7 +467,13 @@ describe('App', () => {
           apiKeyHint: '••••mutable',
           expanded: true,
           models: [
-            { id: 'mutable-model', name: 'mutable-model', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }
+            {
+              id: 'mutable-model',
+              name: 'mutable-model',
+              enabled: true,
+              testState: 'success',
+              capabilities: { text: { state: 'success', source: 'probe' } }
+            }
           ]
         }
       ]
@@ -441,7 +491,7 @@ describe('App', () => {
     await user.click(await screen.findByRole('switch', { name: '启用mutable-model' }))
     await user.click(screen.getByRole('button', { name: '返回应用' }))
 
-    expect(await screen.findByRole('button', { name: '选择模型' })).toBeVisible()
+    expect(await screen.findByRole('button', { name: '暂无可用模型' })).toBeVisible()
     expect(screen.getByLabelText('发送')).toBeDisabled()
   })
 })

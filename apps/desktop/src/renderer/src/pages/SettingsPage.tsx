@@ -60,7 +60,7 @@ export function SettingsPage({
       return next
     })
   }
-  const testSavedModel = async (connectionId: string, modelId: string) => {
+  const testSavedModel = async (connectionId: string, modelId: string, syncAtEnd = true) => {
     const key = modelKey(connectionId, modelId)
     if (testingKeysRef.current.has(key)) return
     testingKeysRef.current.add(key)
@@ -75,13 +75,32 @@ export function SettingsPage({
       if (!results.some((result) => result.modelId === modelId)) {
         throw new Error('服务未返回该模型的测试结果')
       }
+      const result = results.find((item) => item.modelId === modelId)!
+      queryClient.setQueryData<ModelConnection[]>(['model-connections'], (current) =>
+        current?.map((connection) =>
+          connection.id !== connectionId
+            ? connection
+            : {
+                ...connection,
+                models: connection.models.map((model) =>
+                  model.id !== modelId
+                    ? model
+                    : {
+                        ...model,
+                        testState: result.state,
+                        capabilities: result.capabilities ?? {}
+                      }
+                )
+              }
+        )
+      )
     } catch (error) {
       setModelErrors((current) => ({
         ...current,
         [key]: error instanceof Error ? error.message : '模型测试失败'
       }))
     } finally {
-      await Promise.allSettled([syncConnections(), syncImageDefault()])
+      if (syncAtEnd) await Promise.allSettled([syncConnections(), syncImageDefault()])
       testingKeysRef.current.delete(key)
       setModelTesting(key, false)
     }
@@ -180,22 +199,31 @@ export function SettingsPage({
                     try {
                       const models = await service.refresh(connection.id)
                       await syncConnections()
-                      const probeable = models.filter((model) => !model.catalogLabels?.length)
+                      const probeable = models.filter((model) =>
+                        model.probeCandidates
+                          ? model.probeCandidates.length > 0
+                          : !model.catalogLabels?.length
+                      )
                       setBatchProgress((current) => ({
                         ...current,
                         [connection.id]: { done: 0, total: probeable.length, phase: 'testing' }
                       }))
-                      for (const [index, model] of probeable.entries()) {
-                        await testSavedModel(connection.id, model.id)
-                        setBatchProgress((current) => ({
-                          ...current,
-                          [connection.id]: {
-                            done: index + 1,
-                            total: probeable.length,
-                            phase: 'testing'
+                      let nextIndex = 0
+                      let done = 0
+                      await Promise.all(
+                        Array.from({ length: Math.min(4, probeable.length) }, async () => {
+                          while (nextIndex < probeable.length) {
+                            const model = probeable[nextIndex++]!
+                            await testSavedModel(connection.id, model.id, false)
+                            done += 1
+                            setBatchProgress((current) => ({
+                              ...current,
+                              [connection.id]: { done, total: probeable.length, phase: 'testing' }
+                            }))
                           }
-                        }))
-                      }
+                        })
+                      )
+                      await Promise.allSettled([syncConnections(), syncImageDefault()])
                       setBatchProgress((current) => ({
                         ...current,
                         [connection.id]: {
@@ -204,10 +232,10 @@ export function SettingsPage({
                           phase: 'done'
                         }
                       }))
-                    } catch (error) {
+                    } catch {
                       setBatchErrors((current) => ({
                         ...current,
-                        [connection.id]: error instanceof Error ? error.message : '刷新或测试失败'
+                        [connection.id]: '刷新失败'
                       }))
                       setBatchProgress((current) => {
                         const next = { ...current }

@@ -122,6 +122,42 @@ describe('settings components', () => {
     ).toEqual([])
   })
 
+  it('replaces stale wizard probe results and marks a request failure for every candidate', () => {
+    const model = {
+      id: 'chat',
+      name: 'chat',
+      enabled: true,
+      testState: 'success' as const,
+      probeCandidates: ['text', 'vision'] as ('text' | 'vision')[],
+      capabilities: {
+        text: { state: 'success' as const, source: 'probe' as const },
+        vision: { state: 'success' as const, source: 'probe' as const }
+      }
+    }
+    const discovered = addModelSetReducer(initialAddModelSetState, {
+      type: 'models-discovered',
+      models: [model]
+    })
+    const partial = addModelSetReducer(discovered, {
+      type: 'model-result',
+      results: [
+        {
+          modelId: 'chat',
+          state: 'failed',
+          capabilities: { text: { state: 'failed', source: 'probe' } }
+        }
+      ]
+    })
+    expect(partial.models[0]?.capabilities?.vision).toBeUndefined()
+
+    const failed = addModelSetReducer(discovered, {
+      type: 'model-result',
+      results: [{ modelId: 'chat', state: 'failed' }]
+    })
+    expect(failed.models[0]?.capabilities?.text?.state).toBe('failed')
+    expect(failed.models[0]?.capabilities?.vision?.state).toBe('failed')
+  })
+
   it('runs controlled manual model row actions', async () => {
     const user = userEvent.setup()
     const onChangeName = vi.fn()
@@ -172,8 +208,8 @@ describe('settings components', () => {
     )
 
     expect(screen.getByText('gpt-5.2')).toBeVisible()
-    expect(screen.getByText('文本 · 通过')).toBeVisible()
-    expect(screen.getByText('视觉 · 不支持')).toBeVisible()
+    expect(screen.getByText('文本 · 成功')).toBeVisible()
+    expect(screen.getByText('视觉 · 失败')).toBeVisible()
     expect(screen.getByRole('switch', { name: '选择gpt-5.2' })).toHaveAttribute(
       'aria-checked',
       'true'
@@ -194,8 +230,33 @@ describe('settings components', () => {
       />
     )
 
-    expect(screen.getByText('文本 · 需重新测试')).toHaveAttribute('title', '旧测试结果需要重新验证')
+    expect(screen.getByText('文本 · 待测试')).toBeVisible()
     expect(screen.getByText('视觉 · 待测试')).toBeVisible()
+  })
+
+  it('shows each running capability and only binary terminal labels without failure details', () => {
+    const { rerender } = render(
+      <ModelCapabilityResults probeCandidates={['text', 'vision']} testing />
+    )
+    expect(screen.getByText('文本 · 测试中')).toBeVisible()
+    expect(screen.getByText('视觉 · 测试中')).toBeVisible()
+    rerender(
+      <ModelCapabilityResults
+        capabilities={{
+          text: { state: 'success', source: 'probe' },
+          vision: {
+            state: 'unsupported',
+            source: 'probe',
+            failure: { code: 'provider-error', message: 'secret provider detail' }
+          }
+        }}
+        catalogLabels={['speech_recognition']}
+      />
+    )
+    expect(screen.getByText('文本 · 成功')).toBeVisible()
+    expect(screen.getByText('视觉 · 失败')).toBeVisible()
+    expect(screen.queryByText(/语音识别/)).not.toBeInTheDocument()
+    expect(document.body.innerHTML).not.toContain('secret provider detail')
   })
 
   it('prevents duplicate refreshes while a connection refresh is pending', async () => {

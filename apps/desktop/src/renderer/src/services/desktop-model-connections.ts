@@ -181,8 +181,24 @@ function mapModel(value: unknown): ModelOption {
     name: value.name,
     enabled: value.enabled,
     testState: value.testState,
-    ...(isRecord(value.capabilities) ? { capabilities: value.capabilities as ModelOption['capabilities'] } : {}),
-    ...(Array.isArray(value.catalogLabels) ? { catalogLabels: value.catalogLabels.filter((label): label is string => typeof label === 'string') } : {}),
+    ...(isRecord(value.capabilities)
+      ? { capabilities: value.capabilities as ModelOption['capabilities'] }
+      : {}),
+    ...(Array.isArray(value.probeCandidates)
+      ? {
+          probeCandidates: value.probeCandidates.filter(
+            (candidate): candidate is NonNullable<ModelOption['probeCandidates']>[number] =>
+              ['text', 'reasoning', 'vision', 'image_generation'].includes(String(candidate))
+          )
+        }
+      : {}),
+    ...(Array.isArray(value.catalogLabels)
+      ? {
+          catalogLabels: value.catalogLabels.filter(
+            (label): label is string => typeof label === 'string'
+          )
+        }
+      : {}),
     kind: value.kind === 'image' ? 'image' : 'chat',
     ...(typeof value.imageInputEnabled === 'boolean'
       ? { imageInputEnabled: value.imageInputEnabled }
@@ -201,7 +217,9 @@ function mapTestResult(value: unknown): ModelTestResult {
   return {
     modelId: value.modelId,
     state: value.state,
-    ...(isRecord(value.capabilities) ? { capabilities: value.capabilities as ModelTestResult['capabilities'] } : {})
+    ...(isRecord(value.capabilities)
+      ? { capabilities: value.capabilities as ModelTestResult['capabilities'] }
+      : {})
   }
 }
 

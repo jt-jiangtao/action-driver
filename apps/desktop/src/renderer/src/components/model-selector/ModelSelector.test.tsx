@@ -6,6 +6,77 @@ import { mockModelSelection } from '../../testing/model-selection-fixture'
 import { ModelSelector } from './ModelSelector'
 
 describe('ModelSelector', () => {
+  it('offers untested and failed chat candidates without a selection warning', () => {
+    const projection = toModelSelectionProjection(
+      [
+        {
+          id: 'gateway',
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'untested',
+              name: 'untested',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['text', 'vision']
+            },
+            {
+              id: 'failed',
+              name: 'failed',
+              enabled: true,
+              testState: 'failed',
+              probeCandidates: ['text'],
+              capabilities: { text: { state: 'failed', source: 'probe' } }
+            },
+            {
+              id: 'image',
+              name: 'image',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['image_generation']
+            },
+            {
+              id: 'legacy-image',
+              name: 'legacy-image',
+              kind: 'image',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: ['text']
+            },
+            {
+              id: 'audio',
+              name: 'audio',
+              enabled: true,
+              testState: 'untested',
+              probeCandidates: [],
+              catalogLabels: ['speech_recognition']
+            },
+            {
+              id: 'disabled',
+              name: 'disabled',
+              enabled: false,
+              testState: 'untested',
+              probeCandidates: ['text']
+            }
+          ]
+        }
+      ],
+      null
+    )
+    expect(projection.connections[0]?.models.map((model) => model.id)).toEqual([
+      'untested',
+      'failed',
+      'legacy-image'
+    ])
+    expect(
+      projection.connections[0]?.models.every((model) => !model.disabled && !model.disabledReason)
+    ).toBe(true)
+  })
+
   it('marks the trigger selected only when a model is selected', () => {
     const view = render(
       <ModelSelector projection={{ ...mockModelSelection, selected: null }} onSelect={vi.fn()} />
@@ -49,10 +120,9 @@ describe('ModelSelector', () => {
     expect(screen.getByRole('listbox', { name: '选择模型' })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Anthropic 生产连接' }))
-    const anthropic = screen.getByRole('option', {
-      name: 'claude-sonnet-4，Agent 调用暂未接入'
-    })
+    const anthropic = screen.getByRole('option', { name: 'claude-sonnet-4' })
     expect(anthropic).toBeDisabled()
+    expect(screen.queryByText('Agent 调用暂未接入')).not.toBeInTheDocument()
     expect(onSelect).not.toHaveBeenCalled()
   })
 
@@ -88,7 +158,15 @@ describe('ModelSelector', () => {
           baseUrl: 'https://a.example/v1',
           apiKeyHint: '••••a',
           expanded: true,
-          models: [{ id: 'same-model', name: 'same-model', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }]
+          models: [
+            {
+              id: 'same-model',
+              name: 'same-model',
+              enabled: true,
+              testState: 'success',
+              capabilities: { text: { state: 'success', source: 'probe' } }
+            }
+          ]
         },
         {
           id: 'openai-b',
@@ -97,7 +175,15 @@ describe('ModelSelector', () => {
           baseUrl: 'https://b.example/v1',
           apiKeyHint: '••••b',
           expanded: true,
-          models: [{ id: 'same-model', name: 'same-model', enabled: false, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }]
+          models: [
+            {
+              id: 'same-model',
+              name: 'same-model',
+              enabled: false,
+              testState: 'success',
+              capabilities: { text: { state: 'success', source: 'probe' } }
+            }
+          ]
         }
       ],
       { connectionId: 'openai-b', modelId: 'same-model' }
@@ -108,7 +194,7 @@ describe('ModelSelector', () => {
       connectionId: 'openai-a',
       modelId: 'same-model'
     })
-    expect(projection.connections[1]?.models[0]?.disabledReason).toBe('模型已停用')
+    expect(projection.connections[1]).toBeUndefined()
   })
 
   it('leaves image generation models out of the chat model picker', () => {
@@ -122,8 +208,20 @@ describe('ModelSelector', () => {
           apiKeyHint: '••••1234',
           expanded: true,
           models: [
-            { id: 'chat', name: 'chat', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } },
-            { id: 'image', name: 'image', enabled: true, testState: 'success', capabilities: { image_generation: { state: 'success', source: 'probe' } } }
+            {
+              id: 'chat',
+              name: 'chat',
+              enabled: true,
+              testState: 'success',
+              capabilities: { text: { state: 'success', source: 'probe' } }
+            },
+            {
+              id: 'image',
+              name: 'image',
+              enabled: true,
+              testState: 'success',
+              capabilities: { image_generation: { state: 'success', source: 'probe' } }
+            }
           ]
         }
       ],
@@ -133,16 +231,42 @@ describe('ModelSelector', () => {
     expect(projection.selected?.modelId).toBe('chat')
   })
 
-  it('keeps a dual-capability model selectable and blocks legacy success without a text probe', () => {
-    const projection = toModelSelectionProjection([{
-      id: 'mixed', name: '混合连接', protocol: 'openai-compatible', baseUrl: 'https://api.example/v1', apiKeyHint: '••••1234', expanded: true,
-      models: [
-        { id: 'dual', name: 'dual', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, image_generation: { state: 'success', source: 'probe' }, vision: { state: 'success', source: 'probe' } } },
-        { id: 'legacy', name: 'legacy', enabled: true, testState: 'success' }
-      ]
-    }], null)
+  it('keeps a dual-capability model and an untested legacy chat candidate selectable', () => {
+    const projection = toModelSelectionProjection(
+      [
+        {
+          id: 'mixed',
+          name: '混合连接',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'dual',
+              name: 'dual',
+              enabled: true,
+              testState: 'success',
+              capabilities: {
+                text: { state: 'success', source: 'probe' },
+                image_generation: { state: 'success', source: 'probe' },
+                vision: { state: 'success', source: 'probe' }
+              }
+            },
+            { id: 'legacy', name: 'legacy', enabled: true, testState: 'success' }
+          ]
+        }
+      ],
+      null
+    )
     expect(projection.selected?.modelId).toBe('dual')
-    expect(projection.connections[0]?.models[0]).toMatchObject({ disabled: false, visionVerified: true })
-    expect(projection.connections[0]?.models[1]).toMatchObject({ disabled: true, disabledReason: '文本测试尚未通过' })
+    expect(projection.connections[0]?.models[0]).toMatchObject({
+      disabled: false,
+      visionVerified: true
+    })
+    expect(projection.connections[0]?.models[1]).toMatchObject({
+      disabled: false,
+      disabledReason: null
+    })
   })
 })

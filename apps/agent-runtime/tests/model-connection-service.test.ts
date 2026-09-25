@@ -101,6 +101,167 @@ const validPng = Buffer.from(
 )
 
 describe('model connection service', () => {
+  it('lists current probe candidates without storing audio/video labels as results', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const created = await service.add({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [
+        { id: 'qwen3.8-max', name: 'qwen3.8-max', enabled: true, testState: 'untested' },
+        {
+          id: 'qwen-audio-3.0-asr-flash',
+          name: 'qwen-audio-3.0-asr-flash',
+          enabled: true,
+          testState: 'untested'
+        }
+      ]
+    })
+    expect(created.models[0]?.probeCandidates).toEqual(['text', 'reasoning', 'vision'])
+    expect(created.models[1]?.probeCandidates).toEqual([])
+    expect((await service.list())[0]?.models[0]?.probeCandidates).toEqual([
+      'text',
+      'reasoning',
+      'vision'
+    ])
+  })
+
+  it('starts all applicable capability probes before waiting for a result', async () => {
+    const releases: Array<(response: HttpResponse) => void> = []
+    const { service, requests } = createService(
+      () => new Promise<HttpResponse>((resolve) => releases.push(resolve))
+    )
+    const testing = service.testModels({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      modelIds: ['qwen3.8-max']
+    })
+    await vi.waitFor(() => expect(requests).toHaveLength(3))
+    for (const release of releases) {
+      release({
+        status: 200,
+        body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+        text: ''
+      })
+    }
+    await testing
+  })
+
+  it('runs at most four models at once during bulk testing', async () => {
+    const releases: Array<(response: HttpResponse) => void> = []
+    const { service, requests } = createService(
+      () => new Promise<HttpResponse>((resolve) => releases.push(resolve))
+    )
+    const testing = service.testModels({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      modelIds: ['qwen3.7-max', 'deepseek-v4-pro', 'glm-5.2', 'qwen3.8-max', 'qwen3.8-flash']
+    })
+    await vi.waitFor(() => expect(requests).toHaveLength(9))
+    expect(requests.some((request) => JSON.stringify(request.body).includes('qwen3.8-flash'))).toBe(
+      false
+    )
+    for (const release of [...releases]) {
+      release({
+        status: 200,
+        body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+        text: ''
+      })
+    }
+    await vi.waitFor(() => expect(requests).toHaveLength(12))
+    for (const release of releases.slice(9)) {
+      release({
+        status: 200,
+        body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+        text: ''
+      })
+    }
+    expect((await testing).map((result) => result.modelId)).toEqual([
+      'qwen3.7-max',
+      'deepseek-v4-pro',
+      'glm-5.2',
+      'qwen3.8-max',
+      'qwen3.8-flash'
+    ])
+  })
+
+  it('replaces obsolete capability results on retest', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const created = await service.add({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: 'success',
+          capabilities: {
+            text: { state: 'success', source: 'legacy' },
+            vision: { state: 'success', source: 'legacy' }
+          }
+        }
+      ]
+    })
+    await service.testConnectionModels({ connectionId: created.id, modelIds: ['wan2.7-image'] })
+    const saved = (await service.list())[0]?.models[0]
+    expect(saved?.capabilities?.text).toBeUndefined()
+    expect(saved?.capabilities?.vision).toBeUndefined()
+  })
+
+  it('keeps both model results when saved tests complete in reverse order', async () => {
+    const releases = new Map<string, Array<(response: HttpResponse) => void>>()
+    const { service, requests } = createService(
+      (request) =>
+        new Promise<HttpResponse>((resolve) => {
+          const modelId = String((request.body as { model?: string }).model)
+          releases.set(modelId, [...(releases.get(modelId) ?? []), resolve])
+        })
+    )
+    const connection = await service.add({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [
+        { id: 'qwen3.7-max', name: 'qwen3.7-max', enabled: true, testState: 'untested' },
+        { id: 'deepseek-v4-pro', name: 'deepseek-v4-pro', enabled: true, testState: 'untested' }
+      ]
+    })
+    const first = service.testConnectionModels({
+      connectionId: connection.id,
+      modelIds: ['qwen3.7-max']
+    })
+    const second = service.testConnectionModels({
+      connectionId: connection.id,
+      modelIds: ['deepseek-v4-pro']
+    })
+    await vi.waitFor(() => expect(requests).toHaveLength(4))
+    const response = {
+      status: 200,
+      body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+      text: ''
+    }
+    for (const release of releases.get('deepseek-v4-pro') ?? []) release(response)
+    await second
+    for (const release of releases.get('qwen3.7-max') ?? []) release(response)
+    await first
+    const models = (await service.list())[0]?.models
+    expect(models?.find((model) => model.id === 'qwen3.7-max')?.capabilities?.text?.state).toBe(
+      'success'
+    )
+    expect(models?.find((model) => model.id === 'deepseek-v4-pro')?.capabilities?.text?.state).toBe(
+      'success'
+    )
+  })
+
   it('tests each listed Token Plan capability and keeps their results separate', async () => {
     const { service, requests } = createService((request) => {
       const body = request.body as {
@@ -325,9 +486,13 @@ describe('model connection service', () => {
   })
 
   it.each(['untested', 'failed', 'unsupported', 'inconclusive'] as const)(
-    'rejects image input when the vision probe is %s before provider I/O',
+    'tries image input when the vision probe is %s and surfaces the provider result',
     async (visionState) => {
-      const { service, requests } = createService(() => ({ status: 200, body: {}, text: '' }))
+      const { service, requests } = createService(
+        () => ({ status: 200, body: {}, text: '' }),
+        undefined,
+        async () => ({ bytes: Uint8Array.from([1, 2, 3]), mimeType: 'image/png' })
+      )
       const connection = await service.add({
         draft,
         models: [
@@ -379,10 +544,63 @@ describe('model connection service', () => {
             }
           ]
         })
-      ).rejects.toThrow('has not passed vision testing')
-      expect(requests).toHaveLength(1)
+      ).resolves.toMatchObject({ ok: false })
+      expect(requests).toHaveLength(2)
     }
   )
+
+  it('tries an untested chat model through the provider', async () => {
+    const { service, requests } = createService(() => ({
+      status: 503,
+      body: { error: { message: 'provider unavailable' } },
+      text: ''
+    }))
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'untested-chat', name: 'untested-chat', enabled: true, testState: 'untested' }]
+    })
+    const outcome = await service.complete({
+      model: { connectionId: connection.id, modelId: 'untested-chat' },
+      requestId: 'untested',
+      taskId: 'untested',
+      messages: [{ role: 'user', content: 'hello' }],
+      parameters: {}
+    })
+    expect(requests).toHaveLength(1)
+    expect(outcome).toMatchObject({ ok: false })
+  })
+
+  it('ignores a legacy image kind when the current catalog includes chat', async () => {
+    const { service, requests } = createService(() => ({
+      status: 503,
+      body: { error: { message: 'provider unavailable' } },
+      text: ''
+    }))
+    const connection = await service.add({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [
+        {
+          id: 'qwen3.7-plus',
+          name: 'qwen3.7-plus',
+          kind: 'image',
+          enabled: true,
+          testState: 'untested'
+        }
+      ]
+    })
+    const outcome = await service.complete({
+      model: { connectionId: connection.id, modelId: 'qwen3.7-plus' },
+      requestId: 'legacy-kind',
+      taskId: 'legacy-kind',
+      messages: [{ role: 'user', content: 'hello' }],
+      parameters: {}
+    })
+    expect(requests).toHaveLength(1)
+    expect(outcome).toMatchObject({ ok: false })
+  })
 
   it('rejects a chat model as the default image model', async () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
@@ -395,21 +613,32 @@ describe('model connection service', () => {
     ).rejects.toThrow('Image model is unavailable')
   })
 
-  it('rejects an image model on the chat completion path', async () => {
+  it('rejects a cataloged image model on the chat completion path', async () => {
     const { service, requests } = createService(() => ({ status: 200, body: {}, text: '' }))
     const connection = await service.add({
-      draft,
-      models: [{ id: 'image', name: 'image', kind: 'image', enabled: true, testState: 'success' }]
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          kind: 'image',
+          enabled: true,
+          testState: 'success'
+        }
+      ]
     })
     await expect(
       service.complete({
-        model: { connectionId: connection.id, modelId: 'image' },
+        model: { connectionId: connection.id, modelId: 'wan2.7-image' },
         requestId: 'request',
         taskId: 'task',
         messages: [{ role: 'user', content: 'hello' }],
         parameters: {}
       })
-    ).rejects.toThrow('has not passed text testing')
+    ).rejects.toThrow('does not support chat')
     expect(requests).toHaveLength(0)
   })
 
@@ -556,18 +785,6 @@ describe('model connection service', () => {
       message: 'is disabled'
     },
     {
-      label: 'unsupported',
-      protocol: 'openai-compatible' as const,
-      model: {
-        id: 'blocked',
-        name: 'blocked',
-        enabled: true,
-        testState: 'unsupported' as const,
-        capabilities: { text: { state: 'unsupported' as const, source: 'probe' as const } }
-      },
-      message: 'does not support text'
-    },
-    {
       label: 'anthropic',
       protocol: 'anthropic' as const,
       model: {
@@ -689,8 +906,20 @@ describe('model connection service', () => {
     )
 
     await expect(service.discover(draft)).resolves.toEqual([
-      { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'untested' },
-      { id: 'qwen3.8-max', name: 'qwen3.8-max', enabled: true, testState: 'untested' }
+      {
+        id: 'qwen3.7-plus',
+        name: 'qwen3.7-plus',
+        enabled: true,
+        testState: 'untested',
+        probeCandidates: ['text', 'vision', 'image_generation']
+      },
+      {
+        id: 'qwen3.8-max',
+        name: 'qwen3.8-max',
+        enabled: true,
+        testState: 'untested',
+        probeCandidates: ['text', 'vision', 'image_generation']
+      }
     ])
 
     const created = await service.add({ draft, models: discoveredModels })

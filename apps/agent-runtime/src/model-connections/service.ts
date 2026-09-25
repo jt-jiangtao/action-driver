@@ -115,12 +115,13 @@ export class ModelConnectionService
     })
     if (!result.ok) throw toServiceError(result.failure)
     return result.value.map((id) => {
-      const labels = capabilityCandidates(id, validated.baseUrl).displayOnly
+      const { probes, displayOnly: labels } = capabilityCandidates(id, validated.baseUrl)
       return {
         id,
         name: id,
         enabled: true,
         testState: 'untested' as const,
+        probeCandidates: probes,
         ...(labels.length ? { catalogLabels: labels } : {})
       }
     })
@@ -178,7 +179,7 @@ export class ModelConnectionService
         ? {
             ...model,
             testState: result.state,
-            capabilities: { ...model.capabilities, ...result.capabilities }
+            capabilities: result.capabilities ?? {}
           }
         : model
     })
@@ -289,11 +290,12 @@ export class ModelConnectionService
       models: request.models.map((model) => ({
         ...model,
         kind:
-          model.capabilities?.text?.state === 'success'
+          model.kind ??
+          (model.capabilities?.text?.state === 'success'
             ? 'chat'
             : model.capabilities?.image_generation?.state === 'success'
               ? 'image'
-              : 'chat',
+              : 'chat'),
         imageGenerationApi: imageApiForModel(draft.baseUrl)
       }))
     }
@@ -311,26 +313,47 @@ export class ModelConnectionService
     endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
     modelIds: readonly string[]
   ): Promise<ModelTestResultDto[]> {
-    const results: ModelTestResultDto[] = []
-    for (const modelId of modelIds) {
+    const results: ModelTestResultDto[] = new Array(modelIds.length)
+    let nextIndex = 0
+    const testOne = async (modelId: string): Promise<ModelTestResultDto> => {
       const candidates = capabilityCandidates(modelId, endpoint.baseUrl)
       const capabilities: NonNullable<ModelTestResultDto['capabilities']> = {}
-      for (const capability of candidates.probes) {
-        capabilities[capability] = await probeCapability({
-          endpoint,
-          modelId,
-          capability,
-          transport: this.options.transport
+      await Promise.all(
+        candidates.probes.map(async (capability) => {
+          try {
+            capabilities[capability] = await probeCapability({
+              endpoint,
+              modelId,
+              capability,
+              transport: this.options.transport
+            })
+          } catch (error) {
+            const failure = toServiceError(error)
+            capabilities[capability] = {
+              state: 'failed',
+              source: 'probe',
+              testedAt: new Date().toISOString(),
+              failure: { code: failure.code, message: failure.message }
+            }
+          }
         })
-      }
+      )
       const states = Object.values(capabilities).map((result) => result.state)
       const state = states.includes('success')
         ? 'success'
         : states.includes('failed') || states.includes('inconclusive')
           ? 'failed'
           : 'unsupported'
-      results.push({ modelId, state, capabilities })
+      return { modelId, state, capabilities }
     }
+    await Promise.all(
+      Array.from({ length: Math.min(4, modelIds.length) }, async () => {
+        while (nextIndex < modelIds.length) {
+          const index = nextIndex++
+          results[index] = await testOne(modelIds[index]!)
+        }
+      })
+    )
     return results
   }
 
@@ -378,26 +401,9 @@ export class ModelConnectionService
     if (!model.enabled) {
       throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
     }
-    if (model.capabilities?.text?.state === 'unsupported') {
-      throw new ModelServiceError('invalid-request', `Model ${model.id} does not support text`)
-    }
-    if (model.capabilities?.text?.state !== 'success') {
-      throw new ModelServiceError(
-        'invalid-request',
-        `Model ${model.id} has not passed text testing`
-      )
-    }
-    const containsImage = request.messages.some(
-      (message) =>
-        message.role === 'user' &&
-        Array.isArray(message.content) &&
-        message.content.some((part) => part.kind === 'image')
-    )
-    if (containsImage && model.capabilities?.vision?.state !== 'success') {
-      throw new ModelServiceError(
-        'invalid-request',
-        `Model ${model.id} has not passed vision testing`
-      )
+    const candidates = capabilityCandidates(model.id, connection.baseUrl).probes
+    if (!candidates.includes('text')) {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} does not support chat`)
     }
     if (connection.protocol !== 'openai-compatible') {
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
@@ -437,8 +443,8 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
 }
 
 function withCatalogLabels(model: ModelOptionDto, baseUrl: string): ModelOptionDto {
-  const labels = capabilityCandidates(model.id, baseUrl).displayOnly
-  return { ...model, ...(labels.length ? { catalogLabels: labels } : {}) }
+  const { probes, displayOnly: labels } = capabilityCandidates(model.id, baseUrl)
+  return { ...model, probeCandidates: probes, ...(labels.length ? { catalogLabels: labels } : {}) }
 }
 
 function isImageEligible(model: ModelOptionDto): boolean {

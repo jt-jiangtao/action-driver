@@ -1,4 +1,9 @@
-import type { ImageGenerationApi, ModelKind, ModelCapability, ModelCapabilityResultDto } from '@actiondriver/model-connections'
+import type {
+  ImageGenerationApi,
+  ModelKind,
+  ModelCapability,
+  ModelCapabilityResultDto
+} from '@actiondriver/model-connections'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
@@ -44,6 +49,7 @@ export interface ModelOption {
   imageGenerationEnabled?: boolean
   imageGenerationApi?: ImageGenerationApi
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
+  probeCandidates?: ModelCapability[] | undefined
   catalogLabels?: string[] | undefined
 }
 

@@ -16,7 +16,7 @@ export function ModelOptionItem({
   return (
     <button
       aria-selected={selected}
-      aria-label={model.disabledReason ? `${model.name}，${model.disabledReason}` : model.name}
+      aria-label={model.name}
       className="model-option-item"
       data-active={active}
       data-testid={e2eId('e2e/shared/model-selector/models/:model-id#option', {
@@ -29,9 +29,7 @@ export function ModelOptionItem({
       type="button"
     >
       <span>{model.name}</span>
-      {model.disabledReason ? (
-        <small className="model-option-reason">{model.disabledReason}</small>
-      ) : selected ? <AppIcon name="check" /> : null}
+      {selected ? <AppIcon name="check" /> : null}
     </button>
   )
 }

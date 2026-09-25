@@ -1409,10 +1409,15 @@
 .model-capability {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   white-space: nowrap;
   padding: 1px 6px;
   border-radius: 5px;
   background: #f4f5f6;
+}
+.model-capability > svg {
+  width: 12px;
+  height: 12px;
 }
 .model-capability.is-success {
   color: #227654;

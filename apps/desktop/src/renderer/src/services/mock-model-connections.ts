@@ -14,8 +14,23 @@ interface MockModelConnectionsOptions {
 }
 
 const discoveredModels: ModelOption[] = [
-  { id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, vision: { state: 'success', source: 'probe' } } },
-  { id: 'gpt-5.2-mini', name: 'gpt-5.2-mini', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } },
+  {
+    id: 'gpt-5.2',
+    name: 'gpt-5.2',
+    enabled: true,
+    testState: 'success',
+    capabilities: {
+      text: { state: 'success', source: 'probe' },
+      vision: { state: 'success', source: 'probe' }
+    }
+  },
+  {
+    id: 'gpt-5.2-mini',
+    name: 'gpt-5.2-mini',
+    enabled: true,
+    testState: 'success',
+    capabilities: { text: { state: 'success', source: 'probe' } }
+  },
   { id: 'gpt-4.1', name: 'gpt-4.1', enabled: false, testState: 'untested' }
 ]
 
@@ -37,8 +52,20 @@ const defaultConnections: ModelConnection[] = [
     apiKeyHint: '••••5678',
     expanded: false,
     models: [
-      { id: 'claude-opus-4.1', name: 'claude-opus-4.1', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } },
-      { id: 'claude-sonnet-4', name: 'claude-sonnet-4', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }
+      {
+        id: 'claude-opus-4.1',
+        name: 'claude-opus-4.1',
+        enabled: true,
+        testState: 'success',
+        capabilities: { text: { state: 'success', source: 'probe' } }
+      },
+      {
+        id: 'claude-sonnet-4',
+        name: 'claude-sonnet-4',
+        enabled: true,
+        testState: 'success',
+        capabilities: { text: { state: 'success', source: 'probe' } }
+      }
     ]
   }
 ]
@@ -46,6 +73,13 @@ const defaultConnections: ModelConnection[] = [
 function cloneModels(models: ModelOption[]): ModelOption[] {
   return models.map((model) => ({
     ...model,
+    probeCandidates:
+      model.probeCandidates ??
+      (model.catalogLabels?.length
+        ? []
+        : Object.keys(model.capabilities ?? {}).length
+          ? (Object.keys(model.capabilities ?? {}) as ModelOption['probeCandidates'])
+          : ['text', 'vision', 'image_generation']),
     kind: model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat')
   }))
 }
@@ -110,7 +144,14 @@ export class MockModelConnectionsService implements ModelConnectionsService {
         state: success ? 'success' : 'failed',
         capabilities: {
           text: { state: success ? 'success' : 'failed', source: 'probe' },
-          ...(modelId.includes('image') ? { image_generation: { state: success ? 'success' as const : 'failed' as const, source: 'probe' as const } } : {})
+          ...(modelId.includes('image')
+            ? {
+                image_generation: {
+                  state: success ? ('success' as const) : ('failed' as const),
+                  source: 'probe' as const
+                }
+              }
+            : {})
         }
       }
     })
@@ -130,7 +171,9 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const resultById = new Map(results.map((result) => [result.modelId, result]))
     connection.models = connection.models.map((model) => {
       const result = resultById.get(model.id)
-      return result ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } } : model
+      return result
+        ? { ...model, testState: result.state, capabilities: result.capabilities ?? {} }
+        : model
     })
     this.clearInvalidImageDefault()
     return results
@@ -200,7 +243,8 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const model = this.connections
       .find((connection) => connection.id === selected.connectionId)
       ?.models.find((item) => item.id === selected.modelId)
-    if (!model?.enabled || model.capabilities?.image_generation?.state !== 'success') this.defaultImageModel = null
+    if (!model?.enabled || model.capabilities?.image_generation?.state !== 'success')
+      this.defaultImageModel = null
   }
 
   private requireConnection(connectionId: string): ModelConnection {
