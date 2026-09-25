@@ -18,6 +18,7 @@ type ToolMode =
   | 'image-cancel'
   | 'image-replay'
   | 'vision'
+  | 'vision-rejected'
 
 export type CapturedToolCompletion = {
   model: string
@@ -111,6 +112,13 @@ export class FakeOpenAiToolServer {
       if (completion.stream !== true) {
         response.writeHead(400, { 'content-type': 'application/json' })
         response.end(JSON.stringify({ error: { message: 'stream must be true' } }))
+        return
+      }
+      if (this.mode === 'vision-rejected') {
+        response.writeHead(400, { 'content-type': 'application/json' })
+        response.end(
+          JSON.stringify({ error: { message: 'Unexpected item type in content.' } })
+        )
         return
       }
       response.writeHead(200, {

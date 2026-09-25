@@ -19,6 +19,10 @@ describe('AgentComposer', () => {
       await user.upload(screen.getByLabelText('添加图片'), image)
       const preview = screen.getByText('wide-screenshot.png').closest('.composer-image-preview')
       expect(preview).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('任务描述').compareDocumentPosition(preview!) &
+          Node.DOCUMENT_POSITION_PRECEDING
+      ).toBeTruthy()
       expect(preview?.querySelector('.composer-image-preview-frame')).not.toBeNull()
       expect(preview?.querySelector('.composer-image-preview-meta')).not.toBeNull()
       expect(preview?.querySelector('img')).toHaveAttribute('alt', 'wide-screenshot.png')

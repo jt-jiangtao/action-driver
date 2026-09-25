@@ -4,6 +4,11 @@ import type {
   ModelFailure,
   ModelProtocol
 } from '@actiondriver/model-connections'
+import { execFile } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { HttpTransportError, type HttpTransport } from './http-transport'
 import { classifyResponse } from './provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
@@ -16,6 +21,7 @@ import { inspectImage } from '../media/session-asset-store'
 const RED_SQUARE_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAb0lEQVR4nO3PAQkAAAyEwO9feoshgnABdLep8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3IPanc8OLDQitxAAAAAElFTkSuQmCC'
 const PROBE_TIMEOUT_MS = 15_000
+const execFileAsync = promisify(execFile)
 
 export type CapabilityProbeInput = {
   endpoint: { baseUrl: string; apiKey: string; protocol: ModelProtocol }
@@ -52,7 +58,7 @@ export async function probeCapability(
       const bytes = await imageGenerator(input.signal)
       if (input.signal?.aborted)
         return makeResult('failed', { code: 'cancelled', message: 'Model test was cancelled' })
-      await inspectImage(bytes)
+      await verifyGeneratedImage(bytes)
       return makeResult('success')
     }
     const response = await input.transport.request({
@@ -66,13 +72,23 @@ export async function probeCapability(
     if (input.signal?.aborted)
       return makeResult('failed', { code: 'cancelled', message: 'Model test was cancelled' })
     const error = classifyResponse(response.status, response.body, response.text)
-    if (error) return makeResult(error.code === 'invalid-request' ? 'unsupported' : 'failed', error)
+    if (error)
+      return makeResult(
+        error.code === 'invalid-request'
+          ? explicitlyUnsupported(error.message, input.capability)
+            ? 'unsupported'
+            : 'inconclusive'
+          : 'failed',
+        error
+      )
     const message = assistantMessage(response.body)
     const content = typeof message?.content === 'string' ? message.content.trim() : ''
     if (input.capability === 'text') return makeResult(content ? 'success' : 'inconclusive')
     if (input.capability === 'reasoning') {
       const reasoning = message?.reasoning_content
-      return makeResult(typeof reasoning === 'string' && reasoning.trim() ? 'success' : 'inconclusive')
+      return makeResult(
+        typeof reasoning === 'string' && reasoning.trim() ? 'success' : 'inconclusive'
+      )
     }
     return makeResult(/\bred\b|红色|红的|红方|红块/i.test(content) ? 'success' : 'inconclusive')
   } catch (error) {
@@ -85,6 +101,44 @@ export async function probeCapability(
   }
 }
 
+async function verifyGeneratedImage(bytes: Uint8Array): Promise<void> {
+  const { mimeType } = await inspectImage(bytes)
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-image-probe-'))
+  const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png'
+  const input = join(directory, `input.${extension}`)
+  try {
+    await writeFile(input, bytes)
+    await execFileAsync(
+      '/usr/bin/sips',
+      ['-s', 'format', 'png', '--out', join(directory, 'decoded.png'), input],
+      {
+        timeout: PROBE_TIMEOUT_MS,
+        maxBuffer: 64 * 1024
+      }
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+
+function explicitlyUnsupported(message: string, capability: ModelCapability): boolean {
+  if (
+    /\b(?:parameter|field|argument|payload|request|image_url|enable_thinking)\b|参数|字段|请求格式/i.test(
+      message
+    )
+  )
+    return false
+  if (!/\bmodel\b|模型/i.test(message)) return false
+  if (!/(?:does not support|not supported|unsupported|不支持)/i.test(message)) return false
+  const subject: Record<ModelCapability, RegExp> = {
+    text: /\b(?:text|chat|completion)\b|文本|对话/i,
+    reasoning: /\b(?:reasoning|thinking)\b|推理|思考/i,
+    vision: /\b(?:vision|image|multimodal)\b|图片|图像|视觉|多模态/i,
+    image_generation: /\b(?:image|generation)\b|生图|图片生成/i
+  }
+  return subject[capability].test(message)
+}
+
 function chatProbeBody(modelId: string, capability: Exclude<ModelCapability, 'image_generation'>) {
   if (capability === 'vision') {
     return {
@@ -93,7 +147,10 @@ function chatProbeBody(modelId: string, capability: Exclude<ModelCapability, 'im
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'What color is the square in this image? Reply with only the color.' },
+            {
+              type: 'text',
+              text: 'What color is the square in this image? Reply with only the color.'
+            },
             { type: 'image_url', image_url: { url: `data:image/png;base64,${RED_SQUARE_PNG}` } }
           ]
         }
@@ -104,7 +161,9 @@ function chatProbeBody(modelId: string, capability: Exclude<ModelCapability, 'im
   }
   return {
     model: modelId,
-    messages: [{ role: 'user', content: capability === 'reasoning' ? 'What is 17 + 25?' : 'Reply OK.' }],
+    messages: [
+      { role: 'user', content: capability === 'reasoning' ? 'What is 17 + 25?' : 'Reply OK.' }
+    ],
     max_tokens: capability === 'reasoning' ? 128 : 16,
     ...(capability === 'reasoning' ? { enable_thinking: true } : {}),
     stream: false

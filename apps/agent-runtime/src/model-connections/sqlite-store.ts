@@ -44,12 +44,7 @@ type CapabilityRow = {
   failure_message: string | null
 }
 
-const CAPABILITIES: readonly ModelCapability[] = [
-  'text',
-  'reasoning',
-  'vision',
-  'image_generation'
-]
+const CAPABILITIES: readonly ModelCapability[] = ['text', 'reasoning', 'vision', 'image_generation']
 
 /** Stores model connections in the runtime database so the service is their only writer. */
 export function createSqliteModelConnectionStore(
@@ -95,7 +90,8 @@ export function createSqliteModelConnectionStore(
                 model,
                 results.filter(
                   (result) =>
-                    result.connection_id === model.connection_id && result.model_id === model.model_id
+                    result.connection_id === model.connection_id &&
+                    result.model_id === model.model_id
                 )
               )
             )
@@ -179,7 +175,9 @@ export function createSqliteModelConnectionStore(
             previousDefault &&
             selected?.enabled &&
             (selected.capabilities?.image_generation
-              ? selected.capabilities.image_generation.state === 'success'
+              ? selected.capabilities.image_generation.state === 'success' ||
+                (selected.capabilities.image_generation.state === 'untested' &&
+                  selected.capabilities.image_generation.source === 'legacy')
               : selected.kind === 'image')
           ) {
             database

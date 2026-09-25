@@ -17,12 +17,12 @@ const states: Record<ModelCapabilityResultDto['state'], string> = {
 }
 
 const displayLabels: Record<string, string> = {
-  speech_recognition: '语音识别 · 未测试',
-  realtime_chat: '实时语音 · 未测试',
-  speech_synthesis: '语音合成 · 未测试',
-  text_to_video: '文生视频 · 未测试',
-  image_to_video: '图生视频 · 未测试',
-  reference_to_video: '参考生视频 · 未测试'
+  speech_recognition: '语音识别 · 未接入测试',
+  realtime_chat: '实时语音 · 未接入测试',
+  speech_synthesis: '语音合成 · 未接入测试',
+  text_to_video: '文生视频 · 未接入测试',
+  image_to_video: '图生视频 · 未接入测试',
+  reference_to_video: '参考生视频 · 未接入测试'
 }
 
 export function ModelCapabilityResults({
@@ -38,14 +38,24 @@ export function ModelCapabilityResults({
       {entries.length === 0 && !catalogLabels?.length ? <span>待测试</span> : null}
       {entries.map((key) => {
         const result = capabilities![key]!
+        const isLegacy = result.source === 'legacy' && result.state === 'untested'
+        const title =
+          result.failure?.message ??
+          (isLegacy
+            ? '旧测试结果需要重新验证'
+            : result.testedAt
+              ? `实测于 ${result.testedAt}`
+              : undefined)
         return (
-          <span className={`model-capability is-${result.state}`} key={key} title={result.failure?.message ?? (result.testedAt ? `测试于 ${result.testedAt}` : undefined)}>
-            {names[key]} · {states[result.state]}
+          <span className={`model-capability is-${result.state}`} key={key} title={title}>
+            {names[key]} · {isLegacy ? '需重新测试' : states[result.state]}
           </span>
         )
       })}
       {catalogLabels?.map((label) => (
-        <span className="model-capability is-display-only" key={label}>{displayLabels[label] ?? label}</span>
+        <span className="model-capability is-display-only" key={label}>
+          {displayLabels[label] ?? label}
+        </span>
       ))}
     </span>
   )

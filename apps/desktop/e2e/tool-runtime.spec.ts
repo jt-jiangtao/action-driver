@@ -63,6 +63,8 @@ async function launch(
     | 'image-cancel'
     | 'image-replay'
     | 'vision'
+    | 'vision-rejected',
+  visionState: 'success' | 'unsupported' = 'success'
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
@@ -93,7 +95,7 @@ async function launch(
   page.on('pageerror', (error) => console.error(`[renderer:pageerror] ${error.message}`))
   await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
   await page.evaluate(
-    async ({ baseUrl, secret }) => {
+    async ({ baseUrl, secret, visionState }) => {
       const connection = await window.actionDriverDesktop.runtimeConnection.get()
       const url = new URL(connection.wsUrl)
       url.protocol = 'http:'
@@ -112,7 +114,24 @@ async function launch(
             apiKey: secret
           },
           models: [
-            { id: 'e2e-tool-model', name: 'e2e-tool-model', enabled: true, testState: 'success' }
+            {
+              id: 'e2e-tool-model',
+              name: 'e2e-tool-model',
+              enabled: true,
+              testState: 'success',
+              capabilities: {
+                text: { state: 'success', source: 'probe' },
+                vision: { state: visionState, source: 'probe' },
+                image_generation: { state: 'success', source: 'probe' }
+              }
+            },
+            {
+              id: 'e2e-image-model',
+              name: 'e2e-image-model',
+              enabled: true,
+              testState: 'success',
+              capabilities: { image_generation: { state: 'success', source: 'probe' } }
+            }
           ]
         })
       })
@@ -120,7 +139,7 @@ async function launch(
         throw new Error('Runtime model connection setup failed')
       }
     },
-    { baseUrl: provider.baseUrl, secret: apiKey }
+    { baseUrl: provider.baseUrl, secret: apiKey, visionState }
   )
   await page.reload()
   await expect(page.getByRole('button', { name: /当前模型/ })).toContainText(
@@ -213,8 +232,8 @@ async function runtimeTask(
   }, taskId)
 }
 
-async function enableImageCapability(page: Page, kind: 'input' | 'generation'): Promise<void> {
-  await page.evaluate(async (imageKind) => {
+async function selectDefaultImageModel(page: Page): Promise<void> {
+  await page.evaluate(async () => {
     const connection = await window.actionDriverDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
@@ -229,31 +248,21 @@ async function enableImageCapability(page: Page, kind: 'input' | 'generation'): 
       value: Array<{ id: string }>
     }
     if (!listResponse.ok || !list.ok || !list.value[0]) throw new Error('Missing model connection')
-    url.pathname = `/model-connections/${encodeURIComponent(list.value[0].id)}/models/e2e-tool-model/image-capability`
-    const toggleResponse = await fetch(url, {
+    url.pathname = '/model-connections/default-image-model'
+    const defaultResponse = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ kind: imageKind, enabled: true })
-    })
-    if (!toggleResponse.ok) throw new Error('Cannot enable image capability')
-    if (imageKind === 'generation') {
-      url.pathname = '/model-connections/default-image-model'
-      const defaultResponse = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: { connectionId: list.value[0].id, modelId: 'e2e-tool-model' }
-        })
+      body: JSON.stringify({
+        model: { connectionId: list.value[0].id, modelId: 'e2e-image-model' }
       })
-      if (!defaultResponse.ok) throw new Error('Cannot select default image model')
-    }
-  }, kind)
+    })
+    if (!defaultResponse.ok) throw new Error('Cannot select default image model')
+  })
   await page.reload()
 }
 
 test('uploads an image for model recognition and restores it from session assets', async () => {
   const page = await launch('vision')
-  await enableImageCapability(page, 'input')
   await page.getByLabel('添加图片').setInputFiles({
     name: 'tiny.png',
     mimeType: 'image/png',
@@ -266,6 +275,9 @@ test('uploads an image for model recognition and restores it from session assets
   expect(taskId).toMatch(/^task-/)
   await expect(page.getByText('识别到了图片')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
+  const thumbnail = await page.getByRole('button', { name: '放大图片' }).boundingBox()
+  expect(thumbnail?.width).toBe(104)
+  expect(thumbnail?.height).toBe(104)
   expect(JSON.stringify(provider!.completions[0]?.messages)).toContain('data:image/png;base64,')
   expect(JSON.stringify(await runtimeTask(page, taskId!))).not.toContain('data:image/png;base64,')
   const task = await runtimeTask(page, taskId!)
@@ -287,9 +299,55 @@ test('uploads an image for model recognition and restores it from session assets
   await expect(page.getByText('识别到了图片')).toBeVisible()
 })
 
+test('keeps an image draft and skips provider calls when vision is unverified', async () => {
+  const page = await launch('vision', 'unsupported')
+  await page.getByLabel('添加图片').setInputFiles({
+    name: 'tiny.png',
+    mimeType: 'image/png',
+    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+  })
+  await page.getByLabel('任务描述').fill('识别图片')
+  await page.getByLabel('发送').click()
+  await expect(page.getByRole('alert')).toContainText('视觉测试尚未通过')
+  await expect(page.getByText('tiny.png')).toBeVisible()
+  await expect(page.getByLabel('任务描述')).toContainText('识别图片')
+  expect(provider!.completions).toHaveLength(0)
+  await page.getByRole('button', { name: '打开模型设置' }).click()
+  await expect(page.getByRole('heading', { name: '模型连接' })).toBeVisible()
+})
+
+test('offers a verified text and image model in both chat and default image settings', async () => {
+  const page = await launch('vision')
+  await expect(page.getByRole('button', { name: /当前模型/ })).toContainText('e2e-tool-model')
+  await page.getByRole('button', { name: '设置' }).click()
+  const choice = page.getByRole('button', { name: '设为默认生图模型：e2e-tool-model' })
+  await expect(choice).toBeVisible()
+  await choice.click()
+  await expect(page.getByRole('button', { name: '取消默认生图模型：e2e-tool-model' })).toBeVisible()
+  await page.getByRole('button', { name: '返回应用' }).click()
+  await expect(page.getByRole('button', { name: /当前模型/ })).toContainText('e2e-tool-model')
+})
+
+test('shows the provider image rejection in the failed turn after reload', async () => {
+  const page = await launch('vision-rejected')
+  await page.getByLabel('添加图片').setInputFiles({
+    name: 'tiny.png',
+    mimeType: 'image/png',
+    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+  })
+  await page.getByLabel('任务描述').fill('这是什么')
+  await page.getByLabel('发送').click()
+  await expect(page.getByRole('alert')).toContainText('Unexpected item type in content.', {
+    timeout: 15_000
+  })
+  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('Unexpected item type in content.')
+})
+
 test('shows four independently completed images and restores them after reload', async () => {
   const page = await launch('image')
-  await enableImageCapability(page, 'generation')
+  await selectDefaultImageModel(page)
   const taskId = await sendGoal(page, '生成四张图')
   await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(4, { timeout: 20_000 })
   await expect(page.getByText('图片已生成')).toBeVisible()
@@ -312,7 +370,7 @@ test('shows four independently completed images and restores them after reload',
 
 test('retains successful generated images when one request fails', async () => {
   const page = await launch('image-partial')
-  await enableImageCapability(page, 'generation')
+  await selectDefaultImageModel(page)
   await sendGoal(page, '生成四张图，其中一张失败')
   await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(3, { timeout: 20_000 })
   await expect(page.getByText('图片已生成')).toBeVisible()
@@ -322,7 +380,7 @@ test('retains successful generated images when one request fails', async () => {
 
 test('replays an in-progress image batch after reload without repeating generation', async () => {
   const page = await launch('image-replay')
-  await enableImageCapability(page, 'generation')
+  await selectDefaultImageModel(page)
   const taskId = await sendGoal(page, '生成四张图并恢复进度')
   await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1, { timeout: 20_000 })
   await page.reload()
@@ -337,7 +395,7 @@ test('replays an in-progress image batch after reload without repeating generati
 
 test('stops pending image requests without late successful images', async () => {
   const page = await launch('image-cancel')
-  await enableImageCapability(page, 'generation')
+  await selectDefaultImageModel(page)
   await sendGoal(page, '生成图片后取消')
   await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1, { timeout: 20_000 })
   await page.getByLabel('中断任务').click()

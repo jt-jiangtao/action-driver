@@ -7,6 +7,7 @@ import { ModelLibrary } from './ModelLibrary'
 import { SettingsPageTitle } from './SettingsPageTitle'
 import { ManualModelRow } from './ManualModelRow'
 import { ModelPickerRow } from './ModelPickerRow'
+import { ModelCapabilityResults } from './ModelCapabilityResults'
 import { ModelConnectionCard } from '../ModelConnectionCard'
 import { ModelStatusPill } from '../ModelStatusPill'
 
@@ -80,6 +81,47 @@ describe('settings components', () => {
     expect(state.connectionState).toBe('success')
   })
 
+  it('invalidates discovered models and probes when the connection identity changes', () => {
+    const draft: ModelConnectionDraft = {
+      name: 'Gateway',
+      protocol: 'openai-compatible',
+      baseUrl: 'https://models.example.com/v1',
+      apiKey: 'sk-original'
+    }
+    let state = addModelSetReducer(initialAddModelSetState, { type: 'update-draft', draft })
+    state = addModelSetReducer(state, {
+      type: 'models-discovered',
+      models: [
+        {
+          id: 'vision',
+          name: 'vision',
+          enabled: true,
+          testState: 'success',
+          capabilities: {
+            text: { state: 'success', source: 'probe' },
+            vision: { state: 'success', source: 'probe' }
+          }
+        }
+      ]
+    })
+    const renamed = addModelSetReducer(state, {
+      type: 'update-draft',
+      draft: { ...draft, name: 'Renamed' }
+    })
+    expect(renamed.models).toHaveLength(1)
+    const changedKey = addModelSetReducer(renamed, {
+      type: 'update-draft',
+      draft: { ...renamed.draft, apiKey: 'sk-new' }
+    })
+    expect(changedKey.models).toEqual([])
+    expect(
+      addModelSetReducer(state, {
+        type: 'update-draft',
+        draft: { ...draft, baseUrl: 'https://other.example.com/v1' }
+      }).models
+    ).toEqual([])
+  })
+
   it('runs controlled manual model row actions', async () => {
     const user = userEvent.setup()
     const onChangeName = vi.fn()
@@ -114,7 +156,16 @@ describe('settings components', () => {
     const onToggle = vi.fn()
     render(
       <ModelPickerRow
-        model={{ id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, vision: { state: 'unsupported', source: 'probe' } } }}
+        model={{
+          id: 'gpt-5.2',
+          name: 'gpt-5.2',
+          enabled: true,
+          testState: 'success',
+          capabilities: {
+            text: { state: 'success', source: 'probe' },
+            vision: { state: 'unsupported', source: 'probe' }
+          }
+        }}
         onTest={onTest}
         onToggle={onToggle}
       />
@@ -131,6 +182,20 @@ describe('settings components', () => {
     await user.click(screen.getByRole('switch', { name: '选择gpt-5.2' }))
     expect(onTest).toHaveBeenCalledOnce()
     expect(onToggle).toHaveBeenCalledWith(false)
+  })
+
+  it('distinguishes migrated results from new untested capabilities', () => {
+    render(
+      <ModelCapabilityResults
+        capabilities={{
+          text: { state: 'untested', source: 'legacy' },
+          vision: { state: 'untested', source: 'probe' }
+        }}
+      />
+    )
+
+    expect(screen.getByText('文本 · 需重新测试')).toHaveAttribute('title', '旧测试结果需要重新验证')
+    expect(screen.getByText('视觉 · 待测试')).toBeVisible()
   })
 
   it('prevents duplicate refreshes while a connection refresh is pending', async () => {

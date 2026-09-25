@@ -8,6 +8,36 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('places uploaded images above the text inside one user bubble', () => {
+    const asset = {
+      assetId: 'asset-above-text',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 100,
+      height: 100,
+      byteLength: 32,
+      source: 'upload' as const
+    }
+    const view = render(
+      <UserMessage
+        message={{
+          id: 'u',
+          role: 'user',
+          content: '这是什么',
+          parts: [
+            { kind: 'text', text: '这是什么' },
+            { kind: 'image', asset }
+          ]
+        }}
+        readImage={async () => new Blob(['png'], { type: 'image/png' })}
+      />
+    )
+    const bubble = view.container.querySelector('.user-message-with-images')
+    expect(bubble?.children).toHaveLength(2)
+    expect(bubble?.firstElementChild?.className).toMatch(/^conversation-image-/)
+    expect(bubble?.lastElementChild).toHaveTextContent('这是什么')
+  })
+
   it('shows one complete uploaded image without an empty text fragment', async () => {
     const previousCreate = URL.createObjectURL
     const previousRevoke = URL.revokeObjectURL
@@ -48,6 +78,12 @@ describe('conversation components', () => {
       ).toBeNull()
       expect(agentStyles).toMatch(/\.conversation-image-open img\s*\{[^}]*object-fit:\s*contain/s)
       expect(agentStyles).toMatch(/\.conversation-image-open\s*\{[^}]*border:\s*1px/s)
+      expect(agentStyles).toMatch(
+        /\.user-message-with-images \.conversation-image-open\s*\{[^}]*width:\s*104px;[^}]*height:\s*104px/s
+      )
+      expect(agentStyles).toMatch(
+        /\.user-message-with-images \.conversation-image-open img\s*\{[^}]*object-fit:\s*contain/s
+      )
       view.unmount()
       view = undefined
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:wide-image')

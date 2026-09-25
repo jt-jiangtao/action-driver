@@ -98,7 +98,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-top: 8px;
+  padding-bottom: 8px;
 }
 .composer-image-preview {
   display: flex;
@@ -641,6 +641,17 @@
   color: var(--ad-color-text-secondary);
   line-height: 20px;
 }
+.agent-failure {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 20px;
+  color: var(--ad-color-danger, #b42318);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.agent-failure strong {
+  font-weight: 600;
+}
 .user-message-with-images,
 .agent-message-with-images {
   display: flex;
@@ -676,6 +687,17 @@
   width: auto;
   max-width: min(320px, 100%);
   max-height: 240px;
+  object-fit: contain;
+}
+.user-message-with-images .conversation-image-open {
+  width: 104px;
+  height: 104px;
+}
+.user-message-with-images .conversation-image-open img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: contain;
 }
 .conversation-image-download {

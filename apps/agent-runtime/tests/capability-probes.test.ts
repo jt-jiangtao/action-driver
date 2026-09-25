@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { HttpRequest, HttpResponse, HttpTransport } from '../src/model-connections/http-transport'
+import type {
+  HttpRequest,
+  HttpResponse,
+  HttpTransport
+} from '../src/model-connections/http-transport'
 import { probeCapability } from '../src/model-connections/capability-probes'
 
 const endpoint = {
@@ -14,7 +18,10 @@ const redPng = Uint8Array.from(
   )
 )
 
-function transportFor(body: unknown, status = 200): {
+function transportFor(
+  body: unknown,
+  status = 200
+): {
   transport: HttpTransport
   requests: HttpRequest[]
 } {
@@ -33,7 +40,12 @@ function transportFor(body: unknown, status = 200): {
 describe('probeCapability', () => {
   it('requires usable assistant text for a text success', async () => {
     const { transport } = transportFor({ choices: [{ message: { content: '' } }] })
-    const result = await probeCapability({ endpoint, modelId: 'text-model', capability: 'text', transport })
+    const result = await probeCapability({
+      endpoint,
+      modelId: 'text-model',
+      capability: 'text',
+      transport
+    })
     expect(result.state).toBe('inconclusive')
   })
 
@@ -76,18 +88,65 @@ describe('probeCapability', () => {
 
   it('does not accept an unrelated vision answer', async () => {
     const { transport } = transportFor({ choices: [{ message: { content: 'blue' } }] })
-    const result = await probeCapability({ endpoint, modelId: 'vision', capability: 'vision', transport })
+    const result = await probeCapability({
+      endpoint,
+      modelId: 'vision',
+      capability: 'vision',
+      transport
+    })
     expect(result.state).toBe('inconclusive')
   })
 
   it('separates unsupported image input from a rate limit', async () => {
-    const rejected = transportFor({ error: { message: 'Unexpected item type in content' } }, 400)
+    const rejected = transportFor(
+      { error: { message: 'This model does not support image input' } },
+      400
+    )
+    const malformed = transportFor({ error: { message: 'Unexpected item type in content' } }, 400)
+    const unsupportedParameter = transportFor(
+      { error: { message: 'image_url parameter is not supported' } },
+      400
+    )
     const limited = transportFor({ error: { message: 'Rate limit' } }, 429)
     expect(
-      (await probeCapability({ endpoint, modelId: 'vision', capability: 'vision', transport: rejected.transport })).state
+      (
+        await probeCapability({
+          endpoint,
+          modelId: 'vision',
+          capability: 'vision',
+          transport: rejected.transport
+        })
+      ).state
     ).toBe('unsupported')
     expect(
-      (await probeCapability({ endpoint, modelId: 'vision', capability: 'vision', transport: limited.transport })).state
+      (
+        await probeCapability({
+          endpoint,
+          modelId: 'vision',
+          capability: 'vision',
+          transport: malformed.transport
+        })
+      ).state
+    ).toBe('inconclusive')
+    expect(
+      (
+        await probeCapability({
+          endpoint,
+          modelId: 'vision',
+          capability: 'vision',
+          transport: unsupportedParameter.transport
+        })
+      ).state
+    ).toBe('inconclusive')
+    expect(
+      (
+        await probeCapability({
+          endpoint,
+          modelId: 'vision',
+          capability: 'vision',
+          transport: limited.transport
+        })
+      ).state
     ).toBe('failed')
   })
 
@@ -107,8 +166,16 @@ describe('probeCapability', () => {
       transport,
       imageGenerator: async () => Uint8Array.from([1, 2, 3])
     })
+    const truncated = await probeCapability({
+      endpoint,
+      modelId: 'image',
+      capability: 'image_generation',
+      transport,
+      imageGenerator: async () => redPng.slice(0, 40)
+    })
     expect(success.state).toBe('success')
     expect(invalid.state).toBe('failed')
+    expect(truncated.state).toBe('failed')
   })
 
   it('reports cancellation without leaving a running result', async () => {

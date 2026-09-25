@@ -461,6 +461,46 @@ describe('ActionDriver pages', () => {
     expect(screen.queryByText('未完成的过程正文')).toBeNull()
   })
 
+  it('shows a provider image rejection below the failed turn instead of leaving a blank reply', () => {
+    const task = {
+      ...mockTaskFixture,
+      status: 'failed' as const,
+      browser: null,
+      messages: [
+        { id: 'user-image', role: 'user' as const, content: '这是什么' },
+        { id: 'assistant-empty', role: 'agent' as const, content: '' }
+      ],
+      steps: [
+        {
+          id: 'step:failed',
+          title: 'Agent 执行',
+          detail: '400 Unexpected item type in content',
+          state: 'failed' as const
+        }
+      ]
+    }
+    const props = {
+      mode: 'split' as const,
+      task,
+      modelSelection: mockModelSelection,
+      onSelectModel: vi.fn(),
+      onModeChange: vi.fn(),
+      onPause: vi.fn(),
+      onResume: vi.fn(),
+      onTakeOver: vi.fn(),
+      onInterrupt: vi.fn(),
+      onSubmit: vi.fn()
+    }
+    const view = render(<TaskPage {...props} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('400 Unexpected item type in content')
+    const user = screen.getByText('这是什么')
+    const failure = screen.getByRole('alert')
+    expect(user.compareDocumentPosition(failure) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    view.rerender(<TaskPage {...props} task={{ ...task }} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('400 Unexpected item type in content')
+  })
+
   it('keeps legacy waiting approval records read-only after a task has been cancelled', () => {
     render(
       <TaskPage

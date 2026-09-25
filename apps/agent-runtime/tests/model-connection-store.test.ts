@@ -182,6 +182,11 @@ describe('service-side model connection storage', () => {
       connectionId: connection.id,
       modelId: 'qwen3.7-plus'
     })
+    store.write(store.read())
+    expect(store.readDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'qwen3.7-plus'
+    })
     upgraded.close()
   })
 

@@ -37,6 +37,11 @@ export function AddModelSetDialog({
 
   const updateDraft = (key: keyof ModelConnectionDraft, value: string) => {
     setFailure(null)
+    if (key !== 'name' && state.draft[key] !== value) {
+      operationToken.current += 1
+      modelTokens.current.clear()
+      pendingModelIds.current.clear()
+    }
     dispatch({ type: 'update-draft', draft: { ...state.draft, [key]: value } })
   }
 
@@ -267,7 +272,9 @@ export function AddModelSetDialog({
               <div className="model-picker-toolbar">
                 <div>
                   <strong>发现的模型</strong>
-                  <span>逐项测试文本、推理、视觉和生图；生图测试会实际生成一张图片，可能产生费用</span>
+                  <span>
+                    逐项测试文本、推理、视觉和生图；生图测试会实际生成一张图片，可能产生费用
+                  </span>
                 </div>
                 <IconButton
                   aria-label="手动添加模型"
@@ -277,16 +284,22 @@ export function AddModelSetDialog({
                   testId="e2e/settings/add-model-set/add-manual-model#button"
                   title="手动添加模型"
                 />
-                  <button
-                    className="secondary-button"
-                    disabled={state.discovering || state.models.length === 0}
-                    data-testid="e2e/settings/add-model-set/test-all-models#button"
-                    onClick={() => void testModels(state.models.filter((model) => !model.catalogLabels?.length).map((model) => model.id))}
-                    type="button"
-                  >
-                    <AppIcon name="play" />
-                    测试全部模型
-                  </button>
+                <button
+                  className="secondary-button"
+                  disabled={state.discovering || state.models.length === 0}
+                  data-testid="e2e/settings/add-model-set/test-all-models#button"
+                  onClick={() =>
+                    void testModels(
+                      state.models
+                        .filter((model) => !model.catalogLabels?.length)
+                        .map((model) => model.id)
+                    )
+                  }
+                  type="button"
+                >
+                  <AppIcon name="play" />
+                  测试全部模型
+                </button>
               </div>
               {state.discovering ? (
                 <div className="model-picker-loading">
@@ -369,9 +382,7 @@ export function AddModelSetDialog({
             ) : (
               <button
                 className="primary-button"
-                disabled={
-                  !state.models.some((model) => model.enabled && model.name.trim())
-                }
+                disabled={!state.models.some((model) => model.enabled && model.name.trim())}
                 data-testid="e2e/settings/add-model-set/save#button"
                 onClick={async () => {
                   if (savePending.current) return

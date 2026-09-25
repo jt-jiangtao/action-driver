@@ -239,7 +239,7 @@ export class SessionAssetStore {
   }
 }
 
-async function inspectImage(
+export async function inspectImage(
   bytes: Uint8Array
 ): Promise<{ mimeType: ImageMime; width: number; height: number }> {
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES)

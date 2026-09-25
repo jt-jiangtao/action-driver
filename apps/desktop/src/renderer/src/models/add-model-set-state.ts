@@ -26,7 +26,7 @@ export const initialAddModelSetState: AddModelSetState = {
   draft: { name: '', protocol: 'openai-compatible', baseUrl: '', apiKey: '' },
   connectionState: 'idle',
   models: [],
-  discovering: false,
+  discovering: false
 }
 
 export function addModelSetReducer(
@@ -35,7 +35,18 @@ export function addModelSetReducer(
 ): AddModelSetState {
   switch (action.type) {
     case 'update-draft':
-      return { ...state, draft: action.draft, connectionState: 'idle' }
+      return {
+        ...state,
+        draft: action.draft,
+        connectionState: 'idle',
+        models:
+          state.draft.protocol !== action.draft.protocol ||
+          state.draft.baseUrl !== action.draft.baseUrl ||
+          state.draft.apiKey !== action.draft.apiKey
+            ? []
+            : state.models,
+        discovering: false
+      }
     case 'connection-testing':
       return { ...state, connectionState: 'testing' }
     case 'connection-result':
@@ -61,7 +72,13 @@ export function addModelSetReducer(
         ...state,
         models: state.models.map((model) => {
           const result = results.get(model.id)
-          return result ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } } : model
+          return result
+            ? {
+                ...model,
+                testState: result.state,
+                capabilities: { ...model.capabilities, ...result.capabilities }
+              }
+            : model
         })
       }
     }

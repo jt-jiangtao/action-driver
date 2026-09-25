@@ -116,7 +116,13 @@ export class ModelConnectionService
     if (!result.ok) throw toServiceError(result.failure)
     return result.value.map((id) => {
       const labels = capabilityCandidates(id, validated.baseUrl).displayOnly
-      return { id, name: id, enabled: true, testState: 'untested' as const, ...(labels.length ? { catalogLabels: labels } : {}) }
+      return {
+        id,
+        name: id,
+        enabled: true,
+        testState: 'untested' as const,
+        ...(labels.length ? { catalogLabels: labels } : {})
+      }
     })
   }
 
@@ -130,12 +136,16 @@ export class ModelConnectionService
     })
     if (!result.ok) throw toServiceError(result.failure)
     const discovered = new Set(result.value)
-    connection.models = [
-      ...result.value.map((id) => mergeDiscoveredModel(connection, id)),
-      ...connection.models.filter((model) => !discovered.has(model.id))
+    const currentConnections = this.read()
+    const currentConnection = requireConnection(currentConnections, connectionId)
+    currentConnection.models = [
+      ...result.value.map((id) => mergeDiscoveredModel(currentConnection, id)),
+      ...currentConnection.models.filter((model) => !discovered.has(model.id))
     ]
-    this.write(connections)
-    return connection.models.map((model) => withCatalogLabels(model, connection.baseUrl))
+    this.write(currentConnections)
+    return currentConnection.models.map((model) =>
+      withCatalogLabels(model, currentConnection.baseUrl)
+    )
   }
 
   async testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]> {
@@ -146,21 +156,33 @@ export class ModelConnectionService
     )
   }
 
-  async testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]> {
+  async testConnectionModels(
+    request: ModelConnectionTestRequestDto
+  ): Promise<ModelTestResultDto[]> {
     const connections = this.read()
     const connection = requireConnection(connections, request.connectionId)
     const results = await this.probeModelCapabilities(
-      { baseUrl: connection.baseUrl, apiKey: this.decrypt(connection), protocol: connection.protocol },
+      {
+        baseUrl: connection.baseUrl,
+        apiKey: this.decrypt(connection),
+        protocol: connection.protocol
+      },
       request.modelIds
     )
     const byId = new Map(results.map((result) => [result.modelId, result]))
-    connection.models = connection.models.map((model) => {
+    const currentConnections = this.read()
+    const currentConnection = requireConnection(currentConnections, request.connectionId)
+    currentConnection.models = currentConnection.models.map((model) => {
       const result = byId.get(model.id)
       return result
-        ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } }
+        ? {
+            ...model,
+            testState: result.state,
+            capabilities: { ...model.capabilities, ...result.capabilities }
+          }
         : model
     })
-    this.write(connections)
+    this.write(currentConnections)
     return results
   }
 
@@ -238,10 +260,7 @@ export class ModelConnectionService
     )
     if (!currentModel?.enabled || !isImageEligible(currentModel))
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
-    if (
-      imageApiForModel(currentConnection!.baseUrl) !==
-      imageApiForModel(connection.baseUrl)
-    )
+    if (imageApiForModel(currentConnection!.baseUrl) !== imageApiForModel(connection.baseUrl))
       throw new ModelServiceError('invalid-request', 'Image generation API changed')
     return bytes
   }
@@ -249,7 +268,10 @@ export class ModelConnectionService
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
     const draft = validateDraft(request.draft)
     for (const model of request.models) {
-      if (model.capabilities?.image_generation?.state === 'success' && draft.protocol !== 'openai-compatible')
+      if (
+        model.capabilities?.image_generation?.state === 'success' &&
+        draft.protocol !== 'openai-compatible'
+      )
         throw new ModelServiceError(
           'invalid-request',
           'Image generation requires an OpenAI compatible connection'
@@ -266,7 +288,12 @@ export class ModelConnectionService
       expanded: true,
       models: request.models.map((model) => ({
         ...model,
-        kind: model.capabilities?.text?.state === 'success' ? 'chat' : model.capabilities?.image_generation?.state === 'success' ? 'image' : 'chat',
+        kind:
+          model.capabilities?.text?.state === 'success'
+            ? 'chat'
+            : model.capabilities?.image_generation?.state === 'success'
+              ? 'image'
+              : 'chat',
         imageGenerationApi: imageApiForModel(draft.baseUrl)
       }))
     }
@@ -361,11 +388,16 @@ export class ModelConnectionService
       )
     }
     const containsImage = request.messages.some(
-      (message) => message.role === 'user' && Array.isArray(message.content) &&
+      (message) =>
+        message.role === 'user' &&
+        Array.isArray(message.content) &&
         message.content.some((part) => part.kind === 'image')
     )
     if (containsImage && model.capabilities?.vision?.state !== 'success') {
-      throw new ModelServiceError('invalid-request', `Model ${model.id} has not passed vision testing`)
+      throw new ModelServiceError(
+        'invalid-request',
+        `Model ${model.id} has not passed vision testing`
+      )
     }
     if (connection.protocol !== 'openai-compatible') {
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
