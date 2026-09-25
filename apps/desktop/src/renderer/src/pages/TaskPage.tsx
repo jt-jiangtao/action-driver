@@ -106,7 +106,9 @@ export function TaskPage({
     task.status === 'running'
       ? visibleAssistantMessages.map((message) => {
           const timelineText = task.activityTimeline?.filter((item) => item.kind === 'text').map((item) => item.content).join('') ?? ''
-          return timelineText && timelineText === message.content ? { ...message, content: '' } : message
+          return timelineText && timelineText === message.content
+            ? { ...message, content: '', ...(message.parts ? { parts: message.parts.filter((part) => part.kind !== 'text') } : {}) }
+            : message
         })
       : visibleAssistantMessages
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}:${latestMessage?.parts?.length ?? 0}`

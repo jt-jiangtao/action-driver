@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RequestCreateEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
 import {
@@ -84,6 +84,39 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('does not publish an image batch when its atomic content commit fails', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, _observer, onToolEvent) {
+        const record = await harness.repositories.events.append({
+          taskId: request.taskId, threadId: request.sessionId!, checkpointId: 'tool:0',
+          eventKey: 'tool.running:a', type: 'tool.running',
+          payload: { callId: 'a', toolId: 'image.generate', modelName: 'image_generate',
+            summary: '生成图片', argumentsHash: '', activityId: null, imageCount: 2 },
+          occurredAt: '2026-09-23T00:00:01.000Z', eventId: 'running-a',
+          requestId: request.streamRequestId!, sequence: 1
+        })
+        await onToolEvent?.(record)
+        return { taskId: request.taskId, threadId: request.taskId,
+          status: 'completed', output: '', error: null, trace: [] }
+      },
+      interrupt: () => false,
+      async continue() { throw new Error('unused') },
+      async provideInput() { throw new Error('unused') }
+    }
+    const harness = createHarness(graphRunner)
+    const original = harness.repositories.commitAssistantContentWithEvent.bind(harness.repositories)
+    vi.spyOn(harness.repositories, 'commitAssistantContentWithEvent').mockImplementation((...args) => {
+      if (args[2].type === 'response.image_batch') throw new Error('storage failed')
+      return original(...args)
+    })
+    const events = await runToEnd(harness.service, createEvent)
+    expect(events.some((event) => event.type === 'response.image_batch')).toBe(false)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.messages.at(-1)?.parts?.some((part) => part.kind === 'image-batch')).not.toBe(true)
+    harness.repositories.close()
+  })
   it('persists batch positions before images and leaves final text after both batches', async () => {
     const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
     const runningSnapshots: Array<Awaited<ReturnType<StreamSessionService['getTaskSnapshot']>>> = []

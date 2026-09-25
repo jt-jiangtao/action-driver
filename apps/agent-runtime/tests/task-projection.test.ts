@@ -33,7 +33,7 @@ describe('repository-backed task projections', () => {
       id: 'old-image-first', taskId: 'task-success', role: 'assistant', createdAt: '2026-09-23',
       content: { parts: [{ kind: 'image', asset }, { kind: 'text', text: '说明' }] }
     }])
-    expect(projection.messages[0]?.parts).toEqual([{ kind: 'text', text: '说明' }, { kind: 'image', asset }])
+    expect(projection.messages[0]?.parts).toEqual([{ kind: 'image', asset }, { kind: 'text', text: '说明' }])
   })
   it('projects ordered image and text parts while preserving legacy text', () => {
     const image = {
