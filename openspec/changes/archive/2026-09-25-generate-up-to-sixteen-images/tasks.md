@@ -16,5 +16,5 @@
 
 ## 4. 集成验证
 
-- [ ] 4.1 运行定向测试、`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build` 与 OpenSpec 严格校验，确认无失败。
-- [ ] 4.2 检查最终 diff、同步两份主规范、归档变更并提交；验证 `git diff --check` 和工作区状态正常。
+- [x] 4.1 运行定向测试、`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build` 与 OpenSpec 严格校验，确认无失败。
+- [x] 4.2 检查最终 diff、同步两份主规范、归档变更并提交；验证 `git diff --check` 和工作区状态正常。

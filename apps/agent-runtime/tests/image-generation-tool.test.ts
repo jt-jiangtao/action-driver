@@ -204,9 +204,7 @@ describe('image_generate', () => {
       assets: { saveGenerated },
       sessionForTask: async () => 'session-1'
     })
-    const iterator = tool.executor
-      .execute(call(['0', '1', '2', '3', '4', '5']), controller.signal)
-      [Symbol.asyncIterator]()
+    const iterator = tool.executor.execute(call(['0', '1', '2', '3', '4', '5']), controller.signal)[Symbol.asyncIterator]()
     const first = iterator.next()
     await tick()
     expect(generate).toHaveBeenCalledTimes(4)

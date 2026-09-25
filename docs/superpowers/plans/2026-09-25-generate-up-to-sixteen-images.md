@@ -143,7 +143,7 @@ expect(view.container.querySelector('.agent-message')?.firstElementChild).toHave
 - [x] **Step 2: 运行定向组件测试。** `pnpm exec vitest run apps/desktop/src/renderer/src/components/Conversation.test.tsx apps/desktop/src/renderer/src/services/stream-task-projection.test.ts`；如果现有画廊已满足全部断言，只保留测试变更，不为扩大上限重写组件。
 - [x] **Step 3: 更新 Skill。** 将 `SKILL.md` 的 2–4 与 up-to-four 文案改为 1–16、同时最多 4 个请求、超过 16 张分次调用；只修改 ActionDriver 适配入口，原始 Codex 参考文件和 `LICENSE.txt` 不变。增加测试断言适配说明包含上限 16。
 - [x] **Step 4: 验证随包文件。** `pnpm exec vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/desktop/src/renderer/src/components/Conversation.test.tsx`，再运行 `pnpm test:e2e:packaged:macos`，确认 Skill 资源和许可证仍随包存在。
-- [ ] **Step 5: 提交展示与 Skill 变更。** 只暂存本任务实际修改文件，随后 `git commit -m "feat: show and guide larger image batches"`。
+- [x] **Step 5: 提交展示与 Skill 变更。** 只暂存本任务实际修改文件，随后 `git commit -m "feat: show and guide larger image batches"`。
 
 ### Task 4: 全量验证与规范归档
 
@@ -153,6 +153,6 @@ expect(view.container.querySelector('.agent-message')?.firstElementChild).toHave
 
 **Interfaces:** 已通过测试的工具、协议、画廊和 Skill；不新增运行时 API。
 
-- [ ] **Step 1: 运行完整验证。** 依次运行 `pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`、`openspec validate generate-up-to-sixteen-images --strict`、`git diff --check`。仅修复具体失败；若发现新的产品或架构决策，先更新 Battle 和规划。
-- [ ] **Step 2: 同步主规范并归档。** 将两份 MODIFIED Requirement 的完整块同步到对应主规范，运行 `openspec validate --specs`；勾选已验证的 `tasks.md`，按仓库归档流程把变更移入 `openspec/changes/archive/`。
-- [ ] **Step 3: 复核并提交。** `git diff --check`、`git status --short`、检查提交只含本变更文件；提交规范与归档并记录 commit SHA。不得声称跑过真实付费提供方，除非确实执行过。
+- [x] **Step 1: 运行完整验证。** 依次运行 `pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`、`openspec validate generate-up-to-sixteen-images --strict`、`git diff --check`。仅修复具体失败；若发现新的产品或架构决策，先更新 Battle 和规划。
+- [x] **Step 2: 同步主规范并归档。** 将两份 MODIFIED Requirement 的完整块同步到对应主规范，运行 `openspec validate --specs`；勾选已验证的 `tasks.md`，按仓库归档流程把变更移入 `openspec/changes/archive/`。
+- [x] **Step 3: 复核并提交。** `git diff --check`、`git status --short`、检查提交只含本变更文件；提交规范与归档并记录 commit SHA。不得声称跑过真实付费提供方，除非确实执行过。
