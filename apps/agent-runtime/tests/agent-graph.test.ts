@@ -23,7 +23,9 @@ describe('minimal agent StateGraph', () => {
     expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
     expect(activityTitleForTool('web_open')).toBe('正在读取网页')
-    expect(activityTitleForTools('read pages', ['web_open', 'web_open'])).toBe('正在执行 2 项网页读取')
+    expect(activityTitleForTools('read pages', ['web_open', 'web_open'])).toBe(
+      '正在执行 2 项网页读取'
+    )
   })
   it('updates a mixed group summary as its tools and outcomes change', () => {
     const goal = '测试所有工具'
@@ -49,6 +51,85 @@ describe('minimal agent StateGraph', () => {
     expect(
       activityTitleForTools('在阻塞文件中查找 needle', ['sandbox_shell_run'], 'failed', 1)
     ).toBe('在阻塞文件中查找 needle（执行失败）')
+  })
+  it('rechecks image capability each model round without persisting a stale notice', async () => {
+    let imageConfigured = false
+    let round = 0
+    const requests: Array<{
+      messages: Array<{ role: string; content?: unknown }>
+      tools?: ToolDefinition[]
+    }> = []
+    const imageTool: ToolDefinition = {
+      ...shellTool,
+      id: 'image.generate',
+      modelName: 'image_generate',
+      description: 'Generate an image'
+    }
+    const registry = new RuntimeToolRegistry()
+    registry.register(shellTool, {
+      async *execute() {
+        imageConfigured = true
+        yield { kind: 'result', output: 'ready' }
+      }
+    })
+    registry.register(imageTool, {
+      async *execute() {
+        yield { kind: 'result', output: 'image' }
+      }
+    })
+    const policy = new RuntimeToolPolicy()
+    const invocations = new ToolInvocationService({
+      registry,
+      policy,
+      persistence: {
+        async commitToolInvocationWithEvent(_invocation, event) {
+          return { ...event, cursor: 1 }
+        }
+      },
+      clock: { now: () => new Date().toISOString() }
+    })
+    const model: ModelGateway = {
+      async complete(request) {
+        requests.push(request)
+        round += 1
+        return round === 1
+          ? {
+              kind: 'tool-calls',
+              calls: [
+                {
+                  providerCallId: 'prepare',
+                  modelName: 'shell_run',
+                  arguments: { command: 'true' }
+                }
+              ]
+            }
+          : { kind: 'finish', content: 'done' }
+      }
+    }
+    const runner = new LangGraphRunner(model, new MockSkillRegistry(), undefined, {
+      registry,
+      policy,
+      invocations,
+      grants: ['local.shell.run@1', 'image.generate@1'],
+      isAvailable: async (definition) => definition.id !== 'image.generate' || imageConfigured,
+      capabilityNotice: async () =>
+        imageConfigured ? null : '生图功能未配置。请在设置 → 模型连接启用生图并设为默认模型。'
+    })
+
+    await runner.run({ taskId: 'task-image-capability', goal: '画一只猫', model: modelRef })
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
+    expect(requests[0]?.messages.filter((message) => message.role === 'system')).toEqual([
+      expect.objectContaining({ content: expect.stringContaining('设置 → 模型连接') })
+    ])
+    expect(requests[1]?.tools?.map((tool) => tool.modelName)).toEqual([
+      'shell_run',
+      'image_generate'
+    ])
+    expect(
+      requests[1]?.messages.some((message) => String(message.content).includes('生图功能未配置'))
+    ).toBe(false)
   })
   it('keeps activity titles and tool associations in the runtime without a model activity tool', async () => {
     let round = 0

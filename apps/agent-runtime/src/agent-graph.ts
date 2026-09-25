@@ -48,6 +48,7 @@ export type GraphToolRuntime = {
   invocations: ToolInvocationService
   grants: string[]
   isAvailable?: (definition: ToolDefinition) => Promise<boolean>
+  capabilityNotice?: () => Promise<string | null>
 }
 
 const MAX_TOOL_CALLS = 512
@@ -285,12 +286,15 @@ export class LangGraphRunner implements GraphRunner {
                 )
               ).filter((definition): definition is ToolDefinition => definition !== null)
             : discoveredTools
+          const capabilityNotice = await this.toolRuntime?.capabilityNotice?.()
           const request = {
             taskId: state.taskId,
             sessionId: state.sessionId,
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
             model: state.model,
-            messages: state.modelMessages,
+            messages: capabilityNotice
+              ? [{ role: 'system' as const, content: capabilityNotice }, ...state.modelMessages]
+              : state.modelMessages,
             ...(tools.length ? { tools } : {}),
             skills: state.skills,
             parameters: { temperature: 0 }

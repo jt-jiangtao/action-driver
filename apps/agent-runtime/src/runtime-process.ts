@@ -134,6 +134,10 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.grants.push(`${imageTool.definition.id}@${imageTool.definition.version}`)
   local.toolRuntime.isAvailable = async (definition) =>
     definition.id !== imageTool.definition.id || (await service.getDefaultImageModel()) !== null
+  local.toolRuntime.capabilityNotice = async () =>
+    (await service.getDefaultImageModel()) === null
+      ? '本应用支持图片生成，但当前没有配置默认生图模型。若用户请求生成图片，请说明需前往“设置 → 模型连接”启用一个模型的图片生成能力并设为默认模型；不要说应用完全没有生图工具。'
+      : null
   registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
   registerWebOpenTool(local.toolRuntime)
   for (const tool of createSkillRuntimeTools({ store: agentFiles, installer: skillInstaller })) {
