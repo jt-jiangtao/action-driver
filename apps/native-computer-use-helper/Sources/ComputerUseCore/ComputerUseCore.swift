@@ -35,6 +35,8 @@ public struct ComputerUseRequest {
     public let observationId: String?
     public let action: ComputerUseAction?
     public let targetRequestId: String?
+    public let prompt: Bool?
+    public let target: String?
 
     public static func decode(line: String) throws -> ComputerUseRequest {
         guard let data = line.data(using: .utf8), data.count <= 128 * 1024,
@@ -55,9 +57,27 @@ public struct ComputerUseRequest {
         var observationId: String?
         var action: ComputerUseAction?
         var targetRequestId: String?
+        var prompt: Bool?
+        var target: String?
 
         switch operation {
-        case .permissions, .shutdown:
+        case .permissions:
+            if let rawPrompt = object["prompt"] {
+                guard let flag = rawPrompt as? Bool else {
+                    throw ComputerUseError.invalidRequest("Prompt flag must be a boolean")
+                }
+                prompt = flag
+                expected.insert("prompt")
+            }
+            if let rawTarget = object["target"] {
+                guard let value = rawTarget as? String,
+                      ["accessibility", "screenRecording", "eventPosting"].contains(value) else {
+                    throw ComputerUseError.invalidRequest("Unknown permission target")
+                }
+                target = value
+                expected.insert("target")
+            }
+        case .shutdown:
             break
         case .observe:
             expected.formUnion(["maxElements", "maxDepth"])
@@ -91,7 +111,7 @@ public struct ComputerUseRequest {
             requestId: requestId, deadlineUnixMs: deadline, operation: operation,
             maxElements: maxElements, maxDepth: maxDepth, maxWidth: maxWidth,
             maxHeight: maxHeight, observationId: observationId, action: action,
-            targetRequestId: targetRequestId
+            targetRequestId: targetRequestId, prompt: prompt, target: target
         )
     }
 

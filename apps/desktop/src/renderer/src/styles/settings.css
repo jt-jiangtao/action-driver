@@ -3681,16 +3681,114 @@
     grid-template-columns: 130px minmax(0, 1fr);
   }
 }
-.computer-use-settings section {
+.computer-use-settings { max-width: 720px; }
+.computer-guidance-surface {
+  box-sizing: border-box;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 20px 26px 30px;
+  background: #f5f5f7;
+  color: #1f2430;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+.computer-guidance-surface .computer-use-hero { padding: 12px 0 4px; }
+.computer-guidance-surface .computer-use-hero h1 { font-size: 23px; }
+.computer-guidance-surface .computer-use-hero p { font-size: 13px; }
+.computer-guidance-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 18px;
+  border: 1.5px dashed #c9ccd4;
+  border-radius: 14px;
+  color: #6b7280;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.computer-guidance-surface .computer-permission-card { box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05); }
+.computer-guidance-surface .computer-use-notes { background: rgba(255, 255, 255, 0.7); }
+.computer-guidance-back { font-weight: 600; }
+.computer-use-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 24px 8px;
+  text-align: center;
+}
+.computer-use-hero-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+.computer-use-hero h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+.computer-use-hero p { margin: 0; max-width: 520px; color: #626875; line-height: 1.6; }
+.computer-permission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.computer-permission-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+.computer-permission-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  color: #0a72f6;
+}
+.computer-permission-card:nth-child(2) .computer-permission-icon { color: #6b7280; }
+.computer-permission-copy { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.computer-permission-copy strong { font-size: 15px; }
+.computer-permission-copy span { color: #626875; font-size: 13px; }
+.computer-permission-allow {
+  flex: none;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #0a72f6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.computer-permission-allow:disabled { opacity: 0.6; cursor: default; }
+.computer-permission-done {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: #4b5563;
+  font-weight: 600;
+}
+.computer-use-notes {
   margin-top: 28px;
   padding: 24px;
   border: 1px solid #e3e5e9;
   border-radius: 14px;
   background: #fff;
 }
-.computer-use-settings section h2 { margin: 0 0 12px; font-size: 17px; }
-.computer-use-settings section p { color: #626875; line-height: 1.65; }
-.computer-use-settings section li { margin: 8px 0; }
+.computer-use-notes h2 { margin: 0 0 12px; font-size: 17px; }
+.computer-use-notes p { color: #626875; line-height: 1.65; }
 .computer-use-settings-actions { display: flex; gap: 12px; margin-top: 20px; }
 .computer-use-settings-actions button { padding: 8px 14px; border: 1px solid #d6d9e0; border-radius: 8px; background: #fff; cursor: pointer; }
 .computer-task-controls { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 20px; border-bottom: 1px solid #e3e5e9; }

@@ -30,6 +30,9 @@ import {
   Maximize2,
   Minimize2,
   MoreVertical,
+  Camera,
+  MousePointerClick,
+  PersonStanding,
   MousePointer2,
   Network,
   PanelLeft,
@@ -107,6 +110,9 @@ export type AppIconName =
   | 'cable'
   | 'scroll-text'
   | 'sun'
+  | 'accessibility'
+  | 'screenshot'
+  | 'input'
 
 const iconByName: Record<AppIconName, LucideIcon> = {
   'arrow-left': ArrowLeft,
@@ -160,7 +166,10 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   boxes: Boxes,
   cable: Cable,
   'scroll-text': ScrollText,
-  sun: Sun
+  sun: Sun,
+  accessibility: PersonStanding,
+  screenshot: Camera,
+  input: MousePointerClick
 }
 
 export function AppIcon({

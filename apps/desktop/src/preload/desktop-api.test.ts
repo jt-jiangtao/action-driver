@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { createDesktopApi } from './desktop-api'
 import { RUNTIME_CONNECTION_IPC_CHANNEL } from '../shared/runtime-connection-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
+import {
+  COMPUTER_GUIDANCE_CLOSE_CHANNEL,
+  COMPUTER_GUIDANCE_ENSURE_CHANNEL,
+  COMPUTER_PERMISSIONS_CHECK_CHANNEL
+} from '../shared/computer-use-contract'
 
 describe('preload Runtime bootstrap', () => {
   it('exposes only environment and the authenticated Runtime connection', async () => {
@@ -25,5 +30,30 @@ describe('preload Runtime bootstrap', () => {
     expect(invoke).toHaveBeenCalledWith(RUNTIME_CONNECTION_IPC_CHANNEL, {})
     await api.externalLinks.open('https://example.com/story')
     expect(invoke).toHaveBeenCalledWith(EXTERNAL_LINK_OPEN_CHANNEL, 'https://example.com/story')
+  })
+
+  it('asks the helper to prompt the system only for an explicit authorization request', async () => {
+    const status = { accessibility: false, screenRecording: false, eventPosting: false,
+      permissionTarget: 'ActionDriver Computer Use' }
+    const invoke = vi.fn(async () => status)
+    const api = createDesktopApi('darwin', '0.1.0', { invoke })
+
+    await expect(api.computerUse.permissions()).resolves.toEqual(status)
+    expect(invoke).toHaveBeenLastCalledWith(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {})
+
+    await expect(api.computerUse.requestPermissions('accessibility')).resolves.toEqual(status)
+    expect(invoke).toHaveBeenLastCalledWith(COMPUTER_PERMISSIONS_CHECK_CHANNEL,
+      { prompt: true, target: 'accessibility' })
+  })
+
+  it('exposes the standalone guidance window without any manual entry point of its own', async () => {
+    const invoke = vi.fn(async () => true)
+    const api = createDesktopApi('darwin', '0.1.0', { invoke })
+
+    await api.computerUse.ensureGuidance()
+    expect(invoke).toHaveBeenLastCalledWith(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {})
+
+    await api.computerUse.closeGuidance()
+    expect(invoke).toHaveBeenLastCalledWith(COMPUTER_GUIDANCE_CLOSE_CHANNEL, {})
   })
 })

@@ -14,6 +14,7 @@ public enum NativeComputerUseError: Error {
 
 public final class NativeComputerUseService {
     private let gate = ObservationGate()
+    private let permissions: SystemPermissionGate
     private struct ElementSnapshot {
         let element: AXUIElement
         let role: String?
@@ -23,16 +24,22 @@ public final class NativeComputerUseService {
     }
     private var elements: [String: ElementSnapshot] = [:]
 
-    public init() {}
+    public init(permissions: SystemPermissionGate = NativeSystemPermissionGate()) {
+        self.permissions = permissions
+    }
 
     public func execute(_ request: ComputerUseRequest) async throws -> [String: Any] {
         try checkDeadline(request)
         switch request.operation {
         case .permissions:
+            let prompt = request.prompt ?? false
+            let prompted = { (name: String) -> Bool in
+                prompt && (request.target == nil || request.target == name)
+            }
             return [
-                "accessibility": AXIsProcessTrusted(),
-                "screenRecording": CGPreflightScreenCaptureAccess(),
-                "eventPosting": CGPreflightPostEventAccess(),
+                "accessibility": permissions.accessibility(prompt: prompted("accessibility")),
+                "screenRecording": permissions.screenRecording(prompt: prompted("screenRecording")),
+                "eventPosting": permissions.eventPosting(prompt: prompted("eventPosting")),
                 "permissionTarget": "ActionDriver Computer Use"
             ]
         case .observe:

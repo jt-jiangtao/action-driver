@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { computerHelperRequest, computerHelperResponse } from './computer-use-protocol'
 
 describe('computer helper protocol', () => {
+  it('accepts a permission probe with and without the authorization prompt flag', () => {
+    const base = {
+      version: 1,
+      requestId: 'permissions-1',
+      deadlineUnixMs: Date.now() + 1000,
+      operation: 'permissions'
+    }
+    expect(computerHelperRequest.parse(base)).toEqual(base)
+    expect(computerHelperRequest.parse({ ...base, prompt: true })).toEqual({ ...base, prompt: true })
+    expect(computerHelperRequest.parse({ ...base, prompt: true, target: 'screenRecording' }))
+      .toEqual({ ...base, prompt: true, target: 'screenRecording' })
+    expect(computerHelperRequest.safeParse({ ...base, prompt: 'yes' }).success).toBe(false)
+    expect(computerHelperRequest.safeParse({ ...base, prompt: true, target: 'microphone' }).success)
+      .toBe(false)
+  })
+
   it('accepts a bounded cross-app observation request and rejects unexpected fields', () => {
     const request = {
       version: 1,

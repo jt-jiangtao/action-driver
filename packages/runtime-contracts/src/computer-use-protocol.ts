@@ -17,7 +17,9 @@ const action = z.discriminatedUnion('type', [
 ])
 
 export const computerHelperRequest = z.discriminatedUnion('operation', [
-  z.object({ ...requestBase, operation: z.literal('permissions') }).strict(),
+  z.object({ ...requestBase, operation: z.literal('permissions'),
+    prompt: z.boolean().optional(),
+    target: z.enum(['accessibility', 'screenRecording', 'eventPosting']).optional() }).strict(),
   z.object({ ...requestBase, operation: z.literal('observe'), maxElements: z.number().int().min(1).max(500), maxDepth: z.number().int().min(1).max(12) }).strict(),
   z.object({ ...requestBase, operation: z.literal('capture'), maxWidth: z.number().int().min(1).max(4096), maxHeight: z.number().int().min(1).max(4096) }).strict(),
   z.object({ ...requestBase, operation: z.literal('act'), observationId: z.string().min(1).max(128), action }).strict(),

@@ -992,6 +992,60 @@
     "testName": "shows each live permission and rechecks after the user returns from System Settings"
   },
   {
+    "target": "e2e/computer-use/guidance/page#page",
+    "route": "computer-use",
+    "type": "page",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/computer-use/guidance/pending#status",
+    "route": "computer-use",
+    "type": "status",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "shows the system-settings placeholder while an authorized capability is still pending"
+  },
+  {
+    "target": "e2e/computer-use/guidance/allow-accessibility#button",
+    "route": "computer-use",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "lists only the permissions this app can grant and only requests after an explicit allow"
+  },
+  {
+    "target": "e2e/computer-use/guidance/allow-screen-recording#button",
+    "route": "computer-use",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "lists only the permissions this app can grant and only requests after an explicit allow"
+  },
+  {
+    "target": "e2e/computer-use/guidance/open-settings#button",
+    "route": "computer-use",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "returns to the first window from the back action and rechecks permissions"
+  },
+  {
+    "target": "e2e/computer-use/guidance/recheck#button",
+    "route": "computer-use",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "returns to the first window from the back action and rechecks permissions"
+  },
+  {
+    "target": "e2e/computer-use/guidance/back#button",
+    "route": "computer-use",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
+    "testName": "returns to the first window from the back action and rechecks permissions"
+  },
+  {
     "target": "e2e/settings/sidebar/computer-use#button",
     "route": "settings",
     "type": "button",

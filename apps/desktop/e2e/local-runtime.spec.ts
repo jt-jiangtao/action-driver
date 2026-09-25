@@ -149,6 +149,35 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(result).toEqual({ status: 200 })
 })
 
+test('opens the Computer Use authorization guidance in its own non-closable window', async () => {
+  const page = await launch()
+  await page.evaluate(async () => { await window.actionDriverDesktop.computerUse.ensureGuidance() })
+  const guidance = await application!.waitForEvent('window')
+  await expect(guidance.getByTestId('e2e/computer-use/guidance/page#page')).toBeVisible()
+  await expect(
+    guidance.getByRole('heading', { name: 'Enable Codex Computer Use' })
+  ).toBeVisible()
+  await expect(guidance.getByText('Allows Codex to access app interfaces')).toBeVisible()
+  await expect(guidance.getByText('Codex uses screenshots to know where to click')).toBeVisible()
+
+  const windows = await application!.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().map((window) => ({
+      title: window.getTitle(),
+      closable: window.isClosable(),
+      resizable: window.isResizable(),
+      visible: window.isVisible()
+    }))
+  )
+  expect(windows).toHaveLength(2)
+  const guidanceWindow = windows.find((window) => window.closable === false)!
+  expect(guidanceWindow).toMatchObject({ closable: false, resizable: false, visible: true })
+  expect(guidanceWindow.title).not.toContain('ActionDriver')
+
+  await guidance.getByTestId('e2e/computer-use/guidance/back#button').click()
+  await expect.poll(async () => (await application!.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().length))).toBe(1)
+})
+
 test('persists the selected Token Plan image API and default model in settings', async () => {
   let page = await launch()
   await page.evaluate(async () => {

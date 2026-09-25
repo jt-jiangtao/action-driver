@@ -21,6 +21,11 @@ import { createProductionSkillProviderHost } from './skill-provider-host'
 import { ComputerUseClient } from './computer-use-client'
 import { createComputerUseProvider } from './computer-use-provider'
 import { registerComputerUsePermissionsIpc } from './computer-use-permissions-ipc'
+import {
+  computerUseGuidanceUrl,
+  computerUseGuidanceWindowOptions,
+  registerComputerUseGuidanceIpc
+} from './computer-use-guidance'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
 import { resolveModuleDirectory } from './module-directory'
@@ -49,6 +54,8 @@ let services: MainServices
 let logging: MainLogging | undefined
 let quitting = false
 let computerUseClient: ComputerUseClient | null = null
+let computerUseGuidanceWindow: BrowserWindow | null = null
+let mainWindow: BrowserWindow | null = null
 
 applyApplicationName(app)
 
@@ -81,6 +88,47 @@ function createWindow(mainServices: MainServices): BrowserWindow {
     void window.loadURL(rendererEntryUrl)
   }
   return window
+}
+
+function openComputerUseGuidance(): void {
+  if (computerUseGuidanceWindow && !computerUseGuidanceWindow.isDestroyed()) {
+    computerUseGuidanceWindow.show()
+    computerUseGuidanceWindow.focus()
+    return
+  }
+  const window = new BrowserWindow(computerUseGuidanceWindowOptions(
+    join(moduleDirectory, '../preload/index.cjs'),
+    desktopIconPath
+  ))
+  computerUseGuidanceWindow = window
+  installNavigationGuards(window.webContents, rendererEntryUrl)
+  window.once('ready-to-show', () => window.show())
+  window.on('closed', () => {
+    if (computerUseGuidanceWindow === window) computerUseGuidanceWindow = null
+  })
+  void window.loadURL(computerUseGuidanceUrl(rendererEntryUrl))
+}
+
+/** Reads the live helper status; an unreachable helper returns null so the caller still guides. */
+async function readComputerUsePermissions() {
+  if (!computerUseClient) return null
+  const result = await computerUseClient.execute({
+    version: 1,
+    requestId: randomBytes(12).toString('hex'),
+    deadlineUnixMs: Date.now() + 10_000,
+    operation: 'permissions'
+  })
+  if (typeof result !== 'object' || result === null) return null
+  const status = result as Record<string, unknown>
+  if (typeof status.accessibility !== 'boolean' || typeof status.screenRecording !== 'boolean' ||
+      typeof status.eventPosting !== 'boolean' || typeof status.permissionTarget !== 'string')
+    return null
+  return {
+    accessibility: status.accessibility,
+    screenRecording: status.screenRecording,
+    eventPosting: status.eventPosting,
+    permissionTarget: status.permissionTarget
+  }
 }
 
 app.whenReady().then(async () => {
@@ -138,6 +186,22 @@ app.whenReady().then(async () => {
       const error = await shell.openPath('/System/Applications/System Settings.app')
       if (error) throw new Error(error)
     })
+    registerComputerUseGuidanceIpc(ipcMain, {
+      open: openComputerUseGuidance,
+      close: () => {
+        // A non-closable window ignores close(); the back action is the only way out, so destroy it.
+        if (computerUseGuidanceWindow && !computerUseGuidanceWindow.isDestroyed())
+          computerUseGuidanceWindow.destroy()
+      },
+      focusMain: () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      },
+      isPackaged: app.isPackaged,
+      readPermissions: readComputerUsePermissions
+    })
     const serviceToken = randomBytes(24).toString('base64url')
     const credentialKey = resolveCredentialKey({
       userDataPath: app.getPath('userData')
@@ -177,11 +241,11 @@ app.whenReady().then(async () => {
     }
   }
 
-  createWindow(services)
+  mainWindow = createWindow(services)
   // macOS can reset the Dock tile when the first window is created; re-apply after it exists.
   applyDesktopBranding()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow(services)
   })
 })
 

@@ -21,6 +21,7 @@ import {
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
 import type { ComposerAttachments } from './components/AgentComposer'
+import { useComputerUseGuidance } from './services/computer-use-guidance'
 
 const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
 
@@ -34,6 +35,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       : initialAppRoute(initialRoute)
   )
   const [task, setTask] = useState<TaskProjection | null>(null)
+  useComputerUseGuidance(task)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modelSelection, setModelSelection] =

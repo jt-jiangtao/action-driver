@@ -10,10 +10,16 @@ export function registerComputerUsePermissionsIpc(
   client: ComputerUseClient | null,
   openSystemSettings: () => Promise<void>
 ): void {
-  ipc.handle(COMPUTER_PERMISSIONS_CHECK_CHANNEL, async () => {
+  ipc.handle(COMPUTER_PERMISSIONS_CHECK_CHANNEL, async (_event, input) => {
     if (!client) throw new Error('ENGINE_UNAVAILABLE: Computer Use helper is missing')
+    const request = (input ?? {}) as { prompt?: unknown; target?: unknown }
+    const prompt = request.prompt === true
+    const target = prompt && ['accessibility', 'screenRecording', 'eventPosting']
+      .includes(String(request.target)) ? String(request.target) as 'accessibility' | 'screenRecording' | 'eventPosting'
+      : undefined
     const result = await client.execute({ version: 1, requestId: crypto.randomUUID(),
-      deadlineUnixMs: Date.now() + 10_000, operation: 'permissions' })
+      deadlineUnixMs: Date.now() + 10_000, operation: 'permissions',
+      ...(prompt ? { prompt: true } : {}), ...(target ? { target } : {}) })
     if (typeof result !== 'object' || result === null) throw new Error('INVALID_PERMISSIONS_RESPONSE')
     const status = result as Partial<ComputerPermissionStatus>
     if (typeof status.accessibility !== 'boolean' || typeof status.screenRecording !== 'boolean' ||

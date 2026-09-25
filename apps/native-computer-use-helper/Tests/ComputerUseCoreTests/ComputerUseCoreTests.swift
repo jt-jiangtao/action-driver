@@ -1,6 +1,13 @@
 import XCTest
 @testable import ComputerUseCore
 
+private final class RecordingPermissionGate: SystemPermissionGate {
+    var requests: [Bool] = []
+    func accessibility(prompt: Bool) -> Bool { requests.append(prompt); return prompt }
+    func screenRecording(prompt: Bool) -> Bool { requests.append(prompt); return prompt }
+    func eventPosting(prompt: Bool) -> Bool { requests.append(prompt); return prompt }
+}
+
 final class ComputerUseCoreTests: XCTestCase {
     func testRejectsUnknownOperationBeforeNativeExecution() throws {
         let line = #"{"version":1,"requestId":"bad-1","deadlineUnixMs":9999999999999,"operation":"run-script","script":"echo unsafe"}"#
@@ -26,6 +33,43 @@ final class ComputerUseCoreTests: XCTestCase {
         XCTAssertNotNil(result["accessibility"] as? Bool)
         XCTAssertNotNil(result["screenRecording"] as? Bool)
         XCTAssertNotNil(result["eventPosting"] as? Bool)
+    }
+
+    func testPermissionProbeCarriesThePromptFlag() throws {
+        let quiet = #"{"version":1,"requestId":"permissions-quiet","deadlineUnixMs":9999999999999,"operation":"permissions"}"#
+        let prompting = #"{"version":1,"requestId":"permissions-prompt","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":true}"#
+        XCTAssertEqual(try ComputerUseRequest.decode(line: quiet).prompt, nil)
+        XCTAssertEqual(try ComputerUseRequest.decode(line: prompting).prompt, true)
+        let invalid = #"{"version":1,"requestId":"permissions-bad","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":"yes"}"#
+        XCTAssertThrowsError(try ComputerUseRequest.decode(line: invalid))
+    }
+
+    func testPromptedPermissionProbeRequestsEveryCapability() async throws {
+        let gate = RecordingPermissionGate()
+        let service = NativeComputerUseService(permissions: gate)
+        let quiet = try ComputerUseRequest.decode(
+            line: #"{"version":1,"requestId":"quiet","deadlineUnixMs":9999999999999,"operation":"permissions"}"#)
+        _ = try await service.execute(quiet)
+        XCTAssertEqual(gate.requests, [false, false, false])
+
+        gate.requests = []
+        let prompting = try ComputerUseRequest.decode(
+            line: #"{"version":1,"requestId":"prompt","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":true}"#)
+        let result = try await service.execute(prompting)
+        XCTAssertEqual(gate.requests, [true, true, true])
+        XCTAssertEqual(result["permissionTarget"] as? String, "ActionDriver Computer Use")
+    }
+
+    func testTargetedPromptOnlyRequestsTheNamedCapability() async throws {
+        let gate = RecordingPermissionGate()
+        let service = NativeComputerUseService(permissions: gate)
+        let request = try ComputerUseRequest.decode(
+            line: #"{"version":1,"requestId":"target","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":true,"target":"screenRecording"}"#)
+        _ = try await service.execute(request)
+        XCTAssertEqual(gate.requests, [false, true, false])
+
+        let unknown = #"{"version":1,"requestId":"target-bad","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":true,"target":"microphone"}"#
+        XCTAssertThrowsError(try ComputerUseRequest.decode(line: unknown))
     }
 
     func testWireReturnsStructuredPermissionResponse() async throws {

@@ -50,6 +50,15 @@
 - [ ] 7.2 增加签名打包冒烟：helper 随应用启动、权限归属、授权后重检或重启、权限撤销、单次观察与动作；记录实际系统设置显示名称。
 - [x] 7.3 提交前运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`，以及与界面、运行时、打包变更相关的 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`，记录通过和失败数量。
 
+## 8. 授权指引窗口
+
+- [x] 8.1 协议与 helper 支持 `permissions` 的 `prompt` 与 `target`：按单项触发辅助功能、屏幕录制与输入事件的系统授权请求；只读预检不登记应用。
+- [x] 8.2 实现独立授权指引窗口：系统标准标题栏、固定尺寸、无关闭按钮、返回主窗口，两窗口可同时存在。
+- [x] 8.3 按参考形态实现窗口内容：图标、标题、说明、逐项卡片（`Allow`/`Done`/“Complete in System Settings”）、打开系统设置与重新检测。
+- [x] 8.4 Computer Use 被调起且缺权限时自动打开指引窗口；无手动入口、无“不再提示”持久化、同一任务只打开一次。
+- [x] 8.5 记录系统设置中的实际显示名称并区分开发构建与签名打包构建。
+- [x] 8.6 运行定向测试与全量验证并记录结果，包含两个窗口同时存在时的样式检查。
+
 ## 验证记录
 
 2026-09-26，本机 macOS arm64：
@@ -62,6 +71,15 @@
 - 真实 helper 二进制 stdio 冒烟（`dist/arm64/actiondriver-computer-use`）：`permissions` 返回 `{accessibility, screenRecording, eventPosting, permissionTarget: "ActionDriver Computer Use"}`；`observe` 返回当前前台应用的结构化元素树与 `observationId`；`maxElements: 1, maxDepth: 1` 时返回树仅 1 个节点；失效 `observationId` / `elementRef` 的 `act` 返回 `STALE_REFERENCE`；`shutdown` 返回 `{accepted: true}` 并退出。
 - 真实 helper 单会话串行冒烟：逐条请求/响应可用；`wait` 请求超过自身截止时间时返回 `{"code":"TIMED_OUT","message":"Request deadline elapsed"}`；随后 `shutdown` 返回 `{accepted: true}` 并退出。
 - 同一时刻并发投递的第二个请求返回 `ENGINE_UNAVAILABLE: Computer Use is busy`：单实例 helper 选择拒绝而不是排队，Main 侧每条任务的动作轮次本身串行；多任务同时操作桌面会被拒绝而非静默交错。
+
+2026-09-26，授权指引窗口（本轮追加）：
+
+- 实测本机“系统设置 → 隐私与安全性 → 设备控制和数据访问”列表：`ChatGPT` 开启，`Codex Computer Use` 关闭，没有 `ActionDriver Computer Use` 条目。开发构建下 helper 由宿主进程启动、ad-hoc 签名无 Team ID，读回的三项权限都继承宿主授权，所以窗口直接显示 `Done`，系统不会出现“拖入列表”的指引。
+- 指引窗口按 Codex 参考形态 1:1 实现：无窗口标题文本（清空文档标题，避免共用 `index.html` 的 `ActionDriver` 标题泄漏到标题栏）、应用图标、`Enable Codex Computer Use` 标题与说明、`Accessibility` 与 `Screenshots` 两张卡片。参考图里的 `Chrome Extension` 一行不复制；输入事件随辅助功能生效，也不单列。
+- `pnpm test:e2e:local`：8 项中 7 项通过。新增用例验证：`ensureGuidance` 打开第二个窗口、两窗口同时存在、指引窗口 `closable=false`/`resizable=false`、窗口标题不含 `ActionDriver`、点 `Back` 后只剩一个窗口。唯一失败仍是既有的 `persists the selected Token Plan image API and default model in settings`。
+- `pnpm typecheck`、`pnpm lint` 通过（交互契约 145 项）；`pnpm test`：153 个文件通过、2 跳过，951 个用例通过、2 跳过。
+- 样式检查：用真实应用同时打开主窗口与指引窗口截图核对，指引窗口在独立表面下自适应、无设置页侧栏残留。
+- 待确认：窗口文案里的产品名当前取 `Codex`（与本机系统设置条目一致），如需改回其它名称，只需改 `ComputerUseGuidance.tsx` 的 `PRODUCT_NAME` 常量。
 
 仍未完成的验证：
 
