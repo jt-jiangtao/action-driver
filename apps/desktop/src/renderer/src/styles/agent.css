@@ -716,6 +716,7 @@
   animation: image-gallery-reveal 240ms ease-out both;
 }
 .image-gallery-placeholder {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -724,30 +725,55 @@
   font-size: 13px;
 }
 .image-gallery-dots {
-  width: 72%;
-  height: 72%;
-  background-image: radial-gradient(circle, #b8bbc4 0.8px, transparent 1px);
-  background-size: 13px 13px;
-  mask-image: radial-gradient(circle, #000 15%, transparent 73%);
-  animation: image-gallery-wander 6.8s ease-in-out infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 84px;
+  height: 84px;
+  translate: -50% -50%;
+  background-image: radial-gradient(circle, #abb0bd 0.85px, transparent 1.15px);
+  background-size: 12px 12px;
+  mask-image: radial-gradient(circle, #000 16%, transparent 73%);
+  opacity: 0.72;
+  will-change: transform;
 }
-@keyframes image-gallery-wander {
-  0%, 100% { opacity: 0.88; transform: translate3d(0, 0, 0); }
-  18% { opacity: 0.68; transform: translate3d(21%, -22%, 0); }
-  40% { opacity: 1; transform: translate3d(23%, 21%, 0); }
-  63% { opacity: 0.66; transform: translate3d(-22%, 25%, 0); }
-  83% { opacity: 0.96; transform: translate3d(-20%, -21%, 0); }
+.image-gallery-dots::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #8c94a4 0.85px, transparent 1.15px);
+  background-size: 12px 12px;
+  mask-image: radial-gradient(circle at 30% 30%, #000 0%, transparent 45%);
+  animation: image-gallery-sparkle 3.4s ease-in-out infinite alternate;
+}
+@keyframes image-gallery-sparkle {
+  from {
+    opacity: 0.2;
+    transform: translate3d(-12px, -8px, 0);
+  }
+  to {
+    opacity: 0.72;
+    transform: translate3d(14px, 12px, 0);
+  }
 }
 @keyframes image-gallery-reveal {
-  from { opacity: 0.4; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @media (max-width: 560px) {
-  .image-gallery-grid { grid-template-columns: 1fr; }
+  .image-gallery-grid {
+    grid-template-columns: 1fr;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .image-gallery-dots,
-  .image-gallery-slot.is-ready { animation: none; }
+  .image-gallery-dots::after,
+  .image-gallery-slot.is-ready {
+    animation: none;
+  }
 }
 .conversation-image-item {
   position: relative;

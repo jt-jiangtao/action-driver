@@ -88,6 +88,42 @@ describe('conversation components', () => {
     expect(agentStyles).toMatch(/prefers-reduced-motion:\s*reduce/)
   })
 
+  it('starts a separate dot-cloud animation for each pending image slot', () => {
+    const cancel = vi.fn()
+    const animate = vi.fn(() => ({ cancel }) as unknown as Animation)
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 282, height: 282 } as DOMRect)
+    Object.defineProperty(HTMLElement.prototype, 'animate', { configurable: true, value: animate })
+    try {
+      const view = render(<AgentResponse message={{ id: 'animated', role: 'agent', content: '', parts: [
+        { kind: 'image-batch', callId: 'animated-call', imageCount: 4 }
+      ] }} tools={[{
+        callId: 'animated-call', toolId: 'image.generate', modelName: 'image_generate',
+        summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
+      }]} generating />)
+      expect(animate).toHaveBeenCalledTimes(4)
+      expect(view.container.querySelectorAll('.image-gallery-dots')).toHaveLength(4)
+      const asset = { assetId: 'generated-0', sessionId: 'session-1', mimeType: 'image/png' as const,
+        width: 1, height: 1, byteLength: 20, source: 'generated' as const }
+      view.rerender(<AgentResponse message={{ id: 'animated', role: 'agent', content: '', parts: [
+        { kind: 'image-batch', callId: 'animated-call', imageCount: 4 },
+        { kind: 'image', asset, generation: { callId: 'animated-call', index: 0 } }
+      ] }} tools={[{
+        callId: 'animated-call', toolId: 'image.generate', modelName: 'image_generate',
+        summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
+      }]} readImage={() => new Promise<Blob>(() => {})} generating />)
+      expect(cancel).toHaveBeenCalledTimes(1)
+      expect(view.container.querySelectorAll('.image-gallery-dots')).toHaveLength(3)
+      view.unmount()
+      expect(cancel).toHaveBeenCalledTimes(4)
+    } finally {
+      rect.mockRestore()
+      delete (HTMLElement.prototype as { animate?: unknown }).animate
+      vi.unstubAllGlobals()
+    }
+  })
+
   it.each([5, 16])('keeps %i generated image slots in input order through completion and cancellation', (count) => {
     const tool = {
       callId: `batch-${count}`, toolId: 'image.generate', modelName: 'image_generate',

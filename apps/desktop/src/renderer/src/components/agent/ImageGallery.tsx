@@ -1,5 +1,6 @@
 import type { MessageContentPart, ToolInvocationProjection } from '@actiondriver/contracts'
 import { ConversationImage, type ImageReader } from './ConversationImage'
+import { WanderingDots } from './WanderingDots'
 
 type ImagePart = Extract<MessageContentPart, { kind: 'image' }>
 
@@ -63,7 +64,7 @@ export function ImageGallery({
                   ) : tool.status === 'cancelled' ? (
                     '已取消'
                   ) : (
-                    <span className="image-gallery-dots" aria-hidden="true" />
+                    <WanderingDots seed={`${tool.callId}:${index}`} />
                   )}
                 </div>
               )}
