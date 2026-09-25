@@ -73,7 +73,10 @@ describe('Runtime Agent file ownership', () => {
       'references/image-api.md', 'references/prompting.md', 'references/sample-prompts.md',
       'scripts/image_gen.py', 'scripts/remove_chroma_key.py'
     ]) expect((await readFile(join(root, path))).length).toBeGreaterThan(0)
-    expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toContain('image.generate')
+    const installedSkill = await readFile(join(root, 'SKILL.md'), 'utf8')
+    expect(installedSkill).toContain('image.generate')
+    expect(installedSkill).toContain('1–16')
+    expect(installedSkill).toContain('more than 16')
     expect((await store.listSkills()).find((skill) => skill.id === 'imagegen')).toMatchObject({ protected: true, source: 'builtin' })
     const skill = await store.readFile('.action-driver/skills/.system/imagegen/SKILL.md')
     await expect(store.saveFile({ path: skill.path, content: 'edit', expectedDigest: skill.digest })).rejects.toThrow()

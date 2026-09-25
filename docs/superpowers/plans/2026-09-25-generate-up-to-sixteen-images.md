@@ -117,7 +117,7 @@ expect(() => parseStreamClientEvent({ ...requestEvent, payload: { ...requestEven
 - [x] **Step 2: 运行红灯。** `pnpm exec vitest run packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`；确认 16 张事件或快照测试失败。
 - [x] **Step 3: 修改三处上限。** 流协议中两处 `imageCount` Zod 上限改为 16；工具事件添加数量的条件与快照从持久化输入推算数量的条件改为 `<= 16`。保留 `imageAssetIds.max(4)` 和已有只传资产引用的逻辑。
 - [x] **Step 4: 运行绿灯。** 重跑 Step 2 命令；检查普通工具事件不带 `imageCount`、旧 1–4 张事件可解析、16 张恢复仍按资产原索引展示。
-- [ ] **Step 5: 提交协议变更。** `git add packages/runtime-contracts/src/stream-protocol.ts packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/src/tool-invocation-service.ts apps/agent-runtime/src/stream-session-service.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`，随后 `git commit -m "feat: stream sixteen image slots"`。
+- [x] **Step 5: 提交协议变更。** `git add packages/runtime-contracts/src/stream-protocol.ts packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/src/tool-invocation-service.ts apps/agent-runtime/src/stream-session-service.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`，随后 `git commit -m "feat: stream sixteen image slots"`。
 
 ### Task 3: 多张画廊与 Imagegen 指导
 
@@ -131,7 +131,7 @@ expect(() => parseStreamClientEvent({ ...requestEvent, payload: { ...requestEven
 - Consumes: `ToolInvocationProjection.imageCount` 及 `MessageContentPart.generation.index`。
 - Produces: 5–16 个固定插槽的既有画廊展示；Skill 主说明接受 1–16 张、超出分次调用。
 
-- [ ] **Step 1: 写画廊测试。** 用 5 张和 16 张工具投影渲染 `AgentResponse`，断言立即出现等量 `.image-gallery-slot`，乱序资产原位填充；终态缺失项显示失败或取消，文字始终在画廊前。检查两列/窄屏和 `prefers-reduced-motion` 规则。例：
+- [x] **Step 1: 写画廊测试。** 用 5 张和 16 张工具投影渲染 `AgentResponse`，断言立即出现等量 `.image-gallery-slot`，乱序资产原位填充；终态缺失项显示失败或取消，文字始终在画廊前。检查两列/窄屏和 `prefers-reduced-motion` 规则。例：
 
 ```tsx
 const tools = [{ ...baseTool, imageCount: 16, status: 'running' as const }]
@@ -140,9 +140,9 @@ expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(16)
 expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent('生成中')
 ```
 
-- [ ] **Step 2: 运行定向组件测试。** `pnpm exec vitest run apps/desktop/src/renderer/src/components/Conversation.test.tsx apps/desktop/src/renderer/src/services/stream-task-projection.test.ts`；如果现有画廊已满足全部断言，只保留测试变更，不为扩大上限重写组件。
-- [ ] **Step 3: 更新 Skill。** 将 `SKILL.md` 的 2–4 与 up-to-four 文案改为 1–16、同时最多 4 个请求、超过 16 张分次调用；只修改 ActionDriver 适配入口，原始 Codex 参考文件和 `LICENSE.txt` 不变。增加测试断言适配说明包含上限 16。
-- [ ] **Step 4: 验证随包文件。** `pnpm exec vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/desktop/src/renderer/src/components/Conversation.test.tsx`，再运行 `pnpm test:e2e:packaged:macos`，确认 Skill 资源和许可证仍随包存在。
+- [x] **Step 2: 运行定向组件测试。** `pnpm exec vitest run apps/desktop/src/renderer/src/components/Conversation.test.tsx apps/desktop/src/renderer/src/services/stream-task-projection.test.ts`；如果现有画廊已满足全部断言，只保留测试变更，不为扩大上限重写组件。
+- [x] **Step 3: 更新 Skill。** 将 `SKILL.md` 的 2–4 与 up-to-four 文案改为 1–16、同时最多 4 个请求、超过 16 张分次调用；只修改 ActionDriver 适配入口，原始 Codex 参考文件和 `LICENSE.txt` 不变。增加测试断言适配说明包含上限 16。
+- [x] **Step 4: 验证随包文件。** `pnpm exec vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/desktop/src/renderer/src/components/Conversation.test.tsx`，再运行 `pnpm test:e2e:packaged:macos`，确认 Skill 资源和许可证仍随包存在。
 - [ ] **Step 5: 提交展示与 Skill 变更。** 只暂存本任务实际修改文件，随后 `git commit -m "feat: show and guide larger image batches"`。
 
 ### Task 4: 全量验证与规范归档

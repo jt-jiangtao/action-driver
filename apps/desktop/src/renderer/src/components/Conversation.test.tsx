@@ -39,6 +39,46 @@ describe('conversation components', () => {
     expect(screen.getAllByRole('status', { name: '图片生成已取消' })).toHaveLength(4)
     expect(agentStyles).toMatch(/prefers-reduced-motion:\s*reduce/)
   })
+
+  it.each([5, 16])('keeps %i generated image slots in input order through completion and cancellation', (count) => {
+    const tool = {
+      callId: `batch-${count}`, toolId: 'image.generate', modelName: 'image_generate',
+      summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: count
+    }
+    const asset = {
+      assetId: `generated-${count - 1}`, sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    }
+    const text = '先说明，再展示图片'
+    const readImage = () => new Promise<Blob>(() => {})
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: text }} tools={[tool]} readImage={readImage} generating />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(count)
+    expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent(text)
+    expect(screen.getAllByRole('status', { name: '正在生成图片' })).toHaveLength(count)
+
+    const message = {
+      id: 'a', role: 'agent' as const, content: text,
+      parts: [
+        { kind: 'text' as const, text },
+        { kind: 'image' as const, asset, generation: { callId: tool.callId, index: count - 1 } }
+      ]
+    }
+    view.rerender(<AgentResponse message={message} tools={[tool]} readImage={readImage} generating />)
+    const slots = view.container.querySelectorAll('.image-gallery-slot')
+    expect(slots).toHaveLength(count)
+    expect(slots[count - 1]).toContainElement(view.container.querySelector('.conversation-image-loading'))
+    expect(slots[0]).toHaveAttribute('class', expect.stringContaining('is-pending'))
+
+    view.rerender(<AgentResponse message={message} tools={[{ ...tool, status: 'completed' }]} readImage={readImage} />)
+    expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(count)
+    expect(screen.getAllByRole('status', { name: '图片生成失败' })).toHaveLength(count - 1)
+    view.rerender(<AgentResponse message={message} tools={[{ ...tool, status: 'cancelled' }]} readImage={readImage} />)
+    expect(screen.getAllByRole('status', { name: '图片生成已取消' })).toHaveLength(count - 1)
+    expect(agentStyles).toMatch(/\.image-gallery-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/)
+    expect(agentStyles).toMatch(/@media \(max-width:\s*560px\)\s*\{\s*\.image-gallery-grid\s*\{\s*grid-template-columns:\s*1fr/)
+    expect(agentStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)/)
+  })
+
   it('uses one column for a single generated image', () => {
     const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '' }} tools={[{
       callId: 'single', toolId: 'image.generate', modelName: 'image_generate',

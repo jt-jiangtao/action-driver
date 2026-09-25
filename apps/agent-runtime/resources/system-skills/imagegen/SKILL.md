@@ -11,7 +11,7 @@ This is the ActionDriver adaptation of Codex's Imagegen Skill. The complete orig
 
 1. Understand the requested subject, style, composition, text, aspect ratio, and constraints. Preserve exact requested text and important visual invariants.
 2. Use `references/prompting.md` and `references/sample-prompts.md` to shape the prompt. Add detail only when it helps the stated goal; do not invent unrelated objects, brands, or people.
-3. If the `image_generate` tool is available, call it with `{ "images": [{ "prompt": "..." }] }`. The tool is backed by ActionDriver's `image.generate` runtime tool and the configured default image model. For 2–4 requested images or variants, pass 2–4 independent prompt objects in the same `images` array. Each request runs in parallel and is displayed in its own card.
+3. If the `image_generate` tool is available, call it with `{ "images": [{ "prompt": "..." }] }`. The tool is backed by ActionDriver's `image.generate` runtime tool and the configured default image model. For 1–16 requested images or variants, pass independent prompt objects in the same `images` array. The runtime runs up to four requests at once, queues the rest, and displays every image in its own stable card.
 4. Inspect the returned results. Keep successful images when another image fails. If a change is needed, make a focused follow-up call rather than claiming that the image already changed.
 5. Explain what was generated and show the resulting conversation images. The runtime stores generated files in the current session's asset directory.
 
@@ -22,7 +22,7 @@ If `image_generate` is unavailable or no default image model is configured, expl
 - Use this Skill for new raster images and visual variants that benefit from image synthesis.
 - The current ActionDriver tool accepts text prompts for generation. It does not provide image editing, image references, masks, transparency controls, output paths, or model overrides. Do not claim those controls are available through `image_generate`.
 - For native SVG, HTML, CSS, or editable project graphics, use the relevant code tools instead.
-- A request for several different images uses separate prompts in one tool call, up to four at a time. For more than four, use additional calls.
+- A request for several different images uses separate prompts in one tool call, up to 16 images per call. For more than 16, use additional calls.
 
 ## Included reference files
 
