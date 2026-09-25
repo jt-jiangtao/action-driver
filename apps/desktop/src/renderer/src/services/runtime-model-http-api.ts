@@ -1,4 +1,5 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 import type { RuntimeHttpClient } from './runtime-http-client'
 
 export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
@@ -56,6 +57,16 @@ export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
     await this.http.request(
       `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/image-capability`,
       { method: 'POST', body: { kind, enabled } }
+    )
+  }
+  async setModelImageGenerationApi(
+    connectionId: string,
+    modelId: string,
+    api: ImageGenerationApi
+  ): Promise<void> {
+    await this.http.request(
+      `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/image-generation-api`,
+      { method: 'PUT', body: { api } }
     )
   }
   async setDefaultImageModel(

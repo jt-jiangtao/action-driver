@@ -250,6 +250,14 @@
     "testName": "configures image input and generation with one default model"
   },
   {
+    "target": "e2e/settings/model-connections/models/:model-id/image-api#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "selects and retains the Token Plan image API for a model"
+  },
+  {
     "target": "e2e/settings/model-connections/models/:model-id/default-image#button",
     "route": "settings",
     "type": "button",

@@ -24,6 +24,7 @@ function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnecti
     testConnectionModels: async () => [],
     setModelEnabled: async () => undefined,
     setModelImageCapability: async () => undefined,
+    setModelImageGenerationApi: async () => undefined,
     setDefaultImageModel: async () => undefined,
     getDefaultImageModel: async () => null,
     add: async () => connection,
@@ -62,14 +63,34 @@ describe('DesktopModelConnectionsService', () => {
         getDefaultImageModel: async () => model
       })
     )
-    expect((await service.list())[0]?.models[0]).toMatchObject({ imageGenerationEnabled: true })
+    expect((await service.list())[0]?.models[0]).toMatchObject({
+      imageGenerationEnabled: true,
+      imageGenerationApi: 'openai-images'
+    })
     expect(await service.getDefaultImageModel()).toEqual(model)
+  })
+
+  it('forwards the selected image API to the desktop bridge', async () => {
+    const calls: unknown[] = []
+    const service = new DesktopModelConnectionsService(
+      api({
+        setModelImageGenerationApi: async (...args) => {
+          calls.push(args)
+        }
+      })
+    )
+    await service.setModelImageGenerationApi('company-gateway', 'qwen3.7-plus', 'token-plan')
+    expect(calls).toEqual([['company-gateway', 'qwen3.7-plus', 'token-plan']])
   })
 
   it('maps Runtime DTOs into renderer models', async () => {
     const service = new DesktopModelConnectionsService(api())
-    await expect(service.list()).resolves.toEqual([connection])
-    await expect(service.discover(draft)).resolves.toEqual(connection.models)
+    await expect(service.list()).resolves.toEqual([
+      { ...connection, models: [{ ...connection.models[0], imageGenerationApi: 'openai-images' }] }
+    ])
+    await expect(service.discover(draft)).resolves.toEqual([
+      { ...connection.models[0], imageGenerationApi: 'openai-images' }
+    ])
     await expect(service.testModels(draft, ['qwen3.7-plus'])).resolves.toEqual([
       { modelId: 'qwen3.7-plus', state: 'unsupported' }
     ])

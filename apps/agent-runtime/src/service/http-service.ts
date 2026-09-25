@@ -8,6 +8,7 @@ import {
   type ModelFailureCode,
   type ModelOptionDto,
   type ModelImageCapabilityRequestDto,
+  type ModelImageGenerationApiRequestDto,
   type ModelSetEnabledRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
@@ -47,6 +48,7 @@ export type ServiceModelConnectionPort = {
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
   setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
+  setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
   getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
@@ -99,7 +101,8 @@ const modelSchema = z
     enabled: z.boolean(),
     testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported']),
     imageInputEnabled: z.boolean().optional(),
-    imageGenerationEnabled: z.boolean().optional()
+    imageGenerationEnabled: z.boolean().optional(),
+    imageGenerationApi: z.enum(['openai-images', 'token-plan']).optional()
   })
   .strict()
 const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) }).strict()
@@ -112,6 +115,7 @@ const imageCapabilitySchema = z
     enabled: z.boolean()
   })
   .strict()
+const imageGenerationApiSchema = z.object({ api: z.enum(['openai-images', 'token-plan']) }).strict()
 const imageModelSchema = z.object({ connectionId: id, modelId: id }).strict()
 const defaultImageModelSchema = z.object({ model: imageModelSchema.nullable() }).strict()
 const saveAgentFileSchema = z.object({ path: id, content: z.string(), expectedDigest: id }).strict()
@@ -434,6 +438,18 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         connectionId: context.req.param('connectionId'),
         modelId: context.req.param('modelId'),
         ...context.req.valid('json')
+      })
+      return context.json(success(null))
+    }
+  )
+  app.put(
+    '/model-connections/:connectionId/models/:modelId/image-generation-api',
+    validate(imageGenerationApiSchema),
+    async (context) => {
+      await options.service.setModelImageGenerationApi({
+        connectionId: context.req.param('connectionId'),
+        modelId: context.req.param('modelId'),
+        api: context.req.valid('json').api
       })
       return context.json(success(null))
     }

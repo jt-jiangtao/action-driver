@@ -143,6 +143,11 @@ export function SettingsPage({
                       service.setModelImageCapability(connection.id, modelId, kind, enabled)
                     )
                   }
+                  onChangeImageGenerationApi={(modelId, api) =>
+                    void runImageAction(() =>
+                      service.setModelImageGenerationApi(connection.id, modelId, api)
+                    )
+                  }
                   onToggleDefaultImageModel={(modelId) =>
                     void runImageAction(() =>
                       service.setDefaultImageModel(

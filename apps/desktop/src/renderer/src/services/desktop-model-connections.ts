@@ -1,4 +1,5 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 import type {
   ModelConnection,
   ModelConnectionDraft,
@@ -67,6 +68,14 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
     enabled: boolean
   ): Promise<void> {
     await this.run(() => this.api.setModelImageCapability(connectionId, modelId, kind, enabled))
+  }
+
+  async setModelImageGenerationApi(
+    connectionId: string,
+    modelId: string,
+    api: ImageGenerationApi
+  ): Promise<void> {
+    await this.run(() => this.api.setModelImageGenerationApi(connectionId, modelId, api))
   }
 
   async setDefaultImageModel(
@@ -195,7 +204,8 @@ function mapModel(value: unknown): ModelOption {
       : {}),
     ...(typeof value.imageGenerationEnabled === 'boolean'
       ? { imageGenerationEnabled: value.imageGenerationEnabled }
-      : {})
+      : {}),
+    imageGenerationApi: value.imageGenerationApi === 'token-plan' ? 'token-plan' : 'openai-images'
   }
 }
 

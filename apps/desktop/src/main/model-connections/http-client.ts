@@ -10,6 +10,7 @@ import {
   type ModelOptionDto,
   type ModelSetEnabledRequestDto,
   type ModelImageCapabilityRequestDto,
+  type ModelImageGenerationApiRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
@@ -22,7 +23,7 @@ type Envelope<T> =
 
 export type HttpRequest = {
   url: string
-  method: 'GET' | 'POST' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   headers: Record<string, string>
   body?: unknown
   timeoutMs: number
@@ -111,6 +112,14 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
     )
   }
 
+  async setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void> {
+    await this.call(
+      `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}/image-generation-api`,
+      { api: request.api },
+      'PUT'
+    )
+  }
+
   async setDefaultImageModel(model: ModelRef | null): Promise<void> {
     await this.call('/model-connections/default-image-model', { model })
   }
@@ -130,12 +139,13 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
   private async call<T>(
     path: string,
     body?: unknown,
-    method: 'GET' | 'POST' | 'DELETE' = 'GET'
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET'
   ): Promise<T> {
     const traceparent = currentTraceparent()
     const response = await this.transport.request({
       url: `${this.options.baseUrl}${path}`,
-      method: method === 'DELETE' ? 'DELETE' : body === undefined ? 'GET' : 'POST',
+      method:
+        method === 'DELETE' || method === 'PUT' ? method : body === undefined ? 'GET' : 'POST',
       headers: {
         authorization: `Bearer ${this.options.token}`,
         ...(traceparent ? { traceparent } : {})

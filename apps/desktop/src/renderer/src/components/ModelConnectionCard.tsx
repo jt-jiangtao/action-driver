@@ -5,6 +5,7 @@ import { ModelLibrary } from './settings/ModelLibrary'
 import { AppIcon } from './ui/AppIcon'
 import { e2eId } from '../testing/e2e-id'
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 
 export function ModelConnectionCard({
   connection,
@@ -17,6 +18,7 @@ export function ModelConnectionCard({
   onTestModel,
   onToggleModel,
   onToggleImageCapability,
+  onChangeImageGenerationApi,
   defaultImageModel,
   onToggleDefaultImageModel
 }: {
@@ -30,6 +32,7 @@ export function ModelConnectionCard({
   onTestModel(modelId: string): void
   onToggleModel(modelId: string, enabled: boolean): void
   onToggleImageCapability?(modelId: string, kind: 'input' | 'generation', enabled: boolean): void
+  onChangeImageGenerationApi?(modelId: string, api: ImageGenerationApi): void
   defaultImageModel?: ModelRef | null
   onToggleDefaultImageModel?(modelId: string): void
 }) {
@@ -131,6 +134,7 @@ export function ModelConnectionCard({
           onTestModel={onTestModel}
           onToggleModel={onToggleModel}
           {...(onToggleImageCapability ? { onToggleImageCapability } : {})}
+          {...(onChangeImageGenerationApi ? { onChangeImageGenerationApi } : {})}
           {...(defaultImageModel !== undefined ? { defaultImageModel } : {})}
           {...(onToggleDefaultImageModel ? { onToggleDefaultImageModel } : {})}
         />

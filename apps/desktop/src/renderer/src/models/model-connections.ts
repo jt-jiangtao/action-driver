@@ -1,3 +1,5 @@
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
+
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
 export const MODEL_PROTOCOLS: readonly { id: ModelProtocol; label: string }[] = [
@@ -39,6 +41,7 @@ export interface ModelOption {
   testState: ModelTestState
   imageInputEnabled?: boolean
   imageGenerationEnabled?: boolean
+  imageGenerationApi?: ImageGenerationApi
 }
 
 export interface ModelConnectionDraft {
@@ -78,6 +81,11 @@ export interface ModelConnectionsService {
     modelId: string,
     kind: 'input' | 'generation',
     enabled: boolean
+  ): Promise<void>
+  setModelImageGenerationApi(
+    connectionId: string,
+    modelId: string,
+    api: ImageGenerationApi
   ): Promise<void>
   setDefaultImageModel(model: { connectionId: string; modelId: string } | null): Promise<void>
   getDefaultImageModel(): Promise<{ connectionId: string; modelId: string } | null>

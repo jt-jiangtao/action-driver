@@ -320,9 +320,9 @@
 .model-table-head,
 .model-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) 138px 64px 64px 64px 94px;
+  grid-template-columns: minmax(160px, 1fr) 138px 64px 64px 64px 130px 94px;
   align-items: center;
-  min-width: 700px;
+  min-width: 830px;
   padding: 0 18px 0 28px;
 }
 .model-table-head {
@@ -342,6 +342,21 @@
   border-radius: 8px;
   color: #5d6470;
   font-size: 12px;
+}
+.model-image-api {
+  max-width: 122px;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  background: #fff;
+  color: #474e59;
+  font: inherit;
+  font-size: 12px;
+}
+.model-image-api:focus-visible {
+  outline: 2px solid #3978e5;
+  outline-offset: 2px;
 }
 .model-image-default.is-selected {
   border-color: #3978e5;

@@ -68,6 +68,42 @@ describe('SettingsPage model connections', () => {
     await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
     expect(await service.getDefaultImageModel()).toBeNull()
   })
+  it('selects and retains the Token Plan image API for a model', async () => {
+    const user = userEvent.setup()
+    const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
+    seed[0]!.baseUrl = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+    const service = new MockModelConnectionsService({ delayMs: 0, seed })
+    const setApi = vi.spyOn(service, 'setModelImageGenerationApi')
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await screen.findByText('公司模型网关')
+    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
+    const api = await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' })
+    expect(api).toHaveValue('openai-images')
+    await user.selectOptions(api, 'token-plan')
+    expect(setApi).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'token-plan')
+    expect((await service.list())[0]?.models[0]).toMatchObject({
+      id: 'gpt-5.2',
+      imageGenerationApi: 'token-plan'
+    })
+    await user.click(screen.getByRole('button', { name: '刷新公司模型网关' }))
+    expect(await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' })).toHaveValue(
+      'token-plan'
+    )
+  })
+
+  it('keeps Images API selected when Token Plan is chosen on an unrelated host', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await screen.findByText('公司模型网关')
+    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' }),
+      'token-plan'
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Token Plan')
+    expect(screen.getByRole('combobox', { name: 'gpt-5.2 生图接口' })).toHaveValue('openai-images')
+  })
   it('reuses cached connections when the settings page is reopened', async () => {
     const service = new MockModelConnectionsService({ delayMs: 0 })
     const list = vi.spyOn(service, 'list')

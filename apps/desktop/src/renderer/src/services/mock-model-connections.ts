@@ -6,6 +6,7 @@ import type {
   ModelOption,
   ModelTestResult
 } from '../models/model-connections'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 
 interface MockModelConnectionsOptions {
   delayMs?: number
@@ -89,7 +90,8 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       ...model,
       enabled: currentById.get(model.id)?.enabled ?? model.enabled,
       imageInputEnabled: currentById.get(model.id)?.imageInputEnabled ?? false,
-      imageGenerationEnabled: currentById.get(model.id)?.imageGenerationEnabled ?? false
+      imageGenerationEnabled: currentById.get(model.id)?.imageGenerationEnabled ?? false,
+      imageGenerationApi: currentById.get(model.id)?.imageGenerationApi ?? 'openai-images'
     }))
     this.clearInvalidImageDefault()
     return cloneModels(connection.models)
@@ -143,6 +145,23 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     if (kind === 'input') model.imageInputEnabled = enabled
     else model.imageGenerationEnabled = enabled
     this.clearInvalidImageDefault()
+  }
+
+  async setModelImageGenerationApi(
+    connectionId: string,
+    modelId: string,
+    api: ImageGenerationApi
+  ): Promise<void> {
+    const connection = this.requireConnection(connectionId)
+    const model = connection.models.find((item) => item.id === modelId)
+    if (!model) throw new Error(`Unknown model: ${modelId}`)
+    if (
+      api === 'token-plan' &&
+      !/^https:\/\/[^/]*\.maas\.aliyuncs\.com\//i.test(connection.baseUrl)
+    ) {
+      throw new Error('Token Plan 生图接口需要官方 HTTPS 地址')
+    }
+    model.imageGenerationApi = api
   }
 
   async setDefaultImageModel(

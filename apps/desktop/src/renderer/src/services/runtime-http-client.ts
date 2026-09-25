@@ -9,7 +9,7 @@ export class RuntimeHttpClient {
 
   async request<T>(
     path: string,
-    options: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown } = {}
+    options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {}
   ): Promise<T> {
     const connection = await this.getConnection()
     const url = new URL(connection.wsUrl)

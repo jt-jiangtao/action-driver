@@ -1,4 +1,5 @@
 import type { ModelOption } from '../../models/model-connections'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 import { ModelStatusPill } from '../ModelStatusPill'
 import { ModelToggle } from '../ModelToggle'
 import { AppIcon } from '../ui/AppIcon'
@@ -12,6 +13,7 @@ export function LibraryModelRow({
   imageSupported,
   onToggleImageInput,
   onToggleImageGeneration,
+  onChangeImageGenerationApi,
   isDefaultImageModel,
   onToggleDefaultImageModel
 }: {
@@ -21,6 +23,7 @@ export function LibraryModelRow({
   imageSupported: boolean
   onToggleImageInput(enabled: boolean): void
   onToggleImageGeneration(enabled: boolean): void
+  onChangeImageGenerationApi(api: ImageGenerationApi): void
   isDefaultImageModel: boolean
   onToggleDefaultImageModel(): void
 }) {
@@ -69,6 +72,22 @@ export function LibraryModelRow({
           'model-id': model.id
         })}
       />
+      {model.imageGenerationEnabled && model.enabled ? (
+        <select
+          className="model-image-api"
+          aria-label={`${model.name} 生图接口`}
+          data-testid={e2eId('e2e/settings/model-connections/models/:model-id/image-api#select', {
+            'model-id': model.id
+          })}
+          value={model.imageGenerationApi ?? 'openai-images'}
+          onChange={(event) => onChangeImageGenerationApi(event.target.value as ImageGenerationApi)}
+        >
+          <option value="openai-images">Images API</option>
+          <option value="token-plan">Token Plan</option>
+        </select>
+      ) : (
+        <span className="model-image-default-empty">—</span>
+      )}
       {model.imageGenerationEnabled && model.enabled ? (
         <button
           type="button"

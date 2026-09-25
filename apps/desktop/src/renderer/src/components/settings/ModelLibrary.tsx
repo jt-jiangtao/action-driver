@@ -1,12 +1,14 @@
 import type { ModelConnection } from '../../models/model-connections'
 import { LibraryModelRow } from './LibraryModelRow'
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ImageGenerationApi } from '@actiondriver/model-connections'
 
 export function ModelLibrary({
   connection,
   onTestModel,
   onToggleModel,
   onToggleImageCapability,
+  onChangeImageGenerationApi,
   defaultImageModel,
   onToggleDefaultImageModel
 }: {
@@ -14,6 +16,7 @@ export function ModelLibrary({
   onTestModel(modelId: string): void
   onToggleModel(modelId: string, enabled: boolean): void
   onToggleImageCapability?(modelId: string, kind: 'input' | 'generation', enabled: boolean): void
+  onChangeImageGenerationApi?(modelId: string, api: ImageGenerationApi): void
   defaultImageModel?: ModelRef | null
   onToggleDefaultImageModel?(modelId: string): void
 }) {
@@ -25,6 +28,7 @@ export function ModelLibrary({
         <span>启用</span>
         <span>识图</span>
         <span>生图</span>
+        <span>生图接口</span>
         <span>默认生图</span>
       </div>
       {connection.models.map((model) => (
@@ -38,6 +42,7 @@ export function ModelLibrary({
           onToggleImageGeneration={(enabled) =>
             onToggleImageCapability?.(model.id, 'generation', enabled)
           }
+          onChangeImageGenerationApi={(api) => onChangeImageGenerationApi?.(model.id, api)}
           isDefaultImageModel={
             defaultImageModel?.connectionId === connection.id &&
             defaultImageModel.modelId === model.id

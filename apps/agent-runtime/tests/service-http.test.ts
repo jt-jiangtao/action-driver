@@ -91,6 +91,29 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('sets a model image API through the authenticated route and rejects invalid values', async () => {
+    const setModelImageGenerationApi = vi.fn(async () => undefined)
+    await startService({ setModelImageGenerationApi })
+    const path = '/model-connections/company-gateway/models/image/image-generation-api'
+    const selected = await authorized(path, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ api: 'token-plan' })
+    })
+    expect(selected.status).toBe(200)
+    expect(setModelImageGenerationApi).toHaveBeenCalledWith({
+      connectionId: 'company-gateway',
+      modelId: 'image',
+      api: 'token-plan'
+    })
+    const invalid = await authorized(path, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ api: 'unsupported' })
+    })
+    expect(invalid.status).toBe(400)
+    expect(setModelImageGenerationApi).toHaveBeenCalledOnce()
+  })
   it('routes image capability and default model settings through authenticated APIs', async () => {
     const setModelImageCapability = vi.fn(async () => undefined)
     const setDefaultImageModel = vi.fn(async () => undefined)

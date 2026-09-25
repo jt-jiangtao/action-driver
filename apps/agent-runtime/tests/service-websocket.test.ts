@@ -43,6 +43,7 @@ function serviceStub() {
     },
     async setModelEnabled() {},
     async setModelImageCapability() {},
+    async setModelImageGenerationApi() {},
     async setDefaultImageModel() {},
     async getDefaultImageModel() {
       return null
