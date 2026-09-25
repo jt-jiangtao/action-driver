@@ -23,9 +23,6 @@ function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnecti
     testModels: async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }],
     testConnectionModels: async () => [],
     setModelEnabled: async () => undefined,
-    setModelKind: async () => undefined,
-    setModelImageCapability: async () => undefined,
-    setModelImageGenerationApi: async () => undefined,
     setDefaultImageModel: async () => undefined,
     getDefaultImageModel: async () => null,
     add: async () => connection,
@@ -78,19 +75,6 @@ describe('DesktopModelConnectionsService', () => {
       imageGenerationApi: 'openai-images'
     })
     expect(await service.getDefaultImageModel()).toEqual(model)
-  })
-
-  it('forwards the selected image API to the desktop bridge', async () => {
-    const calls: unknown[] = []
-    const service = new DesktopModelConnectionsService(
-      api({
-        setModelImageGenerationApi: async (...args) => {
-          calls.push(args)
-        }
-      })
-    )
-    await service.setModelImageGenerationApi('company-gateway', 'qwen3.7-plus', 'token-plan')
-    expect(calls).toEqual([['company-gateway', 'qwen3.7-plus', 'token-plan']])
   })
 
   it('maps Runtime DTOs into renderer models', async () => {

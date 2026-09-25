@@ -155,39 +155,17 @@ export type ModelTestResultDto = {
 export type ModelTestRequestDto = {
   draft: ModelConnectionDraftDto
   modelIds: string[]
-  imageModels?: { modelId: string; api: ImageGenerationApi }[] | undefined
-  capabilityTest?: boolean | undefined
 }
 
 export type ModelConnectionTestRequestDto = {
   connectionId: string
   modelIds: string[]
-  capabilityTest?: boolean | undefined
 }
 
 export type ModelSetEnabledRequestDto = {
   connectionId: string
   modelId: string
   enabled: boolean
-}
-
-export type ModelSetKindRequestDto = {
-  connectionId: string
-  modelId: string
-  kind: ModelKind
-}
-
-export type ModelImageCapabilityRequestDto = {
-  connectionId: string
-  modelId: string
-  kind: 'input' | 'generation'
-  enabled: boolean
-}
-
-export type ModelImageGenerationApiRequestDto = {
-  connectionId: string
-  modelId: string
-  api: ImageGenerationApi
 }
 
 export type ModelAddRequestDto = {
@@ -208,9 +186,6 @@ export interface ModelConnectionServicePort {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
-  setModelKind(request: ModelSetKindRequestDto): Promise<void>
-  setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
-  setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
   getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>

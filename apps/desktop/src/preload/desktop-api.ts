@@ -13,7 +13,6 @@ import type {
   ModelOptionDto,
   ModelTestResultDto
 } from '@actiondriver/model-connections'
-import type { ImageGenerationApi } from '@actiondriver/model-connections'
 import type {
   AgentFileNodeDto,
   AgentSkillSummaryDto,
@@ -61,17 +60,6 @@ export interface ModelConnectionsDesktopApi {
   testModels(draft: ModelConnectionDraftDto, modelIds: string[]): Promise<ModelTestResultDto[]>
   testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResultDto[]>
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
-  setModelImageCapability(
-    connectionId: string,
-    modelId: string,
-    kind: 'input' | 'generation',
-    enabled: boolean
-  ): Promise<void>
-  setModelImageGenerationApi(
-    connectionId: string,
-    modelId: string,
-    api: ImageGenerationApi
-  ): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
   getDefaultImageModel(): Promise<ModelRef | null>
   add(draft: ModelConnectionDraftDto, models: ModelOptionDto[]): Promise<ModelConnectionDto>

@@ -1,5 +1,4 @@
 import type { ModelConnectionDraft, ModelOption, ModelTestResult } from './model-connections'
-import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 
 export type AddModelSetState = {
   step: 'connection' | 'models'
@@ -7,7 +6,6 @@ export type AddModelSetState = {
   connectionState: 'idle' | 'testing' | 'success' | 'failed'
   models: readonly ModelOption[]
   discovering: boolean
-  imageOnlyMode: boolean
 }
 
 export type AddModelSetAction =
@@ -15,15 +13,12 @@ export type AddModelSetAction =
   | { type: 'connection-testing' }
   | { type: 'connection-result'; ok: boolean }
   | { type: 'enter-models' }
-  | { type: 'enter-image-models' }
   | { type: 'models-discovered'; models: readonly ModelOption[] }
   | { type: 'model-testing'; modelIds: readonly string[] }
   | { type: 'model-result'; results: readonly ModelTestResult[] }
   | { type: 'toggle-model'; modelId: string; enabled: boolean }
   | { type: 'add-manual-model'; model: ModelOption }
   | { type: 'rename-model'; modelId: string; name: string }
-  | { type: 'set-model-kind'; modelId: string; kind: ModelKind }
-  | { type: 'set-model-image-api'; modelId: string; api: ImageGenerationApi }
   | { type: 'back' }
 
 export const initialAddModelSetState: AddModelSetState = {
@@ -32,7 +27,6 @@ export const initialAddModelSetState: AddModelSetState = {
   connectionState: 'idle',
   models: [],
   discovering: false,
-  imageOnlyMode: false
 }
 
 export function addModelSetReducer(
@@ -50,11 +44,8 @@ export function addModelSetReducer(
       return {
         ...state,
         step: 'models',
-        discovering: state.models.length === 0,
-        imageOnlyMode: false
+        discovering: state.models.length === 0
       }
-    case 'enter-image-models':
-      return { ...state, step: 'models', discovering: false, imageOnlyMode: true }
     case 'models-discovered':
       return { ...state, models: action.models.map((model) => ({ ...model })), discovering: false }
     case 'model-testing':
@@ -89,24 +80,6 @@ export function addModelSetReducer(
         models: state.models.map((model) =>
           model.id === action.modelId
             ? { ...model, name: action.name, testState: 'untested', capabilities: {} }
-            : model
-        )
-      }
-    case 'set-model-kind':
-      return {
-        ...state,
-        models: state.models.map((model) =>
-          model.id === action.modelId
-            ? { ...model, kind: action.kind, testState: 'untested' }
-            : model
-        )
-      }
-    case 'set-model-image-api':
-      return {
-        ...state,
-        models: state.models.map((model) =>
-          model.id === action.modelId
-            ? { ...model, imageGenerationApi: action.api, testState: 'untested' }
             : model
         )
       }

@@ -44,7 +44,6 @@ function serviceStub(overrides: Record<string, unknown> = {}) {
     testModels: vi.fn(async () => [{ modelId: 'qwen3.7-plus', state: 'success' }]),
     testConnectionModels: vi.fn(async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }]),
     setModelEnabled: vi.fn(async () => undefined),
-    setModelKind: vi.fn(async () => undefined),
     add: vi.fn(async () => connection),
     delete: vi.fn(async () => undefined),
     ...overrides
@@ -99,7 +98,7 @@ describe('service HTTP surface', () => {
     await startService({ add, testModels })
     const result = await authorized('/model-connections/test-models', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, modelIds: ['hybrid'], capabilityTest: true })
+      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, modelIds: ['hybrid'] })
     })
     expect(result.status).toBe(200)
     expect(await result.json()).toMatchObject({ value: [{ modelId: 'hybrid', capabilities }] })
@@ -110,52 +109,13 @@ describe('service HTTP surface', () => {
     expect(saved.status).toBe(200)
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ models: [expect.objectContaining({ capabilities })] }))
   })
-  it('sets a model image API through the authenticated route and rejects invalid values', async () => {
-    const setModelImageGenerationApi = vi.fn(async () => undefined)
-    await startService({ setModelImageGenerationApi })
-    const path = '/model-connections/company-gateway/models/image/image-generation-api'
-    const selected = await authorized(path, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ api: 'token-plan' })
-    })
-    expect(selected.status).toBe(200)
-    expect(setModelImageGenerationApi).toHaveBeenCalledWith({
-      connectionId: 'company-gateway',
-      modelId: 'image',
-      api: 'token-plan'
-    })
-    const invalid = await authorized(path, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ api: 'unsupported' })
-    })
-    expect(invalid.status).toBe(400)
-    expect(setModelImageGenerationApi).toHaveBeenCalledOnce()
-  })
   it('routes image capability and default model settings through authenticated APIs', async () => {
-    const setModelImageCapability = vi.fn(async () => undefined)
     const setDefaultImageModel = vi.fn(async () => undefined)
     const getDefaultImageModel = vi.fn(async () => ({
       connectionId: 'company-gateway',
       modelId: 'image'
     }))
-    await startService({ setModelImageCapability, setDefaultImageModel, getDefaultImageModel })
-    const body = { kind: 'generation', enabled: true }
-    const toggle = await authorized(
-      '/model-connections/company-gateway/models/image/image-capability',
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body)
-      }
-    )
-    expect(toggle.status).toBe(200)
-    expect(setModelImageCapability).toHaveBeenCalledWith({
-      connectionId: 'company-gateway',
-      modelId: 'image',
-      ...body
-    })
+    await startService({ setDefaultImageModel, getDefaultImageModel })
     const model = { connectionId: 'company-gateway', modelId: 'image' }
     const chosen = await authorized('/model-connections/default-image-model', {
       method: 'POST',
@@ -446,20 +406,12 @@ describe('service HTTP surface', () => {
       enabled: false
     })
 
-    const kindResponse = await authorized(
-      '/model-connections/company-gateway/models/qwen3.7-plus/kind',
-      {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'image' })
-      }
-    )
-    expect(kindResponse.status).toBe(200)
-    expect(service.setModelKind).toHaveBeenCalledWith({
-      connectionId: 'company-gateway',
-      modelId: 'qwen3.7-plus',
-      kind: 'image'
+    const retired = await authorized('/model-connections/company-gateway/models/qwen3.7-plus/kind', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'image' })
     })
+    expect(retired.status).toBe(404)
 
     await authorized('/model-connections/company-gateway', { method: 'DELETE' })
     expect(service.delete).toHaveBeenCalledWith('company-gateway')

@@ -77,25 +77,9 @@ export interface ModelConnectionsService {
   testConnection(draft: ModelConnectionDraft): Promise<ModelConnectionTestResult>
   discover(draft: ModelConnectionDraft): Promise<ModelOption[]>
   refresh(connectionId: string): Promise<ModelOption[]>
-  testModels(
-    draft: ModelConnectionDraft,
-    modelIds: string[],
-    imageModels?: { modelId: string; api: ImageGenerationApi }[]
-  ): Promise<ModelTestResult[]>
+  testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]>
   testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]>
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
-  setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void>
-  setModelImageCapability(
-    connectionId: string,
-    modelId: string,
-    kind: 'input' | 'generation',
-    enabled: boolean
-  ): Promise<void>
-  setModelImageGenerationApi(
-    connectionId: string,
-    modelId: string,
-    api: ImageGenerationApi
-  ): Promise<void>
   setDefaultImageModel(model: { connectionId: string; modelId: string } | null): Promise<void>
   getDefaultImageModel(): Promise<{ connectionId: string; modelId: string } | null>
   add(draft: ModelConnectionDraft, models: ModelOption[]): Promise<ModelConnection>

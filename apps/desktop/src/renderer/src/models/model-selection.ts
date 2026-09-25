@@ -9,7 +9,7 @@ export interface ModelOptionItemProjection {
   ref: ModelRef
   disabled: boolean
   disabledReason: string | null
-  imageInputEnabled?: boolean
+  visionVerified: boolean
 }
 
 export interface ModelConnectionOption {
@@ -45,21 +45,25 @@ export function toModelSelectionProjection(
   connections: readonly ModelConnection[],
   selected: ModelRef | null
 ): ModelSelectionProjection {
-  const projectedConnections = connections.map((connection) => ({
-    id: connection.id,
-    name: connection.name,
-    models: connection.models.map((model) => {
-      const disabledReason = getDisabledReason(connection, model)
-      return {
-        id: model.id,
-        name: model.name,
-        ref: { connectionId: connection.id, modelId: model.id },
-        disabled: disabledReason !== null,
-        disabledReason,
-        imageInputEnabled: model.imageInputEnabled === true
-      }
-    })
-  }))
+  const projectedConnections = connections
+    .map((connection) => ({
+      id: connection.id,
+      name: connection.name,
+      models: connection.models
+        .filter((model) => !model.catalogLabels?.length && !(model.capabilities?.image_generation && !model.capabilities.text))
+        .map((model) => {
+          const disabledReason = getDisabledReason(connection, model)
+          return {
+            id: model.id,
+            name: model.name,
+            ref: { connectionId: connection.id, modelId: model.id },
+            disabled: disabledReason !== null,
+            disabledReason,
+            visionVerified: model.capabilities?.vision?.state === 'success'
+          }
+        })
+    }))
+    .filter((connection) => connection.models.length > 0)
   const candidate: ModelSelectionProjection = {
     state: projectedConnections.length === 0 ? 'empty' : 'ready',
     connections: projectedConnections,
@@ -98,8 +102,8 @@ function getDisabledReason(
 ): string | null {
   if (connection.protocol === 'anthropic') return 'Agent 调用暂未接入'
   if (!model.enabled) return '模型已停用'
-  if (model.testState === 'failed') return '模型测试失败'
-  if (model.testState === 'unsupported') return '不支持文本生成'
-  if (model.testState !== 'success') return '模型尚未通过测试'
+  if (model.capabilities?.text?.state === 'failed') return '文本测试失败'
+  if (model.capabilities?.text?.state === 'unsupported') return '不支持文本生成'
+  if (model.capabilities?.text?.state !== 'success') return '文本测试尚未通过'
   return null
 }

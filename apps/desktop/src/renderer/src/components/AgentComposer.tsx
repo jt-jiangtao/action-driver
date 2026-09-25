@@ -18,6 +18,7 @@ export function AgentComposer({
   onAdd,
   modelSelection,
   onSelectModel,
+  onOpenModelSettings,
   menuCloseKey,
   width = 720
 }: {
@@ -29,6 +30,7 @@ export function AgentComposer({
   onAdd?(): void
   modelSelection?: ModelSelectionProjection
   onSelectModel?(model: ModelRef): void
+  onOpenModelSettings?: (() => void) | undefined
   menuCloseKey?: string
   width?: 480 | 720
 }) {
@@ -115,6 +117,45 @@ export function AgentComposer({
       data-state={running ? 'running' : disabled ? 'disabled' : 'idle'}
       data-width={width}
     >
+      {previews.length ? (
+        <div className="composer-image-previews">
+          {previews.map((preview, index) => (
+            <div className="composer-image-preview" key={`${preview.file.name}:${index}`}>
+              <div className="composer-image-preview-frame">
+                {preview.url ? (
+                  <button
+                    type="button"
+                    className="composer-image-preview-open"
+                    aria-label={`放大 ${preview.file.name}`}
+                    data-testid={e2eId('e2e/shared/composer/images/:image-index/open#button', {
+                      'image-index': String(index)
+                    })}
+                    onClick={() => setZoomedPreviewIndex(index)}
+                  >
+                    <img src={preview.url} alt={preview.file.name} />
+                  </button>
+                ) : null}
+              </div>
+              <div className="composer-image-preview-meta">
+                <span title={preview.file.name}>{preview.file.name}</span>
+                <button
+                  type="button"
+                  aria-label={`移除 ${preview.file.name}`}
+                  data-testid={e2eId('e2e/shared/composer/images/:image-index/remove#button', {
+                    'image-index': String(index)
+                  })}
+                  onClick={() => {
+                    setZoomedPreviewIndex(null)
+                    setImageFiles((files) => files.filter((_, at) => at !== index))
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <Slate
         editor={editor}
         initialValue={initialValue}
@@ -157,45 +198,6 @@ export function AgentComposer({
           }}
         />
       </Slate>
-      {previews.length ? (
-        <div className="composer-image-previews">
-          {previews.map((preview, index) => (
-            <div className="composer-image-preview" key={`${preview.file.name}:${index}`}>
-              <div className="composer-image-preview-frame">
-                {preview.url ? (
-                  <button
-                    type="button"
-                    className="composer-image-preview-open"
-                    aria-label={`放大 ${preview.file.name}`}
-                    data-testid={e2eId('e2e/shared/composer/images/:image-index/open#button', {
-                      'image-index': String(index)
-                    })}
-                    onClick={() => setZoomedPreviewIndex(index)}
-                  >
-                    <img src={preview.url} alt={preview.file.name} />
-                  </button>
-                ) : null}
-              </div>
-              <div className="composer-image-preview-meta">
-                <span title={preview.file.name}>{preview.file.name}</span>
-                <button
-                  type="button"
-                  aria-label={`移除 ${preview.file.name}`}
-                  data-testid={e2eId('e2e/shared/composer/images/:image-index/remove#button', {
-                    'image-index': String(index)
-                  })}
-                  onClick={() => {
-                    setZoomedPreviewIndex(null)
-                    setImageFiles((files) => files.filter((_, at) => at !== index))
-                  }}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
       {zoomedPreview?.url ? (
         <div
           className="conversation-image-overlay"
@@ -217,6 +219,9 @@ export function AgentComposer({
       {submitError ? (
         <div className="composer-submit-error" role="alert">
           {submitError}
+          {onOpenModelSettings && submitError.includes('视觉测试') ? (
+            <button type="button" data-testid="e2e/shared/composer/open-model-settings#button" onClick={onOpenModelSettings}>打开模型设置</button>
+          ) : null}
         </div>
       ) : null}
       <div className="composer-actions">

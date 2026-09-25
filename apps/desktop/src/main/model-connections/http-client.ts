@@ -9,8 +9,6 @@ import {
   type ModelFailureCode,
   type ModelOptionDto,
   type ModelSetEnabledRequestDto,
-  type ModelImageCapabilityRequestDto,
-  type ModelImageGenerationApiRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
@@ -102,21 +100,6 @@ export class ModelConnectionHttpClient implements ModelConnectionServicePort {
     await this.call(
       `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}`,
       { enabled: request.enabled }
-    )
-  }
-
-  async setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void> {
-    await this.call(
-      `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}/image-capability`,
-      { kind: request.kind, enabled: request.enabled }
-    )
-  }
-
-  async setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void> {
-    await this.call(
-      `/model-connections/${encodeURIComponent(request.connectionId)}/models/${encodeURIComponent(request.modelId)}/image-generation-api`,
-      { api: request.api },
-      'PUT'
     )
   }
 

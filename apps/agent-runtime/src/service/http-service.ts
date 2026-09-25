@@ -7,10 +7,7 @@ import {
   type ModelConnectionTestResultDto,
   type ModelFailureCode,
   type ModelOptionDto,
-  type ModelImageCapabilityRequestDto,
-  type ModelImageGenerationApiRequestDto,
   type ModelSetEnabledRequestDto,
-  type ModelSetKindRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
@@ -48,9 +45,6 @@ export type ServiceModelConnectionPort = {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
-  setModelKind(request: ModelSetKindRequestDto): Promise<void>
-  setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
-  setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
   getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>
@@ -119,23 +113,11 @@ const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) })
 const testModelsSchema = z
   .object({
     draft: draftSchema,
-    modelIds: z.array(id),
-    imageModels: z
-      .array(z.object({ modelId: id, api: z.enum(['openai-images', 'token-plan']) }).strict())
-      .optional(),
-    capabilityTest: z.boolean().optional()
+    modelIds: z.array(id)
   })
   .strict()
-const connectionModelsSchema = z.object({ modelIds: z.array(id), capabilityTest: z.boolean().optional() }).strict()
+const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
 const enabledSchema = z.object({ enabled: z.boolean() }).strict()
-const modelKindSchema = z.object({ kind: z.enum(['chat', 'image']) }).strict()
-const imageCapabilitySchema = z
-  .object({
-    kind: z.enum(['input', 'generation']),
-    enabled: z.boolean()
-  })
-  .strict()
-const imageGenerationApiSchema = z.object({ api: z.enum(['openai-images', 'token-plan']) }).strict()
 const imageModelSchema = z.object({ connectionId: id, modelId: id }).strict()
 const defaultImageModelSchema = z.object({ model: imageModelSchema.nullable() }).strict()
 const saveAgentFileSchema = z.object({ path: id, content: z.string(), expectedDigest: id }).strict()
@@ -446,42 +428,6 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         connectionId: context.req.param('connectionId'),
         modelId: context.req.param('modelId'),
         enabled: context.req.valid('json').enabled
-      })
-      return context.json(success(null))
-    }
-  )
-  app.put(
-    '/model-connections/:connectionId/models/:modelId/kind',
-    validate(modelKindSchema),
-    async (context) => {
-      await options.service.setModelKind({
-        connectionId: context.req.param('connectionId'),
-        modelId: context.req.param('modelId'),
-        kind: context.req.valid('json').kind
-      })
-      return context.json(success(null))
-    }
-  )
-  app.post(
-    '/model-connections/:connectionId/models/:modelId/image-capability',
-    validate(imageCapabilitySchema),
-    async (context) => {
-      await options.service.setModelImageCapability({
-        connectionId: context.req.param('connectionId'),
-        modelId: context.req.param('modelId'),
-        ...context.req.valid('json')
-      })
-      return context.json(success(null))
-    }
-  )
-  app.put(
-    '/model-connections/:connectionId/models/:modelId/image-generation-api',
-    validate(imageGenerationApiSchema),
-    async (context) => {
-      await options.service.setModelImageGenerationApi({
-        connectionId: context.req.param('connectionId'),
-        modelId: context.req.param('modelId'),
-        api: context.req.valid('json').api
       })
       return context.json(success(null))
     }

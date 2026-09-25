@@ -6,7 +6,6 @@ import type {
   ModelOption,
   ModelTestResult
 } from '../models/model-connections'
-import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 
 interface MockModelConnectionsOptions {
   delayMs?: number
@@ -15,8 +14,8 @@ interface MockModelConnectionsOptions {
 }
 
 const discoveredModels: ModelOption[] = [
-  { id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success' },
-  { id: 'gpt-5.2-mini', name: 'gpt-5.2-mini', enabled: true, testState: 'success' },
+  { id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, vision: { state: 'success', source: 'probe' } } },
+  { id: 'gpt-5.2-mini', name: 'gpt-5.2-mini', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } },
   { id: 'gpt-4.1', name: 'gpt-4.1', enabled: false, testState: 'untested' }
 ]
 
@@ -38,8 +37,8 @@ const defaultConnections: ModelConnection[] = [
     apiKeyHint: '••••5678',
     expanded: false,
     models: [
-      { id: 'claude-opus-4.1', name: 'claude-opus-4.1', enabled: true, testState: 'success' },
-      { id: 'claude-sonnet-4', name: 'claude-sonnet-4', enabled: true, testState: 'success' }
+      { id: 'claude-opus-4.1', name: 'claude-opus-4.1', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } },
+      { id: 'claude-sonnet-4', name: 'claude-sonnet-4', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }
     ]
   }
 ]
@@ -133,6 +132,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       const result = resultById.get(model.id)
       return result ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } } : model
     })
+    this.clearInvalidImageDefault()
     return results
   }
 
@@ -142,49 +142,6 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     if (!model) throw new Error(`Unknown model: ${modelId}`)
     model.enabled = enabled
     this.clearInvalidImageDefault()
-  }
-
-  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
-    const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
-    if (!model) throw new Error(`Unknown model: ${modelId}`)
-    model.kind = kind
-    model.imageGenerationEnabled = kind === 'image'
-    model.testState = 'untested'
-    this.clearInvalidImageDefault()
-  }
-
-  async setModelImageCapability(
-    connectionId: string,
-    modelId: string,
-    kind: 'input' | 'generation',
-    enabled: boolean
-  ): Promise<void> {
-    const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
-    if (!model) throw new Error(`Unknown model: ${modelId}`)
-    if (kind === 'input') model.imageInputEnabled = enabled
-    else {
-      model.imageGenerationEnabled = enabled
-      model.kind = enabled ? 'image' : 'chat'
-    }
-    this.clearInvalidImageDefault()
-  }
-
-  async setModelImageGenerationApi(
-    connectionId: string,
-    modelId: string,
-    api: ImageGenerationApi
-  ): Promise<void> {
-    const connection = this.requireConnection(connectionId)
-    const model = connection.models.find((item) => item.id === modelId)
-    if (!model) throw new Error(`Unknown model: ${modelId}`)
-    if (
-      api === 'token-plan' &&
-      !/^https:\/\/[^/]*\.maas\.aliyuncs\.com\//i.test(connection.baseUrl)
-    ) {
-      throw new Error('Token Plan 生图接口需要官方 HTTPS 地址')
-    }
-    model.imageGenerationApi = api
-    model.testState = 'untested'
   }
 
   async setDefaultImageModel(

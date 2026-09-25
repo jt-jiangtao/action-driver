@@ -131,7 +131,7 @@ export function SettingsPage({
                       )
                     )
                     await service.testConnectionModels(connection.id, [modelId])
-                    await syncConnections()
+                    await Promise.all([syncConnections(), syncImageDefault()])
                   }}
                   onToggleModel={async (modelId, enabled) => {
                     await service.setModelEnabled(connection.id, modelId, enabled)

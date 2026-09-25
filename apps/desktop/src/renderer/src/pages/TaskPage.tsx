@@ -17,6 +17,7 @@ export function TaskPage({
   onExpandSidebar,
   modelSelection,
   onSelectModel,
+  onOpenModelSettings,
   onModeChange,
   onPause,
   onResume,
@@ -31,6 +32,7 @@ export function TaskPage({
   onExpandSidebar?: (() => void) | undefined
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
+  onOpenModelSettings?(): void
   onModeChange(mode: TaskLayoutMode): void
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
@@ -171,6 +173,14 @@ export function TaskPage({
                   readImage={readImage}
                 />
               ) : null}
+              {task.status === 'failed' ? (
+                <div className="agent-failure" role="alert">
+                  <strong>任务执行失败</strong>
+                  <span>
+                    {task.steps.find((step) => step.state === 'failed')?.detail ?? '模型响应失败'}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </ConversationViewport>
           <AgentComposer
@@ -180,6 +190,7 @@ export function TaskPage({
             menuCloseKey={mode}
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
+            onOpenModelSettings={onOpenModelSettings}
             onSubmit={(goal, imageFiles) =>
               imageFiles ? onSubmit(goal, imageFiles) : onSubmit(goal)
             }

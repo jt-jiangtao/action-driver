@@ -1,5 +1,4 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
-import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 import type {
   ModelConnection,
   ModelConnectionDraft,
@@ -47,12 +46,8 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
     return models.map(mapModel)
   }
 
-  async testModels(
-    draft: ModelConnectionDraft,
-    modelIds: string[],
-    imageModels: { modelId: string; api: ImageGenerationApi }[] = []
-  ): Promise<ModelTestResult[]> {
-    const results = await this.run(() => this.api.testModels(draft, [...modelIds], imageModels))
+  async testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]> {
+    const results = await this.run(() => this.api.testModels(draft, [...modelIds]))
     return results.map(mapTestResult)
   }
 
@@ -63,27 +58,6 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
 
   async setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void> {
     await this.run(() => this.api.setModelEnabled(connectionId, modelId, enabled))
-  }
-
-  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
-    await this.run(() => this.api.setModelKind(connectionId, modelId, kind))
-  }
-
-  async setModelImageCapability(
-    connectionId: string,
-    modelId: string,
-    kind: 'input' | 'generation',
-    enabled: boolean
-  ): Promise<void> {
-    await this.run(() => this.api.setModelImageCapability(connectionId, modelId, kind, enabled))
-  }
-
-  async setModelImageGenerationApi(
-    connectionId: string,
-    modelId: string,
-    api: ImageGenerationApi
-  ): Promise<void> {
-    await this.run(() => this.api.setModelImageGenerationApi(connectionId, modelId, api))
   }
 
   async setDefaultImageModel(

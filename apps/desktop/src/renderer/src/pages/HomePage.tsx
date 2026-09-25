@@ -9,6 +9,7 @@ export function HomePage({
   onSelectModel,
   onSubmit,
   onRetryModels,
+  onOpenModelSettings,
   sidebarCollapsed = false,
   onExpandSidebar
 }: {
@@ -16,6 +17,7 @@ export function HomePage({
   onSelectModel(model: ModelRef): void
   onSubmit(goal: string, imageFiles?: File[]): Promise<unknown> | void
   onRetryModels?(): void
+  onOpenModelSettings?(): void
   sidebarCollapsed?: boolean
   onExpandSidebar?: (() => void) | undefined
 }) {
@@ -59,6 +61,7 @@ export function HomePage({
             modelSelection={modelSelection}
             disabled={!modelSelection.selected}
             onSelectModel={onSelectModel}
+            onOpenModelSettings={onOpenModelSettings}
             onSubmit={onSubmit}
             width={720}
           />

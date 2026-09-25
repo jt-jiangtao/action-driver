@@ -33,6 +33,7 @@ function model(
     name: modelId,
     ref: { connectionId, modelId },
     disabled,
-    disabledReason
+    disabledReason,
+    visionVerified: true
   }
 }

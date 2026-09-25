@@ -22,14 +22,6 @@
     "testName": "captures all eight Settings Figma states through public controls"
   },
   {
-    "target": "e2e/settings/add-model-set/protocol#select",
-    "route": "settings",
-    "type": "select",
-    "coverage": "functional",
-    "testFile": "apps/desktop/e2e/app.spec.ts",
-    "testName": "captures all eight Settings Figma states through public controls"
-  },
-  {
     "target": "e2e/settings/add-model-set/api-key#input",
     "route": "settings",
     "type": "input",
@@ -116,6 +108,14 @@
     "testName": "configures a connection, discovers models, and saves without a manual-add row"
   },
   {
+    "target": "e2e/settings/add-model-set/protocol#select",
+    "route": "settings",
+    "type": "select",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/app.spec.ts",
+    "testName": "captures all eight Settings Figma states through public controls"
+  },
+  {
     "target": "e2e/settings/add-model-set/save#button",
     "route": "settings",
     "type": "button",
@@ -138,6 +138,102 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
     "testName": "configures a connection, discovers models, and saves without a manual-add row"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/content#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/mode/:mode#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/save#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/agent-editors/:editor-id/source#section",
+    "route": "settings",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "switches the same main prompt panel into source mode"
+  },
+  {
+    "target": "e2e/settings/main-prompt/discard-leave#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
+  },
+  {
+    "target": "e2e/settings/main-prompt/leave-cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
+  },
+  {
+    "target": "e2e/settings/main-prompt/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/main-prompt/reload#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "loads, edits, and saves the main prompt in one editor panel"
+  },
+  {
+    "target": "e2e/settings/main-prompt/restore#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/restore-cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/restore-confirm#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "restores the built-in main prompt only after confirmation"
+  },
+  {
+    "target": "e2e/settings/main-prompt/save-leave#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "saves a dirty main prompt before completing deferred navigation"
   },
   {
     "target": "e2e/settings/model-connections/add#button",
@@ -210,6 +306,14 @@
     "coverage": "visual-only"
   },
   {
+    "target": "e2e/settings/model-connections/models/:model-id/default-image#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
+    "testName": "shows per-capability probe results and allows a tested image default"
+  },
+  {
     "target": "e2e/settings/model-connections/models/:model-id/test#button",
     "route": "settings",
     "type": "button",
@@ -226,14 +330,6 @@
     "testName": "runs the reusable page title and model library row actions"
   },
   {
-    "target": "e2e/settings/model-connections/models/:model-id/default-image#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/SettingsPage.test.tsx",
-    "testName": "shows per-capability probe results and allows a tested image default"
-  },
-  {
     "target": "e2e/settings/model-connections/page#page",
     "route": "settings",
     "type": "page",
@@ -248,6 +344,22 @@
     "testName": "opens model connection settings and returns to the application"
   },
   {
+    "target": "e2e/settings/sidebar/main-prompt#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/sidebar/mcp#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
     "target": "e2e/settings/sidebar/model-connections#button",
     "route": "settings",
     "type": "button",
@@ -258,6 +370,214 @@
     "route": "settings",
     "type": "input",
     "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/sidebar/skills#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/skills/add#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/add-github#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/add-local#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/browse#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/create#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/detail/actions#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "returns from a skill detail to the repository list"
+  },
+  {
+    "target": "e2e/settings/skills/detail/back#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "returns from a skill detail to the repository list"
+  },
+  {
+    "target": "e2e/settings/skills/detail/copy#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
+  },
+  {
+    "target": "e2e/settings/skills/detail/delete#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/detail/rename#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/detail/reveal#menuitem",
+    "route": "settings",
+    "type": "menuitem",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/detail/toggle#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
+  },
+  {
+    "target": "e2e/settings/skills/detail/uninstall#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "shows uninstall for a personal Skill in the detail footer"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/close#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/description#textarea",
+    "route": "settings",
+    "type": "textarea",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/github-url#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "adds Skills from GitHub and a selected local folder"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/name#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/dialog/submit#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
+  },
+  {
+    "target": "e2e/settings/skills/files/:path#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/items/:skill-id#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "navigates across the single settings sidebar without duplicating the shell"
+  },
+  {
+    "target": "e2e/settings/skills/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "shows an exclusive retry state when the skill repository fails to load"
+  },
+  {
+    "target": "e2e/settings/skills/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
+  },
+  {
+    "target": "e2e/settings/skills/toggles/:skill-id#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
+    "testName": "opens a skill into its file tree and saves the selected file"
   },
   {
     "target": "e2e/shared/composer/add#button",
@@ -282,20 +602,20 @@
     "testName": "keeps the full wide image visible with a separate file action row"
   },
   {
-    "target": "e2e/shared/composer/images/preview-close#button",
-    "route": "shared",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
-    "testName": "keeps the full wide image visible with a separate file action row"
-  },
-  {
     "target": "e2e/shared/composer/images/:image-index/remove#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
     "testName": "accepts an image-only message and keeps the image after submission fails"
+  },
+  {
+    "target": "e2e/shared/composer/images/preview-close#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "keeps the full wide image visible with a separate file action row"
   },
   {
     "target": "e2e/shared/composer/images/select#input",
@@ -312,6 +632,14 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
     "testName": "shows the Codex-style stop button and interrupts a running task"
+  },
+  {
+    "target": "e2e/shared/composer/open-model-settings#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "keeps a text and image draft when vision testing has not succeeded"
   },
   {
     "target": "e2e/shared/composer/root#section",
@@ -360,14 +688,6 @@
     "testName": "hides and restores the sidebar on home without losing the draft"
   },
   {
-    "target": "e2e/shared/sidebar/restore#button",
-    "route": "shared",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "restores the sidebar from the browser-only task view without changing layout"
-  },
-  {
     "target": "e2e/shared/sidebar/mcp#button",
     "route": "shared",
     "type": "button",
@@ -382,10 +702,12 @@
     "testName": "reopens the current mock task from Recent Tasks after returning home"
   },
   {
-    "target": "e2e/shared/sidebar/root#nav",
+    "target": "e2e/shared/sidebar/restore#button",
     "route": "shared",
-    "type": "nav",
-    "coverage": "visual-only"
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
+    "testName": "restores the sidebar from the browser-only task view without changing layout"
   },
   {
     "target": "e2e/shared/sidebar/retry-tasks#button",
@@ -394,6 +716,12 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
     "testName": "shows retryable errors without falling back to production mock labels"
+  },
+  {
+    "target": "e2e/shared/sidebar/root#nav",
+    "route": "shared",
+    "type": "nav",
+    "coverage": "visual-only"
   },
   {
     "target": "e2e/shared/sidebar/search#button",
@@ -424,42 +752,42 @@
     "testName": "opens different recent tasks through the shared task page"
   },
   {
+    "target": "e2e/tasks/detail/activity/archive#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "archives completed process closed under an elapsed-time summary"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/raw-io#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
+    "testName": "keeps interleaved process and tool calls ordered live and after reopening"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/toggle#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
+    "testName": "keeps interleaved process and tool calls ordered live and after reopening"
+  },
+  {
+    "target": "e2e/tasks/detail/activity/web-open/source#link",
+    "route": "tasks",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
+    "testName": "renders a webpage title, source and text instead of raw JSON"
+  },
+  {
     "target": "e2e/tasks/detail/agent#section",
     "route": "tasks",
     "type": "section",
     "coverage": "visual-only"
-  },
-  {
-    "target": "e2e/tasks/detail/markdown#section",
-    "route": "tasks",
-    "type": "section",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
-    "testName": "renders model Markdown while escaping raw HTML"
-  },
-  {
-    "target": "e2e/tasks/detail/images/:asset-id/open#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
-    "testName": "loads a generated image, opens it with the keyboard, and offers download"
-  },
-  {
-    "target": "e2e/tasks/detail/images/:asset-id/save#link",
-    "route": "tasks",
-    "type": "link",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
-    "testName": "loads a generated image, opens it with the keyboard, and offers download"
-  },
-  {
-    "target": "e2e/tasks/detail/images/:asset-id/close#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
-    "testName": "loads a generated image, opens it with the keyboard, and offers download"
   },
   {
     "target": "e2e/tasks/detail/browser#section",
@@ -554,361 +882,41 @@
     "testName": "captures all Home and Task Figma states through public controls"
   },
   {
+    "target": "e2e/tasks/detail/images/:asset-id/close#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
+  },
+  {
+    "target": "e2e/tasks/detail/images/:asset-id/open#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
+  },
+  {
+    "target": "e2e/tasks/detail/images/:asset-id/save#link",
+    "route": "tasks",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "loads a generated image, opens it with the keyboard, and offers download"
+  },
+  {
+    "target": "e2e/tasks/detail/markdown#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "renders model Markdown while escaping raw HTML"
+  },
+  {
     "target": "e2e/tasks/detail/page#page",
     "route": "tasks",
     "type": "page",
     "coverage": "visual-only"
-  },
-  {
-    "target": "e2e/tasks/detail/activity/toggle#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
-    "testName": "keeps interleaved process and tool calls ordered live and after reopening"
-  },
-  {
-    "target": "e2e/tasks/detail/activity/archive#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
-    "testName": "archives completed process closed under an elapsed-time summary"
-  },
-  {
-    "target": "e2e/tasks/detail/activity/raw-io#button",
-    "route": "tasks",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/e2e/tool-runtime.spec.ts",
-    "testName": "keeps interleaved process and tool calls ordered live and after reopening"
-  },
-  {
-    "target": "e2e/tasks/detail/activity/web-open/source#link",
-    "route": "tasks",
-    "type": "link",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx",
-    "testName": "renders a webpage title, source and text instead of raw JSON"
-  },
-  {
-    "target": "e2e/settings/sidebar/main-prompt#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "navigates across the single settings sidebar without duplicating the shell"
-  },
-  {
-    "target": "e2e/settings/sidebar/skills#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "navigates across the single settings sidebar without duplicating the shell"
-  },
-  {
-    "target": "e2e/settings/sidebar/mcp#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "navigates across the single settings sidebar without duplicating the shell"
-  },
-  {
-    "target": "e2e/settings/main-prompt/page#page",
-    "route": "settings",
-    "type": "page",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "navigates across the single settings sidebar without duplicating the shell"
-  },
-  {
-    "target": "e2e/settings/skills/page#page",
-    "route": "settings",
-    "type": "page",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/App.test.tsx",
-    "testName": "navigates across the single settings sidebar without duplicating the shell"
-  },
-  {
-    "target": "e2e/settings/agent-editors/:editor-id/mode/:mode#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "loads, edits, and saves the main prompt in one editor panel"
-  },
-  {
-    "target": "e2e/settings/agent-editors/:editor-id/save#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "loads, edits, and saves the main prompt in one editor panel"
-  },
-  {
-    "target": "e2e/settings/agent-editors/:editor-id/content#input",
-    "route": "settings",
-    "type": "input",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "loads, edits, and saves the main prompt in one editor panel"
-  },
-  {
-    "target": "e2e/settings/agent-editors/:editor-id/source#section",
-    "route": "settings",
-    "type": "section",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "switches the same main prompt panel into source mode"
-  },
-  {
-    "target": "e2e/settings/main-prompt/reload#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "loads, edits, and saves the main prompt in one editor panel"
-  },
-  {
-    "target": "e2e/settings/main-prompt/restore#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "restores the built-in main prompt only after confirmation"
-  },
-  {
-    "target": "e2e/settings/main-prompt/restore-confirm#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "restores the built-in main prompt only after confirmation"
-  },
-  {
-    "target": "e2e/settings/main-prompt/restore-cancel#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "restores the built-in main prompt only after confirmation"
-  },
-  {
-    "target": "e2e/settings/main-prompt/leave-cancel#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
-  },
-  {
-    "target": "e2e/settings/main-prompt/discard-leave#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "offers save, discard, and cancel before leaving a dirty main prompt"
-  },
-  {
-    "target": "e2e/settings/main-prompt/save-leave#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "saves a dirty main prompt before completing deferred navigation"
-  },
-  {
-    "target": "e2e/settings/skills/create#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "opens a skill into its file tree and saves the selected file"
-  },
-  {
-    "target": "e2e/settings/skills/retry#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "shows an exclusive retry state when the skill repository fails to load"
-  },
-  {
-    "target": "e2e/settings/skills/search#input",
-    "route": "settings",
-    "type": "input",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "opens a skill into its file tree and saves the selected file"
-  },
-  {
-    "target": "e2e/settings/skills/items/:skill-id#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "opens a skill into its file tree and saves the selected file"
-  },
-  {
-    "target": "e2e/settings/skills/toggles/:skill-id#switch",
-    "route": "settings",
-    "type": "switch",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "opens a skill into its file tree and saves the selected file"
-  },
-  {
-    "target": "e2e/settings/skills/detail/back#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "returns from a skill detail to the repository list"
-  },
-  {
-    "target": "e2e/settings/skills/detail/actions#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "returns from a skill detail to the repository list"
-  },
-  {
-    "target": "e2e/settings/skills/files/:path#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "opens a skill into its file tree and saves the selected file"
-  },
-  {
-    "target": "e2e/settings/skills/detail/rename#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/detail/delete#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/close#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/name#input",
-    "route": "settings",
-    "type": "input",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/description#textarea",
-    "route": "settings",
-    "type": "textarea",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/cancel#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/submit#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/browse#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "adds Skills from GitHub and a selected local folder"
-  },
-  {
-    "target": "e2e/settings/skills/add#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "adds Skills from GitHub and a selected local folder"
-  },
-  {
-    "target": "e2e/settings/skills/add-github#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "adds Skills from GitHub and a selected local folder"
-  },
-  {
-    "target": "e2e/settings/skills/add-local#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "adds Skills from GitHub and a selected local folder"
-  },
-  {
-    "target": "e2e/settings/skills/detail/toggle#switch",
-    "route": "settings",
-    "type": "switch",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
-  },
-  {
-    "target": "e2e/settings/skills/detail/reveal#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "creates a skill through the validated dialog and exposes protected actions safely"
-  },
-  {
-    "target": "e2e/settings/skills/detail/copy#menuitem",
-    "route": "settings",
-    "type": "menuitem",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "toggles a system Skill and copies its Markdown from the detail menu"
-  },
-  {
-    "target": "e2e/settings/skills/detail/uninstall#button",
-    "route": "settings",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "shows uninstall for a personal Skill in the detail footer"
-  },
-  {
-    "target": "e2e/settings/skills/dialog/github-url#input",
-    "route": "settings",
-    "type": "input",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx",
-    "testName": "adds Skills from GitHub and a selected local folder"
   }
 ]

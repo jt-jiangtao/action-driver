@@ -1,5 +1,4 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
-import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 import type { RuntimeHttpClient } from './runtime-http-client'
 
 export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
@@ -34,7 +33,7 @@ export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
   ) {
     return this.http.request<Awaited<ReturnType<ModelConnectionsDesktopApi['testModels']>>>(
       '/model-connections/test-models',
-      { method: 'POST', body: { draft, modelIds, capabilityTest: true } }
+      { method: 'POST', body: { draft, modelIds } }
     )
   }
   testConnectionModels(connectionId: string, modelIds: string[]) {
@@ -42,40 +41,13 @@ export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
       Awaited<ReturnType<ModelConnectionsDesktopApi['testConnectionModels']>>
     >(`/model-connections/${encodeURIComponent(connectionId)}/test-models`, {
       method: 'POST',
-      body: { modelIds, capabilityTest: true }
+      body: { modelIds }
     })
   }
   async setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void> {
     await this.http.request(
       `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}`,
       { method: 'POST', body: { enabled } }
-    )
-  }
-  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
-    await this.http.request(
-      `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/kind`,
-      { method: 'PUT', body: { kind } }
-    )
-  }
-  async setModelImageCapability(
-    connectionId: string,
-    modelId: string,
-    kind: 'input' | 'generation',
-    enabled: boolean
-  ): Promise<void> {
-    await this.http.request(
-      `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/image-capability`,
-      { method: 'POST', body: { kind, enabled } }
-    )
-  }
-  async setModelImageGenerationApi(
-    connectionId: string,
-    modelId: string,
-    api: ImageGenerationApi
-  ): Promise<void> {
-    await this.http.request(
-      `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/image-generation-api`,
-      { method: 'PUT', body: { api } }
     )
   }
   async setDefaultImageModel(
