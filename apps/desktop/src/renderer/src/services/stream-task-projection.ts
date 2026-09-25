@@ -160,6 +160,7 @@ export class StreamTaskProjection {
     if (
       event.type !== 'response.start' &&
       event.type !== 'response.content' &&
+      event.type !== 'response.image_batch' &&
       event.type !== 'response.image' &&
       event.type !== 'response.tool_preparing' &&
       event.type !== 'response.end'
@@ -187,19 +188,33 @@ export class StreamTaskProjection {
     if (event.type === 'response.content') {
       this.task = { ...this.task, streamSequence: event.sequence }
       delete this.task.preparingToolName
+      const before = this.assistantMessage(event.messageId)
+      const parts = before?.parts
+        ? [...before.parts]
+        : before?.content
+          ? [{ kind: 'text' as const, text: before.content }]
+          : []
+      const index = Math.min(event.contentIndex, parts.length)
+      if (parts[index]?.kind === 'text') parts[index].text += event.delta
+      else parts.splice(index, 0, { kind: 'text', text: event.delta })
       this.replaceAssistantContent(
         event.messageId,
-        `${this.assistantMessage(event.messageId)?.content ?? ''}${event.delta}`
+        `${before?.content ?? ''}${event.delta}`
       )
-      const assistant = this.assistantMessage(event.messageId)
-      if (assistant?.parts?.some((part) => part.kind === 'image')) {
-        const parts = [...assistant.parts]
-        const text = parts.find((part) => part.kind === 'text')
-        if (text) text.text += event.delta
-        else parts.unshift({ kind: 'text', text: event.delta })
+      this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
+      this.scheduleEmit()
+      return
+    }
+
+    if (event.type === 'response.image_batch') {
+      const parts = [...(this.assistantMessage(event.messageId)?.parts ?? [])]
+      if (!parts.some((part) => part.kind === 'image-batch' && part.callId === event.callId)) {
+        parts.splice(Math.min(event.contentIndex, parts.length), 0, {
+          kind: 'image-batch', callId: event.callId, imageCount: event.imageCount
+        })
         this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
-      this.scheduleEmit()
+      this.flush()
       return
     }
 
@@ -213,7 +228,9 @@ export class StreamTaskProjection {
       if (
         !parts.some((part) => part.kind === 'image' && part.asset.assetId === event.asset.assetId)
       ) {
-        parts.push({ kind: 'image', asset: event.asset, generation: { callId: event.callId, index: event.index } })
+        parts.splice(Math.min(event.contentIndex, parts.length), 0, {
+          kind: 'image', asset: event.asset, generation: { callId: event.callId, index: event.index }
+        })
         this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
       this.flush()
@@ -221,13 +238,11 @@ export class StreamTaskProjection {
     }
 
     this.replaceAssistantContent(event.messageId, event.content)
-    const images =
-      this.assistantMessage(event.messageId)?.parts?.filter((part) => part.kind === 'image') ?? []
-    if (images.length)
-      this.replaceAssistantParts(
-        event.messageId,
-        normalizeAssistantParts(event.content ? [{ kind: 'text', text: event.content }, ...images] : images)
-      )
+    const visualParts = this.assistantMessage(event.messageId)?.parts?.filter((part) => part.kind !== 'text') ?? []
+    if (visualParts.length || this.assistantMessage(event.messageId)?.parts)
+      this.replaceAssistantParts(event.messageId, normalizeAssistantParts(
+        event.content ? [...visualParts, { kind: 'text', text: event.content }] : visualParts
+      ))
     const completed = event.status === 'completed'
     const detail = completed
       ? '模型响应已完成'

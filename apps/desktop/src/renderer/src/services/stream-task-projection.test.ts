@@ -53,6 +53,56 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('keeps batch anchors ahead of final text through replay and late images', () => {
+    const image = {
+      assetId: 'asset-b', sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    }
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    const batch = (sequence: number, callId: string, imageCount: number, contentIndex: number) => ({
+      type: 'response.image_batch' as const, ...identity, eventId: `batch-${callId}`,
+      cursor: sequence + 1, sequence, callId, imageCount, contentIndex
+    })
+    projection.apply(batch(0, 'a', 2, 0))
+    expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
+      { kind: 'image-batch', callId: 'a', imageCount: 2 }
+    ])
+    projection.apply({ ...content(1, '过程'), cursor: 2, contentIndex: 1 })
+    projection.apply(batch(2, 'b', 1, 2))
+    projection.apply({
+      type: 'response.image', ...identity, eventId: 'image-b', cursor: 4, sequence: 3,
+      asset: image, callId: 'b', index: 0, contentIndex: 3
+    })
+    projection.apply({
+      type: 'response.end', ...identity, eventId: 'end-batches', cursor: 5, sequence: 4,
+      status: 'completed', content: '完成', finishReason: 'stop', usage: null,
+      durationMs: 10, error: null
+    })
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind !== 'image')).toEqual([
+      { kind: 'image-batch', callId: 'a', imageCount: 2 },
+      { kind: 'image-batch', callId: 'b', imageCount: 1 },
+      { kind: 'text', text: '完成' }
+    ])
+    const snapshot = projection.snapshot()!
+    projection.apply({
+      type: 'response.snapshot', ...identity, eventId: 'snapshot-batches', cursor: 6, sequence: 5,
+      status: 'completed', messages: snapshot.messages.map((message) => ({
+        ...message, role: message.role === 'agent' ? 'assistant' as const : 'user' as const,
+        createdAt: identity.occurredAt
+      })), tools: [], error: null
+    })
+    projection.apply({
+      type: 'response.image', ...identity, eventId: 'image-a', cursor: 7, sequence: 6,
+      asset: { ...image, assetId: 'asset-a' }, callId: 'a', index: 1, contentIndex: 4
+    })
+    projection.apply(batch(0, 'a', 2, 0))
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image-batch')).toEqual([
+      { kind: 'image-batch', callId: 'a', imageCount: 2 },
+      { kind: 'image-batch', callId: 'b', imageCount: 1 }
+    ])
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image')).toHaveLength(2)
+  })
   it('projects generated images once and retains them after final text and snapshot', () => {
     const image = {
       assetId: 'asset-1',
@@ -103,8 +153,8 @@ describe('StreamTaskProjection', () => {
     expect(projection.snapshot()?.messages.at(-1)).toMatchObject({
       content: '完成',
       parts: [
-        { kind: 'text', text: '完成' },
-        { kind: 'image', asset: image }
+        { kind: 'image', asset: image },
+        { kind: 'text', text: '完成' }
       ]
     })
     projection.apply({
@@ -131,7 +181,7 @@ describe('StreamTaskProjection', () => {
       error: null
     })
     expect(projection.snapshot()?.messages.at(-1)?.parts).toHaveLength(2)
-    expect(projection.snapshot()?.messages.at(-1)?.parts?.[0]).toEqual({ kind: 'text', text: '完成' })
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.[0]).toEqual({ kind: 'image', asset: image })
   })
   it('shows tool preparation only while the model is preparing its call', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
