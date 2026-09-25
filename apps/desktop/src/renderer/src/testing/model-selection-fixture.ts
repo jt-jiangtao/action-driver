@@ -34,6 +34,12 @@ function model(
     ref: { connectionId, modelId },
     disabled,
     disabledReason,
-    visionVerified: true
+    visionVerified: true,
+    capabilityStates: {
+      text: 'success' as const,
+      reasoning: 'untested' as const,
+      vision: 'success' as const,
+      image_generation: 'untested' as const
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { loadingModelSelection, toModelSelectionProjection } from '../../models/model-selection'
@@ -6,6 +6,93 @@ import { mockModelSelection } from '../../testing/model-selection-fixture'
 import { ModelSelector } from './ModelSelector'
 
 describe('ModelSelector', () => {
+  it('projects each tested capability into a readable state without changing chat eligibility', () => {
+    const projection = toModelSelectionProjection(
+      [
+        {
+          id: 'gateway',
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://example.com/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'chat',
+              name: 'chat',
+              enabled: true,
+              testState: 'failed',
+              chatCandidate: true,
+              capabilities: {
+                text: { state: 'success', source: 'probe' },
+                reasoning: { state: 'inconclusive', source: 'probe' },
+                vision: { state: 'unsupported', source: 'probe' }
+              }
+            }
+          ]
+        }
+      ],
+      null
+    )
+    expect(projection.connections[0]?.models[0]?.capabilityStates).toEqual({
+      text: 'success',
+      reasoning: 'failed',
+      vision: 'failed',
+      image_generation: 'untested'
+    })
+    expect(projection.selected?.modelId).toBe('chat')
+  })
+
+  it('shows four capability states from an icon on hover and keyboard navigation', async () => {
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    const projection = toModelSelectionProjection(
+      [
+        {
+          id: 'gateway',
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://example.com/v1',
+          apiKeyHint: '••••1234',
+          expanded: true,
+          models: [
+            {
+              id: 'chat',
+              name: 'chat',
+              enabled: true,
+              testState: 'success',
+              chatCandidate: true,
+              capabilities: {
+                text: { state: 'success', source: 'probe' },
+                reasoning: { state: 'failed', source: 'probe' },
+                image_generation: { state: 'success', source: 'probe' }
+              }
+            }
+          ]
+        }
+      ],
+      { connectionId: 'gateway', modelId: 'chat' }
+    )
+    render(<ModelSelector projection={projection} onSelect={onSelect} />)
+    await user.click(screen.getByRole('button', { name: /当前模型/ }))
+    const option = screen.getByRole('option', { name: 'chat' })
+    const icon = within(option).getByRole('img', { name: '查看能力状态' })
+    expect(icon.previousElementSibling).toHaveTextContent('chat')
+    expect(option.querySelector('.model-option-check')).toBe(option.lastElementChild)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.hover(icon)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('文本：成功')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('推理：失败')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('视觉：待测试')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('生图：成功')
+    await user.unhover(icon)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('tooltip')).toBeVisible()
+    await user.keyboard('{Enter}')
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith({ connectionId: 'gateway', modelId: 'chat' })
+  })
+
   it('does not treat universal probe coverage as permission to chat', () => {
     const projection = toModelSelectionProjection(
       [

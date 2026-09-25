@@ -6,14 +6,14 @@ const tokenPlanUrl = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible
 describe('capabilityCandidates', () => {
   it('chooses text, reasoning and vision probes for a listed visual model', () => {
     expect(capabilityCandidates('qwen3.8-max', tokenPlanUrl)).toEqual({
-      probes: ['text', 'reasoning', 'vision'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: []
     })
   })
 
   it('tests vision for the listed text-only qwen model instead of trusting its name', () => {
     expect(capabilityCandidates('qwen3.7-max', tokenPlanUrl)).toEqual({
-      probes: ['text', 'reasoning', 'vision'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: []
     })
   })
@@ -27,14 +27,14 @@ describe('capabilityCandidates', () => {
 
   it('probes all three chat capabilities for a video model without testing video generation', () => {
     expect(capabilityCandidates('happyhorse-1.1-t2v', tokenPlanUrl)).toEqual({
-      probes: ['text', 'reasoning', 'vision'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: ['text_to_video']
     })
   })
 
   it('probes all three chat capabilities for an audio model without testing audio', () => {
     expect(capabilityCandidates('qwen-audio-3.0-asr-flash', tokenPlanUrl)).toEqual({
-      probes: ['text', 'reasoning', 'vision'],
+      probes: ['text', 'reasoning', 'vision', 'image_generation'],
       displayOnly: ['speech_recognition']
     })
   })

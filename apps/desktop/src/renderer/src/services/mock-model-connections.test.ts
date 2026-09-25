@@ -37,7 +37,7 @@ describe('MockModelConnectionsService', () => {
     ])
   })
 
-  it('shows three probe candidates without making audio models chat candidates', async () => {
+  it('shows four probe candidates without making audio models chat candidates', async () => {
     const connection = (await new MockModelConnectionsService({ delayMs: 0 }).list())[0]!
     const audio = {
       id: 'audio-only',
@@ -51,11 +51,27 @@ describe('MockModelConnectionsService', () => {
       seed: [{ ...connection, models: [audio] }]
     })
     expect((await service.list())[0]!.models[0]).toMatchObject({
-      probeCandidates: ['text', 'reasoning', 'vision'],
+      probeCandidates: ['text', 'reasoning', 'vision', 'image_generation'],
       chatCandidate: false
     })
     const [result] = await service.testConnectionModels(connection.id, ['audio-only'])
-    expect(Object.keys(result!.capabilities ?? {})).toEqual(['text', 'reasoning', 'vision'])
+    expect(Object.keys(result!.capabilities ?? {})).toEqual([
+      'text',
+      'reasoning',
+      'vision',
+      'image_generation'
+    ])
+  })
+
+  it('returns an image-generation test outcome for every discovered model', async () => {
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const models = (await service.list())[0]!.models
+    expect(models.every((model) => model.probeCandidates?.includes('image_generation'))).toBe(true)
+    const results = await service.testConnectionModels('company-gateway', ['gpt-5.2', 'gpt-4.1'])
+    expect(results.map((result) => result.capabilities?.image_generation?.state)).toEqual([
+      'failed',
+      'failed'
+    ])
   })
 
   it('supports deterministic partial-failure and all-success model tests', async () => {
@@ -79,7 +95,8 @@ describe('MockModelConnectionsService', () => {
         capabilities: {
           text: { state: 'success', source: 'probe' },
           reasoning: { state: 'success', source: 'probe' },
-          vision: { state: 'success', source: 'probe' }
+          vision: { state: 'success', source: 'probe' },
+          image_generation: { state: 'failed', source: 'probe' }
         }
       }),
       expect.objectContaining({
@@ -88,7 +105,8 @@ describe('MockModelConnectionsService', () => {
         capabilities: {
           text: { state: 'failed', source: 'probe' },
           reasoning: { state: 'failed', source: 'probe' },
-          vision: { state: 'failed', source: 'probe' }
+          vision: { state: 'failed', source: 'probe' },
+          image_generation: { state: 'failed', source: 'probe' }
         }
       })
     ])

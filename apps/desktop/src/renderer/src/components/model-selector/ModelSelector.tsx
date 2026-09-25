@@ -29,23 +29,30 @@ export function ModelSelector({
   useEffect(() => {
     if (!selectedConnectionId) return
     setExpanded((current) =>
-      current.has(selectedConnectionId)
-        ? current
-        : new Set([...current, selectedConnectionId])
+      current.has(selectedConnectionId) ? current : new Set([...current, selectedConnectionId])
     )
   }, [selectedConnectionId])
   const visibleModels = useMemo(
-    () => projection.connections.flatMap((connection) => expanded.has(connection.id) ? connection.models.map((model) => ({ connection, model })) : []),
+    () =>
+      projection.connections.flatMap((connection) =>
+        expanded.has(connection.id) ? connection.models.map((model) => ({ connection, model })) : []
+      ),
     [expanded, projection.connections]
   )
-  const initialIndex = Math.max(0, visibleModels.findIndex(({ model }) =>
-    model.ref.connectionId === projection.selected?.connectionId &&
-    model.ref.modelId === projection.selected?.modelId
-  ))
+  const initialIndex = Math.max(
+    0,
+    visibleModels.findIndex(
+      ({ model }) =>
+        model.ref.connectionId === projection.selected?.connectionId &&
+        model.ref.modelId === projection.selected?.modelId
+    )
+  )
   const [activeIndex, setActiveIndex] = useState(initialIndex)
+  const [keyboardIndex, setKeyboardIndex] = useState<number | null>(null)
 
   const setMenuOpen = (nextOpen: boolean) => {
     setOpen(nextOpen)
+    if (!nextOpen) setKeyboardIndex(null)
     onOpenChange?.(nextOpen)
   }
 
@@ -84,6 +91,7 @@ export function ModelSelector({
       do next = (next + direction + visibleModels.length) % visibleModels.length
       while (visibleModels[next]?.model.disabled && next !== activeIndex)
       setActiveIndex(next)
+      setKeyboardIndex(next)
       return
     }
     if (event.key === 'Enter') {
@@ -113,12 +121,16 @@ export function ModelSelector({
       {open ? (
         <div
           aria-label="选择模型"
+          aria-activedescendant={
+            keyboardIndex === null ? undefined : `${menuId}-option-${keyboardIndex}`
+          }
           className="model-selector-menu"
           id={menuId}
           onKeyDown={handleMenuKeyDown}
           ref={listboxRef}
           role="listbox"
           tabIndex={-1}
+          onMouseMove={() => setKeyboardIndex(null)}
         >
           {projection.connections.map((connection) => {
             const isExpanded = expanded.has(connection.id)
@@ -137,28 +149,33 @@ export function ModelSelector({
                     })
                   }}
                 />
-                {isExpanded ? connection.models.map((model) => {
-                  const modelIndex = visibleModels.findIndex(({ model: candidate }) =>
-                    candidate.ref.connectionId === model.ref.connectionId &&
-                    candidate.ref.modelId === model.ref.modelId
-                  )
-                  return (
-                    <ModelOptionItem
-                      active={modelIndex === activeIndex}
-                      key={`${connection.id}:${model.id}`}
-                      model={model}
-                      onSelect={() => {
-                        if (model.disabled) return
-                        onSelect(model.ref)
-                        setMenuOpen(false)
-                      }}
-                      selected={
-                        model.ref.connectionId === projection.selected?.connectionId &&
-                        model.ref.modelId === projection.selected?.modelId
-                      }
-                    />
-                  )
-                }) : null}
+                {isExpanded
+                  ? connection.models.map((model) => {
+                      const modelIndex = visibleModels.findIndex(
+                        ({ model: candidate }) =>
+                          candidate.ref.connectionId === model.ref.connectionId &&
+                          candidate.ref.modelId === model.ref.modelId
+                      )
+                      return (
+                        <ModelOptionItem
+                          active={modelIndex === activeIndex}
+                          keyboardActive={modelIndex === keyboardIndex}
+                          optionId={`${menuId}-option-${modelIndex}`}
+                          key={`${connection.id}:${model.id}`}
+                          model={model}
+                          onSelect={() => {
+                            if (model.disabled) return
+                            onSelect(model.ref)
+                            setMenuOpen(false)
+                          }}
+                          selected={
+                            model.ref.connectionId === projection.selected?.connectionId &&
+                            model.ref.modelId === projection.selected?.modelId
+                          }
+                        />
+                      )
+                    })
+                  : null}
               </div>
             )
           })}

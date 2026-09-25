@@ -22,6 +22,7 @@ import {
   Folder,
   Globe2,
   Hand,
+  Info,
   Link,
   ListTodo,
   LoaderCircle,
@@ -69,6 +70,7 @@ export type AppIconName =
   | 'close'
   | 'ellipsis'
   | 'eye'
+  | 'info'
   | 'folder'
   | 'globe'
   | 'link'
@@ -122,6 +124,7 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   close: X,
   ellipsis: Ellipsis,
   eye: Eye,
+  info: Info,
   folder: Folder,
   globe: Globe2,
   link: Link,
@@ -160,7 +163,15 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   sun: Sun
 }
 
-export function AppIcon({ name, size = 16, className }: { name: AppIconName; size?: number; className?: string }) {
+export function AppIcon({
+  name,
+  size = 16,
+  className
+}: {
+  name: AppIconName
+  size?: number
+  className?: string
+}) {
   const Icon = iconByName[name]
   return (
     <Icon

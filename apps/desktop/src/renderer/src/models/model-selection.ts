@@ -1,7 +1,9 @@
 import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelCapability } from '@actiondriver/model-connections'
 import type { ModelConnection } from './model-connections'
 
 export type ModelSelectionState = 'loading' | 'ready' | 'empty' | 'error'
+export type CapabilityDisplayState = 'success' | 'failed' | 'untested'
 
 export interface ModelOptionItemProjection {
   id: string
@@ -10,6 +12,7 @@ export interface ModelOptionItemProjection {
   disabled: boolean
   disabledReason: string | null
   visionVerified: boolean
+  capabilityStates: Record<ModelCapability, CapabilityDisplayState>
 }
 
 export interface ModelConnectionOption {
@@ -63,13 +66,23 @@ export function toModelSelectionProjection(
                   model.kind !== 'image')
         )
         .map((model) => {
+          const displayState = (capability: ModelCapability): CapabilityDisplayState => {
+            const state = model.capabilities?.[capability]?.state
+            return state === undefined ? 'untested' : state === 'success' ? 'success' : 'failed'
+          }
           return {
             id: model.id,
             name: model.name,
             ref: { connectionId: connection.id, modelId: model.id },
             disabled: false,
             disabledReason: null,
-            visionVerified: model.capabilities?.vision?.state === 'success'
+            visionVerified: model.capabilities?.vision?.state === 'success',
+            capabilityStates: {
+              text: displayState('text'),
+              reasoning: displayState('reasoning'),
+              vision: displayState('vision'),
+              image_generation: displayState('image_generation')
+            }
           }
         })
     }))

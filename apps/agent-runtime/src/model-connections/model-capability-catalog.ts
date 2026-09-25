@@ -12,7 +12,7 @@ export type DisplayOnlyCapability =
 const TEXT_REASONING_VISION: readonly ModelCapability[] = ['text', 'reasoning', 'vision']
 const TEXT_REASONING: readonly ModelCapability[] = ['text', 'reasoning']
 const IMAGE: readonly ModelCapability[] = ['image_generation']
-const GENERIC: readonly ModelCapability[] = ['text', 'vision', 'image_generation']
+const ALL_PROBES: readonly ModelCapability[] = ['text', 'reasoning', 'vision', 'image_generation']
 
 const TOKEN_PLAN_CATALOG: Readonly<
   Record<
@@ -48,10 +48,7 @@ export function capabilityCandidates(
 ): { probes: ModelCapability[]; displayOnly: DisplayOnlyCapability[] } {
   const known = isTokenPlanBaseUrl(baseUrl) ? TOKEN_PLAN_CATALOG[modelId] : undefined
   return {
-    probes: [
-      ...TEXT_REASONING_VISION,
-      ...((known?.probes ?? GENERIC).includes('image_generation') ? IMAGE : [])
-    ],
+    probes: [...ALL_PROBES],
     displayOnly: [...(known?.displayOnly ?? [])]
   }
 }

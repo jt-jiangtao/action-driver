@@ -186,6 +186,9 @@ describe('SettingsPage model connections', () => {
     const service = new MockModelConnectionsService({ delayMs: 0, seed })
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await screen.findByText('公司模型网关')
+    await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
+    const chatRow = screen.getByText('gpt-5.2').closest<HTMLElement>('.model-row')!
+    expect(await within(chatRow).findByText('生图 · 失败')).toBeVisible()
     expect(screen.queryByRole('combobox', { name: 'gpt-5.2 模型类型' })).toBeNull()
     expect(screen.queryByRole('combobox', { name: 'gpt-5.2 生图接口' })).toBeNull()
     await user.click(screen.getByRole('button', { name: '设为默认生图模型：wan2.7-image' }))

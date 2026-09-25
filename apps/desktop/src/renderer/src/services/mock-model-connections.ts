@@ -78,16 +78,7 @@ function cloneModels(models: ModelOption[]): ModelOption[] {
       (model.kind !== 'image' &&
         !model.catalogLabels?.length &&
         !(model.capabilities?.image_generation && !model.capabilities.text)),
-    probeCandidates: [
-      'text',
-      'reasoning',
-      'vision',
-      ...(model.probeCandidates?.includes('image_generation') ||
-      model.capabilities?.image_generation ||
-      model.imageGenerationEnabled
-        ? (['image_generation'] as const)
-        : [])
-    ],
+    probeCandidates: ['text', 'reasoning', 'vision', 'image_generation'],
     kind: model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat')
   }))
 }
@@ -154,14 +145,10 @@ export class MockModelConnectionsService implements ModelConnectionsService {
           text: { state: success ? 'success' : 'failed', source: 'probe' },
           reasoning: { state: success ? 'success' : 'failed', source: 'probe' },
           vision: { state: success ? 'success' : 'failed', source: 'probe' },
-          ...(modelId.includes('image')
-            ? {
-                image_generation: {
-                  state: success ? ('success' as const) : ('failed' as const),
-                  source: 'probe' as const
-                }
-              }
-            : {})
+          image_generation: {
+            state: modelId.includes('image') && success ? 'success' : 'failed',
+            source: 'probe'
+          }
         }
       }
     })

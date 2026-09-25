@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ModelServiceError, type ModelOptionDto } from '@actiondriver/model-connections'
 import { ModelConnectionService } from '../src/model-connections/service'
 import type {
@@ -101,7 +101,18 @@ const validPng = Buffer.from(
 )
 
 describe('model connection service', () => {
-  it('lists three probe candidates for audio models without storing audio labels as results', async () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('unsupported', { status: 400 }))
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists four probe candidates for audio models without storing audio labels as results', async () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
     const created = await service.add({
       draft: {
@@ -118,13 +129,24 @@ describe('model connection service', () => {
         }
       ]
     })
-    expect(created.models[0]?.probeCandidates).toEqual(['text', 'reasoning', 'vision'])
-    expect(created.models[1]?.probeCandidates).toEqual(['text', 'reasoning', 'vision'])
+    expect(created.models[0]?.probeCandidates).toEqual([
+      'text',
+      'reasoning',
+      'vision',
+      'image_generation'
+    ])
+    expect(created.models[1]?.probeCandidates).toEqual([
+      'text',
+      'reasoning',
+      'vision',
+      'image_generation'
+    ])
     expect(created.models[1]?.chatCandidate).toBe(false)
     expect((await service.list())[0]?.models[0]?.probeCandidates).toEqual([
       'text',
       'reasoning',
-      'vision'
+      'vision',
+      'image_generation'
     ])
   })
 
@@ -306,14 +328,52 @@ describe('model connection service', () => {
     })
     expect(requests).toHaveLength(6)
     expect(results.map((result) => Object.keys(result.capabilities ?? {}).sort())).toEqual([
-      ['reasoning', 'text', 'vision'],
-      ['reasoning', 'text', 'vision']
+      ['image_generation', 'reasoning', 'text', 'vision'],
+      ['image_generation', 'reasoning', 'text', 'vision']
     ])
     expect(
       results.every((result) =>
-        Object.values(result.capabilities ?? {}).every((item) => item.state === 'success')
+        ['text', 'reasoning', 'vision'].every(
+          (capability) =>
+            result.capabilities?.[capability as 'text' | 'reasoning' | 'vision']?.state ===
+            'success'
+        )
       )
     ).toBe(true)
+  })
+
+  it('actually sends an image generation request for text, audio and video models', async () => {
+    const fetch = vi.fn(async () => new Response('unsupported', { status: 400 }))
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const { service, requests } = createService(() => ({
+        status: 200,
+        body: { choices: [{ message: { content: 'red', reasoning_content: 'reason' } }] },
+        text: ''
+      }))
+      const modelIds = ['qwen3.8-max', 'qwen-audio-3.0-asr-flash', 'happyhorse-1.1-t2v']
+      const results = await service.testModels({
+        draft: {
+          ...draft,
+          baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+        },
+        modelIds
+      })
+      expect(requests).toHaveLength(9)
+      expect(fetch).toHaveBeenCalledTimes(3)
+      expect(results.map((result) => result.capabilities?.image_generation?.state)).toEqual([
+        'failed',
+        'failed',
+        'failed'
+      ])
+      expect(results.map((result) => result.capabilities?.text?.state)).toEqual([
+        'success',
+        'success',
+        'success'
+      ])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('does not restore a model that was disabled while its capability test ran', async () => {

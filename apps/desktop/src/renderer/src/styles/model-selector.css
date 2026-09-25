@@ -63,7 +63,9 @@
   background: var(--ad-color-bg-surface);
   border: 1px solid var(--ad-color-border-default);
   border-radius: 14px;
-  box-shadow: 0 14px 36px rgb(20 24 33 / 16%), 0 2px 8px rgb(20 24 33 / 8%);
+  box-shadow:
+    0 14px 36px rgb(20 24 33 / 16%),
+    0 2px 8px rgb(20 24 33 / 8%);
   outline: none;
 }
 
@@ -84,12 +86,30 @@
   font-weight: 500;
 }
 
-.model-connection-item > span,
-.model-option-item > span {
+.model-connection-item > span {
   flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.model-option-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.model-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-option-check {
+  display: grid;
+  flex: 0 0 16px;
+  place-items: center;
+  margin-left: auto;
 }
 
 .model-connection-item svg,
@@ -118,6 +138,56 @@
   cursor: not-allowed;
   color: var(--ad-color-text-tertiary);
   background: transparent;
+}
+
+.model-capability-info {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  margin-left: 6px;
+  color: var(--ad-color-text-tertiary);
+  border-radius: 5px;
+}
+
+.model-capability-info:hover,
+.model-option-item[data-active='true'] .model-capability-info {
+  color: var(--ad-color-text-primary);
+  background: var(--ad-color-bg-hover);
+}
+
+.model-capability-tooltip {
+  position: fixed;
+  z-index: 100;
+  width: 188px;
+  padding: 9px 11px;
+  color: var(--ad-color-text-primary);
+  font-size: 12px;
+  line-height: 22px;
+  background: var(--ad-color-bg-surface);
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(20 24 33 / 14%);
+  pointer-events: none;
+}
+
+.model-capability-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.model-capability-tooltip-row [data-state='success'] {
+  color: var(--ad-color-success, #168454);
+}
+
+.model-capability-tooltip-row [data-state='failed'] {
+  color: var(--ad-color-danger, #b83c32);
+}
+
+.model-capability-tooltip-row [data-state='untested'] {
+  color: var(--ad-color-text-tertiary);
 }
 .model-option-reason {
   flex: 0 1 auto;
