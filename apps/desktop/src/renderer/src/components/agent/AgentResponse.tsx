@@ -61,11 +61,10 @@ export function AgentResponse({
       return
     }
     const callId = part.generation?.callId
-    if (callId && (anchoredCalls.has(callId) || shownCalls.has(callId))) return
+    if (callId && anchoredCalls.has(callId)) return
     if (callId) {
       shownCalls.add(callId)
-      const tool = activeTools.find((candidate) => candidate.callId === callId)
-      blocks.push(<ImageGallery key={`legacy-call-${callId}`} images={images.filter((image) => image.generation?.callId === callId)} tools={tool ? [tool] : []} readImage={readImage} />)
+      blocks.push(<ImageGallery key={`legacy-call-${callId}-${index}`} images={[part]} readImage={readImage} />)
     } else {
       blocks.push(<ImageGallery key={`legacy-image-${index}`} images={[part]} readImage={readImage} />)
     }

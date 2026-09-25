@@ -84,6 +84,39 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('does not place an uncommitted image in the terminal snapshot after asset write failure', async () => {
+    const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, _observer, onToolEvent) {
+        const asset = await harness.assets.saveGenerated(request.sessionId!, png)
+        const record = await harness.repositories.events.append({
+          taskId: request.taskId, threadId: request.sessionId!, checkpointId: 'tool:0',
+          eventKey: 'tool.asset:a:0', type: 'tool.asset',
+          payload: { callId: 'a', toolId: 'image.generate', modelName: 'image_generate',
+            summary: '生成图片', argumentsHash: '', activityId: null, index: 0, asset },
+          occurredAt: '2026-09-23T00:00:01.000Z', eventId: 'asset-a',
+          requestId: request.streamRequestId!, sequence: 1
+        })
+        await onToolEvent?.(record)
+        return { taskId: request.taskId, threadId: request.taskId,
+          status: 'completed', output: '', error: null, trace: [] }
+      },
+      interrupt: () => false,
+      async continue() { throw new Error('unused') },
+      async provideInput() { throw new Error('unused') }
+    }
+    const harness = createHarness(graphRunner)
+    vi.spyOn(harness.repositories, 'commitAssistantImageWithEvent').mockImplementation(() => {
+      throw new Error('image write failed')
+    })
+    const events = await runToEnd(harness.service, createEvent)
+    expect(events.some((event) => event.type === 'response.image')).toBe(false)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.messages.at(-1)?.parts?.some((part) => part.kind === 'image')).not.toBe(true)
+    harness.repositories.close()
+  })
   it('does not publish an image batch when its atomic content commit fails', async () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, _observer, onToolEvent) {

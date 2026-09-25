@@ -402,28 +402,35 @@ export class StreamSessionService {
                 return
               const imageKey = `${payload.callId}:${payload.index}`
               if (seenImages.has(imageKey)) return
-              seenImages.add(imageKey)
               if (assistantParts.length === 0 && content)
                 assistantParts.push({ kind: 'text', text: content })
               const contentIndex = assistantParts.length
               assistantParts.push({ kind: 'image', asset: payload.asset, generation: { callId: payload.callId, index: payload.index } })
               sequence += 1
-              const imageRecord = await this.options.repositories.commitAssistantImageWithEvent(
-                request,
-                { ...initialAssistant, content: assistantContent() },
-                this.runtimeEvent(
+              let imageRecord
+              try {
+                imageRecord = await this.options.repositories.commitAssistantImageWithEvent(
                   request,
-                  'response.image',
-                  sequence,
-                  {
-                    asset: payload.asset,
-                    contentIndex,
-                    callId: payload.callId,
-                    index: payload.index
-                  },
-                  `response.image:${imageKey}`
+                  { ...initialAssistant, content: assistantContent() },
+                  this.runtimeEvent(
+                    request,
+                    'response.image',
+                    sequence,
+                    {
+                      asset: payload.asset,
+                      contentIndex,
+                      callId: payload.callId,
+                      index: payload.index
+                    },
+                    `response.image:${imageKey}`
+                  )
                 )
-              )
+              } catch (error) {
+                assistantParts.pop()
+                sequence -= 1
+                throw error
+              }
+              seenImages.add(imageKey)
               await this.publishThrough(request, imageRecord.cursor, emit)
             }
           }

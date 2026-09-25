@@ -86,7 +86,7 @@ export function TaskPage({
   )
   const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
   const assistantMessages =
-    task.status === 'succeeded' || task.status === 'running' || task.status === 'paused'
+    task.status === 'succeeded' || task.status === 'running' || task.status === 'paused' || task.status === 'failed'
       ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
       : []
   const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false
@@ -103,7 +103,13 @@ export function TaskPage({
       ? []
       : assistantMessages
   const renderedAssistantMessages =
-    task.status === 'running'
+    task.status === 'failed'
+      ? visibleAssistantMessages.filter((message) => message.parts?.some((part) => part.kind !== 'text')).map((message) => ({
+          ...message,
+          content: '',
+          parts: message.parts?.filter((part) => part.kind !== 'text') ?? []
+        }))
+      : task.status === 'running' || task.status === 'paused'
       ? visibleAssistantMessages.map((message) => {
           const timelineText = task.activityTimeline?.filter((item) => item.kind === 'text').map((item) => item.content).join('') ?? ''
           return timelineText && timelineText === message.content

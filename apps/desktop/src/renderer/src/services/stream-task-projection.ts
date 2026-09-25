@@ -207,7 +207,12 @@ export class StreamTaskProjection {
     }
 
     if (event.type === 'response.image_batch') {
-      const parts = [...(this.assistantMessage(event.messageId)?.parts ?? [])]
+      const assistant = this.assistantMessage(event.messageId)
+      const parts = assistant?.parts
+        ? [...assistant.parts]
+        : assistant?.content
+          ? [{ kind: 'text' as const, text: assistant.content }]
+          : []
       if (!parts.some((part) => part.kind === 'image-batch' && part.callId === event.callId)) {
         parts.splice(Math.min(event.contentIndex, parts.length), 0, {
           kind: 'image-batch', callId: event.callId, imageCount: event.imageCount
@@ -239,7 +244,7 @@ export class StreamTaskProjection {
 
     this.replaceAssistantContent(event.messageId, event.content)
     const visualParts = this.assistantMessage(event.messageId)?.parts?.filter((part) => part.kind !== 'text') ?? []
-    if (visualParts.length || this.assistantMessage(event.messageId)?.parts)
+    if (event.status === 'completed' && (visualParts.length || this.assistantMessage(event.messageId)?.parts))
       this.replaceAssistantParts(event.messageId, normalizeAssistantParts(
         event.content ? [...visualParts, { kind: 'text', text: event.content }] : visualParts
       ))

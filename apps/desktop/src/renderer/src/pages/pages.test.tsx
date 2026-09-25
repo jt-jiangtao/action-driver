@@ -77,6 +77,27 @@ describe('ActionDriver pages', () => {
     expect(placeholder).toBeVisible()
     expect(placeholder.closest('.agent-message')).not.toHaveTextContent('过程文字')
   })
+  it.each(['failed', 'paused'] as const)('keeps a %s image batch visible without repeating archived process text', (status) => {
+    const task = {
+      ...mockTaskFixture, status, browser: null,
+      messages: [
+        { id: 'user-image', role: 'user' as const, content: '画图' },
+        { id: 'agent-image', role: 'agent' as const, content: '过程文字', parts: [
+          { kind: 'text' as const, text: '过程文字' },
+          { kind: 'image-batch' as const, callId: 'image-call', imageCount: 2 }
+        ] }
+      ],
+      activityTimeline: [{ id: 'text:process', kind: 'text' as const, content: '过程文字', phase: 'process' as const }],
+      tools: [{ callId: 'image-call', toolId: 'image.generate', modelName: 'image_generate',
+        summary: '生成图片', argumentsHash: '', status: status === 'failed' ? 'failed' as const : 'cancelled' as const,
+        imageCount: 2 }]
+    }
+    const view = render(<TaskPage mode="split" task={task} modelSelection={mockModelSelection}
+      onSelectModel={vi.fn()} onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
+      onTakeOver={vi.fn()} onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
+    expect(view.container.querySelectorAll('.agent-message .image-gallery-slot')).toHaveLength(2)
+    expect(view.container.querySelector('.agent-message')).not.toHaveTextContent('过程文字')
+  })
   it('renders the Figma home copy and 720px composer contract', () => {
     render(
       <HomePage modelSelection={mockModelSelection} onSelectModel={vi.fn()} onSubmit={vi.fn()} />

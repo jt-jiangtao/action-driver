@@ -42,6 +42,18 @@ describe('conversation components', () => {
     expect([...root.children].map((node) => node.classList.contains('image-gallery') ? 'gallery' : 'text'))
       .toEqual(['gallery', 'text'])
   })
+  it('does not move a later legacy image across intervening text', () => {
+    const asset = (assetId: string) => ({ assetId, sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const })
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '中间', parts: [
+      { kind: 'image', asset: asset('first'), generation: { callId: 'old', index: 0 } },
+      { kind: 'text', text: '中间' },
+      { kind: 'image', asset: asset('second'), generation: { callId: 'old', index: 1 } }
+    ] }} readImage={() => new Promise<Blob>(() => {})} />)
+    const root = view.container.querySelector('.agent-message')!
+    expect([...root.children].map((node) => node.classList.contains('image-gallery') ? 'gallery' : 'text'))
+      .toEqual(['gallery', 'text', 'gallery'])
+  })
   it('keeps assistant text above stable image slots while individual images complete', () => {
     const asset = {
       assetId: 'generated-2', sessionId: 'session-1', mimeType: 'image/png' as const,
@@ -56,7 +68,9 @@ describe('conversation components', () => {
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
     expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent('准备好了')
     view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了', parts: [
-      { kind: 'text', text: '准备好了' }, { kind: 'image', asset, generation: { callId: 'call-gallery', index: 2 } }
+      { kind: 'text', text: '准备好了' },
+      { kind: 'image-batch', callId: 'call-gallery', imageCount: 3 },
+      { kind: 'image', asset, generation: { callId: 'call-gallery', index: 2 } }
     ] }} tools={tools} readImage={readImage} generating />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
     expect(view.container.querySelectorAll('.image-gallery-slot')[2]).toContainElement(view.container.querySelector('.conversation-image-loading'))
@@ -94,6 +108,7 @@ describe('conversation components', () => {
       id: 'a', role: 'agent' as const, content: text,
       parts: [
         { kind: 'text' as const, text },
+        { kind: 'image-batch' as const, callId: tool.callId, imageCount: count },
         { kind: 'image' as const, asset, generation: { callId: tool.callId, index: count - 1 } }
       ]
     }
