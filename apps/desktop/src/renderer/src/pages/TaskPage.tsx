@@ -10,6 +10,11 @@ import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageReader } from '../components/agent/ConversationImage'
 import { TaskOutputFiles, type OutputFileReader } from '../components/agent/TaskOutputFiles'
+import {
+  activityOwnedText,
+  dedupeAssistantText,
+  isOrderedTranscript
+} from '../components/agent/activity-mirror'
 
 export function TaskPage({
   mode,
@@ -92,34 +97,43 @@ export function TaskPage({
     task.status === 'succeeded' || task.status === 'running' || task.status === 'paused' || task.status === 'failed'
       ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
       : []
-  const hasTimelineText = task.activityTimeline?.some((item) => item.kind === 'text') ?? false
-  const hasRunningImageGallery = task.tools?.some((tool) => tool.toolId === 'image.generate' && tool.imageCount && ['running', 'completed', 'failed', 'cancelled', 'unknown'].includes(tool.status)) ?? false
-  const visibleAssistantMessages =
+  // Ordered turns keep every block in the transcript; the activity area only
+  // takes over the narration the model wrote before its first tool group.
+  // Transcripts stored before the order contract keep the mirrored layout, so
+  // their message stays out of the activity area's way while running.
+  const orderedTurn = isOrderedTranscript(task)
+  const hasImageGallery = (task.tools ?? []).some(
+    (tool) => tool.toolId === 'image.generate' && tool.imageCount
+  )
+  const legacyHidden =
+    !orderedTurn &&
     task.status === 'running' &&
-    !hasRunningImageGallery &&
+    !hasImageGallery &&
     !assistantMessages.some((message) => message.parts?.some((part) => part.kind === 'image')) &&
-    (hasTimelineText ||
-      assistantMessages.every(
-        (message) =>
-          message.content.length === 0 && !message.parts?.some((part) => part.kind === 'image')
-      ))
-      ? []
-      : assistantMessages
+    (task.activityTimeline?.some((item) => item.kind === 'text') ?? false)
+  const activityText = legacyHidden ? '' : activityOwnedText(task)
+  // The assistant message is the only place streamed prose renders, in the
+  // order it streamed (text, image batch, image, text). Nothing reorders on
+  // completion; only the earlier process narration folds into the archive.
   const renderedAssistantMessages =
     task.status === 'failed'
-      ? visibleAssistantMessages.filter((message) => message.parts?.some((part) => part.kind !== 'text')).map((message) => ({
+      ? assistantMessages.filter((message) => message.parts?.some((part) => part.kind !== 'text')).map((message) => ({
           ...message,
           content: '',
           parts: message.parts?.filter((part) => part.kind !== 'text') ?? []
         }))
-      : task.status === 'running' || task.status === 'paused'
-      ? visibleAssistantMessages.map((message) => {
-          const timelineText = task.activityTimeline?.filter((item) => item.kind === 'text').map((item) => item.content).join('') ?? ''
-          return timelineText && timelineText === message.content
-            ? { ...message, content: '', ...(message.parts ? { parts: message.parts.filter((part) => part.kind !== 'text') } : {}) }
-            : message
-        })
-      : visibleAssistantMessages
+      : legacyHidden
+        ? []
+        : assistantMessages.map((message) => dedupeAssistantText(message, activityText))
+  // An empty turn renders nothing: the activity area already reports progress,
+  // and an empty message would only add spacing or a second status line. Image
+  // tools keep theirs, because the gallery placeholders live there.
+  const visibleAssistantMessages = renderedAssistantMessages.filter(
+    (message, index) =>
+      message.content.length > 0 ||
+      (message.parts?.length ?? 0) > 0 ||
+      (hasImageGallery && index === renderedAssistantMessages.length - 1)
+  )
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}:${latestMessage?.parts?.length ?? 0}`
   return (
     <main
@@ -145,29 +159,32 @@ export function TaskPage({
             <div className="conversation-stream" data-width={flowWidth}>
               {precedingTurns.map((turn) => {
                 const activity = priorActivityByUserId.get(turn.user.id)
+                const activityTask = activity
+                  ? {
+                      ...task,
+                      id: activity.taskId,
+                      status: 'succeeded' as const,
+                      activityDurationMs: activity.durationMs,
+                      activities: activity.activities,
+                      activityTimeline: activity.activityTimeline,
+                      // The turn's own messages decide whether its groups are
+                      // anchored in the transcript.
+                      messages: turn.replies,
+                      tools: activity.tools
+                    }
+                  : null
+                const activityText = activityTask ? activityOwnedText(activityTask) : ''
                 return (
                   <Fragment key={turn.user.id}>
                     <ConversationMessages
                       messages={[turn.user]}
-                      generating={false}
                       readImage={readImage}
                     />
-                    {activity ? (
-                      <ActivityTimeline
-                        task={{
-                          ...task,
-                          id: activity.taskId,
-                          status: 'succeeded',
-                          activityDurationMs: activity.durationMs,
-                          activities: activity.activities,
-                          activityTimeline: activity.activityTimeline,
-                          tools: activity.tools
-                        }}
-                      />
-                    ) : null}
+                    {activityTask ? <ActivityTimeline task={activityTask} /> : null}
                     <ConversationMessages
-                      messages={turn.replies}
-                      generating={false}
+                      messages={turn.replies.map((message) =>
+                        dedupeAssistantText(message, activityText)
+                      )}
                       tools={activity?.tools ?? []}
                       readImage={readImage}
                     />
@@ -180,14 +197,12 @@ export function TaskPage({
               })}
               <ConversationMessages
                 messages={processMessages}
-                generating={false}
                 readImage={readImage}
               />
               <ActivityTimeline task={task} />
-              {renderedAssistantMessages.length > 0 ? (
+              {visibleAssistantMessages.length > 0 ? (
                 <ConversationMessages
-                  messages={renderedAssistantMessages}
-                  generating={task.status === 'running'}
+                  messages={visibleAssistantMessages}
                   tools={task.tools ?? []}
                   readImage={readImage}
                 />

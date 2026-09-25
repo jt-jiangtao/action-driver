@@ -25,10 +25,32 @@ const imageAssetSchema = z
   })
   .strict()
 
+const partOrderSchema = z.number().int().nonnegative().optional()
+
 const messagePartSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('text'), text: z.string() }).strict(),
-  z.object({ kind: z.literal('image-batch'), callId: idSchema, imageCount: z.number().int().min(1).max(16) }).strict(),
-  z.object({ kind: z.literal('image'), asset: imageAssetSchema, generation: z.object({ callId: idSchema, index: z.number().int().nonnegative() }).strict().optional() }).strict(),
+  z.object({ kind: z.literal('text'), text: z.string(), order: partOrderSchema }).strict(),
+  z
+    .object({ kind: z.literal('activity'), activityId: idSchema, order: partOrderSchema })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('image-batch'),
+      callId: idSchema,
+      imageCount: z.number().int().min(1).max(16),
+      order: partOrderSchema
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('image'),
+      asset: imageAssetSchema,
+      generation: z
+        .object({ callId: idSchema, index: z.number().int().nonnegative() })
+        .strict()
+        .optional(),
+      order: partOrderSchema
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('document'),
@@ -216,7 +238,8 @@ const responseContentEventSchema = z
     ...streamIdentity,
     sequence: z.number().int().nonnegative(),
     delta: z.string(),
-    contentIndex: z.number().int().nonnegative()
+    contentIndex: z.number().int().nonnegative(),
+    order: z.number().int().nonnegative().optional()
   })
   .strict()
 
@@ -227,7 +250,8 @@ const responseImageEventSchema = z
     asset: imageAssetSchema,
     contentIndex: z.number().int().nonnegative(),
     callId: idSchema,
-    index: z.number().int().nonnegative()
+    index: z.number().int().nonnegative(),
+    order: z.number().int().nonnegative().optional()
   })
   .strict()
 
@@ -237,7 +261,8 @@ const responseImageBatchEventSchema = z
     ...streamIdentity,
     callId: idSchema,
     imageCount: z.number().int().min(1).max(16),
-    contentIndex: z.number().int().nonnegative()
+    contentIndex: z.number().int().nonnegative(),
+    order: z.number().int().nonnegative().optional()
   })
   .strict()
 

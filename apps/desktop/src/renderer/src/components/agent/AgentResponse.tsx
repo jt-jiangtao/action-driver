@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react'
-import type { AgentMessageProjection, MessageContentPart, ToolInvocationProjection } from '@actiondriver/contracts'
+import type {
+  AgentMessageProjection,
+  MessageContentPart,
+  ToolInvocationProjection
+} from '@actiondriver/contracts'
 import { MarkdownContent } from '../MarkdownContent'
 import type { ImageReader } from './ConversationImage'
 import { ImageGallery } from './ImageGallery'
@@ -8,31 +12,24 @@ type ImagePart = Extract<MessageContentPart, { kind: 'image' }>
 
 export function AgentResponse({
   message,
-  generating = false,
   tools = [],
   readImage
 }: {
   message: AgentMessageProjection
-  generating?: boolean
   tools?: ToolInvocationProjection[]
   readImage?: ImageReader | undefined
 }) {
   const parts = message.parts
   const images = parts?.filter((part): part is ImagePart => part.kind === 'image') ?? []
   const activeTools = tools.filter((tool) => tool.toolId === 'image.generate' && tool.imageCount && !['proposed', 'waiting_approval', 'queued'].includes(tool.status))
-  const hasGallery = images.length > 0 || activeTools.length > 0 || Boolean(parts?.some((part) => part.kind === 'image-batch'))
-  if (
-    generating &&
-    message.content.length === 0 &&
-    !hasGallery
-  ) {
-    return (
-      <div className="agent-message agent-generating" role="status" aria-live="polite">
-        正在生成
-      </div>
-    )
-  }
-  if (!hasGallery) return <MarkdownContent className="agent-message markdown-content" content={message.content} />
+  const hasBlocks =
+    images.length > 0 ||
+    activeTools.length > 0 ||
+    Boolean(parts?.some((part) => part.kind === 'image-batch'))
+  if (!hasBlocks)
+    return message.content ? (
+      <MarkdownContent className="agent-message markdown-content" content={message.content} />
+    ) : null
   if (!parts?.length)
     return (
       <div className="agent-message agent-message-with-images">
@@ -47,6 +44,11 @@ export function AgentResponse({
   parts.forEach((part, index) => {
     if (part.kind === 'text') {
       if (part.text) blocks.push(<MarkdownContent className="markdown-content" content={part.text} key={`text-${index}`} />)
+      return
+    }
+    if (part.kind === 'activity') {
+      // Tool groups render in the activity area; the anchor only records where
+      // they ran so prose and images keep the order the runtime assigned.
       return
     }
     if (part.kind === 'image-batch') {
@@ -65,15 +67,15 @@ export function AgentResponse({
       return
     }
     const callId = part.generation?.callId
+    // With an anchor the image renders under that anchor; without one (legacy
+    // messages) it keeps its own place so nothing hops across the text.
     if (callId && anchoredCalls.has(callId)) return
-    if (callId) {
-      shownCalls.add(callId)
-      blocks.push(<ImageGallery key={`legacy-call-${callId}-${index}`} images={[part]} readImage={readImage} />)
-    } else {
-      blocks.push(<ImageGallery key={`legacy-image-${index}`} images={[part]} readImage={readImage} />)
-    }
+    if (callId) shownCalls.add(callId)
+    blocks.push(<ImageGallery key={`image-${index}`} images={[part]} readImage={readImage} />)
   })
-  const pendingTools = activeTools.filter((tool) => !shownCalls.has(tool.callId))
+  const pendingTools = activeTools.filter(
+    (tool) => !shownCalls.has(tool.callId) && !anchoredCalls.has(tool.callId)
+  )
   if (pendingTools.length) blocks.push(<ImageGallery key="pending-batches" images={[]} tools={pendingTools} readImage={readImage} />)
   return <div className="agent-message agent-message-with-images">{blocks}</div>
 }

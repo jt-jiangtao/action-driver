@@ -7,12 +7,10 @@ export { TaskHeader } from './agent/TaskHeader'
 
 export function ConversationMessages({
   messages,
-  generating = false,
   tools = [],
   readImage
 }: {
   messages: AgentMessageProjection[]
-  generating?: boolean
   tools?: ToolInvocationProjection[]
   readImage?: ImageReader | undefined
 }) {
@@ -26,7 +24,6 @@ export function ConversationMessages({
           <AgentResponse
             key={message.id}
             message={message}
-            generating={generating && message.id === lastAgentId}
             tools={message.id === lastAgentId ? tools : []}
             readImage={readImage}
           />

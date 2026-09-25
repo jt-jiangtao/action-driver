@@ -96,20 +96,20 @@ describe('conversation components', () => {
       summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 3
     }]
     const readImage = () => new Promise<Blob>(() => {})
-    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了' }} tools={tools} readImage={readImage} generating />)
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了' }} tools={tools} readImage={readImage} />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
     expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent('准备好了')
     view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '准备好了', parts: [
       { kind: 'text', text: '准备好了' },
       { kind: 'image-batch', callId: 'call-gallery', imageCount: 3 },
       { kind: 'image', asset, generation: { callId: 'call-gallery', index: 2 } }
-    ] }} tools={tools} readImage={readImage} generating />)
+    ] }} tools={tools} readImage={readImage} />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(3)
     expect(view.container.querySelectorAll('.image-gallery-slot')[2]).toContainElement(view.container.querySelector('.conversation-image-loading'))
   })
   it('keeps all four slots after partial failure or cancellation', () => {
     const base = { callId: 'four', toolId: 'image.generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', imageCount: 4 }
-    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'running' }]} generating />)
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'running' }]} />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(4)
     expect(screen.getAllByRole('status', { name: '正在生成图片' })).toHaveLength(4)
     view.rerender(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'completed' }]} />)
@@ -133,7 +133,7 @@ describe('conversation components', () => {
       ] }} tools={[{
         callId: 'animated-call', toolId: 'image.generate', modelName: 'image_generate',
         summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
-      }]} generating />)
+      }]} />)
       expect(animate).toHaveBeenCalledTimes(4)
       expect(view.container.querySelectorAll('.image-gallery-dots')).toHaveLength(4)
       const asset = { assetId: 'generated-0', sessionId: 'session-1', mimeType: 'image/png' as const,
@@ -144,7 +144,7 @@ describe('conversation components', () => {
       ] }} tools={[{
         callId: 'animated-call', toolId: 'image.generate', modelName: 'image_generate',
         summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
-      }]} readImage={() => new Promise<Blob>(() => {})} generating />)
+      }]} readImage={() => new Promise<Blob>(() => {})} />)
       expect(cancel).toHaveBeenCalledTimes(1)
       expect(view.container.querySelectorAll('.image-gallery-dots')).toHaveLength(3)
       view.unmount()
@@ -167,7 +167,7 @@ describe('conversation components', () => {
     }
     const text = '先说明，再展示图片'
     const readImage = () => new Promise<Blob>(() => {})
-    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: text }} tools={[tool]} readImage={readImage} generating />)
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: text }} tools={[tool]} readImage={readImage} />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(count)
     expect(view.container.querySelector('.agent-message')?.firstElementChild).toHaveTextContent(text)
     expect(screen.getAllByRole('status', { name: '正在生成图片' })).toHaveLength(count)
@@ -180,7 +180,7 @@ describe('conversation components', () => {
         { kind: 'image' as const, asset, generation: { callId: tool.callId, index: count - 1 } }
       ]
     }
-    view.rerender(<AgentResponse message={message} tools={[tool]} readImage={readImage} generating />)
+    view.rerender(<AgentResponse message={message} tools={[tool]} readImage={readImage} />)
     const slots = view.container.querySelectorAll('.image-gallery-slot')
     expect(slots).toHaveLength(count)
     expect(slots[count - 1]).toContainElement(view.container.querySelector('.conversation-image-loading'))
@@ -200,7 +200,7 @@ describe('conversation components', () => {
     const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '' }} tools={[{
       callId: 'single', toolId: 'image.generate', modelName: 'image_generate',
       summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 1
-    }]} generating />)
+    }]} />)
     expect(view.container.querySelector('.image-gallery-grid')).toHaveClass('is-single')
   })
   it('places uploaded images above the text inside one user bubble', () => {
@@ -415,15 +415,15 @@ describe('conversation components', () => {
     expect(screen.getByText('<script>alert(1)</script>')).toBeVisible()
   })
 
-  it('announces an empty running response until the first stream content arrives', () => {
+  it('leaves the running indicator to the activity area and renders no placeholder', () => {
     const { rerender } = render(
-      <AgentResponse message={{ id: 'live', role: 'agent', content: '' }} generating />
+      <AgentResponse message={{ id: 'live', role: 'agent', content: '' }} />
     )
 
-    expect(screen.getByRole('status')).toHaveTextContent('正在生成')
-    rerender(
-      <AgentResponse message={{ id: 'live', role: 'agent', content: '**完成**' }} generating />
-    )
+    // The activity area owns “正在思考”; the transcript must not add a second
+    // status line of its own.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    rerender(<AgentResponse message={{ id: 'live', role: 'agent', content: '**完成**' }} />)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText('完成')).toBeVisible()
   })

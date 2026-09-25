@@ -57,6 +57,7 @@ async function launch(
     | 'node'
     | 'text'
     | 'tool-preparing'
+    | 'python-blocking'
     | 'web'
     | 'deliverable'
     | 'image'
@@ -159,7 +160,10 @@ test('shows only elapsed time and streamed text until a tool is actually called'
     const thinkingBox = await process.locator('.activity-thinking').boundingBox()
     expect(elapsedBox).not.toBeNull()
     expect(thinkingBox).not.toBeNull()
-    expect(thinkingBox!.y - (elapsedBox!.y + elapsedBox!.height)).toBeLessThan(12)
+    // The indicator keeps a clear gap below the elapsed divider (see the
+    // spacing contract in agent.css), so assert that gap instead of a hard 12px.
+    expect(thinkingBox!.y - (elapsedBox!.y + elapsedBox!.height)).toBeGreaterThanOrEqual(14)
+    expect(thinkingBox!.y - (elapsedBox!.y + elapsedBox!.height)).toBeLessThanOrEqual(24)
     await expect(process.locator('.activity-group')).toHaveCount(0)
     await expect.poll(() => provider!.completions.length).toBe(1)
     expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).not.toContain(
@@ -190,7 +194,7 @@ test('shows only elapsed time and streamed text until a tool is actually called'
 })
 
 test('keeps the running indicator clear of the divider in the initial state', async () => {
-  const page = await launch('python-blocking')
+  const page = await launch('tool-preparing')
   await sendGoal(page, '运行一个阻塞脚本')
   const elapsed = page.locator('.activity-elapsed')
   const thinking = page.locator('.activity-thinking')
@@ -198,15 +202,16 @@ test('keeps the running indicator clear of the divider in the initial state', as
   const spacing = await page.evaluate(() => {
     const divider = document.querySelector('.activity-elapsed') as HTMLElement
     const indicator = document.querySelector('.activity-thinking') as HTMLElement
-    const textTop = indicator.getBoundingClientRect().top + Number.parseFloat(getComputedStyle(indicator).paddingTop)
     return {
-      fromDividerToText: textTop - divider.getBoundingClientRect().bottom,
-      paddingTop: Number.parseFloat(getComputedStyle(indicator).paddingTop)
+      fromDividerToText:
+        indicator.getBoundingClientRect().top - divider.getBoundingClientRect().bottom
     }
   })
-  expect(spacing.paddingTop).toBeGreaterThanOrEqual(14)
+  // Spacing comes from the timeline gap, so it does not shift when the row is
+  // replaced by the activity group.
   expect(spacing.fromDividerToText).toBeGreaterThanOrEqual(14)
   await expect(elapsed).toBeVisible()
+  provider!.releaseTool()
   if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
     await page.locator('.activity-timeline').screenshot({
       path: test.info().outputPath('activity-initial-thinking.png')
@@ -219,11 +224,11 @@ test('streams the tool name while arguments are incomplete without creating a to
   await sendGoal(page, '运行命令')
   const process = page.getByRole('region', { name: '任务过程' })
   try {
-    await expect(process.getByRole('status')).toContainText('正在准备 Shell 命令')
+    await expect(process.getByRole('status')).toContainText('正在思考')
     await expect(process.locator('.activity-group')).toHaveCount(0)
     await expect(process).not.toContainText('rg needle')
     await page.reload()
-    await expect(process.getByRole('status')).toContainText('正在准备 Shell 命令')
+    await expect(process.getByRole('status')).toContainText('正在思考')
   } finally {
     provider!.releaseTool()
   }
@@ -563,6 +568,17 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await archive.click()
   const groups = page.locator('.activity-group')
   await expect(groups).toHaveCount(2)
+  // The process prose the model wrote before its tools sits above them in the
+  // activity area, and the answer stays in the transcript.
+  const processFlow = await page
+    .getByRole('region', { name: '任务过程' })
+    .locator('.activity-process-text, .activity-group')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => (node.classList.contains('activity-group') ? 'activity' : 'text'))
+    )
+  expect(processFlow).toEqual(['text', 'activity', 'text', 'activity'])
+  await expect(page.locator('.conversation-stream .agent-message')).not.toContainText('正文 A')
+  await expect(page.locator('.conversation-stream .agent-message')).toContainText('已读取')
   const group = groups.first()
   await group.locator('summary').first().click()
   const groupHeading = group.locator(':scope > summary')
@@ -585,8 +601,6 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await expect(groups.nth(1).locator('.activity-items > *')).toHaveCount(1)
   await expect(group).not.toContainText('正文 A')
   await expect(group).not.toContainText('正文 B')
-  await expect(page.getByRole('region', { name: '任务过程' })).toContainText('正文 A')
-  await expect(page.getByRole('region', { name: '任务过程' })).toContainText('正文 B')
   expect(
     (await page.locator('.activity-process-text').allTextContents()).map((text) => text.trim())
   ).toEqual(['正文 A', '正文 B'])

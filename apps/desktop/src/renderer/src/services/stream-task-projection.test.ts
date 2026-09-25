@@ -62,8 +62,11 @@ describe('StreamTaskProjection', () => {
       type: 'response.image_batch', ...identity, eventId: 'batch-after-old-text',
       cursor: 1, sequence: 0, callId: 'a', imageCount: 2, contentIndex: 1
     })
+    // The restored text predates the order contract, so it stays first and the
+    // batch takes the next free order.
     expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
-      { kind: 'text', text: '已开始' }, { kind: 'image-batch', callId: 'a', imageCount: 2 }
+      { kind: 'text', text: '已开始' },
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 }
     ])
   })
   it.each(['failed', 'cancelled'] as const)('retains partial part order for a %s image batch', (status) => {
@@ -80,10 +83,83 @@ describe('StreamTaskProjection', () => {
       error: { code: status, message: status, retryable: false }
     })
     expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
-      { kind: 'text', text: '过程' }, { kind: 'image-batch', callId: 'a', imageCount: 2 }
+      { kind: 'text', text: '过程', order: 1 },
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 2 }
     ])
   })
-  it('keeps batch anchors ahead of final text through replay and late images', () => {
+  it('anchors the tool group between the prose that preceded and followed it', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({ ...content(0, '先说明'), cursor: 2, contentIndex: 0 })
+    const toolEvent = (sequence: number, type: string) =>
+      ({
+        type,
+        ...identity,
+        eventId: `${type}-1`,
+        cursor: sequence + 2,
+        sequence,
+        callId: 'call-shell',
+        toolId: 'sandbox.shell.run',
+        modelName: 'shell_run',
+        summary: '执行命令',
+        argumentsHash: '',
+        activityId: 'activity:default',
+        callSequence: sequence,
+        status: 'completed'
+      }) as never
+    for (const [sequence, type] of [
+      [1, 'tool.proposed'],
+      [2, 'tool.running'],
+      [3, 'tool.completed']
+    ] as const)
+      projection.apply(toolEvent(sequence, type))
+    projection.apply({ ...content(4, '全部完成'), cursor: 6, contentIndex: 3 })
+    const parts = projection.snapshot()?.messages.at(-1)?.parts
+    expect(parts?.map((part) => (part.kind === 'text' ? `text:${part.text}` : part.kind))).toEqual([
+      'text:先说明',
+      'activity',
+      'text:全部完成'
+    ])
+    expect(parts?.filter((part) => part.kind === 'activity')).toHaveLength(1)
+  })
+
+  it('leaves the streamed order untouched when a turn with an image completes', () => {
+    const asset = {
+      assetId: 'asset-real', sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    }
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    // Same shape as a real "test every tool" turn: narration, batch anchor,
+    // image, then the answer that keeps streaming after the image.
+    projection.apply({ ...content(0, '好的，我来测试'), cursor: 2, contentIndex: 0 })
+    projection.apply({
+      type: 'response.image_batch', ...identity, eventId: 'batch-real',
+      cursor: 3, sequence: 1, callId: 'call-real', imageCount: 1, contentIndex: 1
+    })
+    projection.apply({
+      type: 'response.image', ...identity, eventId: 'image-real', cursor: 4, sequence: 2,
+      asset, callId: 'call-real', index: 0, contentIndex: 2
+    })
+    projection.apply({ ...content(3, '全部完成'), cursor: 5, contentIndex: 3 })
+    projection.apply({
+      type: 'response.end', ...identity, eventId: 'end-real', cursor: 6, sequence: 4,
+      status: 'completed', content: '好的，我来测试全部完成', finishReason: 'stop',
+      usage: null, durationMs: 10, error: null
+    })
+    expect(
+      projection.snapshot()?.messages.at(-1)?.parts?.map((part) =>
+        part.kind === 'image-batch'
+          ? 'batch'
+          : part.kind === 'image'
+            ? 'image'
+            : part.kind === 'text'
+              ? `text:${part.text}`
+              : part.kind
+      )
+    ).toEqual(['text:好的，我来测试', 'batch', 'image', 'text:全部完成'])
+  })
+  it('keeps the streamed text position through replay, late images and completion', () => {
     const image = {
       assetId: 'asset-b', sessionId: 'session-1', mimeType: 'image/png' as const,
       width: 1, height: 1, byteLength: 20, source: 'generated' as const
@@ -96,7 +172,7 @@ describe('StreamTaskProjection', () => {
     })
     projection.apply(batch(0, 'a', 2, 0))
     expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
-      { kind: 'image-batch', callId: 'a', imageCount: 2 }
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 }
     ])
     projection.apply({ ...content(1, '过程'), cursor: 2, contentIndex: 1 })
     projection.apply(batch(2, 'b', 1, 2))
@@ -122,14 +198,15 @@ describe('StreamTaskProjection', () => {
       durationMs: 10, error: null
     })
     expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind !== 'image')).toEqual([
-      { kind: 'image-batch', callId: 'a', imageCount: 2 },
-      { kind: 'image-batch', callId: 'b', imageCount: 1 },
-      { kind: 'text', text: '完成' }
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 },
+      { kind: 'text', text: '过程', order: 4 },
+      { kind: 'image-batch', callId: 'b', imageCount: 1, order: 5 },
+      { kind: 'text', text: '完成', order: 7 }
     ])
     projection.apply(batch(0, 'a', 2, 0))
     expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image-batch')).toEqual([
-      { kind: 'image-batch', callId: 'a', imageCount: 2 },
-      { kind: 'image-batch', callId: 'b', imageCount: 1 }
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 },
+      { kind: 'image-batch', callId: 'b', imageCount: 1, order: 5 }
     ])
     expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image')).toHaveLength(2)
   })

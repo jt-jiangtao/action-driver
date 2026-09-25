@@ -581,19 +581,181 @@ describe('StreamSessionService', () => {
     expect(runningSnapshots[0]?.messages.at(-1)?.parts).toContainEqual({
       kind: 'image-batch',
       callId: 'a',
-      imageCount: 2
+      imageCount: 2,
+      order: 2
     })
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    // Streamed order is canonical: process text stays before the batches and
+    // the closing answer after them.
+    // The order contract reserves one slot per image, so the closing answer
+    // keeps its place after both batches no matter which picture lands first.
     expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind !== 'image')).toEqual([
-      { kind: 'image-batch', callId: 'a', imageCount: 2 },
-      { kind: 'image-batch', callId: 'b', imageCount: 2 },
-      { kind: 'text', text: '全部完成' }
+      { kind: 'text', text: '过程一', order: 1 },
+      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 2 },
+      { kind: 'text', text: '过程二', order: 5 },
+      { kind: 'image-batch', callId: 'b', imageCount: 2, order: 6 },
+      { kind: 'text', text: '全部完成', order: 9 }
     ])
     expect(JSON.stringify(events)).not.toContain('data:image/')
     harness.repositories.close()
   })
+
+  it('anchors a tool group where its tools ran instead of grouping it separately', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer, onToolEvent) {
+        const appendToolEvent = async (type: string, callId: string, activityId: string) => {
+          const record = await harness.repositories.events.append({
+            taskId: request.taskId,
+            threadId: request.sessionId!,
+            checkpointId: 'tool:0',
+            eventKey: `${type}:${callId}`,
+            type,
+            payload: {
+              callId,
+              toolId: 'sandbox.shell.run',
+              modelName: 'shell_run',
+              summary: '执行命令',
+              argumentsHash: '',
+              activityId
+            },
+            occurredAt: '2026-09-23T00:00:01.000Z',
+            eventId: `${type}-${callId}`,
+            requestId: request.streamRequestId!,
+            sequence: 1
+          })
+          await onToolEvent?.(record)
+        }
+        await observer?.({ kind: 'content', delta: '先说明' })
+        for (const type of ['tool.proposed', 'tool.running', 'tool.completed'])
+          await appendToolEvent(type, 'call-1', 'activity:default')
+        await observer?.({ kind: 'content', delta: '全部完成' })
+        await observer?.({ kind: 'end', content: '全部完成', finishReason: 'stop', usage: null })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '全部完成',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
+    }
+    const harness = createHarness(graphRunner)
+    const events = await runToEnd(harness.service, createEvent)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    // The group sits between the prose that preceded it and the prose that
+    // followed it, and repeats of the same activity collapse into one anchor.
+    expect(snapshot?.messages.at(-1)?.parts).toEqual([
+      { kind: 'text', text: '先说明', order: 1 },
+      { kind: 'activity', activityId: 'activity:default', order: 2 },
+      { kind: 'text', text: '全部完成', order: 3 }
+    ])
+    harness.repositories.close()
+  })
+
+  it('keeps the streamed part order when a turn with images finishes', async () => {
+    const graphRunner: GraphRunner = {
+      async run(request, _signal, observer, onToolEvent) {
+        const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
+        // 过程文本 → 生图（第二张先完成）→ 结尾文本，和"测试所有工具"场景一致。
+        await observer?.({ kind: 'content', delta: '先看看现有依赖' })
+        const batch = await harness.repositories.events.append({
+          taskId: request.taskId,
+          threadId: request.sessionId!,
+          checkpointId: 'tool:0',
+          eventKey: 'tool.running:image',
+          type: 'tool.running',
+          payload: {
+            callId: 'call-1',
+            toolId: 'image.generate',
+            modelName: 'image_generate',
+            summary: '生成 2 张图片',
+            argumentsHash: '',
+            activityId: null,
+            imageCount: 2
+          },
+          occurredAt: '2026-09-23T00:00:02.000Z',
+          eventId: 'tool-running-image',
+          requestId: request.streamRequestId!,
+          sequence: 2
+        })
+        await onToolEvent?.(batch)
+        for (const index of [1, 0]) {
+          const asset = await harness.assets.saveGenerated(request.sessionId!, png)
+          const record = await harness.repositories.events.append({
+            taskId: request.taskId,
+            threadId: request.sessionId!,
+            checkpointId: 'tool:0',
+            eventKey: `tool.asset:${index}`,
+            type: 'tool.asset',
+            payload: {
+              callId: 'call-1',
+              toolId: 'image.generate',
+              modelName: 'image_generate',
+              summary: '生成 2 张图片',
+              argumentsHash: '',
+              activityId: null,
+              index,
+              asset
+            },
+            occurredAt: '2026-09-23T00:00:03.000Z',
+            eventId: `tool-asset-${index}`,
+            requestId: request.streamRequestId!,
+            sequence: 3 + index
+          })
+          await onToolEvent?.(record)
+        }
+        await observer?.({ kind: 'content', delta: '图片已生成' })
+        await observer?.({
+          kind: 'end',
+          content: '先看看现有依赖图片已生成',
+          finishReason: 'stop',
+          usage: null
+        })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '过程文本图片已生成',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
+    }
+    const harness = createHarness(graphRunner)
+    const events = await runToEnd(harness.service, createEvent)
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+
+    const stored = (await harness.repositories.messages.listByTask(accepted.taskId)).at(-1)
+      ?.content as { parts?: Array<{ kind: string; text?: string; generation?: { index: number } }> }
+    expect(
+      stored.parts?.map((part) =>
+        part.kind === 'image'
+          ? `image:${part.generation?.index}`
+          : `${part.kind}:${part.text ?? ''}`
+      )
+    ).toEqual(['text:先看看现有依赖', 'image-batch:', 'image:0', 'image:1', 'text:图片已生成'])
+    harness.repositories.close()
+  }, 30_000)
 
   it('streams completed images and keeps them in the final assistant snapshot', async () => {
     const completionOrder = [15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)]
@@ -654,9 +816,9 @@ describe('StreamSessionService', () => {
       2,
       ...Array.from({ length: 12 }, (_, offset) => offset + 3)
     ])
-    expect(imageEvents.map((event) => ('contentIndex' in event ? event.contentIndex : -1))).toEqual(
-      Array.from({ length: 16 }, (_, index) => index)
-    )
+    expect(
+      imageEvents.every((event) => 'contentIndex' in event && event.contentIndex >= 0)
+    ).toBe(true)
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
@@ -664,12 +826,16 @@ describe('StreamSessionService', () => {
       ...Array(16).fill('image'),
       'text'
     ])
-    expect(
-      snapshot?.messages
-        .at(-1)
-        ?.parts?.filter((part) => part.kind === 'image')
-        .map((part) => part.generation?.index)
-    ).toEqual(completionOrder)
+    // A stream without a batch anchor has no reservation to honour, so each
+    // picture takes the next order and the transcript keeps arrival order; the
+    // reserved slot order is covered by the batch tests above.
+    const snapshotImages = snapshot?.messages
+      .at(-1)
+      ?.parts?.filter((part) => part.kind === 'image')
+    expect(snapshotImages?.map((part) => part.generation?.index)).toEqual(completionOrder)
+    expect(snapshotImages?.map((part) => part.order)).toEqual(
+      Array.from({ length: 16 }, (_, index) => index + 1)
+    )
     expect(JSON.stringify(snapshot)).not.toContain('data:image/')
     harness.repositories.close()
   })

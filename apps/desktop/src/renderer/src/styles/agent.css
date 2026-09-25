@@ -487,14 +487,11 @@
 }
 .activity-timeline {
   display: grid;
-  gap: 16px;
-  margin: 12px 0 24px;
+  gap: 14px;
+  margin: 8px 0 12px;
   color: var(--ad-color-text-secondary);
   font-size: 14px;
   line-height: 22px;
-}
-.activity-timeline.is-initial-thinking {
-  gap: 4px;
 }
 .activity-group {
   border: 0;
@@ -507,8 +504,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 34px;
-  padding: 2px 0 14px;
+  min-height: 36px;
+  padding: 2px 0 18px;
   border-bottom: 1px solid var(--ad-color-border-default);
   color: #6a6e75;
   font-size: 14px;
@@ -533,7 +530,6 @@
 /* Same rhythm as the elapsed-time divider: clear space above, tighter below. */
 .activity-thinking {
   width: max-content;
-  padding: 16px 0 4px;
   color: #747981;
 }
 .activity-archive .activity-timeline-items {
@@ -582,6 +578,10 @@
   .activity-tool > summary .activity-chevron {
     opacity: 0;
   }
+  .activity-group summary:hover .activity-chevron,
+  .activity-group summary:focus-visible .activity-chevron,
+  .activity-tool summary:hover .activity-chevron,
+  .activity-tool summary:focus-visible .activity-chevron,
   .activity-timeline summary:hover .activity-chevron,
   .activity-timeline summary:focus-visible .activity-chevron {
     opacity: 1;
@@ -622,6 +622,7 @@
 }
 .activity-tool-io {
   margin: 8px 0 2px;
+  padding-bottom: 12px;
   overflow: hidden;
   border: 1px solid #d9dbdd;
   border-radius: 10px;
@@ -632,8 +633,39 @@
   color: #666b71;
   font-size: 13px;
 }
+/* Inline so the skill icon keeps its currentColor, exactly like Codex. */
+.activity-tool-icon-svg {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+.activity-tool-icon-svg svg {
+  width: 16px;
+  height: 16px;
+}
+.activity-tool-image {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px;
+}
+.activity-tool-image-prompts {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--ad-color-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.activity-tool-image-result {
+  color: var(--ad-color-text-tertiary);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
 .activity-tool-code {
-  max-height: 360px;
+  max-height: 480px;
   overflow: hidden;
   border-radius: 8px;
   background: #f8f8fa;
@@ -652,7 +684,7 @@
   background: transparent !important;
 }
 .activity-tool-io pre {
-  max-height: 360px;
+  max-height: 480px;
   margin: 0;
   overflow: auto;
   padding: 12px 9px;
@@ -666,7 +698,7 @@
   overflow-wrap: anywhere;
 }
 .activity-tool-code {
-  max-height: 360px;
+  max-height: 480px;
   overflow: hidden;
   border-radius: 8px;
   background: #f8f8fa;
@@ -844,7 +876,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
+  gap: 8px;
 }
 .user-message-with-images {
   padding: 8px;
@@ -996,23 +1028,29 @@
 }
 .image-gallery {
   display: grid;
-  gap: 12px;
-  width: min(100%, 576px);
+  gap: 6px;
+  /* Two thirds of the previous gallery width, so multi-image batches read as
+     supporting material next to the answer instead of filling the turn. */
+  width: min(100%, 384px);
+}
+.image-gallery-grid.is-single {
+  margin-top: 0;
 }
 .image-gallery-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 .image-gallery-grid.is-single {
   grid-template-columns: minmax(0, 1fr);
-  max-width: 282px;
+  /* A single generated image roughly a half of the previous size. */
+  max-width: 148px;
 }
 .image-gallery-slot {
   aspect-ratio: 1;
   min-width: 0;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 14px;
   background: #f4f4f6;
 }
 .image-gallery-slot .conversation-image-item,
@@ -1048,11 +1086,11 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 84px;
-  height: 84px;
+  width: 48px;
+  height: 48px;
   translate: -50% -50%;
-  background-image: radial-gradient(circle, #abb0bd 0.85px, transparent 1.15px);
-  background-size: 12px 12px;
+  background-image: radial-gradient(circle, #abb0bd 0.7px, transparent 1px);
+  background-size: 8px 8px;
   mask-image: radial-gradient(circle, #000 16%, transparent 73%);
   opacity: 0.72;
   will-change: transform;
@@ -1242,6 +1280,7 @@
 }
 .markdown-content table {
   width: 100%;
+  margin: 0 0 12px;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -1265,7 +1304,8 @@
 .markdown-content ul,
 .markdown-content ol,
 .markdown-content pre,
-.markdown-content blockquote {
+.markdown-content blockquote,
+.markdown-content table {
   margin: 0 0 12px;
 }
 .markdown-content ul,

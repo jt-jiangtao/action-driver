@@ -60,7 +60,7 @@ describe('ActivityTimeline', () => {
     preparing.tools = []
     preparing.preparingToolName = 'shell_run'
     const { container } = render(<ActivityTimeline task={preparing} />)
-    expect(screen.getByRole('status')).toHaveTextContent('正在准备 Shell 命令')
+    expect(screen.getByRole('status')).toHaveTextContent('正在思考')
     expect(container.querySelector('.activity-group')).toBeNull()
     expect(container).not.toHaveTextContent('command')
   })
@@ -72,7 +72,7 @@ describe('ActivityTimeline', () => {
     preparing.tools = []
     preparing.preparingToolName = 'ts_run'
     render(<ActivityTimeline task={preparing} />)
-    expect(screen.getByRole('status')).toHaveTextContent('正在准备 TypeScript 脚本')
+    expect(screen.getByRole('status')).toHaveTextContent('正在思考')
   })
 
   it('names a webpage read while its arguments are still streaming', () => {
@@ -82,7 +82,7 @@ describe('ActivityTimeline', () => {
     preparing.tools = []
     preparing.preparingToolName = 'web_open'
     render(<ActivityTimeline task={preparing} />)
-    expect(screen.getByRole('status')).toHaveTextContent('正在准备 网页读取')
+    expect(screen.getByRole('status')).toHaveTextContent('正在思考')
   })
 
   it('shows inline scripts without an interpreter prefix and keeps output', () => {
@@ -112,6 +112,51 @@ describe('ActivityTimeline', () => {
     }
   })
 
+  it('summarizes image generation instead of dumping transport JSON', () => {
+    const image = task('running')
+    image.tools = [
+      {
+        callId: 'image',
+        toolId: 'image.generate',
+        modelName: 'image_generate',
+        summary: '生成 2 张图片',
+        argumentsHash: '',
+        activityId: 'research',
+        status: 'completed',
+        rawInput: JSON.stringify({
+          images: [
+            { prompt: '一只在雨中的猫' },
+            {
+              prompt:
+                'A cozy Japanese countryside cottage in autumn, surrounded by red maple trees and a small stream, warm golden sunlight filtering through leaves, Studio Ghibli inspired illustration'
+            }
+          ]
+        }),
+        rawOutput: JSON.stringify({
+          stdout: '',
+          stderr: '',
+          content: '',
+          result: { succeeded: 2, failed: 0 },
+          byteLength: 26,
+          truncated: false
+        })
+      }
+    ]
+    image.activities![0]!.items = [{ id: 'tool:image', kind: 'tool', callId: 'image' }]
+    const { container } = render(<ActivityTimeline task={image} />)
+    screen.getByText('生成 2 张图片').click()
+
+    const panel = container.querySelector('.activity-tool-io')
+    expect(panel).toHaveTextContent('已生成 2 张图片')
+    expect(panel).toHaveTextContent('一只在雨中的猫')
+    expect(panel).toHaveTextContent(
+      'A cozy Japanese countryside cottage in autumn, surrounded by red maple trees and a small stream, warm golden sunlight filtering through leaves, Studio Ghibli inspired illustration'
+    )
+    expect(panel).not.toHaveTextContent('…')
+    expect(panel).not.toHaveTextContent('stdout')
+    expect(panel).not.toHaveTextContent('byteLength')
+  })
+
   it('marks blank script lines so they stay distinguishable from output', () => {
     const scripted = task('running')
     scripted.tools![0]!.toolId = 'local.python.run'
@@ -126,7 +171,25 @@ describe('ActivityTimeline', () => {
     )
   })
 
-  it('shows tool preparation after streamed process text in the same model response', () => {
+  it('hides the indicator while image placeholders are showing progress', () => {
+    const generating = task('running')
+    generating.tools = [
+      {
+        callId: 'image',
+        toolId: 'image.generate',
+        modelName: 'image_generate',
+        summary: '生成 4 张图片',
+        argumentsHash: '',
+        activityId: 'research',
+        status: 'running',
+        imageCount: 4
+      }
+    ]
+    render(<ActivityTimeline task={generating} />)
+    expect(screen.queryByText('正在思考')).toBeNull()
+  })
+
+  it('hides the indicator while process text is streaming in the same response', () => {
     const preparing = task('running')
     preparing.activityTimeline = [
       { id: 'text:plan', kind: 'text', content: '先检查输入', phase: 'pending' }
@@ -136,7 +199,28 @@ describe('ActivityTimeline', () => {
     preparing.preparingToolName = 'python_run'
     render(<ActivityTimeline task={preparing} />)
     expect(screen.getByText('先检查输入')).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent('正在准备 Python 脚本')
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('uses the imagegen mark for an image generation group', () => {
+    const image = task('running')
+    image.activities![0]!.title = '已完成随意生成一张图片'
+    image.tools = [
+      {
+        callId: 'image',
+        toolId: 'image.generate',
+        modelName: 'image_generate',
+        summary: '生成图片',
+        argumentsHash: '',
+        activityId: 'research',
+        status: 'completed'
+      }
+    ]
+    image.activities![0]!.items = [{ id: 'tool:image', kind: 'tool', callId: 'image' }]
+    const { container } = render(<ActivityTimeline task={image} />)
+
+    expect(container.querySelector('.activity-group > summary .lucide-image')).not.toBeNull()
+    expect(container.querySelector('.activity-group > summary .lucide-layers')).toBeNull()
   })
 
   it('keeps process text between groups and archives it after completion', () => {
@@ -353,7 +437,7 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool-path')).toBeNull()
   })
 
-  it('uses a wrench for a mixed tool activity and distinct web and terminal child icons', () => {
+  it('uses a distinct group icon for mixed tools and per-tool child icons', () => {
     const mixed = task('running')
     mixed.activities![0]!.title = '加载了工具读取文件运行了命令'
     mixed.activities![0]!.items.push({ id: 'tool:shell', kind: 'tool', callId: 'shell' })
@@ -377,7 +461,7 @@ describe('ActivityTimeline', () => {
       status: 'completed'
     })
     const { container } = render(<ActivityTimeline task={mixed} />)
-    expect(container.querySelector('.activity-group > summary .lucide-wrench')).not.toBeNull()
+    expect(container.querySelector('.activity-group > summary .lucide-layers')).not.toBeNull()
     expect(container.querySelector('.activity-tool .lucide-square-terminal')).not.toBeNull()
     expect(container.querySelector('.activity-tool .lucide-globe-2')).not.toBeNull()
   })
@@ -528,9 +612,9 @@ describe('ActivityTimeline', () => {
     }
   })
 
-  it('does not add a thinking text row to the task group', () => {
+  it('does not flash the thinking row while an activity group is still current', () => {
     render(<ActivityTimeline task={task('running')} />)
-    expect(screen.getByText('正在思考').closest('.activity-group')).toBeNull()
+    expect(screen.queryByText('正在思考')).toBeNull()
   })
 
   it('archives completed process closed under an elapsed-time summary', () => {

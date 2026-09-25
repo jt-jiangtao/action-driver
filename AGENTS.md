@@ -20,4 +20,11 @@
 - 不经过 OpenSpec 的小型决策也必须按完整协议中的简明记录模板留下结论。
 - 没有实质性异议时，应明确记录检查过的维度和“无实质性异议”，不得虚构反对意见。
 
+## 测试与提交
+
+- 迭代过程中只运行与本次改动直接相关的定向测试（例如 `pnpm vitest run <改动到的测试文件>`），必要时补类型检查或 Lint；不得每改一处就跑全量测试。
+- 只有准备提交之前，才运行全量验证：`pnpm typecheck`、`pnpm lint`、`pnpm test`；涉及界面、运行时或打包行为的改动再按需追加 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`。
+- 全量验证的结果（命令、通过／失败数量、已知且与本次改动无关的失败）必须在提交前确认一次，并写进提交信息或对应的 OpenSpec 记录。
+- 提交只包含本次任务的改动：若工作区存在其他人正在编辑的无关文件（例如其它 OpenSpec 规划文件），不得一并提交，并在交付说明中指出。
+
 详细分类、检查表、对话顺序、结束条件、记录模板和示例见 [docs/governance/agent-battle-protocol.md](docs/governance/agent-battle-protocol.md)。

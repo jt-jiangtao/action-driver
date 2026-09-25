@@ -29,7 +29,7 @@ describe('ActionDriver pages', () => {
     expect(view.container.querySelector('.agent-message-with-images')?.firstElementChild).toHaveTextContent('正在绘制')
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(2)
   })
-  it('shows completed generated images while process text stays in the activity group', async () => {
+  it('shows completed generated images while legacy process text stays in the activity group', async () => {
     const asset = {
       assetId: 'generated-1',
       sessionId: 'session-1',
@@ -97,6 +97,107 @@ describe('ActionDriver pages', () => {
       onTakeOver={vi.fn()} onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
     expect(view.container.querySelectorAll('.agent-message .image-gallery-slot')).toHaveLength(2)
     expect(view.container.querySelector('.agent-message')).not.toHaveTextContent('过程文字')
+  })
+  it('keeps the answer with its image and leaves the archived过程 text upstream', () => {
+    const asset = {
+      assetId: 'generated-answer', sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    }
+    const view = render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'succeeded',
+          browser: null,
+          activityDurationMs: 6_000,
+          messages: [
+            { id: 'user-answer', role: 'user', content: '测试所有工具' },
+            {
+              id: 'agent-answer',
+              role: 'agent',
+              content: '好的，我来测试全部完成',
+              parts: [
+                { kind: 'text', text: '好的，我来测试' },
+                { kind: 'image-batch', callId: 'image-answer', imageCount: 1 },
+                { kind: 'image', asset, generation: { callId: 'image-answer', index: 0 } },
+                { kind: 'text', text: '全部完成' }
+              ]
+            }
+          ],
+          activityTimeline: [
+            { id: 'text:plan:1', kind: 'text', content: '好的，我来测试', phase: 'process' },
+            { id: 'text:plan:2', kind: 'text', content: '全部完成', phase: 'final' }
+          ],
+          tools: [
+            {
+              callId: 'image-answer', toolId: 'image.generate', modelName: 'image_generate',
+              summary: '生成图片', argumentsHash: '', status: 'completed', imageCount: 1
+            }
+          ],
+          activities: []
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const message = view.container.querySelector('.agent-message')
+    expect(message).toHaveTextContent('全部完成')
+    expect(message).not.toHaveTextContent('好的，我来测试')
+    // The process narration and the tool group stay in the elapsed-time archive.
+    expect(view.container.querySelector('.activity-archive')).toHaveTextContent('好的，我来测试')
+  })
+  it('keeps the legacy message empty while the activity mirror leads the answer stream', () => {
+    const view = render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'running',
+          browser: null,
+          messages: [
+            { id: 'user-live', role: 'user', content: '画图' },
+            {
+              id: 'agent-live',
+              role: 'agent',
+              content: '过程文字',
+              parts: [
+                { kind: 'text', text: '过程文字' },
+                { kind: 'image-batch', callId: 'image-live', imageCount: 1 }
+              ]
+            }
+          ],
+          // The activity channel has already mirrored one more delta than the
+          // answer channel, which used to make the message text flash on.
+          activityTimeline: [
+            { id: 'text:plan:1', kind: 'text', content: '过程文字已', phase: 'pending' }
+          ],
+          tools: [
+            {
+              callId: 'image-live', toolId: 'image.generate', modelName: 'image_generate',
+              summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 1
+            }
+          ],
+          activities: []
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    expect(view.container.querySelector('.agent-message')).not.toHaveTextContent('过程文字')
+    expect(view.container.querySelector('.activity-timeline')).toHaveTextContent('过程文字已')
   })
   it('renders the Figma home copy and 720px composer contract', () => {
     render(
@@ -406,7 +507,7 @@ describe('ActionDriver pages', () => {
     expect(screen.getByText('用时 5 秒').closest('details')).not.toBeNull()
   })
 
-  it('shows streaming assistant text outside the activity group while running', () => {
+  it('shows legacy streaming assistant text outside the activity group while running', () => {
     render(
       <TaskPage
         mode="split"
@@ -469,6 +570,103 @@ describe('ActionDriver pages', () => {
     expect(screen.getByText('最终回答')).toBeVisible()
     expect(screen.getByText('过程说明')).not.toBeVisible()
     expect(screen.getAllByText('最终回答')).toHaveLength(1)
+  })
+
+  it('keeps prose, tool group, image and answer in the order the model produced them', () => {
+    const asset = {
+      assetId: 'ordered-image',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
+    }
+    const view = render(
+      <TaskPage
+        mode="split"
+        task={{
+          ...mockTaskFixture,
+          status: 'succeeded',
+          browser: null,
+          activityDurationMs: 5_000,
+          messages: [
+            { id: 'user-order', role: 'user', content: '测试所有工具' },
+            {
+              id: 'agent-order',
+              role: 'agent',
+              content: '先说明全部完成',
+              parts: [
+                { kind: 'text', text: '先说明' },
+                { kind: 'activity', activityId: 'activity:tools' },
+                { kind: 'image-batch', callId: 'image-order', imageCount: 1 },
+                { kind: 'image', asset, generation: { callId: 'image-order', index: 0 } },
+                { kind: 'text', text: '全部完成' }
+              ]
+            }
+          ],
+          activityTimeline: [
+            { id: 'text:plan:1', kind: 'text', content: '先说明', phase: 'process' },
+            { id: 'activity:tools', kind: 'activity', activityId: 'activity:tools' },
+            { id: 'text:plan:2', kind: 'text', content: '全部完成', phase: 'final' }
+          ],
+          activities: [
+            {
+              activityId: 'activity:tools',
+              title: '正在测试所有工具',
+              titleRevision: 1,
+              status: 'completed',
+              items: [{ id: 'tool:shell', kind: 'tool', callId: 'shell' }]
+            }
+          ],
+          tools: [
+            {
+              callId: 'shell',
+              toolId: 'sanbox.shell.run',
+              modelName: 'shell_run',
+              summary: '执行命令',
+              title: '已执行命令',
+              argumentsHash: '',
+              activityId: 'activity:tools',
+              status: 'completed'
+            },
+            {
+              callId: 'image-order',
+              toolId: 'image.generate',
+              modelName: 'image_generate',
+              summary: '生成图片',
+              argumentsHash: '',
+              activityId: 'activity:tools',
+              status: 'completed',
+              imageCount: 1
+            }
+          ]
+        }}
+        modelSelection={mockModelSelection}
+        onSelectModel={vi.fn()}
+        onModeChange={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onTakeOver={vi.fn()}
+        onInterrupt={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    const process = view.container.querySelector('.activity-timeline')!
+    // The narration the model wrote before its tools stays above the group in
+    // the activity area, so the two regions together read in stream order.
+    expect(process).toHaveTextContent('先说明')
+    const processFlow = [...process.querySelectorAll('.activity-process-text, .activity-group')].map(
+      (node) => (node.classList.contains('activity-group') ? 'activity' : 'text')
+    )
+    expect(processFlow).toEqual(['text', 'activity'])
+    const message = view.container.querySelector('.agent-message')!
+    const messageFlow = [...message.children].map((child) =>
+      child.querySelector('.image-gallery-slot, .image-gallery') ? 'image' : 'text'
+    )
+    expect(messageFlow).toEqual(['image', 'text'])
+    expect(message).toHaveTextContent('全部完成')
+    expect(message).not.toHaveTextContent('先说明')
   })
 
   it('preserves previous conversation turns and does not show failed process text as a conclusion', () => {

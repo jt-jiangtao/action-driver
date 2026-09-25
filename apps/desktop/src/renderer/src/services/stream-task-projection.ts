@@ -1,4 +1,13 @@
-import { normalizeAssistantParts, type TaskProjection, type ToolInvocationProjection } from '@actiondriver/contracts'
+import {
+  appendActivityAnchor,
+  currentActivityId,
+  insertPartByOrder,
+  nextPartOrder,
+  normalizeAssistantParts,
+  type MessageContentPart,
+  type TaskProjection,
+  type ToolInvocationProjection
+} from '@actiondriver/contracts'
 import {
   emptyActivityTimelineState,
   reduceActivityProjection,
@@ -114,6 +123,7 @@ export class StreamTaskProjection {
       this.applyActivityProjection(toolEvent)
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
+      this.anchorToolGroup(toolEvent.messageId, toolEvent.activityId)
       if (toolEvent.type !== 'tool.content' && toolEvent.type !== 'tool.asset') {
         const status = toolEvent.type.slice('tool.'.length) as ToolInvocationProjection['status']
         const next: ToolInvocationProjection = {
@@ -202,9 +212,17 @@ export class StreamTaskProjection {
         : before?.content
           ? [{ kind: 'text' as const, text: before.content }]
           : []
-      const index = Math.min(event.contentIndex, parts.length)
-      if (parts[index]?.kind === 'text') parts[index].text += event.delta
-      else parts.splice(index, 0, { kind: 'text', text: event.delta })
+      // Text flows strictly forward: it continues the trailing text block or
+      // starts a new block at its own order, so text that streams after an image
+      // batch stays after it no matter when the pictures land.
+      const last = parts.at(-1)
+      if (last?.kind === 'text') last.text += event.delta
+      else
+        insertPartByOrder(parts, {
+          kind: 'text',
+          text: event.delta,
+          order: event.order ?? nextPartOrder(parts)
+        })
       this.replaceAssistantContent(
         event.messageId,
         `${before?.content ?? ''}${event.delta}`
@@ -222,8 +240,11 @@ export class StreamTaskProjection {
           ? [{ kind: 'text' as const, text: assistant.content }]
           : []
       if (!parts.some((part) => part.kind === 'image-batch' && part.callId === event.callId)) {
-        parts.splice(Math.min(event.contentIndex, parts.length), 0, {
-          kind: 'image-batch', callId: event.callId, imageCount: event.imageCount
+        insertPartByOrder(parts, {
+          kind: 'image-batch',
+          callId: event.callId,
+          imageCount: event.imageCount,
+          order: event.order ?? nextPartOrder(parts)
         })
         this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
@@ -241,8 +262,13 @@ export class StreamTaskProjection {
       if (
         !parts.some((part) => part.kind === 'image' && part.asset.assetId === event.asset.assetId)
       ) {
-        parts.splice(Math.min(event.contentIndex, parts.length), 0, {
-          kind: 'image', asset: event.asset, generation: { callId: event.callId, index: event.index }
+        // The batch reserved one order per image, so an image keeps the place
+        // it was planned for even when a later slot finishes first.
+        insertPartByOrder(parts, {
+          kind: 'image',
+          asset: event.asset,
+          generation: { callId: event.callId, index: event.index },
+          order: event.order ?? imageOrderIn(parts, event.callId, event.index)
         })
         this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       }
@@ -251,11 +277,34 @@ export class StreamTaskProjection {
     }
 
     this.replaceAssistantContent(event.messageId, event.content)
-    const visualParts = this.assistantMessage(event.messageId)?.parts?.filter((part) => part.kind !== 'text') ?? []
-    if (event.status === 'completed' && (visualParts.length || this.assistantMessage(event.messageId)?.parts))
-      this.replaceAssistantParts(event.messageId, normalizeAssistantParts(
-        event.content ? [...visualParts, { kind: 'text', text: event.content }] : visualParts
-      ))
+    // The streamed order is canonical: a finished turn must not move text that
+    // already had a position, otherwise the live message would differ from the
+    // same message after a reload. Only an answer the model never streamed is
+    // appended, mirroring how the runtime stores the transcript.
+    const completedParts = this.assistantMessage(event.messageId)?.parts
+    if (event.status === 'completed' && completedParts?.length) {
+      const hasVisual = completedParts.some(
+        (part) => part.kind === 'image' || part.kind === 'image-batch'
+      )
+      const streamedText = completedParts
+        .filter((part) => part.kind === 'text')
+        .map((part) => part.text)
+        .join('')
+      if (
+        hasVisual &&
+        event.content &&
+        (!streamedText ||
+          (!streamedText.endsWith(event.content) && !event.content.endsWith(streamedText)))
+      ) {
+        this.replaceAssistantParts(
+          event.messageId,
+          normalizeAssistantParts([
+            ...completedParts,
+            { kind: 'text', text: event.content, order: nextPartOrder(completedParts) }
+          ])
+        )
+      }
+    }
     const completed = event.status === 'completed'
     const detail = completed
       ? '模型响应已完成'
@@ -302,6 +351,21 @@ export class StreamTaskProjection {
     return this.task?.messages.find(
       (message) => message.id === messageId && message.role === 'agent'
     )
+  }
+
+  /** Keeps the tool group in the transcript where its tools ran. */
+  private anchorToolGroup(messageId: string, activityId: string | null | undefined): void {
+    if (!activityId) return
+    const assistant = this.assistantMessage(messageId)
+    if (!assistant) return
+    const parts = assistant.parts
+      ? [...assistant.parts]
+      : assistant.content
+        ? [{ kind: 'text' as const, text: assistant.content }]
+        : []
+    if (currentActivityId(parts) === activityId) return
+    appendActivityAnchor(parts, activityId)
+    this.replaceAssistantParts(messageId, normalizeAssistantParts(parts))
   }
 
   private replaceAssistantContent(messageId: string, content: string): void {
@@ -352,6 +416,19 @@ export class StreamTaskProjection {
       activityTimeline: this.activityState.timeline
     }
   }
+}
+
+/**
+ * Order reserved for one image of a batch: the batch owns `index` slots so a
+ * picture never has to be moved once it is on screen.
+ */
+function imageOrderIn(
+  parts: readonly MessageContentPart[],
+  callId: string,
+  index: number
+): number {
+  const batch = parts.find((part) => part.kind === 'image-batch' && part.callId === callId)
+  return batch?.order === undefined ? nextPartOrder(parts) : batch.order + 1 + index
 }
 
 function activityStateFromTask(task: TaskProjection, cursor = 0): ActivityTimelineState {

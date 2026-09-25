@@ -767,7 +767,9 @@ export function activityTitleForTools(
     if (status === 'running') return `正在${summary}`
     if (status === 'failed' && count === 1) return `${summary}（执行失败）`
     if (status === 'cancelled' && count === 1) return `${summary}（已取消）`
-    if (issueCount > 0) return `${summary}（${issueCount} 项未完成）`
+    // A group with unfinished work keeps the neutral plan wording: failures are
+    // visible on the individual tool rows, not as a count in the title.
+    if (issueCount > 0) return summary
     if (status === 'completed') return `已完成${summary}`
     if (status === 'cancelled') return `已取消${summary}`
     return `${summary}失败`
@@ -776,7 +778,7 @@ export function activityTitleForTools(
   if (kinds.size > 1) {
     const summary = `使用${category}工具`
     if (status === 'running') return `正在${summary}`
-    if (issueCount > 0) return `${summary}（${issueCount} 项未完成）`
+    if (issueCount > 0) return summary
     if (status === 'completed') return `已完成${summary}`
     if (status === 'cancelled') return `已取消${summary}`
     return `${summary}失败`
@@ -794,7 +796,7 @@ export function activityTitleForTools(
         ? `${count} 条命令`
         : `${count} 项操作`
   if (status === 'running') return `正在执行 ${subject}`
-  if (issueCount > 0) return `已处理 ${subject}（${issueCount} 项未完成）`
+  if (issueCount > 0) return `已处理 ${subject}`
   if (status === 'completed') return `已执行 ${subject}`
   if (status === 'cancelled') return `已取消 ${subject}`
   return `${subject}执行失败`

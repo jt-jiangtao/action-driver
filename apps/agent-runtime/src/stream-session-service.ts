@@ -10,6 +10,9 @@ import {
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
 import {
+  appendActivityAnchor,
+  insertPartByOrder,
+  nextPartOrder,
   normalizeAssistantParts,
   type ImageAssetRef,
   type MessageContentPart
@@ -34,6 +37,12 @@ import {
   toolActivityErrorSummary,
   toolActivityResultSummary
 } from './tool-activity'
+
+/** Order reserved for one image inside its batch: the batch keeps `index` slots. */
+function imageOrder(parts: readonly MessageContentPart[], callId: string, index: number): number {
+  const batch = parts.find((part) => part.kind === 'image-batch' && part.callId === callId)
+  return batch?.order === undefined ? nextPartOrder(parts) : batch.order + 1 + index
+}
 
 type Emit = (event: StreamServerEvent) => void | Promise<void>
 type SnapshotEvent = Extract<StreamServerEvent, { type: 'response.snapshot' }>
@@ -340,7 +349,9 @@ export class StreamSessionService {
     const assistantParts: MessageContentPart[] = []
     const seenImages = new Set<string>()
     const assistantContent = () =>
-      assistantParts.some((part) => part.kind === 'image' || part.kind === 'image-batch')
+      assistantParts.some(
+        (part) => part.kind === 'image' || part.kind === 'image-batch' || part.kind === 'activity'
+      )
         ? { parts: normalizeAssistantParts(assistantParts) }
         : { text: content }
     let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
@@ -413,22 +424,30 @@ export class StreamSessionService {
           sequence += 1
           content += event.delta
           const last = assistantParts.at(-1)
-          const contentIndex =
-            last?.kind === 'text' ? assistantParts.length - 1 : assistantParts.length
+          const continuesText = last?.kind === 'text'
+          const textOrder = continuesText ? (last.order ?? 0) : nextPartOrder(assistantParts)
           if (last?.kind === 'text') last.text += event.delta
-          else assistantParts.push({ kind: 'text', text: event.delta })
+          else assistantParts.push({ kind: 'text', text: event.delta, order: textOrder })
+          const contentIndex = assistantParts.indexOf(assistantParts.at(-1)!)
           const record = await this.options.repositories.commitAssistantContentWithEvent(
             request,
             { ...initialAssistant, content: assistantContent() },
             this.runtimeEvent(request, 'response.content', sequence, {
               delta: event.delta,
-              contentIndex
+              contentIndex,
+              order: textOrder
             })
           )
           await this.publishThrough(request, record.cursor, emit)
         },
         async (record) => {
           if (record.requestId === request.requestId) {
+            if (record.type.startsWith('tool.')) {
+              // Anchor the tool group where it starts, so the transcript keeps
+              // the model's own order: prose, tools, images, prose.
+              const activityId = (record.payload as { activityId?: unknown }).activityId
+              if (typeof activityId === 'string') appendActivityAnchor(assistantParts, activityId)
+            }
             if (record.type === 'tool.running') {
               const payload = record.payload as {
                 callId?: unknown
@@ -447,10 +466,12 @@ export class StreamSessionService {
                 )
               ) {
                 const contentIndex = assistantParts.length
+                const batchOrder = nextPartOrder(assistantParts)
                 assistantParts.push({
                   kind: 'image-batch',
                   callId: payload.callId,
-                  imageCount: payload.imageCount
+                  imageCount: payload.imageCount,
+                  order: batchOrder
                 })
                 sequence += 1
                 let batchRecord
@@ -462,7 +483,12 @@ export class StreamSessionService {
                       request,
                       'response.image_batch',
                       sequence,
-                      { callId: payload.callId, imageCount: payload.imageCount, contentIndex },
+                      {
+                        callId: payload.callId,
+                        imageCount: payload.imageCount,
+                        contentIndex,
+                        order: batchOrder
+                      },
                       `response.image_batch:${payload.callId}`
                     )
                   )
@@ -489,16 +515,25 @@ export class StreamSessionService {
                 payload.asset.sessionId !== request.sessionId
               )
                 return
-              const imageKey = `${payload.callId}:${payload.index}`
+              const asset = payload.asset
+              const callId = payload.callId
+              const imageIndex = payload.index
+              const imageKey = `${callId}:${imageIndex}`
               if (seenImages.has(imageKey)) return
               if (assistantParts.length === 0 && content)
-                assistantParts.push({ kind: 'text', text: content })
-              const contentIndex = assistantParts.length
-              assistantParts.push({
+                assistantParts.push({ kind: 'text', text: content, order: nextPartOrder(assistantParts) })
+              // The batch reserved a slot per image, so the picture lands where
+              // it was planned even when a later slot finishes first.
+              const order = imageOrder(assistantParts, callId, imageIndex)
+              insertPartByOrder(assistantParts, {
                 kind: 'image',
-                asset: payload.asset,
-                generation: { callId: payload.callId, index: payload.index }
+                asset,
+                generation: { callId, index: imageIndex },
+                order
               })
+              const contentIndex = assistantParts.findIndex(
+                (part) => part.kind === 'image' && part.asset.assetId === asset.assetId
+              )
               sequence += 1
               let imageRecord
               try {
@@ -510,16 +545,20 @@ export class StreamSessionService {
                     'response.image',
                     sequence,
                     {
-                      asset: payload.asset,
+                      asset,
                       contentIndex,
-                      callId: payload.callId,
-                      index: payload.index
+                      callId,
+                      index: imageIndex,
+                      order
                     },
                     `response.image:${imageKey}`
                   )
                 )
               } catch (error) {
-                assistantParts.pop()
+                const inserted = assistantParts.findIndex(
+                  (part) => part.kind === 'image' && part.asset.assetId === asset.assetId
+                )
+                if (inserted >= 0) assistantParts.splice(inserted, 1)
                 sequence -= 1
                 throw error
               }
@@ -540,14 +579,27 @@ export class StreamSessionService {
     const status = completed ? 'completed' : cancelled ? 'cancelled' : 'failed'
     if (completed && terminalEvent) {
       content = terminalEvent.content
-      if (assistantParts.some((part) => part.kind === 'image' || part.kind === 'image-batch')) {
-        const visualParts = assistantParts.filter((part) => part.kind !== 'text')
-        assistantParts.splice(
-          0,
-          assistantParts.length,
-          ...visualParts,
-          ...(content ? [{ kind: 'text' as const, text: content }] : [])
-        )
+      // The streamed part order is canonical: text stays where it appeared
+      // relative to the visual batches. Only text the model sent without
+      // streaming it (terminal answer with no content events) is appended, so
+      // live rendering and the stored transcript never disagree.
+      const hasVisuals = assistantParts.some(
+        (part) => part.kind === 'image' || part.kind === 'image-batch'
+      )
+      if (hasVisuals && content) {
+        const streamedText = assistantParts
+          .filter((part) => part.kind === 'text')
+          .map((part) => part.text)
+          .join('')
+        // Only append an answer the model never streamed; anything already in
+        // the transcript (in its streamed position) stays untouched.
+        if (!streamedText || (!streamedText.endsWith(content) && !content.endsWith(streamedText))) {
+          assistantParts.push({
+            kind: 'text',
+            text: content,
+            order: nextPartOrder(assistantParts)
+          })
+        }
       }
     }
     const error = completed
@@ -916,7 +968,8 @@ export class StreamSessionService {
         asset: payload.asset,
         contentIndex: payload.contentIndex,
         callId: payload.callId,
-        index: payload.index
+        index: payload.index,
+        ...(typeof payload.order === 'number' ? { order: payload.order } : {})
       })
     }
     if (record.type === 'response.image_batch') {
@@ -925,7 +978,8 @@ export class StreamSessionService {
         ...identity,
         callId: payload.callId,
         imageCount: payload.imageCount,
-        contentIndex: payload.contentIndex
+        contentIndex: payload.contentIndex,
+        ...(typeof payload.order === 'number' ? { order: payload.order } : {})
       })
     }
     if (record.type.startsWith('activity.')) {

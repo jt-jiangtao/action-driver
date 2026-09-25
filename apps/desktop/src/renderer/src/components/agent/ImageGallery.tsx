@@ -30,7 +30,18 @@ export function ImageGallery({
     })
     return { tool, slots }
   })
-  const remaining = images.filter((part) => !grouped.has(part))
+  // Images without a matching tool row (or anchor) still follow the slot order
+  // the generator reserved, never the order they finished in.
+  const remaining = images
+    .filter((part) => !grouped.has(part))
+    .map((part, order) => ({ part, order }))
+    .sort((a, b) => {
+      const aCall = a.part.generation?.callId ?? ''
+      const bCall = b.part.generation?.callId ?? ''
+      if (aCall !== bCall) return a.order - b.order
+      return (a.part.generation?.index ?? a.order) - (b.part.generation?.index ?? b.order)
+    })
+    .map((entry) => entry.part)
   if (!groups.length && !remaining.length) return null
   return (
     <div className="image-gallery">

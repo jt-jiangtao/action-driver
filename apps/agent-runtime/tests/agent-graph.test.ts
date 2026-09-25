@@ -73,7 +73,10 @@ describe('minimal agent StateGraph', () => {
     )
     expect(
       activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'], 'completed', 1)
-    ).toBe('测试所有工具：命令、脚本、网页（1 项未完成）')
+    ).toBe('测试所有工具：命令、脚本、网页')
+    expect(
+      activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'], 'completed')
+    ).toBe('已完成测试所有工具：命令、脚本、网页')
   })
   it('uses a concise task intent for a single tool and a homogeneous group', () => {
     const goal = '读取 README 的第一段'
@@ -389,7 +392,7 @@ describe('minimal agent StateGraph', () => {
       event: {
         type: 'updated',
         activityId: 'activity:task-partial-failure:default',
-        title: '已处理 2 条命令（1 项未完成）',
+        title: '已处理 2 条命令',
         titleRevision: 4
       }
     })
