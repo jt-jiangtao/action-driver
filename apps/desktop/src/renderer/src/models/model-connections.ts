@@ -1,4 +1,4 @@
-import type { ImageGenerationApi } from '@actiondriver/model-connections'
+import type { ImageGenerationApi, ModelKind, ModelCapability, ModelCapabilityResultDto } from '@actiondriver/model-connections'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
@@ -37,11 +37,14 @@ export interface ModelFailure {
 export interface ModelOption {
   id: string
   name: string
+  kind?: ModelKind
   enabled: boolean
   testState: ModelTestState
   imageInputEnabled?: boolean
   imageGenerationEnabled?: boolean
   imageGenerationApi?: ImageGenerationApi
+  capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
+  catalogLabels?: string[] | undefined
 }
 
 export interface ModelConnectionDraft {
@@ -64,6 +67,7 @@ export interface ModelConnection {
 export interface ModelTestResult {
   modelId: string
   state: ModelProbeState
+  capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
 }
 
 export type ModelConnectionTestResult = { ok: true } | { ok: false; failure: ModelFailure }
@@ -73,9 +77,14 @@ export interface ModelConnectionsService {
   testConnection(draft: ModelConnectionDraft): Promise<ModelConnectionTestResult>
   discover(draft: ModelConnectionDraft): Promise<ModelOption[]>
   refresh(connectionId: string): Promise<ModelOption[]>
-  testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]>
+  testModels(
+    draft: ModelConnectionDraft,
+    modelIds: string[],
+    imageModels?: { modelId: string; api: ImageGenerationApi }[]
+  ): Promise<ModelTestResult[]>
   testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]>
   setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void>
+  setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void>
   setModelImageCapability(
     connectionId: string,
     modelId: string,

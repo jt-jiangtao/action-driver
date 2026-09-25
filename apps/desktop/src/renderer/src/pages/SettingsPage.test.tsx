@@ -12,98 +12,35 @@ function renderWithQuery(element: ReactElement, options?: RenderOptions) {
 }
 
 describe('SettingsPage model connections', () => {
-  it('saves a manually named Images API model without discovery or chat testing', async () => {
+  it('shows per-capability probe results and allows a tested image default', async () => {
+    const user = userEvent.setup()
+    const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
+    seed[0]!.models.push({
+      id: 'wan2.7-image', name: 'wan2.7-image', enabled: true, testState: 'untested',
+      capabilities: { image_generation: { state: 'success', source: 'probe' } }
+    })
+    const service = new MockModelConnectionsService({ delayMs: 0, seed })
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await screen.findByText('公司模型网关')
+    expect(screen.queryByRole('combobox', { name: 'gpt-5.2 模型类型' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'gpt-5.2 生图接口' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: '设为默认生图模型：wan2.7-image' }))
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: 'company-gateway', modelId: 'wan2.7-image'
+    })
+  })
+
+  it('does not require a model type when adding a connection', async () => {
     const user = userEvent.setup()
     const service = new MockModelConnectionsService({ delayMs: 0, seed: [] })
-    const discover = vi.spyOn(service, 'discover')
-    const testConnection = vi.spyOn(service, 'testConnection')
-    const testModels = vi.spyOn(service, 'testModels')
-    const add = vi.spyOn(service, 'add')
     renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
     await screen.findByText('还没有模型集')
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
-    const dialog = await screen.findByRole('dialog', { name: '添加模型集' })
-    await user.type(within(dialog).getByLabelText('名称'), '专用生图网关')
-    await user.type(within(dialog).getByLabelText('接口地址'), 'https://images.example.com/v1')
-    await user.type(within(dialog).getByLabelText('API 密钥'), 'sk-images')
-    await user.click(within(dialog).getByRole('button', { name: '手动配置生图模型' }))
-    await user.click(within(dialog).getByRole('button', { name: '手动添加模型' }))
-    await user.clear(within(dialog).getByLabelText('手动模型名称'))
-    await user.type(within(dialog).getByLabelText('手动模型名称'), 'image-alpha')
-    await user.click(within(dialog).getByRole('button', { name: '保存' }))
-    expect(add).toHaveBeenCalledWith(expect.objectContaining({ name: '专用生图网关' }), [
-      expect.objectContaining({
-        id: 'image-alpha',
-        imageGenerationEnabled: true,
-        testState: 'untested'
-      })
-    ])
-    expect(discover).not.toHaveBeenCalled()
-    expect(testConnection).not.toHaveBeenCalled()
-    expect(testModels).not.toHaveBeenCalled()
-    expect(
-      await screen.findByRole('button', { name: '设为默认生图模型：image-alpha' })
-    ).toBeVisible()
+    const dialog = screen.getByRole('dialog', { name: '添加模型集' })
+    expect(within(dialog).queryByText('手动配置生图模型')).toBeNull()
+    expect(within(dialog).queryByRole('combobox', { name: /模型类型/ })).toBeNull()
   })
 
-  it('configures image input and generation with one default model', async () => {
-    const user = userEvent.setup()
-    const service = new MockModelConnectionsService({ delayMs: 0 })
-    const generate = vi.spyOn(service, 'setModelImageCapability')
-    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
-    await screen.findByText('公司模型网关')
-    const input = screen.getByRole('switch', { name: 'gpt-5.2 支持图片输入' })
-    const generation = screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' })
-    expect(input).toHaveAttribute('aria-checked', 'false')
-    expect(generation).toHaveAttribute('aria-checked', 'false')
-    await user.click(input)
-    await user.click(generation)
-    expect(generate).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'input', true)
-    expect(generate).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'generation', true)
-    await user.click(await screen.findByRole('button', { name: '设为默认生图模型：gpt-5.2' }))
-    expect(await service.getDefaultImageModel()).toEqual({
-      connectionId: 'company-gateway',
-      modelId: 'gpt-5.2'
-    })
-    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
-    expect(await service.getDefaultImageModel()).toBeNull()
-  })
-  it('selects and retains the Token Plan image API for a model', async () => {
-    const user = userEvent.setup()
-    const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
-    seed[0]!.baseUrl = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
-    const service = new MockModelConnectionsService({ delayMs: 0, seed })
-    const setApi = vi.spyOn(service, 'setModelImageGenerationApi')
-    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
-    await screen.findByText('公司模型网关')
-    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
-    const api = await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' })
-    expect(api).toHaveValue('openai-images')
-    await user.selectOptions(api, 'token-plan')
-    expect(setApi).toHaveBeenCalledWith('company-gateway', 'gpt-5.2', 'token-plan')
-    expect((await service.list())[0]?.models[0]).toMatchObject({
-      id: 'gpt-5.2',
-      imageGenerationApi: 'token-plan'
-    })
-    await user.click(screen.getByRole('button', { name: '刷新公司模型网关' }))
-    expect(await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' })).toHaveValue(
-      'token-plan'
-    )
-  })
-
-  it('keeps Images API selected when Token Plan is chosen on an unrelated host', async () => {
-    const user = userEvent.setup()
-    const service = new MockModelConnectionsService({ delayMs: 0 })
-    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
-    await screen.findByText('公司模型网关')
-    await user.click(screen.getByRole('switch', { name: 'gpt-5.2 支持图片生成' }))
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'gpt-5.2 生图接口' }),
-      'token-plan'
-    )
-    expect(await screen.findByRole('alert')).toHaveTextContent('Token Plan')
-    expect(screen.getByRole('combobox', { name: 'gpt-5.2 生图接口' })).toHaveValue('openai-images')
-  })
   it('reuses cached connections when the settings page is reopened', async () => {
     const service = new MockModelConnectionsService({ delayMs: 0 })
     const list = vi.spyOn(service, 'list')
@@ -234,7 +171,7 @@ describe('SettingsPage model connections', () => {
     await user.click(within(dialog).getByRole('button', { name: '下一步' }))
     expect(within(dialog).getByText('gpt-5.2')).toBeVisible()
     await user.click(within(dialog).getByRole('button', { name: '测试全部模型' }))
-    expect(await within(dialog).findAllByText('成功')).toHaveLength(3)
+    expect(await within(dialog).findAllByText('文本 · 通过')).toHaveLength(3)
     expect(dialog).toHaveAttribute('data-view-state', 'models-success')
     await user.click(within(dialog).getByRole('button', { name: '保存' }))
 
@@ -268,10 +205,10 @@ describe('SettingsPage model connections', () => {
 
     await user.dblClick(within(dialog).getByRole('button', { name: '测试全部模型' }))
     expect(testModelsSpy).toHaveBeenCalledOnce()
-    expect(within(dialog).getAllByText('测试中')).toHaveLength(3)
     expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
-    expect(await within(dialog).findByText('失败')).toBeVisible()
-    expect(within(dialog).getAllByText('成功')).toHaveLength(2)
+    expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
+    expect(await within(dialog).findByText('文本 · 失败')).toBeVisible()
+    expect(within(dialog).getAllByText('文本 · 通过')).toHaveLength(2)
     expect(dialog).toHaveAttribute('data-view-state', 'models-partial-failure')
   })
 })

@@ -1,5 +1,5 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
-import type { ImageGenerationApi } from '@actiondriver/model-connections'
+import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 import type {
   ModelConnection,
   ModelConnectionDraft,
@@ -47,8 +47,12 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
     return models.map(mapModel)
   }
 
-  async testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]> {
-    const results = await this.run(() => this.api.testModels(draft, [...modelIds]))
+  async testModels(
+    draft: ModelConnectionDraft,
+    modelIds: string[],
+    imageModels: { modelId: string; api: ImageGenerationApi }[] = []
+  ): Promise<ModelTestResult[]> {
+    const results = await this.run(() => this.api.testModels(draft, [...modelIds], imageModels))
     return results.map(mapTestResult)
   }
 
@@ -59,6 +63,10 @@ export class DesktopModelConnectionsService implements ModelConnectionsService {
 
   async setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void> {
     await this.run(() => this.api.setModelEnabled(connectionId, modelId, enabled))
+  }
+
+  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
+    await this.run(() => this.api.setModelKind(connectionId, modelId, kind))
   }
 
   async setModelImageCapability(
@@ -199,6 +207,9 @@ function mapModel(value: unknown): ModelOption {
     name: value.name,
     enabled: value.enabled,
     testState: value.testState,
+    ...(isRecord(value.capabilities) ? { capabilities: value.capabilities as ModelOption['capabilities'] } : {}),
+    ...(Array.isArray(value.catalogLabels) ? { catalogLabels: value.catalogLabels.filter((label): label is string => typeof label === 'string') } : {}),
+    kind: value.kind === 'image' ? 'image' : 'chat',
     ...(typeof value.imageInputEnabled === 'boolean'
       ? { imageInputEnabled: value.imageInputEnabled }
       : {}),
@@ -213,7 +224,11 @@ function mapTestResult(value: unknown): ModelTestResult {
   if (!isRecord(value) || typeof value.modelId !== 'string' || !isProbeState(value.state)) {
     throw new ModelConnectionsError('invalid-response', '模型测试响应格式不正确')
   }
-  return { modelId: value.modelId, state: value.state }
+  return {
+    modelId: value.modelId,
+    state: value.state,
+    ...(isRecord(value.capabilities) ? { capabilities: value.capabilities as ModelTestResult['capabilities'] } : {})
+  }
 }
 
 function isProtocol(value: unknown): value is ModelProtocol {

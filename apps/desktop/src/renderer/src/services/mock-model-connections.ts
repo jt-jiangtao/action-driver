@@ -6,7 +6,7 @@ import type {
   ModelOption,
   ModelTestResult
 } from '../models/model-connections'
-import type { ImageGenerationApi } from '@actiondriver/model-connections'
+import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 
 interface MockModelConnectionsOptions {
   delayMs?: number
@@ -45,7 +45,10 @@ const defaultConnections: ModelConnection[] = [
 ]
 
 function cloneModels(models: ModelOption[]): ModelOption[] {
-  return models.map((model) => ({ ...model }))
+  return models.map((model) => ({
+    ...model,
+    kind: model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat')
+  }))
 }
 
 function cloneConnection(connection: ModelConnection): ModelConnection {
@@ -91,6 +94,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       enabled: currentById.get(model.id)?.enabled ?? model.enabled,
       imageInputEnabled: currentById.get(model.id)?.imageInputEnabled ?? false,
       imageGenerationEnabled: currentById.get(model.id)?.imageGenerationEnabled ?? false,
+      kind: currentById.get(model.id)?.kind ?? 'chat',
       imageGenerationApi: currentById.get(model.id)?.imageGenerationApi ?? 'openai-images'
     }))
     this.clearInvalidImageDefault()
@@ -100,11 +104,17 @@ export class MockModelConnectionsService implements ModelConnectionsService {
   async testModels(draft: ModelConnectionDraft, modelIds: string[]): Promise<ModelTestResult[]> {
     await this.wait()
     if (!draft.baseUrl.trim()) return []
-    return modelIds.map((modelId) => ({
-      modelId,
-      state:
-        (this.modelResults[modelId] ?? !modelId.startsWith('custom-model')) ? 'success' : 'failed'
-    }))
+    return modelIds.map((modelId) => {
+      const success = this.modelResults[modelId] ?? !modelId.startsWith('custom-model')
+      return {
+        modelId,
+        state: success ? 'success' : 'failed',
+        capabilities: {
+          text: { state: success ? 'success' : 'failed', source: 'probe' },
+          ...(modelId.includes('image') ? { image_generation: { state: success ? 'success' as const : 'failed' as const, source: 'probe' as const } } : {})
+        }
+      }
+    })
   }
 
   async testConnectionModels(connectionId: string, modelIds: string[]): Promise<ModelTestResult[]> {
@@ -118,10 +128,10 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       },
       modelIds
     )
-    const resultById = new Map(results.map((result) => [result.modelId, result.state]))
+    const resultById = new Map(results.map((result) => [result.modelId, result]))
     connection.models = connection.models.map((model) => {
       const result = resultById.get(model.id)
-      return result ? { ...model, testState: result } : model
+      return result ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } } : model
     })
     return results
   }
@@ -134,6 +144,15 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     this.clearInvalidImageDefault()
   }
 
+  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
+    const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
+    if (!model) throw new Error(`Unknown model: ${modelId}`)
+    model.kind = kind
+    model.imageGenerationEnabled = kind === 'image'
+    model.testState = 'untested'
+    this.clearInvalidImageDefault()
+  }
+
   async setModelImageCapability(
     connectionId: string,
     modelId: string,
@@ -143,7 +162,10 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const model = this.requireConnection(connectionId).models.find((item) => item.id === modelId)
     if (!model) throw new Error(`Unknown model: ${modelId}`)
     if (kind === 'input') model.imageInputEnabled = enabled
-    else model.imageGenerationEnabled = enabled
+    else {
+      model.imageGenerationEnabled = enabled
+      model.kind = enabled ? 'image' : 'chat'
+    }
     this.clearInvalidImageDefault()
   }
 
@@ -162,6 +184,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       throw new Error('Token Plan 生图接口需要官方 HTTPS 地址')
     }
     model.imageGenerationApi = api
+    model.testState = 'untested'
   }
 
   async setDefaultImageModel(
@@ -171,7 +194,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
       const selected = this.requireConnection(model.connectionId).models.find(
         (item) => item.id === model.modelId
       )
-      if (!selected?.enabled || !selected.imageGenerationEnabled)
+      if (!selected?.enabled || selected.capabilities?.image_generation?.state !== 'success')
         throw new Error('Image model is unavailable')
     }
     this.defaultImageModel = model
@@ -220,7 +243,7 @@ export class MockModelConnectionsService implements ModelConnectionsService {
     const model = this.connections
       .find((connection) => connection.id === selected.connectionId)
       ?.models.find((item) => item.id === selected.modelId)
-    if (!model?.enabled || !model.imageGenerationEnabled) this.defaultImageModel = null
+    if (!model?.enabled || model.capabilities?.image_generation?.state !== 'success') this.defaultImageModel = null
   }
 
   private requireConnection(connectionId: string): ModelConnection {

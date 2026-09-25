@@ -51,7 +51,7 @@ describe('settings components', () => {
 
     expect(screen.getByRole('heading', { name: '模型连接' })).toBeVisible()
     expect(screen.getByText('gpt-5.2')).toBeVisible()
-    expect(screen.getByText('未测试')).toBeVisible()
+    expect(screen.getByText('待测试')).toBeVisible()
     await user.click(screen.getByRole('button', { name: '添加模型集' }))
     await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
     await user.click(screen.getByRole('switch', { name: '启用gpt-5.2' }))
@@ -95,7 +95,10 @@ describe('settings components', () => {
     )
 
     expect(screen.getByLabelText('手动模型名称')).toHaveValue('custom-model')
-    expect(screen.getByRole('switch', { name: '选择custom-model' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: '选择custom-model' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
     await user.type(screen.getByLabelText('手动模型名称'), '-v2')
     await user.click(screen.getByRole('button', { name: '测试custom-model' }))
     await user.click(screen.getByRole('switch', { name: '选择custom-model' }))
@@ -111,15 +114,19 @@ describe('settings components', () => {
     const onToggle = vi.fn()
     render(
       <ModelPickerRow
-        model={{ id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success' }}
+        model={{ id: 'gpt-5.2', name: 'gpt-5.2', enabled: true, testState: 'success', capabilities: { text: { state: 'success', source: 'probe' }, vision: { state: 'unsupported', source: 'probe' } } }}
         onTest={onTest}
         onToggle={onToggle}
       />
     )
 
     expect(screen.getByText('gpt-5.2')).toBeVisible()
-    expect(screen.getByText('成功')).toBeVisible()
-    expect(screen.getByRole('switch', { name: '选择gpt-5.2' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('文本 · 通过')).toBeVisible()
+    expect(screen.getByText('视觉 · 不支持')).toBeVisible()
+    expect(screen.getByRole('switch', { name: '选择gpt-5.2' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
     await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
     await user.click(screen.getByRole('switch', { name: '选择gpt-5.2' }))
     expect(onTest).toHaveBeenCalledOnce()
@@ -129,7 +136,12 @@ describe('settings components', () => {
   it('prevents duplicate refreshes while a connection refresh is pending', async () => {
     const user = userEvent.setup()
     let finish: (() => void) | undefined
-    const onRefresh = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    const onRefresh = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
     render(
       <ModelConnectionCard
         connection={connection}

@@ -10,6 +10,7 @@ import {
   type ModelImageCapabilityRequestDto,
   type ModelImageGenerationApiRequestDto,
   type ModelSetEnabledRequestDto,
+  type ModelSetKindRequestDto,
   type ModelTestRequestDto,
   type ModelTestResultDto
 } from '@actiondriver/model-connections'
@@ -47,6 +48,7 @@ export type ServiceModelConnectionPort = {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  setModelKind(request: ModelSetKindRequestDto): Promise<void>
   setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
   setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
@@ -102,13 +104,31 @@ const modelSchema = z
     testState: z.enum(['untested', 'testing', 'success', 'failed', 'unsupported']),
     imageInputEnabled: z.boolean().optional(),
     imageGenerationEnabled: z.boolean().optional(),
-    imageGenerationApi: z.enum(['openai-images', 'token-plan']).optional()
+    kind: z.enum(['chat', 'image']).optional(),
+    imageGenerationApi: z.enum(['openai-images', 'token-plan']).optional(),
+    capabilities: z.partialRecord(z.enum(['text', 'reasoning', 'vision', 'image_generation']), z.object({
+      state: z.enum(['untested', 'testing', 'success', 'unsupported', 'failed', 'inconclusive']),
+      source: z.enum(['catalog', 'probe', 'legacy']),
+      testedAt: z.string().optional(),
+      failure: z.object({ code: z.enum(['unauthorized', 'not-found', 'model-not-found', 'rate-limited', 'provider-error', 'network', 'timeout', 'cancelled', 'invalid-request', 'invalid-response', 'secret-unavailable', 'storage-error', 'unknown']), message: z.string() }).optional()
+    })).optional(),
+    catalogLabels: z.array(z.string()).optional()
   })
   .strict()
 const addSchema = z.object({ draft: draftSchema, models: z.array(modelSchema) }).strict()
-const testModelsSchema = z.object({ draft: draftSchema, modelIds: z.array(id) }).strict()
-const connectionModelsSchema = z.object({ modelIds: z.array(id) }).strict()
+const testModelsSchema = z
+  .object({
+    draft: draftSchema,
+    modelIds: z.array(id),
+    imageModels: z
+      .array(z.object({ modelId: id, api: z.enum(['openai-images', 'token-plan']) }).strict())
+      .optional(),
+    capabilityTest: z.boolean().optional()
+  })
+  .strict()
+const connectionModelsSchema = z.object({ modelIds: z.array(id), capabilityTest: z.boolean().optional() }).strict()
 const enabledSchema = z.object({ enabled: z.boolean() }).strict()
+const modelKindSchema = z.object({ kind: z.enum(['chat', 'image']) }).strict()
 const imageCapabilitySchema = z
   .object({
     kind: z.enum(['input', 'generation']),
@@ -426,6 +446,18 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         connectionId: context.req.param('connectionId'),
         modelId: context.req.param('modelId'),
         enabled: context.req.valid('json').enabled
+      })
+      return context.json(success(null))
+    }
+  )
+  app.put(
+    '/model-connections/:connectionId/models/:modelId/kind',
+    validate(modelKindSchema),
+    async (context) => {
+      await options.service.setModelKind({
+        connectionId: context.req.param('connectionId'),
+        modelId: context.req.param('modelId'),
+        kind: context.req.valid('json').kind
       })
       return context.json(success(null))
     }

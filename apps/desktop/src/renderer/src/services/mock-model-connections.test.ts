@@ -52,15 +52,15 @@ describe('MockModelConnectionsService', () => {
 
     const partialResults = await partial.testModels(draft, ['gpt-5.2', 'gpt-5.2-mini'])
     expect(partialResults).toEqual([
-      { modelId: 'gpt-5.2', state: 'success' },
-      { modelId: 'gpt-5.2-mini', state: 'failed' }
+      expect.objectContaining({ modelId: 'gpt-5.2', state: 'success', capabilities: { text: { state: 'success', source: 'probe' } } }),
+      expect.objectContaining({ modelId: 'gpt-5.2-mini', state: 'failed', capabilities: { text: { state: 'failed', source: 'probe' } } })
     ])
     await expect(allSuccess.testModels(draft, ['gpt-5.2', 'gpt-5.2-mini'])).resolves.toEqual([
-      { modelId: 'gpt-5.2', state: 'success' },
-      { modelId: 'gpt-5.2-mini', state: 'success' }
+      expect.objectContaining({ modelId: 'gpt-5.2', state: 'success' }),
+      expect.objectContaining({ modelId: 'gpt-5.2-mini', state: 'success' })
     ])
     await expect(allSuccess.testModels(draft, ['custom-model'])).resolves.toEqual([
-      { modelId: 'custom-model', state: 'failed' }
+      expect.objectContaining({ modelId: 'custom-model', state: 'failed' })
     ])
 
     await partial.testConnectionModels('company-gateway', ['gpt-5.2-mini'])

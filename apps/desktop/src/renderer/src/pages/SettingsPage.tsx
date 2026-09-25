@@ -138,16 +138,6 @@ export function SettingsPage({
                     await Promise.all([syncConnections(), syncImageDefault()])
                   }}
                   defaultImageModel={defaultImageQuery.data ?? null}
-                  onToggleImageCapability={(modelId, kind, enabled) =>
-                    void runImageAction(() =>
-                      service.setModelImageCapability(connection.id, modelId, kind, enabled)
-                    )
-                  }
-                  onChangeImageGenerationApi={(modelId, api) =>
-                    void runImageAction(() =>
-                      service.setModelImageGenerationApi(connection.id, modelId, api)
-                    )
-                  }
                   onToggleDefaultImageModel={(modelId) =>
                     void runImageAction(() =>
                       service.setDefaultImageModel(

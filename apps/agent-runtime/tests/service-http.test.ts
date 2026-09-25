@@ -44,6 +44,7 @@ function serviceStub(overrides: Record<string, unknown> = {}) {
     testModels: vi.fn(async () => [{ modelId: 'qwen3.7-plus', state: 'success' }]),
     testConnectionModels: vi.fn(async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }]),
     setModelEnabled: vi.fn(async () => undefined),
+    setModelKind: vi.fn(async () => undefined),
     add: vi.fn(async () => connection),
     delete: vi.fn(async () => undefined),
     ...overrides
@@ -91,6 +92,24 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('accepts and returns per-capability model results', async () => {
+    const capabilities = { text: { state: 'success', source: 'probe' }, image_generation: { state: 'failed', source: 'probe', failure: { code: 'provider-error', message: 'Generation failed' } } } as const
+    const add = vi.fn(async () => ({ ...connection, models: [{ id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success' as const, capabilities }] }))
+    const testModels = vi.fn(async () => [{ modelId: 'hybrid', state: 'success' as const, capabilities }])
+    await startService({ add, testModels })
+    const result = await authorized('/model-connections/test-models', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, modelIds: ['hybrid'], capabilityTest: true })
+    })
+    expect(result.status).toBe(200)
+    expect(await result.json()).toMatchObject({ value: [{ modelId: 'hybrid', capabilities }] })
+    const saved = await authorized('/model-connections', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, models: [{ id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success', capabilities }] })
+    })
+    expect(saved.status).toBe(200)
+    expect(add).toHaveBeenCalledWith(expect.objectContaining({ models: [expect.objectContaining({ capabilities })] }))
+  })
   it('sets a model image API through the authenticated route and rejects invalid values', async () => {
     const setModelImageGenerationApi = vi.fn(async () => undefined)
     await startService({ setModelImageGenerationApi })
@@ -425,6 +444,21 @@ describe('service HTTP surface', () => {
       connectionId: 'company-gateway',
       modelId: 'qwen3.7-plus',
       enabled: false
+    })
+
+    const kindResponse = await authorized(
+      '/model-connections/company-gateway/models/qwen3.7-plus/kind',
+      {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind: 'image' })
+      }
+    )
+    expect(kindResponse.status).toBe(200)
+    expect(service.setModelKind).toHaveBeenCalledWith({
+      connectionId: 'company-gateway',
+      modelId: 'qwen3.7-plus',
+      kind: 'image'
     })
 
     await authorized('/model-connections/company-gateway', { method: 'DELETE' })

@@ -23,6 +23,7 @@ function api(overrides: Partial<ModelConnectionsDesktopApi> = {}): ModelConnecti
     testModels: async () => [{ modelId: 'qwen3.7-plus', state: 'unsupported' }],
     testConnectionModels: async () => [],
     setModelEnabled: async () => undefined,
+    setModelKind: async () => undefined,
     setModelImageCapability: async () => undefined,
     setModelImageGenerationApi: async () => undefined,
     setDefaultImageModel: async () => undefined,
@@ -41,6 +42,15 @@ const draft = {
 }
 
 describe('DesktopModelConnectionsService', () => {
+  it('preserves independent capability results and display-only labels', async () => {
+    const capabilities = { text: { state: 'success' as const, source: 'probe' as const }, vision: { state: 'failed' as const, source: 'probe' as const, failure: { code: 'provider-error' as const, message: 'No vision' } } }
+    const service = new DesktopModelConnectionsService(api({
+      list: async () => [{ ...connection, models: [{ id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success', capabilities, catalogLabels: ['speech_recognition'] }] }],
+      testModels: async () => [{ modelId: 'hybrid', state: 'success', capabilities }]
+    }))
+    expect((await service.list())[0]?.models[0]).toMatchObject({ capabilities, catalogLabels: ['speech_recognition'] })
+    expect((await service.testModels(draft, ['hybrid']))[0]).toMatchObject({ capabilities })
+  })
   it('maps image flags and the separate default generation model', async () => {
     const model = { connectionId: 'company-gateway', modelId: 'image' }
     const service = new DesktopModelConnectionsService(
@@ -86,10 +96,13 @@ describe('DesktopModelConnectionsService', () => {
   it('maps Runtime DTOs into renderer models', async () => {
     const service = new DesktopModelConnectionsService(api())
     await expect(service.list()).resolves.toEqual([
-      { ...connection, models: [{ ...connection.models[0], imageGenerationApi: 'openai-images' }] }
+      {
+        ...connection,
+        models: [{ ...connection.models[0], kind: 'chat', imageGenerationApi: 'openai-images' }]
+      }
     ])
     await expect(service.discover(draft)).resolves.toEqual([
-      { ...connection.models[0], imageGenerationApi: 'openai-images' }
+      { ...connection.models[0], kind: 'chat', imageGenerationApi: 'openai-images' }
     ])
     await expect(service.testModels(draft, ['qwen3.7-plus'])).resolves.toEqual([
       { modelId: 'qwen3.7-plus', state: 'unsupported' }

@@ -1,5 +1,5 @@
 import type { ModelConnectionsDesktopApi } from '../../../preload/desktop-api'
-import type { ImageGenerationApi } from '@actiondriver/model-connections'
+import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 import type { RuntimeHttpClient } from './runtime-http-client'
 
 export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
@@ -28,10 +28,13 @@ export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
       { method: 'POST' }
     )
   }
-  testModels(draft: Parameters<ModelConnectionsDesktopApi['testModels']>[0], modelIds: string[]) {
+  testModels(
+    draft: Parameters<ModelConnectionsDesktopApi['testModels']>[0],
+    modelIds: string[]
+  ) {
     return this.http.request<Awaited<ReturnType<ModelConnectionsDesktopApi['testModels']>>>(
       '/model-connections/test-models',
-      { method: 'POST', body: { draft, modelIds } }
+      { method: 'POST', body: { draft, modelIds, capabilityTest: true } }
     )
   }
   testConnectionModels(connectionId: string, modelIds: string[]) {
@@ -39,13 +42,19 @@ export class RuntimeModelHttpApi implements ModelConnectionsDesktopApi {
       Awaited<ReturnType<ModelConnectionsDesktopApi['testConnectionModels']>>
     >(`/model-connections/${encodeURIComponent(connectionId)}/test-models`, {
       method: 'POST',
-      body: { modelIds }
+      body: { modelIds, capabilityTest: true }
     })
   }
   async setModelEnabled(connectionId: string, modelId: string, enabled: boolean): Promise<void> {
     await this.http.request(
       `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}`,
       { method: 'POST', body: { enabled } }
+    )
+  }
+  async setModelKind(connectionId: string, modelId: string, kind: ModelKind): Promise<void> {
+    await this.http.request(
+      `/model-connections/${encodeURIComponent(connectionId)}/models/${encodeURIComponent(modelId)}/kind`,
+      { method: 'PUT', body: { kind } }
     )
   }
   async setModelImageCapability(

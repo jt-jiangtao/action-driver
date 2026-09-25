@@ -118,7 +118,10 @@ export class ModelConnectionService
       apiKey: validated.apiKey
     })
     if (!result.ok) throw toServiceError(result.failure)
-    return result.value.map((id) => ({ id, name: id, enabled: true, testState: 'untested' }))
+    return result.value.map((id) => {
+      const labels = capabilityCandidates(id, validated.baseUrl).displayOnly
+      return { id, name: id, enabled: true, testState: 'untested' as const, ...(labels.length ? { catalogLabels: labels } : {}) }
+    })
   }
 
   async refresh(connectionId: string): Promise<ModelOptionDto[]> {
@@ -145,7 +148,7 @@ export class ModelConnectionService
       )
     ]
     this.write(connections)
-    return connection.models.map((model) => ({ ...model }))
+    return connection.models.map((model) => withCatalogLabels(model, connection.baseUrl))
   }
 
   async testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]> {
@@ -551,7 +554,7 @@ function toDto(connection: StoredModelConnection): ModelConnectionDto {
     baseUrl: connection.baseUrl,
     apiKeyHint: connection.apiKeyHint,
     expanded: connection.expanded,
-    models: connection.models.map((model) => ({ ...model }))
+    models: connection.models.map((model) => withCatalogLabels(model, connection.baseUrl))
   }
 }
 
@@ -571,6 +574,11 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
   return existing
     ? { ...existing }
     : { id, name: id, enabled: true, testState: 'untested', imageGenerationApi: 'openai-images' }
+}
+
+function withCatalogLabels(model: ModelOptionDto, baseUrl: string): ModelOptionDto {
+  const labels = capabilityCandidates(model.id, baseUrl).displayOnly
+  return { ...model, ...(labels.length ? { catalogLabels: labels } : {}) }
 }
 
 function isImageEligible(model: ModelOptionDto): boolean {

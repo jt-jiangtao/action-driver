@@ -1,4 +1,5 @@
 import type { ModelConnectionDraft, ModelOption, ModelTestResult } from './model-connections'
+import type { ImageGenerationApi, ModelKind } from '@actiondriver/model-connections'
 
 export type AddModelSetState = {
   step: 'connection' | 'models'
@@ -21,6 +22,8 @@ export type AddModelSetAction =
   | { type: 'toggle-model'; modelId: string; enabled: boolean }
   | { type: 'add-manual-model'; model: ModelOption }
   | { type: 'rename-model'; modelId: string; name: string }
+  | { type: 'set-model-kind'; modelId: string; kind: ModelKind }
+  | { type: 'set-model-image-api'; modelId: string; api: ImageGenerationApi }
   | { type: 'back' }
 
 export const initialAddModelSetState: AddModelSetState = {
@@ -62,12 +65,12 @@ export function addModelSetReducer(
         )
       }
     case 'model-result': {
-      const states = new Map(action.results.map((result) => [result.modelId, result.state]))
+      const results = new Map(action.results.map((result) => [result.modelId, result]))
       return {
         ...state,
         models: state.models.map((model) => {
-          const testState = states.get(model.id)
-          return testState ? { ...model, testState } : model
+          const result = results.get(model.id)
+          return result ? { ...model, testState: result.state, capabilities: { ...model.capabilities, ...result.capabilities } } : model
         })
       }
     }
@@ -84,7 +87,27 @@ export function addModelSetReducer(
       return {
         ...state,
         models: state.models.map((model) =>
-          model.id === action.modelId ? { ...model, name: action.name } : model
+          model.id === action.modelId
+            ? { ...model, name: action.name, testState: 'untested', capabilities: {} }
+            : model
+        )
+      }
+    case 'set-model-kind':
+      return {
+        ...state,
+        models: state.models.map((model) =>
+          model.id === action.modelId
+            ? { ...model, kind: action.kind, testState: 'untested' }
+            : model
+        )
+      }
+    case 'set-model-image-api':
+      return {
+        ...state,
+        models: state.models.map((model) =>
+          model.id === action.modelId
+            ? { ...model, imageGenerationApi: action.api, testState: 'untested' }
+            : model
         )
       }
     case 'back':
