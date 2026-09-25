@@ -57,6 +57,29 @@ export class RuntimeHttpClient {
     return payload.value
   }
 
+  async uploadInputFile(file: File): Promise<{
+    fileId: string
+    name: string
+    mimeType: string
+    byteLength: number
+  }> {
+    const connection = await this.getConnection()
+    const response = await this.fetcher(this.httpUrl(connection, '/input-files/staged'), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${connection.accessToken}`,
+        'content-type': file.type || 'application/octet-stream',
+        'x-actiondriver-file-name': encodeURIComponent(file.name)
+      },
+      body: file
+    })
+    const payload = (await response.json()) as
+      | { ok: true; value: { fileId: string; name: string; mimeType: string; byteLength: number } }
+      | { ok: false; error: { code: string; message: string } }
+    if (!payload.ok) throw new Error(payload.error.message)
+    return payload.value
+  }
+
   async readImage(sessionId: string, assetId: string): Promise<Blob> {
     const connection = await this.getConnection()
     const response = await this.fetcher(
@@ -69,6 +92,21 @@ export class RuntimeHttpClient {
       }
     )
     if (!response.ok) throw new Error(`IMAGE_READ_FAILED: ${response.status}`)
+    return response.blob()
+  }
+
+  async readOutputFile(sessionId: string, fileId: string, taskId: string): Promise<Blob> {
+    const connection = await this.getConnection()
+    const response = await this.fetcher(
+      this.httpUrl(
+        connection,
+        `/sessions/${encodeURIComponent(sessionId)}/outputs/${encodeURIComponent(
+          fileId
+        )}/content?taskId=${encodeURIComponent(taskId)}`
+      ),
+      { headers: { authorization: `Bearer ${connection.accessToken}` } }
+    )
+    if (!response.ok) throw new Error(`OUTPUT_READ_FAILED: ${response.status}`)
     return response.blob()
   }
 

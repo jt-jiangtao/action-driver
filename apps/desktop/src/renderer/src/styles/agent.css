@@ -158,6 +158,61 @@
   display: grid;
   place-items: center;
 }
+.composer-document-input {
+  display: none;
+}
+.composer-document-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.composer-document-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 6px 6px 6px 10px;
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 10px;
+  background: var(--ad-color-bg-surface, #fff);
+  color: var(--ad-color-text-secondary);
+  font-size: 12px;
+}
+.composer-document-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ad-color-text-tertiary, #6b7280);
+}
+.composer-document-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-document-size {
+  flex: none;
+  color: var(--ad-color-text-tertiary, #6b7280);
+}
+.composer-document-preview button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.composer-document-preview button:focus-visible,
+.composer-attach-document:focus-visible {
+  outline: 2px solid var(--ad-color-accent, #3978e5);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 .composer-submit-error {
   color: #b42318;
   font-size: 12px;
@@ -676,6 +731,142 @@
 .user-message-with-images > span:not(.conversation-image-item) {
   flex-basis: 100%;
   padding: 4px 6px;
+}
+.user-message-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 12px;
+  background: var(--ad-color-bg-surface, #fff);
+}
+.user-message-file-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+.user-message-file-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.user-message-file-name {
+  color: var(--ad-color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-message-file-meta {
+  color: var(--ad-color-text-tertiary, #6b7280);
+  font-size: 11px;
+}
+.task-output-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.task-output-files-title {
+  flex-basis: 100%;
+  color: var(--ad-color-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.task-output-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 10px;
+  background: var(--ad-color-bg-surface, #fff);
+  transition:
+    border-color var(--ad-motion-fast) var(--ad-ease-standard),
+    box-shadow var(--ad-motion-fast) var(--ad-ease-standard);
+}
+.task-output-file:hover {
+  border-color: #dcdce0;
+  box-shadow: var(--ad-shadow-subtle);
+}
+.task-output-file-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+.task-output-file-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--ad-color-bg-subtle, #f1f1f2);
+  color: var(--ad-color-text-secondary);
+}
+.task-output-file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.task-output-file-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.task-output-file-name {
+  color: var(--ad-color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-output-file-meta,
+.task-output-file-error {
+  color: var(--ad-color-text-tertiary, #6b7280);
+  font-size: 11px;
+}
+.task-output-file-error {
+  flex-basis: 100%;
+  color: var(--ad-color-text-danger, #b42318);
+}
+.task-output-file-open {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ad-color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background var(--ad-motion-fast) var(--ad-ease-standard),
+    color var(--ad-motion-fast) var(--ad-ease-standard);
+}
+.task-output-file-open:hover {
+  background: var(--ad-color-bg-hover, #f1f1f2);
+  color: var(--ad-color-action-primary);
+}
+.task-output-file-open:focus-visible {
+  outline: 2px solid var(--ad-color-action-primary);
+  outline-offset: 2px;
 }
 .agent-message-with-images .markdown-content {
   width: 100%;

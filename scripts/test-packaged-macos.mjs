@@ -22,8 +22,22 @@ try {
   run('corepack', ['pnpm', 'build:native:electron'])
   run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'build'])
   run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'build'])
-  run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'deploy', '--prod', desktopDeployment])
-  run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'deploy', '--prod', runtimeDeployment])
+  run('corepack', [
+    'pnpm',
+    '--filter',
+    '@actiondriver/desktop',
+    'deploy',
+    '--prod',
+    desktopDeployment
+  ])
+  run('corepack', [
+    'pnpm',
+    '--filter',
+    '@actiondriver/agent-runtime',
+    'deploy',
+    '--prod',
+    runtimeDeployment
+  ])
 
   const require = createRequire(import.meta.url)
   const electronExecutable = require('electron')
@@ -40,25 +54,65 @@ try {
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
-  for (const skill of ['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator']) {
+  // The verifier stages the local dependency tree the same way it stages the
+  // bundled runtimes; release packaging keeps its own decision on this tree.
+  if (!existsSync(join(builtRuntimeDist, 'dependencies'))) {
+    throw new Error(
+      'PACKAGED_DEPENDENCIES_MISSING: run pnpm --filter @actiondriver/agent-runtime build:office-local first'
+    )
+  }
+  run('ditto', [join(builtRuntimeDist, 'dependencies'), join(runtimeDist, 'dependencies')])
+  for (const relativePath of [
+    'node/bin/node',
+    'python/bin/python3',
+    'bin/override/soffice',
+    'bin/override/pdftoppm'
+  ]) {
+    const file = join(runtimeDist, 'dependencies', relativePath)
+    if (!existsSync(file) || !(statSync(file).mode & 0o111)) {
+      throw new Error(`PACKAGED_DEPENDENCY_MISSING: ${relativePath}`)
+    }
+  }
+  for (const skill of [
+    'documents',
+    'imagegen',
+    'pdf',
+    'presentations',
+    'skill-creator',
+    'spreadsheets'
+  ]) {
     if (!existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) {
       throw new Error(`PACKAGED_SYSTEM_SKILL_MISSING: ${skill}`)
     }
   }
   for (const relativePath of [
-    'LICENSE.txt', 'agents/openai.yaml', 'assets/imagegen-small.svg', 'assets/imagegen.png',
-    'references/cli.md', 'references/codex-network.md', 'references/codex-original-skill.md',
-    'references/image-api.md', 'references/prompting.md', 'references/sample-prompts.md',
-    'scripts/image_gen.py', 'scripts/remove_chroma_key.py'
+    'LICENSE.txt',
+    'agents/openai.yaml',
+    'assets/imagegen-small.svg',
+    'assets/imagegen.png',
+    'references/cli.md',
+    'references/codex-network.md',
+    'references/codex-original-skill.md',
+    'references/image-api.md',
+    'references/prompting.md',
+    'references/sample-prompts.md',
+    'scripts/image_gen.py',
+    'scripts/remove_chroma_key.py'
   ]) {
     if (!existsSync(join(runtimeDist, 'system-skills', 'imagegen', relativePath))) {
       throw new Error(`PACKAGED_IMAGEGEN_RESOURCE_MISSING: ${relativePath}`)
     }
   }
   for (const relativePath of [
-    'scripts/init_skill.py', 'scripts/quick_validate.py', 'scripts/generate_openai_yaml.py',
-    'references/openai_yaml.md', 'references/codex-skill-creator.md',
-    'agents/openai.yaml', 'assets/skill-creator-small.svg', 'assets/skill-creator.png', 'license.txt'
+    'scripts/init_skill.py',
+    'scripts/quick_validate.py',
+    'scripts/generate_openai_yaml.py',
+    'references/openai_yaml.md',
+    'references/codex-skill-creator.md',
+    'agents/openai.yaml',
+    'assets/skill-creator-small.svg',
+    'assets/skill-creator.png',
+    'license.txt'
   ]) {
     if (!existsSync(join(runtimeDist, 'system-skills', 'skill-creator', relativePath))) {
       throw new Error(`PACKAGED_SKILL_CREATOR_RESOURCE_MISSING: ${relativePath}`)
@@ -75,14 +129,20 @@ try {
     }
     run('/usr/bin/file', [binary])
   }
-  renameSync(join(app, 'Contents', 'MacOS', 'Electron'),
-    join(app, 'Contents', 'MacOS', 'ActionDriver'))
+  renameSync(
+    join(app, 'Contents', 'MacOS', 'Electron'),
+    join(app, 'Contents', 'MacOS', 'ActionDriver')
+  )
   run('/usr/libexec/PlistBuddy', [
-    '-c', 'Set :CFBundleExecutable ActionDriver', join(app, 'Contents', 'Info.plist')
+    '-c',
+    'Set :CFBundleExecutable ActionDriver',
+    join(app, 'Contents', 'Info.plist')
   ])
-  run('corepack', [
-    'pnpm', 'exec', 'playwright', 'test', 'apps/desktop/e2e/packaged-runtime.spec.ts'
-  ], { ...process.env, ACTIONDRIVER_PACKAGED_APP: app })
+  run(
+    'corepack',
+    ['pnpm', 'exec', 'playwright', 'test', 'apps/desktop/e2e/packaged-runtime.spec.ts'],
+    { ...process.env, ACTIONDRIVER_PACKAGED_APP: app }
+  )
 } finally {
   rmSync(temporary, { recursive: true, force: true })
 }

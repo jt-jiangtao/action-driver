@@ -1,0 +1,108 @@
+--- a/documents/SKILL.md
++++ b/documents/SKILL.md
+@@ -542,3 +542,9 @@
+ - After successfully creating, editing, or analyzing an artifact, finish your final response with 3 useful next actions tailored to the artifact and the user's goal. Completing the requested work is not a reason to skip these actions: they help the user continue from the result. Do not perform the actions unless the user chooses one.
+ - Each action must be a distinct, concrete request the user could send next. Do not repeat completed work or invent filler. Omit the list if the user declines suggestions, the requested work fails, or no genuinely useful next action remains.
+ - Present each action as an unescaped Markdown list item using this exact syntax: `- :codex-followup[Short action]{prompt="Complete request for that action"}`.
++
++## ActionDriver working directory
++
++- Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
++- Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
++- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.
+--- a/pdf/SKILL.md
++++ b/pdf/SKILL.md
+@@ -25,8 +25,8 @@
+ ## Workflow
+ 
+ 1. Prefer visual review: render PDF pages to PNGs and inspect them.
+-   - Use `pdftoppm` from the bundled runtime or system Poppler when available.
+-   - If unavailable, install Poppler or ask the user to review the output locally.
++   - Use `pdftoppm` from the bundled runtime when available.
++   - If unavailable, report that visual rendering was not verified and ask the user to review the output locally.
+ 2. Use `reportlab` to generate PDFs when creating new documents.
+ 3. Use `pdfplumber` or `pypdf` for text extraction and quick checks; do not rely on text extraction for layout fidelity.
+ 4. After each meaningful update, re-render pages and verify alignment, spacing, and legibility.
+@@ -87,37 +87,13 @@
+ 
+ ## Dependencies
+ 
+-Prefer the Codex bundled workspace/runtime dependencies when available. The primary runtime is expected to include:
++Use the local dependencies provided with ActionDriver. Resolve their paths with `load_workspace_dependencies` before running PDF helpers. The local dependency tree includes:
+ 
+ - Python packages: `reportlab`, `pdfplumber`, `pypdf`
+ - Rendering tools: `pdftoppm` and `pdfinfo` from Poppler
+ 
+-If a dependency is missing, install only what is needed.
++Run Python PDF helpers with `RUNTIME_PYTHON` and Poppler tools from `RUNTIME_BIN_DIR`. Do not run pip, uv, Homebrew, apt, or any other dependency installer during a task. If the local dependency tree is incomplete, report the missing dependency and stop the affected operation.
+ 
+-Python packages:
+-
+-```bash
+-uv pip install reportlab pdfplumber pypdf
+-```
+-
+-If `uv` is unavailable:
+-
+-```bash
+-python3 -m pip install reportlab pdfplumber pypdf
+-```
+-
+-System tools for rendering:
+-
+-```bash
+-# macOS (Homebrew)
+-brew install poppler
+-
+-# Ubuntu/Debian
+-sudo apt-get install -y poppler-utils
+-```
+-
+-If installation is not possible in this environment, tell the user which dependency is missing and how to install it locally.
+-
+ ## Environment
+ 
+ No required environment variables.
+@@ -158,3 +134,9 @@
+ - After successfully creating, editing, or analyzing an artifact, finish your final response with 3 useful next actions tailored to the artifact and the user's goal. Completing the requested work is not a reason to skip these actions: they help the user continue from the result. Do not perform the actions unless the user chooses one.
+ - Each action must be a distinct, concrete request the user could send next. Do not repeat completed work or invent filler. Omit the list if the user declines suggestions, the requested work fails, or no genuinely useful next action remains.
+ - Present each action as an unescaped Markdown list item using this exact syntax: `- :codex-followup[Short action]{prompt="Complete request for that action"}`.
++
++## ActionDriver working directory
++
++- Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
++- Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
++- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.
+--- a/presentations/SKILL.md
++++ b/presentations/SKILL.md
+@@ -232,3 +232,9 @@
+ - After successfully creating, editing, or analyzing an artifact, finish your final response with 3 useful next actions tailored to the artifact and the user's goal. Completing the requested work is not a reason to skip these actions: they help the user continue from the result. Do not perform the actions unless the user chooses one.
+ - Each action must be a distinct, concrete request the user could send next. Do not repeat completed work or invent filler. Omit the list if the user declines suggestions, the requested work fails, or no genuinely useful next action remains.
+ - Present each action as an unescaped Markdown list item using this exact syntax: `- :codex-followup[Short action]{prompt="Complete request for that action"}`.
++
++## ActionDriver working directory
++
++- Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
++- Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
++- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.
+--- a/spreadsheets/SKILL.md
++++ b/spreadsheets/SKILL.md
+@@ -14,7 +14,7 @@
+ - Instruction precedence for workbook content, layout, and formatting is: user request > reference/template > domain defaults/conventions > general defaults.
+ 
+ ## Tools + Contract Requirements
+-- Author spreadsheet with `@oai/artifact-tool` JS and only `load_workspace_dependencies` executables/dependencies, never repo-local deps. If unavailable, check `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/`. Never modify dependency directories.
++- Author spreadsheet with `@oai/artifact-tool` JS and only `load_workspace_dependencies` executables/dependencies, never repo-local deps. If unavailable, report the missing bundled dependency and stop; do not inspect user caches or install replacements. Never modify dependency directories.
+ - In a writable, conversation-specific or tmp directory, create a `node_modules` symlink or Windows junction to the loader `node_modules`.
+ - Prefer to patch/rerun one `.mjs` builder. No heredocs or duplicate builders.
+ - Use the provided API reference for supported syntax. Its examples do not set workbook structure, formatting or formula defaults. Do not inspect package internals or prototypes. If blocked, run at most one targeted `workbook.help("<api_or_feature>")` query.
+@@ -451,3 +451,9 @@
+ - For attachment references, include only the file/section/table details needed to locate supporting data. Do not paste large PDF excerpts unless requested.
+ - Bundled Python libraries available in the bundled runtime environment for extraction/analysis include `pandas`, `numpy`, `pypdf`, `python-docx`, and `reportlab`. You may read/extract in separate scripts if needed.
+ - Bundled JS libraries available for document/PDF work include `docx`, `pdf-lib`, and `pdfjs-dist`.
++
++## ActionDriver working directory
++
++- Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
++- Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
++- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.

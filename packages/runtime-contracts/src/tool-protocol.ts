@@ -112,8 +112,29 @@ export type ToolExecutorEvent =
   | { kind: 'asset'; index: number; asset: z.infer<typeof imageAssetRefSchema> }
   | { kind: 'result'; output: z.infer<typeof z.json> }
 
+/** Working directories owned by one session; scripts default to `root`. */
+export type SessionWorkspacePaths = {
+  root: string
+  input: string
+  output: string
+}
+
+/**
+ * Trusted per-call context resolved from persisted state, never from model input.
+ * Tools that touch files MUST fail closed when it is absent.
+ */
+export type ToolExecutionContext = {
+  taskId: string
+  sessionId: string
+  workspace: SessionWorkspacePaths
+}
+
 export interface ToolExecutor {
-  execute(call: ToolCall, signal?: AbortSignal): AsyncIterable<ToolExecutorEvent>
+  execute(
+    call: ToolCall,
+    signal?: AbortSignal,
+    context?: ToolExecutionContext
+  ): AsyncIterable<ToolExecutorEvent>
 }
 
 export function parseToolDefinition(value: unknown): ToolDefinition {

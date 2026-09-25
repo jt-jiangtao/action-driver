@@ -6,7 +6,11 @@ import type {
 } from '@actiondriver/contracts'
 import { type StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { createRuntimeServices } from './composition-root'
-import { buildRecentTaskProjection, buildTaskProjection } from './task-projection'
+import {
+  buildRecentTaskProjection,
+  buildTaskProjection,
+  toOutputFileProjection
+} from './task-projection'
 import type { MessageRepository, RuntimeAdapters, RuntimeTaskRecord } from './ports'
 
 export type LocalRuntimeServer = {
@@ -22,6 +26,16 @@ export function createLocalRuntimeServer(options: {
       taskId: string
     ): Promise<Extract<StreamServerEvent, { type: 'response.snapshot' }> | null>
   }
+  outputFiles?: (taskId: string) => Promise<
+    Array<{
+      fileId: string
+      sessionId: string
+      taskId: string
+      name: string
+      mimeType: string
+      byteLength: number
+    }>
+  >
 }): LocalRuntimeServer {
   const services = createRuntimeServices({ mode: 'local', adapters: options.adapters })
   const graphRunner = services.graphRunner
@@ -149,7 +163,8 @@ export function createLocalRuntimeServer(options: {
       const visibleTaskIds = new Set(sessionTasks.slice(0, currentIndex + 1).map((turn) => turn.id))
       const projection = buildTaskProjection(
         task,
-        sessionMessages.filter((message) => visibleTaskIds.has(message.taskId))
+        sessionMessages.filter((message) => visibleTaskIds.has(message.taskId)),
+        ((await options.outputFiles?.(task.id)) ?? []).map(toOutputFileProjection)
       )
       const priorActivityTurns = await Promise.all(
         sessionTasks.slice(0, currentIndex).map(async (turn) => {
@@ -158,6 +173,9 @@ export function createLocalRuntimeServer(options: {
           )
           if (!userMessage) return null
           const turnSnapshot = await options.streamSnapshots?.getTaskSnapshot(turn.id)
+          const turnOutputs = ((await options.outputFiles?.(turn.id)) ?? []).map(
+            toOutputFileProjection
+          )
           const elapsed = Date.parse(turn.updatedAt) - Date.parse(turn.createdAt)
           const durationMs =
             turnSnapshot?.durationMs ??
@@ -170,7 +188,8 @@ export function createLocalRuntimeServer(options: {
             ...(durationMs === undefined ? {} : { durationMs }),
             activities: turnSnapshot?.activities ?? [],
             activityTimeline: turnSnapshot?.activityTimeline ?? [],
-            tools: turnSnapshot?.tools?.map(toToolProjection) ?? []
+            tools: turnSnapshot?.tools?.map(toToolProjection) ?? [],
+            ...(turnOutputs.length > 0 ? { outputFiles: turnOutputs } : {})
           }
         })
       )

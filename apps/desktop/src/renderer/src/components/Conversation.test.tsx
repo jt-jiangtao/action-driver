@@ -8,6 +8,38 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('shows an attached document as a card with its format, name and size', () => {
+    render(
+      <UserMessage
+        message={{
+          id: 'user-file',
+          role: 'user',
+          content: '总结附件',
+          parts: [
+            { kind: 'text', text: '总结附件' },
+            {
+              kind: 'document',
+              file: {
+                fileId: 'file-1',
+                sessionId: 'session-1',
+                taskId: 'task-1',
+                name: '季度报告.pdf',
+                mimeType: 'application/pdf',
+                byteLength: 2048
+              }
+            }
+          ]
+        }}
+      />
+    )
+
+    const card = screen.getByTestId('e2e/tasks/detail/user-message/file#section')
+    expect(card).toHaveTextContent('季度报告.pdf')
+    expect(screen.getByAltText('PDF')).toHaveAttribute('src', expect.stringContaining('file-pdf'))
+    expect(card).toHaveTextContent('2 KiB')
+    expect(screen.getByText('总结附件')).toBeVisible()
+  })
+
   it('renders two anchored batches in call order before final text despite completion order', () => {
     const asset = (assetId: string) => ({
       assetId, sessionId: 'session-1', mimeType: 'image/png' as const,

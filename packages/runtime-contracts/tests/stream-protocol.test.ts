@@ -123,6 +123,56 @@ describe('agent stream protocol', () => {
     })
   })
 
+  it('accepts an attached document part in a restored snapshot without its bytes', () => {
+    const file = {
+      fileId: 'file-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      name: '季度报告.pdf',
+      mimeType: 'application/pdf',
+      byteLength: 4096
+    }
+    const snapshot = {
+      type: 'response.snapshot',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'snapshot-document',
+      cursor: 4,
+      sequence: 3,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt,
+      status: 'completed',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: '总结附件',
+          createdAt: occurredAt,
+          parts: [{ kind: 'document', file }]
+        }
+      ],
+      error: null
+    }
+    expect(parseStreamServerEvent(snapshot)).toMatchObject({
+      messages: [{ parts: [{ kind: 'document', file }] }]
+    })
+    expect(() =>
+      parseStreamServerEvent({
+        ...snapshot,
+        messages: [
+          {
+            ...snapshot.messages[0],
+            parts: [{ kind: 'document', file: { ...file, content: 'bytes' } }]
+          }
+        ]
+      })
+    ).toThrow()
+  })
+
   it('accepts an ordered image batch event and rejects image bytes or prompts', () => {
     const batch = {
       type: 'response.image_batch',

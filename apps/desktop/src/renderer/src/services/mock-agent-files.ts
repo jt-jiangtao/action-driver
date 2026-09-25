@@ -51,30 +51,18 @@ function assertManagedPath(path: string): void {
 }
 
 const builtInSkills: AgentSkillSummary[] = [
-  {
-    id: 'browser-tools',
-    source: 'builtin',
-    name: 'browser-tools',
-    description: '通过浏览器搜索、读取并整理网页信息。',
+  ...(['documents', 'pdf', 'presentations', 'spreadsheets'] as const).map((id) => ({
+    id,
+    source: 'builtin' as const,
+    name: id,
+    description: `使用 ${id} 系统 Skill 处理文档。`,
     enabled: true,
     available: true,
-    executorId: 'browser-use',
+    executorId: null,
     unavailableReason: null,
     protected: true,
-    modifiedAt: '2026-09-20T09:30:00.000Z'
-  },
-  {
-    id: 'computer-tools',
-    source: 'builtin',
-    name: 'computer-tools',
-    description: '操作桌面应用并完成本地交互。',
-    enabled: true,
-    available: true,
-    executorId: 'computer-use',
-    unavailableReason: null,
-    protected: true,
-    modifiedAt: '2026-09-20T09:30:00.000Z'
-  },
+    modifiedAt: '2026-09-25T09:30:00.000Z'
+  })),
   {
     id: 'imagegen',
     source: 'builtin',
@@ -86,18 +74,6 @@ const builtInSkills: AgentSkillSummary[] = [
     unavailableReason: null,
     protected: true,
     modifiedAt: '2026-09-25T09:30:00.000Z'
-  },
-  {
-    id: 'report-writer',
-    source: 'builtin',
-    name: 'report-writer',
-    description: '将任务结果组织为结构化 Markdown 报告。',
-    enabled: true,
-    available: true,
-    executorId: 'report-use',
-    unavailableReason: null,
-    protected: true,
-    modifiedAt: '2026-09-19T14:18:00.000Z'
   },
   {
     id: 'skill-creator',

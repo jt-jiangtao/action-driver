@@ -29,3 +29,9 @@ If `image_generate` is unavailable or no default image model is configured, expl
 - `references/prompting.md` and `references/sample-prompts.md`: prompt design guidance for normal ActionDriver use.
 - `references/codex-original-skill.md`: complete unmodified Codex Skill instructions for provenance; its built-in `image_gen` workflow does not apply to ActionDriver.
 - `references/cli.md`, `references/image-api.md`, `references/codex-network.md`, `scripts/image_gen.py`, and `scripts/remove_chroma_key.py`: original Codex CLI resources preserved for completeness. They are **not** the default ActionDriver path, require separate dependencies and credentials, and must not be run as an implicit fallback.
+
+## ActionDriver working directory
+
+- `image_generate` delivers generated images directly as task results; no file output is required for that path.
+- If a helper script writes image files, start it in the current session workspace, read uploaded inputs from the read-only `input/` directory, and write deliverables into `output/`; never write outside the session workspace.
+- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.

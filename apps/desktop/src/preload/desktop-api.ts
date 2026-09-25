@@ -32,6 +32,7 @@ import {
   SKILL_FOLDER_REVEAL_CHANNEL
 } from '../shared/skill-folder-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
+import { TASK_OUTPUT_OPEN_CHANNEL } from '../shared/task-output-contract'
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
@@ -90,6 +91,9 @@ export interface DesktopApi {
     reveal(skillId: string): Promise<void>
   }
   externalLinks: { open(url: string): Promise<void> }
+  taskOutput: {
+    open(input: { fileId: string; taskId: string; sessionId: string }): Promise<void>
+  }
 }
 
 export function createDesktopApi(
@@ -115,6 +119,11 @@ export function createDesktopApi(
     externalLinks: {
       open: async (url) => {
         await ipc.invoke(EXTERNAL_LINK_OPEN_CHANNEL, url)
+      }
+    },
+    taskOutput: {
+      open: async (input) => {
+        await ipc.invoke(TASK_OUTPUT_OPEN_CHANNEL, input)
       }
     }
   }

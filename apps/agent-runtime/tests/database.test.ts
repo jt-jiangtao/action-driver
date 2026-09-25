@@ -185,7 +185,7 @@ describe('runtime SQLite database', () => {
     ).toThrow()
     upgraded.close()
     expect(
-      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v12-'))
+      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v14-'))
     ).toBe(true)
   })
   it('creates the business schema with production pragmas before becoming ready', () => {
@@ -209,6 +209,8 @@ describe('runtime SQLite database', () => {
         'model_connections',
         'default_image_model',
         'session_assets',
+        'session_input_files',
+        'task_output_files',
         'runtime_events',
         'runtime_process_owner',
         'schema_migrations',
@@ -231,7 +233,9 @@ describe('runtime SQLite database', () => {
       { version: 9 },
       { version: 10 },
       { version: 11 },
-      { version: 12 }
+      { version: 12 },
+      { version: 13 },
+      { version: 14 }
     ])
 
     expect(
@@ -288,7 +292,9 @@ describe('runtime SQLite database', () => {
       { version: 9, count: 1 },
       { version: 10, count: 1 },
       { version: 11, count: 1 },
-      { version: 12, count: 1 }
+      { version: 12, count: 1 },
+      { version: 13, count: 1 },
+      { version: 14, count: 1 }
     ])
 
     database.close()
@@ -297,7 +303,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 13,
+      version: 15,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -307,7 +313,7 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 13 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 15 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
@@ -322,7 +328,9 @@ describe('runtime SQLite database', () => {
       { version: 9 },
       { version: 10 },
       { version: 11 },
-      { version: 12 }
+      { version: 12 },
+      { version: 13 },
+      { version: 14 }
     ])
     expect(
       database

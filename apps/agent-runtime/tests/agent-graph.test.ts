@@ -19,6 +19,42 @@ import { activityTitleForTool, activityTitleForTools } from '../src/agent-graph'
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('minimal agent StateGraph', () => {
+  it('tells the model where the session inputs are before it plans', async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
+    const model: ModelGateway = {
+      async complete(request) {
+        requests.push({ messages: request.messages as Array<{ role: string; content: unknown }> })
+        return { kind: 'finish', content: '已读取' }
+      }
+    }
+    const runner = new LangGraphRunner(model, new MockSkillRegistry())
+
+    await runner.run({
+      taskId: 'task-input-context',
+      goal: '分析附件',
+      model: modelRef,
+      systemPrompt: 'Be concise.',
+      inputContext: [
+        {
+          name: 'quarterly.pdf',
+          path: '/tmp/workspace/sessions/session-1/input/quarterly.pdf',
+          mimeType: 'application/pdf'
+        }
+      ]
+    })
+
+    expect(requests[0]?.messages).toEqual([
+      { role: 'system', content: 'Be concise.' },
+      {
+        role: 'system',
+        content:
+          '本会话上传的文件已在工作目录内可直接读取（不要重新创建或猜测内容）：\n' +
+          '- quarterly.pdf（application/pdf）: /tmp/workspace/sessions/session-1/input/quarterly.pdf'
+      },
+      { role: 'user', content: '分析附件' }
+    ])
+  })
+
   it('distinguishes shell commands from web search in group titles', () => {
     expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')

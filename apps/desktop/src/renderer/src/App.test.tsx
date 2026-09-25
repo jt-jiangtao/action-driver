@@ -125,6 +125,49 @@ describe('App', () => {
     )
   })
 
+  it('stages documents and images as session input files for the next task', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    const uploadImage = vi.fn(async () => ({
+      assetId: 'staged-image',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'upload' as const
+    }))
+    const uploadInputFile = vi.fn(async (file: File) => ({
+      fileId: `file:${file.name}`,
+      name: file.name,
+      mimeType: file.type,
+      byteLength: file.size
+    }))
+    services.imageAssets = { uploadImage, readImage: vi.fn() }
+    services.inputFiles = { uploadInputFile }
+    const submit = vi.spyOn(services.agentCommandService, 'submitGoal')
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    const document = new File(['%PDF-1.7'], '季度报告.pdf', { type: 'application/pdf' })
+    const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText('选择文档'), document)
+    await user.upload(screen.getByLabelText('添加图片'), image)
+    await user.click(screen.getByRole('button', { name: '发送' }))
+
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
+    expect(uploadInputFile).toHaveBeenCalledWith(document)
+    expect(uploadInputFile).toHaveBeenCalledWith(image)
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageAssetIds: ['staged-image'],
+        inputFileIds: ['file:季度报告.pdf', 'file:photo.png']
+      })
+    )
+  })
+
   it('sends an image with a chat candidate even when its vision test failed', async () => {
     const user = userEvent.setup()
     const services = createRendererServices({ mode: 'mock' })

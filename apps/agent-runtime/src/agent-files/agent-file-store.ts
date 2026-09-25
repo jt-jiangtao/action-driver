@@ -27,8 +27,8 @@ import { parseSkillDeclaration } from './skill-declaration'
 const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
-const BUILT_IN_SKILLS = new Set(['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'])
-const LEGACY_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
+const BUILT_IN_SKILLS = new Set(['documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'])
+const RETIRED_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
 
 const DEFAULT_PROMPT = `# ActionDriver 主提示词
 
@@ -43,24 +43,6 @@ const DEFAULT_PROMPT = `# ActionDriver 主提示词
 - 保持任务边界，不擅自扩大范围或执行无关操作。
 - 优先给出结果，使用简洁、清晰的 Markdown；只有在有助于理解时才补充过程或细节。
 `
-
-const DEFAULT_SKILLS = [
-  {
-    id: 'browser-tools',
-    description: '通过浏览器搜索、读取并整理网页信息。',
-    executorId: 'browser-use'
-  },
-  {
-    id: 'computer-tools',
-    description: '操作桌面应用并完成本地交互。',
-    executorId: 'computer-use'
-  },
-  {
-    id: 'report-writer',
-    description: '将任务结果组织为结构化 Markdown 报告。',
-    executorId: null
-  }
-] as const
 
 export class AgentFileStoreError extends Error {
   constructor(
@@ -103,13 +85,14 @@ export class AgentFileStore {
     await mkdir(this.systemRoot, { recursive: true })
     this.managedRootRealPath = await realpath(this.managedRoot)
     await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), DEFAULT_PROMPT)
-    await this.migrateLegacyBuiltIns()
-    for (const skill of DEFAULT_SKILLS) {
-      await this.seedSystemSkill(skill.id)
-      if (skill.executorId) await this.migrateDefaultExecutor(skill)
+    for (const id of RETIRED_BUILT_INS) {
+      await rm(join(this.systemRoot, id), { recursive: true, force: true })
     }
     await this.seedSystemSkill('skill-creator')
     await this.seedSystemSkill('imagegen')
+    for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
+      await this.seedSystemSkill(id)
+    }
   }
 
   private async seedSystemSkill(id: string): Promise<void> {
@@ -437,37 +420,6 @@ export class AgentFileStore {
     }
   }
 
-  private async migrateLegacyBuiltIns(): Promise<void> {
-    for (const id of LEGACY_BUILT_INS) {
-      const oldPath = join(this.skillsRoot, id)
-      try {
-        await lstat(oldPath)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
-        throw error
-      }
-      const newPath = join(this.systemRoot, id)
-      let destination = newPath
-      try {
-        await lstat(newPath)
-        let suffix = 0
-        for (;;) {
-          destination = join(this.skillsRoot, `${id}-legacy${suffix ? `-${suffix}` : ''}`)
-          suffix++
-          try {
-            await lstat(destination)
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
-            throw error
-          }
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      }
-      await rename(oldPath, destination)
-    }
-  }
-
   private assertMutable(id: string): void {
     if (BUILT_IN_SKILLS.has(id)) {
       throw new AgentFileStoreError('PROTECTED', '内置 Skill 不能重命名或删除。')
@@ -487,19 +439,6 @@ export class AgentFileStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
     }
-  }
-
-  private defaultSkillContent(skill: (typeof DEFAULT_SKILLS)[number]): string {
-    const frontmatter = skill.executorId ? `---\nexecutor: ${skill.executorId}\n---\n` : ''
-    return `${frontmatter}# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
-  }
-
-  private async migrateDefaultExecutor(skill: (typeof DEFAULT_SKILLS)[number]): Promise<void> {
-    if (!skill.executorId) return
-    const path = join(this.systemRoot, skill.id, 'SKILL.md')
-    const current = await readFile(path, 'utf8')
-    const legacy = `# ${skill.id}\n\n${skill.description}\n\n## Usage\n\n当任务匹配该能力时使用。\n`
-    if (current === legacy) await this.atomicWrite(path, this.defaultSkillContent(skill))
   }
 
   private async atomicWrite(path: string, content: string): Promise<void> {

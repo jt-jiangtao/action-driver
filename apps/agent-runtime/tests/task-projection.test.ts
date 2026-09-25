@@ -86,6 +86,89 @@ describe('repository-backed task projections', () => {
     )
   })
 
+  it('projects registered deliverables with their type, name and size', () => {
+    const projection = buildTaskProjection(task('task-success', 'completed'), [], [
+      {
+        fileId: 'file-1',
+        sessionId: 'session-1',
+        taskId: 'task-success',
+        name: '季度报告.pdf',
+        mimeType: 'application/pdf',
+        byteLength: 4096,
+        kind: 'document'
+      },
+      {
+        fileId: 'file-2',
+        sessionId: 'session-1',
+        taskId: 'task-success',
+        name: 'chart.png',
+        mimeType: 'image/png',
+        byteLength: 2048,
+        kind: 'image'
+      }
+    ])
+
+    expect(projection.outputFiles).toEqual([
+      expect.objectContaining({ fileId: 'file-1', name: '季度报告.pdf', kind: 'document' }),
+      expect.objectContaining({ fileId: 'file-2', name: 'chart.png', kind: 'image' })
+    ])
+    expect(buildTaskProjection(task('task-success', 'completed'), []).outputFiles).toBeUndefined()
+  })
+
+  it('projects an attached document with its upload task, name, format and size', () => {
+    const file = {
+      fileId: 'file-1',
+      sessionId: 'session-1',
+      taskId: 'task-success',
+      name: '季度报告.pdf',
+      mimeType: 'application/pdf',
+      byteLength: 4096
+    }
+    const projection = buildTaskProjection(task('task-success', 'completed'), [
+      {
+        id: 'document-user',
+        taskId: 'task-success',
+        role: 'user',
+        createdAt: '2026-09-26T00:00:00.000Z',
+        content: { parts: [{ kind: 'text', text: '总结附件' }, { kind: 'document', file }] }
+      }
+    ])
+
+    expect(projection.messages).toEqual([
+      {
+        id: 'document-user',
+        role: 'user',
+        content: '总结附件',
+        parts: [{ kind: 'text', text: '总结附件' }, { kind: 'document', file }]
+      }
+    ])
+  })
+
+  it('keeps messages written before document support readable after reopening', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-legacy-')), 'runtime.db')
+    const first = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const legacy = task('task-success', 'completed')
+    await first.tasks.save(legacy)
+    await first.messages.save({
+      id: 'legacy-user',
+      taskId: legacy.id,
+      role: 'user',
+      content: '旧的消息',
+      createdAt: legacy.createdAt
+    })
+    first.close()
+
+    const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const projection = buildTaskProjection(
+      (await reopened.tasks.get(legacy.id))!,
+      await reopened.messages.listByTask(legacy.id)
+    )
+    expect(projection.messages).toEqual([
+      { id: 'legacy-user', role: 'user', content: '旧的消息' }
+    ])
+    reopened.close()
+  })
+
   it('projects a cancelled stream as paused rather than perpetually running', () => {
     const cancelled = task('task-cancelled', 'cancelled', {
       code: 'cancelled',

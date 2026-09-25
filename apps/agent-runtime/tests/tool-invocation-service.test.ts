@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   MemoryInteractionLogStore,
   createInteractionLogRecorder
@@ -16,6 +19,7 @@ import {
   type PersistedToolInvocation,
   type RuntimeEventRecord
 } from '../src/index'
+import { createWorkspaceDependenciesTool } from '../src/execution/workspace-dependencies-tool'
 
 const readDefinition: ToolDefinition = {
   id: 'local.shell.run',
@@ -45,6 +49,38 @@ const shellDefinition: ToolDefinition = {
 }
 
 describe('ToolInvocationService', () => {
+  it('runs the read-only office dependency tool through the normal lifecycle and reports missing bundles', async () => {
+    const dist = await mkdtemp(join(tmpdir(), 'actiondriver-dependency-tool-'))
+    const tool = createWorkspaceDependenciesTool(dist)
+    expect(tool.definition).toMatchObject({
+      modelName: 'load_workspace_dependencies',
+      risk: 'low', sideEffects: { filesystem: 'read', network: false }
+    })
+    const registry = new RuntimeToolRegistry()
+    registry.register(tool.definition, tool.executor)
+    expect(JSON.stringify(registry.list())).toContain('load_workspace_dependencies')
+    const call = { ...readCall(), modelName: 'load_workspace_dependencies', arguments: {} }
+    const missing = createFixture(tool.definition, tool.executor)
+    const failed = await collect(missing.service.execute(call, context([`${tool.definition.id}@1`])))
+    expect(failed.map((event) => event.type)).toEqual(['tool.proposed', 'tool.queued', 'tool.running', 'tool.failed'])
+    expect(failed.at(-1)).toMatchObject({ error: { code: 'TOOL_UNAVAILABLE' } })
+
+    for (const relative of [
+      'dependencies/node/bin/node', 'dependencies/python/bin/python3',
+      'dependencies/bin/override/soffice', 'dependencies/bin/override/pdftoppm'
+    ]) {
+      const path = join(dist, relative)
+      await mkdir(join(path, '..'), { recursive: true })
+      await writeFile(path, '#!/bin/sh\n')
+      await chmod(path, 0o755)
+    }
+    await mkdir(join(dist, 'dependencies/node/node_modules'))
+    const available = createFixture(tool.definition, tool.executor)
+    const events = await collect(available.service.execute(call, context([`${tool.definition.id}@1`])))
+    expect(events.map((event) => event.type)).toEqual(['tool.proposed', 'tool.queued', 'tool.running', 'tool.completed'])
+    expect(JSON.stringify(events.at(-1))).toContain(join(dist, 'dependencies/python/bin/python3'))
+  })
+
   it('publishes a safe image count when image generation begins', async () => {
     const definition: ToolDefinition = {
       ...readDefinition,

@@ -1,6 +1,6 @@
 import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
 import { Fragment } from 'react'
-import { AgentComposer } from '../components/AgentComposer'
+import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
@@ -9,6 +9,7 @@ import { ActivityTimeline } from '../components/ActivityTimeline'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageReader } from '../components/agent/ConversationImage'
+import { TaskOutputFiles, type OutputFileReader } from '../components/agent/TaskOutputFiles'
 
 export function TaskPage({
   mode,
@@ -24,6 +25,7 @@ export function TaskPage({
   onTakeOver,
   onInterrupt,
   readImage,
+  readOutputFile,
   onSubmit
 }: {
   mode: TaskLayoutMode
@@ -39,7 +41,8 @@ export function TaskPage({
   onTakeOver(): Promise<unknown> | void
   onInterrupt(): void
   readImage?: ImageReader | undefined
-  onSubmit(goal: string, imageFiles?: File[]): Promise<unknown> | void
+  readOutputFile?: OutputFileReader | undefined
+  onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
   const pageMode = hasBrowser ? mode : 'agent-only'
@@ -168,6 +171,10 @@ export function TaskPage({
                       tools={activity?.tools ?? []}
                       readImage={readImage}
                     />
+                    <TaskOutputFiles
+                      files={activity?.outputFiles ?? []}
+                      readOutputFile={readOutputFile}
+                    />
                   </Fragment>
                 )
               })}
@@ -185,6 +192,7 @@ export function TaskPage({
                   readImage={readImage}
                 />
               ) : null}
+              <TaskOutputFiles files={task.outputFiles ?? []} readOutputFile={readOutputFile} />
               {task.status === 'failed' ? (
                 <div className="agent-failure" role="alert">
                   <strong>任务执行失败</strong>
@@ -203,8 +211,8 @@ export function TaskPage({
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
             onOpenModelSettings={onOpenModelSettings}
-            onSubmit={(goal, imageFiles) =>
-              imageFiles ? onSubmit(goal, imageFiles) : onSubmit(goal)
+            onSubmit={(goal, attachments) =>
+              attachments ? onSubmit(goal, attachments) : onSubmit(goal)
             }
             onInterrupt={onInterrupt}
             width={flowWidth}

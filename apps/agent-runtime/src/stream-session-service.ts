@@ -9,9 +9,15 @@ import {
   emptyActivityTimelineState,
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
-import { normalizeAssistantParts, type ImageAssetRef, type MessageContentPart } from '@actiondriver/contracts'
+import {
+  normalizeAssistantParts,
+  type ImageAssetRef,
+  type MessageContentPart
+} from '@actiondriver/contracts'
 import type { ModelInputMessage } from '@actiondriver/model-connections'
 import type { SessionAssetStore } from './media/session-asset-store'
+import type { BoundInputFile, SessionInputFileStore } from './media/session-input-file-store'
+import type { OutputBaseline, SessionOutputStore } from './media/session-output-store'
 import type {
   AgentGraphResult,
   GraphRunner,
@@ -54,6 +60,21 @@ export class StreamSessionService {
       rawToolIO?: { enabled: boolean; maxBytes?: number }
       listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
       assets?: Pick<SessionAssetStore, 'bindStaged'>
+      inputFiles?: Pick<SessionInputFileStore, 'bind'>
+      outputs?: Pick<SessionOutputStore, 'baseline' | 'detectChanges' | 'register'>
+      listOutputs?: (taskId: string) => Promise<
+        Array<{
+          fileId: string
+          sessionId: string
+          taskId: string
+          name: string
+          mimeType: string
+          byteLength: number
+        }>
+      >
+      describeSessionInputs?: (
+        sessionId: string
+      ) => Promise<Array<{ name: string; path: string; mimeType: string }>>
     }
   ) {}
 
@@ -182,6 +203,55 @@ export class StreamSessionService {
       createdAt: now,
       updatedAt: now
     }
+    const inputFileIds = event.payload.input.inputFileIds ?? []
+    let boundInputs: BoundInputFile[] = []
+    if (inputFileIds.length > 0) {
+      if (!this.options.inputFiles) {
+        await this.emitRequestError(
+          event.requestId,
+          'input-unavailable',
+          'File storage is unavailable',
+          emit
+        )
+        return
+      }
+      try {
+        boundInputs = []
+        for (const fileId of inputFileIds) {
+          boundInputs.push(
+            await this.options.inputFiles.bind(fileId, {
+              sessionId,
+              taskId: request.taskId
+            })
+          )
+        }
+      } catch {
+        await this.emitRequestError(
+          event.requestId,
+          'input-invalid',
+          'File cannot be attached',
+          emit
+        )
+        return
+      }
+      // Images keep their existing thumbnail part; only documents need a card.
+      userParts.push(
+        ...boundInputs
+          .filter((file) => !file.mimeType.startsWith('image/'))
+          .map((file) => ({
+            kind: 'document' as const,
+            file: {
+              fileId: file.fileId,
+              sessionId: file.sessionId,
+              taskId: file.taskId,
+              name: file.name,
+              mimeType: file.mimeType,
+              byteLength: file.byteLength
+            }
+          }))
+      )
+      if (!task.goal.trim() || task.goal === '图片消息') task.goal = boundInputs[0]!.name
+    }
     const userMessage: PersistedMessage = {
       id: userMessageId,
       taskId: request.taskId,
@@ -284,7 +354,10 @@ export class StreamSessionService {
 
     let result: AgentGraphResult | null = null
     let thrown: unknown = null
+    let outputBaseline: OutputBaseline | null = null
     try {
+      outputBaseline = (await this.options.outputs?.baseline(request.sessionId)) ?? null
+      const sessionInputs = (await this.options.describeSessionInputs?.(request.sessionId)) ?? []
       result = await this.options.graphRunner.run(
         {
           taskId: request.taskId,
@@ -292,6 +365,11 @@ export class StreamSessionService {
           goal: initialTask.goal,
           model: initialTask.model,
           messages: history,
+          ...(sessionInputs.length > 0
+            ? {
+                inputContext: sessionInputs
+              }
+            : {}),
           ...(currentMessage ? { currentMessage } : {}),
           ...(createEvent.payload.systemPrompt === undefined
             ? {}
@@ -335,7 +413,8 @@ export class StreamSessionService {
           sequence += 1
           content += event.delta
           const last = assistantParts.at(-1)
-          const contentIndex = last?.kind === 'text' ? assistantParts.length - 1 : assistantParts.length
+          const contentIndex =
+            last?.kind === 'text' ? assistantParts.length - 1 : assistantParts.length
           if (last?.kind === 'text') last.text += event.delta
           else assistantParts.push({ kind: 'text', text: event.delta })
           const record = await this.options.repositories.commitAssistantContentWithEvent(
@@ -351,7 +430,11 @@ export class StreamSessionService {
         async (record) => {
           if (record.requestId === request.requestId) {
             if (record.type === 'tool.running') {
-              const payload = record.payload as { callId?: unknown; toolId?: unknown; imageCount?: unknown }
+              const payload = record.payload as {
+                callId?: unknown
+                toolId?: unknown
+                imageCount?: unknown
+              }
               if (
                 payload.toolId === 'image.generate' &&
                 typeof payload.callId === 'string' &&
@@ -359,10 +442,16 @@ export class StreamSessionService {
                 Number.isInteger(payload.imageCount) &&
                 payload.imageCount >= 1 &&
                 payload.imageCount <= 16 &&
-                !assistantParts.some((part) => part.kind === 'image-batch' && part.callId === payload.callId)
+                !assistantParts.some(
+                  (part) => part.kind === 'image-batch' && part.callId === payload.callId
+                )
               ) {
                 const contentIndex = assistantParts.length
-                assistantParts.push({ kind: 'image-batch', callId: payload.callId, imageCount: payload.imageCount })
+                assistantParts.push({
+                  kind: 'image-batch',
+                  callId: payload.callId,
+                  imageCount: payload.imageCount
+                })
                 sequence += 1
                 let batchRecord
                 try {
@@ -405,7 +494,11 @@ export class StreamSessionService {
               if (assistantParts.length === 0 && content)
                 assistantParts.push({ kind: 'text', text: content })
               const contentIndex = assistantParts.length
-              assistantParts.push({ kind: 'image', asset: payload.asset, generation: { callId: payload.callId, index: payload.index } })
+              assistantParts.push({
+                kind: 'image',
+                asset: payload.asset,
+                generation: { callId: payload.callId, index: payload.index }
+              })
               sequence += 1
               let imageRecord
               try {
@@ -449,7 +542,12 @@ export class StreamSessionService {
       content = terminalEvent.content
       if (assistantParts.some((part) => part.kind === 'image' || part.kind === 'image-batch')) {
         const visualParts = assistantParts.filter((part) => part.kind !== 'text')
-        assistantParts.splice(0, assistantParts.length, ...visualParts, ...(content ? [{ kind: 'text' as const, text: content }] : []))
+        assistantParts.splice(
+          0,
+          assistantParts.length,
+          ...visualParts,
+          ...(content ? [{ kind: 'text' as const, text: content }] : [])
+        )
       }
     }
     const error = completed
@@ -474,6 +572,24 @@ export class StreamSessionService {
       error,
       updatedAt: occurredAt
     }
+    let registeredOutputs: Array<{
+      fileId: string
+      sessionId: string
+      taskId: string
+      name: string
+      mimeType: string
+      byteLength: number
+    }> = []
+    if (completed && outputBaseline && this.options.outputs) {
+      const changes = await this.options.outputs.detectChanges(request.sessionId, outputBaseline)
+      if (changes.length > 0) {
+        registeredOutputs = await this.options.outputs.register({
+          sessionId: request.sessionId,
+          taskId: request.taskId,
+          files: changes
+        })
+      }
+    }
     const endRecord = await this.options.repositories.finishStreamTask({
       request: persistedRequest,
       task,
@@ -484,6 +600,18 @@ export class StreamSessionService {
         finishReason: completed && terminalEvent ? terminalEvent.finishReason : null,
         usage: completed && terminalEvent ? terminalEvent.usage : null,
         durationMs: Math.max(0, Date.parse(occurredAt) - startedAt),
+        ...(registeredOutputs.length > 0
+          ? {
+              outputFiles: registeredOutputs.map((file) => ({
+                fileId: file.fileId,
+                sessionId: file.sessionId,
+                taskId: file.taskId,
+                name: file.name,
+                mimeType: file.mimeType,
+                byteLength: file.byteLength
+              }))
+            }
+          : {}),
         error
       })
     })
@@ -603,13 +731,21 @@ export class StreamSessionService {
       occurredAt: this.options.now(),
       sequence: request.lastSequence,
       status: request.status,
+      ...(await this.outputFilesFor(request.taskId)),
       messages: messages
         .filter((message) => message.role === 'user' || message.role === 'assistant')
         .map((message) => ({
           id: message.id,
           role: message.role,
           content: messageText(message.content),
-          ...(messageParts(message.content) ? { parts: message.role === 'assistant' ? normalizeAssistantParts(messageParts(message.content)!) : messageParts(message.content)! } : {}),
+          ...(messageParts(message.content)
+            ? {
+                parts:
+                  message.role === 'assistant'
+                    ? normalizeAssistantParts(messageParts(message.content)!)
+                    : messageParts(message.content)!
+              }
+            : {}),
           createdAt: message.createdAt
         })),
       tools: toolInvocations.map((invocation) => {
@@ -625,9 +761,10 @@ export class StreamSessionService {
           modelName: invocation.toolId,
           ...persisted,
           argumentsHash: invocation.argumentsHash,
-          ...(invocation.toolId === 'image.generate' && Array.isArray((invocation.input as { images?: unknown }).images)
-            && (invocation.input as { images: unknown[] }).images.length >= 1
-            && (invocation.input as { images: unknown[] }).images.length <= 16
+          ...(invocation.toolId === 'image.generate' &&
+          Array.isArray((invocation.input as { images?: unknown }).images) &&
+          (invocation.input as { images: unknown[] }).images.length >= 1 &&
+          (invocation.input as { images: unknown[] }).images.length <= 16
             ? { imageCount: (invocation.input as { images: unknown[] }).images.length }
             : {}),
           status: invocation.status,
@@ -643,6 +780,30 @@ export class StreamSessionService {
       ...(preparingToolName ? { preparingToolName } : {}),
       error
     }) as SnapshotEvent
+  }
+
+  private async outputFilesFor(taskId: string): Promise<{
+    outputFiles?: Array<{
+      fileId: string
+      sessionId: string
+      taskId: string
+      name: string
+      mimeType: string
+      byteLength: number
+    }>
+  }> {
+    const files = (await this.options.listOutputs?.(taskId)) ?? []
+    if (files.length === 0) return {}
+    return {
+      outputFiles: files.map((file) => ({
+        fileId: file.fileId,
+        sessionId: file.sessionId,
+        taskId: file.taskId,
+        name: file.name,
+        mimeType: file.mimeType,
+        byteLength: file.byteLength
+      }))
+    }
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {

@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ToolCall, ToolExecutor } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolExecutionContext, ToolExecutor } from '@actiondriver/runtime-contracts'
 import { createScriptTools } from '../src/execution/tools'
 import { createSearxngSearchTool } from '../src/searxng/search-tool'
 
@@ -14,7 +14,8 @@ async function execute(
   executor: ToolExecutor,
   modelName: string,
   index: number,
-  input: ToolCall['arguments']
+  input: ToolCall['arguments'],
+  context?: ToolExecutionContext
 ) {
   const call: ToolCall = {
     callId: `${modelName}-${index}`,
@@ -23,7 +24,7 @@ async function execute(
     arguments: input
   }
   const events = []
-  for await (const event of executor.execute(call)) events.push(event)
+  for await (const event of executor.execute(call, undefined, context)) events.push(event)
   return events
 }
 
@@ -56,9 +57,17 @@ describe('explicit 100 calls per tool stress verification', () => {
         const address = server.address()
         if (!address || typeof address === 'string') throw new Error('missing test server port')
         const tools = await createScriptTools({
-          workspaceRoot,
           runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist')
         })
+        const executionContext: ToolExecutionContext = {
+          taskId: 'stress-task',
+          sessionId: 'stress-session',
+          workspace: {
+            root: workspaceRoot,
+            input: join(workspaceRoot, 'input'),
+            output: join(workspaceRoot, 'output')
+          }
+        }
         const search = createSearxngSearchTool({ endpoint: `http://127.0.0.1:${address.port}` })
         const cases = [
           {
@@ -89,7 +98,8 @@ describe('explicit 100 calls per tool stress verification', () => {
               testCase.executor,
               testCase.name,
               index,
-              testCase.input(index)
+              testCase.input(index),
+              executionContext
             )
             expect(JSON.stringify(events)).toContain(`stress-${index}`)
             expect(events.at(-1)).toMatchObject({ kind: 'result' })

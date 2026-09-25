@@ -143,6 +143,36 @@ export interface ToolInvocationRepository {
   listByTask(taskId: string): Promise<PersistedToolInvocation[]>
 }
 
+/** Registry entry of one uploaded document; the bytes live in the session `input/` directory. */
+export type SessionInputFileRecord = {
+  fileId: string
+  status: 'staged' | 'bound'
+  sessionId: string | null
+  taskId: string | null
+  name: string
+  mimeType: string
+  byteLength: number
+  relativePath: string | null
+  checksum: string
+  createdAt: string
+  boundAt: string | null
+}
+
+export type SessionInputFileBinding = {
+  sessionId: string
+  taskId: string
+  relativePath: string
+  boundAt: string
+}
+
+export interface SessionInputFileRepository {
+  save(file: SessionInputFileRecord): Promise<void>
+  get(fileId: string): Promise<SessionInputFileRecord | null>
+  listBySession(sessionId: string): Promise<SessionInputFileRecord[]>
+  listByTask(taskId: string): Promise<SessionInputFileRecord[]>
+  bind(fileId: string, binding: SessionInputFileBinding): Promise<SessionInputFileRecord>
+}
+
 export interface ToolInvocationPersistence {
   commitToolInvocationWithEvent(
     invocation: PersistedToolInvocation,
@@ -265,6 +295,8 @@ export interface GraphRunner {
       skills?: ModelSkillDescription[]
       toolGrants?: string[]
       streamRequestId?: string
+      /** Files uploaded to this session, exposed to the model as readable paths. */
+      inputContext?: Array<{ name: string; path: string; mimeType: string }>
     },
     signal?: AbortSignal,
     observer?: ModelEventObserver,

@@ -21,6 +21,7 @@ import { resolveDesktopCompositionMode } from '../shared/composition-mode'
 import { resolveCredentialKey } from './credential-key'
 import { resolveModuleDirectory } from './module-directory'
 import { registerExternalLinkIpc } from './external-link-ipc'
+import { registerTaskOutputIpc } from './task-output-ipc'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 import { PACKAGED_RENDERER_URL, resolveRendererAssetPath } from './renderer-protocol'
 import {
@@ -106,7 +107,7 @@ app.whenReady().then(async () => {
     if (typeof skillId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillId)) {
       throw new Error('Skill 标识无效。')
     }
-    const system = new Set(['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'])
+    const system = new Set(['documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'])
     const path = join(skillsDirectory, system.has(skillId) ? '.system' : '', skillId)
     shell.showItemInFolder(path)
   })
@@ -142,6 +143,10 @@ app.whenReady().then(async () => {
     const modelConnectionClient = new ModelConnectionHttpClient({
       baseUrl: serviceUrl,
       token: serviceToken
+    })
+    registerTaskOutputIpc(ipcMain, {
+      connection: async () => ({ serviceUrl: serviceUrl!, token: serviceToken }),
+      openPath: (path) => shell.openPath(path)
     })
     try {
       await migrateLegacyModelConnections(

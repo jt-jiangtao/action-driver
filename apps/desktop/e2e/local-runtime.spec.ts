@@ -222,7 +222,7 @@ test('saves the main prompt through Runtime and lists enabled system Skills', as
   )
   await page.getByTestId('e2e/settings/sidebar/skills#button').click()
   await expect(page.getByTestId('e2e/settings/skills/page#page')).toBeVisible()
-  for (const id of ['browser-tools', 'computer-tools', 'skill-creator']) {
+  for (const id of ['documents', 'pdf', 'skill-creator']) {
     await expect(page.getByTestId(`e2e/settings/skills/items/${id}#button`)).toBeVisible()
     await expect(page.getByTestId(`e2e/settings/skills/toggles/${id}#switch`)).toHaveAttribute(
       'aria-checked',

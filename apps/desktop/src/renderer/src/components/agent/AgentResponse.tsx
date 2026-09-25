@@ -60,6 +60,10 @@ export function AgentResponse({
       blocks.push(<ImageGallery key={`batch-${part.callId}`} images={images.filter((image) => image.generation?.callId === part.callId)} tools={[{ ...tool, imageCount: part.imageCount }]} readImage={readImage} />)
       return
     }
+    if (part.kind === 'document') {
+      // Attached documents are rendered by the input and result cards added in a later task.
+      return
+    }
     const callId = part.generation?.callId
     if (callId && anchoredCalls.has(callId)) return
     if (callId) {

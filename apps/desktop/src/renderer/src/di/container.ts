@@ -37,6 +37,8 @@ export interface AppServices {
   taskCatalog: TaskCatalog
   restoreTaskStream?: (task: TaskProjection) => Promise<void>
   imageAssets?: Pick<RuntimeHttpClient, 'uploadImage' | 'readImage'>
+  inputFiles?: Pick<RuntimeHttpClient, 'uploadInputFile'>
+  outputFiles?: Pick<RuntimeHttpClient, 'readOutputFile'>
 }
 
 interface RendererOverrides extends Partial<AppServices> {
@@ -58,6 +60,8 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
   let localModelApi: RuntimeModelHttpApi | null = null
   let restoreTaskStream: AppServices['restoreTaskStream']
   let imageAssets: AppServices['imageAssets']
+  let inputFiles: AppServices['inputFiles']
+  let outputFiles: AppServices['outputFiles']
 
   if (options.mode === 'local') {
     if (!options.desktopApi) throw new Error('Local renderer services require DesktopApi')
@@ -67,6 +71,8 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
     })
     const http = new RuntimeHttpClient(() => options.desktopApi!.runtimeConnection.get())
     imageAssets = http
+    inputFiles = http
+    outputFiles = http
     localAgentFilesService = new RuntimeAgentFilesService(http)
     localAgentApi = new RuntimeAgentHttpApi(http)
     localModelApi = new RuntimeModelHttpApi(http)
@@ -114,6 +120,8 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
         ? new DesktopTaskCatalog(localAgentApi!)
         : new MockTaskCatalog()),
     ...(restoreTaskStream ? { restoreTaskStream } : {}),
-    ...(imageAssets ? { imageAssets } : {})
+    ...(imageAssets ? { imageAssets } : {}),
+    ...(inputFiles ? { inputFiles } : {}),
+    ...(outputFiles ? { outputFiles } : {})
   }
 }

@@ -53,11 +53,13 @@ describe('SkillInstaller local source', () => {
 
   it('reserves system Skill names for bundled content', async () => {
     const { homeDirectory, installer } = await fixture()
-    const source = join(homeDirectory, 'source', 'skill-creator')
-    await mkdir(source, { recursive: true })
-    await writeFile(join(source, 'SKILL.md'), '# Replacement\n\nShould not install.\n')
-    await expect(installer.installSkill({ source: 'local', path: source })).rejects.toThrow()
-    expect(await readdir(join(homeDirectory, '.action-driver', 'skills'))).not.toContain('skill-creator')
+    for (const id of ['skill-creator', 'documents', 'pdf', 'presentations', 'spreadsheets']) {
+      const source = join(homeDirectory, 'source', id)
+      await mkdir(source, { recursive: true })
+      await writeFile(join(source, 'SKILL.md'), '# Replacement\n\nShould not install.\n')
+      await expect(installer.installSkill({ source: 'local', path: source })).rejects.toThrow()
+      expect(await readdir(join(homeDirectory, '.action-driver', 'skills'))).not.toContain(id)
+    }
   })
 
   it('uses the same validation and persistent source label for GitHub imports', async () => {

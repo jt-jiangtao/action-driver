@@ -367,6 +367,56 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         ) AS capabilities;
       `)
     }
+  },
+  {
+    version: 13,
+    name: 'add-session-input-files',
+    up(database) {
+      database.exec(`
+        CREATE TABLE session_input_files (
+          file_id TEXT PRIMARY KEY,
+          status TEXT NOT NULL CHECK (status IN ('staged', 'bound')),
+          session_id TEXT,
+          task_id TEXT,
+          name TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          byte_length INTEGER NOT NULL,
+          relative_path TEXT,
+          checksum TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          bound_at TEXT
+        );
+
+        CREATE INDEX session_input_files_session_created_idx
+          ON session_input_files(session_id, created_at, file_id);
+        CREATE INDEX session_input_files_task_idx ON session_input_files(task_id);
+      `)
+    }
+  },
+  {
+    version: 14,
+    name: 'add-task-output-files',
+    up(database) {
+      database.exec(`
+        CREATE TABLE task_output_files (
+          file_id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          task_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          byte_length INTEGER NOT NULL,
+          relative_path TEXT NOT NULL,
+          checksum TEXT NOT NULL,
+          snapshot_path TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX task_output_files_task_created_idx
+          ON task_output_files(task_id, created_at, file_id);
+        CREATE INDEX task_output_files_session_created_idx
+          ON task_output_files(session_id, created_at, file_id);
+      `)
+    }
   }
 ]
 

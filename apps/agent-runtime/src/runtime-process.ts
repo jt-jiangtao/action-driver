@@ -18,7 +18,11 @@ import { ModelConnectionService } from './model-connections/service'
 import { createInteractionLogRecorder } from '@actiondriver/observability'
 import { randomUUID } from 'node:crypto'
 import { createScriptTools } from './execution/tools'
-import { dirname, resolve } from 'node:path'
+import { createWorkspaceDependenciesTool } from './execution/workspace-dependencies-tool'
+import { SessionExecutionContextResolver } from './execution/session-execution-context'
+import { SessionSandbox } from './execution/session-sandbox'
+import { SessionWorkspaceStore } from './execution/session-workspace'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerSearxngTool } from './searxng/runtime-tools'
 import { registerWebOpenTool } from './web-open/tool'
@@ -27,6 +31,8 @@ import { SkillInstaller } from './agent-files/skill-installer'
 import { createSkillRuntimeTools } from './agent-files/runtime-tools'
 import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
+import { SessionInputFileStore } from './media/session-input-file-store'
+import { SessionOutputStore } from './media/session-output-store'
 import { createImageGenerationTool } from './media/image-generation-tool'
 
 type ParentMessageEvent = { data: unknown }
@@ -50,9 +56,15 @@ export async function startAgentRuntimeProcess(
   const runtimeEntry = fileURLToPath(import.meta.url)
   const runtimeDist = resolve(dirname(runtimeEntry), runtimeEntry.endsWith('.ts') ? '../dist' : '.')
   const timeoutOverride = Number(environment.ACTIONDRIVER_SCRIPT_TIMEOUT_MS)
+  const agentHome = environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
+  // Scripts may read the installed Skills they were told to run, next to the
+  // bundled runtimes, and nothing else.
+  const sandbox = new SessionSandbox({
+    runtimeRoots: [runtimeDist, join(agentHome, '.action-driver', 'skills')]
+  })
   const scriptTools = await createScriptTools({
-    workspaceRoot,
     runtimeDist,
+    sandbox,
     ...(Number.isSafeInteger(timeoutOverride) &&
     timeoutOverride >= 1_000 &&
     timeoutOverride <= 600_000
@@ -70,6 +82,17 @@ export async function startAgentRuntimeProcess(
   }
   const repositories = new SqliteRuntimeRepositories(database)
   const assets = new SessionAssetStore({ database, rootDirectory: dirname(databasePath) })
+  const workspaces = new SessionWorkspaceStore({ workspaceRoot })
+  const inputFiles = new SessionInputFileStore({
+    database,
+    rootDirectory: dirname(databasePath),
+    workspaces
+  })
+  const outputs = new SessionOutputStore({
+    database,
+    rootDirectory: dirname(databasePath),
+    workspaces
+  })
   await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
   await assets.cleanOrphanFiles()
   await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
@@ -95,8 +118,12 @@ export async function startAgentRuntimeProcess(
     imageResolver: (asset) => assets.read(asset.assetId, asset.sessionId)
   })
   const modelTraces = new PhoenixModelObservability(logging.tracer)
+  const executionContexts = new SessionExecutionContextResolver({
+    tasks: repositories.tasks,
+    workspaceRoot
+  })
   const agentFiles = new AgentFileStore({
-    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot,
+    homeDirectory: agentHome,
     systemSkillsSourceRoot: resolve(
       runtimeEntry.endsWith('.ts') ? dirname(runtimeEntry) : runtimeDist,
       runtimeEntry.endsWith('.ts') ? '../resources/system-skills' : 'system-skills'
@@ -104,7 +131,7 @@ export async function startAgentRuntimeProcess(
   })
   await agentFiles.initialize()
   const skillInstaller = new SkillInstaller({
-    homeDirectory: environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot,
+    homeDirectory: agentHome,
     store: agentFiles
   })
   const modelGateway = new ConnectionModelGateway({
@@ -118,12 +145,16 @@ export async function startAgentRuntimeProcess(
     repositories,
     checkpointer,
     modelGateway,
-    interactions
+    interactions,
+    executionContext: (taskId) => executionContexts.resolve(taskId)
   })
   for (const tool of scriptTools) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
+  const workspaceDependenciesTool = createWorkspaceDependenciesTool(runtimeDist)
+  local.toolRuntime.registry.register(workspaceDependenciesTool.definition, workspaceDependenciesTool.executor)
+  local.toolRuntime.grants.push(`${workspaceDependenciesTool.definition.id}@${workspaceDependenciesTool.definition.version}`)
   const imageTool = createImageGenerationTool({
     defaultModel: () => service.getDefaultImageModel(),
     generate: (request, signal) => service.generateImage(request, signal),
@@ -147,6 +178,23 @@ export async function startAgentRuntimeProcess(
   const streamSessions = new StreamSessionService({
     repositories,
     assets,
+    inputFiles,
+    outputs,
+    listOutputs: (taskId) => outputs.listByTask(taskId),
+    describeSessionInputs: async (sessionId) => {
+      const files = await repositories.inputFiles.listBySession(sessionId)
+      const described: Array<{ name: string; path: string; mimeType: string }> = []
+      for (const file of files) {
+        if (file.status !== 'bound' || !file.relativePath) continue
+        const path = await workspaces
+          .resolveFile(sessionId, 'input', file.relativePath.replace(/^input\//, ''), {
+            mustBeRegularFile: true
+          })
+          .catch(() => null)
+        if (path) described.push({ name: file.name, path, mimeType: file.mimeType })
+      }
+      return described
+    },
     graphRunner: local.adapters.graphRunner,
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),
@@ -156,7 +204,8 @@ export async function startAgentRuntimeProcess(
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
     messages: repositories.messages,
-    streamSnapshots: streamSessions
+    streamSnapshots: streamSessions,
+    outputFiles: (taskId) => outputs.listByTask(taskId)
   })
 
   let httpServer: ServiceHttpServer | null = null
@@ -165,6 +214,8 @@ export async function startAgentRuntimeProcess(
     httpServer = await startServiceHttpServer({
       service,
       assets,
+      inputFiles,
+      outputs,
       agentFiles,
       skillInstaller,
       taskControl: server,

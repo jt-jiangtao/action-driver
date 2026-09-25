@@ -480,6 +480,13 @@ async function toOpenAiMessages(
         const content = await Promise.all(
           message.content.map(async (part) => {
             if (part.kind === 'text') return { type: 'text', text: part.text }
+            // Attached documents reach the model as a named file reference; the
+            // bytes stay in the session workspace for the script tools.
+            if (part.kind === 'document')
+              return {
+                type: 'text',
+                text: `[附件] ${part.file.name}（${part.file.mimeType}）`
+              }
             if (part.kind !== 'image')
               throw new ModelStreamError('invalid-request', 'Unsupported user message content')
             if (!imageResolver)

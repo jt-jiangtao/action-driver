@@ -99,6 +99,15 @@ export function threadIdForTask(taskId: string): string {
   return taskId
 }
 
+export function sessionInputNotice(
+  files: ReadonlyArray<{ name: string; path: string; mimeType: string }>
+): string {
+  return [
+    '本会话上传的文件已在工作目录内可直接读取（不要重新创建或猜测内容）：',
+    ...files.map((file) => `- ${file.name}（${file.mimeType}）: ${file.path}`)
+  ].join('\n')
+}
+
 export class LangGraphRunner implements GraphRunner {
   private readonly graph
   private readonly activeControllers = new Map<string, AbortController>()
@@ -127,6 +136,7 @@ export class LangGraphRunner implements GraphRunner {
       skills?: Array<{ skillId: string; description: string }>
       toolGrants?: string[]
       streamRequestId?: string
+      inputContext?: Array<{ name: string; path: string; mimeType: string }>
     },
     signal?: AbortSignal,
     observer?: ModelEventObserver,
@@ -150,6 +160,9 @@ export class LangGraphRunner implements GraphRunner {
           modelMessages: [
             ...(request.systemPrompt?.trim()
               ? [{ role: 'system' as const, content: request.systemPrompt }]
+              : []),
+            ...(request.inputContext?.length
+              ? [{ role: 'system' as const, content: sessionInputNotice(request.inputContext) }]
               : []),
             ...(request.messages ?? []),
             request.currentMessage ?? { role: 'user' as const, content: request.goal }

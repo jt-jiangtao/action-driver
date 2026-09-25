@@ -58,6 +58,17 @@ export type MessageContentPart =
   | { kind: 'text'; text: string }
   | { kind: 'image-batch'; callId: string; imageCount: number }
   | { kind: 'image'; asset: ImageAssetRef; generation?: { callId: string; index: number } | undefined }
+  | { kind: 'document'; file: DocumentFileRef }
+
+/** Metadata of an uploaded document; bytes never travel through messages. */
+export type DocumentFileRef = {
+  fileId: string
+  sessionId: string
+  taskId: string
+  name: string
+  mimeType: string
+  byteLength: number
+}
 
 export type MessageContent = { text: string } | { parts: MessageContentPart[] }
 
@@ -69,6 +80,7 @@ export function normalizeAssistantParts(parts: readonly MessageContentPart[]): M
   const normalized: MessageContentPart[] = []
   const seenBatches = new Set<string>()
   const seenImages = new Set<string>()
+  const seenDocuments = new Set<string>()
   for (const part of parts) {
     if (part.kind === 'text') {
       if (!part.text) continue
@@ -80,6 +92,12 @@ export function normalizeAssistantParts(parts: readonly MessageContentPart[]): M
     if (part.kind === 'image-batch') {
       if (seenBatches.has(part.callId)) continue
       seenBatches.add(part.callId)
+      normalized.push(part)
+      continue
+    }
+    if (part.kind === 'document') {
+      if (seenDocuments.has(part.file.fileId)) continue
+      seenDocuments.add(part.file.fileId)
       normalized.push(part)
       continue
     }
@@ -164,6 +182,8 @@ export interface PriorActivityTurnProjection {
   tools: ToolInvocationProjection[]
   activities: ActivityProjection[]
   activityTimeline: TaskTimelineProjectionItem[]
+  /** Deliverables registered by this earlier turn; kept per turn so history survives follow-ups. */
+  outputFiles?: TaskOutputFileProjection[]
 }
 
 export interface TaskProjection {
@@ -180,6 +200,7 @@ export interface TaskProjection {
   activityStartedAt?: string
   activityDurationMs?: number | undefined
   preparingToolName?: string
+  outputFiles?: TaskOutputFileProjection[]
   streamRequestId?: string
   streamResponseId?: string
   priorActivityTurns?: PriorActivityTurnProjection[]
@@ -194,8 +215,20 @@ export type ModelRef = {
 }
 
 export type AgentGoalRequest =
-  | { goal: string; model: ModelRef; sessionId?: never; imageAssetIds?: string[] }
-  | { goal: string; sessionId: string; model?: never; imageAssetIds?: string[] }
+  | {
+      goal: string
+      model: ModelRef
+      sessionId?: never
+      imageAssetIds?: string[]
+      inputFileIds?: string[]
+    }
+  | {
+      goal: string
+      sessionId: string
+      model?: never
+      imageAssetIds?: string[]
+      inputFileIds?: string[]
+    }
 
 export type RecentTaskProjection = {
   id: string
@@ -205,6 +238,17 @@ export type RecentTaskProjection = {
   model: ModelRef
   createdAt: string
   updatedAt: string
+}
+
+/** A deliverable registered for one task; the bytes stay in the Runtime store. */
+export type TaskOutputFileProjection = {
+  fileId: string
+  sessionId: string
+  taskId: string
+  name: string
+  mimeType: string
+  byteLength: number
+  kind: 'document' | 'image'
 }
 
 interface BaseSkillInvocation<TSkillId extends SkillId, TInput> {

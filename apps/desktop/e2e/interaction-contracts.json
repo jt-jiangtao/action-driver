@@ -594,6 +594,38 @@
     "testName": "uses the plus and send actions and submits Slate text"
   },
   {
+    "target": "e2e/shared/composer/documents/attach#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "shows an attached document, removes it by keyboard, and submits it"
+  },
+  {
+    "target": "e2e/shared/composer/documents/select#input",
+    "route": "shared",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "shows an attached document, removes it by keyboard, and submits it"
+  },
+  {
+    "target": "e2e/shared/composer/documents/:document-index/remove#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/AgentComposer.test.tsx",
+    "testName": "shows an attached document, removes it by keyboard, and submits it"
+  },
+  {
+    "target": "e2e/tasks/detail/user-message/file#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/Conversation.test.tsx",
+    "testName": "shows an attached document as a card with its format, name and size"
+  },
+  {
     "target": "e2e/shared/composer/images/:image-index/open#button",
     "route": "shared",
     "type": "button",
@@ -918,5 +950,21 @@
     "route": "tasks",
     "type": "page",
     "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/tasks/detail/output-file#section",
+    "route": "tasks",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/agent/TaskOutputFiles.test.tsx",
+    "testName": "shows each deliverable with format, name, size and an open action"
+  },
+  {
+    "target": "e2e/tasks/detail/output-file/open#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/agent/TaskOutputFiles.test.tsx",
+    "testName": "shows each deliverable with format, name, size and an open action"
   }
 ]

@@ -1,6 +1,13 @@
-import type { ToolCall, ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
+import type {
+  ToolCall,
+  ToolDefinition,
+  ToolExecutionContext,
+  ToolExecutor
+} from '@actiondriver/runtime-contracts'
 import type { AgentFileStore } from './agent-file-store'
 import type { SkillInstaller } from './skill-installer'
+import { ExecutionContextUnavailableError } from '../execution/session-execution-context'
+import { resolveWorkspaceSource } from '../execution/session-workspace'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 
@@ -49,7 +56,7 @@ export function createSkillRuntimeTools(options: {
         risk: 'high', sideEffects: { filesystem: 'write', network: true }, timeoutMs: 120_000
       },
       executor: {
-        async *execute(call: ToolCall) {
+        async *execute(call: ToolCall, _signal?: AbortSignal, context?: ToolExecutionContext) {
           const { source, path, url } = call.arguments
           const input = source === 'local' && typeof path === 'string'
             ? { source: 'local' as const, path }
@@ -57,10 +64,27 @@ export function createSkillRuntimeTools(options: {
               ? { source: 'github' as const, url }
               : null
           if (!input) throw new Error('TOOL_INPUT_INVALID')
-          const installed = await options.installer.installSkill(input)
+          // A local Skill folder is only readable while it stays inside the
+          // current session workspace; the desktop flow covers other folders.
+          const installed = await options.installer.installSkill(
+            input.source === 'local'
+              ? {
+                  source: 'local',
+                  path: await resolveWorkspaceSource(
+                    requireWorkspace(context),
+                    input.path
+                  )
+                }
+              : input
+          )
           yield { kind: 'result', output: installed }
         }
       }
     }
   ]
+}
+
+function requireWorkspace(context: ToolExecutionContext | undefined) {
+  if (!context?.workspace.root) throw new ExecutionContextUnavailableError()
+  return context.workspace
 }

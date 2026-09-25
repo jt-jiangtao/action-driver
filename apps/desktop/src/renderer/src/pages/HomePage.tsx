@@ -1,5 +1,5 @@
 import { ActionDriverLogo } from '../components/ActionDriverLogo'
-import { AgentComposer } from '../components/AgentComposer'
+import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import { SidebarRestoreButton } from '../components/navigation/SidebarRestoreButton'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
@@ -15,7 +15,7 @@ export function HomePage({
 }: {
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
-  onSubmit(goal: string, imageFiles?: File[]): Promise<unknown> | void
+  onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
   onRetryModels?(): void
   onOpenModelSettings?(): void
   sidebarCollapsed?: boolean

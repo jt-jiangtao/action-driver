@@ -12,6 +12,11 @@ type ToolMode =
   | 'triple'
   | 'text'
   | 'tool-preparing'
+  | 'sandbox'
+  | 'sandbox-escape'
+  | 'office'
+  | 'office-soffice'
+  | 'deliverable'
   | 'web'
   | 'image'
   | 'image-partial'
@@ -116,9 +121,7 @@ export class FakeOpenAiToolServer {
       }
       if (this.mode === 'vision-rejected') {
         response.writeHead(400, { 'content-type': 'application/json' })
-        response.end(
-          JSON.stringify({ error: { message: 'Unexpected item type in content.' } })
-        )
+        response.end(JSON.stringify({ error: { message: 'Unexpected item type in content.' } }))
         return
       }
       response.writeHead(200, {
@@ -192,27 +195,41 @@ export class FakeOpenAiToolServer {
         const toolName =
           toolMode === 'read' || toolMode === 'activity'
             ? 'shell_run'
-            : toolMode === 'web'
-              ? 'web_search'
-              : toolMode === 'python' || toolMode === 'python-blocking'
-                ? 'python_run'
-                : toolMode === 'node'
-                  ? 'node_run'
-                  : 'shell_run'
+            : toolMode === 'sandbox' || toolMode === 'sandbox-escape'
+              ? 'python_run'
+            : toolMode === 'deliverable'
+              ? 'shell_run'
+              : toolMode === 'web'
+                ? 'web_search'
+                : toolMode === 'python' || toolMode === 'python-blocking'
+                  ? 'python_run'
+                  : toolMode === 'node'
+                    ? 'node_run'
+                    : 'shell_run'
         const argumentsJson =
           toolMode === 'read' || toolMode === 'activity'
-            ? '{"script":"cat README.md"}'
-            : toolMode === 'web'
-              ? '{"query":"ActionDriver","maxResults":1}'
-              : toolMode === 'python'
-                ? '{"script":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
-                : toolMode === 'python-blocking'
-                  ? '{"script":"import time; time.sleep(60)"}'
-                  : toolMode === 'node'
-                    ? '{"script":"console.log(JSON.stringify({executable:process.execPath}))"}'
-                    : toolMode === 'shell-timeout'
-                      ? '{"script":"sleep 12"}'
-                      : '{"script":"rg needle README.md"}'
+            ? '{"script":"mkdir -p output && printf \'E2E workspace\\n\' > output/README.md && cat output/README.md"}'
+            : toolMode === 'sandbox'
+              ? '{"script":"import json, os\\nprint(json.dumps({\\"cwd\\": os.getcwd(), \\"inherited\\": sorted(key for key in os.environ if key.startswith(\\"ACTIONDRIVER\\"))}))"}'
+              : toolMode === 'sandbox-escape'
+                ? '{"script":"import pathlib\\nprint(pathlib.Path(\'../../README.md\').read_text())"}'
+                : toolMode === 'office'
+                  ? '{"script":"{ echo \\"RUNTIME_PYTHON=$RUNTIME_PYTHON\\"; \\"$RUNTIME_PYTHON\\" -c \'import docx, reportlab, pdfplumber, pypdf; print(\\"office-python-ok\\")\'; } > output/office-diag.txt 2>&1; cat output/office-diag.txt"}'
+                  : toolMode === 'office-soffice'
+                    ? '{"script":"{ echo \\"RUNTIME_BIN_DIR=$RUNTIME_BIN_DIR\\"; ls \\"$RUNTIME_BIN_DIR\\"; \\"$RUNTIME_BIN_DIR\\"/soffice --version; } > output/soffice-diag.txt 2>&1; cat output/soffice-diag.txt"}'
+                    : toolMode === 'deliverable'
+                      ? '{"script":"mkdir -p output && printf \'%%PDF-1.7\\n%%EOF\\n\' > output/report.pdf && printf \'%%PDF-1.7\\n%%EOF\\n\' > output/summary.pdf && echo deliverable-written"}'
+                  : toolMode === 'web'
+                    ? '{"query":"ActionDriver","maxResults":1}'
+                    : toolMode === 'python'
+                      ? '{"script":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
+                      : toolMode === 'python-blocking'
+                        ? '{"script":"import time; time.sleep(60)"}'
+                        : toolMode === 'node'
+                          ? '{"script":"console.log(JSON.stringify({executable:process.execPath}))"}'
+                          : toolMode === 'shell-timeout'
+                            ? '{"script":"sleep 12"}'
+                            : '{"script":"mkdir -p output && printf \'needle is present\\n\' > output/README.md && rg needle output/README.md"}'
         const midpoint = Math.ceil(argumentsJson.length / 2)
         if (this.mode === 'activity') {
           response.write(sseChunk({ content: turn === 1 ? '正文 A' : '正文 B' }, null))

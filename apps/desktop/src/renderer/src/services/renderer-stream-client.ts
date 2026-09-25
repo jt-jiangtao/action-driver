@@ -93,7 +93,8 @@ export class RendererStreamClient {
               input: {
                 role: 'user',
                 content: input.goal,
-                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {})
+                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {}),
+                ...(input.inputFileIds?.length ? { inputFileIds: input.inputFileIds } : {})
               },
               ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),
               skills: []
@@ -106,7 +107,8 @@ export class RendererStreamClient {
               input: {
                 role: 'user',
                 content: input.goal,
-                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {})
+                ...(input.imageAssetIds?.length ? { imageAssetIds: input.imageAssetIds } : {}),
+                ...(input.inputFileIds?.length ? { inputFileIds: input.inputFileIds } : {})
               },
               model: input.model,
               ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),

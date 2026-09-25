@@ -221,7 +221,7 @@ test('captures all eight Settings Figma states through public controls', async (
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-skill-create')
   await page.getByTestId('e2e/settings/skills/dialog/cancel#button').click()
-  await page.getByTestId('e2e/settings/skills/items/browser-tools#button').click()
+  await page.getByTestId('e2e/settings/skills/items/documents#button').click()
   await expect(page.getByRole('tree', { name: 'Skill 文件' })).toBeVisible()
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-skill-detail')

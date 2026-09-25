@@ -5,13 +5,15 @@ import {
   type MessageContentPart,
   type RecentTaskProjection,
   type SkillExecutionState,
+  type TaskOutputFileProjection,
   type TaskProjection
 } from '@actiondriver/contracts'
 import type { PersistedMessage, RuntimeTaskRecord } from './ports'
 
 export function buildTaskProjection(
   task: RuntimeTaskRecord,
-  messages: readonly PersistedMessage[]
+  messages: readonly PersistedMessage[],
+  outputFiles: readonly TaskOutputFileProjection[] = []
 ): TaskProjection {
   const status = toTaskStatus(task.status)
   return {
@@ -42,7 +44,27 @@ export function buildTaskProjection(
         state: status === 'succeeded' ? 'success' : status === 'failed' ? 'failed' : 'current'
       }
     ],
-    browser: null
+    browser: null,
+    ...(outputFiles.length > 0 ? { outputFiles: [...outputFiles] } : {})
+  }
+}
+
+export function toOutputFileProjection(file: {
+  fileId: string
+  sessionId: string
+  taskId: string
+  name: string
+  mimeType: string
+  byteLength: number
+}): TaskOutputFileProjection {
+  return {
+    fileId: file.fileId,
+    sessionId: file.sessionId,
+    taskId: file.taskId,
+    name: file.name,
+    mimeType: file.mimeType,
+    byteLength: file.byteLength,
+    kind: file.mimeType.startsWith('image/') ? 'image' : 'document'
   }
 }
 

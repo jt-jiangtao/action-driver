@@ -15,6 +15,8 @@ import { join } from 'node:path'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
 import { openRuntimeDatabase } from '../src/database'
 import { SessionAssetStore } from '../src/media/session-asset-store'
+import { SessionInputFileStore } from '../src/media/session-input-file-store'
+import { SessionWorkspaceStore } from '../src/execution/session-workspace'
 import type { AgentFileStore } from '../src/agent-files/agent-file-store'
 import type { SkillInstaller } from '../src/agent-files/skill-installer'
 
@@ -179,6 +181,67 @@ describe('service HTTP surface', () => {
     }
   })
 
+  it('stages document uploads with their name and format', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'actiondriver-input-http-'))
+    const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+    const inputFiles = new SessionInputFileStore({
+      database,
+      rootDirectory: root,
+      workspaces: new SessionWorkspaceStore({ workspaceRoot: join(root, 'workspace') })
+    })
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      inputFiles
+    })
+    const pdf = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n%%EOF\n')
+    const upload = (name: string, body: Uint8Array, type: string) =>
+      authorized('/input-files/staged', {
+        method: 'POST',
+        body: new Uint8Array(body),
+        headers: { 'content-type': type, 'x-actiondriver-file-name': encodeURIComponent(name) }
+      })
+    try {
+      expect((await fetch(`${server.url}/input-files/staged`, { method: 'POST' })).status).toBe(401)
+      const missingName = await authorized('/input-files/staged', {
+        method: 'POST',
+        body: new Uint8Array(pdf),
+        headers: { 'content-type': 'application/pdf' }
+      })
+      expect(missingName.status).toBe(400)
+      const unsupported = await upload('notes.txt', Buffer.from('hello'), 'text/plain')
+      expect(unsupported.status).toBe(400)
+      await expect(unsupported.json()).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'INPUT_FILE_TYPE_UNSUPPORTED' }
+      })
+      const mismatched = await upload('fake.pdf', Buffer.from('not a pdf'), 'application/pdf')
+      expect(mismatched.status).toBe(400)
+      await expect(mismatched.json()).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'INPUT_FILE_CONTENT_INVALID' }
+      })
+      const oversized = await upload(
+        'huge.pdf',
+        Buffer.concat([pdf, Buffer.alloc(50 * 1024 * 1024)]),
+        'application/pdf'
+      )
+      expect(oversized.status).toBe(413)
+      const stored = await upload('季度报告.pdf', pdf, 'application/pdf')
+      expect(stored.status).toBe(200)
+      await expect(stored.json()).resolves.toMatchObject({
+        ok: true,
+        value: { name: '季度报告.pdf', mimeType: 'application/pdf', byteLength: pdf.byteLength }
+      })
+    } finally {
+      await server?.close()
+      server = undefined
+      database.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('serves prompt and Skill definitions from the Runtime file service', async () => {
     const fileStore = {
       getMainPrompt: vi.fn(async () => ({
@@ -323,6 +386,19 @@ describe('service HTTP surface', () => {
     )
     expect(putPreflight.status).toBe(204)
     expect(putPreflight.headers.get('access-control-allow-methods')).toContain('PUT')
+
+    const uploadPreflight = await fetch(`${server!.url}/input-files/staged`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'authorization,content-type,x-actiondriver-file-name'
+      }
+    })
+    expect(uploadPreflight.status).toBe(204)
+    expect(uploadPreflight.headers.get('access-control-allow-headers')).toContain(
+      'X-ActionDriver-File-Name'
+    )
 
     const allowed = await authorized('/model-connections', {
       headers: { origin: 'http://localhost:5173' }

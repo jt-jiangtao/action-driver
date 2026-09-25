@@ -54,7 +54,13 @@ test('calls a saved real model and observes a real shell file read', async () =>
     `.backup "${join(dataPath, 'actiondriver.db')}"`
   ])
   copyFileSync(join(sourceData, 'credential-secret'), join(dataPath, 'credential-secret'))
-  writeFileSync(join(workspacePath, 'README.md'), 'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923\n')
+  // Session workspaces isolate scripts from the shared workspace root, so the
+  // marker is written by the tool call itself inside the current session.
+  writeFileSync(
+    join(workspacePath, 'SMOKE_INSTRUCTIONS.md'),
+    'Use shell_run to create this marker inside the session working directory first:\n' +
+      'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923\n'
+  )
   let application: ElectronApplication | undefined
   try {
     application = await electron.launch({
@@ -76,7 +82,10 @@ test('calls a saved real model and observes a real shell file read', async () =>
     await page.getByRole('option', { name: 'qwen3.7-max' }).click()
     await page
       .getByLabel('任务描述')
-      .fill('请调用 shell_run 读取工作区 README.md，准确返回第一行。不要猜测文件内容。')
+      .fill(
+        '请调用 shell_run：先在当前工作目录写入 SMOKE.md，内容为 ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923，' +
+          '然后读回并准确返回这一行。不要猜测文件内容。'
+      )
     await page.getByLabel('发送').click()
     const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
     await expect(taskPage).toBeVisible()

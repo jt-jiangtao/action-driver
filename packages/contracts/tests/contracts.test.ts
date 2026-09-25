@@ -13,6 +13,28 @@ import {
 } from '../src/index'
 
 describe('agent skill contracts', () => {
+  it('keeps every attached document instead of treating it as a duplicate image', () => {
+    const document = (fileId: string) => ({
+      fileId,
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      name: `${fileId}.pdf`,
+      mimeType: 'application/pdf',
+      byteLength: 10
+    })
+    expect(
+      normalizeAssistantParts([
+        { kind: 'text', text: '附件' },
+        { kind: 'document', file: document('file-1') },
+        { kind: 'document', file: document('file-2') }
+      ])
+    ).toEqual([
+      { kind: 'text', text: '附件' },
+      { kind: 'document', file: document('file-1') },
+      { kind: 'document', file: document('file-2') }
+    ])
+  })
+
   it('preserves legacy assistant part order while removing duplicate images', () => {
     const asset = (assetId: string) => ({ assetId, sessionId: 's', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const })
     expect(normalizeAssistantParts([

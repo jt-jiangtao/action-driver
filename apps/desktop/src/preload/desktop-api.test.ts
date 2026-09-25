@@ -16,7 +16,8 @@ describe('preload Runtime bootstrap', () => {
       'externalLinks',
       'getEnvironment',
       'runtimeConnection',
-      'skillFolders'
+      'skillFolders',
+      'taskOutput'
     ])
     expect(api.getEnvironment()).toEqual({ platform: 'darwin', version: '0.1.0' })
     await expect(api.runtimeConnection.get()).resolves.toEqual(connection)

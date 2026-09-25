@@ -32,6 +32,12 @@ import type { AgentFileStore } from '../agent-files/agent-file-store'
 import type { SkillInstaller } from '../agent-files/skill-installer'
 import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
 import { AssetError, MAX_IMAGE_BYTES, type SessionAssetStore } from '../media/session-asset-store'
+import {
+  InputFileError,
+  MAX_INPUT_FILE_BYTES,
+  type SessionInputFileStore
+} from '../media/session-input-file-store'
+import { OutputStoreError, type SessionOutputStore } from '../media/session-output-store'
 
 export type { ServiceStreamSessionPort } from './websocket-service'
 
@@ -66,6 +72,8 @@ export type ServiceHttpOptions = {
   streamSessions?: ServiceStreamSessionPort
   skillRegistry?: RuntimeSkillRegistry
   assets?: SessionAssetStore
+  inputFiles?: SessionInputFileStore
+  outputs?: SessionOutputStore
   rendererOrigin?: string
   streamMaxPayloadBytes?: number
   streamMaxBufferedBytes?: number
@@ -178,7 +186,8 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
     const startedAt = Date.now()
     const method = context.req.method
     const path = context.req.path
-    const binaryUpload = method === 'POST' && path === '/assets/staged'
+    const binaryUpload =
+      method === 'POST' && (path === '/assets/staged' || path === '/input-files/staged')
     const binaryDownload = method === 'GET' && /^\/sessions\/[^/]+\/assets\/[^/]+$/.test(path)
     const requestLog = logger?.child({ transport: 'http', method, path })
     const origin = context.req.header('origin')
@@ -194,14 +203,17 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       if (
         !requestedMethod ||
         !['GET', 'POST', 'PUT', 'DELETE'].includes(requestedMethod) ||
-        requestedHeaders.some((header) => !['authorization', 'content-type'].includes(header))
+        requestedHeaders.some(
+          (header) => !['authorization', 'content-type', 'x-actiondriver-file-name'].includes(header)
+        )
       ) {
         return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
       }
       return context.body(null, 204, {
         'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
-        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Headers':
+          'Authorization, Content-Type, X-ActionDriver-File-Name',
         'Access-Control-Max-Age': '600',
         Vary: 'Origin'
       })
@@ -376,6 +388,60 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff'
       })
+    })
+  }
+  if (options.inputFiles) {
+    app.post('/input-files/staged', async (context) => {
+      const rawName = context.req.header('x-actiondriver-file-name')
+      let name = ''
+      try {
+        name = decodeURIComponent(rawName ?? '')
+      } catch {
+        return context.json(failure('INPUT_FILE_NAME_INVALID', 'File name is invalid'), 400)
+      }
+      if (!name) return context.json(failure('INPUT_FILE_NAME_INVALID', 'File name is required'), 400)
+      const bytes = await readLimitedBytes(context.req.raw, MAX_INPUT_FILE_BYTES)
+      if (!bytes) return context.json(failure('INPUT_FILE_TOO_LARGE', 'File is too large'), 413)
+      try {
+        return context.json(
+          success(
+            await options.inputFiles!.stageUpload({
+              bytes,
+              name,
+              mimeType: context.req.header('content-type') ?? 'application/octet-stream'
+            })
+          )
+        )
+      } catch (error) {
+        if (error instanceof InputFileError) {
+          return context.json(failure(error.code, error.message), 400)
+        }
+        throw error
+      }
+    })
+  }
+  if (options.outputs) {
+    app.get('/sessions/:sessionId/outputs/:fileId/content', async (context) => {
+      const taskId = context.req.query('taskId')
+      if (!taskId) return context.json(failure('OUTPUT_FILE_NOT_FOUND', 'Task id is required'), 400)
+      try {
+        const file = await options.outputs!.readSnapshot({
+          fileId: context.req.param('fileId'),
+          taskId,
+          sessionId: context.req.param('sessionId')
+        })
+        return context.body(new Uint8Array(file.bytes), 200, {
+          'Content-Type': file.mimeType,
+          'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff'
+        })
+      } catch (error) {
+        if (error instanceof OutputStoreError) {
+          return context.json(failure(error.code, error.message), error.code === 'OUTPUT_FILE_NOT_FOUND' ? 404 : 400)
+        }
+        throw error
+      }
     })
   }
   app.get('/model-connections', async (context) =>

@@ -7,40 +7,27 @@ import { join } from 'node:path'
 import { AgentFileStore } from '../src/agent-files/agent-file-store'
 
 describe('Runtime Agent file ownership', () => {
-  it('migrates edited built-in Skills into .system without losing content or disabled state', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-system-migrate-'))
-    const oldDirectory = join(homeDirectory, '.action-driver', 'skills', 'browser-tools')
-    await mkdir(oldDirectory, { recursive: true })
-    await writeFile(join(oldDirectory, 'SKILL.md'), '# Browser custom\n\nMy instructions.\n')
-    await writeFile(join(oldDirectory, '.disabled'), 'disabled\n')
-    const store = new AgentFileStore({ homeDirectory })
-    await store.initialize()
-    const systemPath = join(homeDirectory, '.action-driver', 'skills', '.system', 'browser-tools', 'SKILL.md')
-    expect(await readFile(systemPath, 'utf8')).toBe('# Browser custom\n\nMy instructions.\n')
-    expect((await store.listSkills()).find((skill) => skill.id === 'browser-tools')).toMatchObject({
-      protected: true, source: 'builtin', enabled: false
-    })
-    expect((await store.listSkills()).some((skill) => skill.id === 'skill-creator')).toBe(true)
-    await store.setSkillEnabled('browser-tools', true)
-    await expect(store.deleteSkill('browser-tools')).rejects.toThrow()
-    await expect(store.renameSkill('browser-tools', 'another')).rejects.toThrow()
-    const file = await store.readFile('.action-driver/skills/.system/browser-tools/SKILL.md')
-    await expect(store.saveFile({ path: file.path, content: 'overwrite', expectedDigest: file.digest })).rejects.toThrow()
-  })
-
-  it('preserves both old and new system content when migration target already exists', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-system-conflict-'))
+  it('removes retired system copies while preserving personal and legacy Skills', async () => {
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-system-retire-'))
     const skillsRoot = join(homeDirectory, '.action-driver', 'skills')
     await mkdir(join(skillsRoot, 'browser-tools'), { recursive: true })
-    await mkdir(join(skillsRoot, '.system', 'browser-tools'), { recursive: true })
-    await writeFile(join(skillsRoot, 'browser-tools', 'SKILL.md'), '# Old\n\nLegacy.\n')
-    await writeFile(join(skillsRoot, '.system', 'browser-tools', 'SKILL.md'), '# New\n\nSystem.\n')
+    await mkdir(join(skillsRoot, 'computer-tools-legacy'), { recursive: true })
+    await writeFile(join(skillsRoot, 'browser-tools', 'SKILL.md'), '# Personal\n\nKeep me.\n')
+    await writeFile(join(skillsRoot, 'computer-tools-legacy', 'SKILL.md'), '# Legacy\n\nKeep me.\n')
+    for (const id of ['browser-tools', 'computer-tools', 'report-writer']) {
+      const root = join(skillsRoot, '.system', id)
+      await mkdir(root, { recursive: true })
+      await writeFile(join(root, 'SKILL.md'), `# ${id}\n\nDelete me.\n`)
+    }
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
     await store.initialize()
-    expect(await readFile(join(skillsRoot, '.system', 'browser-tools', 'SKILL.md'), 'utf8')).toContain('System.')
-    expect(await readFile(join(skillsRoot, 'browser-tools-legacy', 'SKILL.md'), 'utf8')).toContain('Legacy.')
-    expect((await readdir(skillsRoot)).filter((name) => name.startsWith('browser-tools-legacy'))).toEqual(['browser-tools-legacy'])
+    expect(await readFile(join(skillsRoot, 'browser-tools', 'SKILL.md'), 'utf8')).toContain('Keep me.')
+    expect(await readFile(join(skillsRoot, 'computer-tools-legacy', 'SKILL.md'), 'utf8')).toContain('Keep me.')
+    for (const id of ['browser-tools', 'computer-tools', 'report-writer']) {
+      expect(await readdir(join(skillsRoot, '.system'))).not.toContain(id)
+    }
+    expect((await store.listSkills()).find((skill) => skill.id === 'browser-tools')).toMatchObject({ source: 'local' })
   })
 
   it('seeds every skill-creator resource and restores missing files without replacing the entry', async () => {
@@ -86,6 +73,32 @@ describe('Runtime Agent file ownership', () => {
     expect((await store.listSkills()).find((entry) => entry.id === 'imagegen')?.enabled).toBe(false)
   })
 
+  it('seeds and protects all four office document Skills without overwriting user state', async () => {
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-office-skills-'))
+    const store = new AgentFileStore({ homeDirectory })
+    await store.initialize()
+    for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
+      const root = join(homeDirectory, '.action-driver', 'skills', '.system', id)
+      expect((await readFile(join(root, 'SKILL.md'))).length).toBeGreaterThan(0)
+      expect((await store.listSkills()).find((skill) => skill.id === id)).toMatchObject({
+        protected: true, source: 'builtin', enabled: true
+      })
+      const entry = await store.readFile(`.action-driver/skills/.system/${id}/SKILL.md`)
+      await expect(store.saveFile({ path: entry.path, content: 'edit', expectedDigest: entry.digest })).rejects.toThrow()
+      await expect(store.renameSkill(id, `renamed-${id}`)).rejects.toThrow()
+      await expect(store.deleteSkill(id)).rejects.toThrow()
+      await store.setSkillEnabled(id, false)
+    }
+    const customized = join(homeDirectory, '.action-driver', 'skills', '.system', 'documents', 'SKILL.md')
+    await writeFile(customized, '# Preserved content\n')
+    const restarted = new AgentFileStore({ homeDirectory })
+    await restarted.initialize()
+    expect(await readFile(customized, 'utf8')).toBe('# Preserved content\n')
+    for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
+      expect((await restarted.listSkills()).find((skill) => skill.id === id)?.enabled).toBe(false)
+    }
+  })
+
   it('enables and reads an ordinary Skill without an executor, then respects disabling', async () => {
     const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-ordinary-skill-'))
     const store = new AgentFileStore({ homeDirectory })
@@ -94,7 +107,7 @@ describe('Runtime Agent file ownership', () => {
     await mkdir(join(directory, 'references'), { recursive: true })
     await writeFile(join(directory, 'SKILL.md'), '# Plain\n\nHelps with notes.\n')
     await writeFile(join(directory, 'references', 'usage.md'), 'Use short notes.')
-    await symlink(join(homeDirectory, '.action-driver', 'skills', 'report-writer', 'SKILL.md'),
+    await symlink(join(homeDirectory, '.action-driver', 'skills', '.system', 'skill-creator', 'SKILL.md'),
       join(directory, 'references', 'foreign.md'))
 
     expect(await store.listSkills()).toContainEqual(expect.objectContaining({
@@ -123,7 +136,7 @@ describe('Runtime Agent file ownership', () => {
     await second.initialize()
     expect((await second.getMainPrompt()).content).toBe('# Custom prompt')
     expect((await second.listSkills()).map((skill) => skill.id)).toEqual([
-      'browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'
+      'documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'
     ])
   })
 })

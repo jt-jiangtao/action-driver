@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,9 @@ import {
   type IdGenerator
 } from '../src/index'
 import { SessionAssetStore } from '../src/media/session-asset-store'
+import { SessionInputFileStore } from '../src/media/session-input-file-store'
+import { SessionWorkspaceStore } from '../src/execution/session-workspace'
+import { SessionOutputStore } from '../src/media/session-output-store'
 import { readFileSync } from 'node:fs'
 
 const temporaryDirectories: string[] = []
@@ -19,13 +22,27 @@ const temporaryDirectories: string[] = []
 function createHarness(
   graphRunner: GraphRunner,
   rawToolIO?: { enabled: boolean; maxBytes?: number },
-  listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
+  listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>,
+  describeSessionInputs?: (
+    sessionId: string
+  ) => Promise<Array<{ name: string; path: string; mimeType: string }>>
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
   const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
   const repositories = new SqliteRuntimeRepositories(database)
   const assets = new SessionAssetStore({ database, rootDirectory: directory })
+  const inputFiles = new SessionInputFileStore({
+    database,
+    rootDirectory: directory,
+    workspaces: new SessionWorkspaceStore({ workspaceRoot: join(directory, 'workspace') })
+  })
+  const workspaces = new SessionWorkspaceStore({ workspaceRoot: join(directory, 'workspace') })
+  const outputs = new SessionOutputStore({
+    database,
+    rootDirectory: directory,
+    workspaces
+  })
   const counters = new Map<string, number>()
   const ids: IdGenerator = {
     next(prefix) {
@@ -38,13 +55,25 @@ function createHarness(
   const service = new StreamSessionService({
     repositories,
     assets,
+    inputFiles,
+    outputs,
+    listOutputs: (taskId) => outputs.listByTask(taskId),
     graphRunner,
     ids,
     now: () => new Date(now++).toISOString(),
     ...(rawToolIO ? { rawToolIO } : {}),
-    ...(listEnabledSkills ? { listEnabledSkills } : {})
+    ...(listEnabledSkills ? { listEnabledSkills } : {}),
+    ...(describeSessionInputs ? { describeSessionInputs } : {})
   })
-  return { database, repositories, service, assets }
+  return {
+    database,
+    repositories,
+    service,
+    assets,
+    inputFiles,
+    outputs,
+    workspaceRoot: join(directory, 'workspace')
+  }
 }
 
 afterEach(() => {
@@ -84,26 +113,327 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  const pdf = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n%%EOF\n')
+  const completedGraph: GraphRunner = {
+    async run(request) {
+      return {
+        taskId: request.taskId,
+        threadId: request.taskId,
+        status: 'completed',
+        output: '已读取',
+        error: null,
+        trace: []
+      }
+    },
+    interrupt: () => false,
+    async continue() {
+      throw new Error('unused')
+    },
+    async provideInput() {
+      throw new Error('unused')
+    }
+  }
+
+  it('materializes an uploaded document into the session input directory', async () => {
+    const harness = createHarness(completedGraph)
+    const staged = await harness.inputFiles.stageUpload({
+      bytes: pdf,
+      name: 'quarterly report.pdf',
+      mimeType: 'application/pdf'
+    })
+    const events = await runToEnd(harness.service, {
+      ...createEvent,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '总结附件', inputFileIds: [staged.fileId] }
+      }
+    })
+    const accepted = events.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+
+    const messages = await harness.repositories.messages.listByTask(accepted.taskId)
+    expect(messages[0]?.content).toEqual({
+      parts: [
+        { kind: 'text', text: '总结附件' },
+        {
+          kind: 'document',
+          file: {
+            fileId: staged.fileId,
+            sessionId: accepted.sessionId,
+            taskId: accepted.taskId,
+            name: 'quarterly report.pdf',
+            mimeType: 'application/pdf',
+            byteLength: pdf.byteLength
+          }
+        }
+      ]
+    })
+    expect(
+      existsSync(
+        join(harness.workspaceRoot, 'sessions', accepted.sessionId, 'input', 'quarterly report.pdf')
+      )
+    ).toBe(true)
+    harness.repositories.close()
+  })
+
+  it('registers only the deliverables of successful tasks', async () => {
+    const state = { workspaceRoot: '', write: null as null | 'pdf' | 'failed-pdf' }
+    const harness = createHarness({
+      async run(request, _signal, observer) {
+        const output = join(state.workspaceRoot, 'sessions', request.sessionId!, 'output')
+        mkdirSync(output, { recursive: true })
+        if (state.write === 'pdf') writeFileSync(join(output, 'report.pdf'), pdf)
+        if (state.write === 'failed-pdf') writeFileSync(join(output, 'draft.pdf'), pdf)
+        await observer?.({
+          kind: 'end',
+          content: '已生成',
+          finishReason: 'stop',
+          usage: null
+        })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: state.write === 'failed-pdf' ? ('failed' as const) : ('completed' as const),
+          output: state.write === 'failed-pdf' ? null : '已生成',
+          error: state.write === 'failed-pdf' ? 'MODEL_GATEWAY_ERROR' : null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
+    } as GraphRunner)
+    state.workspaceRoot = harness.workspaceRoot
+
+    state.write = 'pdf'
+    const first = await runToEnd(harness.service, createEvent)
+    const accepted = first.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+    expect((await harness.outputs.listByTask(accepted.taskId)).map((file) => file.name)).toEqual([
+      'report.pdf'
+    ])
+    const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
+    expect(snapshot?.outputFiles).toEqual([
+      expect.objectContaining({ taskId: accepted.taskId, name: 'report.pdf', byteLength: pdf.byteLength })
+    ])
+
+    // The same session, an untouched old file and a failed task add nothing.
+    state.write = null
+    const second = await runToEnd(harness.service, {
+      ...createEvent,
+      eventId: 'client-event-2',
+      requestId: 'request-client-2',
+      idempotencyKey: 'idempotency-2',
+      sessionId: accepted.sessionId,
+      payload: { ...createEvent.payload, input: { role: 'user', content: '继续' } }
+    })
+    const secondAccepted = second.find((event) => event.type === 'request.accepted')
+    if (!secondAccepted || secondAccepted.type !== 'request.accepted') {
+      throw new Error('missing second request')
+    }
+    expect(await harness.outputs.listByTask(secondAccepted.taskId)).toEqual([])
+
+    state.write = 'failed-pdf'
+    const failed = await runToEnd(harness.service, {
+      ...createEvent,
+      eventId: 'client-event-3',
+      requestId: 'request-client-3',
+      idempotencyKey: 'idempotency-3',
+      sessionId: accepted.sessionId,
+      payload: { ...createEvent.payload, input: { role: 'user', content: '失败的任务' } }
+    })
+    const failedAccepted = failed.find((event) => event.type === 'request.accepted')
+    if (!failedAccepted || failedAccepted.type !== 'request.accepted') {
+      throw new Error('missing failed request')
+    }
+    expect(await harness.outputs.listByTask(failedAccepted.taskId)).toEqual([])
+    harness.repositories.close()
+  }, 30_000)
+
+  it('offers bound session inputs to later tasks and hides other sessions', async () => {
+    const seen: Array<Array<{ name: string; path: string; mimeType: string }> | undefined> = []
+    let repositories: ReturnType<typeof createHarness>['repositories'] | null = null
+    let workspaceRoot = ''
+    const harness = createHarness(
+      {
+        async run(request) {
+          seen.push(request.inputContext)
+          return {
+            taskId: request.taskId,
+            threadId: request.taskId,
+            status: 'completed',
+            output: '已读取',
+            error: null,
+            trace: []
+          }
+        },
+        interrupt: () => false,
+        async continue() {
+          throw new Error('unused')
+        },
+        async provideInput() {
+          throw new Error('unused')
+        }
+      },
+      undefined,
+      undefined,
+      async (sessionId) => {
+        const files = await repositories!.inputFiles.listBySession(sessionId)
+        return files
+          .filter((file) => file.status === 'bound' && file.relativePath)
+          .map((file) => ({
+            name: file.name,
+            path: join(workspaceRoot, 'sessions', sessionId, file.relativePath!),
+            mimeType: file.mimeType
+          }))
+      }
+    )
+    repositories = harness.repositories
+    workspaceRoot = harness.workspaceRoot
+
+    const staged = await harness.inputFiles.stageUpload({
+      bytes: pdf,
+      name: 'quarterly.pdf',
+      mimeType: 'application/pdf'
+    })
+    const first = await runToEnd(harness.service, {
+      ...createEvent,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '分析附件', inputFileIds: [staged.fileId] }
+      }
+    })
+    const accepted = first.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
+
+    await runToEnd(harness.service, {
+      ...createEvent,
+      eventId: 'client-event-follow-up',
+      requestId: 'request-client-follow-up',
+      idempotencyKey: 'idempotency-follow-up',
+      sessionId: accepted.sessionId,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '继续处理同一个文件' }
+      }
+    })
+
+    const expected = [
+      {
+        name: 'quarterly.pdf',
+        path: join(harness.workspaceRoot, 'sessions', accepted.sessionId, 'input', 'quarterly.pdf'),
+        mimeType: 'application/pdf'
+      }
+    ]
+    expect(seen[0]).toEqual(expected)
+    expect(seen[1]).toEqual(expected)
+
+    const otherSession = await runToEnd(harness.service, {
+      ...createEvent,
+      eventId: 'client-event-other',
+      requestId: 'request-client-other',
+      idempotencyKey: 'idempotency-other',
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '另一个会话' }
+      }
+    })
+    expect(otherSession.some((event) => event.type === 'request.accepted')).toBe(true)
+    expect(seen[2]).toBeUndefined()
+    harness.repositories.close()
+  })
+
+  it('rejects unknown or already attached uploads without creating a task', async () => {
+    const harness = createHarness(completedGraph)
+    const unknown = await runToEnd(harness.service, {
+      ...createEvent,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '附件', inputFileIds: ['missing-file'] }
+      }
+    })
+    expect(unknown.at(-1)).toMatchObject({
+      type: 'request.error',
+      error: { code: 'input-invalid' }
+    })
+
+    const staged = await harness.inputFiles.stageUpload({
+      bytes: pdf,
+      name: 'report.pdf',
+      mimeType: 'application/pdf'
+    })
+    await runToEnd(harness.service, {
+      ...createEvent,
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '第一次', inputFileIds: [staged.fileId] }
+      }
+    })
+    const secondSession = await runToEnd(harness.service, {
+      ...createEvent,
+      eventId: 'client-event-2',
+      requestId: 'request-client-2',
+      idempotencyKey: 'idempotency-2',
+      payload: {
+        ...createEvent.payload,
+        input: { role: 'user', content: '第二次', inputFileIds: [staged.fileId] }
+      }
+    })
+    expect(secondSession.at(-1)).toMatchObject({
+      type: 'request.error',
+      error: { code: 'input-invalid' }
+    })
+    expect(await harness.repositories.tasks.listRecent(10)).toHaveLength(1)
+    harness.repositories.close()
+  })
+
   it('does not place an uncommitted image in the terminal snapshot after asset write failure', async () => {
     const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
     const graphRunner: GraphRunner = {
       async run(request, _signal, _observer, onToolEvent) {
         const asset = await harness.assets.saveGenerated(request.sessionId!, png)
         const record = await harness.repositories.events.append({
-          taskId: request.taskId, threadId: request.sessionId!, checkpointId: 'tool:0',
-          eventKey: 'tool.asset:a:0', type: 'tool.asset',
-          payload: { callId: 'a', toolId: 'image.generate', modelName: 'image_generate',
-            summary: '生成图片', argumentsHash: '', activityId: null, index: 0, asset },
-          occurredAt: '2026-09-23T00:00:01.000Z', eventId: 'asset-a',
-          requestId: request.streamRequestId!, sequence: 1
+          taskId: request.taskId,
+          threadId: request.sessionId!,
+          checkpointId: 'tool:0',
+          eventKey: 'tool.asset:a:0',
+          type: 'tool.asset',
+          payload: {
+            callId: 'a',
+            toolId: 'image.generate',
+            modelName: 'image_generate',
+            summary: '生成图片',
+            argumentsHash: '',
+            activityId: null,
+            index: 0,
+            asset
+          },
+          occurredAt: '2026-09-23T00:00:01.000Z',
+          eventId: 'asset-a',
+          requestId: request.streamRequestId!,
+          sequence: 1
         })
         await onToolEvent?.(record)
-        return { taskId: request.taskId, threadId: request.taskId,
-          status: 'completed', output: '', error: null, trace: [] }
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
       },
       interrupt: () => false,
-      async continue() { throw new Error('unused') },
-      async provideInput() { throw new Error('unused') }
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
     }
     const harness = createHarness(graphRunner)
     vi.spyOn(harness.repositories, 'commitAssistantImageWithEvent').mockImplementation(() => {
@@ -121,33 +451,59 @@ describe('StreamSessionService', () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, _observer, onToolEvent) {
         const record = await harness.repositories.events.append({
-          taskId: request.taskId, threadId: request.sessionId!, checkpointId: 'tool:0',
-          eventKey: 'tool.running:a', type: 'tool.running',
-          payload: { callId: 'a', toolId: 'image.generate', modelName: 'image_generate',
-            summary: '生成图片', argumentsHash: '', activityId: null, imageCount: 2 },
-          occurredAt: '2026-09-23T00:00:01.000Z', eventId: 'running-a',
-          requestId: request.streamRequestId!, sequence: 1
+          taskId: request.taskId,
+          threadId: request.sessionId!,
+          checkpointId: 'tool:0',
+          eventKey: 'tool.running:a',
+          type: 'tool.running',
+          payload: {
+            callId: 'a',
+            toolId: 'image.generate',
+            modelName: 'image_generate',
+            summary: '生成图片',
+            argumentsHash: '',
+            activityId: null,
+            imageCount: 2
+          },
+          occurredAt: '2026-09-23T00:00:01.000Z',
+          eventId: 'running-a',
+          requestId: request.streamRequestId!,
+          sequence: 1
         })
         await onToolEvent?.(record)
-        return { taskId: request.taskId, threadId: request.taskId,
-          status: 'completed', output: '', error: null, trace: [] }
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
       },
       interrupt: () => false,
-      async continue() { throw new Error('unused') },
-      async provideInput() { throw new Error('unused') }
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
     }
     const harness = createHarness(graphRunner)
     const original = harness.repositories.commitAssistantContentWithEvent.bind(harness.repositories)
-    vi.spyOn(harness.repositories, 'commitAssistantContentWithEvent').mockImplementation((...args) => {
-      if (args[2].type === 'response.image_batch') throw new Error('storage failed')
-      return original(...args)
-    })
+    vi.spyOn(harness.repositories, 'commitAssistantContentWithEvent').mockImplementation(
+      (...args) => {
+        if (args[2].type === 'response.image_batch') throw new Error('storage failed')
+        return original(...args)
+      }
+    )
     const events = await runToEnd(harness.service, createEvent)
     expect(events.some((event) => event.type === 'response.image_batch')).toBe(false)
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
-    expect(snapshot?.messages.at(-1)?.parts?.some((part) => part.kind === 'image-batch')).not.toBe(true)
+    expect(snapshot?.messages.at(-1)?.parts?.some((part) => part.kind === 'image-batch')).not.toBe(
+      true
+    )
     harness.repositories.close()
   })
   it('persists batch positions before images and leaves final text after both batches', async () => {
@@ -156,7 +512,10 @@ describe('StreamSessionService', () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer, onToolEvent) {
         const appendToolEvent = async (type: string, callId: string, index?: number) => {
-          const asset = index === undefined ? undefined : await harness.assets.saveGenerated(request.sessionId!, png)
+          const asset =
+            index === undefined
+              ? undefined
+              : await harness.assets.saveGenerated(request.sessionId!, png)
           const record = await harness.repositories.events.append({
             taskId: request.taskId,
             threadId: request.sessionId!,
@@ -185,21 +544,45 @@ describe('StreamSessionService', () => {
         runningSnapshots.push(await harness.service.getTaskSnapshot(request.taskId))
         await observer?.({ kind: 'content', delta: '过程二' })
         await appendToolEvent('tool.running', 'b')
-        for (const [callId, index] of [['b', 1], ['a', 1], ['b', 0], ['a', 0]] as const)
+        for (const [callId, index] of [
+          ['b', 1],
+          ['a', 1],
+          ['b', 0],
+          ['a', 0]
+        ] as const)
           await appendToolEvent('tool.asset', callId, index)
         await observer?.({ kind: 'content', delta: '全部完成' })
         await observer?.({ kind: 'end', content: '全部完成', finishReason: 'stop', usage: null })
-        return { taskId: request.taskId, threadId: request.taskId, status: 'completed', output: '全部完成', error: null, trace: [] }
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '全部完成',
+          error: null,
+          trace: []
+        }
       },
       interrupt: () => false,
-      async continue() { throw new Error('unused') },
-      async provideInput() { throw new Error('unused') }
+      async continue() {
+        throw new Error('unused')
+      },
+      async provideInput() {
+        throw new Error('unused')
+      }
     }
     const harness = createHarness(graphRunner)
     const events = await runToEnd(harness.service, createEvent)
-    expect(events.filter((event) => event.type === 'response.image_batch').map((event) => event.callId)).toEqual(['a', 'b'])
-    expect(events.map((event) => event.type).indexOf('response.image_batch')).toBeLessThan(events.map((event) => event.type).indexOf('response.image'))
-    expect(runningSnapshots[0]?.messages.at(-1)?.parts).toContainEqual({ kind: 'image-batch', callId: 'a', imageCount: 2 })
+    expect(
+      events.filter((event) => event.type === 'response.image_batch').map((event) => event.callId)
+    ).toEqual(['a', 'b'])
+    expect(events.map((event) => event.type).indexOf('response.image_batch')).toBeLessThan(
+      events.map((event) => event.type).indexOf('response.image')
+    )
+    expect(runningSnapshots[0]?.messages.at(-1)?.parts).toContainEqual({
+      kind: 'image-batch',
+      callId: 'a',
+      imageCount: 2
+    })
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
@@ -264,15 +647,29 @@ describe('StreamSessionService', () => {
     const events = await runToEnd(harness.service, createEvent)
     expect(events.filter((event) => event.type === 'response.image')).toHaveLength(16)
     const imageEvents = events.filter((event) => event.type === 'response.image')
-    expect(imageEvents.map((event) => ('index' in event ? event.index : -1))).toEqual([15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)])
+    expect(imageEvents.map((event) => ('index' in event ? event.index : -1))).toEqual([
+      15,
+      1,
+      0,
+      2,
+      ...Array.from({ length: 12 }, (_, offset) => offset + 3)
+    ])
     expect(imageEvents.map((event) => ('contentIndex' in event ? event.contentIndex : -1))).toEqual(
       Array.from({ length: 16 }, (_, index) => index)
     )
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
-    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([...Array(16).fill('image'), 'text'])
-    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual(completionOrder)
+    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([
+      ...Array(16).fill('image'),
+      'text'
+    ])
+    expect(
+      snapshot?.messages
+        .at(-1)
+        ?.parts?.filter((part) => part.kind === 'image')
+        .map((part) => part.generation?.index)
+    ).toEqual(completionOrder)
     expect(JSON.stringify(snapshot)).not.toContain('data:image/')
     harness.repositories.close()
   })
@@ -1261,7 +1658,9 @@ describe('StreamSessionService', () => {
       status: 'completed',
       activities: [expect.objectContaining({ activityId: 'activity-snapshot' })],
       activityTimeline: [expect.objectContaining({ kind: 'activity' })],
-      tools: expect.arrayContaining([expect.objectContaining({ callId: 'call-image-snapshot', imageCount: 16 })])
+      tools: expect.arrayContaining([
+        expect.objectContaining({ callId: 'call-image-snapshot', imageCount: 16 })
+      ])
     })
 
     repositories.close()

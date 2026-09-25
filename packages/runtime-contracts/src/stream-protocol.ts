@@ -28,7 +28,22 @@ const imageAssetSchema = z
 const messagePartSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string() }).strict(),
   z.object({ kind: z.literal('image-batch'), callId: idSchema, imageCount: z.number().int().min(1).max(16) }).strict(),
-  z.object({ kind: z.literal('image'), asset: imageAssetSchema, generation: z.object({ callId: idSchema, index: z.number().int().nonnegative() }).strict().optional() }).strict()
+  z.object({ kind: z.literal('image'), asset: imageAssetSchema, generation: z.object({ callId: idSchema, index: z.number().int().nonnegative() }).strict().optional() }).strict(),
+  z
+    .object({
+      kind: z.literal('document'),
+      file: z
+        .object({
+          fileId: idSchema,
+          sessionId: idSchema,
+          taskId: idSchema,
+          name: z.string().trim().min(1).max(255),
+          mimeType: z.string().trim().min(1),
+          byteLength: z.number().int().nonnegative()
+        })
+        .strict()
+    })
+    .strict()
 ])
 
 const clientBase = {
@@ -86,12 +101,17 @@ const requestInputSchema = z
   .object({
     role: z.literal('user'),
     content: z.string(),
-    imageAssetIds: z.array(idSchema).max(4).optional()
+    imageAssetIds: z.array(idSchema).max(4).optional(),
+    inputFileIds: z.array(idSchema).max(4).optional()
   })
   .strict()
-  .refine((input) => input.content.trim().length > 0 || (input.imageAssetIds?.length ?? 0) > 0, {
-    message: 'Text or image is required'
-  })
+  .refine(
+    (input) =>
+      input.content.trim().length > 0 ||
+      (input.imageAssetIds?.length ?? 0) > 0 ||
+      (input.inputFileIds?.length ?? 0) > 0,
+    { message: 'Text, image or file is required' }
+  )
 
 const newSessionRequestCreateEventSchema = z
   .object({
@@ -240,6 +260,20 @@ const responseEndEventSchema = z
     finishReason: z.string().nullable(),
     usage: usageSchema.nullable(),
     durationMs: z.number().nonnegative(),
+    outputFiles: z
+      .array(
+        z
+          .object({
+            fileId: idSchema,
+            sessionId: idSchema,
+            taskId: idSchema,
+            name: z.string().trim().min(1).max(255),
+            mimeType: z.string().trim().min(1),
+            byteLength: z.number().int().nonnegative()
+          })
+          .strict()
+      )
+      .optional(),
     error: streamErrorSchema.nullable()
   })
   .strict()
@@ -297,6 +331,20 @@ const responseSnapshotEventSchema = z
             rawInput: z.string().optional(),
             rawOutput: z.string().optional(),
             rawOutputTruncated: z.boolean().optional()
+          })
+          .strict()
+      )
+      .optional(),
+    outputFiles: z
+      .array(
+        z
+          .object({
+            fileId: idSchema,
+            sessionId: idSchema,
+            taskId: idSchema,
+            name: z.string().trim().min(1).max(255),
+            mimeType: z.string().trim().min(1),
+            byteLength: z.number().int().nonnegative()
           })
           .strict()
       )

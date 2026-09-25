@@ -58,6 +58,7 @@ async function launch(
     | 'text'
     | 'tool-preparing'
     | 'web'
+    | 'deliverable'
     | 'image'
     | 'image-partial'
     | 'image-cancel'
@@ -680,6 +681,78 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
     element.scrollTop = element.scrollHeight
   })
   await expect(longItems).toHaveCSS('mask-image', 'none')
+})
+
+test('registers a generated deliverable as a task output card after reload', async () => {
+  const page = await launch('deliverable')
+  await sendGoal(page, '生成一份 PDF 交付')
+  await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+    'data-state',
+    'idle',
+    { timeout: 15_000 }
+  )
+  const cards = page.getByTestId('e2e/tasks/detail/output-file#section')
+  await expect(cards).toHaveCount(2)
+  await expect(cards.filter({ hasText: 'report.pdf' })).toHaveCount(1)
+  await expect(cards.filter({ hasText: 'summary.pdf' })).toHaveCount(1)
+  await expect(cards.filter({ hasText: 'report.pdf' }).locator('img')).toHaveAttribute('alt', 'PDF')
+  await expect(page.getByRole('button', { name: '打开文件' })).toHaveCount(2)
+
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: '打开文件' })).toHaveCount(2)
+  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+    await page.locator('.task-output-files').screenshot({
+      path: test.info().outputPath('task-output-files.png')
+    })
+  }
+
+  // A follow-up turn that produces nothing must not drop the earlier turn's card.
+  provider!.setMode('vision')
+  await sendGoal(page, '再补充一句说明')
+  await expect(page.getByText('识别到了图片').last()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+    'data-state',
+    'idle',
+    { timeout: 15_000 }
+  )
+  await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
+  await expect
+    .poll(async () =>
+      (await page.getByTestId('e2e/tasks/detail/output-file#section').allTextContents()).join(' ')
+    )
+    .toContain('report.pdf')
+
+  // The earlier turn's cards also survive a reload of the follow-up task.
+  await page.reload()
+  await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
+  await expect
+    .poll(async () =>
+      (await page.getByTestId('e2e/tasks/detail/output-file#section').allTextContents()).join(' ')
+    )
+    .toContain('report.pdf')
+
+  // A second session registers its own cards, and switching back keeps the first session's.
+  await page.getByRole('button', { name: '新任务' }).click()
+  provider!.setMode('deliverable')
+  await sendGoal(page, '再生成两份 PDF 交付')
+  await expect(page.getByTestId('e2e/shared/composer/root#section')).toHaveAttribute(
+    'data-state',
+    'idle',
+    { timeout: 15_000 }
+  )
+  await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
+  await expect(page.getByText('再生成两份 PDF 交付').first()).toBeVisible()
+
+  await page.getByRole('button', { name: '生成一份 PDF 交付', exact: true }).first().click()
+  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-task-id', /.+/)
+  await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
+  await expect
+    .poll(async () =>
+      (await page.getByTestId('e2e/tasks/detail/output-file#section').allTextContents()).join(' ')
+    )
+    .toContain('report.pdf')
 })
 
 test('runs a granted shell command without approval and answers', async () => {

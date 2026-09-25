@@ -57,6 +57,52 @@ describe('AgentComposer', () => {
     expect(onSubmit).toHaveBeenCalledWith('预订杭州酒店')
   })
 
+  it('shows an attached document, removes it by keyboard, and submits it', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<AgentComposer onSubmit={onSubmit} />)
+    const document = new File(['%PDF-1.7'], '季度报告.pdf', { type: 'application/pdf' })
+
+    await user.upload(screen.getByLabelText('选择文档'), document)
+
+    const preview = screen.getByText('季度报告.pdf').closest('.composer-document-preview')
+    expect(preview).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: '待发送文件' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    expect(onSubmit).toHaveBeenCalledWith('', { images: [], documents: [document] })
+
+    onSubmit.mockClear()
+    const other = new File(['doc'], 'notes.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    })
+    await user.upload(screen.getByLabelText('选择文档'), other)
+    const remove = screen.getByRole('button', { name: '移除 notes.docx' })
+    remove.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByText('notes.docx')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    expect(onSubmit).toHaveBeenCalledWith('', { images: [], documents: [document] })
+  })
+
+  it('reports unsupported and oversized documents before sending', async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    render(<AgentComposer onSubmit={() => undefined} />)
+
+    await user.upload(
+      screen.getByLabelText('选择文档'),
+      new File(['notes'], 'notes.txt', { type: 'text/plain' })
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('仅支持不超过 50 MiB')
+    expect(screen.queryByText('notes.txt')).not.toBeInTheDocument()
+
+    const oversized = new File([new Uint8Array(50 * 1024 * 1024 + 1)], 'huge.pdf', {
+      type: 'application/pdf'
+    })
+    await user.upload(screen.getByLabelText('选择文档'), oversized)
+    expect(screen.getByRole('alert')).toHaveTextContent('仅支持不超过 50 MiB')
+    expect(screen.queryByText('huge.pdf')).not.toBeInTheDocument()
+  })
+
   it('protects against submitting an empty goal', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
@@ -131,7 +177,7 @@ describe('AgentComposer', () => {
     expect(screen.getByText('photo.png')).toBeVisible()
     expect(screen.getByRole('button', { name: '发送' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: '发送' }))
-    expect(onSubmit).toHaveBeenCalledWith('', [image])
+    expect(onSubmit).toHaveBeenCalledWith('', { images: [image], documents: [] })
     expect(await screen.findByRole('alert')).toHaveTextContent('上传失败')
     expect(screen.getByText('photo.png')).toBeVisible()
     await user.click(screen.getByRole('button', { name: '移除 photo.png' }))

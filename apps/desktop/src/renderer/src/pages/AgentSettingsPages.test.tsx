@@ -59,11 +59,11 @@ describe('Agent settings pages', () => {
       </QueryClientProvider>
     )
     const first = render(page())
-    await screen.findByText('browser-tools')
+    await screen.findByText('documents')
     await waitFor(() => expect(list).toHaveBeenCalledOnce())
     first.unmount()
     const second = render(page())
-    await screen.findByText('browser-tools')
+    await screen.findByText('documents')
     expect(list).toHaveBeenCalledOnce()
     second.unmount()
   })
@@ -205,7 +205,7 @@ describe('Agent settings pages', () => {
     renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
     expect(await screen.findByRole('heading', { name: 'Skills' })).toBeVisible()
-    expect(await screen.findByText('browser-tools')).toBeVisible()
+    expect(await screen.findByText('documents')).toBeVisible()
     expect(screen.queryByText('不可用')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /note-writer/ }))
@@ -240,7 +240,7 @@ describe('Agent settings pages', () => {
     const user = userEvent.setup()
     renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
 
-    await user.click(await screen.findByRole('button', { name: /report-writer/ }))
+    await user.click(await screen.findByRole('button', { name: /presentations/ }))
     await user.click(await screen.findByRole('button', { name: '关闭 Skill 详情' }))
     expect(screen.getByRole('heading', { name: 'Skills' })).toBeVisible()
     expect(screen.getByText('data-inspector')).toBeVisible()
@@ -249,11 +249,11 @@ describe('Agent settings pages', () => {
   it('shows system Skills in the Codex-style list and opens a read-only detail dialog', async () => {
     const user = userEvent.setup()
     renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
-    expect(await screen.findByRole('button', { name: /browser-tools/ })).toBeVisible()
+    expect(await screen.findByRole('button', { name: /documents/ })).toBeVisible()
     expect(screen.getByRole('button', { name: /Skill Creator/ })).toBeVisible()
     expect(screen.getAllByText('系统').length).toBeGreaterThan(0)
-    await user.click(screen.getByRole('button', { name: /browser-tools/ }))
-    const detail = screen.getByRole('dialog', { name: 'browser-tools' })
+    await user.click(screen.getByRole('button', { name: /documents/ }))
+    const detail = screen.getByRole('dialog', { name: 'documents' })
     expect(detail).toBeVisible()
     expect(within(detail).getByText('系统 Skill')).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Skills' })).toBeInTheDocument()
@@ -261,7 +261,7 @@ describe('Agent settings pages', () => {
     expect(screen.queryByRole('button', { name: '卸载' })).not.toBeInTheDocument()
     expect(document.activeElement).toHaveAttribute('aria-label', '关闭 Skill 详情')
     await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog', { name: 'browser-tools' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'documents' })).not.toBeInTheDocument()
   })
 
   it('shows uninstall for a personal Skill in the detail footer', async () => {
@@ -327,7 +327,7 @@ describe('Agent settings pages', () => {
     await user.click(await screen.findByRole('button', { name: '添加' }))
     await user.click(screen.getByRole('menuitem', { name: '从本地文件夹安装' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('缺少 SKILL.md')
-    expect(screen.getByRole('button', { name: /browser-tools/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /documents/ })).toBeVisible()
   })
 
   it('keeps an instruction Skill available after saving SKILL.md without an executor', async () => {
@@ -366,7 +366,7 @@ describe('Agent settings pages', () => {
     await user.click(screen.getByRole('button', { name: '创建 Skill' }))
     expect(await screen.findByText('release-helper')).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /browser-tools/ }))
+    await user.click(screen.getByRole('button', { name: /documents/ }))
     await user.click(await screen.findByRole('button', { name: 'Skill 操作' }))
     expect(screen.getByRole('menuitem', { name: '重命名' })).toBeDisabled()
     expect(screen.getByRole('menuitem', { name: '删除 Skill' })).toBeDisabled()
@@ -388,7 +388,7 @@ describe('Agent settings pages', () => {
     vi.spyOn(service, 'readFile').mockRejectedValueOnce(new Error('文件路径不在允许的目录内'))
     renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
 
-    await user.click(await screen.findByRole('button', { name: /browser-tools/ }))
+    await user.click(await screen.findByRole('button', { name: /documents/ }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('文件路径不在允许的目录内')
     expect(screen.getByRole('tree', { name: 'Skill 文件' })).toBeVisible()

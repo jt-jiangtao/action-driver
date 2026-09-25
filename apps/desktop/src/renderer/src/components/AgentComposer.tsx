@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUp, Plus, Square, X } from 'lucide-react'
+import { ArrowUp, FileSpreadsheet, FileText, Plus, Presentation, Square, X } from 'lucide-react'
 import { createEditor, Node, type Descendant } from 'slate'
 import { Editable, Slate, withReact } from 'slate-react'
 import type { ModelSelectionProjection } from '../models/model-selection'
@@ -8,6 +8,17 @@ import type { ModelRef } from '@actiondriver/contracts'
 import { e2eId } from '../testing/e2e-id'
 
 type Paragraph = { type: 'paragraph'; children: { text: string }[] }
+
+const DOCUMENT_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+]
+const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024
+const MAX_ATTACHMENTS = 4
+
+export type ComposerAttachments = { images: File[]; documents: File[] }
 
 export function AgentComposer({
   initialText = '',
@@ -25,7 +36,7 @@ export function AgentComposer({
   initialText?: string
   running?: boolean
   disabled?: boolean
-  onSubmit(text: string, imageFiles?: File[]): Promise<unknown> | void
+  onSubmit(text: string, attachments?: ComposerAttachments): Promise<unknown> | void
   onInterrupt?(): void
   onAdd?(): void
   modelSelection?: ModelSelectionProjection
@@ -37,7 +48,9 @@ export function AgentComposer({
   const editor = useMemo(() => withReact(createEditor()), [])
   const editorRootRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const documentInputRef = useRef<HTMLInputElement>(null)
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [documentFiles, setDocumentFiles] = useState<File[]>([])
   const [zoomedPreviewIndex, setZoomedPreviewIndex] = useState<number | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -89,20 +102,39 @@ export function AgentComposer({
       setSubmitError('仅支持不超过 20 MiB 的 PNG、JPEG 或 WebP 图片')
       return
     }
-    if (imageFiles.length + selected.length > 4) {
+    if (imageFiles.length + documentFiles.length + selected.length > MAX_ATTACHMENTS) {
       setSubmitError('每条消息最多添加 4 张图片')
       return
     }
     setImageFiles((current) => [...current, ...selected])
     setSubmitError(null)
   }
+  const addDocuments = (files: FileList | File[]) => {
+    const selected = Array.from(files)
+    if (
+      selected.some(
+        (file) => !DOCUMENT_TYPES.includes(file.type) || file.size > MAX_DOCUMENT_BYTES
+      )
+    ) {
+      setSubmitError('仅支持不超过 50 MiB 的 PDF、DOCX、PPTX 或 XLSX 文件')
+      return
+    }
+    if (imageFiles.length + documentFiles.length + selected.length > MAX_ATTACHMENTS) {
+      setSubmitError('每条消息最多添加 4 个附件')
+      return
+    }
+    setDocumentFiles((current) => [...current, ...selected])
+    setSubmitError(null)
+  }
+  const attachmentCount = imageFiles.length + documentFiles.length
+  const attachments: ComposerAttachments = { images: imageFiles, documents: documentFiles }
   const submit = () => {
     const text = readText()
-    if (running || disabled || submitting || (!text && imageFiles.length === 0)) return
+    if (running || disabled || submitting || (!text && attachmentCount === 0)) return
     setSubmitError(null)
     setSubmitting(true)
     void Promise.resolve()
-      .then(() => (imageFiles.length ? onSubmit(text, imageFiles) : onSubmit(text)))
+      .then(() => (attachmentCount > 0 ? onSubmit(text, attachments) : onSubmit(text)))
       .catch((error: unknown) =>
         setSubmitError(error instanceof Error ? error.message : '发送失败')
       )
@@ -156,6 +188,31 @@ export function AgentComposer({
           ))}
         </div>
       ) : null}
+      {documentFiles.length ? (
+        <ul className="composer-document-previews" aria-label="待发送文件">
+          {documentFiles.map((file, index) => (
+            <li className="composer-document-preview" key={`${file.name}:${index}`}>
+              <span className="composer-document-icon" aria-hidden="true">
+                {documentIcon(file.type)}
+              </span>
+              <span className="composer-document-name" title={file.name}>
+                {file.name}
+              </span>
+              <span className="composer-document-size">{formatFileSize(file.size)}</span>
+              <button
+                type="button"
+                aria-label={`移除 ${file.name}`}
+                data-testid={e2eId('e2e/shared/composer/documents/:document-index/remove#button', {
+                  'document-index': String(index)
+                })}
+                onClick={() => setDocumentFiles((files) => files.filter((_, at) => at !== index))}
+              >
+                <X size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <Slate
         editor={editor}
         initialValue={initialValue}
@@ -184,7 +241,7 @@ export function AgentComposer({
               !event.shiftKey &&
               !running &&
               !disabled &&
-              (currentText || imageFiles.length)
+              (currentText || attachmentCount > 0)
             ) {
               event.preventDefault()
               submit()
@@ -239,6 +296,28 @@ export function AgentComposer({
               event.target.value = ''
             }}
           />
+          <input
+            ref={documentInputRef}
+            className="composer-document-input"
+            type="file"
+            aria-label="选择文档"
+            data-testid="e2e/shared/composer/documents/select#input"
+            accept="application/pdf,.docx,.pptx,.xlsx"
+            multiple
+            onChange={(event) => {
+              if (event.target.files) addDocuments(event.target.files)
+              event.target.value = ''
+            }}
+          />
+          <button
+            className="composer-attach-document icon-button"
+            type="button"
+            aria-label="添加文档"
+            data-testid="e2e/shared/composer/documents/attach#button"
+            onClick={() => documentInputRef.current?.click()}
+          >
+            <FileText size={18} />
+          </button>
           <button
             className="composer-add icon-button"
             aria-label="添加"
@@ -273,7 +352,7 @@ export function AgentComposer({
             className="composer-submit"
             aria-label="发送"
             data-testid="e2e/shared/composer/send#button"
-            disabled={disabled || submitting || (!hasText && imageFiles.length === 0)}
+            disabled={disabled || submitting || (!hasText && attachmentCount === 0)}
             onClick={submit}
           >
             <ArrowUp />
@@ -289,4 +368,16 @@ function readEditableText(element: HTMLElement | null): string {
   const editable = element.cloneNode(true) as HTMLElement
   editable.querySelectorAll('[data-slate-placeholder]').forEach((node) => node.remove())
   return (editable.textContent ?? '').replaceAll('\uFEFF', '').trim()
+}
+
+function documentIcon(mimeType: string) {
+  if (mimeType.includes('spreadsheet')) return <FileSpreadsheet size={16} />
+  if (mimeType.includes('presentation')) return <Presentation size={16} />
+  return <FileText size={16} />
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KiB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
 }

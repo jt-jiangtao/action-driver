@@ -1,5 +1,14 @@
 import { expect, test, _electron as electron } from '@playwright/test'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -7,6 +16,23 @@ import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
 
 const appPath = process.env.ACTIONDRIVER_PACKAGED_APP
 test.skip(!appPath, 'Set ACTIONDRIVER_PACKAGED_APP to a macOS application bundle')
+
+/** Reads the newest tool result the fake provider received, whatever turn order the app used. */
+function latestToolPayload(provider: FakeOpenAiToolServer): {
+  ok: boolean
+  output?: { stdout?: string; stderr?: string }
+  error?: { message?: string }
+} {
+  const turn = [...provider.completions]
+    .reverse()
+    .find((completion) => completion.messages.some((message) => message.role === 'tool'))
+  const message = turn?.messages.find((candidate) => candidate.role === 'tool')
+  return JSON.parse(String(message?.content ?? '{}')) as {
+    ok: boolean
+    output?: { stdout?: string; stderr?: string }
+    error?: { message?: string }
+  }
+}
 
 test('packaged macOS app boots its bundled Runtime and authenticates the Renderer', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'actiondriver-packaged-data-'))
@@ -67,7 +93,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(packagedSkills.ok).toBe(true)
     expect(packagedSkills.value).toEqual(
       expect.arrayContaining(
-        ['browser-tools', 'computer-tools', 'imagegen', 'report-writer', 'skill-creator'].map((id) =>
+        ['documents', 'pdf', 'imagegen', 'presentations', 'skill-creator'].map((id) =>
           expect.objectContaining({ id, source: 'builtin' })
         )
       )
@@ -142,6 +168,53 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     const messages = JSON.stringify(provider.completions.at(-1)?.messages)
     expect(messages).toContain(root)
     expect(messages).toContain('needle is present')
+    const sessionOutputs = readdirSync(join(workspace, 'sessions'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(workspace, 'sessions', entry.name, 'output', 'README.md'))
+      .filter((file) => existsSync(file))
+    expect(sessionOutputs.length).toBeGreaterThan(0)
+
+    provider.setMode('sandbox')
+    await page.getByLabel('任务描述').fill('检查脚本沙箱')
+    await page.getByLabel('发送').click()
+    await expect.poll(() => provider.completions.length, { timeout: 30_000 }).toBe(2)
+    const sandboxPayload = latestToolPayload(provider)
+    expect(sandboxPayload.ok, JSON.stringify(sandboxPayload)).toBe(true)
+    const sandboxReport = JSON.parse((sandboxPayload.output?.stdout ?? '').trim()) as {
+      cwd: string
+      inherited: string[]
+    }
+    expect(sandboxReport.cwd.startsWith(join(realpathSync(workspace), 'sessions'))).toBe(true)
+    expect(sandboxReport.inherited).toEqual([])
+
+    provider.setMode('sandbox-escape')
+    await page.getByLabel('任务描述').fill('尝试读取会话外文件')
+    await page.getByLabel('发送').click()
+    await expect.poll(() => provider.completions.length, { timeout: 30_000 }).toBe(2)
+    const escapeMessages = provider.completions.at(-1)?.messages ?? []
+    expect(JSON.stringify(escapeMessages)).not.toContain(
+      'needle is present in the packaged workspace'
+    )
+    const escapePayload = latestToolPayload(provider)
+    expect(escapePayload.ok).toBe(false)
+
+    provider.setMode('office')
+    await page.getByLabel('任务描述').fill('检查随包 Office 依赖')
+    await page.getByLabel('发送').click()
+    await expect.poll(() => provider.completions.length, { timeout: 60_000 }).toBe(2)
+    const officePayload = latestToolPayload(provider)
+    const officeOutput = `${officePayload.output?.stdout ?? ''}\n${officePayload.output?.stderr ?? ''}`
+    expect(officePayload.ok, JSON.stringify(officePayload)).toBe(true)
+    expect(officeOutput).toContain('office-python-ok')
+
+    provider.setMode('office-soffice')
+    await page.getByLabel('任务描述').fill('检查随包 LibreOffice')
+    await page.getByLabel('发送').click()
+    await expect.poll(() => provider.completions.length, { timeout: 60_000 }).toBe(2)
+    const sofficePayload = latestToolPayload(provider)
+    expect(sofficePayload.ok, JSON.stringify(sofficePayload)).toBe(true)
+    expect(sofficePayload.output?.stdout ?? '').toContain('LibreOffice')
+
     provider.setMode('python-blocking')
     await page.getByLabel('任务描述').fill('运行长时间 Python 脚本并等待取消')
     await page.getByLabel('发送').click()

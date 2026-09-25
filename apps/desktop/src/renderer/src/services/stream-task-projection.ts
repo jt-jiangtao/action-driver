@@ -77,7 +77,15 @@ export class StreamTaskProjection {
         tools: event.tools?.map(toToolProjection) ?? currentTask.tools ?? [],
         ...(event.durationMs === undefined ? {} : { activityDurationMs: event.durationMs }),
         ...(event.activities ? { activities: event.activities } : {}),
-        ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {})
+        ...(event.activityTimeline ? { activityTimeline: event.activityTimeline } : {}),
+        ...(event.outputFiles
+          ? {
+              outputFiles: event.outputFiles.map((file) => ({
+                ...file,
+                kind: file.mimeType.startsWith('image/') ? ('image' as const) : ('document' as const)
+              }))
+            }
+          : {})
       }
       if (!event.preparingToolName) delete this.task.preparingToolName
       this.flush()
@@ -257,6 +265,14 @@ export class StreamTaskProjection {
       status: toTaskStatus(event.status),
       streamSequence: event.sequence,
       ...(event.type === 'response.end' ? { activityDurationMs: event.durationMs } : {}),
+      ...(event.type === 'response.end' && event.outputFiles
+        ? {
+            outputFiles: event.outputFiles.map((file) => ({
+              ...file,
+              kind: file.mimeType.startsWith('image/') ? ('image' as const) : ('document' as const)
+            }))
+          }
+        : {}),
       steps: [
         ...this.task.steps.map((step) =>
           step.state === 'current'

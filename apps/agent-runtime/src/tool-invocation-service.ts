@@ -3,7 +3,8 @@ import {
   parseToolCall,
   type ToolCall,
   type ToolError,
-  type ToolEvent
+  type ToolEvent,
+  type ToolExecutionContext
 } from '@actiondriver/runtime-contracts'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type {
@@ -18,6 +19,8 @@ import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
 import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from './tool-activity'
 import { ProcessExitError, ProcessOutputLimitError } from './execution/process-runner'
+import { OfficeDependenciesUnavailableError } from './execution/runtime-paths'
+import { ExecutionContextUnavailableError } from './execution/session-execution-context'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -40,6 +43,7 @@ export class ToolInvocationService {
       interactions?: InteractionLogRecorder
       clock: Clock
       maxOutputBytes?: number
+      executionContext?: (taskId: string) => Promise<ToolExecutionContext>
     }
   ) {
     this.maxOutputBytes = options.maxOutputBytes ?? 1024 * 1024
@@ -178,7 +182,14 @@ export class ToolInvocationService {
       if (controller.signal.aborted) throw controller.signal.reason
       yield await transition('queued')
       yield await transition('running')
-      for await (const part of registered.executor.execute(call, controller.signal)) {
+      const executionContext = this.options.executionContext
+        ? await this.options.executionContext(context.taskId)
+        : undefined
+      for await (const part of registered.executor.execute(
+        call,
+        controller.signal,
+        executionContext
+      )) {
         if (controller.signal.aborted) throw controller.signal.reason
         if (part.kind === 'asset') {
           yield await persist(event('tool.asset', { index: part.index, asset: part.asset }))
@@ -221,6 +232,10 @@ export class ToolInvocationService {
               ? toolError(caught.code, caught.message)
               : timedOut
                 ? toolError('TOOL_TIMEOUT', 'Tool execution timed out')
+                : caught instanceof OfficeDependenciesUnavailableError
+                  ? toolError(caught.code, caught.message)
+                  : caught instanceof ExecutionContextUnavailableError
+                    ? toolError(caught.code, caught.message)
                 : toolError(
                     cancelled ? 'TOOL_CANCELLED' : 'TOOL_EXECUTION_FAILED',
                     caught instanceof Error ? caught.message : String(caught)

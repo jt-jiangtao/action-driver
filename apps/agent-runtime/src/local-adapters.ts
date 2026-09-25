@@ -1,6 +1,7 @@
 import { LangGraphRunner } from './agent-graph'
 import type { GraphToolRuntime } from './agent-graph'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
+import type { ToolExecutionContext } from '@actiondriver/runtime-contracts'
 import type { Clock, IdGenerator, ModelGateway, RuntimeAdapters } from './ports'
 import type { SqliteRuntimeRepositories } from './repositories'
 import { RuntimeSkillRegistry } from './skill-registry'
@@ -33,6 +34,7 @@ export function createLocalRuntimeAdapters(options: {
   clock?: Clock
   idGenerator?: IdGenerator
   interactions?: InteractionLogRecorder
+  executionContext?: (taskId: string) => Promise<ToolExecutionContext>
 }): LocalRuntimeAdapters {
   const skillRegistry = new RuntimeSkillRegistry()
   const clock = options.clock ?? new SystemClock()
@@ -46,6 +48,7 @@ export function createLocalRuntimeAdapters(options: {
       policy,
       persistence: options.repositories,
       clock,
+      ...(options.executionContext ? { executionContext: options.executionContext } : {}),
       ...(options.interactions ? { interactions: options.interactions } : {})
     }),
     grants: []

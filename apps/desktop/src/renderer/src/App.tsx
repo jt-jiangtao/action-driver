@@ -19,6 +19,7 @@ import {
 } from './models/model-selection'
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
+import type { ComposerAttachments } from './components/AgentComposer'
 
 const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
 
@@ -180,19 +181,42 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     },
     [services]
   )
+  const stageInputFiles = useCallback(
+    async (files: File[] = []): Promise<string[]> => {
+      if (files.length === 0) return []
+      if (!services.inputFiles) throw new Error('文件上传暂不可用')
+      const staged = await Promise.all(
+        files.map((file) => services.inputFiles!.uploadInputFile(file))
+      )
+      return staged.map((file) => file.fileId)
+    },
+    [services]
+  )
   const readImage = useCallback(
     (sessionId: string, assetId: string) => services.imageAssets!.readImage(sessionId, assetId),
     [services]
   )
+  const readOutputFile = useCallback(
+    (sessionId: string, fileId: string, taskId: string) =>
+      services.outputFiles!.readOutputFile(sessionId, fileId, taskId),
+    [services]
+  )
 
   const submitNewSession = useCallback(
-    async (goal: string, imageFiles: File[] = []) => {
+    async (goal: string, attachments?: ComposerAttachments) => {
       const selected = findSelectedModel(modelSelection)
       if (!selected) throw new Error('请选择可用模型')
+      const imageFiles = attachments?.images ?? []
+      const documentFiles = attachments?.documents ?? []
+      if (documentFiles.length > 0 && !services.inputFiles) throw new Error('文件上传暂不可用')
       const imageAssetIds = await stageImages(imageFiles)
+      const inputFileIds = services.inputFiles
+        ? await stageInputFiles([...documentFiles, ...imageFiles])
+        : []
       const projection = await services.agentCommandService.submitGoal({
         goal,
         ...(imageAssetIds.length ? { imageAssetIds } : {}),
+        ...(inputFileIds.length ? { inputFileIds } : {}),
         model: {
           connectionId: selected.connection.id,
           modelId: selected.model.id
@@ -200,22 +224,29 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       })
       presentSubmittedTask(projection)
     },
-    [modelSelection, presentSubmittedTask, services, stageImages]
+    [modelSelection, presentSubmittedTask, services, stageImages, stageInputFiles]
   )
 
   const submitContinuation = useCallback(
-    async (goal: string, imageFiles: File[] = []) => {
+    async (goal: string, attachments?: ComposerAttachments) => {
       if (!task) return
+      const imageFiles = attachments?.images ?? []
+      const documentFiles = attachments?.documents ?? []
+      if (documentFiles.length > 0 && !services.inputFiles) throw new Error('文件上传暂不可用')
       const imageAssetIds = await stageImages(imageFiles)
+      const inputFileIds = services.inputFiles
+        ? await stageInputFiles([...documentFiles, ...imageFiles])
+        : []
       const previousTaskId = task.id
       const projection = await services.agentCommandService.submitGoal({
         goal,
         ...(imageAssetIds.length ? { imageAssetIds } : {}),
+        ...(inputFileIds.length ? { inputFileIds } : {}),
         sessionId: task.sessionId
       })
       presentSubmittedTask(projection, previousTaskId)
     },
-    [presentSubmittedTask, services, stageImages, task]
+    [presentSubmittedTask, services, stageImages, stageInputFiles, task]
   )
 
   const mainRoute: MainAppRoute =
@@ -315,6 +346,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onTakeOver={() => services.skillGateway.takeOver('browser-invocation')}
           onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
           readImage={services.imageAssets ? readImage : undefined}
+          readOutputFile={services.outputFiles ? readOutputFile : undefined}
           onSubmit={submitContinuation}
         />
       ) : null}

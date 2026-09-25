@@ -334,11 +334,9 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('registers only current script tools for automatic use within the grant', async () => {
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-policy-workspace-'))
     const registry = new RuntimeToolRegistry()
     const policy = new RuntimeToolPolicy()
     const tools = await createScriptTools({
-      workspaceRoot,
       runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist')
     })
     for (const tool of tools) registry.register(tool.definition, tool.executor)
