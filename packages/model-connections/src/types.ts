@@ -156,11 +156,13 @@ export type ModelTestRequestDto = {
   draft: ModelConnectionDraftDto
   modelIds: string[]
   imageModels?: { modelId: string; api: ImageGenerationApi }[] | undefined
+  capabilityTest?: boolean | undefined
 }
 
 export type ModelConnectionTestRequestDto = {
   connectionId: string
   modelIds: string[]
+  capabilityTest?: boolean | undefined
 }
 
 export type ModelSetEnabledRequestDto = {

@@ -75,6 +75,31 @@ describe('service-side model connection storage', () => {
     reopened.close()
   })
 
+  it('preserves a verified image default even when the old kind is chat', () => {
+    const database = openRuntimeDatabase(databasePath())
+    const store = createSqliteModelConnectionStore(database)
+    const dual = {
+      ...connection,
+      models: [
+        {
+          ...connection.models[0]!,
+          kind: 'chat' as const,
+          capabilities: {
+            image_generation: { state: 'success' as const, source: 'probe' as const }
+          }
+        }
+      ]
+    }
+    store.write([dual])
+    store.writeDefaultImageModel({ connectionId: dual.id, modelId: 'qwen3.7-plus' })
+    store.write([dual])
+    expect(store.readDefaultImageModel()).toEqual({
+      connectionId: dual.id,
+      modelId: 'qwen3.7-plus'
+    })
+    database.close()
+  })
+
   it('migrates model image capability flags and a nullable default image model', () => {
     const database = openRuntimeDatabase(databasePath())
     const columns = database.prepare('PRAGMA table_info(model_connection_models)').all() as Array<{

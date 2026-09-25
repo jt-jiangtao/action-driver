@@ -175,7 +175,13 @@ export function createSqliteModelConnectionStore(
           const selected = next
             .find((connection) => connection.id === previousDefault?.connectionId)
             ?.models.find((model) => model.id === previousDefault?.modelId)
-          if (previousDefault && selected?.enabled && selected.kind === 'image') {
+          if (
+            previousDefault &&
+            selected?.enabled &&
+            (selected.capabilities?.image_generation
+              ? selected.capabilities.image_generation.state === 'success'
+              : selected.kind === 'image')
+          ) {
             database
               .prepare(
                 `INSERT INTO default_image_model

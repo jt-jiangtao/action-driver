@@ -9,6 +9,7 @@ import type {
 import type { ModelConnectionStore, StoredModelConnection } from '../src/model-connections/store'
 import type { SecretCipher } from '../src/model-connections/credential-cipher'
 import type {
+  ImageResolver,
   OpenAiClientFactory,
   OpenAiStreamChunk
 } from '../src/model-connections/provider-adapters'
@@ -27,9 +28,7 @@ function memoryStore(): ModelConnectionStore {
             connection.id === defaultImageModel?.connectionId &&
             connection.models.some(
               (model) =>
-                model.id === defaultImageModel?.modelId &&
-                model.enabled &&
-                model.imageGenerationEnabled
+                model.id === defaultImageModel?.modelId && model.enabled && model.kind === 'image'
             )
         )
       )
@@ -60,7 +59,8 @@ const draft = {
 
 function createService(
   handler: (request: HttpRequest) => HttpResponse,
-  openAiClientFactory?: OpenAiClientFactory
+  openAiClientFactory?: OpenAiClientFactory,
+  imageResolver?: ImageResolver
 ) {
   const requests: HttpRequest[] = []
   const transport: HttpTransport = {
@@ -76,7 +76,8 @@ function createService(
       store,
       cipher,
       transport,
-      ...(openAiClientFactory ? { openAiClientFactory } : {})
+      ...(openAiClientFactory ? { openAiClientFactory } : {}),
+      ...(imageResolver ? { imageResolver } : {})
     }),
     store
   }
@@ -86,34 +87,282 @@ const discoveredModels: ModelOptionDto[] = [
   { id: 'qwen3.7-plus', name: 'qwen3.7-plus', enabled: true, testState: 'success' }
 ]
 
+const validPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVkAAAAASUVORK5CYII=',
+  'base64'
+)
+
 describe('model connection service', () => {
-  it('keeps one default image model and clears it when generation is disabled', async () => {
+  it('tests each listed Token Plan capability and keeps their results separate', async () => {
+    const { service, requests } = createService((request) => {
+      const body = request.body as { messages?: Array<{ content?: unknown }>; enable_thinking?: boolean }
+      const content = body.messages?.[0]?.content
+      const message = Array.isArray(content)
+        ? { content: 'red' }
+        : body.enable_thinking
+          ? { content: '42', reasoning_content: 'I added 17 and 25.' }
+          : { content: 'OK' }
+      return { status: 200, body: { choices: [{ message }] }, text: '' }
+    })
+    const results = await service.testModels({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      modelIds: ['qwen3.8-max'],
+      capabilityTest: true
+    })
+    expect(results[0]?.capabilities?.text?.state).toBe('success')
+    expect(results[0]?.capabilities?.reasoning?.state).toBe('success')
+    expect(results[0]?.capabilities?.vision?.state).toBe('success')
+    expect(requests).toHaveLength(3)
+  })
+
+  it('does not probe catalog audio or video models', async () => {
+    const { service, requests } = createService(() => {
+      throw new Error('Audio and video tests must not call a provider')
+    })
+    const results = await service.testModels({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      modelIds: ['qwen-audio-3.0-asr-flash', 'happyhorse-1.1-t2v'],
+      capabilityTest: true
+    })
+    expect(results.map((result) => result.capabilities)).toEqual([{}, {}])
+    expect(requests).toHaveLength(0)
+  })
+
+  it('uses a verified image capability even when the legacy model kind is chat', async () => {
+    const fetch = vi.fn(async (url: string) => {
+      if (!url.endsWith('/images/generations')) throw new Error('Wrong image endpoint')
+      return new Response(JSON.stringify({ data: [{ b64_json: validPng.toString('base64') }] }), {
+        status: 200
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const { service } = createService(() => ({ status: 500, body: {}, text: '' }))
+      const connection = await service.add({
+        draft,
+        models: [
+          {
+            id: 'dual-model',
+            name: 'dual-model',
+            enabled: true,
+            testState: 'success',
+            kind: 'chat',
+            capabilities: {
+              image_generation: { state: 'success', source: 'probe' }
+            }
+          }
+        ]
+      })
+      const model = { connectionId: connection.id, modelId: 'dual-model' }
+      await service.setDefaultImageModel(model)
+      expect(await service.generateImage({ model, prompt: 'cat' })).toEqual(new Uint8Array(validPng))
+      expect(fetch).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('uses the Images API to test image models and does not send a chat completion', async () => {
+    const fetch = vi.fn(async (url: string) => {
+      if (!url.endsWith('/images/generations')) throw new Error('Unexpected image test URL')
+      return new Response(JSON.stringify({ data: [{ b64_json: validPng.toString('base64') }] }), {
+        status: 200
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const { service, requests } = createService(() => ({ status: 500, body: {}, text: '' }))
+      const results = await service.testModels({
+        draft,
+        modelIds: ['image-model'],
+        imageModels: [{ modelId: 'image-model', api: 'openai-images' }]
+      })
+      expect(results).toEqual([{ modelId: 'image-model', state: 'success' }])
+      expect(requests).toHaveLength(0)
+      expect(fetch.mock.calls[0]?.[0]).toMatch(/\/images\/generations$/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('fails an image model test when the endpoint returns bytes that are not an image', async () => {
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(
+          JSON.stringify({ data: [{ b64_json: Buffer.from('not an image').toString('base64') }] }),
+          { status: 200 }
+        )
+    )
+    try {
+      const { service } = createService(() => ({ status: 500, body: {}, text: '' }))
+      await expect(
+        service.testModels({
+          draft,
+          modelIds: ['image-model'],
+          imageModels: [{ modelId: 'image-model', api: 'openai-images' }]
+        })
+      ).resolves.toEqual([{ modelId: 'image-model', state: 'failed' }])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('uses the Token Plan endpoint and downloads its test image', async () => {
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('/api/v1/services/aigc/multimodal-generation/generation'))
+        return new Response(
+          JSON.stringify({
+            output: {
+              choices: [
+                { message: { content: [{ image: 'https://images.example.com/test.png' }] } }
+              ]
+            }
+          }),
+          { status: 200 }
+        )
+      if (url === 'https://images.example.com/test.png')
+        return new Response(validPng, { status: 200 })
+      throw new Error('Unexpected image test URL')
+    })
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const { service, requests } = createService(() => ({ status: 500, body: {}, text: '' }))
+      const results = await service.testModels({
+        draft: {
+          ...draft,
+          baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+        },
+        modelIds: ['wan-image'],
+        imageModels: [{ modelId: 'wan-image', api: 'token-plan' }]
+      })
+      expect(results).toEqual([{ modelId: 'wan-image', state: 'success' }])
+      expect(requests).toHaveLength(0)
+      expect(fetch).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('sends an image to a chat model without a local image-input flag', async () => {
+    const { service, requests } = createService(
+      () => ({
+        status: 200,
+        body: { choices: [{ message: { content: '看到了图片' } }] },
+        text: ''
+      }),
+      undefined,
+      async () => ({ bytes: Uint8Array.from([1, 2, 3]), mimeType: 'image/png' })
+    )
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'chat', name: 'chat', enabled: true, testState: 'success' }]
+    })
+    const outcome = await service.complete({
+      model: { connectionId: connection.id, modelId: 'chat' },
+      requestId: 'request-image',
+      taskId: 'task-image',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { kind: 'text', text: '这是什么？' },
+            {
+              kind: 'image',
+              asset: {
+                assetId: 'asset-1',
+                sessionId: 'session-1',
+                mimeType: 'image/png',
+                width: 1,
+                height: 1,
+                byteLength: 3,
+                source: 'upload'
+              }
+            }
+          ]
+        }
+      ],
+      parameters: {}
+    })
+    expect(outcome).toMatchObject({ ok: true })
+    expect(requests[0]?.body).toMatchObject({
+      messages: [
+        {
+          content: [
+            { type: 'text', text: '这是什么？' },
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,AQID' } }
+          ]
+        }
+      ]
+    })
+  })
+
+  it('uses the default image model without a generation capability flag', async () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
     const connection = await service.add({
       draft,
       models: [
         { id: 'vision', name: 'vision', enabled: true, testState: 'success' },
-        { id: 'image', name: 'image', enabled: true, testState: 'untested' }
+        { id: 'image', name: 'image', kind: 'image', enabled: true, testState: 'untested' }
       ]
-    })
-    await service.setModelImageCapability({
-      connectionId: connection.id,
-      modelId: 'image',
-      kind: 'generation',
-      enabled: true
     })
     await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image' })
     expect(await service.getDefaultImageModel()).toEqual({
       connectionId: connection.id,
       modelId: 'image'
     })
-    await service.setModelImageCapability({
-      connectionId: connection.id,
-      modelId: 'image',
-      kind: 'generation',
-      enabled: false
-    })
+    await service.setModelEnabled({ connectionId: connection.id, modelId: 'image', enabled: false })
     expect(await service.getDefaultImageModel()).toBeNull()
+  })
+
+  it('rejects a chat model as the default image model', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'chat', name: 'chat', kind: 'chat', enabled: true, testState: 'success' }]
+    })
+    await expect(
+      service.setDefaultImageModel({ connectionId: connection.id, modelId: 'chat' })
+    ).rejects.toThrow('Image model is unavailable')
+  })
+
+  it('rejects an image model on the chat completion path', async () => {
+    const { service, requests } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'image', name: 'image', kind: 'image', enabled: true, testState: 'success' }]
+    })
+    await expect(
+      service.complete({
+        model: { connectionId: connection.id, modelId: 'image' },
+        requestId: 'request',
+        taskId: 'task',
+        messages: [{ role: 'user', content: 'hello' }],
+        parameters: {}
+      })
+    ).rejects.toThrow('for image generation')
+    expect(requests).toHaveLength(0)
+  })
+
+  it('clears the image default and test result when an image model becomes a chat model', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'image', name: 'image', kind: 'image', enabled: true, testState: 'success' }]
+    })
+    await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image' })
+    await service.setModelKind({ connectionId: connection.id, modelId: 'image', kind: 'chat' })
+    expect(await service.getDefaultImageModel()).toBeNull()
+    expect((await service.list())[0]?.models[0]).toMatchObject({
+      kind: 'chat',
+      testState: 'untested'
+    })
   })
 
   it('preserves image flags across model refresh without generating an image', async () => {
@@ -191,7 +440,7 @@ describe('model connection service', () => {
     const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
     const connection = await service.add({
       draft,
-      models: [{ id: 'image', name: 'image', enabled: true, testState: 'untested' }]
+      models: [{ id: 'image', name: 'image', kind: 'image', enabled: true, testState: 'untested' }]
     })
     await expect(
       service.setModelImageGenerationApi({
@@ -313,7 +562,7 @@ describe('model connection service', () => {
       await service.setDefaultImageModel(model)
       const pending = service.generateImage({ model, prompt: 'cat' })
       await started
-      await service.setModelImageCapability({ ...model, kind: 'generation', enabled: false })
+      await service.setModelEnabled({ ...model, enabled: false })
       expect(await service.getDefaultImageModel()).toBeNull()
       releaseProvider(
         new Response(
@@ -336,19 +585,19 @@ describe('model connection service', () => {
       draft,
       models: [
         { id: 'chat', name: 'chat', enabled: true, testState: 'success' },
-        { id: 'image-only', name: 'image-only', enabled: true, testState: 'untested' }
+        {
+          id: 'image-only',
+          name: 'image-only',
+          kind: 'image',
+          enabled: true,
+          testState: 'untested'
+        }
       ]
-    })
-    await service.setModelImageCapability({
-      connectionId: connection.id,
-      modelId: 'image-only',
-      kind: 'generation',
-      enabled: true
     })
     await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'image-only' })
     expect(await service.refresh(connection.id)).toMatchObject([
       { id: 'chat' },
-      { id: 'image-only', imageGenerationEnabled: true }
+      { id: 'image-only' }
     ])
     expect(await service.getDefaultImageModel()).toEqual({
       connectionId: connection.id,

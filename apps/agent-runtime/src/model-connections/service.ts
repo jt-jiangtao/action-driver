@@ -3,6 +3,7 @@ import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
+import { inspectImage } from '../media/session-asset-store'
 import {
   createTokenPlanImageGenerationAdapter,
   isTokenPlanBaseUrl
@@ -12,6 +13,8 @@ import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
 import { ModelServiceError } from '@actiondriver/model-connections'
+import { capabilityCandidates } from './model-capability-catalog'
+import { probeCapability } from './capability-probes'
 import type {
   ModelAddRequestDto,
   ModelConnectionDto,
@@ -23,6 +26,7 @@ import type {
   ModelCompletionRequest,
   ModelOptionDto,
   ModelSetEnabledRequestDto,
+  ModelSetKindRequestDto,
   ModelImageCapabilityRequestDto,
   ModelImageGenerationApiRequestDto,
   ModelTestRequestDto,
@@ -52,28 +56,7 @@ export class ModelConnectionService
     request: ModelCompletionRequest,
     signal?: AbortSignal
   ): Promise<ModelCompletionOutcome> {
-    const connection = requireConnection(this.read(), request.model.connectionId)
-    const model = connection.models.find((candidate) => candidate.id === request.model.modelId)
-    if (!model) {
-      throw new ModelServiceError('invalid-request', `Unknown model: ${request.model.modelId}`)
-    }
-    if (!model.enabled) {
-      throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
-    }
-    if (model.testState === 'unsupported') {
-      throw new ModelServiceError('invalid-request', `Model ${model.id} does not support text`)
-    }
-    if (model.testState !== 'success') {
-      throw new ModelServiceError(
-        'invalid-request',
-        `Model ${model.id} has not passed text testing`
-      )
-    }
-    if (connection.protocol !== 'openai-compatible') {
-      throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
-    }
-    requireVisionCapability(model, request.messages)
-
+    const { connection, model } = this.requireRunnableModel(request)
     const adapter = createModelProviderAdapter(
       connection.protocol,
       this.options.transport,
@@ -148,12 +131,17 @@ export class ModelConnectionService
     })
     if (!result.ok) throw toServiceError(result.failure)
     const discovered = new Set(result.value)
+    const defaultImageModel = this.options.store.readDefaultImageModel()
     connection.models = [
       ...result.value.map((id) => mergeDiscoveredModel(connection, id)),
       ...connection.models.filter(
         (model) =>
           !discovered.has(model.id) &&
-          (model.imageInputEnabled === true || model.imageGenerationEnabled === true)
+          (model.kind === 'image' ||
+            model.imageInputEnabled === true ||
+            model.imageGenerationEnabled === true ||
+            (defaultImageModel?.connectionId === connection.id &&
+              defaultImageModel.modelId === model.id))
       )
     ]
     this.write(connections)
@@ -162,13 +150,24 @@ export class ModelConnectionService
 
   async testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]> {
     const validated = validateDraft(request.draft)
+    if (request.capabilityTest) {
+      return await this.probeModelCapabilities(
+        {
+          baseUrl: validated.baseUrl,
+          apiKey: validated.apiKey,
+          protocol: validated.protocol
+        },
+        request.modelIds
+      )
+    }
     return await this.probeModels(
       {
         baseUrl: validated.baseUrl,
         apiKey: validated.apiKey,
         protocol: validated.protocol
       },
-      request.modelIds
+      request.modelIds,
+      request.imageModels ?? []
     )
   }
 
@@ -177,13 +176,42 @@ export class ModelConnectionService
   ): Promise<ModelTestResultDto[]> {
     const connections = this.read()
     const connection = requireConnection(connections, request.connectionId)
+    if (request.capabilityTest) {
+      const results = await this.probeModelCapabilities(
+        {
+          baseUrl: connection.baseUrl,
+          apiKey: this.decrypt(connection),
+          protocol: connection.protocol
+        },
+        request.modelIds
+      )
+      const byId = new Map(results.map((result) => [result.modelId, result]))
+      connection.models = connection.models.map((model) => {
+        const result = byId.get(model.id)
+        return result
+          ? {
+              ...model,
+              testState: result.state,
+              capabilities: { ...model.capabilities, ...result.capabilities }
+            }
+          : model
+      })
+      this.write(connections)
+      return results
+    }
     const results = await this.probeModels(
       {
         baseUrl: connection.baseUrl,
         apiKey: this.decrypt(connection),
         protocol: connection.protocol
       },
-      request.modelIds
+      request.modelIds,
+      request.modelIds.flatMap((modelId) => {
+        const model = connection.models.find((candidate) => candidate.id === modelId)
+        return model?.kind === 'image'
+          ? [{ modelId, api: model.imageGenerationApi ?? 'openai-images' }]
+          : []
+      })
     )
     const stateById = new Map(results.map((result) => [result.modelId, result.state]))
     connection.models = connection.models.map((model) => {
@@ -207,6 +235,29 @@ export class ModelConnectionService
     this.write(connections)
   }
 
+  async setModelKind(request: ModelSetKindRequestDto): Promise<void> {
+    const connections = this.read()
+    const connection = requireConnection(connections, request.connectionId)
+    if (request.kind === 'image' && connection.protocol !== 'openai-compatible')
+      throw new ModelServiceError(
+        'invalid-request',
+        'Image generation requires an OpenAI compatible connection'
+      )
+    const model = connection.models.find((candidate) => candidate.id === request.modelId)
+    if (!model) throw new ModelServiceError('invalid-request', `Unknown model: ${request.modelId}`)
+    connection.models = connection.models.map((candidate) =>
+      candidate.id === request.modelId
+        ? {
+            ...candidate,
+            kind: request.kind,
+            imageGenerationEnabled: request.kind === 'image',
+            testState: 'untested'
+          }
+        : candidate
+    )
+    this.write(connections)
+  }
+
   async setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void> {
     const connections = this.read()
     const connection = requireConnection(connections, request.connectionId)
@@ -219,7 +270,13 @@ export class ModelConnectionService
     if (!model) throw new ModelServiceError('invalid-request', `Unknown model: ${request.modelId}`)
     const field = request.kind === 'input' ? 'imageInputEnabled' : 'imageGenerationEnabled'
     connection.models = connection.models.map((candidate) =>
-      candidate.id === request.modelId ? { ...candidate, [field]: request.enabled } : candidate
+      candidate.id === request.modelId
+        ? {
+            ...candidate,
+            [field]: request.enabled,
+            ...(request.kind === 'generation' ? { kind: request.enabled ? 'image' : 'chat' } : {})
+          }
+        : candidate
     )
     this.write(connections)
   }
@@ -231,6 +288,8 @@ export class ModelConnectionService
     const connection = requireConnection(connections, request.connectionId)
     const model = connection.models.find((candidate) => candidate.id === request.modelId)
     if (!model) throw new ModelServiceError('invalid-request', `Unknown model: ${request.modelId}`)
+    if (model.kind !== 'image')
+      throw new ModelServiceError('invalid-request', 'Image generation API requires an image model')
     if (request.api === 'token-plan' && !isTokenPlanBaseUrl(connection.baseUrl))
       throw new ModelServiceError(
         'invalid-request',
@@ -238,7 +297,7 @@ export class ModelConnectionService
       )
     connection.models = connection.models.map((candidate) =>
       candidate.id === request.modelId
-        ? { ...candidate, imageGenerationApi: request.api }
+        ? { ...candidate, imageGenerationApi: request.api, testState: 'untested' }
         : candidate
     )
     this.write(connections)
@@ -251,9 +310,9 @@ export class ModelConnectionService
       if (
         connection.protocol !== 'openai-compatible' ||
         !chosen?.enabled ||
-        !chosen.imageGenerationEnabled
+        !isImageEligible(chosen)
       )
-        throw new ModelServiceError('invalid-request', 'Model is not enabled for image generation')
+        throw new ModelServiceError('invalid-request', 'Image model is unavailable')
     }
     this.options.store.writeDefaultImageModel(model)
   }
@@ -275,14 +334,10 @@ export class ModelConnectionService
       throw new ModelServiceError('invalid-request', 'Default image model changed')
     const connection = requireConnection(this.read(), selected.connectionId)
     const model = connection.models.find((candidate) => candidate.id === selected.modelId)
-    if (
-      connection.protocol !== 'openai-compatible' ||
-      !model?.enabled ||
-      !model.imageGenerationEnabled
-    )
+    if (connection.protocol !== 'openai-compatible' || !model?.enabled || !isImageEligible(model))
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
     const adapter =
-      model.imageGenerationApi === 'token-plan'
+      imageApiForModel(connection.baseUrl, model) === 'token-plan'
         ? createTokenPlanImageGenerationAdapter()
         : createImageGenerationAdapter()
     const bytes = await adapter.generate(
@@ -307,9 +362,12 @@ export class ModelConnectionService
     const currentModel = currentConnection?.models.find(
       (candidate) => candidate.id === selected.modelId
     )
-    if (!currentModel?.enabled || !currentModel.imageGenerationEnabled)
+    if (!currentModel?.enabled || !isImageEligible(currentModel))
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
-    if (currentModel.imageGenerationApi !== model.imageGenerationApi)
+    if (
+      imageApiForModel(currentConnection!.baseUrl, currentModel) !==
+      imageApiForModel(connection.baseUrl, model)
+    )
       throw new ModelServiceError('invalid-request', 'Image generation API changed')
     return bytes
   }
@@ -317,6 +375,11 @@ export class ModelConnectionService
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
     const draft = validateDraft(request.draft)
     for (const model of request.models) {
+      if (model.kind === 'image' && draft.protocol !== 'openai-compatible')
+        throw new ModelServiceError(
+          'invalid-request',
+          'Image generation requires an OpenAI compatible connection'
+        )
       const api = model.imageGenerationApi ?? 'openai-images'
       if (api !== 'openai-images' && api !== 'token-plan')
         throw new ModelServiceError('invalid-request', 'Invalid image generation API')
@@ -337,6 +400,7 @@ export class ModelConnectionService
       expanded: true,
       models: request.models.map((model) => ({
         ...model,
+        kind: model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat'),
         imageGenerationApi: model.imageGenerationApi ?? 'openai-images'
       }))
     }
@@ -352,13 +416,66 @@ export class ModelConnectionService
 
   private async probeModels(
     endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
-    modelIds: readonly string[]
+    modelIds: readonly string[],
+    imageModels: readonly { modelId: string; api: 'openai-images' | 'token-plan' }[]
   ): Promise<ModelTestResultDto[]> {
     const adapter = createModelProviderAdapter(endpoint.protocol, this.options.transport)
+    const imageApiById = new Map(imageModels.map((model) => [model.modelId, model.api]))
     const results: ModelTestResultDto[] = []
     for (const modelId of modelIds) {
-      const result = await adapter.probeModel({ ...endpoint, modelId })
-      results.push({ modelId, state: result.state })
+      const imageApi = imageApiById.get(modelId)
+      if (!imageApi) {
+        const result = await adapter.probeModel({ ...endpoint, modelId })
+        results.push({ modelId, state: result.state })
+        continue
+      }
+      if (endpoint.protocol !== 'openai-compatible') {
+        results.push({ modelId, state: 'unsupported' })
+        continue
+      }
+      try {
+        const imageAdapter =
+          imageApi === 'token-plan'
+            ? createTokenPlanImageGenerationAdapter()
+            : createImageGenerationAdapter()
+        const bytes = await imageAdapter.generate({
+          baseUrl: endpoint.baseUrl,
+          apiKey: endpoint.apiKey,
+          modelId,
+          prompt: 'A simple blue square on a white background'
+        })
+        await inspectImage(bytes)
+        results.push({ modelId, state: 'success' })
+      } catch {
+        results.push({ modelId, state: 'failed' })
+      }
+    }
+    return results
+  }
+
+  private async probeModelCapabilities(
+    endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
+    modelIds: readonly string[]
+  ): Promise<ModelTestResultDto[]> {
+    const results: ModelTestResultDto[] = []
+    for (const modelId of modelIds) {
+      const candidates = capabilityCandidates(modelId, endpoint.baseUrl)
+      const capabilities: NonNullable<ModelTestResultDto['capabilities']> = {}
+      for (const capability of candidates.probes) {
+        capabilities[capability] = await probeCapability({
+          endpoint,
+          modelId,
+          capability,
+          transport: this.options.transport
+        })
+      }
+      const states = Object.values(capabilities).map((result) => result.state)
+      const state = states.includes('success')
+        ? 'success'
+        : states.includes('failed') || states.includes('inconclusive')
+          ? 'failed'
+          : 'unsupported'
+      results.push({ modelId, state, capabilities })
     }
     return results
   }
@@ -407,6 +524,9 @@ export class ModelConnectionService
     if (!model.enabled) {
       throw new ModelServiceError('invalid-request', `Model ${model.id} is disabled`)
     }
+    if (model.kind === 'image') {
+      throw new ModelServiceError('invalid-request', `Model ${model.id} is for image generation`)
+    }
     if (model.testState === 'unsupported') {
       throw new ModelServiceError('invalid-request', `Model ${model.id} does not support text`)
     }
@@ -419,26 +539,8 @@ export class ModelConnectionService
     if (connection.protocol !== 'openai-compatible') {
       throw new ModelServiceError('invalid-request', 'Agent 调用暂未接入')
     }
-    requireVisionCapability(model, request.messages)
     return { connection, model }
   }
-}
-
-function requireVisionCapability(
-  model: ModelOptionDto,
-  messages: ModelCompletionRequest['messages']
-): void {
-  const hasImage = messages.some(
-    (message) =>
-      message.role === 'user' &&
-      Array.isArray(message.content) &&
-      message.content.some((part) => part.kind === 'image')
-  )
-  if (hasImage && !model.imageInputEnabled)
-    throw new ModelServiceError(
-      'invalid-request',
-      `Model ${model.id} is not enabled for image input`
-    )
 }
 
 function toDto(connection: StoredModelConnection): ModelConnectionDto {
@@ -469,6 +571,22 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
   return existing
     ? { ...existing }
     : { id, name: id, enabled: true, testState: 'untested', imageGenerationApi: 'openai-images' }
+}
+
+function isImageEligible(model: ModelOptionDto): boolean {
+  const tested = model.capabilities?.image_generation
+  return tested ? tested.state === 'success' : model.kind === 'image'
+}
+
+function imageApiForModel(
+  baseUrl: string,
+  model: ModelOptionDto
+): 'token-plan' | 'openai-images' {
+  return model.capabilities?.image_generation?.state === 'success'
+    ? isTokenPlanBaseUrl(baseUrl)
+      ? 'token-plan'
+      : 'openai-images'
+    : (model.imageGenerationApi ?? 'openai-images')
 }
 
 export function validateDraft(draft: ModelConnectionDraftDto): ModelConnectionDraftDto {
