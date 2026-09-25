@@ -28,6 +28,7 @@ const connection: StoredModelConnection = {
       name: 'qwen3.7-plus',
       enabled: true,
       testState: 'success',
+      kind: 'chat',
       imageInputEnabled: false,
       imageGenerationEnabled: false,
       imageGenerationApi: 'openai-images'
@@ -37,6 +38,7 @@ const connection: StoredModelConnection = {
       name: 'wan2.7-image',
       enabled: false,
       testState: 'unsupported',
+      kind: 'image',
       imageInputEnabled: false,
       imageGenerationEnabled: false,
       imageGenerationApi: 'token-plan'
@@ -53,7 +55,7 @@ describe('service-side model connection storage', () => {
       ...connection,
       models: connection.models.map((model) =>
         model.id === 'wan2.7-image'
-          ? { ...model, enabled: true, imageGenerationEnabled: true }
+          ? { ...model, enabled: true, imageGenerationEnabled: false }
           : model
       )
     }
@@ -93,7 +95,13 @@ describe('service-side model connection storage', () => {
     const store = createSqliteModelConnectionStore(database)
 
     store.write([connection])
-    expect(store.read()).toEqual([connection])
+    expect(store.read()[0]?.models[0]?.capabilities).toEqual({
+      text: { state: 'untested', source: 'catalog' },
+      reasoning: { state: 'untested', source: 'catalog' },
+      vision: { state: 'untested', source: 'catalog' },
+      image_generation: { state: 'untested', source: 'catalog' }
+    })
+    expect(store.read()[0]?.id).toBe(connection.id)
 
     store.write([])
     expect(store.read()).toEqual([])
@@ -122,7 +130,7 @@ describe('service-side model connection storage', () => {
         `INSERT INTO model_connection_models
        (connection_id, model_id, name, enabled, test_state, position,
         image_input_enabled, image_generation_enabled)
-       VALUES (?, 'qwen3.7-plus', 'qwen3.7-plus', 1, 'success', 0, 0, 1)`
+       VALUES (?, 'qwen3.7-plus', 'qwen3.7-plus', 1, 'success', 0, 0, 0)`
       )
       .run(connection.id)
     old
@@ -136,6 +144,15 @@ describe('service-side model connection storage', () => {
     const upgraded = openRuntimeDatabase(path)
     const store = createSqliteModelConnectionStore(upgraded)
     expect(store.read()[0]?.models[0]?.imageGenerationApi).toBe('openai-images')
+    expect(store.read()[0]?.models[0]?.kind).toBe('image')
+    expect(store.read()[0]?.models[0]?.capabilities?.text).toEqual({
+      state: 'untested',
+      source: 'legacy'
+    })
+    expect(store.read()[0]?.models[0]?.capabilities?.image_generation).toEqual({
+      state: 'untested',
+      source: 'legacy'
+    })
     expect(store.readDefaultImageModel()).toEqual({
       connectionId: connection.id,
       modelId: 'qwen3.7-plus'
@@ -151,6 +168,29 @@ describe('service-side model connection storage', () => {
     store.write([{ ...connection, id: 'second', name: '第二个连接' }])
 
     expect(store.read().map((item) => item.id)).toEqual(['second'])
+    database.close()
+  })
+
+  it('persists one tested capability without changing another model', () => {
+    const database = openRuntimeDatabase(databasePath())
+    const store = createSqliteModelConnectionStore(database)
+    store.write([connection])
+    const saved = store.read()[0]!
+    saved.models[0]!.capabilities = {
+      ...saved.models[0]!.capabilities,
+      vision: { state: 'success', source: 'probe', testedAt: '2026-09-25T00:00:00Z' }
+    }
+    store.write([saved])
+    const after = store.read()[0]!
+    expect(after.models[0]?.capabilities?.vision).toEqual({
+      state: 'success',
+      source: 'probe',
+      testedAt: '2026-09-25T00:00:00Z'
+    })
+    expect(after.models[1]?.capabilities?.vision).toEqual({
+      state: 'untested',
+      source: 'catalog'
+    })
     database.close()
   })
 

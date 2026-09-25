@@ -318,6 +318,55 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
           ADD COLUMN image_generation_api TEXT NOT NULL DEFAULT 'openai-images';
       `)
     }
+  },
+  {
+    version: 11,
+    name: 'classify-chat-and-image-models',
+    up(database) {
+      database.exec(`
+        ALTER TABLE model_connection_models
+          ADD COLUMN model_kind TEXT NOT NULL DEFAULT 'chat';
+        UPDATE model_connection_models
+        SET model_kind = 'image'
+        WHERE image_generation_enabled = 1
+           OR EXISTS (
+             SELECT 1 FROM default_image_model AS chosen
+             WHERE chosen.connection_id = model_connection_models.connection_id
+               AND chosen.model_id = model_connection_models.model_id
+           );
+      `)
+    }
+  },
+  {
+    version: 12,
+    name: 'record-model-capability-results',
+    up(database) {
+      database.exec(`
+        CREATE TABLE model_capability_results (
+          connection_id TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          capability TEXT NOT NULL CHECK (capability IN ('text', 'reasoning', 'vision', 'image_generation')),
+          state TEXT NOT NULL CHECK (state IN ('untested', 'testing', 'success', 'unsupported', 'failed', 'inconclusive')),
+          source TEXT NOT NULL CHECK (source IN ('catalog', 'probe', 'legacy')),
+          tested_at TEXT,
+          failure_code TEXT,
+          failure_message TEXT,
+          PRIMARY KEY (connection_id, model_id, capability),
+          FOREIGN KEY (connection_id, model_id)
+            REFERENCES model_connection_models(connection_id, model_id) ON DELETE CASCADE
+        );
+        INSERT INTO model_capability_results
+          (connection_id, model_id, capability, state, source)
+        SELECT models.connection_id, models.model_id, capabilities.capability, 'untested', 'legacy'
+        FROM model_connection_models AS models
+        CROSS JOIN (
+          SELECT 'text' AS capability UNION ALL
+          SELECT 'reasoning' UNION ALL
+          SELECT 'vision' UNION ALL
+          SELECT 'image_generation'
+        ) AS capabilities;
+      `)
+    }
   }
 ]
 
