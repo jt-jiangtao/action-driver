@@ -311,6 +311,8 @@ test('keeps primary controls reachable at the 1024x700 minimum window', async ()
 
   await page.getByRole('button', { name: '设置' }).click()
   await expectInsideViewport(page, page.getByRole('button', { name: '添加模型集' }))
+  await expectInsideViewport(page, page.getByRole('button', { name: '刷新并测试公司模型网关' }))
+  await expectInsideViewport(page, page.getByRole('button', { name: '测试gpt-5.2', exact: true }))
   await page.getByTestId('e2e/settings/sidebar/skills#button').click()
   await expectInsideViewport(page, page.getByTestId('e2e/settings/skills/create#button'))
   await expectInsideViewport(page, page.getByTestId('e2e/settings/skills/search#input'))

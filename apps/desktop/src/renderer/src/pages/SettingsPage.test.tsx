@@ -1,4 +1,4 @@
-import { render, screen, within, type RenderOptions } from '@testing-library/react'
+import { render, screen, within, waitFor, type RenderOptions } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -12,11 +12,119 @@ function renderWithQuery(element: ReactElement, options?: RenderOptions) {
 }
 
 describe('SettingsPage model connections', () => {
+  it('refreshes and tests every probeable model with visible batch progress', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const actualRefresh = service.refresh.bind(service)
+    const refresh = vi.spyOn(service, 'refresh').mockImplementation(async (connectionId) => [
+      ...(await actualRefresh(connectionId)),
+      {
+        id: 'audio-only',
+        name: 'audio-only',
+        enabled: true,
+        testState: 'untested',
+        catalogLabels: ['speech_recognition']
+      }
+    ])
+    const test = vi.spyOn(service, 'testConnectionModels')
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(3))
+    expect(refresh).toHaveBeenCalledExactlyOnceWith('company-gateway')
+    expect(test.mock.calls.map((call) => call[1])).toEqual([
+      ['gpt-5.2'],
+      ['gpt-5.2-mini'],
+      ['gpt-4.1']
+    ])
+    expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
+  })
+
+  it('continues a refresh batch after one model request fails', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const actualTest = service.testConnectionModels.bind(service)
+    const test = vi
+      .spyOn(service, 'testConnectionModels')
+      .mockRejectedValueOnce(new Error('服务暂不可用'))
+      .mockImplementation((connectionId, modelIds) => actualTest(connectionId, modelIds))
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
+    expect(await screen.findByRole('alert', { name: 'gpt-5.2 测试错误' })).toHaveTextContent(
+      '服务暂不可用'
+    )
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(3))
+    expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
+  })
+
+  it('shows discovery errors next to the connection and allows refreshing again', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const refresh = vi.spyOn(service, 'refresh').mockRejectedValueOnce(new Error('连接超时'))
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: /刷新并测试公司模型网关/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('刷新或测试失败：连接超时')
+    await user.click(screen.getByRole('button', { name: /刷新并测试公司模型网关/ }))
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
+  })
+
+  it('shows a single-model request error and permits retry', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const test = vi
+      .spyOn(service, 'testConnectionModels')
+      .mockRejectedValueOnce(new Error('连接超时'))
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    await user.click(await screen.findByRole('button', { name: '测试gpt-5.2' }))
+    expect(await screen.findByRole('alert', { name: 'gpt-5.2 测试错误' })).toHaveTextContent(
+      '连接超时'
+    )
+    await user.click(screen.getByRole('button', { name: '测试gpt-5.2' }))
+    await waitFor(() => expect(test).toHaveBeenCalledTimes(2))
+  })
+
+  it('keeps batch and manual probes from overlapping', async () => {
+    const user = userEvent.setup()
+    const service = new MockModelConnectionsService({ delayMs: 0 })
+    const actualTest = service.testConnectionModels.bind(service)
+    const actualRefresh = service.refresh.bind(service)
+    let releaseManual: (() => void) | undefined
+    const manualGate = new Promise<void>((resolve) => {
+      releaseManual = resolve
+    })
+    vi.spyOn(service, 'testConnectionModels').mockImplementationOnce(async (connectionId, ids) => {
+      await manualGate
+      return actualTest(connectionId, ids)
+    })
+    let releaseRefresh: (() => void) | undefined
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    vi.spyOn(service, 'refresh').mockImplementationOnce(async (connectionId) => {
+      await refreshGate
+      return actualRefresh(connectionId)
+    })
+    renderWithQuery(<SettingsPage service={service} onBack={() => undefined} />)
+    const manual = await screen.findByRole('button', { name: '测试gpt-5.2' })
+    const refresh = screen.getByRole('button', { name: '刷新并测试公司模型网关' })
+    await user.click(manual)
+    expect(refresh).toBeDisabled()
+    releaseManual?.()
+    await waitFor(() => expect(refresh).toBeEnabled())
+    await user.click(refresh)
+    expect(manual).toBeDisabled()
+    releaseRefresh?.()
+    expect(await screen.findByText('测试完成 · 3/3')).toBeVisible()
+  })
+
   it('shows per-capability probe results and allows a tested image default', async () => {
     const user = userEvent.setup()
     const seed = (await new MockModelConnectionsService({ delayMs: 0 }).list()).slice(0, 1)
     seed[0]!.models.push({
-      id: 'wan2.7-image', name: 'wan2.7-image', enabled: true, testState: 'untested',
+      id: 'wan2.7-image',
+      name: 'wan2.7-image',
+      enabled: true,
+      testState: 'untested',
       capabilities: { image_generation: { state: 'success', source: 'probe' } }
     })
     const service = new MockModelConnectionsService({ delayMs: 0, seed })
@@ -26,7 +134,8 @@ describe('SettingsPage model connections', () => {
     expect(screen.queryByRole('combobox', { name: 'gpt-5.2 生图接口' })).toBeNull()
     await user.click(screen.getByRole('button', { name: '设为默认生图模型：wan2.7-image' }))
     expect(await service.getDefaultImageModel()).toEqual({
-      connectionId: 'company-gateway', modelId: 'wan2.7-image'
+      connectionId: 'company-gateway',
+      modelId: 'wan2.7-image'
     })
   })
 

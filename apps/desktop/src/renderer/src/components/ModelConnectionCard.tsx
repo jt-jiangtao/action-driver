@@ -17,7 +17,11 @@ export function ModelConnectionCard({
   onTestModel,
   onToggleModel,
   defaultImageModel,
-  onToggleDefaultImageModel
+  onToggleDefaultImageModel,
+  batchProgress,
+  batchError,
+  testingModels,
+  modelErrors
 }: {
   connection: ModelConnection
   expanded: boolean
@@ -30,9 +34,18 @@ export function ModelConnectionCard({
   onToggleModel(modelId: string, enabled: boolean): void
   defaultImageModel?: ModelRef | null
   onToggleDefaultImageModel?(modelId: string): void
+  batchProgress?:
+    | { done: number; total: number; phase: 'discovering' | 'testing' | 'done' }
+    | undefined
+  batchError?: string | undefined
+  testingModels?: ReadonlySet<string> | undefined
+  modelErrors?: Readonly<Record<string, string>> | undefined
 }) {
   const refreshPendingRef = useRef(false)
   const [refreshPending, setRefreshPending] = useState(false)
+  const modelTestPending = [...(testingModels ?? [])].some((key) =>
+    key.startsWith(`${connection.id}:`)
+  )
 
   const refresh = async () => {
     if (refreshPendingRef.current) return
@@ -77,17 +90,19 @@ export function ModelConnectionCard({
         </span>
         <div className="model-card-actions">
           <button
-            className="plain-icon-action"
+            className="model-refresh-action"
             type="button"
-            aria-label={`刷新${connection.name}`}
+            aria-label={`刷新并测试${connection.name}`}
+            title="重新发现并测试全部模型；生图测试会生成图片，可能产生费用"
             data-testid={e2eId(
               'e2e/settings/model-connections/connections/:connection-id/refresh#button',
               { 'connection-id': connection.id }
             )}
-            disabled={refreshPending}
+            disabled={refreshPending || modelTestPending}
             onClick={() => void refresh()}
           >
             <AppIcon className={refreshPending ? 'spin-icon' : ''} name="refresh" />
+            <span>刷新并测试</span>
           </button>
           <div className="model-more-wrap">
             <button
@@ -123,11 +138,29 @@ export function ModelConnectionCard({
         </div>
       </header>
 
+      {batchProgress ? (
+        <div className="model-batch-progress" role="status" aria-live="polite">
+          {batchProgress.phase === 'discovering'
+            ? '正在发现模型…'
+            : batchProgress.phase === 'testing'
+              ? `正在测试 · ${batchProgress.done}/${batchProgress.total}`
+              : `测试完成 · ${batchProgress.done}/${batchProgress.total}`}
+        </div>
+      ) : null}
+      {batchError ? (
+        <div className="model-batch-error" role="alert">
+          刷新或测试失败：{batchError}
+        </div>
+      ) : null}
+
       {expanded ? (
         <ModelLibrary
           connection={connection}
           onTestModel={onTestModel}
           onToggleModel={onToggleModel}
+          testingModels={testingModels}
+          modelErrors={modelErrors}
+          batchTesting={refreshPending}
           {...(defaultImageModel !== undefined ? { defaultImageModel } : {})}
           {...(onToggleDefaultImageModel ? { onToggleDefaultImageModel } : {})}
         />

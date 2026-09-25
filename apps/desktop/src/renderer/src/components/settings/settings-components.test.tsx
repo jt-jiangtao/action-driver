@@ -221,9 +221,9 @@ describe('settings components', () => {
       />
     )
 
-    await user.dblClick(screen.getByRole('button', { name: '刷新公司模型网关' }))
+    await user.dblClick(screen.getByRole('button', { name: '刷新并测试公司模型网关' }))
     expect(onRefresh).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: '刷新公司模型网关' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '刷新并测试公司模型网关' })).toBeDisabled()
     finish?.()
   })
 })

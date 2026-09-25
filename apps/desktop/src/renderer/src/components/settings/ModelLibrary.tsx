@@ -7,21 +7,26 @@ export function ModelLibrary({
   onTestModel,
   onToggleModel,
   defaultImageModel,
-  onToggleDefaultImageModel
+  onToggleDefaultImageModel,
+  testingModels,
+  modelErrors,
+  batchTesting = false
 }: {
   connection: ModelConnection
   onTestModel(modelId: string): void
   onToggleModel(modelId: string, enabled: boolean): void
   defaultImageModel?: ModelRef | null
   onToggleDefaultImageModel?(modelId: string): void
+  testingModels?: ReadonlySet<string> | undefined
+  modelErrors?: Readonly<Record<string, string>> | undefined
+  batchTesting?: boolean
 }) {
   return (
     <div className="model-table">
       <div className="model-table-head" aria-hidden="true">
         <span>模型</span>
-        <span>能力测试</span>
-        <span>启用</span>
-        <span>默认生图</span>
+        <span>能力状态</span>
+        <span>操作</span>
       </div>
       {connection.models.map((model) => (
         <LibraryModelRow
@@ -34,6 +39,9 @@ export function ModelLibrary({
             defaultImageModel.modelId === model.id
           }
           onToggleDefaultImageModel={() => onToggleDefaultImageModel?.(model.id)}
+          testing={testingModels?.has(`${connection.id}:${model.id}`) ?? false}
+          requestError={modelErrors?.[`${connection.id}:${model.id}`]}
+          testDisabled={batchTesting}
         />
       ))}
     </div>
