@@ -480,6 +480,8 @@ async function toOpenAiMessages(
         const content = await Promise.all(
           message.content.map(async (part) => {
             if (part.kind === 'text') return { type: 'text', text: part.text }
+            if (part.kind !== 'image')
+              throw new ModelStreamError('invalid-request', 'Unsupported user message content')
             if (!imageResolver)
               throw new ModelStreamError('invalid-request', 'Image input is unavailable')
             const image = await imageResolver(part.asset)

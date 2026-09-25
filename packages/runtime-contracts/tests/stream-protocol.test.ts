@@ -123,6 +123,47 @@ describe('agent stream protocol', () => {
     })
   })
 
+  it('accepts an ordered image batch event and rejects image bytes or prompts', () => {
+    const batch = {
+      type: 'response.image_batch',
+      protocol: STREAM_PROTOCOL,
+      eventId: 'batch-1',
+      cursor: 5,
+      sequence: 5,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt,
+      callId: 'call-1',
+      imageCount: 2,
+      contentIndex: 0
+    }
+    expect(parseStreamServerEvent(batch)).toMatchObject({ callId: 'call-1', imageCount: 2 })
+    expect(() => parseStreamServerEvent({ ...batch, prompt: 'secret' })).toThrow()
+    expect(() => parseStreamServerEvent({ ...batch, imageCount: 17 })).toThrow()
+    const snapshot = {
+      protocol: STREAM_PROTOCOL,
+      eventId: 'snapshot-batch',
+      cursor: 6,
+      sequence: 6,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt,
+      type: 'response.snapshot',
+      status: 'running',
+      messages: [{ id: 'assistant-1', role: 'assistant', content: '', createdAt: occurredAt, parts: [{ kind: 'image-batch', callId: 'call-1', imageCount: 2 }] }],
+      error: null
+    }
+    expect(parseStreamServerEvent(snapshot)).toMatchObject({ messages: [{ parts: [{ kind: 'image-batch' }] }] })
+  })
+
   it('preserves enabled skill descriptions on a new request', () => {
     const event = parseStreamClientEvent({
       type: 'request.create',

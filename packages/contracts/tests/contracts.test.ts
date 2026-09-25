@@ -13,7 +13,7 @@ import {
 } from '../src/index'
 
 describe('agent skill contracts', () => {
-  it('keeps assistant text first and sorts generated images by call slot', () => {
+  it('preserves legacy assistant part order while removing duplicate images', () => {
     const asset = (assetId: string) => ({ assetId, sessionId: 's', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const })
     expect(normalizeAssistantParts([
       { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } },
@@ -22,9 +22,31 @@ describe('agent skill contracts', () => {
       { kind: 'text', text: '后' },
       { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } }
     ])).toEqual([
-      { kind: 'text', text: '前后' },
+      { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } },
+      { kind: 'text', text: '前' },
       { kind: 'image', asset: asset('zero'), generation: { callId: 'call', index: 0 } },
-      { kind: 'image', asset: asset('two'), generation: { callId: 'call', index: 2 } }
+      { kind: 'text', text: '后' }
+    ])
+  })
+
+  it('keeps text on either side of image batches and deduplicates call slots', () => {
+    const asset = (assetId: string) => ({ assetId, sessionId: 's', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const })
+    expect(normalizeAssistantParts([
+      { kind: 'text', text: '前' },
+      { kind: 'image-batch', callId: 'a', imageCount: 2 },
+      { kind: 'image', asset: asset('a-1'), generation: { callId: 'a', index: 1 } },
+      { kind: 'image-batch', callId: 'b', imageCount: 1 },
+      { kind: 'text', text: '后' },
+      { kind: 'image', asset: asset('a-0'), generation: { callId: 'a', index: 0 } },
+      { kind: 'image', asset: asset('a-1'), generation: { callId: 'a', index: 1 } },
+      { kind: 'image-batch', callId: 'a', imageCount: 2 }
+    ])).toEqual([
+      { kind: 'text', text: '前' },
+      { kind: 'image-batch', callId: 'a', imageCount: 2 },
+      { kind: 'image', asset: asset('a-1'), generation: { callId: 'a', index: 1 } },
+      { kind: 'image-batch', callId: 'b', imageCount: 1 },
+      { kind: 'text', text: '后' },
+      { kind: 'image', asset: asset('a-0'), generation: { callId: 'a', index: 0 } }
     ])
   })
   it('keeps Browser Use and Computer Use as separate skills', () => {

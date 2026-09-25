@@ -27,6 +27,7 @@ const imageAssetSchema = z
 
 const messagePartSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string() }).strict(),
+  z.object({ kind: z.literal('image-batch'), callId: idSchema, imageCount: z.number().int().min(1).max(16) }).strict(),
   z.object({ kind: z.literal('image'), asset: imageAssetSchema, generation: z.object({ callId: idSchema, index: z.number().int().nonnegative() }).strict().optional() }).strict()
 ])
 
@@ -207,6 +208,16 @@ const responseImageEventSchema = z
     contentIndex: z.number().int().nonnegative(),
     callId: idSchema,
     index: z.number().int().nonnegative()
+  })
+  .strict()
+
+const responseImageBatchEventSchema = z
+  .object({
+    type: z.literal('response.image_batch'),
+    ...streamIdentity,
+    callId: idSchema,
+    imageCount: z.number().int().min(1).max(16),
+    contentIndex: z.number().int().nonnegative()
   })
   .strict()
 
@@ -447,6 +458,7 @@ export const streamServerEventSchema = z.discriminatedUnion('type', [
   responseStartEventSchema,
   responseContentEventSchema,
   responseImageEventSchema,
+  responseImageBatchEventSchema,
   responseToolPreparingEventSchema,
   responseEndEventSchema,
   runtimeInterruptedEventSchema,
@@ -462,12 +474,14 @@ export type RequestAcceptedEvent = z.infer<typeof requestAcceptedEventSchema>
 export type ResponseStartEvent = z.infer<typeof responseStartEventSchema>
 export type ResponseContentEvent = z.infer<typeof responseContentEventSchema>
 export type ResponseImageEvent = z.infer<typeof responseImageEventSchema>
+export type ResponseImageBatchEvent = z.infer<typeof responseImageBatchEventSchema>
 export type ResponseEndEvent = z.infer<typeof responseEndEventSchema>
 export type ResponseSnapshotEvent = z.infer<typeof responseSnapshotEventSchema>
 export type StreamResponseEvent =
   | ResponseStartEvent
   | ResponseContentEvent
   | ResponseImageEvent
+  | ResponseImageBatchEvent
   | z.infer<typeof responseToolPreparingEventSchema>
   | ResponseEndEvent
 export type ActivityStreamEvent = Extract<StreamServerEvent, { type: `activity.${string}` }>

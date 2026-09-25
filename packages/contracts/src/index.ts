@@ -56,6 +56,7 @@ export type ImageAssetRef = {
 
 export type MessageContentPart =
   | { kind: 'text'; text: string }
+  | { kind: 'image-batch'; callId: string; imageCount: number }
   | { kind: 'image'; asset: ImageAssetRef; generation?: { callId: string; index: number } | undefined }
 
 export type MessageContent = { text: string } | { parts: MessageContentPart[] }
@@ -65,28 +66,31 @@ export function readMessageContentParts(content: MessageContent): MessageContent
 }
 
 export function normalizeAssistantParts(parts: readonly MessageContentPart[]): MessageContentPart[] {
-  const text = parts.filter((part): part is Extract<MessageContentPart, { kind: 'text' }> => part.kind === 'text').map((part) => part.text).join('')
-  const images = parts.filter((part): part is Extract<MessageContentPart, { kind: 'image' }> => part.kind === 'image')
-  const callOrder = new Map<string, number>()
-  const seen = new Set<string>()
-  for (const image of images) {
-    const callId = image.generation?.callId
-    if (callId && !callOrder.has(callId)) callOrder.set(callId, callOrder.size)
+  const normalized: MessageContentPart[] = []
+  const seenBatches = new Set<string>()
+  const seenImages = new Set<string>()
+  for (const part of parts) {
+    if (part.kind === 'text') {
+      if (!part.text) continue
+      const previous = normalized.at(-1)
+      if (previous?.kind === 'text') previous.text += part.text
+      else normalized.push({ kind: 'text', text: part.text })
+      continue
+    }
+    if (part.kind === 'image-batch') {
+      if (seenBatches.has(part.callId)) continue
+      seenBatches.add(part.callId)
+      normalized.push(part)
+      continue
+    }
+    const key = part.generation
+      ? `${part.generation.callId}:${part.generation.index}`
+      : part.asset.assetId
+    if (seenImages.has(key)) continue
+    seenImages.add(key)
+    normalized.push(part)
   }
-  const sorted = images.map((part, position) => ({ part, position })).sort((left, right) => {
-    const a = left.part.generation
-    const b = right.part.generation
-    if (!a && !b) return left.position - right.position
-    if (!a) return 1
-    if (!b) return -1
-    return (callOrder.get(a.callId)! - callOrder.get(b.callId)!) || (a.index - b.index)
-  }).map(({ part }) => part).filter((part) => {
-    const key = part.generation ? `${part.generation.callId}:${part.generation.index}` : part.asset.assetId
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-  return [...(text ? [{ kind: 'text' as const, text }] : []), ...sorted]
+  return normalized
 }
 
 export interface ExecutionStepProjection {
