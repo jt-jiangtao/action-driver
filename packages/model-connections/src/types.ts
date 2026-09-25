@@ -4,6 +4,23 @@ import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
 export type ImageGenerationApi = 'openai-images' | 'token-plan'
+export type ModelKind = 'chat' | 'image'
+
+export type ModelCapability = 'text' | 'reasoning' | 'vision' | 'image_generation'
+export type CapabilityState =
+  | 'untested'
+  | 'testing'
+  | 'success'
+  | 'unsupported'
+  | 'failed'
+  | 'inconclusive'
+export type CapabilitySource = 'catalog' | 'probe' | 'legacy'
+export type ModelCapabilityResultDto = {
+  state: CapabilityState
+  source: CapabilitySource
+  testedAt?: string | undefined
+  failure?: ModelFailure | undefined
+}
 
 export type ModelTestState = 'untested' | 'testing' | 'success' | 'failed' | 'unsupported'
 
@@ -107,11 +124,14 @@ export type ModelConnectionDraftDto = {
 export type ModelOptionDto = {
   id: string
   name: string
+  kind?: ModelKind | undefined
   enabled: boolean
   testState: ModelTestState
   imageInputEnabled?: boolean | undefined
   imageGenerationEnabled?: boolean | undefined
   imageGenerationApi?: ImageGenerationApi | undefined
+  capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
+  catalogLabels?: string[] | undefined
 }
 
 export type ModelConnectionDto = {
@@ -129,11 +149,13 @@ export type ModelConnectionTestResultDto = { ok: true } | { ok: false; failure: 
 export type ModelTestResultDto = {
   modelId: string
   state: ModelProbeState
+  capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
 }
 
 export type ModelTestRequestDto = {
   draft: ModelConnectionDraftDto
   modelIds: string[]
+  imageModels?: { modelId: string; api: ImageGenerationApi }[] | undefined
 }
 
 export type ModelConnectionTestRequestDto = {
@@ -145,6 +167,12 @@ export type ModelSetEnabledRequestDto = {
   connectionId: string
   modelId: string
   enabled: boolean
+}
+
+export type ModelSetKindRequestDto = {
+  connectionId: string
+  modelId: string
+  kind: ModelKind
 }
 
 export type ModelImageCapabilityRequestDto = {
@@ -178,6 +206,7 @@ export interface ModelConnectionServicePort {
   testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]>
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
+  setModelKind(request: ModelSetKindRequestDto): Promise<void>
   setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
   setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
