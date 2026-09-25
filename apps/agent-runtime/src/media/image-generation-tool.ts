@@ -21,14 +21,14 @@ const definition: ToolDefinition = {
   version: 1,
   modelName: 'image_generate',
   description:
-    'Generate one to four images from independent text prompts. Each image may complete separately.',
+    'Generate one to sixteen images from independent text prompts, with up to four requests running at once. Each image may complete separately.',
   inputSchema: {
     type: 'object',
     properties: {
       images: {
         type: 'array',
         minItems: 1,
-        maxItems: 4,
+        maxItems: 16,
         items: {
           type: 'object',
           properties: { prompt: { type: 'string', minLength: 1, maxLength: 4000 } },
@@ -42,7 +42,7 @@ const definition: ToolDefinition = {
   },
   risk: 'medium',
   sideEffects: { filesystem: 'write', network: true },
-  timeoutMs: 180_000
+  timeoutMs: 600_000
 }
 
 type Settled = { index: number; ok: true; bytes: Uint8Array } | { index: number; ok: false }
@@ -59,7 +59,7 @@ export function createImageGenerationTool(options: ImageGenerationToolOptions): 
         if (
           !Array.isArray(images) ||
           images.length < 1 ||
-          images.length > 4 ||
+          images.length > 16 ||
           images.some((item) => !isPrompt(item))
         )
           throw new Error('IMAGE_COUNT_INVALID')
@@ -72,23 +72,28 @@ export function createImageGenerationTool(options: ImageGenerationToolOptions): 
         if (signal?.aborted) throw signal.reason ?? new Error('IMAGE_CANCELLED')
 
         const pending = new Map<number, Promise<Settled>>()
-        for (const [index, item] of images.entries()) {
-          const prompt = (item as { prompt: string }).prompt.trim()
+        let nextIndex = 0
+        const startNext = () => {
+          if (signal?.aborted || nextIndex >= images.length) return
+          const index = nextIndex++
+          const prompt = (images[index] as { prompt: string }).prompt.trim()
           pending.set(
             index,
-            options
-              .generate({ model, prompt }, signal)
+            Promise.resolve()
+              .then(() => options.generate({ model, prompt }, signal))
               .then((bytes): Settled => ({ index, ok: true, bytes }))
               .catch((): Settled => ({ index, ok: false }))
           )
         }
+        for (let index = 0; index < Math.min(4, images.length); index += 1) startNext()
         let succeeded = 0
         let failed = 0
         while (pending.size) {
           if (signal?.aborted) throw signal.reason ?? new Error('IMAGE_CANCELLED')
-          const settled = await Promise.race(pending.values())
+          const settled = await waitForSettledOrAbort(pending.values(), signal)
           pending.delete(settled.index)
           if (signal?.aborted) throw signal.reason ?? new Error('IMAGE_CANCELLED')
+          startNext()
           if (!settled.ok) {
             failed += 1
             continue
@@ -108,6 +113,33 @@ export function createImageGenerationTool(options: ImageGenerationToolOptions): 
       }
     }
   }
+}
+
+function waitForSettledOrAbort<T>(
+  promises: Iterable<Promise<T>>,
+  signal?: AbortSignal
+): Promise<T> {
+  const next = Promise.race(promises)
+  if (!signal) return next
+  if (signal.aborted) return Promise.reject(signal.reason ?? new Error('IMAGE_CANCELLED'))
+  return new Promise<T>((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener('abort', onAbort)
+    const onAbort = () => {
+      cleanup()
+      reject(signal.reason ?? new Error('IMAGE_CANCELLED'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    next.then(
+      (value) => {
+        cleanup()
+        resolve(value)
+      },
+      (error) => {
+        cleanup()
+        reject(error)
+      }
+    )
+  })
 }
 
 function isPrompt(value: unknown): value is { prompt: string } {

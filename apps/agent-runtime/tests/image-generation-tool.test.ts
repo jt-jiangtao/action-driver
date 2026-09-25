@@ -114,7 +114,7 @@ describe('image_generate', () => {
     expect(saveGenerated).toHaveBeenCalledTimes(4)
   })
 
-  it('rejects a fifth item before network I/O', async () => {
+  it('rejects a seventeenth item before network I/O', async () => {
     const generate = vi.fn()
     const tool = createImageGenerationTool({
       defaultModel: async () => ({ connectionId: 'c', modelId: 'm' }),
@@ -123,11 +123,107 @@ describe('image_generate', () => {
       sessionForTask: async () => 's'
     })
     await expect(async () => {
-      for await (const event of tool.executor.execute(call(['a', 'b', 'c', 'd', 'e']))) {
+      for await (const event of tool.executor.execute(
+        call(Array.from({ length: 17 }, (_, index) => String(index)))
+      )) {
         expect(event).toBeDefined()
       }
     }).rejects.toThrow('IMAGE_COUNT_INVALID')
     expect(generate).not.toHaveBeenCalled()
+  })
+
+  it('queues sixteen requests with no more than four active and preserves their indices', async () => {
+    const jobs = Array.from({ length: 16 }, () => deferred<Uint8Array>())
+    let active = 0
+    let peak = 0
+    const generate = vi.fn(({ prompt }: { prompt: string }) => {
+      active += 1
+      peak = Math.max(peak, active)
+      return jobs[Number(prompt)]!.promise.finally(() => {
+        active -= 1
+      })
+    })
+    const tool = createImageGenerationTool({
+      defaultModel: async () => ({ connectionId: 'c', modelId: 'image' }),
+      generate,
+      assets: { saveGenerated: async (_sessionId, bytes) => asset(bytes[0]!) },
+      sessionForTask: async () => 'session-1'
+    })
+    const prompts = Array.from({ length: 16 }, (_, index) => String(index))
+    const iterator = tool.executor.execute(call(prompts))[Symbol.asyncIterator]()
+    const first = iterator.next()
+    await tick()
+    expect(generate).toHaveBeenCalledTimes(4)
+    jobs[2]!.resolve(new Uint8Array([2]))
+    expect((await first).value).toMatchObject({ kind: 'asset', index: 2 })
+    await tick()
+    expect(generate).toHaveBeenCalledTimes(5)
+    for (const index of [0, 1, 3, ...Array.from({ length: 12 }, (_, offset) => offset + 4)]) {
+      const next = iterator.next()
+      jobs[index]!.resolve(new Uint8Array([index]))
+      expect((await next).value).toMatchObject({ kind: 'asset', index })
+    }
+    expect((await iterator.next()).value).toMatchObject({
+      kind: 'result',
+      output: { succeeded: 16, failed: 0 }
+    })
+    expect(peak).toBe(4)
+    expect(generate).toHaveBeenCalledTimes(16)
+  })
+
+  it('uses a freed slot after one request fails and keeps the other five images', async () => {
+    const tool = createImageGenerationTool({
+      defaultModel: async () => ({ connectionId: 'c', modelId: 'image' }),
+      generate: async ({ prompt }) => {
+        if (prompt === 'bad') throw new Error('provider rejected one image')
+        return new Uint8Array([Number(prompt)])
+      },
+      assets: { saveGenerated: async (_sessionId, bytes) => asset(bytes[0]!) },
+      sessionForTask: async () => 'session-1'
+    })
+    const events = []
+    for await (const event of tool.executor.execute(call(['bad', '1', '2', '3', '4', '5'])))
+      events.push(event)
+    expect(
+      events
+        .filter((event) => event.kind === 'asset')
+        .map((event) => event.index)
+        .sort((a, b) => a - b)
+    ).toEqual([1, 2, 3, 4, 5])
+    expect(events.at(-1)).toMatchObject({ kind: 'result', output: { succeeded: 5, failed: 1 } })
+  })
+
+  it('cancels a queued batch without starting another request or saving late assets', async () => {
+    const jobs = Array.from({ length: 6 }, () => deferred<Uint8Array>())
+    const controller = new AbortController()
+    const generate = vi.fn(({ prompt }: { prompt: string }) => jobs[Number(prompt)]!.promise)
+    const saveGenerated = vi.fn(async (_sessionId: string, bytes: Uint8Array) => asset(bytes[0]!))
+    const tool = createImageGenerationTool({
+      defaultModel: async () => ({ connectionId: 'c', modelId: 'image' }),
+      generate,
+      assets: { saveGenerated },
+      sessionForTask: async () => 'session-1'
+    })
+    const iterator = tool.executor
+      .execute(call(['0', '1', '2', '3', '4', '5']), controller.signal)
+      [Symbol.asyncIterator]()
+    const first = iterator.next()
+    await tick()
+    expect(generate).toHaveBeenCalledTimes(4)
+    jobs[0]!.resolve(new Uint8Array([0]))
+    expect((await first).value).toMatchObject({ kind: 'asset', index: 0 })
+    const waiting = iterator.next()
+    await tick()
+    expect(generate).toHaveBeenCalledTimes(5)
+    controller.abort()
+    await expect(waiting).rejects.toBeDefined()
+    jobs[1]!.resolve(new Uint8Array([1]))
+    jobs[2]!.resolve(new Uint8Array([2]))
+    jobs[3]!.resolve(new Uint8Array([3]))
+    jobs[4]!.resolve(new Uint8Array([4]))
+    await tick()
+    expect(generate).toHaveBeenCalledTimes(5)
+    expect(saveGenerated).toHaveBeenCalledTimes(1)
   })
 
   it('preserves successful assets when a peer fails', async () => {

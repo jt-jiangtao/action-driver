@@ -1,6 +1,6 @@
 # 单次生成最多十六张图片 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让 `image.generate` 一次可靠生成最多 16 张图片，每次调用并发最多 4 张，且对话画廊保持每张图片的固定位置。
 
@@ -38,7 +38,7 @@
 - Consumes: `ToolCall.arguments.images` 数组、`ImageGenerationToolOptions.generate`、`AbortSignal`。
 - Produces: 原有 `asset` 事件（含原始 `index`）和 `{ succeeded, failed }` 结果；工具定义新增上限 16、总超时 600 秒。
 
-- [ ] **Step 1: 写失败测试。** 将现有“第 5 张拒绝”改为第 17 张拒绝；增加 5、16 张可运行、16 张只有 4 个活动请求、失败补位、乱序索引、取消未启动队列及迟到资产不保存的用例。延迟请求可以沿用本文件 `deferred()`；关键断言示例：
+- [x] **Step 1: 写失败测试。** 将现有“第 5 张拒绝”改为第 17 张拒绝；增加 5、16 张可运行、16 张只有 4 个活动请求、失败补位、乱序索引、取消未启动队列及迟到资产不保存的用例。延迟请求可以沿用本文件 `deferred()`；关键断言示例：
 
 ```ts
 const prompts = Array.from({ length: 16 }, (_, index) => String(index))
@@ -52,8 +52,8 @@ await tick()
 expect(generate).toHaveBeenCalledTimes(5)
 ```
 
-- [ ] **Step 2: 运行红灯。** `pnpm exec vitest run apps/agent-runtime/tests/image-generation-tool.test.ts`；确认新增边界/队列测试因 4 张上限或一次全启动而失败。
-- [ ] **Step 3: 实现最小队列。** 工具 schema `maxItems: 16`、执行器校验 `images.length > 16`、`timeoutMs: 600_000`。保持 `nextIndex` 和最多 4 个活动 promise；每次 settled 后先补位，再持久化/发出结果。等待活动 promise 时响应取消信号；开始、补位、保存和 yield 前检查取消。核心结构：
+- [x] **Step 2: 运行红灯。** `pnpm exec vitest run apps/agent-runtime/tests/image-generation-tool.test.ts`；确认新增边界/队列测试因 4 张上限或一次全启动而失败。
+- [x] **Step 3: 实现最小队列。** 工具 schema `maxItems: 16`、执行器校验 `images.length > 16`、`timeoutMs: 600_000`。保持 `nextIndex` 和最多 4 个活动 promise；每次 settled 后先补位，再持久化/发出结果。等待活动 promise 时响应取消信号；开始、补位、保存和 yield 前检查取消。核心结构：
 
 ```ts
 let nextIndex = 0
@@ -87,7 +87,7 @@ function waitForSettledOrAbort<T>(promises: Iterable<Promise<T>>, signal?: Abort
 }
 ```
 
-- [ ] **Step 4: 运行绿灯及相邻测试。** `pnpm exec vitest run apps/agent-runtime/tests/image-generation-tool.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts`；确认 4、5、16、17 张、失败补位、全部失败、取消和工具总超时的断言通过。
+- [x] **Step 4: 运行绿灯及相邻测试。** `pnpm exec vitest run apps/agent-runtime/tests/image-generation-tool.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts`；确认 4、5、16、17 张、失败补位、全部失败、取消和工具总超时的断言通过。
 - [ ] **Step 5: 提交可独立验证的工具变更。** `git add apps/agent-runtime/src/media/image-generation-tool.ts apps/agent-runtime/tests/image-generation-tool.test.ts`，随后 `git commit -m "feat: queue up to sixteen image requests"`。
 
 ### Task 2: 扩展数量事件与快照上限
