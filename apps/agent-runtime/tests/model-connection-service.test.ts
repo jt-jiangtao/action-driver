@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ModelServiceError, type ModelOptionDto } from '@actiondriver/model-connections'
 import { ModelConnectionService } from '../src/model-connections/service'
 import type {
@@ -226,6 +226,58 @@ describe('model connection service', () => {
         ]
       })
     ).rejects.toThrow('Token Plan')
+  })
+
+  it('routes the same default model through its selected image API', async () => {
+    const bytes = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVkAAAAASUVORK5CYII=',
+      'base64'
+    )
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('/images/generations'))
+        return new Response(JSON.stringify({ data: [{ b64_json: bytes.toString('base64') }] }))
+      if (url.endsWith('/multimodal-generation/generation'))
+        return new Response(
+          JSON.stringify({
+            output: {
+              choices: [{ message: { content: [{ image: 'https://cdn.example/image.png' }] } }]
+            }
+          })
+        )
+      if (url === 'https://cdn.example/image.png') return new Response(new Uint8Array(bytes))
+      throw new Error(`Unexpected URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+      const connection = await service.add({
+        draft: {
+          ...draft,
+          baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+        },
+        models: [
+          {
+            id: 'wan2.7-image',
+            name: 'wan2.7-image',
+            enabled: true,
+            testState: 'untested',
+            imageGenerationEnabled: true
+          }
+        ]
+      })
+      const model = { connectionId: connection.id, modelId: 'wan2.7-image' }
+      await service.setDefaultImageModel(model)
+      expect(await service.generateImage({ model, prompt: 'cat' })).toEqual(new Uint8Array(bytes))
+      await service.setModelImageGenerationApi({ ...model, api: 'token-plan' })
+      expect(await service.generateImage({ model, prompt: 'cat' })).toEqual(new Uint8Array(bytes))
+      expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+        'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/images/generations',
+        'https://token-plan.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+        'https://cdn.example/image.png'
+      ])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('keeps a configured image-only model when discovery does not list it', async () => {

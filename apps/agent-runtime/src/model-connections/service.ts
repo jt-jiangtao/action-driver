@@ -3,6 +3,10 @@ import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
+import {
+  createTokenPlanImageGenerationAdapter,
+  isTokenPlanBaseUrl
+} from '../media/token-plan-image-generation-adapter'
 import type { SecretCipher } from './credential-cipher'
 import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
@@ -277,7 +281,11 @@ export class ModelConnectionService
       !model.imageGenerationEnabled
     )
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
-    return createImageGenerationAdapter().generate(
+    const adapter =
+      model.imageGenerationApi === 'token-plan'
+        ? createTokenPlanImageGenerationAdapter()
+        : createImageGenerationAdapter()
+    return adapter.generate(
       {
         baseUrl: connection.baseUrl,
         apiKey: this.decrypt(connection),
@@ -443,15 +451,6 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
   return existing
     ? { ...existing }
     : { id, name: id, enabled: true, testState: 'untested', imageGenerationApi: 'openai-images' }
-}
-
-export function isTokenPlanBaseUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' && url.hostname.endsWith('.maas.aliyuncs.com')
-  } catch {
-    return false
-  }
 }
 
 export function validateDraft(draft: ModelConnectionDraftDto): ModelConnectionDraftDto {

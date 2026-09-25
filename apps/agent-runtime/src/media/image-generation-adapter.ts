@@ -90,7 +90,7 @@ export function createImageGenerationAdapter(
   }
 }
 
-async function readLimited(response: Response, limit: number): Promise<Uint8Array> {
+export async function readLimited(response: Response, limit: number): Promise<Uint8Array> {
   if (!response.body) throw new Error('IMAGE_PROVIDER_RESPONSE_INVALID')
   const reader = response.body.getReader()
   const chunks: Uint8Array[] = []
