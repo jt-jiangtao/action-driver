@@ -153,6 +153,81 @@ describe('model connection service', () => {
     expect(requests.every((request) => request.url.endsWith('/models'))).toBe(true)
   })
 
+  it('keeps a model-selected image API across refresh without changing the default', async () => {
+    const { service } = createService(() => ({
+      status: 200,
+      body: { data: [{ id: 'wan2.7-image' }] },
+      text: ''
+    }))
+    const connection = await service.add({
+      draft: {
+        ...draft,
+        baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+      },
+      models: [{ id: 'wan2.7-image', name: 'wan2.7-image', enabled: true, testState: 'untested' }]
+    })
+    await service.setModelImageCapability({
+      connectionId: connection.id,
+      modelId: 'wan2.7-image',
+      kind: 'generation',
+      enabled: true
+    })
+    await service.setDefaultImageModel({ connectionId: connection.id, modelId: 'wan2.7-image' })
+    await service.setModelImageGenerationApi({
+      connectionId: connection.id,
+      modelId: 'wan2.7-image',
+      api: 'token-plan'
+    })
+    expect(await service.refresh(connection.id)).toMatchObject([
+      { id: 'wan2.7-image', imageGenerationApi: 'token-plan', imageGenerationEnabled: true }
+    ])
+    expect(await service.getDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'wan2.7-image'
+    })
+  })
+
+  it('rejects Token Plan on an unrelated host and rejects an unknown API value', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    const connection = await service.add({
+      draft,
+      models: [{ id: 'image', name: 'image', enabled: true, testState: 'untested' }]
+    })
+    await expect(
+      service.setModelImageGenerationApi({
+        connectionId: connection.id,
+        modelId: 'image',
+        api: 'token-plan'
+      })
+    ).rejects.toThrow('Token Plan')
+    await expect(
+      service.setModelImageGenerationApi({
+        connectionId: connection.id,
+        modelId: 'image',
+        api: 'unknown' as 'token-plan'
+      })
+    ).rejects.toThrow('image generation API')
+  })
+
+  it('rejects a Token Plan model supplied during connection creation on an unrelated host', async () => {
+    const { service } = createService(() => ({ status: 200, body: {}, text: '' }))
+    await expect(
+      service.add({
+        draft,
+        models: [
+          {
+            id: 'image',
+            name: 'image',
+            enabled: true,
+            testState: 'untested',
+            imageGenerationEnabled: true,
+            imageGenerationApi: 'token-plan'
+          }
+        ]
+      })
+    ).rejects.toThrow('Token Plan')
+  })
+
   it('keeps a configured image-only model when discovery does not list it', async () => {
     const { service } = createService(() => ({
       status: 200,

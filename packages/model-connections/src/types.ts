@@ -3,6 +3,8 @@ import type { ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
+export type ImageGenerationApi = 'openai-images' | 'token-plan'
+
 export type ModelTestState = 'untested' | 'testing' | 'success' | 'failed' | 'unsupported'
 
 export type ModelProbeState = Extract<ModelTestState, 'success' | 'failed' | 'unsupported'>
@@ -109,6 +111,7 @@ export type ModelOptionDto = {
   testState: ModelTestState
   imageInputEnabled?: boolean | undefined
   imageGenerationEnabled?: boolean | undefined
+  imageGenerationApi?: ImageGenerationApi | undefined
 }
 
 export type ModelConnectionDto = {
@@ -151,6 +154,12 @@ export type ModelImageCapabilityRequestDto = {
   enabled: boolean
 }
 
+export type ModelImageGenerationApiRequestDto = {
+  connectionId: string
+  modelId: string
+  api: ImageGenerationApi
+}
+
 export type ModelAddRequestDto = {
   draft: ModelConnectionDraftDto
   models: ModelOptionDto[]
@@ -170,6 +179,7 @@ export interface ModelConnectionServicePort {
   testConnectionModels(request: ModelConnectionTestRequestDto): Promise<ModelTestResultDto[]>
   setModelEnabled(request: ModelSetEnabledRequestDto): Promise<void>
   setModelImageCapability(request: ModelImageCapabilityRequestDto): Promise<void>
+  setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void>
   setDefaultImageModel(model: ModelRef | null): Promise<void>
   getDefaultImageModel(): Promise<ModelRef | null>
   add(request: ModelAddRequestDto): Promise<ModelConnectionDto>

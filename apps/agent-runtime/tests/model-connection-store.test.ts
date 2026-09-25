@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { openRuntimeDatabase } from '../src/database'
+import { DEFAULT_RUNTIME_MIGRATIONS, openRuntimeDatabase } from '../src/database'
 import {
   createCredentialCipher,
   createCredentialKey
@@ -29,7 +29,8 @@ const connection: StoredModelConnection = {
       enabled: true,
       testState: 'success',
       imageInputEnabled: false,
-      imageGenerationEnabled: false
+      imageGenerationEnabled: false,
+      imageGenerationApi: 'openai-images'
     },
     {
       id: 'wan2.7-image',
@@ -37,7 +38,8 @@ const connection: StoredModelConnection = {
       enabled: false,
       testState: 'unsupported',
       imageInputEnabled: false,
-      imageGenerationEnabled: false
+      imageGenerationEnabled: false,
+      imageGenerationApi: 'token-plan'
     }
   ]
 }
@@ -78,6 +80,7 @@ describe('service-side model connection storage', () => {
     }>
     expect(columns.map((column) => column.name)).toContain('image_input_enabled')
     expect(columns.map((column) => column.name)).toContain('image_generation_enabled')
+    expect(columns.map((column) => column.name)).toContain('image_generation_api')
     const defaultRows = database
       .prepare('SELECT connection_id, model_id FROM default_image_model')
       .all()
@@ -95,6 +98,49 @@ describe('service-side model connection storage', () => {
     store.write([])
     expect(store.read()).toEqual([])
     database.close()
+  })
+
+  it('migrates a v9 image model without changing its default selection', () => {
+    const path = databasePath()
+    const old = openRuntimeDatabase(path, DEFAULT_RUNTIME_MIGRATIONS.slice(0, 9))
+    old
+      .prepare(
+        `INSERT INTO model_connections
+       (id, name, protocol, base_url, api_key_cipher, api_key_hint, expanded, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, '2026-01-01', '2026-01-01')`
+      )
+      .run(
+        connection.id,
+        connection.name,
+        connection.protocol,
+        connection.baseUrl,
+        connection.apiKeyCipher,
+        connection.apiKeyHint
+      )
+    old
+      .prepare(
+        `INSERT INTO model_connection_models
+       (connection_id, model_id, name, enabled, test_state, position,
+        image_input_enabled, image_generation_enabled)
+       VALUES (?, 'qwen3.7-plus', 'qwen3.7-plus', 1, 'success', 0, 0, 1)`
+      )
+      .run(connection.id)
+    old
+      .prepare(
+        `INSERT INTO default_image_model (singleton, connection_id, model_id)
+       VALUES (1, ?, 'qwen3.7-plus')`
+      )
+      .run(connection.id)
+    old.close()
+
+    const upgraded = openRuntimeDatabase(path)
+    const store = createSqliteModelConnectionStore(upgraded)
+    expect(store.read()[0]?.models[0]?.imageGenerationApi).toBe('openai-images')
+    expect(store.readDefaultImageModel()).toEqual({
+      connectionId: connection.id,
+      modelId: 'qwen3.7-plus'
+    })
+    upgraded.close()
   })
 
   it('replaces the whole list on write so the service stays the only writer', () => {

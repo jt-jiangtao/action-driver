@@ -20,6 +20,7 @@ import type {
   ModelOptionDto,
   ModelSetEnabledRequestDto,
   ModelImageCapabilityRequestDto,
+  ModelImageGenerationApiRequestDto,
   ModelTestRequestDto,
   ModelTestResultDto,
   ModelConnectionServicePort,
@@ -219,6 +220,26 @@ export class ModelConnectionService
     this.write(connections)
   }
 
+  async setModelImageGenerationApi(request: ModelImageGenerationApiRequestDto): Promise<void> {
+    if (request.api !== 'openai-images' && request.api !== 'token-plan')
+      throw new ModelServiceError('invalid-request', 'Invalid image generation API')
+    const connections = this.read()
+    const connection = requireConnection(connections, request.connectionId)
+    const model = connection.models.find((candidate) => candidate.id === request.modelId)
+    if (!model) throw new ModelServiceError('invalid-request', `Unknown model: ${request.modelId}`)
+    if (request.api === 'token-plan' && !isTokenPlanBaseUrl(connection.baseUrl))
+      throw new ModelServiceError(
+        'invalid-request',
+        'Token Plan requires an official HTTPS gateway'
+      )
+    connection.models = connection.models.map((candidate) =>
+      candidate.id === request.modelId
+        ? { ...candidate, imageGenerationApi: request.api }
+        : candidate
+    )
+    this.write(connections)
+  }
+
   async setDefaultImageModel(model: ModelRef | null): Promise<void> {
     if (model) {
       const connection = requireConnection(this.read(), model.connectionId)
@@ -269,6 +290,16 @@ export class ModelConnectionService
 
   async add(request: ModelAddRequestDto): Promise<ModelConnectionDto> {
     const draft = validateDraft(request.draft)
+    for (const model of request.models) {
+      const api = model.imageGenerationApi ?? 'openai-images'
+      if (api !== 'openai-images' && api !== 'token-plan')
+        throw new ModelServiceError('invalid-request', 'Invalid image generation API')
+      if (api === 'token-plan' && !isTokenPlanBaseUrl(draft.baseUrl))
+        throw new ModelServiceError(
+          'invalid-request',
+          'Token Plan requires an official HTTPS gateway'
+        )
+    }
     const connections = this.read()
     const connection: StoredModelConnection = {
       id: nextConnectionId(connections, draft.name),
@@ -278,7 +309,10 @@ export class ModelConnectionService
       apiKeyCipher: this.encrypt(draft.apiKey),
       apiKeyHint: apiKeyHint(draft.apiKey),
       expanded: true,
-      models: request.models.map((model) => ({ ...model }))
+      models: request.models.map((model) => ({
+        ...model,
+        imageGenerationApi: model.imageGenerationApi ?? 'openai-images'
+      }))
     }
     this.write([...connections, connection])
     return toDto(connection)
@@ -406,7 +440,18 @@ function requireConnection(
 
 function mergeDiscoveredModel(connection: StoredModelConnection, id: string): ModelOptionDto {
   const existing = connection.models.find((model) => model.id === id)
-  return existing ? { ...existing } : { id, name: id, enabled: true, testState: 'untested' }
+  return existing
+    ? { ...existing }
+    : { id, name: id, enabled: true, testState: 'untested', imageGenerationApi: 'openai-images' }
+}
+
+export function isTokenPlanBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname.endsWith('.maas.aliyuncs.com')
+  } catch {
+    return false
+  }
 }
 
 export function validateDraft(draft: ModelConnectionDraftDto): ModelConnectionDraftDto {

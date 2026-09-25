@@ -22,6 +22,7 @@ type ModelRow = {
   test_state: string
   image_input_enabled: number
   image_generation_enabled: number
+  image_generation_api: string
 }
 
 /** Stores model connections in the runtime database so the service is their only writer. */
@@ -41,7 +42,7 @@ export function createSqliteModelConnectionStore(
         const models = database
           .prepare(
             `SELECT connection_id, model_id, name, enabled, test_state,
-                    image_input_enabled, image_generation_enabled
+                    image_input_enabled, image_generation_enabled, image_generation_api
              FROM model_connection_models ORDER BY connection_id, position`
           )
           .all() as ModelRow[]
@@ -75,8 +76,8 @@ export function createSqliteModelConnectionStore(
           const insertModel = database.prepare(
             `INSERT INTO model_connection_models
                (connection_id, model_id, name, enabled, test_state, position,
-                image_input_enabled, image_generation_enabled)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                image_input_enabled, image_generation_enabled, image_generation_api)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           const timestamp = now()
           for (const connection of next) {
@@ -100,7 +101,8 @@ export function createSqliteModelConnectionStore(
                 model.testState,
                 index,
                 model.imageInputEnabled ? 1 : 0,
-                model.imageGenerationEnabled ? 1 : 0
+                model.imageGenerationEnabled ? 1 : 0,
+                model.imageGenerationApi ?? 'openai-images'
               )
             })
           }
@@ -150,7 +152,8 @@ function toModel(row: ModelRow): ModelOptionDto {
     enabled: row.enabled === 1,
     testState: toTestState(row.test_state),
     imageInputEnabled: row.image_input_enabled === 1,
-    imageGenerationEnabled: row.image_generation_enabled === 1
+    imageGenerationEnabled: row.image_generation_enabled === 1,
+    imageGenerationApi: row.image_generation_api === 'token-plan' ? 'token-plan' : 'openai-images'
   }
 }
 

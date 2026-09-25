@@ -308,6 +308,16 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
         CREATE INDEX session_assets_staged_idx ON session_assets(created_at) WHERE status = 'staged';
       `)
     }
+  },
+  {
+    version: 10,
+    name: 'add-model-image-generation-api',
+    up(database) {
+      database.exec(`
+        ALTER TABLE model_connection_models
+          ADD COLUMN image_generation_api TEXT NOT NULL DEFAULT 'openai-images';
+      `)
+    }
   }
 ]
 
