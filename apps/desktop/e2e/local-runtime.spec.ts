@@ -147,6 +147,59 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(result).toEqual({ status: 200 })
 })
 
+test('persists the selected Token Plan image API and default model in settings', async () => {
+  let page = await launch()
+  await page.evaluate(async () => {
+    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const url = new URL(connection.wsUrl)
+    url.protocol = 'http:'
+    url.pathname = '/model-connections'
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${connection.accessToken}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        draft: {
+          name: 'Token Plan E2E',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+          apiKey: 'sk-e2e-token-plan'
+        },
+        models: [
+          {
+            id: 'wan2.7-image',
+            name: 'wan2.7-image',
+            enabled: true,
+            testState: 'untested',
+            imageGenerationEnabled: true
+          }
+        ]
+      })
+    })
+    if (!response.ok || !(await response.json()).ok)
+      throw new Error('Cannot configure Token Plan model')
+  })
+  await page.reload()
+  await page.getByRole('button', { name: '设置' }).click()
+  await expect(page.getByText('Token Plan E2E')).toBeVisible()
+  const api = page.getByRole('combobox', { name: 'wan2.7-image 生图接口' })
+  await expect(api).toHaveValue('openai-images')
+  await api.selectOption('token-plan')
+  await expect(api).toHaveValue('token-plan')
+  await page.getByRole('button', { name: '设为默认生图模型：wan2.7-image' }).click()
+  await expect(page.getByRole('button', { name: '取消默认生图模型：wan2.7-image' })).toBeVisible()
+  await application!.close()
+  application = undefined
+  page = await launch(true)
+  await page.getByRole('button', { name: '设置' }).click()
+  await expect(page.getByRole('combobox', { name: 'wan2.7-image 生图接口' })).toHaveValue(
+    'token-plan'
+  )
+  await expect(page.getByRole('button', { name: '取消默认生图模型：wan2.7-image' })).toBeVisible()
+})
+
 test('saves the main prompt through Runtime and lists enabled system Skills', async () => {
   const page = await launch()
   await page.getByRole('button', { name: '设置' }).click()
@@ -370,7 +423,10 @@ test('streams two real turns in one persisted session without local logs', async
   expect(existsSync(join(userDataDirectory, 'logs'))).toBe(false)
 })
 
-test('keeps a wide uploaded image visible in the composer, sent message, and restored session', async ({}, testInfo) => {
+test('keeps a wide uploaded image visible in the composer, sent message, and restored session', async ({
+  browserName
+}, testInfo) => {
+  test.skip(browserName !== 'chromium', 'Electron uses Chromium')
   let page = await launch()
   await configureProvider(page)
   const base64 = await page.evaluate(() => {

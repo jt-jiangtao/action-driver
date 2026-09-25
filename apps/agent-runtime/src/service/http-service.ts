@@ -191,14 +191,14 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
           .map((header) => header.trim().toLowerCase()) ?? []
       if (
         !requestedMethod ||
-        !['GET', 'POST', 'DELETE'].includes(requestedMethod) ||
+        !['GET', 'POST', 'PUT', 'DELETE'].includes(requestedMethod) ||
         requestedHeaders.some((header) => !['authorization', 'content-type'].includes(header))
       ) {
         return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
       }
       return context.body(null, 204, {
         'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'GET, POST, DELETE',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Max-Age': '600',
         Vary: 'Origin'

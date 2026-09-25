@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ToolCall } from '@actiondriver/runtime-contracts'
 import { createImageGenerationTool } from '../src/media/image-generation-tool'
+import { createTokenPlanImageGenerationAdapter } from '../src/media/token-plan-image-generation-adapter'
 
 const asset = (index: number) => ({
   assetId: `asset-${index}`,
@@ -29,6 +30,58 @@ const deferred = <T>() => {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('image_generate', () => {
+  it('stores three Token Plan images from a four-image batch without leaking provider URLs', async () => {
+    const temporaryUrl = 'https://temporary-provider.example/private-image.png'
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVkAAAAASUVORK5CYII=',
+      'base64'
+    )
+    let providerCalls = 0
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === temporaryUrl) return new Response(new Uint8Array(png))
+      providerCalls += 1
+      const prompt = (
+        JSON.parse(String(init?.body)) as {
+          input: { messages: Array<{ content: Array<{ text: string }> }> }
+        }
+      ).input.messages[0]!.content[0]!.text
+      if (prompt === 'bad') return new Response('private failure', { status: 429 })
+      return new Response(
+        JSON.stringify({
+          output: { choices: [{ message: { content: [{ image: temporaryUrl }] } }] }
+        })
+      )
+    })
+    const adapter = createTokenPlanImageGenerationAdapter({ fetch })
+    const saveGenerated = vi.fn(async (_sessionId: string, bytes: Uint8Array) => {
+      expect(bytes).toEqual(new Uint8Array(png))
+      return asset(saveGenerated.mock.calls.length)
+    })
+    const tool = createImageGenerationTool({
+      defaultModel: async () => ({ connectionId: 'token-plan', modelId: 'wan2.7-image' }),
+      generate: ({ prompt }, signal) =>
+        adapter.generate(
+          {
+            baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+            apiKey: 'secret',
+            modelId: 'wan2.7-image',
+            prompt
+          },
+          signal
+        ),
+      assets: { saveGenerated },
+      sessionForTask: async () => 'session-1'
+    })
+    const events = []
+    for await (const event of tool.executor.execute(call(['good-1', 'bad', 'good-2', 'good-3'])))
+      events.push(event)
+    expect(providerCalls).toBe(4)
+    expect(saveGenerated).toHaveBeenCalledTimes(3)
+    expect(events.filter((event) => event.kind === 'asset')).toHaveLength(3)
+    expect(events.at(-1)).toMatchObject({ kind: 'result', output: { succeeded: 3, failed: 1 } })
+    expect(JSON.stringify(events)).not.toContain(temporaryUrl)
+    expect(JSON.stringify(events)).not.toContain('private failure')
+  })
   it('starts four independent requests and yields assets in completion order', async () => {
     const jobs = Array.from({ length: 4 }, () => deferred<Uint8Array>())
     const generate = vi.fn(({ prompt }: { prompt: string }) => jobs[Number(prompt)]!.promise)

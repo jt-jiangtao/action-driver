@@ -331,6 +331,20 @@ describe('service HTTP surface', () => {
     expect(preflight.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
     expect(preflight.headers.get('access-control-allow-headers')).toContain('Authorization')
 
+    const putPreflight = await fetch(
+      `${server!.url}/model-connections/company-gateway/models/image/image-generation-api`,
+      {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'http://localhost:5173',
+          'access-control-request-method': 'PUT',
+          'access-control-request-headers': 'authorization,content-type'
+        }
+      }
+    )
+    expect(putPreflight.status).toBe(204)
+    expect(putPreflight.headers.get('access-control-allow-methods')).toContain('PUT')
+
     const allowed = await authorized('/model-connections', {
       headers: { origin: 'http://localhost:5173' }
     })
