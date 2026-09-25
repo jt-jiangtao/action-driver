@@ -8,6 +8,40 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
 
 describe('conversation components', () => {
+  it('renders two anchored batches in call order before final text despite completion order', () => {
+    const asset = (assetId: string) => ({
+      assetId, sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+    })
+    const tools = [
+      { callId: 'a', toolId: 'image.generate', modelName: 'image_generate', summary: 'A', argumentsHash: '', status: 'running' as const, imageCount: 2 },
+      { callId: 'b', toolId: 'image.generate', modelName: 'image_generate', summary: 'B', argumentsHash: '', status: 'completed' as const, imageCount: 1 }
+    ]
+    const message = { id: 'a', role: 'agent' as const, content: '完成', parts: [
+      { kind: 'image-batch' as const, callId: 'a', imageCount: 2 },
+      { kind: 'image-batch' as const, callId: 'b', imageCount: 1 },
+      { kind: 'image' as const, asset: asset('b-0'), generation: { callId: 'b', index: 0 } },
+      { kind: 'text' as const, text: '完成' }
+    ] }
+    const view = render(<AgentResponse message={message} tools={tools} readImage={() => new Promise<Blob>(() => {})} />)
+    const root = view.container.querySelector('.agent-message')!
+    expect([...root.children].map((node) => node.classList.contains('image-gallery') ? 'gallery' : 'text'))
+      .toEqual(['gallery', 'gallery', 'text'])
+    expect(root.children[0]?.querySelectorAll('.image-gallery-slot')).toHaveLength(2)
+    expect(root.children[1]?.querySelectorAll('.image-gallery-slot')).toHaveLength(1)
+    expect(root.children[1]?.querySelector('.conversation-image-loading')).toBeInTheDocument()
+    expect(root.lastElementChild).toHaveTextContent('完成')
+  })
+  it('keeps legacy saved image and text order without an anchor', () => {
+    const asset = { assetId: 'old', sessionId: 'session-1', mimeType: 'image/png' as const,
+      width: 1, height: 1, byteLength: 20, source: 'generated' as const }
+    const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '旧文字', parts: [
+      { kind: 'image', asset }, { kind: 'text', text: '旧文字' }
+    ] }} readImage={() => new Promise<Blob>(() => {})} />)
+    const root = view.container.querySelector('.agent-message')!
+    expect([...root.children].map((node) => node.classList.contains('image-gallery') ? 'gallery' : 'text'))
+      .toEqual(['gallery', 'text'])
+  })
   it('keeps assistant text above stable image slots while individual images complete', () => {
     const asset = {
       assetId: 'generated-2', sessionId: 'session-1', mimeType: 'image/png' as const,
