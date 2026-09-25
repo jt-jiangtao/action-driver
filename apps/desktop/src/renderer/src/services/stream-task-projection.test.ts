@@ -705,6 +705,36 @@ describe('StreamTaskProjection', () => {
     expect(projection.snapshot()?.messages.at(-1)?.content).toBe('')
   })
 
+  it('restores all sixteen pending image slots from an authoritative snapshot', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    projection.apply({
+      type: 'response.snapshot',
+      ...identity,
+      eventId: 'snapshot-image-slots',
+      sequence: 0,
+      status: 'running',
+      messages: [],
+      tools: [
+        {
+          callId: 'call-images',
+          toolId: 'image.generate',
+          modelName: 'image_generate',
+          summary: '生成图片',
+          argumentsHash: '',
+          status: 'running',
+          durationMs: 0,
+          imageCount: 16
+        }
+      ],
+      error: null
+    })
+
+    expect(projection.snapshot()?.tools).toEqual([
+      expect.objectContaining({ callId: 'call-images', imageCount: 16 })
+    ])
+  })
+
   it('restores the snapshot activity timeline and raw tool I/O after a reload', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())

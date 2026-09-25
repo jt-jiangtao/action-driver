@@ -32,6 +32,52 @@ describe('agent stream protocol', () => {
         payload: { ...event.payload, input: { ...event.payload.input, imageAssetIds: [] } }
       })
     ).toThrow()
+    expect(() =>
+      parseStreamClientEvent({
+        ...event,
+        payload: { ...event.payload, input: { ...event.payload.input, imageAssetIds: ['a', 'b', 'c', 'd', 'e'] } }
+      })
+    ).toThrow()
+  })
+
+  it('accepts sixteen generated slots in tool events and snapshots but rejects seventeen', () => {
+    const identity = {
+      protocol: STREAM_PROTOCOL,
+      eventId: 'generated-slots',
+      cursor: 1,
+      sequence: 1,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      occurredAt
+    }
+    const running = {
+      ...identity,
+      type: 'tool.running',
+      callId: 'call-1',
+      callSequence: 1,
+      toolId: 'image.generate',
+      modelName: 'image_generate',
+      summary: '生成图片',
+      argumentsHash: '',
+      imageCount: 16,
+      activityId: null
+    }
+    expect(parseStreamServerEvent(running)).toMatchObject({ imageCount: 16 })
+    expect(() => parseStreamServerEvent({ ...running, imageCount: 17 })).toThrow()
+    const snapshot = {
+      ...identity,
+      type: 'response.snapshot',
+      status: 'running',
+      messages: [],
+      tools: [{ callId: 'call-1', toolId: 'image.generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', imageCount: 16, status: 'running', durationMs: 0 }],
+      error: null
+    }
+    expect(parseStreamServerEvent(snapshot)).toMatchObject({ tools: [{ imageCount: 16 }] })
+    expect(() => parseStreamServerEvent({ ...snapshot, tools: [{ ...snapshot.tools[0], imageCount: 17 }] })).toThrow()
   })
 
   it('accepts ordered text and image parts in a restored snapshot', () => {

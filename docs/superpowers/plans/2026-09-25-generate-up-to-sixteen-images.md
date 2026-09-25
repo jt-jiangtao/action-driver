@@ -88,7 +88,7 @@ function waitForSettledOrAbort<T>(promises: Iterable<Promise<T>>, signal?: Abort
 ```
 
 - [x] **Step 4: 运行绿灯及相邻测试。** `pnpm exec vitest run apps/agent-runtime/tests/image-generation-tool.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts`；确认 4、5、16、17 张、失败补位、全部失败、取消和工具总超时的断言通过。
-- [ ] **Step 5: 提交可独立验证的工具变更。** `git add apps/agent-runtime/src/media/image-generation-tool.ts apps/agent-runtime/tests/image-generation-tool.test.ts`，随后 `git commit -m "feat: queue up to sixteen image requests"`。
+- [x] **Step 5: 提交可独立验证的工具变更。** `git add apps/agent-runtime/src/media/image-generation-tool.ts apps/agent-runtime/tests/image-generation-tool.test.ts`，随后 `git commit -m "feat: queue up to sixteen image requests"`。
 
 ### Task 2: 扩展数量事件与快照上限
 
@@ -104,7 +104,7 @@ function waitForSettledOrAbort<T>(promises: Iterable<Promise<T>>, signal?: Abort
 - Consumes: 已验证的 `images.length` 与持久化 `invocation.input`。
 - Produces: 工具事件和快照中可选的 `imageCount`（1–16）；上传请求 `imageAssetIds` 仍最多 4。
 
-- [ ] **Step 1: 写失败协议与恢复测试。** 验证 16 的工具事件、快照能解析，17 的数量不能解析；5 张上传仍被拒绝；16 张调用的事件和重连快照都含 `imageCount: 16`，不把提示词加入新增数量字段。协议断言示例：
+- [x] **Step 1: 写失败协议与恢复测试。** 验证 16 的工具事件、快照能解析，17 的数量不能解析；5 张上传仍被拒绝；16 张调用的事件和重连快照都含 `imageCount: 16`，不把提示词加入新增数量字段。协议断言示例：
 
 ```ts
 expect(parseStreamServerEvent({ ...toolEvent, imageCount: 16 })).toMatchObject({ imageCount: 16 })
@@ -114,9 +114,9 @@ expect(() => parseStreamClientEvent({ ...requestEvent, payload: { ...requestEven
 } })).toThrow()
 ```
 
-- [ ] **Step 2: 运行红灯。** `pnpm exec vitest run packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`；确认 16 张事件或快照测试失败。
-- [ ] **Step 3: 修改三处上限。** 流协议中两处 `imageCount` Zod 上限改为 16；工具事件添加数量的条件与快照从持久化输入推算数量的条件改为 `<= 16`。保留 `imageAssetIds.max(4)` 和已有只传资产引用的逻辑。
-- [ ] **Step 4: 运行绿灯。** 重跑 Step 2 命令；检查普通工具事件不带 `imageCount`、旧 1–4 张事件可解析、16 张恢复仍按资产原索引展示。
+- [x] **Step 2: 运行红灯。** `pnpm exec vitest run packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`；确认 16 张事件或快照测试失败。
+- [x] **Step 3: 修改三处上限。** 流协议中两处 `imageCount` Zod 上限改为 16；工具事件添加数量的条件与快照从持久化输入推算数量的条件改为 `<= 16`。保留 `imageAssetIds.max(4)` 和已有只传资产引用的逻辑。
+- [x] **Step 4: 运行绿灯。** 重跑 Step 2 命令；检查普通工具事件不带 `imageCount`、旧 1–4 张事件可解析、16 张恢复仍按资产原索引展示。
 - [ ] **Step 5: 提交协议变更。** `git add packages/runtime-contracts/src/stream-protocol.ts packages/runtime-contracts/tests/stream-protocol.test.ts apps/agent-runtime/src/tool-invocation-service.ts apps/agent-runtime/src/stream-session-service.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`，随后 `git commit -m "feat: stream sixteen image slots"`。
 
 ### Task 3: 多张画廊与 Imagegen 指导

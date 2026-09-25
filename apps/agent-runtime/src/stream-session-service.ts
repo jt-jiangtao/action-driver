@@ -585,7 +585,7 @@ export class StreamSessionService {
           argumentsHash: invocation.argumentsHash,
           ...(invocation.toolId === 'image.generate' && Array.isArray((invocation.input as { images?: unknown }).images)
             && (invocation.input as { images: unknown[] }).images.length >= 1
-            && (invocation.input as { images: unknown[] }).images.length <= 4
+            && (invocation.input as { images: unknown[] }).images.length <= 16
             ? { imageCount: (invocation.input as { images: unknown[] }).images.length }
             : {}),
           status: invocation.status,

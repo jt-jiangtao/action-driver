@@ -92,7 +92,7 @@ export class ToolInvocationService {
           durationMs: toolActivityDurationMs(invocation.createdAt, invocation.updatedAt),
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,
-          ...(imageCount && imageCount >= 1 && imageCount <= 4 ? { imageCount } : {}),
+          ...(imageCount && imageCount >= 1 && imageCount <= 16 ? { imageCount } : {}),
           input: call.arguments
         },
         occurredAt: invocation.updatedAt,

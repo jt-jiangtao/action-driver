@@ -59,9 +59,9 @@ describe('ToolInvocationService', () => {
       }
     }
     const fixture = createFixture(definition, { async *execute() { yield { kind: 'result', output: {} } } })
-    await collect(fixture.service.execute({ ...readCall(), modelName: 'image_generate', arguments: { images: [{ prompt: 'one' }, { prompt: 'two' }] } }, context(['image.generate@1'])))
+    await collect(fixture.service.execute({ ...readCall(), modelName: 'image_generate', arguments: { images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` })) } }, context(['image.generate@1'])))
     const running = fixture.commits.find(({ event }) => event.type === 'tool.running')?.event
-    expect(running?.payload).toMatchObject({ imageCount: 2 })
+    expect(running?.payload).toMatchObject({ imageCount: 16 })
   })
   it('persists generated asset references as separate tool events', async () => {
     const image = {

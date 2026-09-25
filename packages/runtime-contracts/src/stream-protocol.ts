@@ -268,7 +268,7 @@ const responseSnapshotEventSchema = z
             summary: z.string(),
             title: z.string().optional(),
             argumentsHash: z.string(),
-            imageCount: z.number().int().min(1).max(4).optional(),
+            imageCount: z.number().int().min(1).max(16).optional(),
             status: z.enum([
               'proposed',
               'waiting_approval',
@@ -389,7 +389,7 @@ const toolStreamBase = {
   summary: z.string(),
   title: z.string().optional(),
   argumentsHash: z.string(),
-  imageCount: z.number().int().min(1).max(4).optional(),
+  imageCount: z.number().int().min(1).max(16).optional(),
   activityId: idSchema.nullable(),
   rawInput: z.string().optional(),
   rawOutputTruncated: z.boolean().optional()

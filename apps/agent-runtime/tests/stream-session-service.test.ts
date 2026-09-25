@@ -88,7 +88,8 @@ describe('StreamSessionService', () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer, onToolEvent) {
         const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
-        for (const index of [3, 1, 0, 2]) {
+        const completionOrder = [15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)]
+        for (const index of completionOrder) {
           const asset = await harness.assets.saveGenerated(request.sessionId!, png)
           const record = await harness.repositories.events.append({
             taskId: request.taskId,
@@ -133,23 +134,17 @@ describe('StreamSessionService', () => {
     }
     const harness = createHarness(graphRunner)
     const events = await runToEnd(harness.service, createEvent)
-    expect(events.filter((event) => event.type === 'response.image')).toHaveLength(4)
+    expect(events.filter((event) => event.type === 'response.image')).toHaveLength(16)
     const imageEvents = events.filter((event) => event.type === 'response.image')
-    expect(imageEvents.map((event) => ('index' in event ? event.index : -1))).toEqual([3, 1, 0, 2])
+    expect(imageEvents.map((event) => ('index' in event ? event.index : -1))).toEqual([15, 1, 0, 2, ...Array.from({ length: 12 }, (_, offset) => offset + 3)])
     expect(imageEvents.map((event) => ('contentIndex' in event ? event.contentIndex : -1))).toEqual(
-      [0, 1, 2, 3]
+      Array.from({ length: 16 }, (_, index) => index)
     )
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
-    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual([
-      'text',
-      'image',
-      'image',
-      'image',
-      'image'
-    ])
-    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual([0, 1, 2, 3])
+    expect(snapshot?.messages.at(-1)?.parts?.map((part) => part.kind)).toEqual(['text', ...Array(16).fill('image')])
+    expect(snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image').map((part) => part.generation?.index)).toEqual(Array.from({ length: 16 }, (_, index) => index))
     expect(JSON.stringify(snapshot)).not.toContain('data:image/')
     harness.repositories.close()
   })
@@ -1065,6 +1060,21 @@ describe('StreamSessionService', () => {
       createdAt: '2026-09-23T00:00:00.000Z',
       updatedAt: '2026-09-23T00:00:01.000Z'
     })
+    await repositories.toolInvocations.save({
+      id: 'call-image-snapshot',
+      providerCallId: 'provider-image-snapshot',
+      taskId: accepted.taskId,
+      toolId: 'image.generate',
+      toolVersion: 1,
+      argumentsHash: '',
+      decision: 'allow',
+      status: 'completed',
+      input: { images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` })) },
+      output: { result: { succeeded: 16, failed: 0 } },
+      error: null,
+      createdAt: '2026-09-23T00:00:02.000Z',
+      updatedAt: '2026-09-23T00:00:03.000Z'
+    })
     database.prepare('DELETE FROM runtime_events WHERE cursor <= 2').run()
 
     const resumed: StreamServerEvent[] = []
@@ -1097,7 +1107,8 @@ describe('StreamSessionService', () => {
             callId: 'call-snapshot',
             status: 'completed',
             title: '已执行命令'
-          })
+          }),
+          expect.objectContaining({ callId: 'call-image-snapshot', imageCount: 16 })
         ],
         activities: [
           expect.objectContaining({
@@ -1121,7 +1132,8 @@ describe('StreamSessionService', () => {
       taskId: accepted.taskId,
       status: 'completed',
       activities: [expect.objectContaining({ activityId: 'activity-snapshot' })],
-      activityTimeline: [expect.objectContaining({ kind: 'activity' })]
+      activityTimeline: [expect.objectContaining({ kind: 'activity' })],
+      tools: expect.arrayContaining([expect.objectContaining({ callId: 'call-image-snapshot', imageCount: 16 })])
     })
 
     repositories.close()
