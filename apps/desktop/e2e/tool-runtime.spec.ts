@@ -639,6 +639,47 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await page.getByTestId('e2e/tasks/detail/activity/raw-io#button').first().click()
   await expect(restoredGroup).toContainText('README.md')
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible()
+
+  const shortItems = restoredGroups.nth(1).locator('.activity-items')
+  await restoredGroups.nth(1).locator(':scope > summary').click()
+  const shortSize = await shortItems.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight
+  }))
+  expect(shortSize.scrollHeight).toBeLessThanOrEqual(shortSize.clientHeight)
+  await expect(shortItems).toHaveCSS('mask-image', 'none')
+
+  const longItems = restoredGroup.locator('.activity-items')
+  await longItems.evaluate((element) => {
+    const row = element.firstElementChild
+    if (!row) throw new Error('Expected an activity row')
+    for (let index = 0; index < 40; index++) element.append(row.cloneNode(true))
+  })
+  const longSize = await longItems.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    viewportHeight: window.innerHeight,
+    headingBottom: element.parentElement!.querySelector(':scope > summary')!.getBoundingClientRect()
+      .bottom,
+    itemsTop: element.getBoundingClientRect().top
+  }))
+  expect(longSize.clientHeight).toBeLessThanOrEqual(Math.min(420, longSize.viewportHeight / 2))
+  expect(longSize.scrollHeight).toBeGreaterThan(longSize.clientHeight)
+  expect(longSize.itemsTop).toBeGreaterThanOrEqual(longSize.headingBottom)
+  await expect(longItems).toHaveCSS('mask-image', /linear-gradient/)
+  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+    await page.screenshot({ path: test.info().outputPath('activity-scroll-fade.png') })
+  }
+  const headingBeforeScroll = await restoredGroup.locator(':scope > summary').boundingBox()
+  await longItems.evaluate((element) => {
+    element.scrollTop = 300
+  })
+  expect(await longItems.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  expect(await restoredGroup.locator(':scope > summary').boundingBox()).toEqual(headingBeforeScroll)
+  await longItems.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(longItems).toHaveCSS('mask-image', 'none')
 })
 
 test('runs a granted shell command without approval and answers', async () => {

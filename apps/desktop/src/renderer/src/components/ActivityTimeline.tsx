@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { ChevronRight, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
 import type {
   ActivityToolProjection,
@@ -107,11 +108,11 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
               {heading}
               <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
             </summary>
-            <div className="activity-items">
+            <ActivityItems>
               {visibleToolItems.map((child) => (
                 <ToolRow key={child.id} tool={tools.get(child.callId)} />
               ))}
-            </div>
+            </ActivityItems>
           </details>
         )
       })}
@@ -149,6 +150,48 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
         <div className="activity-elapsed">用时 {formatDuration(task.activityDurationMs)}</div>
       )}
     </section>
+  )
+}
+
+function ActivityItems({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [hasMoreBelow, setHasMoreBelow] = useState(false)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const update = () => {
+      setHasMoreBelow(element.scrollHeight - element.clientHeight - element.scrollTop > 1)
+    }
+    const resizeObserver = new ResizeObserver(update)
+    resizeObserver.observe(element)
+    const observedChildren = new Set<Element>()
+    const observeChildren = () => {
+      for (const child of element.children) {
+        if (observedChildren.has(child)) continue
+        resizeObserver.observe(child)
+        observedChildren.add(child)
+      }
+    }
+    observeChildren()
+    const mutationObserver = new MutationObserver(() => {
+      observeChildren()
+      update()
+    })
+    mutationObserver.observe(element, { childList: true, subtree: true })
+    element.addEventListener('scroll', update, { passive: true })
+    update()
+    return () => {
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+      element.removeEventListener('scroll', update)
+    }
+  }, [])
+
+  return (
+    <div ref={ref} className={`activity-items${hasMoreBelow ? ' has-more-below' : ''}`}>
+      {children}
+    </div>
   )
 }
 
@@ -313,18 +356,8 @@ function shellToolTranscript(
           : null
   const script = typeof input?.script === 'string' ? input.script : null
   if (command === null && script === null) return null
-  const runtime = /typescript/.test(tool.toolId)
-    ? 'node --input-type=module-typescript'
-    : /python/.test(tool.toolId)
-      ? 'python3'
-      : /node\.run/.test(tool.toolId)
-        ? 'node'
-        : 'zsh'
   const escapedArgs = args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
-  const invocation =
-    script === null
-      ? `$ ${[command, ...escapedArgs].join(' ')}`
-      : `$ ${[runtime, '-', ...escapedArgs].join(' ')}\n${script}`
+  const invocation = script === null ? `$ ${[command, ...escapedArgs].join(' ')}` : script
   const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
   const chunks = output
     ? [output.stdout, output.stderr, output.content].filter(

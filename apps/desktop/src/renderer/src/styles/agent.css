@@ -501,6 +501,12 @@
   display: grid;
   gap: 2px;
   padding: 2px 0 1px;
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.activity-items.has-more-below {
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 36px), transparent 100%);
 }
 .activity-tool {
   min-width: 0;

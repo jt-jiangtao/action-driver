@@ -85,14 +85,26 @@ describe('ActivityTimeline', () => {
     expect(screen.getByRole('status')).toHaveTextContent('正在准备 网页读取')
   })
 
-  it('renders inline script source as terminal input instead of a JSON wrapper', () => {
-    const scripted = task('running')
-    scripted.tools![0]!.rawInput = JSON.stringify({ script: 'echo hello', args: ['one'] })
-    render(<ActivityTimeline task={scripted} />)
-    screen.getByText('调研实现').closest('summary')!.click()
-    screen.getByText('读取 README').click()
-    expect(screen.getByText(/\$ zsh - one/)).toHaveTextContent('echo hello')
-    expect(screen.queryByText('{"script":"echo hello","args":["one"]}')).not.toBeInTheDocument()
+  it('shows inline scripts without an interpreter prefix and keeps output', () => {
+    for (const [toolId, modelName, source] of [
+      ['local.shell.run', 'shell_run', 'echo hello'],
+      ['local.python.run', 'python_run', 'print("hello")'],
+      ['local.node.run', 'node_run', 'console.log("hello")'],
+      ['local.typescript.run', 'ts_run', 'const value: string = "hello"']
+    ] as const) {
+      const scripted = task('running')
+      scripted.tools![0]!.toolId = toolId
+      scripted.tools![0]!.modelName = modelName
+      scripted.tools![0]!.rawInput = JSON.stringify({ script: source, args: ['one'] })
+      scripted.tools![0]!.rawOutput = JSON.stringify({ stdout: 'hello\n', result: { exitCode: 0 } })
+      const { container, unmount } = render(<ActivityTimeline task={scripted} />)
+      screen.getByText('调研实现').closest('summary')!.click()
+      screen.getByText('读取 README').click()
+      expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(`${source}\nhello`)
+      expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
+      expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"script"')
+      unmount()
+    }
   })
 
   it('shows tool preparation after streamed process text in the same model response', () => {
