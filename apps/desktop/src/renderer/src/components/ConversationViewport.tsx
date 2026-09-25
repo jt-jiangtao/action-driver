@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useScrollFade } from './scroll-fade'
 
 const FOLLOW_THRESHOLD_PX = 24
 
@@ -11,6 +12,7 @@ export function ConversationViewport({
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const followsLatestRef = useRef(true)
+  useScrollFade(viewportRef, { deps: [followKey] })
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current

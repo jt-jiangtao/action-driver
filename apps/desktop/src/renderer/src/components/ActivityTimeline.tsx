@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ChevronRight, Globe2, Search, SquareTerminal, Wrench } from 'lucide-react'
+import { codeLanguage, ReadOnlyCode } from './ReadOnlyCode'
+import { useScrollFade } from './scroll-fade'
 import type {
   ActivityToolProjection,
   TaskProjection,
@@ -155,41 +157,9 @@ export function ActivityTimeline({ task }: { task: TaskProjection }) {
 
 function ActivityItems({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [hasMoreBelow, setHasMoreBelow] = useState(false)
-
-  useEffect(() => {
-    const element = ref.current
-    if (!element || typeof ResizeObserver === 'undefined') return
-    const update = () => {
-      setHasMoreBelow(element.scrollHeight - element.clientHeight - element.scrollTop > 1)
-    }
-    const resizeObserver = new ResizeObserver(update)
-    resizeObserver.observe(element)
-    const observedChildren = new Set<Element>()
-    const observeChildren = () => {
-      for (const child of element.children) {
-        if (observedChildren.has(child)) continue
-        resizeObserver.observe(child)
-        observedChildren.add(child)
-      }
-    }
-    observeChildren()
-    const mutationObserver = new MutationObserver(() => {
-      observeChildren()
-      update()
-    })
-    mutationObserver.observe(element, { childList: true, subtree: true })
-    element.addEventListener('scroll', update, { passive: true })
-    update()
-    return () => {
-      resizeObserver.disconnect()
-      mutationObserver.disconnect()
-      element.removeEventListener('scroll', update)
-    }
-  }, [])
-
+  useScrollFade(ref)
   return (
-    <div ref={ref} className={`activity-items${hasMoreBelow ? ' has-more-below' : ''}`}>
+    <div ref={ref} className="activity-items">
       {children}
     </div>
   )
@@ -205,17 +175,18 @@ function preparingToolLabel(modelName: string): string {
   return modelName
 }
 
+/** Running elapsed time: whole seconds only, never below one. */
 function formatRunningDuration(value: number): string {
-  const seconds = Math.floor(value / 1_000)
+  const seconds = Math.max(1, Math.round(value / 1_000))
   if (seconds < 60) return `${seconds} 秒`
   return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
 }
 
+/** Archived duration: whole seconds, never below one, minutes only when needed. */
 function formatDuration(value?: number): string {
   if (value === undefined) return '—'
-  if (value < 1_000) return `${value} 毫秒`
-  if (value < 60_000) return `${Math.round(value / 100) / 10} 秒`
-  const seconds = Math.round(value / 1_000)
+  const seconds = Math.max(1, Math.round(value / 1_000))
+  if (seconds < 60) return `${seconds} 秒`
   return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
 }
 
@@ -302,36 +273,29 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
             {webpage.truncated ? <div className="activity-tool-status">内容已截断</div> : null}
           </div>
         ) : shellTranscript ? (
-          <pre
-            className={
-              tool.rawOutputTruncated || shellTranscript.text.length > 900 ? 'is-long' : undefined
-            }
-          >
-            {shellTranscript.text}
-          </pre>
+          <ReadOnlyCode
+            value={shellTranscript.text}
+            language={shellTranscript.language}
+          />
         ) : (
           <>
             {tool.rawInput !== undefined ? (
-              <pre className={tool.rawInput.length > 900 ? 'is-long' : undefined}>
-                {tool.rawInput}
-              </pre>
+              <ReadOnlyCode value={tool.rawInput} language={codeLanguage(tool.toolId, 'json')} />
             ) : null}
             {tool.rawOutput !== undefined ? (
-              <pre
-                className={
-                  tool.rawOutputTruncated || tool.rawOutput.length > 900 ? 'is-long' : undefined
+              <ReadOnlyCode
+                value={
+                  tool.rawOutputTruncated ? `${tool.rawOutput}\n…输出已截断` : tool.rawOutput
                 }
-              >
-                {tool.rawOutput}
-                {tool.rawOutputTruncated ? '\n…输出已截断' : ''}
-              </pre>
+                language={codeLanguage(tool.toolId, 'json')}
+              />
             ) : null}
           </>
         )}
         {shellTranscript?.exitCode !== null && shellTranscript?.exitCode !== undefined ? (
           <div className="activity-tool-status">退出码 {shellTranscript.exitCode}</div>
         ) : null}
-        {tool.errorSummary ? (
+        {tool.errorSummary && !repeatsExitCode(tool.errorSummary, shellTranscript?.exitCode) ? (
           <div className="activity-tool-status is-error">{tool.errorSummary}</div>
         ) : null}
       </div>
@@ -339,9 +303,35 @@ function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   )
 }
 
+/** Streams and structured fields can repeat the same line; keep each one once. */
+function dedupeTranscriptLines(raw: string): string {
+  const lines = raw.split('\n').map((line) => line.replace(/\s+$/, ''))
+  const seen = new Set<string>()
+  const kept: string[] = []
+  for (const line of lines) {
+    // The exit code is rendered as its own status line below the transcript.
+    if (/^退出码\s+\d+$/.test(line.trim())) continue
+    if (line.trim() && seen.has(line)) continue
+    if (line.trim()) seen.add(line)
+    kept.push(line)
+  }
+  return kept.join('\n').trimEnd()
+}
+
+/** The exit code is already shown above; do not repeat it as an error line. */
+function repeatsExitCode(summary: string, exitCode: number | null | undefined): boolean {
+  if (exitCode === null || exitCode === undefined) return false
+  const text = summary.trim()
+  return (
+    text === `退出码 ${exitCode}` ||
+    /^PROCESS_EXIT_NONZERO/.test(text) ||
+    new RegExp(`(^|\\D)${exitCode}$`).test(text)
+  )
+}
+
 function shellToolTranscript(
   tool: ToolInvocationProjection
-): { text: string; exitCode: number | null } | null {
+): { text: string; language: string; exitCode: number | null } | null {
   if (!/shell|command|python|node\.run|typescript/.test(tool.toolId) || !tool.rawInput) return null
   const input = parseObject(tool.rawInput)
   const args = input?.args === undefined ? [] : input.args
@@ -357,18 +347,25 @@ function shellToolTranscript(
   const script = typeof input?.script === 'string' ? input.script : null
   if (command === null && script === null) return null
   const escapedArgs = args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
-  const invocation = script === null ? `$ ${[command, ...escapedArgs].join(' ')}` : script
+  // A: mark the input the way a terminal would, so it never reads as output.
+  const invocation =
+    script === null
+      ? `$ ${[command, ...escapedArgs].join(' ')}`
+      : script
+          .split('\n')
+          // Every script line is marked, including blank lines, so the input
+          // stays distinguishable from the output.
+          .map((line) => (line ? `› ${line}` : '›'))
+          .join('\n')
   const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
   const chunks = output
     ? [output.stdout, output.stderr, output.content].filter(
         (value): value is string => typeof value === 'string' && value.length > 0
       )
     : []
-  const response = chunks.length
-    ? chunks.join('\n').trimEnd()
-    : tool.rawOutput && !output
-      ? tool.rawOutput
-      : ''
+  const response = dedupeTranscriptLines(
+    chunks.length ? chunks.join('\n').trimEnd() : tool.rawOutput && !output ? tool.rawOutput : ''
+  )
   const result = output?.result
   const exitCode =
     result &&
@@ -377,10 +374,13 @@ function shellToolTranscript(
     typeof result.exitCode === 'number'
       ? result.exitCode
       : null
+  // One blank line separates the marked input from the raw output.
+  const sections = [invocation]
+  if (response) sections.push('', response)
+  if (tool.rawOutputTruncated) sections.push('…输出已截断')
   return {
-    text: [invocation, response, tool.rawOutputTruncated ? '…输出已截断' : '']
-      .filter(Boolean)
-      .join('\n'),
+    text: sections.join('\n'),
+    language: codeLanguage(tool.toolId),
     exitCode
   }
 }

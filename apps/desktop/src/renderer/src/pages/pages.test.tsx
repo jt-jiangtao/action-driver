@@ -337,7 +337,7 @@ describe('ActionDriver pages', () => {
         onSubmit={vi.fn()}
       />
     )
-    const archive = screen.getByText('用时 2.8 秒')
+    const archive = screen.getByText('用时 3 秒')
     const answer = screen.getByText(/我会在内嵌浏览器中查找/)
     expect(archive.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(container.querySelectorAll('.agent-message')).toHaveLength(1)

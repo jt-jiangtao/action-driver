@@ -6,6 +6,7 @@ import type { ModelSelectionProjection } from '../models/model-selection'
 import { ModelSelector } from './model-selector/ModelSelector'
 import type { ModelRef } from '@actiondriver/contracts'
 import { e2eId } from '../testing/e2e-id'
+import { useScrollFade } from './scroll-fade'
 
 type Paragraph = { type: 'paragraph'; children: { text: string }[] }
 
@@ -82,6 +83,7 @@ export function AgentComposer({
   )
   const [hasText, setHasText] = useState(Boolean(initialText.trim()))
   const [draftText, setDraftText] = useState(initialText)
+  useScrollFade(editorRootRef, { deps: [draftText] })
   const readText = () => {
     const domText = readEditableText(editorRootRef.current)
     const slateText = editor.children

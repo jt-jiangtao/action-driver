@@ -100,11 +100,30 @@ describe('ActivityTimeline', () => {
       const { container, unmount } = render(<ActivityTimeline task={scripted} />)
       screen.getByText('调研实现').closest('summary')!.click()
       screen.getByText('读取 README').click()
-      expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(`${source}\nhello`)
+      expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
+        `${source
+          .split('\n')
+          .map((line) => `› ${line}`)
+          .join('\n')}\n\nhello`
+      )
       expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
       expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"script"')
       unmount()
     }
+  })
+
+  it('marks blank script lines so they stay distinguishable from output', () => {
+    const scripted = task('running')
+    scripted.tools![0]!.toolId = 'local.python.run'
+    scripted.tools![0]!.rawInput = JSON.stringify({ script: 'print("a")\n\nprint("b")', args: [] })
+    scripted.tools![0]!.rawOutput = JSON.stringify({ stdout: 'a\nb\n', result: { exitCode: 0 } })
+    const { container } = render(<ActivityTimeline task={scripted} />)
+    screen.getByText('调研实现').closest('summary')!.click()
+    screen.getByText('读取 README').click()
+
+    expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
+      '› print("a")\n›\n› print("b")\n\na\nb'
+    )
   })
 
   it('shows tool preparation after streamed process text in the same model response', () => {
@@ -323,7 +342,7 @@ describe('ActivityTimeline', () => {
     expect(screen.queryByText('⌘')).not.toBeInTheDocument()
     expect(screen.queryByText('输入与输出')).not.toBeInTheDocument()
     screen.getByText('读取 README').click()
-    expect(screen.getByText(/\$ cat README.md/)).toHaveTextContent('内容')
+    expect(document.querySelector('.activity-tool-io pre')?.textContent).toContain('内容')
   })
 
   it('shows a shell summary without file-specific decoration', () => {
@@ -413,7 +432,7 @@ describe('ActivityTimeline', () => {
     const { container } = render(<ActivityTimeline task={shell} />)
     screen.getByText('rg needle README.md').click()
     expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
-      '$ rg needle README.md\nneedle is present.'
+      '$ rg needle README.md\n\nneedle is present.'
     )
     expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"stdout"')
@@ -516,7 +535,7 @@ describe('ActivityTimeline', () => {
 
   it('archives completed process closed under an elapsed-time summary', () => {
     render(<ActivityTimeline task={task('succeeded')} />)
-    const archive = screen.getByText('用时 2.8 秒').closest('details')
+    const archive = screen.getByText('用时 3 秒').closest('details')
     expect(archive).not.toHaveAttribute('open')
     expect(archive?.querySelector('.activity-chevron')).not.toBeNull()
     expect(screen.queryByText('正在思考')).toBeNull()
@@ -547,7 +566,7 @@ describe('ActivityTimeline', () => {
     empty.activities = []
     empty.tools = []
     render(<ActivityTimeline task={empty} />)
-    expect(screen.getByText('用时 2.8 秒').closest('details')).toBeNull()
+    expect(screen.getByText('用时 3 秒').closest('details')).toBeNull()
     expect(screen.getByRole('region', { name: '任务过程' }).querySelector('svg')).toBeNull()
   })
 
@@ -569,7 +588,7 @@ describe('ActivityTimeline', () => {
       }
     ]
     render(<ActivityTimeline task={standalone} />)
-    screen.getByText('用时 2.8 秒').click()
+    screen.getByText('用时 3 秒').click()
     expect(screen.getByText('访问文件 /')).toBeVisible()
     expect(
       screen.getByText('访问文件 /').closest('.activity-tool')?.querySelector('summary')

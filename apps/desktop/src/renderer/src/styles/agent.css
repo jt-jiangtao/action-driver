@@ -1,3 +1,36 @@
+/* Scroll containers marked by useScrollFade() fade whatever the edges are hiding. */
+[data-fade] {
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  --fade-left: 0px;
+  --fade-right: 0px;
+}
+[data-fade~='top'] {
+  --fade-top: 26px;
+}
+[data-fade~='bottom'] {
+  --fade-bottom: 26px;
+}
+[data-fade~='top'],
+[data-fade~='bottom'] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent 100%
+  );
+}
+[data-fade~='left'],
+[data-fade~='right'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--fade-left),
+    #000 calc(100% - var(--fade-right)),
+    transparent 100%
+  );
+}
 .task-page.task-page {
   display: grid;
 }
@@ -474,8 +507,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 32px;
-  padding-bottom: 10px;
+  min-height: 34px;
+  padding: 2px 0 14px;
   border-bottom: 1px solid var(--ad-color-border-default);
   color: #6a6e75;
   font-size: 14px;
@@ -497,12 +530,14 @@
 .activity-process-text {
   color: var(--ad-color-text-primary);
 }
+/* Same rhythm as the elapsed-time divider: clear space above, tighter below. */
 .activity-thinking {
   width: max-content;
+  padding: 16px 0 4px;
   color: #747981;
 }
 .activity-archive .activity-timeline-items {
-  padding-top: 16px;
+  padding: 16px 0 4px;
 }
 .activity-group > summary,
 .activity-group-heading {
@@ -558,10 +593,8 @@
   padding: 2px 0 1px;
   max-height: min(420px, 50vh);
   overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.activity-items.has-more-below {
-  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 36px), transparent 100%);
+  /* Reaching the end keeps scrolling the conversation instead of trapping the wheel. */
+  overscroll-behavior: auto;
 }
 .activity-tool {
   min-width: 0;
@@ -599,8 +632,27 @@
   color: #666b71;
   font-size: 13px;
 }
+.activity-tool-code {
+  max-height: 360px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f8f8fa;
+  /* Terminal block: always fade the cut-off code at both ends. */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 14px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
+}
+.activity-tool-code .monaco-editor,
+.activity-tool-code .monaco-editor-background,
+.activity-tool-code .monaco-editor .margin {
+  background: transparent !important;
+}
 .activity-tool-io pre {
-  max-height: 240px;
+  max-height: 360px;
   margin: 0;
   overflow: auto;
   padding: 12px 9px;
@@ -613,8 +665,40 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.activity-tool-code {
+  max-height: 360px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f8f8fa;
+  /* Terminal block: always fade the cut-off code at both ends. */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 14px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
+}
+.activity-tool-code .monaco-editor,
+.activity-tool-code .monaco-editor-background,
+.activity-tool-code .monaco-editor .margin {
+  background: transparent !important;
+}
+.activity-tool-io pre {
+  --io-fade-top: 0px;
+  --io-fade-bottom: 0px;
+  overscroll-behavior: auto;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--io-fade-top),
+    #000 calc(100% - var(--io-fade-bottom)),
+    transparent 100%
+  );
+}
 .activity-tool-io pre.is-long {
-  mask-image: linear-gradient(to bottom, #000 0%, #000 86%, transparent 100%);
+  --io-fade-top: 12px;
+  --io-fade-bottom: 18px;
 }
 .activity-web-page {
   display: grid;
@@ -672,15 +756,52 @@
   }
 }
 .conversation-scroll {
+  --fade-top: 0px;
+  --fade-bottom: 0px;
   display: flex;
   justify-content: center;
   width: 100%;
   min-height: 0;
-  padding: 24px 0 16px;
+  padding: 20px 24px 18px;
   overflow-y: auto;
+  overscroll-behavior: auto;
   scrollbar-color: var(--ad-color-border-strong, #a8adb6) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
+}
+.conversation-scroll[data-fade~='top'] {
+  --fade-top: 52px;
+}
+.conversation-scroll[data-fade~='bottom'] {
+  --fade-bottom: 48px;
+}
+.composer-editor[data-fade~='top'] {
+  --fade-top: 14px;
+}
+.composer-editor[data-fade~='bottom'] {
+  --fade-bottom: 14px;
+}
+.markdown-content pre,
+.markdown-content table {
+  --fade-left: 0px;
+  --fade-right: 0px;
+  overflow-x: auto;
+  overscroll-behavior-x: auto;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--fade-left),
+    #000 calc(100% - var(--fade-right)),
+    transparent 100%
+  );
+}
+.markdown-content pre[data-fade~='left'],
+.markdown-content table[data-fade~='left'] {
+  --fade-left: 20px;
+}
+.markdown-content pre[data-fade~='right'],
+.markdown-content table[data-fade~='right'] {
+  --fade-right: 20px;
 }
 .conversation-stream {
   flex: 0 0 auto;
@@ -771,6 +892,8 @@
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  /* Keep the deliverable cards clear of the reply above and the next turn below. */
+  margin: 6px 0 20px;
 }
 .task-output-files-title {
   flex-basis: 100%;
@@ -792,9 +915,9 @@
     border-color var(--ad-motion-fast) var(--ad-ease-standard),
     box-shadow var(--ad-motion-fast) var(--ad-ease-standard);
 }
+/* Hover only tints the surface; the card keeps its resting shadow and border. */
 .task-output-file:hover {
-  border-color: #dcdce0;
-  box-shadow: var(--ad-shadow-subtle);
+  background: var(--ad-color-bg-hover, #f1f1f2);
 }
 .task-output-file-icon {
   flex: none;
@@ -1043,6 +1166,94 @@
   top: 20px;
   right: 20px;
   color: white;
+}
+/* Codex-like markdown scale: 14px body, modest headings, calm colours. */
+.markdown-content {
+  color: var(--ad-color-text-primary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin: 20px 0 10px;
+  color: var(--ad-color-text-primary);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.markdown-content h1 {
+  font-size: 1.25rem;
+}
+.markdown-content h2 {
+  font-size: 1.0625rem;
+}
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 0.9375rem;
+}
+.markdown-content p {
+  margin: 0 0 12px;
+}
+.markdown-content li {
+  margin: 0 0 4px;
+}
+.markdown-content li > p {
+  margin: 0;
+}
+.markdown-content a {
+  color: var(--ad-color-action-primary);
+  text-decoration: none;
+}
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+.markdown-content strong {
+  font-weight: 600;
+}
+.markdown-content em {
+  color: var(--ad-color-text-secondary);
+}
+.markdown-content code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--ad-color-bg-subtle);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.markdown-content pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 12.5px;
+}
+.markdown-content blockquote {
+  padding: 0 0 0 12px;
+  border-left: 3px solid var(--ad-color-border-default);
+  color: var(--ad-color-text-secondary);
+}
+.markdown-content hr {
+  margin: 20px 0;
+  border: 0;
+  border-top: 1px solid var(--ad-color-border-default);
+}
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.markdown-content th,
+.markdown-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--ad-color-border-default);
+  text-align: left;
+}
+.markdown-content th {
+  background: var(--ad-color-bg-subtle);
+  font-weight: 600;
 }
 .markdown-content > :first-child {
   margin-top: 0;

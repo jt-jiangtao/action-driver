@@ -189,6 +189,31 @@ test('shows only elapsed time and streamed text until a tool is actually called'
   ).toHaveCount(0)
 })
 
+test('keeps the running indicator clear of the divider in the initial state', async () => {
+  const page = await launch('python-blocking')
+  await sendGoal(page, '运行一个阻塞脚本')
+  const elapsed = page.locator('.activity-elapsed')
+  const thinking = page.locator('.activity-thinking')
+  await expect(thinking).toBeVisible({ timeout: 10_000 })
+  const spacing = await page.evaluate(() => {
+    const divider = document.querySelector('.activity-elapsed') as HTMLElement
+    const indicator = document.querySelector('.activity-thinking') as HTMLElement
+    const textTop = indicator.getBoundingClientRect().top + Number.parseFloat(getComputedStyle(indicator).paddingTop)
+    return {
+      fromDividerToText: textTop - divider.getBoundingClientRect().bottom,
+      paddingTop: Number.parseFloat(getComputedStyle(indicator).paddingTop)
+    }
+  })
+  expect(spacing.paddingTop).toBeGreaterThanOrEqual(14)
+  expect(spacing.fromDividerToText).toBeGreaterThanOrEqual(14)
+  await expect(elapsed).toBeVisible()
+  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+    await page.locator('.activity-timeline').screenshot({
+      path: test.info().outputPath('activity-initial-thinking.png')
+    })
+  }
+})
+
 test('streams the tool name while arguments are incomplete without creating a tool row', async () => {
   const page = await launch('tool-preparing')
   await sendGoal(page, '运行命令')
@@ -680,7 +705,11 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   await longItems.evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
-  await expect(longItems).toHaveCSS('mask-image', 'none')
+  // Every scroll container fades the edges that still hide content, including
+  // the top edge once the list is scrolled to its end.
+  await expect(longItems).toHaveAttribute('data-fade', /top/)
+  await expect(longItems).not.toHaveAttribute('data-fade', /bottom/)
+  await expect(longItems).toHaveCSS('mask-image', /linear-gradient/)
 })
 
 test('registers a generated deliverable as a task output card after reload', async () => {
@@ -702,6 +731,31 @@ test('registers a generated deliverable as a task output card after reload', asy
   await page.reload()
   await expect(page.getByTestId('e2e/tasks/detail/output-file#section')).toHaveCount(2)
   await expect(page.getByRole('button', { name: '打开文件' })).toHaveCount(2)
+  // Hover only tints the surface: no shadow or border change.
+  const resting = await cards.first().evaluate((element) => {
+    const style = getComputedStyle(element)
+    return JSON.stringify({
+      background: style.backgroundColor,
+      boxShadow: style.boxShadow,
+      borderColor: style.borderTopColor
+    })
+  })
+  await cards.first().hover()
+  await expect
+    .poll(async () =>
+      cards.first().evaluate((element) => getComputedStyle(element).backgroundColor)
+    )
+    .not.toBe(JSON.parse(resting).background)
+  const hovered = await cards.first().evaluate((element) => {
+    const style = getComputedStyle(element)
+    return JSON.stringify({
+      boxShadow: style.boxShadow,
+      borderColor: style.borderTopColor
+    })
+  })
+  expect(hovered).toBe(
+    JSON.stringify({ boxShadow: JSON.parse(resting).boxShadow, borderColor: JSON.parse(resting).borderColor })
+  )
   if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
     await page.locator('.task-output-files').screenshot({
       path: test.info().outputPath('task-output-files.png')
