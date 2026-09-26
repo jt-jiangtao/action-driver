@@ -22,6 +22,7 @@ import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from '
 import { ProcessExitError, ProcessOutputLimitError } from './execution/process-runner'
 import { OfficeDependenciesUnavailableError } from './execution/runtime-paths'
 import { ExecutionContextUnavailableError } from './execution/session-execution-context'
+import { ToolApprovalRequired } from './computer-use/tool-approval'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -31,6 +32,8 @@ export type ToolInvocationContext = {
   grants: string[]
   activityId?: string | null
   onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
+  /** Set when the graph continues a call that stopped for the user's approval. */
+  continuation?: { decisions: Array<{ actionIndex: number; approved: boolean }> }
 }
 
 export class ToolInvocationService {
@@ -195,9 +198,12 @@ export class ToolInvocationService {
       if (controller.signal.aborted) throw controller.signal.reason
       yield await transition('queued')
       yield await transition('running')
-      const executionContext = this.options.executionContext
+      const resolved = this.options.executionContext
         ? await this.options.executionContext(context.taskId)
         : undefined
+      const executionContext = resolved && context.continuation
+        ? { ...resolved, continuation: context.continuation }
+        : resolved
       for await (const part of registered.executor.execute(
         call,
         controller.signal,
@@ -218,6 +224,12 @@ export class ToolInvocationService {
       yield await transition('completed', { output: invocation.output })
       await completeLog('ok')
     } catch (caught) {
+      // A suspended tool call is not a failure: the graph asks the user and continues this call with
+      // the decision, so the invocation stays running instead of turning into a failed one.
+      if (caught instanceof ToolApprovalRequired && machine.state !== 'completed') {
+        await completeLog('ok')
+        throw caught
+      }
       // Once completed, the state is terminal: a later failure (for example storage rejecting the
       // result) must surface as itself rather than as an impossible completed -> failed transition.
       if (machine.state === 'completed') throw caught

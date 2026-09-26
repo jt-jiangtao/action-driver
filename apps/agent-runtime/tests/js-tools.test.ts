@@ -45,7 +45,8 @@ async function run(
   tools: ReturnType<typeof entry>['tools'],
   modelName: 'js' | 'js_reset',
   args: Record<string, unknown>,
-  workspaceRoot: string
+  workspaceRoot: string,
+  continuation?: { decisions: Array<{ actionIndex: number; approved: boolean }> }
 ): Promise<ToolExecutorEvent[]> {
   const tool = tools.find((candidate) => candidate.definition.modelName === modelName)!
   const call: ToolCall = {
@@ -53,7 +54,9 @@ async function run(
     arguments: args as ToolCall['arguments']
   }
   const events: ToolExecutorEvent[] = []
-  for await (const event of tool.executor.execute(call, undefined, context(workspaceRoot))) {
+  const execution = { ...context(workspaceRoot),
+    ...(continuation ? { continuation } : {}) }
+  for await (const event of tool.executor.execute(call, undefined, execution)) {
     events.push(event)
   }
   return events
@@ -150,7 +153,7 @@ describe('js entry tools', () => {
     tools.dispose()
   })
 
-  it('lets a confirmed acting cell act and blocks an unconfirmed one', async () => {
+  it('suspends a cell on its action and performs it when the call continues', async () => {
     const workspaceRoot = await sessionWorkspaceRoot('actiondriver-js-')
     const requests: Array<Record<string, unknown>> = []
     const tools = entry({
@@ -163,18 +166,19 @@ describe('js entry tools', () => {
         return { executed: true }
       }
     })
-    // Acting code was confirmed before the call, so the action reaches the helper.
-    await run(tools.tools, 'js', {
-      code: 'await sky.set_value({ app: "TextEdit", element_index: 0, value: "hi" });\n' +
-        'nodeRepl.write("done")'
-    }, workspaceRoot)
-    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(1)
-    // A name built at runtime is not visible to the classifier, so the cell has no confirmation and
-    // the sky layer refuses to touch the desktop.
-    await expect(run(tools.tools, 'js', {
-      code: 'const name = ["cli", "ck"].join("");\nawait sky[name]({ app: "TextEdit", element_index: 0 })'
-    }, workspaceRoot)).rejects.toThrow('APPROVAL_REQUIRED')
-    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(1)
+    const js = tools.tools.find((tool) => tool.definition.modelName === 'js')!
+    const call = { callId: 'js-call', providerCallId: 'js-provider', modelName: 'js',
+      arguments: { code: 'await sky.set_value({ app: "TextEdit", element_index: 0, value: "hi" });\n' +
+        'nodeRepl.write("done")' } }
+    const drain = async (stream: AsyncIterable<unknown>): Promise<void> => {
+      for await (const _event of stream) { /* drain */ }
+    }
+    // The action is not performed until the user answers: the call stops and is resumed instead.
+    await expect(drain(js.executor.execute(call, undefined, context(workspaceRoot))))
+      .rejects.toThrow('TOOL_APPROVAL_REQUIRED')
+    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(0)
+    // The suspend → continue → finish round trip against the real child lives in
+    // tests/js-entry.test.ts; wiring the decision through this executor is still open (tasks 10.7.6).
     tools.dispose()
   })
 })

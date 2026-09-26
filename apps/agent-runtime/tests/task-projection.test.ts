@@ -27,16 +27,14 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
 }
 
 describe('repository-backed task projections', () => {
-  it('projects a JavaScript cell approval with its action names', () => {
+  it('projects a JavaScript action that waits for the user', () => {
     const projection = buildTaskProjection(task('task-js-approval', 'waiting-user', {
       code: 'COMPUTER_ACTION_APPROVAL', providerCallId: 'js-1',
-      cell: { title: '保存文档', code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
-        codeLength: 52, actions: ['press_key'] }
+      jsAction: { index: 3, method: 'press_key', args: { app: 'TextEdit', key: 's' } }
     }), [])
     expect(projection.pendingComputerApproval).toEqual({
       providerCallId: 'js-1',
-      cell: { title: '保存文档', code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
-        codeLength: 52, actions: ['press_key'] }
+      jsAction: { index: 3, method: 'press_key', args: { app: 'TextEdit', key: 's' } }
     })
   })
 

@@ -54,17 +54,17 @@ function computerApproval(error: unknown): TaskProjection['pendingComputerApprov
   if (typeof error !== 'object' || error === null) return null
   const value = error as Record<string, unknown>
   if (value.code !== 'COMPUTER_ACTION_APPROVAL' || typeof value.providerCallId !== 'string') return null
-  const cell = value.cell
-  if (typeof cell === 'object' && cell !== null && !Array.isArray(cell)) {
-    const candidate = cell as Record<string, unknown>
-    if (typeof candidate.code !== 'string') return null
-    return { providerCallId: value.providerCallId, cell: {
-      ...(typeof candidate.title === 'string' ? { title: candidate.title } : {}),
-      code: candidate.code,
-      codeLength: typeof candidate.codeLength === 'number' ? candidate.codeLength : candidate.code.length,
-      actions: Array.isArray(candidate.actions)
-        ? candidate.actions.filter((action): action is string => typeof action === 'string')
-        : []
+  // One action of a JavaScript cell, which has no observation of its own.
+  const jsAction = value.jsAction
+  if (typeof jsAction === 'object' && jsAction !== null && !Array.isArray(jsAction)) {
+    const candidate = jsAction as Record<string, unknown>
+    if (typeof candidate.method !== 'string') return null
+    const args = typeof candidate.args === 'object' && candidate.args !== null &&
+      !Array.isArray(candidate.args) ? candidate.args as Record<string, unknown> : {}
+    return { providerCallId: value.providerCallId, jsAction: {
+      index: typeof candidate.index === 'number' ? candidate.index : 0,
+      method: candidate.method,
+      args
     } }
   }
   if (typeof value.observationId !== 'string' ||

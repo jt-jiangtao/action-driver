@@ -13,10 +13,18 @@ import type {
 } from '@actiondriver/runtime-contracts'
 import { SessionSandbox, type SandboxPrepared } from '../execution/session-sandbox'
 import { resolveExecutionRuntimePaths } from '../execution/runtime-paths'
-import { classifyCellActions } from './cell-actions'
+import { CONSEQUENTIAL_SKY_METHODS } from './cell-actions'
 import type { ComputerUseControlGate } from './control-gate'
-import { JsReplHost, type JsReplChild } from './js-repl'
+import {
+  ApprovalRequiredError,
+  JsReplHost,
+  type JsApprovalAction,
+  type JsReplChild,
+  type JsReplEvents,
+  type JsRunOutcome
+} from './js-repl'
 import { createSkySession, type SkySession } from './sky-session'
+import { ToolApprovalRequired } from './tool-approval'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 type Json = Parameters<NonNullable<ToolExecutor['redactForPersistence']>>[1]
@@ -41,9 +49,10 @@ const JS_DESCRIPTION =
   '`nodeRepl.emitImage({ bytes, mimeType })` for images. Screenshots are written to files and ' +
   'returned as `screenshot.url` file URLs. Files can be written under `output/`; the working ' +
   'directory itself is read-only. Top-level static imports and node:process are unavailable. ' +
-  'A call whose code mentions a method that changes the desktop (click, drag, paste, press_key, ' +
-  'select_text, set_value, type_text, perform_secondary_action) is confirmed by the user before it ' +
-  'runs, so keep one such action per call; observation-only calls run without a prompt.'
+  'A call that reaches a method changing the desktop (click, drag, paste, press_key, select_text, ' +
+  'set_value, type_text, perform_secondary_action) stops and asks the user before that action runs; ' +
+  'keep one such action per call, since a second one is refused with COMPUTER_ACTION_SPLIT_REQUIRED. ' +
+  'Observation-only calls run without a prompt, and a denied action comes back as USER_DENIED.'
 
 const jsSchema: ToolDefinition['inputSchema'] = {
   type: 'object',
@@ -72,8 +81,8 @@ export function createJsEntryTools(options: {
   const sandbox = options.sandbox ?? new SessionSandbox({ runtimeRoots: [options.runtimeDist] })
   const sessions = new Map<string, TaskSession>()
   const workspaces = new Map<string, SessionWorkspacePaths>()
-  /** Whether the cell currently running for a task may change the desktop. */
-  const actingCells = new Map<string, boolean>()
+  /** The action a task's cell stopped on, so the resumed call knows what it is answering. */
+  const pendingApprovals = new Map<string, JsApprovalAction>()
 
   const skyFor = (taskId: string): SkySession => {
     const session = sessions.get(taskId)
@@ -88,13 +97,18 @@ export function createJsEntryTools(options: {
       if (!session) return
       sessions.delete(taskId)
       workspaces.delete(taskId)
+      pendingApprovals.delete(taskId)
       session.sky.dispose()
       void session.sandbox.dispose()
     },
-    callSky: async (taskId, method, args, signal) =>
-      await skyFor(taskId).invoke(method, args, signal, {
-        allowActions: actingCells.get(taskId) === true
-      }),
+    // Every desktop action from inside the cell stops here for the user's answer; the approved one is
+    // performed by the resumed call itself, which is why this path never performs one directly.
+    callSky: async (taskId, method, args, signal) => {
+      if (CONSEQUENTIAL_SKY_METHODS.includes(method as typeof CONSEQUENTIAL_SKY_METHODS[number])) {
+        throw new ApprovalRequiredError({ method, args })
+      }
+      return await skyFor(taskId).invoke(method, args, signal)
+    },
     ...(options.defaultTimeoutMs === undefined
       ? {} : { defaultTimeoutMs: options.defaultTimeoutMs })
   })
@@ -134,6 +148,52 @@ export function createJsEntryTools(options: {
     }) as unknown as JsReplChild
   }
 
+  /**
+   * Drives the cell: delivers the decisions the suspended work has not seen, reports the action it
+   * is waiting for, or starts a fresh cell.
+   *
+   * A resumed graph replays the call from the start and passes every decision again, so decisions
+   * older than the action the cell is waiting for are simply skipped — the action is performed on
+   * the way in, exactly once, and the cell continues from the point it paused.
+   */
+  async function continueOrStart(
+    execution: ToolExecutionContext,
+    code: string,
+    limits: { signal?: AbortSignal | undefined; timeoutMs?: number | undefined },
+    events: JsReplEvents,
+    signal?: AbortSignal
+  ): Promise<JsRunOutcome> {
+    const taskId = execution.taskId
+    for (const decision of execution.continuation?.decisions ?? []) {
+      const waiting = pendingApprovals.get(taskId)
+      if (!waiting) break
+      if (decision.actionIndex < waiting.index) continue
+      if (decision.actionIndex > waiting.index) {
+        throw new Error(
+          `APPROVAL_STALE: the cell waits for action ${waiting.index}, not ${decision.actionIndex}`)
+      }
+      pendingApprovals.delete(taskId)
+      const outcome = await host.continueRun(taskId, {
+        action: waiting,
+        approved: decision.approved,
+        ...(decision.approved
+          ? { perform: async () => await skyFor(taskId).invoke(waiting.method, waiting.args, signal,
+              { allowActions: true }) }
+          : {})
+      }, limits)
+      if (outcome.kind === 'approval') {
+        pendingApprovals.set(taskId, outcome.action)
+        throw new ToolApprovalRequired(outcome.action)
+      }
+      return outcome
+    }
+    // The cell is already waiting on an action the user has not answered: report it again instead of
+    // starting a second cell on top of it.
+    const waiting = pendingApprovals.get(taskId)
+    if (waiting) throw new ToolApprovalRequired(waiting)
+    return await host.run(taskId, code, limits, events)
+  }
+
   const requireSkill = (context: ToolExecutionContext | undefined): void => {
     if (!options.skillLoaded) return
     if (!context?.taskId) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
@@ -158,9 +218,8 @@ export function createJsEntryTools(options: {
         options.gate?.assertRunning(execution.taskId)
         const { code, timeoutMs } = readInput(call.arguments)
         workspaces.set(execution.taskId, execution.workspace)
-        // The graph asks the user before running a cell that may act; this is the same verdict, and
-        // it is what allows the sky layer to perform the action inside that cell.
-        actingCells.set(execution.taskId, classifyCellActions(code).acts)
+        const limits = { ...(signal === undefined ? {} : { signal }),
+          ...(timeoutMs === undefined ? {} : { timeoutMs }) }
 
         const queue: ToolExecutorEvent[] = []
         // Held in one object so the closures below and the loop after them agree on every value.
@@ -177,34 +236,29 @@ export function createJsEntryTools(options: {
         }
         const running = (async () => {
           try {
-            const outcome = await host.run(
-              execution.taskId,
-              code,
-              { ...(signal === undefined ? {} : { signal }),
-                ...(timeoutMs === undefined ? {} : { timeoutMs }) },
-              {
-                text: (chunk) => push({ kind: 'content', stream: 'result', delta: chunk }),
-                image: (bytes) => {
-                  const index = state.images++
-                  void options.saveImage(execution.sessionId, bytes).then(
-                    (asset) => push({ kind: 'asset', index, asset }),
-                    (error: unknown) => {
-                      state.failure ??= error instanceof Error ? error : new Error(String(error))
-                    }
-                  )
-                }
+            const events = {
+              text: (chunk: string) => push({ kind: 'content' as const, stream: 'result' as const,
+                delta: chunk }),
+              image: (bytes: Buffer) => {
+                const index = state.images++
+                void options.saveImage(execution.sessionId, bytes).then(
+                  (asset) => push({ kind: 'asset', index, asset }),
+                  (error: unknown) => {
+                    state.failure ??= error instanceof Error ? error : new Error(String(error))
+                  }
+                )
               }
-            )
-            // A cell that stops for an approval is resumed by the graph; until that wiring lands the
-            // suspension can only come from a stale session, so fail loudly instead of silently.
+            }
+            const outcome = await continueOrStart(execution, code, limits, events, signal)
             if (outcome.kind === 'approval') {
-              throw new Error('APPROVAL_REQUIRED: the cell stopped before performing an action')
+              // Stop the tool call here; the graph asks the user and resumes this same cell.
+              pendingApprovals.set(execution.taskId, outcome.action)
+              throw new ToolApprovalRequired(outcome.action)
             }
             push({ kind: 'result', output: { output: outcome.output } })
           } catch (error) {
             state.failure = error instanceof Error ? error : new Error(String(error))
           } finally {
-            actingCells.delete(execution.taskId)
             state.finished = true
             state.notify?.()
             state.notify = null

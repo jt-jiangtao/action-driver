@@ -315,14 +315,13 @@ export interface TaskProjection {
         observationId: string
         action: Record<string, unknown>
       }
-    /** A whole JavaScript call the user has to confirm before it runs. */
+    /** One action of a JavaScript cell, awaiting the user's answer. */
     | {
         providerCallId: string
-        cell: {
-          title?: string
-          code: string
-          codeLength: number
-          actions: string[]
+        jsAction: {
+          index: number
+          method: string
+          args: Record<string, unknown>
         }
       }
 }

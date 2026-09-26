@@ -127,6 +127,13 @@ export type ToolExecutionContext = {
   taskId: string
   sessionId: string
   workspace: SessionWorkspacePaths
+  /**
+   * Set when the graph continues a call that stopped for approval: every decision the user has made
+   * so far, oldest first. Tools that suspend (the JavaScript entry) deliver the ones the suspended
+   * work has not seen yet and then continue; a tool that already applied a decision ignores it, so a
+   * replayed node cannot apply the same decision twice.
+   */
+  continuation?: { decisions: Array<{ actionIndex: number; approved: boolean }> }
 }
 
 export interface ToolExecutor {

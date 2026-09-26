@@ -5,14 +5,12 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
   SqliteRuntimeRepositories,
-  buildTaskProjection,
   createLocalRuntimeAdapters,
   createLocalRuntimeServer,
   createSqliteCheckpointer,
   openRuntimeDatabase,
   type ModelGateway
 } from '../src/index'
-import { parseToolDefinition } from '@actiondriver/runtime-contracts'
 import { ComputerUseControlGate } from '../src/computer-use/control-gate'
 
 function createHarness(
@@ -40,39 +38,6 @@ function createHarness(
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('local Runtime server composition', () => {
-  it('stores a JavaScript cell approval so the task can show the confirmation card', async () => {
-    let calls = 0
-    const code = 'await sky.click({ app: "TextEdit", element_index: 1 })'
-    const harness = createHarness({ async complete() {
-      if (calls++ === 0) return { kind: 'tool-calls', calls: [{
-        providerCallId: 'js-1', modelName: 'js', arguments: { code, title: '点击元素' }
-      }] }
-      return { kind: 'finish', content: '完成' }
-    } })
-    harness.toolRuntime.registry.register(parseToolDefinition({
-      id: 'computer.js', version: 1, modelName: 'js', description: 'js entry',
-      inputSchema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] },
-      risk: 'high', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1_000
-    }), { async *execute() { yield { kind: 'result', output: { output: 'ran' } } } })
-    harness.toolRuntime.grants.push('computer.js@1')
-    const { taskId } = await harness.server.execute('task.submit', {
-      goal: '点击元素', model, skills: []
-    }) as { taskId: string }
-    await vi.waitFor(async () => expect((await harness.repositories.tasks.get(taskId))?.status)
-      .toBe('waiting-user'))
-    const record = await harness.repositories.tasks.get(taskId)
-    expect(record?.error).toMatchObject({ code: 'COMPUTER_ACTION_APPROVAL', providerCallId: 'js-1',
-      cell: { title: '点击元素', code, codeLength: code.length, actions: ['click'] } })
-    expect(buildTaskProjection(record!, []).pendingComputerApproval)
-      .toMatchObject({ providerCallId: 'js-1', cell: { actions: ['click'] } })
-    // Approving the card resumes the same call instead of asking again.
-    await harness.server.execute('task.provide-input', {
-      taskId, value: { approved: true, providerCallId: 'js-1' }
-    })
-    await vi.waitFor(async () => expect((await harness.repositories.tasks.get(taskId))?.status)
-      .toBe('completed'))
-  })
-
   it('interrupts a Computer Use task on takeover and resumes only after control returns', async () => {
     const gate = new ComputerUseControlGate()
     let started!: () => void

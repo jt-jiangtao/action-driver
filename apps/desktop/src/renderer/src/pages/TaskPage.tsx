@@ -216,16 +216,10 @@ export function TaskPage({
               {task.status === 'waiting-user' && task.pendingComputerApproval &&
                 <section className="computer-action-approval" aria-label="Computer Use 动作确认">
                   <h2>确认这一步桌面操作</h2>
-                  {'cell' in task.pendingComputerApproval
+                  {'jsAction' in task.pendingComputerApproval
                     ? <>
-                        <p>
-                          这段 JavaScript 会操作桌面（
-                          {describeComputerCellActions(task.pendingComputerApproval.cell.actions)}）。
-                          确认仅适用于这一次调用。
-                        </p>
-                        {task.pendingComputerApproval.cell.title &&
-                          <p>{task.pendingComputerApproval.cell.title}</p>}
-                        <pre>{task.pendingComputerApproval.cell.code}</pre>
+                        <p>模型正在用 JavaScript 操作桌面。确认仅适用于这一次动作。</p>
+                        <pre>{describeJsAction(task.pendingComputerApproval.jsAction)}</pre>
                       </>
                     : <>
                         <p>ActionDriver 将在当前应用执行以下动作。确认仅适用于这一次调用。</p>
@@ -311,13 +305,24 @@ function describeComputerAction(action: Record<string, unknown>): string {
   }
 }
 
-/** Names the desktop actions a JavaScript cell may perform, for the approval card. */
-const COMPUTER_CELL_ACTION_LABELS: Record<string, string> = {
-  click: '点击', drag: '拖拽', paste: '粘贴', press_key: '按键', select_text: '选中文本',
-  set_value: '写入字段', type_text: '输入文本', perform_secondary_action: '次级动作'
-}
-
-function describeComputerCellActions(actions: readonly string[]): string {
-  if (actions.length === 0) return '桌面动作'
-  return actions.map((action) => COMPUTER_CELL_ACTION_LABELS[action] ?? action).join('、')
+/** Describes one action of a JavaScript cell, the way the Skill's API names it. */
+function describeJsAction(action: { index: number; method: string; args: Record<string, unknown> }): string {
+  const element = action.args.element_index
+  const at = typeof element === 'number' ? `第 ${element} 个界面元素` : '界面'
+  const text = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value)
+  switch (action.method) {
+    case 'click':
+      return typeof action.args.x === 'number' && typeof action.args.y === 'number'
+        ? `点击坐标 (${action.args.x}, ${action.args.y})`
+        : `点击${at}`
+    case 'type_text': return `输入文本：${text(action.args.text)}`
+    case 'paste': return `粘贴文本（${String(action.args.format ?? 'text')}）：${text(action.args.text)}`
+    case 'press_key': return `按键：${String(action.args.key ?? '')}`
+    case 'set_value': return `把${at}的值设为：${text(action.args.value)}`
+    case 'select_text': return `在${at}中选中：${text(action.args.text)}`
+    case 'drag': return `从 (${String(action.args.from_x)}, ${String(action.args.from_y)}) ` +
+      `拖到 (${String(action.args.to_x)}, ${String(action.args.to_y)})`
+    case 'perform_secondary_action': return `对${at}执行「${String(action.args.action ?? '')}」`
+    default: return `${action.method} ${JSON.stringify(action.args)}`
+  }
 }

@@ -14,6 +14,7 @@ import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
 import type { ProviderToolCall } from '@actiondriver/model-connections'
 import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
 import { classifyCellActions } from './computer-use/cell-actions'
+import { ToolApprovalRequired } from './computer-use/tool-approval'
 import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import type { ToolInvocationService } from './tool-invocation-service'
@@ -74,38 +75,26 @@ function volatileToolResultKey(taskId: string, toolCallId: string): string {
 }
 
 /** What the user is asked to confirm before a call runs, or null when it runs unprompted. */
-type ComputerApprovalRequest =
-  | { kind: 'action'; action: Record<string, unknown>; observationId: string }
-  | { kind: 'cell'; cell: { title?: string; code: string; codeLength: number; actions: string[] } }
+type ComputerApprovalRequest = { action: Record<string, unknown>; observationId: string }
 
-/** Longest code excerpt sent with an approval prompt; the full source stays in the tool record. */
-const APPROVAL_CODE_EXCERPT = 1_200
+/** How many mid-call approvals one JavaScript cell may ask for before we call it a loop. */
+const APPROVAL_ROUND_LIMIT = 24
 
 function computerApprovalRequest(call: ProviderToolCall): ComputerApprovalRequest | null {
-  if (call.modelName === 'computer_act') {
-    const action = call.arguments.action
-    if (typeof action !== 'object' || action === null || !('type' in action)) {
-      return { kind: 'action', action: {}, observationId: String(call.arguments.observationId ?? '') }
-    }
-    if (action.type === 'wait' || action.type === 'scroll') return null
-    return { kind: 'action', action: action as Record<string, unknown>,
-      observationId: String(call.arguments.observationId ?? '') }
+  if (call.modelName !== 'computer_act') return null
+  const action = call.arguments.action
+  if (typeof action !== 'object' || action === null || !('type' in action)) {
+    return { action: {}, observationId: String(call.arguments.observationId ?? '') }
   }
-  // The JavaScript entry runs the whole Skill API, so the confirmation belongs to the cell: ask once
-  // before running code that can change the desktop, and let observation-only cells run untouched.
-  if (call.modelName === 'js') {
-    const code = typeof call.arguments.code === 'string' ? call.arguments.code : ''
-    const classified = classifyCellActions(code)
-    if (!classified.acts) return null
-    const title = call.arguments.title
-    return { kind: 'cell', cell: {
-      ...(typeof title === 'string' && title.trim() ? { title } : {}),
-      code: code.slice(0, APPROVAL_CODE_EXCERPT),
-      codeLength: code.length,
-      actions: classified.methods
-    } }
-  }
-  return null
+  if (action.type === 'wait' || action.type === 'scroll') return null
+  return { action: action as Record<string, unknown>,
+    observationId: String(call.arguments.observationId ?? '') }
+}
+
+function jsActionArguments(args: unknown): Record<string, unknown> {
+  return typeof args === 'object' && args !== null && !Array.isArray(args)
+    ? args as Record<string, unknown>
+    : {}
 }
 
 export type GraphToolRuntime = {
@@ -180,6 +169,16 @@ export class LangGraphRunner implements GraphRunner {
   private readonly activeControllers = new Map<string, AbortController>()
   private readonly modelObservers = new Map<string, ModelEventObserver>()
   private readonly toolObservers = new Map<string, ToolEventObserver>()
+  /**
+   * Approvals the user has already given for one tool call, oldest first.
+   *
+   * A resumed node replays from the start of the round, so the call is driven with this list instead
+   * of asking again: the tool delivers the decisions it has not applied yet and continues.
+   */
+  private readonly toolApprovalDecisions = new Map<
+    string,
+    Array<{ actionIndex: number; approved: boolean }>
+  >()
   private readonly streamRequestIds = new Map<string, string>()
   /**
    * Full results of redacting tools (Computer Use element trees), keyed by task and tool call.
@@ -532,9 +531,7 @@ export class LangGraphRunner implements GraphRunner {
           const decision = langGraphInterrupt({
             reason: 'computer-action-approval', taskId: state.taskId,
             providerCallId: approvalCall.providerCallId,
-            ...(request.kind === 'action'
-              ? { action: request.action, observationId: request.observationId }
-              : { cell: request.cell })
+            action: request.action, observationId: request.observationId
           }) as unknown
           approved = typeof decision === 'object' && decision !== null &&
             'approved' in decision && decision.approved === true &&
@@ -595,53 +592,103 @@ export class LangGraphRunner implements GraphRunner {
             activityIssueCount += 1
             continue
           }
+          // A JavaScript cell asks for its actions while it runs, so it has to be alone in the
+          // round: on resume the whole round replays, and any other call would run twice.
+          if (providerCall.modelName === 'js' &&
+              classifyCellActions(String(providerCall.arguments.code ?? '')).acts &&
+              state.pendingToolCalls.length !== 1) {
+            throw new Error('COMPUTER_ACTION_BATCH_UNSUPPORTED: call one modifying action at a time')
+          }
           let terminal: Extract<
             ToolEvent,
             { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
           > | null = null
-          try {
-            for await (const toolEvent of this.toolRuntime.invocations.execute(
-              call,
-              {
+          // A tool may stop mid-call on an action the user has to confirm. The call is then resumed
+          // with the decision, so the tool continues instead of starting over.
+          const decisions = this.toolApprovalDecisions.get(call.callId) ?? []
+          this.toolApprovalDecisions.set(call.callId, decisions)
+          for (let attempt = 0; ; attempt += 1) {
+            try {
+              for await (const toolEvent of this.toolRuntime.invocations.execute(
+                call,
+                {
+                  taskId: state.taskId,
+                  threadId: state.threadId,
+                  checkpointId: `tool:${state.toolRound}`,
+                  requestId:
+                    this.streamRequestIds.get(state.taskId) ??
+                    `plan:${state.taskId}:${state.toolRound}`,
+                  grants: state.toolGrants,
+                  activityId: activeActivityId,
+                  ...(decisions.length ? { continuation: { decisions: [...decisions] } } : {}),
+                  ...(this.toolObservers.get(state.taskId)
+                    ? { onEvent: this.toolObservers.get(state.taskId)! }
+                    : {})
+                },
+                config.signal
+              )) {
+                if (
+                  toolEvent.type === 'tool.completed' ||
+                  toolEvent.type === 'tool.failed' ||
+                  toolEvent.type === 'tool.cancelled'
+                ) {
+                  terminal = toolEvent
+                }
+              }
+              break
+            } catch (error) {
+              if (config.signal?.aborted) throw error
+              if (error instanceof ToolApprovalRequired) {
+                if (attempt >= APPROVAL_ROUND_LIMIT) {
+                  throw new Error('COMPUTER_APPROVAL_LOOP: too many approvals in one tool call')
+                }
+                if (decisions.length > 0) {
+                  terminal = {
+                    type: 'tool.failed',
+                    callId: call.callId,
+                    taskId: state.taskId,
+                    sequence: 0,
+                    error: {
+                      code: 'COMPUTER_ACTION_SPLIT_REQUIRED',
+                      message: 'Put each desktop action in its own js call so each one can be ' +
+                        'confirmed on its own',
+                      retryable: false
+                    }
+                  }
+                  break
+                }
+                const decision = langGraphInterrupt({
+                  reason: 'computer-action-approval',
+                  taskId: state.taskId,
+                  providerCallId: providerCall.providerCallId,
+                  jsAction: { index: error.approval.index, method: error.approval.method,
+                    args: jsActionArguments(error.approval.args) }
+                }) as unknown
+                const granted = typeof decision === 'object' && decision !== null &&
+                  'approved' in decision && decision.approved === true &&
+                  'providerCallId' in decision &&
+                  decision.providerCallId === providerCall.providerCallId
+                decisions.push({ actionIndex: error.approval.index, approved: granted })
+                continue
+              }
+              terminal = {
+                type: 'tool.failed',
+                callId: call.callId,
                 taskId: state.taskId,
-                threadId: state.threadId,
-                checkpointId: `tool:${state.toolRound}`,
-                requestId:
-                  this.streamRequestIds.get(state.taskId) ??
-                  `plan:${state.taskId}:${state.toolRound}`,
-                grants: state.toolGrants,
-                activityId: activeActivityId,
-                ...(this.toolObservers.get(state.taskId)
-                  ? { onEvent: this.toolObservers.get(state.taskId)! }
-                  : {})
-              },
-              config.signal
-            )) {
-              if (
-                toolEvent.type === 'tool.completed' ||
-                toolEvent.type === 'tool.failed' ||
-                toolEvent.type === 'tool.cancelled'
-              ) {
-                terminal = toolEvent
+                sequence: 0,
+                error: {
+                  code:
+                    error instanceof Error && 'code' in error
+                      ? String(error.code)
+                      : 'TOOL_UNAVAILABLE',
+                  message: error instanceof Error ? error.message : String(error),
+                  retryable: false
+                }
               }
-            }
-          } catch (error) {
-            if (config.signal?.aborted) throw error
-            terminal = {
-              type: 'tool.failed',
-              callId: call.callId,
-              taskId: state.taskId,
-              sequence: 0,
-              error: {
-                code:
-                  error instanceof Error && 'code' in error
-                    ? String(error.code)
-                    : 'TOOL_UNAVAILABLE',
-                message: error instanceof Error ? error.message : String(error),
-                retryable: false
-              }
+              break
             }
           }
+          this.toolApprovalDecisions.delete(call.callId)
           const redact = terminal?.type === 'tool.completed'
             ? this.toolRedaction(providerCall.modelName)
             : undefined

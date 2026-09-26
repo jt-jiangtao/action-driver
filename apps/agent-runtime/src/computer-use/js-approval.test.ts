@@ -6,13 +6,23 @@ import { MockSkillRegistry } from '../mock-adapters'
 import { RuntimeToolRegistry } from '../tool-registry'
 import { RuntimeToolPolicy } from '../tool-policy'
 import { ToolInvocationService } from '../tool-invocation-service'
+import { ToolApprovalRequired } from './tool-approval'
+
+const clickAction = { index: 0, method: 'click', args: { app: 'TextEdit', element_index: 2 } }
+const typeAction = { index: 1, method: 'type_text', args: { app: 'TextEdit', text: 'hi' } }
 
 /**
- * A stand-in for the real `js` tool: the graph decides whether a cell needs confirmation, so the
- * approval path can be tested without spawning the sandboxed child.
+ * Stands in for the real `js` tool: it stops on the actions the test scripted, and records the
+ * decisions it was resumed with, so the graph's approval loop can be tested without a sandbox.
  */
-function harness(code: string, title?: string) {
-  const executed: Array<Record<string, unknown>> = []
+function harness(options: {
+  actions?: Array<{ index: number; method: string; args: Record<string, unknown> }>
+  code?: string
+}) {
+  const code = options.code ?? 'await sky.click({ app: "TextEdit", element_index: 2 })'
+  const actions = options.actions ?? []
+  const performed: Array<Record<string, unknown>> = []
+  const seen: Array<{ actionIndex: number; approved: boolean }> = []
   const results: RuntimeMessage[] = []
   const registry = new RuntimeToolRegistry()
   registry.register(parseToolDefinition({
@@ -20,9 +30,24 @@ function harness(code: string, title?: string) {
     inputSchema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] },
     risk: 'high', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1_000
   }), {
-    async *execute(call) {
-      executed.push(call.arguments as Record<string, unknown>)
-      yield { kind: 'result', output: { output: 'ran' } }
+    async *execute(_call, _signal, execution) {
+      const decisions = execution?.continuation?.decisions ?? []
+      if (decisions.length === 0) {
+        const first = actions[0]
+        if (first) throw new ToolApprovalRequired(first)
+        yield { kind: 'result', output: { output: 'observed' } }
+        return
+      }
+      // The list is replayed in full, so only the newest decision is new work for this call.
+      const decision = decisions[decisions.length - 1]!
+      seen.push(decision)
+      const action = actions[decision.actionIndex]
+      if (decision.approved && action) performed.push(action.args)
+      const next = actions[decision.actionIndex + 1]
+      if (next && !decisions.some((entry) => entry.actionIndex === next.index)) {
+        throw new ToolApprovalRequired(next)
+      }
+      yield { kind: 'result', output: { output: decision.approved ? 'acted' : 'skipped' } }
     }
   })
   const policy = new RuntimeToolPolicy()
@@ -31,15 +56,19 @@ function harness(code: string, title?: string) {
     persistence: { async commitToolInvocationWithEvent(_invocation, event) {
       return { ...event, cursor: 1 }
     } },
-    clock: { now: () => new Date().toISOString() }
+    clock: { now: () => new Date().toISOString() },
+    // The continuation rides on the execution context, exactly as it does in the runtime.
+    executionContext: async (taskId) => ({
+      taskId, sessionId: 'session-1',
+      workspace: { root: '/tmp/session-1', input: '/tmp/session-1/input',
+        output: '/tmp/session-1/output' }
+    })
   })
   let round = 0
   const model: ModelGateway = { async complete(request) {
     if (round++ === 0) {
-      return { kind: 'tool-calls', calls: [{
-        providerCallId: 'js-1', modelName: 'js',
-        arguments: { code, ...(title === undefined ? {} : { title }) }
-      }] }
+      return { kind: 'tool-calls', calls: [{ providerCallId: 'js-1', modelName: 'js',
+        arguments: { code } }] }
     }
     results.push(request.messages.at(-1)!)
     return { kind: 'finish', content: 'done' }
@@ -47,58 +76,56 @@ function harness(code: string, title?: string) {
   const runner = new LangGraphRunner(model, new MockSkillRegistry(), undefined, {
     registry, policy, invocations, grants: ['computer.js@1']
   })
-  return { runner, executed, results }
+  return { runner, performed, decisions: seen, results }
 }
 
-const actingCode = 'await sky.click({ app: "TextEdit", element_index: 2 })'
-const readingCode = 'const state = await sky.get_app_state({ app: "TextEdit" });\n' +
-  'nodeRepl.write(state.text)'
-
-describe('JavaScript cell approval', () => {
-  it('asks before running a cell that can change the desktop', async () => {
-    const { runner, executed } = harness(actingCode, '点击保存按钮')
-    const waiting = await runner.run({ taskId: 'js-approval', goal: 'click save',
+describe('per-action confirmation inside a JavaScript cell', () => {
+  it('asks for the first action, then runs the cell once the user approves it', async () => {
+    const { runner, performed, decisions } = harness({ actions: [clickAction] })
+    const waiting = await runner.run({ taskId: 'js-one', goal: 'click',
       model: { connectionId: 'one', modelId: 'two' } })
     expect(waiting).toMatchObject({ status: 'waiting-user', output: {
-      reason: 'computer-action-approval', providerCallId: 'js-1',
-      cell: { title: '点击保存按钮', code: actingCode, codeLength: actingCode.length,
-        actions: ['click'] }
+      reason: 'computer-action-approval', providerCallId: 'js-1', jsAction: clickAction
     } })
-    expect(executed).toHaveLength(0)
-  })
-
-  it('runs the cell once after approval', async () => {
-    const { runner, executed } = harness(actingCode)
-    await runner.run({ taskId: 'js-approved', goal: 'click save',
-      model: { connectionId: 'one', modelId: 'two' } })
-    const completed = await runner.provideInput('js-approved', {
+    expect(performed).toEqual([])
+    const completed = await runner.provideInput('js-one', {
       approved: true, providerCallId: 'js-1'
     })
     expect(completed.status).toBe('completed')
-    expect(executed).toHaveLength(1)
+    expect(decisions).toEqual([{ actionIndex: 0, approved: true }])
+    expect(performed).toEqual([clickAction.args])
   })
 
-  it('drops the cell and tells the model when the user declines', async () => {
-    const { runner, executed, results } = harness(actingCode)
-    await runner.run({ taskId: 'js-denied', goal: 'click save',
+  it('delivers a denial to the cell and still finishes the call', async () => {
+    const { runner, decisions, performed } = harness({ actions: [clickAction] })
+    await runner.run({ taskId: 'js-deny', goal: 'click',
       model: { connectionId: 'one', modelId: 'two' } })
-    const completed = await runner.provideInput('js-denied', {
-      approved: false, providerCallId: 'js-1'
-    })
+    const completed = await runner.provideInput('js-deny', { approved: false, providerCallId: 'js-1' })
     expect(completed.status).toBe('completed')
-    expect(executed).toHaveLength(0)
-    expect(JSON.stringify(results.at(-1))).toContain('USER_DENIED')
+    expect(decisions).toEqual([{ actionIndex: 0, approved: false }])
+    expect(performed).toEqual([])
+  })
+
+  it('refuses a cell that asks for a second action, instead of confirming it blindly', async () => {
+    const { runner, performed, results } = harness({ actions: [clickAction, typeAction] })
+    await runner.run({ taskId: 'js-two', goal: 'click then type',
+      model: { connectionId: 'one', modelId: 'two' } })
+    const completed = await runner.provideInput('js-two', { approved: true, providerCallId: 'js-1' })
+    expect(completed.status).toBe('completed')
+    // The first action ran once; the second one was refused with an instruction to split the call.
+    expect(performed).toEqual([clickAction.args])
+    expect(completed.status).toBe('completed')
+    expect(JSON.stringify(results.at(-1))).toContain('COMPUTER_ACTION_SPLIT_REQUIRED')
   })
 
   it('runs an observation-only cell without asking', async () => {
-    const { runner, executed } = harness(readingCode)
+    const { runner } = harness({ code: 'nodeRepl.write("reading")' })
     const completed = await runner.run({ taskId: 'js-read', goal: 'read the window',
       model: { connectionId: 'one', modelId: 'two' } })
     expect(completed.status).toBe('completed')
-    expect(executed).toHaveLength(1)
   })
 
-  it('fails the batch when a confirmed cell shares a round with another tool', async () => {
+  it('rejects an acting cell that shares its round with another tool', async () => {
     const registry = new RuntimeToolRegistry()
     registry.register(parseToolDefinition({
       id: 'computer.js', version: 1, modelName: 'js', description: 'js entry',
@@ -120,7 +147,8 @@ describe('JavaScript cell approval', () => {
     })
     const model: ModelGateway = { async complete() {
       return { kind: 'tool-calls', calls: [
-        { providerCallId: 'js-batch', modelName: 'js', arguments: { code: actingCode } },
+        { providerCallId: 'js-batch', modelName: 'js',
+          arguments: { code: 'await sky.click({ app: "TextEdit", element_index: 1 })' } },
         { providerCallId: 'obs-batch', modelName: 'computer_observe', arguments: {} }
       ] }
     } }

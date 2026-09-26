@@ -23,23 +23,19 @@ describe('ActionDriver pages', () => {
     await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
     expect(onComputerDecision).toHaveBeenCalledWith(true, 'call-one')
   })
-  it('shows the JavaScript cell behind a confirmation and its desktop actions', async () => {
+  it('shows the JavaScript action that waits for the user', async () => {
     const onComputerDecision = vi.fn(async () => undefined)
     render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null,
       status: 'waiting-user',
-      pendingComputerApproval: { providerCallId: 'js-call', cell: {
-        title: '保存文档',
-        code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
-        codeLength: 52,
-        actions: ['press_key']
+      pendingComputerApproval: { providerCallId: 'js-call', jsAction: {
+        index: 1, method: 'press_key', args: { app: 'TextEdit', key: 's' }
       } }
     }} modelSelection={mockModelSelection} onSelectModel={vi.fn()}
       onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
       onTakeOver={vi.fn()} onComputerDecision={onComputerDecision}
       onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
-    expect(screen.getByText(/这段 JavaScript 会操作桌面（按键）/)).toBeVisible()
-    expect(screen.getByText('保存文档')).toBeVisible()
-    expect(screen.getByText(/await sky\.press_key/)).toBeVisible()
+    expect(screen.getByText(/模型正在用 JavaScript 操作桌面/)).toBeVisible()
+    expect(screen.getByText('按键：s')).toBeVisible()
     await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
     expect(onComputerDecision).toHaveBeenCalledWith(true, 'js-call')
   })
