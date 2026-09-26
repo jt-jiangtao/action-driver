@@ -49,8 +49,4 @@ public struct GuidanceSnapshot: Equatable, Sendable {
         pending = nil
     }
 
-    /// The window flew away while waiting, so a landed grant must bring it back.
-    public func shouldReturnFromEdge(previous: GuidanceSnapshot) -> Bool {
-        previous.waitingForSystem && !waitingForSystem
-    }
 }

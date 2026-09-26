@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImageAssetRef } from '@actiondriver/contracts'
 import type { ModelGateway, RuntimeMessage } from '../src/ports'
-import { LangGraphRunner } from '../src/agent-graph'
+import { MemorySaver } from '@langchain/langgraph'
+import { LangGraphRunner, threadIdForTask } from '../src/agent-graph'
 import { MockSkillRegistry } from '../src/mock-adapters'
 import { RuntimeSkillRegistry } from '../src/skill-registry'
 import { RuntimeToolRegistry } from '../src/tool-registry'
@@ -14,6 +15,7 @@ import { connectLocalCapabilityHost } from '../../desktop/src/main/local-capabil
 import { ComputerUseControlGate } from '../src/computer-use/control-gate'
 import { createComputerUseTools } from '../src/computer-use/tools'
 import { VolatileComputerImages } from '../src/computer-use/volatile-images'
+import { assertPersistablePayload } from '../src/persistence-guard'
 
 type NativeCall = { operation: string } & Record<string, unknown>
 
@@ -33,11 +35,16 @@ async function setup(options: { taskId: string; model: ModelGateway }) {
     async execute(input) {
       const request = input as NativeCall
       calls.push(request)
+      // Shaped like the native helper: element frames and the display frame carry coordinates.
       if (request.operation === 'observe') return {
-        observationId: 'obs-1',
-        elements: [{ role: 'AXButton', title: '提交', actions: ['press'] }]
+        observationId: 'obs-1', application: { name: 'Finder', pid: 42 }, windowId: 7,
+        tree: { ref: 'root', role: 'AXApplication', frame: { x: 0, y: 25, width: 800, height: 600 },
+          children: [{ ref: 'button', role: 'AXButton', title: 'SENSITIVE-TITLE', actions: ['press'],
+            frame: { x: 10, y: 20, width: 80, height: 24 } }] },
+        truncated: false
       }
       if (request.operation === 'capture') return {
+        displayFrame: { x: 0, y: 0, width: 800, height: 600 },
         mimeType: 'image/jpeg', width: 12, height: 8,
         base64: jpeg.toString('base64'), observationId: 'obs-1'
       }
@@ -54,6 +61,7 @@ async function setup(options: { taskId: string; model: ModelGateway }) {
   client = await connectLocalCapabilityHost({ baseUrl: server.url, token: 'local-secret', host })
   await vi.waitFor(() => expect(() => registry.resolve('computer-use', 1)).not.toThrow())
 
+  const persisted: unknown[] = []
   const gate = new ComputerUseControlGate()
   const tools = createComputerUseTools(async (input, signal) => {
     const result = await registry.resolve('computer-use', 1).execute(
@@ -65,18 +73,30 @@ async function setup(options: { taskId: string; model: ModelGateway }) {
   const policy = new RuntimeToolPolicy()
   const invocations = new ToolInvocationService({
     registry: toolRegistry, policy,
-    persistence: { async commitToolInvocationWithEvent(_invocation, event) {
+    // Applies the storage guard like the SQLite repositories do.
+    persistence: { async commitToolInvocationWithEvent(invocation, event) {
+      assertPersistablePayload(invocation.input, 'toolInvocation.input')
+      assertPersistablePayload(invocation.output, 'toolInvocation.output')
+      assertPersistablePayload(event.payload, 'runtimeEvent.payload')
+      persisted.push(structuredClone({ invocation, event }))
       return { ...event, cursor: 1 }
     } },
     clock: { now: () => new Date().toISOString() },
     executionContext: async (taskId) => ({ taskId, sessionId: taskId,
       workspace: { root: '/tmp', input: '/tmp/in', output: '/tmp/out' } })
   })
-  const runner = new LangGraphRunner(options.model, new MockSkillRegistry(), undefined, {
+  const checkpointer = new MemorySaver()
+  const runner = new LangGraphRunner(options.model, new MockSkillRegistry(), checkpointer, {
     registry: toolRegistry, policy, invocations,
     grants: tools.map((tool) => `${tool.definition.id}@${tool.definition.version}`)
   })
-  return { runner, gate, calls, images, jpeg, tools }
+  const checkpoints = async (taskId: string): Promise<string> => {
+    const tuples = []
+    for await (const tuple of checkpointer.list({ configurable: { thread_id: threadIdForTask(taskId) } }))
+      tuples.push(tuple)
+    return JSON.stringify(tuples)
+  }
+  return { runner, gate, calls, images, jpeg, tools, persisted, checkpoints }
 }
 
 describe('Computer Use native integration', () => {
@@ -92,10 +112,11 @@ describe('Computer Use native integration', () => {
         modelName: 'computer_capture', arguments: { maxWidth: 64, maxHeight: 64 } }] }
       if (round === 3) return { kind: 'tool-calls', calls: [{ providerCallId: 'act-1',
         modelName: 'computer_act', arguments: { observationId: 'obs-1',
-          action: { type: 'click-element', elementRef: 'AXButton:提交' } } }] }
+          action: { type: 'click-element', elementRef: 'ref-1' } } }] }
       return { kind: 'finish', content: '已完成' }
     } }
-    const { runner, calls, images, jpeg } = await setup({ taskId: 'integration-task', model })
+    const { runner, calls, images, jpeg, persisted, checkpoints } =
+      await setup({ taskId: 'integration-task', model })
 
     const waiting = await runner.run({ taskId: 'integration-task', goal: '提交表单',
       model: { connectionId: 'one', modelId: 'two' } })
@@ -116,6 +137,19 @@ describe('Computer Use native integration', () => {
       approved: true, providerCallId: 'act-1'
     })
     expect(completed.status).toBe('completed')
+    // The model saw the element tree, but history holds only safe summaries.
+    expect(JSON.stringify(requests)).toContain('ref-1')
+    const stored = JSON.stringify(persisted)
+    // Only the safe summary is persisted: the AX tree text itself never reaches history.
+    // AX text from the observed interface never reaches history; the goal text may of course.
+    expect(stored).not.toContain('SENSITIVE-TITLE')
+    expect(stored).not.toContain('displayFrame')
+    expect(stored).not.toContain(jpeg.toString('base64'))
+    // LangGraph checkpoints hold the same safe summaries, never the tree or display geometry.
+    const graphState = await checkpoints('integration-task')
+    expect(graphState).toContain('obs-1')
+    expect(graphState).not.toContain('SENSITIVE-TITLE')
+    expect(graphState).not.toContain('displayFrame')
     expect(calls.map((entry) => entry.operation)).toEqual(['observe', 'capture', 'act'])
     expect(requests.at(-1)?.some((message) => message.role === 'user' &&
       Array.isArray(message.content) && message.content.some((part) => part.kind === 'image')))

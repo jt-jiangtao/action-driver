@@ -9,11 +9,18 @@ function stateLabel(allowed: boolean | undefined): string {
   return allowed ? '已授权' : '未授权'
 }
 
-export function ComputerUsePage({ onBack, onOpenConnections, onOpenMainPrompt, onOpenSkills }: {
+export function ComputerUsePage({
+  onBack,
+  onOpenConnections,
+  onOpenMainPrompt,
+  onOpenSkills,
+  onOpenComputerUse
+}: {
   onBack(): void
   onOpenConnections(): void
   onOpenMainPrompt(): void
   onOpenSkills(): void
+  onOpenComputerUse?(): void
 }) {
   const [status, setStatus] = useState<ComputerPermissionStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +52,8 @@ export function ComputerUsePage({ onBack, onOpenConnections, onOpenMainPrompt, o
   return <div className="settings-shell" data-testid="e2e/settings/computer-use/page#page">
     <SettingsSidebar onBack={onBack} active="computer-use"
       onOpenConnections={onOpenConnections} onOpenMainPrompt={onOpenMainPrompt}
-      onOpenSkills={onOpenSkills} />
+      onOpenSkills={onOpenSkills}
+      {...(onOpenComputerUse ? { onOpenComputerUse } : {})} />
     <main className="settings-main agent-settings-main">
       <div className="agent-page computer-use-settings">
         <header className="agent-page-header"><div>

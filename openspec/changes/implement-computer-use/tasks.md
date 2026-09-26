@@ -63,6 +63,33 @@
 - [x] 8.9 授权指引窗口改为 helper 内的原生 Swift 窗口：真实 SF Symbols 图标、无标题栏、只保留关闭按钮，`Esc` 同样关闭；协议新增 `guidance` 操作，Electron 侧删除原 React 指引界面与对应契约。
 - [x] 8.10 「飞走—飞回」动效：`允许` 后窗口缩至屏幕右上角并淡出，轮询到授权落地后飞回显示 `已完成`，两项完成自动关闭；状态机由 `GuidanceState` 承载并有单测覆盖。
 - [x] 8.11 确认并记录系统限制：把应用拖入授权列表只能由用户完成，应用无法代劳。
+- [x] 8.12 授权流程改为双窗口：指引窗口不动，待授权卡变虚线卡，第二个浮动面板从卡片位置飞出、内含可拖拽应用图标，返回或授权落地时飞回并交还焦点。
+- [x] 8.13 权限状态一律按 macOS 真实返回，移除全部预览/占位状态。
+
+## 9. helper 进程归属与通信通道（Battle 后）
+
+## 10. 能力面对齐 Codex（Battle 后裁决）
+
+- [ ] 10.1 协议与 helper 新增 `list_apps`：返回应用 id／显示名／是否运行／最近使用，供按 bundle id 重试。
+- [ ] 10.2 `get_app_state`：按 app（名/路径/bundle id）取 AX 文本 + 截图；未运行则经 LaunchServices 透明启动；动作后自动等待（约 1s，加载中最多再等 5s）；默认输出相对上次的 diff，`disableDiff` 关闭。
+- [ ] 10.3 动作补齐：`set_value`、`paste`（系统剪贴板，写入后恢复原内容，支持 text/md/html）、`select_text`（含 prefix/suffix/selection_type）、`drag`、`perform_secondary_action`（仅限元素实际暴露的 action）。
+- [ ] 10.4 模型入口：提供 `node_repl` 式有状态 JS 入口（状态跨调用保留、可 emit 图像），在 JS 中 `import` Computer Use 库调用上述 11 个 API；除用户明确要求外不使用 AppleScript/osascript/JXA/System Events/CGEvent 合成。
+- [ ] 10.5 门禁与前置条件：调用 Computer Use 前必须先加载 `computer-use` skill；11 个 API 全部接入既有 Tool/Policy 与逐动作确认门禁，确认分级遵循 skill 里的 Confirmations Policy。
+- [ ] 10.6 验证：定向测试（协议/helper/工具面/JS 入口）、真实应用冒烟（启动走 LaunchServices、观察/点击/取值/粘贴/次级动作可用、WPS 类应用不再因 shell 启动而崩溃）、打包冒烟。
+
+- [x] 9.1 helper 提供 Unix domain socket 服务：私有运行目录（0700）、socket 0600、token 握手、单连接串行、无 TCP 监听。
+- [x] 9.2 Main 通过 LaunchServices 启动 helper 并连接 socket：既有 socket 复用、就绪超时、崩溃感知与重启、shutdown 与残留清理；删除 stdio 通道与相关回退开关。
+- [x] 9.3 开发与打包都用稳定签名身份（自签名 `ActionDriver Dev Signing` 或 Developer ID），保证授权条目不随重建失效。
+- [x] 9.4 验证 helper 作为发起进程能被授权：直连 socket 探针与应用内判定都反映 helper 自身身份。
+- [ ] 9.5 发布/安装场景验证：安装后的 `ActionDriver.app` 能通过 LaunchServices 拉起 `Contents/Helpers` 内的 helper 并完成 socket 握手。（**未自动化的原因**：暂存目录冒烟里 `open -a` 按 bundle id 解析，可能拉起构建树里的另一份注册副本；实测在暂存环境无法稳定断言，已把该断言挪到安装后验证。）
+
+### 9.x 实施记录
+
+- 实测：`open -n -a <helper> --args --socket … --token-file …` 后，helper 进程 `ppid=1`（由 launchd 托管），socket 权限 `srw-------`，握手 + `permissions` 请求返回结构化结果，`AXIsProcessTrusted()` 反映的是 helper 自身身份（同证书的探针应用未授权时为 `false`，授权后为 `true`）。
+- 对照证据：同一二进制直接由 shell 启动读到 `accessibility=true`（继承终端授权），经 LaunchServices 启动读到 `false`（自己的身份）——这正是本次架构改动的依据。
+- 开发签名：本机无 Apple 签名身份，改为独立钥匙串 `~/Library/Keychains/actiondriver-dev.keychain-db` 中的自签名 `ActionDriver Dev Signing`；构建用 `ACTIONDRIVER_CODESIGN_IDENTITY` + `ACTIONDRIVER_CODESIGN_KEYCHAIN` 传入，脚本会先解锁该钥匙串。
+- 路径长度坑：Unix domain socket 路径上限约 104 字节，e2e 的临时 userData 路径会超限导致 bind 失败；socket 因此改放到 `os.tmpdir()`（`actiondriver-computer-use.sock`）。helper 在 socket 创建失败时直接退出，避免每次重试都残留一个空转进程。
+- 构建脚本现在**默认**使用本机开发签名身份（存在 `actiondriver-dev.keychain-db` 时），否则才退回 ad-hoc；这样 `pnpm dev`、e2e、打包冒烟的重建都不会再把授权条目弄失效。
 
 ## 验证记录
 
@@ -92,6 +119,8 @@
 - 去掉底部三个按钮：授权后切回窗口自动重新检测（`focus`），`Esc` 返回主窗口，`Esc` 销毁窗口会打断 Playwright 的按键调用，因此 E2E 断言改看窗口数量结果。
 - 修掉同屏并发缺陷：`ComputerUseClient` 现在串行派发请求；新增用例证明第二条请求在第一条应答前不会写入 helper，从而不再出现 `ENGINE_UNAVAILABLE: Computer Use is busy`（该错误出现在用户截图中）。
 - 验证：`swift test` 8 项通过；`pnpm typecheck`、`pnpm lint` 通过（142 项交互契约）；`pnpm test` 153 个文件通过、2 跳过，952 个用例通过、2 跳过；`pnpm test:e2e:local` 8 项中 7 项通过，唯一失败仍是既有的 “生图接口” 下拉框用例。
+
+- 指引窗口触发收紧（2026-09-26 用户裁决）：只有辅助功能或屏幕录制至少一项未授权时才调起指引窗口；开发构建不再“始终打开”（helper 已改由 LaunchServices 启动，读回的是它自身的授权），权限状态读取失败时也不打开。
 
 仍未完成的验证：
 

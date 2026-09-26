@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { randomBytes } from 'node:crypto'
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MainServices } from './container'
@@ -86,13 +86,13 @@ function createWindow(mainServices: MainServices): BrowserWindow {
   return window
 }
 
-/** Reads the live helper status; an unreachable helper returns null so the caller still guides. */
+/** Reads the live helper status; an unreachable helper returns null (status unknown). */
 async function readComputerUsePermissions() {
   if (!computerUseClient) return null
   const result = await computerUseClient.execute({
     version: 1,
     requestId: randomBytes(12).toString('hex'),
-    deadlineUnixMs: Date.now() + 10_000,
+    deadlineUnixMs: Date.now() + 30_000,
     operation: 'permissions'
   })
   if (typeof result !== 'object' || result === null) return null
@@ -137,7 +137,8 @@ app.whenReady().then(async () => {
     if (typeof skillId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillId)) {
       throw new Error('Skill 标识无效。')
     }
-    const system = new Set(['documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'])
+    const system = new Set(['computer-use', 'documents', 'imagegen', 'pdf', 'presentations',
+      'skill-creator', 'spreadsheets'])
     const path = join(skillsDirectory, system.has(skillId) ? '.system' : '', skillId)
     shell.showItemInFolder(path)
   })
@@ -154,9 +155,14 @@ app.whenReady().then(async () => {
       arch: process.arch
     })
     if (existsSync(paths.computerHelperPath)) {
-      computerUseClient = new ComputerUseClient(() =>
-        spawn(paths.computerHelperPath, [], { stdio: ['pipe', 'pipe', 'ignore'] })
-      )
+      // LaunchServices owns the helper process so macOS attributes its permissions to the helper.
+      // The socket lives in the short per-user temp directory: Unix domain socket paths are capped
+      // at ~104 bytes and application-support paths can exceed that.
+      computerUseClient = new ComputerUseClient({
+        helperPath: paths.computerHelperBundlePath,
+        socketPath: join(tmpdir(), 'actiondriver-computer-use.sock'),
+        tokenPath: join(tmpdir(), 'actiondriver-computer-use.token')
+      })
       skillProviderHost.register(createComputerUseProvider(computerUseClient))
     }
     registerComputerUsePermissionsIpc(ipcMain, computerUseClient, async () => {
@@ -171,11 +177,10 @@ app.whenReady().then(async () => {
         await computerUseClient.execute({
           version: 1,
           requestId: randomBytes(12).toString('hex'),
-          deadlineUnixMs: Date.now() + 10_000,
+          deadlineUnixMs: Date.now() + 30_000,
           operation: 'guidance'
         })
       },
-      isPackaged: app.isPackaged,
       readPermissions: readComputerUsePermissions
     })
     const serviceToken = randomBytes(24).toString('base64url')

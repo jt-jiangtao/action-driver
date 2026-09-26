@@ -11,6 +11,7 @@ import {
   Globe2,
   Image as ImageIcon,
   Layers,
+  MousePointer2,
   Package,
   PackagePlus,
   Search,
@@ -100,6 +101,7 @@ function ActivityIcon({
 }) {
   const toolKinds = new Set(
     (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
+      if (/^computer\./.test(toolId)) return 'computer'
       if (/image/.test(toolId)) return 'image'
       if (/web/.test(toolId)) return 'web'
       if (/shell|command|python|node\.run|typescript/.test(toolId)) return 'shell'
@@ -112,6 +114,7 @@ function ActivityIcon({
     return <ImageIcon aria-hidden="true" size={16} />
   // A mixed group reads as "several stacked tools".
   if (toolKinds.size > 1) return <Layers aria-hidden="true" size={16} />
+  if (toolKinds.has('computer')) return <MousePointer2 aria-hidden="true" size={16} />
   if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={16} />
   if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={16} />
   if (toolKinds.has('search')) return <Search aria-hidden="true" size={16} />
@@ -392,6 +395,7 @@ function webOpenResult(tool: ToolInvocationProjection): {
 }
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
+  if (/^computer\./.test(tool.toolId)) return <MousePointer2 aria-hidden="true" size={16} />
   // Codex marks image generation with the imagegen Skill icon.
   if (/image/.test(tool.toolId)) return <ImageIcon aria-hidden="true" size={16} />
   if (/skill\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />

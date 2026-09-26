@@ -37,6 +37,9 @@ public final class ComputerUseWire {
                 code = "ACCESSIBILITY_DENIED"; message = "Allow ActionDriver Computer Use to control the Mac"
             case NativeComputerUseError.noFrontmostApplication:
                 code = "ENGINE_UNAVAILABLE"; message = "No foreground application"
+            case NativeComputerUseError.selfIsFrontmost:
+                code = "ENGINE_UNAVAILABLE"
+                message = "The Computer Use window is in front; bring the target app forward and observe again"
             case NativeComputerUseError.actionFailed(let detail):
                 code = "ACTION_FAILED"; message = detail
             default:

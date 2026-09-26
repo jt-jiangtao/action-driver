@@ -2,12 +2,6 @@ import AppKit
 import ComputerUseCore
 import Foundation
 
-private actor OutputWriter {
-    func send(_ line: String) {
-        FileHandle.standardOutput.write(Data((line + "\n").utf8))
-    }
-}
-
 private func encodeLine(_ object: [String: Any]) -> String {
     guard let data = try? JSONSerialization.data(withJSONObject: object),
           let line = String(data: data, encoding: .utf8) else { return "" }
@@ -16,8 +10,6 @@ private func encodeLine(_ object: [String: Any]) -> String {
 
 private actor RequestCoordinator {
     private let wire: ComputerUseWire
-    private let output = OutputWriter()
-    private var current: (id: String, task: Task<Void, Never>)?
     private let guidance: GuidanceWindowController
 
     init(service: NativeComputerUseService, guidance: GuidanceWindowController) {
@@ -25,57 +17,70 @@ private actor RequestCoordinator {
         self.wire = ComputerUseWire(service: service)
     }
 
-    func accept(_ line: String) async {
+    func accept(_ line: String) async -> String {
         guard let request = try? ComputerUseRequest.decode(line: line) else {
-            await output.send(await wire.handle(line: line))
-            return
+            return await wire.handle(line: line)
         }
-        if request.operation == .guidance {
+        switch request.operation {
+        case .guidance:
             await MainActor.run { guidance.show() }
-            await output.send(encodeLine(["version": 1, "requestId": request.requestId,
-                                          "ok": true, "result": ["accepted": true]]))
-            return
-        }
-        if request.operation == .cancel {
-            if current?.id == request.targetRequestId { current?.task.cancel() }
-            await output.send(await wire.handle(line: line))
-            return
-        }
-        if request.operation == .shutdown {
-            current?.task.cancel()
-            await output.send(await wire.handle(line: line))
-            Foundation.exit(0)
-        }
-        if current != nil {
-            await output.send(encodeLine(["version": 1, "requestId": request.requestId,
-                "ok": false, "error": ["code": "ENGINE_UNAVAILABLE", "message": "Computer Use is busy"]]))
-            return
-        }
-        let id = request.requestId
-        let task = Task { [wire, output] in
+            return encodeLine(["version": 1, "requestId": request.requestId,
+                               "ok": true, "result": ["accepted": true]])
+        case .shutdown:
             let reply = await wire.handle(line: line)
-            await output.send(reply)
-            self.finished(id)
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+            return reply
+        default:
+            // The socket loop serves one request at a time, so requests stay serialised.
+            return await wire.handle(line: line)
         }
-        current = (id, task)
     }
+}
 
-    private func finished(_ id: String) {
-        if current?.id == id { current = nil }
-    }
+private final class ReplyBox: @unchecked Sendable {
+    var value = ""
+}
 
-    func waitForCurrent() async {
-        await current?.task.value
+private func argument(_ name: String) -> String? {
+    let arguments = ProcessInfo.processInfo.arguments
+    guard let index = arguments.firstIndex(of: name), index + 1 < arguments.count else { return nil }
+    return arguments[index + 1]
+}
+
+private func readToken(at path: String) -> String? {
+    // The launcher owns this file: keeping it lets a relaunched app reuse the running helper.
+    guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+    let token = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return token.isEmpty ? nil : token
+}
+
+private func runServer(socketPath: String, token: String, coordinator: RequestCoordinator) {
+    let server = ComputerUseSocketServer(socketPath: socketPath, token: token)
+    server.run { line in
+        // The socket loop is synchronous, so each request waits for its async reply here.
+        let semaphore = DispatchSemaphore(value: 0)
+        let box = ReplyBox()
+        Task {
+            box.value = await coordinator.accept(line)
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return box.value
     }
 }
 
 @main
 struct ComputerUseMain {
     static func main() {
+        guard let socketPath = argument("--socket"),
+              let tokenPath = argument("--token-file"),
+              let token = readToken(at: tokenPath) else {
+            FileHandle.standardError.write(Data("COMPUTER_USE_SOCKET_ARGUMENTS_MISSING\n".utf8))
+            exit(2)
+        }
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
-        // `main()` already runs on the main thread, so the AppKit objects can be built inline while
-        // the stdio protocol keeps running on its own thread.
+        BundleRegistration.registerHelper()
         let coordinator = MainActor.assumeIsolated { () -> RequestCoordinator in
             let service = NativeComputerUseService()
             return RequestCoordinator(
@@ -83,22 +88,8 @@ struct ComputerUseMain {
                 guidance: GuidanceWindowController(service: service)
             )
         }
-
-        // The stdio protocol is served off the main thread so AppKit keeps the run loop and can
-        // animate the guidance window.
         Thread.detachNewThread {
-            while let line = readLine(strippingNewline: true) {
-                let semaphore = DispatchSemaphore(value: 0)
-                Task {
-                    await coordinator.accept(line)
-                    semaphore.signal()
-                }
-                semaphore.wait()
-            }
-            Task {
-                await coordinator.waitForCurrent()
-                await MainActor.run { NSApp.terminate(nil) }
-            }
+            runServer(socketPath: socketPath, token: token, coordinator: coordinator)
         }
         application.run()
     }

@@ -4,20 +4,15 @@ import {
 } from '../shared/computer-use-contract'
 
 /**
- * Decides whether starting Computer Use should guide the user.
- *
- * Ad-hoc development builds inherit the host process's TCC identity, so a "granted" reading cannot
- * prove that the helper itself is authorized; those builds always guide instead of assuming
- * success. A signed packaged build guides only when a permission is genuinely missing.
+ * Decides whether starting Computer Use should guide the user: only when a required permission is
+ * missing. The helper is launched through LaunchServices, so its readings are its own grants in
+ * development and packaged builds alike. An unreadable status does not prove anything is missing,
+ * and the guidance window lives in that same unreachable helper, so it does not guide either.
  */
-export function shouldOpenComputerUseGuidance(options: {
-  status: ComputerPermissionStatus | null
-  isPackaged: boolean
-}): boolean {
-  if (!options.status) return true
+export function shouldOpenComputerUseGuidance(status: ComputerPermissionStatus | null): boolean {
+  if (!status) return false
   // Posting input events rides on the Accessibility grant, so it needs no authorization of its own.
-  if (!options.status.accessibility || !options.status.screenRecording) return true
-  return !options.isPackaged
+  return !status.accessibility || !status.screenRecording
 }
 
 export function registerComputerUseGuidanceIpc(
@@ -29,13 +24,12 @@ export function registerComputerUseGuidanceIpc(
   },
   options: {
     present(): Promise<void> | void
-    isPackaged: boolean
     readPermissions(): Promise<ComputerPermissionStatus | null>
   }
 ): void {
   ipc.handle(COMPUTER_GUIDANCE_ENSURE_CHANNEL, async () => {
     const status = await options.readPermissions().catch(() => null)
-    if (!shouldOpenComputerUseGuidance({ status, isPackaged: options.isPackaged })) return false
+    if (!shouldOpenComputerUseGuidance(status)) return false
     await options.present()
     return true
   })

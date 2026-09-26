@@ -18,7 +18,7 @@ export function registerComputerUsePermissionsIpc(
       .includes(String(request.target)) ? String(request.target) as 'accessibility' | 'screenRecording' | 'eventPosting'
       : undefined
     const result = await client.execute({ version: 1, requestId: crypto.randomUUID(),
-      deadlineUnixMs: Date.now() + 10_000, operation: 'permissions',
+      deadlineUnixMs: Date.now() + 30_000, operation: 'permissions',
       ...(prompt ? { prompt: true } : {}), ...(target ? { target } : {}) })
     if (typeof result !== 'object' || result === null) throw new Error('INVALID_PERMISSIONS_RESPONSE')
     const status = result as Partial<ComputerPermissionStatus>

@@ -9,6 +9,7 @@ public enum NativeComputerUseError: Error {
     case screenRecordingDenied
     case eventPostingDenied
     case noFrontmostApplication
+    case selfIsFrontmost
     case actionFailed(String)
 }
 
@@ -38,6 +39,13 @@ public final class NativeComputerUseService {
     public func execute(_ request: ComputerUseRequest) async throws -> [String: Any] {
         try checkDeadline(request)
         switch request.operation {
+        case .listApps:
+            return ["apps": listApps()]
+        case .appState:
+            guard let identifier = request.app else {
+                throw ComputerUseError.invalidRequest("App identifier missing")
+            }
+            return try await appState(identifier: identifier, request: request)
         case .permissions:
             let prompt = request.prompt ?? false
             let prompted = { (name: String) -> Bool in
@@ -70,11 +78,123 @@ public final class NativeComputerUseService {
         }
     }
 
+    /// Every app LaunchServices knows about, plus the ones already running. Mirrors the reference
+    /// `list_apps` surface: id, display name, running state and path.
+    private func listApps() -> [[String: Any]] {
+        var entries: [String: [String: Any]] = [:]
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
+            guard let id = app.bundleIdentifier else { continue }
+            entries[id] = ["id": id, "displayName": app.localizedName ?? id, "isRunning": true]
+        }
+        let directories = ["/Applications", "/System/Applications",
+                           NSHomeDirectory() + "/Applications"]
+        for directory in directories {
+            let urls = (try? FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil)) ?? []
+            for url in urls where url.pathExtension == "app" {
+                guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else { continue }
+                var entry = entries[id] ?? ["id": id, "isRunning": false]
+                let display = bundle.infoDictionary?["CFBundleDisplayName"] as? String
+                    ?? bundle.infoDictionary?["CFBundleName"] as? String
+                    ?? url.deletingPathExtension().lastPathComponent
+                entry["displayName"] = display
+                entry["path"] = url.path
+                entries[id] = entry
+            }
+        }
+        return entries.values.sorted {
+            ($0["displayName"] as? String ?? "") < ($1["displayName"] as? String ?? "")
+        }
+    }
+
+    /// Resolves an app by bundle id, path or display name, starts it through LaunchServices when
+    /// needed, brings it to the front and returns its accessibility tree as text (+ optional frame).
+    private func appState(identifier: String, request: ComputerUseRequest) async throws -> [String: Any] {
+        let url = resolveApplication(identifier)
+        guard let applicationURL = url else {
+            throw NativeComputerUseError.actionFailed("Unknown application: \(identifier)")
+        }
+        var running = NSRunningApplication
+            .runningApplications(withBundleIdentifier: Bundle(url: applicationURL)?.bundleIdentifier ?? "")
+            .first
+        if running == nil {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            running = try await NSWorkspace.shared.openApplication(
+                at: applicationURL, configuration: configuration)
+        }
+        running?.activate()
+        // Give LaunchServices a moment to make the app frontmost before reading its interface.
+        let deadline = Date().addingTimeInterval(4)
+        while Date() < deadline {
+            if let frontmost = NSWorkspace.shared.frontmostApplication,
+               frontmost.processIdentifier == running?.processIdentifier { break }
+            try await Task.sleep(nanoseconds: 150_000_000)
+        }
+        var result = try observe(maxElements: request.maxElements ?? 200,
+                                 maxDepth: request.maxDepth ?? 8)
+        result["app"] = running?.bundleIdentifier ?? identifier
+        result["text"] = renderText(from: result["tree"])
+        result.removeValue(forKey: "windowId")
+        if let maxWidth = request.maxWidth, let maxHeight = request.maxHeight {
+            let captureResult = try await capture(maxWidth: maxWidth, maxHeight: maxHeight)
+            result["screenshot"] = ["mimeType": captureResult["mimeType"] ?? "image/jpeg",
+                                    "width": captureResult["width"] ?? 0,
+                                    "height": captureResult["height"] ?? 0,
+                                    "base64": captureResult["base64"] ?? "",
+                                    "displayFrame": captureResult["displayFrame"] ?? [:]]
+        }
+        return result
+    }
+
+    private func resolveApplication(_ identifier: String) -> URL? {
+        if identifier.contains("/") {
+            let url = URL(fileURLWithPath: identifier)
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
+            return url
+        }
+        for directory in ["/Applications", "/System/Applications", NSHomeDirectory() + "/Applications"] {
+            let candidate = URL(fileURLWithPath: directory)
+                .appendingPathComponent(identifier).appendingPathExtension("app")
+            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+            let urls = (try? FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil)) ?? []
+            if let match = urls.first(where: {
+                $0.pathExtension == "app" &&
+                $0.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(identifier) == .orderedSame
+            }) { return match }
+        }
+        return nil
+    }
+
+    /// Flattens the accessibility tree into the compact text form the reference skill expects.
+    private func renderText(from tree: Any?) -> String {
+        var lines: [String] = []
+        func walk(_ node: Any?, depth: Int) {
+            guard let node = node as? [String: Any] else { return }
+            let role = node["role"] as? String ?? "element"
+            let title = node["title"] as? String ?? node["description"] as? String ?? ""
+            let ref = node["ref"] as? String ?? ""
+            let actions = (node["actions"] as? [String])?.joined(separator: ",") ?? ""
+            lines.append(String(repeating: "  ", count: depth)
+                + "\(role) \"\(title)\" ref=\(ref) actions=[\(actions)]")
+            for child in node["children"] as? [Any] ?? [] { walk(child, depth: depth + 1) }
+        }
+        walk(tree, depth: 0)
+        return lines.joined(separator: "\n")
+    }
+
     private func frontmost() throws -> (pid: pid_t, windowId: Int, name: String, frame: CGRect?) {
         guard let app = NSWorkspace.shared.frontmostApplication else {
             throw NativeComputerUseError.noFrontmostApplication
         }
         let pid = app.processIdentifier
+        guard pid != ProcessInfo.processInfo.processIdentifier else {
+            // Walking our own window's accessibility tree is what crashed the helper before.
+            throw NativeComputerUseError.selfIsFrontmost
+        }
         let windowInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             as? [[String: Any]] ?? []
         let window = windowInfo.first {
@@ -100,7 +220,12 @@ public final class NativeComputerUseService {
         elements.removeAll(keepingCapacity: true)
         let observationId = gate.record(pid: app.pid, windowId: app.windowId)
         var remaining = maxElements
-        let tree = describe(root, depth: 0, maxDepth: maxDepth, remaining: &remaining)
+        // The walk fills a local table: the recursion interleaves many Accessibility IPC calls, so
+        // it must not hold or re-enter dynamic exclusive access to the service's stored state.
+        var snapshots: [String: ElementSnapshot] = [:]
+        let tree = describe(root, depth: 0, maxDepth: maxDepth, remaining: &remaining,
+                            snapshots: &snapshots)
+        elements = snapshots
         return [
             "observationId": observationId,
             "application": ["name": app.name, "pid": Int(app.pid)],
@@ -111,10 +236,11 @@ public final class NativeComputerUseService {
     }
 
     private func describe(_ element: AXUIElement, depth: Int, maxDepth: Int,
-                          remaining: inout Int) -> [String: Any] {
+                          remaining: inout Int,
+                          snapshots: inout [String: ElementSnapshot]) -> [String: Any] {
         remaining -= 1
         let reference = UUID().uuidString
-        elements[reference] = ElementSnapshot(
+        snapshots[reference] = ElementSnapshot(
             element: element,
             role: attributeValue(element, kAXRoleAttribute as CFString) as? String,
             title: attributeValue(element, kAXTitleAttribute as CFString) as? String,
@@ -144,8 +270,8 @@ public final class NativeComputerUseService {
             var described: [[String: Any]] = []
             for child in children {
                 if remaining <= 0 { break }
-                described.append(describe(child, depth: depth + 1,
-                                          maxDepth: maxDepth, remaining: &remaining))
+                described.append(describe(child, depth: depth + 1, maxDepth: maxDepth,
+                                          remaining: &remaining, snapshots: &snapshots))
             }
             if !described.isEmpty { node["children"] = described }
         }

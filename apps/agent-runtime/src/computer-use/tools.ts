@@ -12,6 +12,58 @@ type Operation = 'permissions' | 'observe' | 'capture' | 'act'
 type Input = Pick<ComputerHelperRequest, 'operation'> & Record<string, unknown>
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 
+type Json = Parameters<NonNullable<ToolExecutor['redactForPersistence']>>[1]
+type JsonRecord = { [key: string]: Json }
+
+const isRecord = (value: unknown): value is JsonRecord =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** Copies only the listed keys that are present, so absent fields stay absent. */
+function pick(value: JsonRecord, keys: readonly string[]): JsonRecord {
+  const picked: JsonRecord = {}
+  for (const key of keys) if (key in value) picked[key] = value[key]!
+  return picked
+}
+
+function countElements(node: Json): number {
+  if (!isRecord(node)) return 0
+  const children = Array.isArray(node.children) ? node.children : []
+  return 1 + children.reduce<number>((total, child) => total + countElements(child), 0)
+}
+
+/**
+ * Screen content, element trees and coordinates stay in memory for the model; history and
+ * events only keep the observation handle and a safe summary (computer-use spec, data handling).
+ */
+function redact(operation: Operation, kind: 'input' | 'output', value: Json): Json {
+  if (!isRecord(value)) return value
+  if (kind === 'input') {
+    if (operation !== 'act') return value
+    const action = isRecord(value.action) ? value.action : {}
+    const safeAction: JsonRecord = pick(action, ['type', 'elementRef', 'key', 'modifiers',
+      'milliseconds'])
+    if (typeof action.text === 'string') safeAction.textLength = action.text.length
+    return { ...pick(value, ['observationId']), action: safeAction }
+  }
+  switch (operation) {
+    case 'observe': {
+      const application = isRecord(value.application) ? pick(value.application, ['name']) : undefined
+      return {
+        ...pick(value, ['observationId']),
+        ...(application ? { application } : {}),
+        elementCount: countElements(value.tree ?? null),
+        ...pick(value, ['truncated'])
+      }
+    }
+    case 'capture':
+      return pick(value, ['observationId', 'mimeType', 'width', 'height', 'screenshot'])
+    case 'act':
+      return pick(value, ['executed', 'application'])
+    case 'permissions':
+      return value
+  }
+}
+
 const actionSchema = {
   oneOf: [
     { type: 'object', properties: { type: { const: 'click' }, x: { type: 'number' }, y: { type: 'number' } }, required: ['type', 'x', 'y'], additionalProperties: false },
@@ -77,7 +129,8 @@ export function createComputerUseTools(
         const { version: _version, requestId: _requestId, deadlineUnixMs: _deadline, ...input } = validated.data
         const output = await invoke(input as Input, signal)
         yield { kind: 'result', output: JSON.parse(JSON.stringify(output)) as Extract<ToolExecutorEvent, { kind: 'result' }>['output'] }
-      }
+      },
+      redactForPersistence: (kind: 'input' | 'output', value: Json) => redact(operation, kind, value)
     }
   }))
 }

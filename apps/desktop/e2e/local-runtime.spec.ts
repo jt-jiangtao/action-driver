@@ -149,10 +149,13 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(result).toEqual({ status: 200 })
 })
 
-test('asks the helper to present its native Computer Use guidance window', async () => {
+test('opens the native guidance window only when a permission is missing', async () => {
   const page = await launch()
-  await expect(page.evaluate(async () =>
-    window.actionDriverDesktop.computerUse.ensureGuidance())).resolves.toBe(true)
+  const { status, opened } = await page.evaluate(async () => {
+    const api = window.actionDriverDesktop.computerUse
+    return { status: await api.permissions(), opened: await api.ensureGuidance() }
+  })
+  expect(opened).toBe(!status.accessibility || !status.screenRecording)
   // The guidance window is native and lives in the helper process, so Electron still owns exactly
   // one window; its presence and behaviour are covered by the helper tests and the packaged smoke.
   expect(await application!.evaluate(({ BrowserWindow }) =>

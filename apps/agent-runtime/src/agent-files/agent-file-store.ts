@@ -28,6 +28,7 @@ const MANAGED_DIRECTORY = '.action-driver'
 const MAIN_PROMPT_PATH = '.action-driver/prompts/main.md'
 const SKILLS_PATH = '.action-driver/skills'
 const BUILT_IN_SKILLS = new Set([
+  'computer-use',
   'documents',
   'imagegen',
   'pdf',
@@ -97,6 +98,7 @@ export class AgentFileStore {
     }
     await this.seedSystemSkill('skill-creator')
     await this.seedSystemSkill('imagegen')
+    await this.seedSystemSkill('computer-use')
     for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
       await this.seedSystemSkill(id)
     }

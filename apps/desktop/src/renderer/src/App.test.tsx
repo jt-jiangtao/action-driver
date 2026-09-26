@@ -355,6 +355,9 @@ describe('App', () => {
 
     await user.click(screen.getByTestId('e2e/settings/sidebar/computer-use#button'))
     expect(await screen.findByTestId('e2e/settings/computer-use/page#page')).toBeVisible()
+    // The entry stays in the sidebar once its own page is open, like every other entry.
+    expect(screen.getByTestId('e2e/settings/sidebar/computer-use#button'))
+      .toHaveClass('is-active')
 
     await user.click(screen.getByRole('button', { name: '模型连接' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()

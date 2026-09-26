@@ -319,7 +319,8 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   if (route.kind === 'computer-use') {
     return <ComputerUsePage onBack={() => setRoute(route.returnTo)}
       onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
-      onOpenMainPrompt={openMainPrompt} onOpenSkills={openSkills} />
+      onOpenMainPrompt={openMainPrompt} onOpenSkills={openSkills}
+      onOpenComputerUse={openComputerUse} />
   }
 
   return (

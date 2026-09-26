@@ -9,6 +9,8 @@ public enum ComputerUseError: Error, Equatable {
 
 public enum ComputerUseOperation: String {
     case permissions, observe, capture, act, cancel, shutdown, guidance
+    case listApps = "list-apps"
+    case appState = "app-state"
 }
 
 public struct ComputerUseAction {
@@ -37,6 +39,8 @@ public struct ComputerUseRequest {
     public let targetRequestId: String?
     public let prompt: Bool?
     public let target: String?
+    public let app: String?
+    public let disableDiff: Bool?
 
     public static func decode(line: String) throws -> ComputerUseRequest {
         guard let data = line.data(using: .utf8), data.count <= 128 * 1024,
@@ -59,8 +63,37 @@ public struct ComputerUseRequest {
         var targetRequestId: String?
         var prompt: Bool?
         var target: String?
+        var app: String?
+        var disableDiff: Bool?
 
         switch operation {
+        case .listApps:
+            break
+        case .appState:
+            expected.formUnion(["app", "maxElements", "maxDepth"])
+            guard let requestedApp = object["app"] as? String,
+                  (1...512).contains(requestedApp.count) else {
+                throw ComputerUseError.invalidRequest("App identifier missing")
+            }
+            app = requestedApp
+            maxElements = try boundedInt(object["maxElements"], 1...500)
+            maxDepth = try boundedInt(object["maxDepth"], 1...12)
+            if let diff = object["disableDiff"] {
+                guard let flag = diff as? Bool else {
+                    throw ComputerUseError.invalidRequest("disableDiff must be a boolean")
+                }
+                disableDiff = flag
+                expected.insert("disableDiff")
+            }
+            if let capture = object["capture"] {
+                expected.insert("capture")
+                guard let captureObject = capture as? [String: Any],
+                      Set(captureObject.keys) == ["maxWidth", "maxHeight"] else {
+                    throw ComputerUseError.invalidRequest("Capture bounds invalid")
+                }
+                maxWidth = try boundedInt(captureObject["maxWidth"], 1...4096)
+                maxHeight = try boundedInt(captureObject["maxHeight"], 1...4096)
+            }
         case .permissions:
             if let rawPrompt = object["prompt"] {
                 guard let flag = rawPrompt as? Bool else {
@@ -111,7 +144,8 @@ public struct ComputerUseRequest {
             requestId: requestId, deadlineUnixMs: deadline, operation: operation,
             maxElements: maxElements, maxDepth: maxDepth, maxWidth: maxWidth,
             maxHeight: maxHeight, observationId: observationId, action: action,
-            targetRequestId: targetRequestId, prompt: prompt, target: target
+            targetRequestId: targetRequestId, prompt: prompt, target: target,
+            app: app, disableDiff: disableDiff
         )
     }
 

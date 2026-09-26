@@ -28,6 +28,7 @@ import type {
   SkillProviderResult,
   SkillRegistry
 } from './ports'
+import { redactCollectedOutput, type ToolRedaction } from './tool-result-redaction'
 
 type AgentGraphStatus =
   | 'submitted'
@@ -65,6 +66,10 @@ function volatileScreenshotIds(messages: RuntimeMessage[]): string[] {
     ? message.content.flatMap((part) => part.kind === 'image' &&
       part.asset.assetId.startsWith('volatile-computer:') ? [part.asset.assetId] : [])
     : [])
+}
+
+function volatileToolResultKey(taskId: string, toolCallId: string): string {
+  return `${taskId}\u0000${toolCallId}`
 }
 
 function requiresComputerApproval(call: ProviderToolCall): boolean {
@@ -147,6 +152,12 @@ export class LangGraphRunner implements GraphRunner {
   private readonly modelObservers = new Map<string, ModelEventObserver>()
   private readonly toolObservers = new Map<string, ToolEventObserver>()
   private readonly streamRequestIds = new Map<string, string>()
+  /**
+   * Full results of redacting tools (Computer Use element trees), keyed by task and tool call.
+   * Graph state and therefore checkpoints hold only the redacted summary; the full text is
+   * resolved into the next model request and then dropped, like volatile screenshots.
+   */
+  private readonly volatileToolResults = new Map<string, string>()
 
   constructor(
     private readonly modelGateway: ModelGateway,
@@ -259,6 +270,7 @@ export class LangGraphRunner implements GraphRunner {
     const abortFromExternal = () => controller.abort(externalSignal?.reason)
     externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
     this.activeControllers.set(taskId, controller)
+    let waitingForUser = false
 
     try {
       const state = await this.graph.invoke(input as Parameters<typeof this.graph.invoke>[0], {
@@ -268,6 +280,7 @@ export class LangGraphRunner implements GraphRunner {
       })
 
       if (isInterrupted(state)) {
+        waitingForUser = true
         const interrupted = this.toResult(state, taskId, 'waiting-user')
         return { ...interrupted, output: state[INTERRUPT][0]?.value ?? null }
       }
@@ -281,6 +294,41 @@ export class LangGraphRunner implements GraphRunner {
     } finally {
       externalSignal?.removeEventListener('abort', abortFromExternal)
       if (this.activeControllers.get(taskId) === controller) this.activeControllers.delete(taskId)
+      // A finished, failed or interrupted run never resumes a model request that would consume
+      // the in-memory results; only a run waiting for the user keeps them.
+      if (!waitingForUser) this.dropVolatileToolResults(taskId)
+    }
+  }
+
+  private toolRedaction(modelName: string): ToolRedaction | undefined {
+    try {
+      const { executor } = this.toolRuntime!.registry.resolveModelName(modelName)
+      return executor.redactForPersistence?.bind(executor)
+    } catch {
+      return undefined
+    }
+  }
+
+  /** Puts full in-memory tool results back for the model; checkpointed state keeps summaries. */
+  private resolveVolatileToolResults(taskId: string, messages: RuntimeMessage[]): RuntimeMessage[] {
+    if (this.volatileToolResults.size === 0) return messages
+    return messages.map((message) => {
+      if (message.role !== 'tool') return message
+      const full = this.volatileToolResults.get(volatileToolResultKey(taskId, message.toolCallId))
+      return full === undefined ? message : { ...message, content: full }
+    })
+  }
+
+  private dropVolatileToolResults(taskId: string): void {
+    const prefix = volatileToolResultKey(taskId, '')
+    for (const key of this.volatileToolResults.keys())
+      if (key.startsWith(prefix)) this.volatileToolResults.delete(key)
+  }
+
+  private releaseVolatileToolResults(taskId: string, messages: RuntimeMessage[]): void {
+    for (const message of messages) {
+      if (message.role === 'tool')
+        this.volatileToolResults.delete(volatileToolResultKey(taskId, message.toolCallId))
     }
   }
 
@@ -340,8 +388,9 @@ export class LangGraphRunner implements GraphRunner {
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
             model: state.model,
             messages: capabilityNotice
-              ? [{ role: 'system' as const, content: capabilityNotice }, ...state.modelMessages]
-              : state.modelMessages,
+              ? [{ role: 'system' as const, content: capabilityNotice },
+                  ...this.resolveVolatileToolResults(state.taskId, state.modelMessages)]
+              : this.resolveVolatileToolResults(state.taskId, state.modelMessages),
             ...(tools.length ? { tools } : {}),
             skills: state.skills,
             parameters: { temperature: 0 }
@@ -370,6 +419,7 @@ export class LangGraphRunner implements GraphRunner {
         } finally {
           for (const id of volatileScreenshotIds(state.modelMessages))
             this.toolRuntime?.releaseVolatileImage?.(id)
+          this.releaseVolatileToolResults(state.taskId, state.modelMessages)
         }
 
         const activeActivityId = activityClosed ? null : state.activeActivityId
@@ -558,13 +608,25 @@ export class LangGraphRunner implements GraphRunner {
               }
             }
           }
+          const redact = terminal?.type === 'tool.completed'
+            ? this.toolRedaction(providerCall.modelName)
+            : undefined
+          if (redact && terminal?.type === 'tool.completed') {
+            this.volatileToolResults.set(
+              volatileToolResultKey(state.taskId, providerCall.providerCallId),
+              JSON.stringify({ ok: true, output: terminal.output })
+            )
+          }
           results.push({
             role: 'tool',
             toolCallId: providerCall.providerCallId,
             name: providerCall.modelName,
             content: JSON.stringify(
               terminal?.type === 'tool.completed'
-                ? { ok: true, output: terminal.output }
+                ? {
+                    ok: true,
+                    output: redact ? redactCollectedOutput(redact, terminal.output) : terminal.output
+                  }
                 : {
                     ok: false,
                     error:

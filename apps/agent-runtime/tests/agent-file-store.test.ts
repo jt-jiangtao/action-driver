@@ -136,7 +136,8 @@ describe('Runtime Agent file ownership', () => {
     await second.initialize()
     expect((await second.getMainPrompt()).content).toBe('# Custom prompt')
     expect((await second.listSkills()).map((skill) => skill.id)).toEqual([
-      'documents', 'imagegen', 'pdf', 'presentations', 'skill-creator', 'spreadsheets'
+      'computer-use', 'documents', 'imagegen', 'pdf', 'presentations', 'skill-creator',
+      'spreadsheets'
     ])
   })
 

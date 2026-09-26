@@ -89,6 +89,7 @@ try {
     }
   }
   for (const skill of [
+    'computer-use',
     'documents',
     'imagegen',
     'pdf',

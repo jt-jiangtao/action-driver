@@ -20,22 +20,15 @@ final class GuidanceStateTests: XCTestCase {
         XCTAssertTrue(state.shouldClose)
     }
 
-    func testALandedGrantClearsThePendingCardAndAsksTheWindowToFlyBack() {
+    func testALandedGrantClearsThePendingCard() {
         var state = GuidanceSnapshot()
         state.recordRequest(.screenRecording, granted: false)
-        let waiting = state
         state.apply(accessibility: false, screenRecording: true)
         XCTAssertNil(state.pending)
-        XCTAssertTrue(state.shouldReturnFromEdge(previous: waiting))
+        XCTAssertFalse(state.waitingForSystem)
         XCTAssertFalse(state.shouldClose)
 
         state.apply(accessibility: true, screenRecording: true)
         XCTAssertTrue(state.shouldClose)
-    }
-
-    func testWaitingStateDoesNotAskToReturnBeforeAGrantLands() {
-        var state = GuidanceSnapshot()
-        state.recordRequest(.accessibility, granted: false)
-        XCTAssertFalse(state.shouldReturnFromEdge(previous: state))
     }
 }

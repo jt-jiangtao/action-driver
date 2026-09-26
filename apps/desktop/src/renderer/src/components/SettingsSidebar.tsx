@@ -75,12 +75,15 @@ export function SettingsSidebar({
           MCP
           <span className="settings-nav-soon">稍后</span>
         </button>
-        {onOpenComputerUse && <button
+        <button
           className={`settings-nav-item ${active === 'computer-use' ? 'is-active' : ''}`}
           data-testid="e2e/settings/sidebar/computer-use#button"
           type="button"
           onClick={active === 'computer-use' ? undefined : onOpenComputerUse}
-        >Computer Use</button>}
+        >
+          <AppIcon name="monitor" />
+          Computer Use
+        </button>
       </div>
       </nav>
       <div className="settings-brand">

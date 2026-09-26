@@ -257,6 +257,50 @@ describe('ToolInvocationService', () => {
     controller.abort()
     expect((await pending).at(-1)).toMatchObject({ type: 'tool.cancelled' })
   })
+
+  it('surfaces a persistence failure after completion instead of an invalid transition', async () => {
+    const executor: ToolExecutor = {
+      async *execute() { yield { kind: 'result', output: { ok: true } } }
+    }
+    const registry = new RuntimeToolRegistry()
+    registry.register(readDefinition, executor)
+    const service = new ToolInvocationService({
+      registry,
+      policy: new RuntimeToolPolicy(),
+      persistence: {
+        async commitToolInvocationWithEvent(invocation, event) {
+          if (invocation.status === 'completed') {
+            throw new Error('PERSISTENCE_PAYLOAD_REJECTED: toolInvocation.output')
+          }
+          return { ...event, cursor: 1 }
+        }
+      },
+      clock: { now: () => '2026-01-01T00:00:00.000Z' }
+    })
+    await expect(collect(service.execute(readCall(), context(['local.shell.run@1']))))
+      .rejects.toThrow('PERSISTENCE_PAYLOAD_REJECTED: toolInvocation.output')
+  })
+
+  it('persists the executor redaction while the caller keeps the full input and output', async () => {
+    const executor: ToolExecutor = {
+      async *execute() {
+        yield { kind: 'result', output: { tree: { frame: { x: 1, y: 2 } }, observationId: 'obs-1' } }
+      },
+      redactForPersistence: (kind, value) =>
+        kind === 'input' ? { redacted: 'input' } : { observationId: (value as { observationId: string }).observationId }
+    }
+    const fixture = createFixture(readDefinition, executor)
+    const events = await collect(fixture.service.execute(readCall(), context(['local.shell.run@1'])))
+    expect(events.at(-1)).toMatchObject({
+      type: 'tool.completed',
+      output: { result: { tree: { frame: { x: 1, y: 2 } }, observationId: 'obs-1' } }
+    })
+    const persisted = JSON.stringify(fixture.commits)
+    expect(persisted).not.toContain('"x":1')
+    expect(persisted).not.toContain('README.md')
+    expect(fixture.commits.at(-1)?.invocation.output).toMatchObject({ result: { observationId: 'obs-1' } })
+    expect(fixture.commits.at(-1)?.invocation.input).toEqual({ redacted: 'input' })
+  })
 })
 
 function createFixture(

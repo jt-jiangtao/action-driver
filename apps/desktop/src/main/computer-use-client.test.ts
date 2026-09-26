@@ -1,102 +1,161 @@
-import { EventEmitter } from 'node:events'
-import { PassThrough } from 'node:stream'
-import { describe, expect, it, vi } from 'vitest'
-import { ComputerUseClient, type ComputerUseChild } from './computer-use-client'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createServer, type Server, type Socket } from 'node:net'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ComputerUseClient } from './computer-use-client'
 
-function fakeChild(): ComputerUseChild & { stdin: PassThrough; stdout: PassThrough; sent: string[]; reply(value: unknown): void; exit(): void; fail(): void } {
-  const events = new EventEmitter()
-  const stdin = new PassThrough()
-  const stdout = new PassThrough()
-  const sent: string[] = []
-  stdin.on('data', (chunk: Buffer) => sent.push(chunk.toString()))
+let server: Server | undefined
+let liveSocket: Socket | undefined
+afterEach(async () => {
+  liveSocket?.destroy()
+  liveSocket = undefined
+  await new Promise<void>((resolve) => {
+    if (!server) { resolve(); return }
+    server.close(() => resolve())
+    server = undefined
+  })
+})
+
+type FakeHelper = {
+  socketPath: string
+  tokenPath: string
+  requests: Array<Record<string, unknown>>
+  handshakes: string[]
+  reply(value: unknown): void
+  close(): void
+}
+
+async function startFakeHelper(): Promise<FakeHelper> {
+  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-helper-'))
+  const socketPath = join(directory, 'computer-use.sock')
+  const tokenPath = join(directory, 'computer-use.token')
+  const requests: Array<Record<string, unknown>> = []
+  const handshakes: string[] = []
+  let socket: Socket | undefined
+  server = createServer((connection) => {
+    socket = connection
+    liveSocket = connection
+    connection.setEncoding('utf8')
+    let buffer = ''
+    let authenticated = false
+    connection.on('data', (chunk: string) => {
+      buffer += chunk
+      for (let newline = buffer.indexOf('\n'); newline >= 0; newline = buffer.indexOf('\n')) {
+        const line = buffer.slice(0, newline)
+        buffer = buffer.slice(newline + 1)
+        if (!line) continue
+        const parsed = JSON.parse(line) as Record<string, unknown>
+        if (!authenticated) {
+          authenticated = true
+          handshakes.push(String(parsed.token ?? ''))
+          continue
+        }
+        requests.push(parsed)
+      }
+    })
+    connection.on('error', () => undefined)
+  })
+  await new Promise<void>((resolve) => server!.listen(socketPath, resolve))
   return {
-    stdin,
-    stdout,
-    sent,
-    on: events.on.bind(events),
-    once: events.once.bind(events),
-    kill: () => true,
-    reply(value) { stdout.write(`${JSON.stringify(value)}\n`) },
-    exit() { events.emit('exit', 1, null) },
-    fail() { events.emit('error', new Error('spawn failed')) }
+    socketPath,
+    tokenPath,
+    requests,
+    handshakes,
+    reply(value) { socket?.write(`${JSON.stringify(value)}\n`) },
+    close() { socket?.destroy() }
   }
 }
 
-describe('ComputerUseClient', () => {
-  it('serializes overlapping calls so the single-instance helper never reports busy', async () => {
-    const child = fakeChild()
-    const client = new ComputerUseClient(() => child)
-    const first = client.execute({
-      version: 1, requestId: 'permissions-first', deadlineUnixMs: Date.now() + 1000,
-      operation: 'permissions'
-    })
-    const second = client.execute({
-      version: 1, requestId: 'permissions-second', deadlineUnixMs: Date.now() + 1000,
-      operation: 'permissions'
-    })
-    await Promise.resolve()
-    expect(child.sent.join('')).not.toContain('permissions-second')
-
-    child.reply({ version: 1, requestId: 'permissions-first', ok: true,
-      result: { accessibility: false } })
-    await expect(first).resolves.toEqual({ accessibility: false })
-    await vi.waitFor(() => expect(child.sent.join('')).toContain('permissions-second'))
-
-    child.reply({ version: 1, requestId: 'permissions-second', ok: true,
-      result: { accessibility: true } })
-    await expect(second).resolves.toEqual({ accessibility: true })
-    client.close()
+function createClient(helper: FakeHelper, overrides: Partial<{ connectTimeoutMs: number }> = {}) {
+  return new ComputerUseClient({
+    helperPath: '/unused/ActionDriver Computer Use.app',
+    socketPath: helper.socketPath,
+    tokenPath: helper.tokenPath,
+    launch: () => undefined,
+    ...overrides
   })
+}
 
-  it('correlates a fragmented helper reply with the pending request', async () => {
-    const child = fakeChild()
-    const client = new ComputerUseClient(() => child)
+describe('ComputerUseClient', () => {
+  it('handshakes with a token and correlates a fragmented reply', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
     const pending = client.execute({
       version: 1, requestId: 'permission-1', deadlineUnixMs: Date.now() + 1000,
       operation: 'permissions'
     })
-    expect(JSON.parse(child.sent.join(''))).toMatchObject({ requestId: 'permission-1', operation: 'permissions' })
-    child.stdout.write('{"version":1,"requestId":"permission-1","ok":true,')
-    child.stdout.write('"result":{"accessibility":false,"screenRecording":false}}\n')
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    expect(helper.handshakes).toHaveLength(1)
+    expect(helper.handshakes[0]).not.toBe('')
+    helper.reply({ version: 1, requestId: 'permission-1', ok: true,
+      result: { accessibility: false, screenRecording: false } })
     await expect(pending).resolves.toEqual({ accessibility: false, screenRecording: false })
     client.close()
   })
 
-  it('fails pending calls when the helper exits', async () => {
-    const child = fakeChild()
-    const client = new ComputerUseClient(() => child)
+  it('serializes overlapping calls into one request at a time', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    const first = client.execute({
+      version: 1, requestId: 'first', deadlineUnixMs: Date.now() + 1000, operation: 'permissions'
+    })
+    const second = client.execute({
+      version: 1, requestId: 'second', deadlineUnixMs: Date.now() + 1000, operation: 'permissions'
+    })
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    expect(helper.requests.map((request) => request.requestId)).toEqual(['first'])
+    helper.reply({ version: 1, requestId: 'first', ok: true, result: { accessibility: true } })
+    await expect(first).resolves.toEqual({ accessibility: true })
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(2))
+    expect(helper.requests.map((request) => request.requestId)).toEqual(['first', 'second'])
+    helper.reply({ version: 1, requestId: 'second', ok: true, result: { accessibility: true } })
+    await expect(second).resolves.toEqual({ accessibility: true })
+    client.close()
+  })
+
+  it('fails pending calls when the helper socket closes', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
     const pending = client.execute({
       version: 1, requestId: 'observe-1', deadlineUnixMs: Date.now() + 1000,
       operation: 'observe', maxDepth: 8, maxElements: 100
     })
-    child.exit()
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    helper.close()
     await expect(pending).rejects.toThrow('ENGINE_UNAVAILABLE')
     client.close()
   })
 
-  it('fails pending calls when the helper cannot start', async () => {
-    const child = fakeChild()
-    const client = new ComputerUseClient(() => child)
-    const pending = client.execute({
-      version: 1, requestId: 'observe-error', deadlineUnixMs: Date.now() + 1000,
-      operation: 'observe', maxDepth: 8, maxElements: 100
+  it('fails when no helper ever starts listening', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'actiondriver-nohelper-'))
+    const client = new ComputerUseClient({
+      helperPath: '/unused/ActionDriver Computer Use.app',
+      socketPath: join(directory, 'missing.sock'),
+      tokenPath: join(directory, 'missing.token'),
+      launch: () => undefined,
+      connectTimeoutMs: 150
     })
-    child.fail()
-    await expect(pending).rejects.toThrow('ENGINE_UNAVAILABLE: spawn failed')
+    await expect(client.execute({
+      version: 1, requestId: 'observe-2', deadlineUnixMs: Date.now() + 5000,
+      operation: 'observe', maxDepth: 8, maxElements: 100
+    })).rejects.toThrow('ENGINE_UNAVAILABLE')
     client.close()
   })
 
   it('sends cancellation to the helper and rejects the original call', async () => {
-    const child = fakeChild()
-    const client = new ComputerUseClient(() => child)
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
     const abort = new AbortController()
     const pending = client.execute({
-      version: 1, requestId: 'observe-2', deadlineUnixMs: Date.now() + 1000,
+      version: 1, requestId: 'observe-3', deadlineUnixMs: Date.now() + 1000,
       operation: 'observe', maxDepth: 8, maxElements: 100
     }, abort.signal)
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
     abort.abort()
     await expect(pending).rejects.toThrow('CANCELLED')
-    expect(child.sent.join('')).toContain('"operation":"cancel"')
+    await vi.waitFor(() => expect(helper.requests.some((request) =>
+      request.operation === 'cancel')).toBe(true))
     client.close()
   })
 })

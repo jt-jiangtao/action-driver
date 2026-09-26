@@ -17,6 +17,7 @@ import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
+import { redactCollectedOutput, type ToolJson } from './tool-result-redaction'
 import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from './tool-activity'
 import { ProcessExitError, ProcessOutputLimitError } from './execution/process-runner'
 import { OfficeDependenciesUnavailableError } from './execution/runtime-paths'
@@ -79,16 +80,28 @@ export class ToolInvocationService {
     }
     const machine = new ToolInvocationStateMachine()
     let sequence = 0
+    // History and events only ever see the executor's safe summary; the caller keeps full values.
+    const redact = registered.executor.redactForPersistence?.bind(registered.executor)
+    const persistedInput = redact ? redact('input', call.arguments as ToolJson) : call.arguments
+    const persistedOutput = (output: unknown): unknown => redactCollectedOutput(redact, output)
     const persist = async (event: ToolEvent): Promise<ToolEvent> => {
       invocation.updatedAt = this.options.clock.now()
-      const record = await this.options.persistence.commitToolInvocationWithEvent(invocation, {
+      const stored: PersistedToolInvocation = {
+        ...invocation,
+        input: persistedInput as PersistedToolInvocation['input'],
+        output: persistedOutput(invocation.output) as PersistedToolInvocation['output']
+      }
+      const storedEvent = 'output' in event
+        ? { ...event, output: persistedOutput(event.output) }
+        : event
+      const record = await this.options.persistence.commitToolInvocationWithEvent(stored, {
         taskId: context.taskId,
         threadId: context.threadId,
         checkpointId: context.checkpointId,
         eventKey: `${call.callId}.${event.sequence}`,
         type: event.type,
         payload: {
-          ...event,
+          ...storedEvent,
           toolId: definition.id,
           modelName: definition.modelName,
           summary: toolActivitySummary(definition.id, call.arguments),
@@ -97,7 +110,7 @@ export class ToolInvocationService {
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,
           ...(imageCount && imageCount >= 1 && imageCount <= 16 ? { imageCount } : {}),
-          input: call.arguments
+          input: persistedInput
         },
         occurredAt: invocation.updatedAt,
         eventId: `${call.callId}.${event.sequence}`,
@@ -205,6 +218,9 @@ export class ToolInvocationService {
       yield await transition('completed', { output: invocation.output })
       await completeLog('ok')
     } catch (caught) {
+      // Once completed, the state is terminal: a later failure (for example storage rejecting the
+      // result) must surface as itself rather than as an impossible completed -> failed transition.
+      if (machine.state === 'completed') throw caught
       if (caught instanceof ToolOutputLimitError) {
         invocation.output = caught.output
         controller.abort(caught)

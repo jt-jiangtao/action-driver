@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import {
+  chmodSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -33,11 +38,26 @@ const brandSource = join(root, 'apps', 'desktop', 'resources', 'actiondriver.png
 const brandDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.png')
 mkdirSync(dirname(brandDestination), { recursive: true })
 copyFileSync(brandSource, brandDestination)
+
+// A real .icns so System Settings and the Dock show the brand instead of a blank app icon.
+const iconWork = mkdtempSync(join(tmpdir(), 'actiondriver-icns-'))
+const iconset = join(iconWork, 'ActionDriver.iconset')
+mkdirSync(iconset, { recursive: true })
+for (const size of [16, 32, 64, 128, 256, 512]) {
+  execFileSync('sips', ['-z', String(size), String(size), brandSource,
+    '--out', join(iconset, `icon_${size}x${size}.png`)], { stdio: 'ignore' })
+  execFileSync('sips', ['-z', String(size * 2), String(size * 2), brandSource,
+    '--out', join(iconset, `icon_${size}x${size}@2x.png`)], { stdio: 'ignore' })
+}
+const iconDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.icns')
+execFileSync('iconutil', ['-c', 'icns', iconset, '-o', iconDestination], { stdio: 'inherit' })
+rmSync(iconWork, { recursive: true, force: true })
 writeFileSync(join(bundle, 'Contents', 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>com.actiondriver.computer-use</string>
   <key>CFBundleExecutable</key><string>actiondriver-computer-use</string>
+  <key>CFBundleIconFile</key><string>ActionDriver.icns</string>
   <key>CFBundleName</key><string>ActionDriver Computer Use</string>
   <key>CFBundleDisplayName</key><string>ActionDriver Computer Use</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -48,6 +68,22 @@ writeFileSync(join(bundle, 'Contents', 'Info.plist'), `<?xml version="1.0" encod
 </dict></plist>
 `)
 execFileSync('plutil', ['-lint', join(bundle, 'Contents', 'Info.plist')], { stdio: 'inherit' })
-const identity = process.env.ACTIONDRIVER_CODESIGN_IDENTITY?.trim() || '-'
-execFileSync('codesign', ['--force', '--options', 'runtime', '--sign', identity, bundle], { stdio: 'inherit' })
+// Development builds must keep a stable TCC identity, otherwise every rebuild invalidates the
+// permission the user granted. When no identity is given, fall back to the local development
+// keychain if it exists; only then fall back to an ad-hoc signature.
+const defaultKeychain = join(homedir(), 'Library', 'Keychains', 'actiondriver-dev.keychain-db')
+const keychain = process.env.ACTIONDRIVER_CODESIGN_KEYCHAIN?.trim()
+  || (existsSync(defaultKeychain) ? defaultKeychain : undefined)
+const identity = process.env.ACTIONDRIVER_CODESIGN_IDENTITY?.trim()
+  || (keychain ? 'ActionDriver Dev Signing' : '-')
+if (keychain) {
+  // Local development identities live in their own keychain, so unlock it before signing.
+  execFileSync('security', ['unlock-keychain', '-p',
+    process.env.ACTIONDRIVER_CODESIGN_KEYCHAIN_PASSWORD ?? '', keychain], { stdio: 'inherit' })
+}
+execFileSync('codesign', [
+  '--force', '--options', 'runtime',
+  ...(keychain ? ['--keychain', keychain] : []),
+  '--sign', identity, bundle
+], { stdio: 'inherit' })
 execFileSync('codesign', ['--verify', '--strict', '--verbose=2', bundle], { stdio: 'inherit' })

@@ -9,19 +9,17 @@ const granted = { accessibility: true, screenRecording: true, eventPosting: true
   permissionTarget: 'ActionDriver Computer Use' }
 
 describe('Computer Use guidance', () => {
-  it('opens guidance when a permission is missing or attribution cannot be verified', () => {
-    expect(shouldOpenComputerUseGuidance({ status: granted, isPackaged: true })).toBe(false)
-    expect(shouldOpenComputerUseGuidance({ status: granted, isPackaged: false })).toBe(true)
+  it('opens guidance only when a required permission is missing', () => {
+    expect(shouldOpenComputerUseGuidance(granted)).toBe(false)
+    expect(shouldOpenComputerUseGuidance({ ...granted, accessibility: false })).toBe(true)
+    expect(shouldOpenComputerUseGuidance({ ...granted, screenRecording: false })).toBe(true)
     expect(shouldOpenComputerUseGuidance({
-      status: { ...granted, accessibility: false }, isPackaged: true
+      ...granted, accessibility: false, screenRecording: false
     })).toBe(true)
-    expect(shouldOpenComputerUseGuidance({
-      status: { ...granted, screenRecording: false }, isPackaged: true
-    })).toBe(true)
-    expect(shouldOpenComputerUseGuidance({
-      status: { ...granted, eventPosting: false }, isPackaged: true
-    })).toBe(false)
-    expect(shouldOpenComputerUseGuidance({ status: null, isPackaged: true })).toBe(true)
+    // Input events ride on the Accessibility grant and have no row of their own.
+    expect(shouldOpenComputerUseGuidance({ ...granted, eventPosting: false })).toBe(false)
+    // An unreadable status proves nothing is missing, and the helper that owns the window is down.
+    expect(shouldOpenComputerUseGuidance(null)).toBe(false)
   })
 
   it('asks the native window to present itself when guidance is needed', async () => {
@@ -29,7 +27,7 @@ describe('Computer Use guidance', () => {
     const present = vi.fn(async () => undefined)
     registerComputerUseGuidanceIpc(
       { handle: (channel, handler) => { handlers.set(channel, handler) } },
-      { present, isPackaged: true,
+      { present,
         readPermissions: vi.fn(async () => ({ ...granted, accessibility: false })) }
     )
 
@@ -37,13 +35,24 @@ describe('Computer Use guidance', () => {
     expect(present).toHaveBeenCalledOnce()
   })
 
-  it('does not present anything when every permission is already granted in a packaged app', async () => {
+  it('does not present anything when every permission is already granted', async () => {
     const handlers = new Map<string, (_event: unknown, input: unknown) => Promise<unknown>>()
     const present = vi.fn(async () => undefined)
     registerComputerUseGuidanceIpc(
       { handle: (channel, handler) => { handlers.set(channel, handler) } },
-      { present, isPackaged: true,
+      { present,
         readPermissions: vi.fn(async () => granted) }
+    )
+    await expect(handlers.get(COMPUTER_GUIDANCE_ENSURE_CHANNEL)!(null, {})).resolves.toBe(false)
+    expect(present).not.toHaveBeenCalled()
+  })
+
+  it('does not present anything when the permission status cannot be read', async () => {
+    const handlers = new Map<string, (_event: unknown, input: unknown) => Promise<unknown>>()
+    const present = vi.fn(async () => undefined)
+    registerComputerUseGuidanceIpc(
+      { handle: (channel, handler) => { handlers.set(channel, handler) } },
+      { present, readPermissions: vi.fn(async () => { throw new Error('ENGINE_UNAVAILABLE') }) }
     )
     await expect(handlers.get(COMPUTER_GUIDANCE_ENSURE_CHANNEL)!(null, {})).resolves.toBe(false)
     expect(present).not.toHaveBeenCalled()

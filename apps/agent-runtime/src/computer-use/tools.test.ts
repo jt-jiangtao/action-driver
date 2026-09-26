@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { assertPersistablePayload } from '../persistence-guard'
 import { createComputerUseTools } from './tools'
 
 describe('Computer Use tools', () => {
@@ -28,5 +29,48 @@ describe('Computer Use tools', () => {
     await expect((async () => { for await (const _event of stream) { /* drain */ } })())
       .rejects.toThrow('TOOL_INPUT_INVALID')
     expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('persists only safe summaries of screen data, element trees, and coordinates', () => {
+    const [permissions, observe, capture, act] = createComputerUseTools(vi.fn())
+    const tree = {
+      ref: 'root', role: 'AXApplication', frame: { x: 0, y: 25, width: 1440, height: 875 },
+      children: [{ ref: 'button', role: 'AXButton', title: '提交',
+        frame: { x: 10, y: 20, width: 80, height: 24 } }]
+    }
+    const observed = observe!.executor.redactForPersistence!('output', {
+      observationId: 'obs-1', application: { name: 'Finder', pid: 42 }, windowId: 7,
+      tree, truncated: false
+    })
+    expect(observed).toEqual({ observationId: 'obs-1', application: { name: 'Finder' },
+      elementCount: 2, truncated: false })
+
+    const captured = capture!.executor.redactForPersistence!('output', {
+      observationId: 'obs-1', pid: 42, windowId: 7, displayId: 1,
+      displayFrame: { x: 0, y: 0, width: 1440, height: 900 },
+      mimeType: 'image/jpeg', width: 1440, height: 900,
+      screenshot: { assetId: 'volatile-computer:1', mimeType: 'image/jpeg' }
+    })
+    expect(captured).toEqual({ observationId: 'obs-1', mimeType: 'image/jpeg', width: 1440,
+      height: 900, screenshot: { assetId: 'volatile-computer:1', mimeType: 'image/jpeg' } })
+
+    const clicked = act!.executor.redactForPersistence!('input', {
+      observationId: 'obs-1', action: { type: 'click', x: 120, y: 80 }
+    })
+    expect(clicked).toEqual({ observationId: 'obs-1', action: { type: 'click' } })
+    const typed = act!.executor.redactForPersistence!('input', {
+      observationId: 'obs-1', action: { type: 'type', text: 'secret' }
+    })
+    expect(typed).toEqual({ observationId: 'obs-1', action: { type: 'type', textLength: 6 } })
+    const acted = act!.executor.redactForPersistence!('output', {
+      executed: true, application: 'Finder', pid: 42
+    })
+    expect(acted).toEqual({ executed: true, application: 'Finder' })
+
+    for (const value of [observed, captured, clicked, typed, acted,
+      permissions!.executor.redactForPersistence!('output', { accessibility: true })]) {
+      expect(() => assertPersistablePayload(value)).not.toThrow()
+    }
+    expect(JSON.stringify([observed, captured, clicked, typed])).not.toContain('提交')
   })
 })

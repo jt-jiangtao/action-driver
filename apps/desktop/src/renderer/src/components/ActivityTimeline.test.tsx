@@ -466,6 +466,27 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool .lucide-globe-2')).not.toBeNull()
   })
 
+  it('marks Computer Use tool rows and groups with the pointer icon', () => {
+    const computer = task('succeeded')
+    computer.activities![0]!.title = '已操作电脑'
+    computer.activities![0]!.items = ['observe', 'capture', 'act', 'permissions'].map((name) => ({
+      id: `tool:${name}`, kind: 'tool' as const, callId: name
+    }))
+    computer.tools = ['observe', 'capture', 'act', 'permissions'].map((name) => ({
+      callId: name,
+      toolId: `computer.${name}`,
+      modelName: `computer_${name}`,
+      summary: name,
+      argumentsHash: '',
+      activityId: 'research',
+      status: 'completed' as const
+    }))
+    const { container } = render(<ActivityTimeline task={computer} />)
+    expect(container.querySelector('.activity-group > summary .lucide-mouse-pointer-2')).not.toBeNull()
+    expect(container.querySelectorAll('.activity-tool .lucide-mouse-pointer-2')).toHaveLength(4)
+    expect(container.querySelector('.activity-tool .lucide-boxes')).toBeNull()
+  })
+
   it('follows the active tool icon and stops group and tool sheen at terminal state', () => {
     const mixed = task('running')
     mixed.activities![0]!.title = '正在执行 2 项操作'

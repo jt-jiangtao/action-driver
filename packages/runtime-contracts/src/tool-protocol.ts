@@ -135,6 +135,15 @@ export interface ToolExecutor {
     signal?: AbortSignal,
     context?: ToolExecutionContext
   ): AsyncIterable<ToolExecutorEvent>
+  /**
+   * Returns the safe summary written to history and events in place of the tool's arguments or
+   * result. The caller still receives the full values in memory; tools whose data must stay out
+   * of storage (screen content, element trees, coordinates) implement this.
+   */
+  redactForPersistence?(
+    kind: 'input' | 'output',
+    value: z.infer<typeof z.json>
+  ): z.infer<typeof z.json>
 }
 
 export function parseToolDefinition(value: unknown): ToolDefinition {

@@ -7,8 +7,8 @@ export function taskUsesComputerUse(task: TaskProjection | null | undefined): bo
 
 /**
  * Reports to Main the first time a task actually invokes Computer Use. Main owns the decision to
- * open the standalone authorization guidance: it knows whether the app is packaged and what the
- * helper currently reports, while the renderer only knows that Computer Use has started.
+ * open the standalone authorization guidance only when the helper reports a missing permission,
+ * while the renderer only knows that Computer Use has started.
  */
 export function useComputerUseGuidance(task: TaskProjection | null | undefined): void {
   const ensured = useRef(new Set<string>())
