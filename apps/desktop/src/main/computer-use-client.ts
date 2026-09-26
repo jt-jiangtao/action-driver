@@ -26,6 +26,8 @@ const MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 export class ComputerUseClient {
   private child: ComputerUseChild | null = null
   private readonly pending = new Map<string, Pending>()
+  private readonly waiting: Array<() => void> = []
+  private busy = false
   private buffer = ''
   private closed = false
 
@@ -37,6 +39,35 @@ export class ComputerUseClient {
     if (this.pending.has(parsed.requestId)) {
       return Promise.reject(new Error(`INVALID_REQUEST: duplicate request ${parsed.requestId}`))
     }
+    // The helper serves one request at a time and rejects overlaps as ENGINE_UNAVAILABLE, so calls
+    // from the main window and the guidance window are queued instead of racing each other.
+    if (this.busy) {
+      return new Promise<unknown>((resolve, reject) => {
+        this.waiting.push(() => {
+          if (this.closed) {
+            reject(new Error('ENGINE_UNAVAILABLE: helper client closed'))
+            return
+          }
+          this.begin(parsed, signal).then(resolve, reject)
+        })
+      })
+    }
+    return this.begin(parsed, signal)
+  }
+
+  private begin(parsed: ComputerHelperRequest, signal?: AbortSignal): Promise<unknown> {
+    this.busy = true
+    const run = this.dispatch(parsed, signal)
+    const release = () => {
+      this.busy = false
+      this.waiting.shift()?.()
+    }
+    void run.then(release, release)
+    return run
+  }
+
+  private dispatch(parsed: ComputerHelperRequest, signal?: AbortSignal): Promise<unknown> {
+    if (this.closed) return Promise.reject(new Error('ENGINE_UNAVAILABLE: helper client closed'))
     if (signal?.aborted) return Promise.reject(new Error('CANCELLED: request aborted'))
     const remainingMs = parsed.deadlineUnixMs - Date.now()
     if (remainingMs <= 0) return Promise.reject(new Error('TIMED_OUT: request deadline elapsed'))
@@ -71,6 +102,7 @@ export class ComputerUseClient {
   close(): void {
     this.closed = true
     this.failAll('ENGINE_UNAVAILABLE: helper client closed')
+    for (const next of this.waiting.splice(0)) next()
     this.child?.kill()
     this.child = null
   }

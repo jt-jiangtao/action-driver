@@ -28,7 +28,8 @@ describe('Computer Use guidance window', () => {
       height: 640,
       resizable: false,
       closable: false,
-      title: ''
+      title: '',
+      titleBarStyle: 'hiddenInset'
     })
     expect(options.webPreferences).toMatchObject({ contextIsolation: true, sandbox: true })
   })

@@ -34,6 +34,9 @@ export function computerUseGuidanceWindowOptions(
     show: false,
     // The guidance window mirrors the reference window, which shows no title text at all.
     title: '',
+    // No title bar strip or top border: the content owns the whole window and provides its own
+    // drag region, while the traffic lights stay visible but disabled.
+    titleBarStyle: 'hiddenInset',
     icon: iconPath,
     backgroundColor: '#F5F5F7',
     webPreferences: {

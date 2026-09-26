@@ -155,10 +155,10 @@ test('opens the Computer Use authorization guidance in its own non-closable wind
   const guidance = await application!.waitForEvent('window')
   await expect(guidance.getByTestId('e2e/computer-use/guidance/page#page')).toBeVisible()
   await expect(
-    guidance.getByRole('heading', { name: 'Enable Codex Computer Use' })
+    guidance.getByRole('heading', { name: '启用 Codex Computer Use' })
   ).toBeVisible()
-  await expect(guidance.getByText('Allows Codex to access app interfaces')).toBeVisible()
-  await expect(guidance.getByText('Codex uses screenshots to know where to click')).toBeVisible()
+  await expect(guidance.getByText('允许 Codex 访问 App 界面')).toBeVisible()
+  await expect(guidance.getByText('Codex 通过截图判断该点哪里')).toBeVisible()
 
   const windows = await application!.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows().map((window) => ({
@@ -173,7 +173,9 @@ test('opens the Computer Use authorization guidance in its own non-closable wind
   expect(guidanceWindow).toMatchObject({ closable: false, resizable: false, visible: true })
   expect(guidanceWindow.title).not.toContain('ActionDriver')
 
-  await guidance.getByTestId('e2e/computer-use/guidance/back#button').click()
+  // Escape destroys this window while the key event is still dispatching, so the press itself can
+  // report a closed target; the outcome below is what matters.
+  await guidance.keyboard.press('Escape').catch(() => undefined)
   await expect.poll(async () => (await application!.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows().length))).toBe(1)
 })

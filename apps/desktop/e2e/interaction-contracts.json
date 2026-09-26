@@ -1022,30 +1022,6 @@
     "testName": "lists only the permissions this app can grant and only requests after an explicit allow"
   },
   {
-    "target": "e2e/computer-use/guidance/open-settings#button",
-    "route": "computer-use",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "returns to the first window from the back action and rechecks permissions"
-  },
-  {
-    "target": "e2e/computer-use/guidance/recheck#button",
-    "route": "computer-use",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "returns to the first window from the back action and rechecks permissions"
-  },
-  {
-    "target": "e2e/computer-use/guidance/back#button",
-    "route": "computer-use",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "returns to the first window from the back action and rechecks permissions"
-  },
-  {
     "target": "e2e/settings/sidebar/computer-use#button",
     "route": "settings",
     "type": "button",

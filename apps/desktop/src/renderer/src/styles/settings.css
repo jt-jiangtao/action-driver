@@ -3694,6 +3694,14 @@
   line-height: 1.5;
   overflow-y: auto;
 }
+.computer-guidance-drag { height: 26px; -webkit-app-region: drag; }
+.computer-guidance-surface button { -webkit-app-region: no-drag; }
+.computer-permission-glyph { display: grid; place-items: center; flex: none; width: 48px; height: 48px; }
+.computer-permission-glyph.is-accessibility {
+  border-radius: 50%;
+  background: #0a72f6;
+  color: #fff;
+}
 .computer-guidance-surface .computer-use-hero { padding: 12px 0 4px; }
 .computer-guidance-surface .computer-use-hero h1 { font-size: 23px; }
 .computer-guidance-surface .computer-use-hero p { font-size: 13px; }
@@ -3749,15 +3757,6 @@
   background: #fff;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
-.computer-permission-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  color: #0a72f6;
-}
-.computer-permission-card:nth-child(2) .computer-permission-icon { color: #6b7280; }
 .computer-permission-copy { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
 .computer-permission-copy strong { font-size: 15px; }
 .computer-permission-copy span { color: #626875; font-size: 13px; }
