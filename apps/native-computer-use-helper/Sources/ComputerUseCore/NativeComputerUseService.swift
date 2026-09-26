@@ -24,6 +24,10 @@ public final class NativeComputerUseService {
         let frame: CGRect?
     }
     private var elements: [String: ElementSnapshot] = [:]
+    /// Last full accessibility text per app, so repeated `app-state` calls can answer with a diff.
+    private var lastAppStateText: [String: String] = [:]
+    /// Timestamp of the most recent action, used to wait for the interface to settle.
+    private var lastActionAt: Date?
 
     public init(permissions: SystemPermissionGate = NativeSystemPermissionGate()) {
         self.permissions = permissions
@@ -131,10 +135,16 @@ public final class NativeComputerUseService {
                frontmost.processIdentifier == running?.processIdentifier { break }
             try await Task.sleep(nanoseconds: 150_000_000)
         }
+        try await waitForSettledInterface(request: request)
+        let app = running?.bundleIdentifier ?? identifier
         var result = try observe(maxElements: request.maxElements ?? 200,
                                  maxDepth: request.maxDepth ?? 8)
-        result["app"] = running?.bundleIdentifier ?? identifier
-        result["text"] = renderText(from: result["tree"])
+        let full = renderText(from: result["tree"])
+        let previous = lastAppStateText[app]
+        let wantsFull = request.disableDiff == true || previous == nil
+        lastAppStateText[app] = full
+        result["app"] = app
+        result["text"] = wantsFull ? full : diffLines(previous: previous ?? "", current: full)
         result.removeValue(forKey: "windowId")
         if let maxWidth = request.maxWidth, let maxHeight = request.maxHeight {
             let captureResult = try await capture(maxWidth: maxWidth, maxHeight: maxHeight)
@@ -145,6 +155,53 @@ public final class NativeComputerUseService {
                                     "displayFrame": captureResult["displayFrame"] ?? [:]]
         }
         return result
+    }
+
+    /// Actions get roughly a second to take effect; the read then repeats until two consecutive
+    /// passes agree, up to five seconds, so the model sees the settled interface.
+    private func waitForSettledInterface(request: ComputerUseRequest) async throws {
+        if let lastActionAt {
+            let elapsed = Date().timeIntervalSince(lastActionAt)
+            if elapsed < 1 { try await Task.sleep(nanoseconds: UInt64((1 - elapsed) * 1_000_000_000)) }
+        }
+        let deadline = Date().addingTimeInterval(5)
+        var previous: String?
+        while Date() < deadline {
+            try checkDeadline(request)
+            let tree = try observe(maxElements: request.maxElements ?? 200,
+                                   maxDepth: request.maxDepth ?? 8)
+            let text = renderText(from: tree["tree"])
+            if previous == text { return }
+            previous = text
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
+    /// Multiset diff of the accessibility text: removed lines first, then added ones.
+    private func diffLines(previous: String, current: String) -> String {
+        // Element references are regenerated on every observation, so they must not count as a
+        // change; the diff compares the interface itself.
+        var remaining = previous.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .map(normalizedForDiff)
+            .reduce(into: [String: Int]()) { $0[$1, default: 0] += 1 }
+        var added: [String] = []
+        for line in current.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init).map(normalizedForDiff) {
+            if let count = remaining[line], count > 0 { remaining[line] = count - 1 } else { added.append(line) }
+        }
+        let removed = remaining.flatMap { line, count in Array(repeating: line, count: count) }
+        guard !added.isEmpty || !removed.isEmpty else {
+            return "no changes since the previous state"
+        }
+        return (removed.map { "- \($0)" } + added.map { "+ \($0)" }).joined(separator: "\n")
+    }
+
+    private func normalizedForDiff(_ line: String) -> String {
+        guard let start = line.range(of: " ref=") else { return line }
+        let tail = line[start.upperBound...]
+        guard let end = tail.firstIndex(of: " ") else { return String(line[..<start.lowerBound]) }
+        return line.replacingCharacters(in: start.lowerBound..<end, with: "")
     }
 
     private func resolveApplication(_ identifier: String) -> URL? {
@@ -390,6 +447,8 @@ public final class NativeComputerUseService {
             throw ComputerUseError.invalidRequest("Unsupported action")
         }
         try checkDeadline(request)
+        // Remember when the interface was last touched so the next app-state read can wait for it.
+        lastActionAt = Date()
         return ["executed": true, "application": app.name, "pid": Int(app.pid)]
     }
 

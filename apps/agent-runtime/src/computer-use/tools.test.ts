@@ -31,6 +31,31 @@ describe('Computer Use tools', () => {
     expect(invoke).not.toHaveBeenCalled()
   })
 
+  it('accepts the Codex-parity actions and forwards them to the provider', async () => {
+    const invoke = vi.fn(async (input: unknown) => ({ echoed: input }))
+    const act = createComputerUseTools(invoke)[3]!
+    const cases = [
+      { type: 'set-value', elementRef: 'ref-1', value: 'hello' },
+      { type: 'paste', text: 'hello', format: 'md' },
+      { type: 'select-text', elementRef: 'ref-1', text: 'hello', selectionType: 'cursor-after' },
+      { type: 'drag', fromX: 1, fromY: 2, toX: 30, toY: 40 },
+      { type: 'secondary-action', elementRef: 'ref-1', action: 'Show Menu' }
+    ]
+    for (const [index, action] of cases.entries()) {
+      const events = []
+      for await (const event of act.executor.execute({
+        callId: `call-${index}`, providerCallId: `provider-${index}`, modelName: 'computer_act',
+        arguments: { observationId: 'obs-1', action }
+      })) events.push(event)
+      expect(events).toHaveLength(1)
+    }
+    expect(invoke).toHaveBeenCalledTimes(cases.length)
+    expect(invoke).toHaveBeenLastCalledWith({
+      operation: 'act', observationId: 'obs-1',
+      action: { type: 'secondary-action', elementRef: 'ref-1', action: 'Show Menu' }
+    }, undefined)
+  })
+
   it('persists only safe summaries of screen data, element trees, and coordinates', () => {
     const [permissions, observe, capture, act] = createComputerUseTools(vi.fn())
     const tree = {

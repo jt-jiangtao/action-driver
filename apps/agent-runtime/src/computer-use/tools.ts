@@ -72,6 +72,12 @@ const actionSchema = {
     { type: 'object', properties: { type: { const: 'key' }, key: { type: 'string' }, modifiers: { type: 'array', items: { enum: ['command', 'control', 'option', 'shift'] } } }, required: ['type', 'key', 'modifiers'], additionalProperties: false },
     { type: 'object', properties: { type: { const: 'scroll' }, deltaX: { type: 'number' }, deltaY: { type: 'number' } }, required: ['type', 'deltaX', 'deltaY'], additionalProperties: false },
     { type: 'object', properties: { type: { const: 'wait' }, milliseconds: { type: 'integer' } }, required: ['type', 'milliseconds'], additionalProperties: false }
+    ,
+    { type: 'object', properties: { type: { const: 'set-value' }, elementRef: { type: 'string' }, value: { type: 'string' } }, required: ['type', 'elementRef', 'value'], additionalProperties: false },
+    { type: 'object', properties: { type: { const: 'paste' }, text: { type: 'string' }, format: { enum: ['text', 'md', 'html'] } }, required: ['type', 'text', 'format'], additionalProperties: false },
+    { type: 'object', properties: { type: { const: 'select-text' }, elementRef: { type: 'string' }, text: { type: 'string' }, prefix: { type: 'string' }, suffix: { type: 'string' }, selectionType: { enum: ['text', 'cursor-before', 'cursor-after'] } }, required: ['type', 'elementRef', 'text'], additionalProperties: false },
+    { type: 'object', properties: { type: { const: 'drag' }, fromX: { type: 'number' }, fromY: { type: 'number' }, toX: { type: 'number' }, toY: { type: 'number' } }, required: ['type', 'fromX', 'fromY', 'toX', 'toY'], additionalProperties: false },
+    { type: 'object', properties: { type: { const: 'secondary-action' }, elementRef: { type: 'string' }, action: { type: 'string' } }, required: ['type', 'elementRef', 'action'], additionalProperties: false }
   ]
 }
 
