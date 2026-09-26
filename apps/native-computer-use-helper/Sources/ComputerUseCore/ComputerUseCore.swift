@@ -8,7 +8,7 @@ public enum ComputerUseError: Error, Equatable {
 }
 
 public enum ComputerUseOperation: String {
-    case permissions, observe, capture, act, cancel, shutdown
+    case permissions, observe, capture, act, cancel, shutdown, guidance
 }
 
 public struct ComputerUseAction {
@@ -77,7 +77,7 @@ public struct ComputerUseRequest {
                 target = value
                 expected.insert("target")
             }
-        case .shutdown:
+        case .shutdown, .guidance:
             break
         case .observe:
             expected.formUnion(["maxElements", "maxDepth"])

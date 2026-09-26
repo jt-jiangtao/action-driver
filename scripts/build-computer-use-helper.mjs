@@ -29,6 +29,10 @@ const executable = join(bundle, 'Contents', 'MacOS', 'actiondriver-computer-use'
 mkdirSync(dirname(executable), { recursive: true })
 copyFileSync(destination, executable)
 chmodSync(executable, 0o755)
+const brandSource = join(root, 'apps', 'desktop', 'resources', 'actiondriver.png')
+const brandDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.png')
+mkdirSync(dirname(brandDestination), { recursive: true })
+copyFileSync(brandSource, brandDestination)
 writeFileSync(join(bundle, 'Contents', 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>

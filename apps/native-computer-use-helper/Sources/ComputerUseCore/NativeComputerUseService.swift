@@ -28,6 +28,13 @@ public final class NativeComputerUseService {
         self.permissions = permissions
     }
 
+    /// Read-only-or-prompting probe shared by the stdio protocol and the native guidance window.
+    public func permissionsSnapshot(prompting target: GuidancePermission? = nil) -> GuidanceSnapshot {
+        GuidanceSnapshot(
+            accessibility: permissions.accessibility(prompt: target == .accessibility),
+            screenRecording: permissions.screenRecording(prompt: target == .screenRecording))
+    }
+
     public func execute(_ request: ComputerUseRequest) async throws -> [String: Any] {
         try checkDeadline(request)
         switch request.operation {
@@ -51,7 +58,7 @@ public final class NativeComputerUseService {
                 throw ComputerUseError.invalidRequest("Action requires an observation")
             }
             return try await act(action, observationId: observationId, request: request)
-        case .cancel, .shutdown:
+        case .cancel, .shutdown, .guidance:
             return ["accepted": true]
         }
     }

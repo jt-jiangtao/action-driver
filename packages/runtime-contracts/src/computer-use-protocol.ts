@@ -24,7 +24,8 @@ export const computerHelperRequest = z.discriminatedUnion('operation', [
   z.object({ ...requestBase, operation: z.literal('capture'), maxWidth: z.number().int().min(1).max(4096), maxHeight: z.number().int().min(1).max(4096) }).strict(),
   z.object({ ...requestBase, operation: z.literal('act'), observationId: z.string().min(1).max(128), action }).strict(),
   z.object({ ...requestBase, operation: z.literal('cancel'), targetRequestId: z.string().min(1).max(128) }).strict(),
-  z.object({ ...requestBase, operation: z.literal('shutdown') }).strict()
+  z.object({ ...requestBase, operation: z.literal('shutdown') }).strict(),
+  z.object({ ...requestBase, operation: z.literal('guidance') }).strict()
 ])
 
 const error = z.object({

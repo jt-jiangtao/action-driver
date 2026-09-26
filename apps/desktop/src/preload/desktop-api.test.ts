@@ -3,7 +3,6 @@ import { createDesktopApi } from './desktop-api'
 import { RUNTIME_CONNECTION_IPC_CHANNEL } from '../shared/runtime-connection-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
 import {
-  COMPUTER_GUIDANCE_CLOSE_CHANNEL,
   COMPUTER_GUIDANCE_ENSURE_CHANNEL,
   COMPUTER_PERMISSIONS_CHECK_CHANNEL
 } from '../shared/computer-use-contract'
@@ -46,14 +45,11 @@ describe('preload Runtime bootstrap', () => {
       { prompt: true, target: 'accessibility' })
   })
 
-  it('exposes the standalone guidance window without any manual entry point of its own', async () => {
+  it('asks Main to present the native guidance window', async () => {
     const invoke = vi.fn(async () => true)
     const api = createDesktopApi('darwin', '0.1.0', { invoke })
 
     await api.computerUse.ensureGuidance()
     expect(invoke).toHaveBeenLastCalledWith(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {})
-
-    await api.computerUse.closeGuidance()
-    expect(invoke).toHaveBeenLastCalledWith(COMPUTER_GUIDANCE_CLOSE_CHANNEL, {})
   })
 })

@@ -973,15 +973,23 @@
     "type": "page",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
-    "testName": "shows each live permission and rechecks after the user returns from System Settings"
+    "testName": "offers a single any-app control that reports the live authorization"
   },
   {
-    "target": "e2e/settings/computer-use/open-settings#button",
+    "target": "e2e/settings/computer-use/any-app#switch",
+    "route": "settings",
+    "type": "switch",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "offers a single any-app control that reports the live authorization"
+  },
+  {
+    "target": "e2e/settings/computer-use/open-guidance#button",
     "route": "settings",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
-    "testName": "shows each live permission and rechecks after the user returns from System Settings"
+    "testName": "shows the guidance button only while authorization is missing and refreshes on demand"
   },
   {
     "target": "e2e/settings/computer-use/recheck#button",
@@ -989,37 +997,7 @@
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
-    "testName": "shows each live permission and rechecks after the user returns from System Settings"
-  },
-  {
-    "target": "e2e/computer-use/guidance/page#page",
-    "route": "computer-use",
-    "type": "page",
-    "coverage": "visual-only"
-  },
-  {
-    "target": "e2e/computer-use/guidance/pending#status",
-    "route": "computer-use",
-    "type": "status",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "shows the system-settings placeholder while an authorized capability is still pending"
-  },
-  {
-    "target": "e2e/computer-use/guidance/allow-accessibility#button",
-    "route": "computer-use",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "lists only the permissions this app can grant and only requests after an explicit allow"
-  },
-  {
-    "target": "e2e/computer-use/guidance/allow-screen-recording#button",
-    "route": "computer-use",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/src/renderer/src/components/computer-use/ComputerUseGuidance.test.tsx",
-    "testName": "lists only the permissions this app can grant and only requests after an explicit allow"
+    "testName": "shows the guidance button only while authorization is missing and refreshes on demand"
   },
   {
     "target": "e2e/settings/sidebar/computer-use#button",

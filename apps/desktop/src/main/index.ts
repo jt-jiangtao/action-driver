@@ -22,8 +22,6 @@ import { ComputerUseClient } from './computer-use-client'
 import { createComputerUseProvider } from './computer-use-provider'
 import { registerComputerUsePermissionsIpc } from './computer-use-permissions-ipc'
 import {
-  computerUseGuidanceUrl,
-  computerUseGuidanceWindowOptions,
   registerComputerUseGuidanceIpc
 } from './computer-use-guidance'
 import { resolveDesktopCompositionMode } from '../shared/composition-mode'
@@ -54,8 +52,6 @@ let services: MainServices
 let logging: MainLogging | undefined
 let quitting = false
 let computerUseClient: ComputerUseClient | null = null
-let computerUseGuidanceWindow: BrowserWindow | null = null
-let mainWindow: BrowserWindow | null = null
 
 applyApplicationName(app)
 
@@ -88,25 +84,6 @@ function createWindow(mainServices: MainServices): BrowserWindow {
     void window.loadURL(rendererEntryUrl)
   }
   return window
-}
-
-function openComputerUseGuidance(): void {
-  if (computerUseGuidanceWindow && !computerUseGuidanceWindow.isDestroyed()) {
-    computerUseGuidanceWindow.show()
-    computerUseGuidanceWindow.focus()
-    return
-  }
-  const window = new BrowserWindow(computerUseGuidanceWindowOptions(
-    join(moduleDirectory, '../preload/index.cjs'),
-    desktopIconPath
-  ))
-  computerUseGuidanceWindow = window
-  installNavigationGuards(window.webContents, rendererEntryUrl)
-  window.once('ready-to-show', () => window.show())
-  window.on('closed', () => {
-    if (computerUseGuidanceWindow === window) computerUseGuidanceWindow = null
-  })
-  void window.loadURL(computerUseGuidanceUrl(rendererEntryUrl))
 }
 
 /** Reads the live helper status; an unreachable helper returns null so the caller still guides. */
@@ -187,17 +164,16 @@ app.whenReady().then(async () => {
       if (error) throw new Error(error)
     })
     registerComputerUseGuidanceIpc(ipcMain, {
-      open: openComputerUseGuidance,
-      close: () => {
-        // A non-closable window ignores close(); the back action is the only way out, so destroy it.
-        if (computerUseGuidanceWindow && !computerUseGuidanceWindow.isDestroyed())
-          computerUseGuidanceWindow.destroy()
-      },
-      focusMain: () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.show()
-          mainWindow.focus()
-        }
+      // The guidance window is native and lives inside the helper process, which also owns the
+      // permission prompts; Main only asks it to present itself.
+      present: async () => {
+        if (!computerUseClient) return
+        await computerUseClient.execute({
+          version: 1,
+          requestId: randomBytes(12).toString('hex'),
+          deadlineUnixMs: Date.now() + 10_000,
+          operation: 'guidance'
+        })
       },
       isPackaged: app.isPackaged,
       readPermissions: readComputerUsePermissions
@@ -241,11 +217,11 @@ app.whenReady().then(async () => {
     }
   }
 
-  mainWindow = createWindow(services)
+  createWindow(services)
   // macOS can reset the Dock tile when the first window is created; re-apply after it exists.
   applyDesktopBranding()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow(services)
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
   })
 })
 

@@ -18,6 +18,17 @@ describe('computer helper protocol', () => {
       .toBe(false)
   })
 
+  it('accepts the native guidance window request', () => {
+    const request = {
+      version: 1,
+      requestId: 'guidance-1',
+      deadlineUnixMs: Date.now() + 1000,
+      operation: 'guidance'
+    }
+    expect(computerHelperRequest.parse(request)).toEqual(request)
+    expect(computerHelperRequest.safeParse({ ...request, visible: true }).success).toBe(false)
+  })
+
   it('accepts a bounded cross-app observation request and rejects unexpected fields', () => {
     const request = {
       version: 1,

@@ -149,35 +149,14 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
   expect(result).toEqual({ status: 200 })
 })
 
-test('opens the Computer Use authorization guidance in its own non-closable window', async () => {
+test('asks the helper to present its native Computer Use guidance window', async () => {
   const page = await launch()
-  await page.evaluate(async () => { await window.actionDriverDesktop.computerUse.ensureGuidance() })
-  const guidance = await application!.waitForEvent('window')
-  await expect(guidance.getByTestId('e2e/computer-use/guidance/page#page')).toBeVisible()
-  await expect(
-    guidance.getByRole('heading', { name: '启用 Codex Computer Use' })
-  ).toBeVisible()
-  await expect(guidance.getByText('允许 Codex 访问 App 界面')).toBeVisible()
-  await expect(guidance.getByText('Codex 通过截图判断该点哪里')).toBeVisible()
-
-  const windows = await application!.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows().map((window) => ({
-      title: window.getTitle(),
-      closable: window.isClosable(),
-      resizable: window.isResizable(),
-      visible: window.isVisible()
-    }))
-  )
-  expect(windows).toHaveLength(2)
-  const guidanceWindow = windows.find((window) => window.closable === false)!
-  expect(guidanceWindow).toMatchObject({ closable: false, resizable: false, visible: true })
-  expect(guidanceWindow.title).not.toContain('ActionDriver')
-
-  // Escape destroys this window while the key event is still dispatching, so the press itself can
-  // report a closed target; the outcome below is what matters.
-  await guidance.keyboard.press('Escape').catch(() => undefined)
-  await expect.poll(async () => (await application!.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows().length))).toBe(1)
+  await expect(page.evaluate(async () =>
+    window.actionDriverDesktop.computerUse.ensureGuidance())).resolves.toBe(true)
+  // The guidance window is native and lives in the helper process, so Electron still owns exactly
+  // one window; its presence and behaviour are covered by the helper tests and the packaged smoke.
+  expect(await application!.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().length)).toBe(1)
 })
 
 test('persists the selected Token Plan image API and default model in settings', async () => {

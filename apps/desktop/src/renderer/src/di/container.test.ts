@@ -45,8 +45,7 @@ function createDesktopApi(): DesktopApi {
       requestPermissions: async () => ({ accessibility: false, screenRecording: false,
         eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
       openSystemSettings: async () => undefined,
-      ensureGuidance: async () => true,
-      closeGuidance: async () => undefined
+      ensureGuidance: async () => true
     }
   }
 }
