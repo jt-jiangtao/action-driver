@@ -22,9 +22,10 @@
 
 ## 测试与提交
 
-- 迭代过程中只运行与本次改动直接相关的定向测试（例如 `pnpm vitest run <改动到的测试文件>`），必要时补类型检查或 Lint；不得每改一处就跑全量测试。
-- 只有准备提交之前，才运行全量验证：`pnpm typecheck`、`pnpm lint`、`pnpm test`；涉及界面、运行时或打包行为的改动再按需追加 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`。
-- 全量验证的结果（命令、通过／失败数量、已知且与本次改动无关的失败）必须在提交前确认一次，并写进提交信息或对应的 OpenSpec 记录。
+- 全量测试是**提交动作的一部分，不是迭代工具**。判定标准很简单：还没准备执行 `git commit`，就是迭代期，此时**禁止**运行 `pnpm test`、`pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos` 这类全量命令。
+- 迭代期只运行与本次改动直接相关的定向测试，例如 `pnpm vitest run <改动到的测试文件>`、`swift test --filter <用例>`；必要时补 `pnpm typecheck`。每改一处就跑全量属于违规流程。
+- 只有改动完成、准备提交时，才一次性运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`；涉及界面、运行时或打包行为的改动在提交前再按需追加 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`。
+- 同一个提交不得重复运行全量验证：提交前确认一次即可，结果（命令、通过／失败数量、已知且与本次改动无关的失败）写进提交信息或对应的 OpenSpec 记录。
 - 提交只包含本次任务的改动：若工作区存在其他人正在编辑的无关文件（例如其它 OpenSpec 规划文件），不得一并提交，并在交付说明中指出。
 
 详细分类、检查表、对话顺序、结束条件、记录模板和示例见 [docs/governance/agent-battle-protocol.md](docs/governance/agent-battle-protocol.md)。

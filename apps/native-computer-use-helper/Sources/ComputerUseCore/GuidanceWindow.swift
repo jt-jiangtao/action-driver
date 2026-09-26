@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Brand artwork copied into the helper bundle at build time; falls back to the app icon.
@@ -42,8 +43,9 @@ struct GuidanceView: View {
         }
         .padding(.horizontal, 26)
         .padding(.top, 34)
-        .padding(.bottom, 22)
-        .frame(width: 520, height: 560, alignment: .top)
+        .padding(.bottom, 26)
+        .frame(width: 520)
+        .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
         .onExitCommand(perform: onClose)
     }
@@ -62,18 +64,24 @@ struct GuidanceView: View {
         Group {
             if permission == .accessibility {
                 ZStack {
-                    Circle().stroke(Color.accentColor, lineWidth: 3.5).frame(width: 44, height: 44)
-                    Image(systemName: "figure.stand")
-                        .font(.system(size: 22, weight: .semibold))
+                    Circle().stroke(Color.accentColor, lineWidth: 4).frame(width: 46, height: 46)
+                    Image(systemName: "figure.arms.open")
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundStyle(Color.accentColor)
                 }
             } else {
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.secondary)
+                ZStack {
+                    Image(systemName: "viewfinder")
+                        .font(.system(size: 34))
+                        .foregroundStyle(Color.secondary)
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.secondary)
+                        .offset(y: 1)
+                }
             }
         }
-        .frame(width: 48, height: 48)
+        .frame(width: 52, height: 52)
     }
 
     private func row(_ permission: GuidancePermission) -> some View {
@@ -85,19 +93,28 @@ struct GuidanceView: View {
             }
             Spacer(minLength: 8)
             if model.snapshot.isGranted(permission) {
-                HStack(spacing: 5) {
-                    Text("已完成")
-                    Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold))
+                Button {
+                    // Already granted: nothing to do, the control only reports the state.
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("已完成")
+                        Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
+                    }
+                    .frame(minWidth: 60)
                 }
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .frame(minWidth: 96)
+                .disabled(true)
             } else {
                 Button("允许") { onAllow(permission) }
                     .buttonStyle(.borderedProminent)
-                    .clipShape(Capsule())
+                    .controlSize(.large)
+                    .frame(minWidth: 96)
             }
         }
-        .padding(14)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(Color(nsColor: .controlBackgroundColor)))
     }
@@ -144,6 +161,8 @@ public final class GuidanceWindowController: NSObject, NSWindowDelegate {
     private let service: NativeComputerUseService
     private var window: NSWindow?
     private var model: GuidanceModel?
+    private var hosting: NSHostingView<GuidanceView>?
+    private var cancellable: AnyCancellable?
     private var restingFrame: NSRect?
     private var pollTimer: Timer?
     private var isAway = false
@@ -203,18 +222,48 @@ public final class GuidanceWindowController: NSObject, NSWindowDelegate {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.closeButton)?.isHidden = false
-        window.contentView = NSHostingView(rootView: view)
+        let hosting = NSHostingView(rootView: view)
+        window.contentView = hosting
         window.delegate = self
         window.center()
         self.window = window
         self.model = model
-        self.restingFrame = window.frame
+        self.hosting = hosting
+        refit(animated: false)
+        // The pending card changes the content height, so the window follows the content instead of
+        // leaving empty space at the bottom.
+        cancellable = model.$snapshot.sink { [weak self] _ in
+            Task { @MainActor in self?.refit(animated: true) }
+        }
+    }
+
+    private func refit(animated: Bool) {
+        guard let window, let hosting else { return }
+        let fitting = hosting.fittingSize
+        let content = NSSize(width: max(fitting.width, 520), height: max(fitting.height, 240))
+        let target = window.frameRect(forContentRect: NSRect(origin: .zero, size: content))
+        var frame = window.frame
+        let top = frame.maxY
+        frame.size = target.size
+        frame.origin.y = top - frame.height
+        restingFrame = frame
+        guard !isAway else { return }
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.22
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }
+        } else {
+            window.setFrame(frame, display: true)
+        }
     }
 
     /// The close button is the only exit besides Escape, so it must also stop polling.
     public func windowWillClose(_ notification: Notification) {
         pollTimer?.invalidate()
         pollTimer = nil
+        cancellable = nil
     }
 
     private func request(_ permission: GuidancePermission) {
