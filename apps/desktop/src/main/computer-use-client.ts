@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createConnection, type Socket } from 'node:net'
 import { dirname } from 'node:path'
 import {
@@ -14,22 +14,47 @@ type Pending = {
   reject(error: Error): void
   timeout: ReturnType<typeof setTimeout>
   removeAbort(): void
+  mayHaveExecuted: boolean
 }
 
 export type ComputerUseClientOptions = {
   helperPath: string
   socketPath: string
   tokenPath: string
+  /** ActionDriver's own .app; the helper refuses to drive it (D9). */
+  ownerAppPath?: string
   /** Overridable for tests; production launches the signed helper through LaunchServices. */
-  launch?(helperPath: string, socketPath: string, tokenPath: string): void
+  launch?(helperPath: string, socketPath: string, tokenPath: string, ownerAppPath?: string): void
   connectTimeoutMs?: number
 }
 
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
-function launchThroughLaunchServices(helperPath: string, socketPath: string, tokenPath: string): void {
-  execFile('/usr/bin/open', ['-n', '-a', helperPath, '--args', '--socket', socketPath,
-    '--token-file', tokenPath], (error, _stdout, stderr) => {
+/** `open` arguments that start the helper; it can only recognize ActionDriver itself by path. */
+export function helperLaunchArguments(
+  helperPath: string,
+  socketPath: string,
+  tokenPath: string,
+  ownerAppPath?: string
+): string[] {
+  return ['-a', helperPath, '--args', '--socket', socketPath, '--token-file', tokenPath,
+    ...(ownerAppPath ? ['--owner-app', ownerAppPath] : [])]
+}
+
+/** The .app bundle an executable runs from (ActionDriver ships as a renamed Electron.app). */
+export function owningAppBundle(executablePath: string): string | undefined {
+  const match = /^(.*?\.app)\/Contents\/MacOS\/[^/]+$/.exec(executablePath)
+  return match?.[1]
+}
+
+function launchThroughLaunchServices(
+  helperPath: string,
+  socketPath: string,
+  tokenPath: string,
+  ownerAppPath?: string
+): void {
+  execFile('/usr/bin/open', helperLaunchArguments(helperPath, socketPath, tokenPath, ownerAppPath),
+    (error, _stdout, stderr) => {
     if (error) {
       console.warn(`[computer-use] helper launch failed: ${error.message}${stderr ? ` ${stderr}` : ''}`)
     }
@@ -50,11 +75,10 @@ export class ComputerUseClient {
   private busy = false
   private buffer = ''
   private closed = false
-  private readonly token: string
 
   constructor(private readonly options: ComputerUseClientOptions) {
     mkdirSync(dirname(options.socketPath), { recursive: true, mode: 0o700 })
-    this.token = this.resolveToken()
+    this.resolveToken()
   }
 
   execute(request: ComputerHelperRequest, signal?: AbortSignal): Promise<unknown> {
@@ -65,13 +89,25 @@ export class ComputerUseClient {
     }
     if (this.busy) {
       return new Promise<unknown>((resolve, reject) => {
-        this.waiting.push(() => {
+        const cleanup = () => signal?.removeEventListener('abort', onAbort)
+        const next = () => {
+          cleanup()
           if (this.closed) {
             reject(new Error('ENGINE_UNAVAILABLE: helper client closed'))
             return
           }
           this.begin(parsed, signal).then(resolve, reject)
-        })
+        }
+        const onAbort = () => {
+          const index = this.waiting.indexOf(next)
+          if (index < 0) return
+          this.waiting.splice(index, 1)
+          cleanup()
+          reject(new Error('CANCELLED: request aborted before dispatch'))
+        }
+        this.waiting.push(next)
+        signal?.addEventListener('abort', onAbort, { once: true })
+        if (signal?.aborted) onAbort()
       })
     }
     return this.begin(parsed, signal)
@@ -95,7 +131,6 @@ export class ComputerUseClient {
     for (const next of this.waiting.splice(0)) next()
     setTimeout(() => {
       socket?.destroy()
-      rmSync(this.options.socketPath, { force: true })
     }, 400)
   }
 
@@ -131,13 +166,15 @@ export class ComputerUseClient {
       }
       const cancel = (code: 'CANCELLED' | 'TIMED_OUT') => {
         this.sendCancel(parsed.requestId)
-        finish(new Error(`${code}: ${parsed.requestId}`))
+        finish(new Error(`${code}: ${parsed.requestId}${parsed.operation === 'act'
+          ? '；动作可能已执行，请重新读取状态' : ''}`))
       }
       const onAbort = () => cancel('CANCELLED')
       signal?.addEventListener('abort', onAbort, { once: true })
       this.pending.set(parsed.requestId, {
         resolve,
         reject,
+        mayHaveExecuted: parsed.operation === 'act',
         timeout: setTimeout(() => cancel('TIMED_OUT'), remainingMs),
         removeAbort: () => signal?.removeEventListener('abort', onAbort)
       })
@@ -164,17 +201,17 @@ export class ComputerUseClient {
     // No helper listening: start one through LaunchServices, then wait for its socket.
     const launch = this.options.launch ?? launchThroughLaunchServices
     const timeout = this.options.connectTimeoutMs ?? 10_000
-    for (let round = 0; round < 2; round += 1) {
-      launch(this.options.helperPath, this.options.socketPath, this.options.tokenPath)
-      const deadline = Date.now() + timeout
-      while (Date.now() < deadline) {
-        const socket = await tryConnect(this.options.socketPath)
-        if (socket) {
-          this.attach(socket)
-          return
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100))
+    launch(this.options.helperPath, this.options.socketPath, this.options.tokenPath,
+      this.options.ownerAppPath)
+    const deadline = Date.now() + timeout
+    while (Date.now() < deadline) {
+      if (this.closed) throw new Error('ENGINE_UNAVAILABLE: helper client closed')
+      const socket = await tryConnect(this.options.socketPath)
+      if (socket) {
+        this.attach(socket)
+        return
       }
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
     throw new Error('ENGINE_UNAVAILABLE: computer helper did not start')
   }
@@ -183,7 +220,7 @@ export class ComputerUseClient {
     this.socket = socket
     this.buffer = ''
     socket.setEncoding('utf8')
-    socket.write(`${JSON.stringify({ token: this.token })}\n`)
+    socket.write(`${JSON.stringify({ token: this.resolveToken() })}\n`)
     socket.on('data', (chunk: string) => this.receive(chunk))
     socket.on('close', () => this.detach(socket, 'ENGINE_UNAVAILABLE: computer helper exited'))
     socket.on('error', (error: Error) =>
@@ -239,7 +276,8 @@ export class ComputerUseClient {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timeout)
       pending.removeAbort()
-      pending.reject(new Error(message))
+      pending.reject(new Error(`${message}${pending.mayHaveExecuted
+        ? '；动作可能已执行，请重新读取状态' : ''}`))
     }
     this.pending.clear()
   }

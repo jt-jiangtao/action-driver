@@ -19,13 +19,6 @@ final class ComputerUseCoreTests: XCTestCase {
         XCTAssertThrowsError(try ComputerUseRequest.decode(line: line))
     }
 
-    func testInvalidatesCoordinatesAfterFrontmostAppChanges() throws {
-        let gate = ObservationGate()
-        let reference = gate.record(pid: 42, windowId: 7)
-        XCTAssertNoThrow(try gate.validate(observationId: reference, pid: 42, windowId: 7))
-        XCTAssertThrowsError(try gate.validate(observationId: reference, pid: 43, windowId: 8))
-    }
-
     func testPermissionProbeReportsEachRequiredCapability() async throws {
         let line = #"{"version":1,"requestId":"permissions-1","deadlineUnixMs":9999999999999,"operation":"permissions"}"#
         let request = try ComputerUseRequest.decode(line: line)
@@ -82,4 +75,57 @@ final class ComputerUseCoreTests: XCTestCase {
         XCTAssertEqual(object["ok"] as? Bool, true)
         XCTAssertNotNil((object["result"] as? [String: Any])?["accessibility"] as? Bool)
     }
+    func testDecodesApplicationPolicyWithoutAnObservation() throws {
+        let line = #"{"version":1,"requestId":"policy","deadlineUnixMs":9999999999999,"operation":"app-policy","app":"com.apple.Notes"}"#
+        let request = try ComputerUseRequest.decode(line: line)
+        XCTAssertEqual(request.operation.rawValue, "app-policy")
+        XCTAssertEqual(request.app, "com.apple.Notes")
+    }
+
+    func testDecodesSessionScopedIndexedAction() throws {
+        let line = #"{"version":1,"requestId":"indexed","deadlineUnixMs":9999999999999,"operation":"act","sessionId":"s1","app":"com.apple.Notes","action":{"type":"click-element","elementIndex":3}}"#
+        let request = try ComputerUseRequest.decode(line: line)
+        XCTAssertEqual(request.app, "com.apple.Notes")
+        XCTAssertNotNil(request.action)
+        XCTAssertNil(request.action?.elementRef)
+    }
+
+    func testDecodesSessionScopedObservationWithScreenshotFlag() throws {
+        let line = #"{"version":1,"requestId":"app-state","deadlineUnixMs":9999999999999,"operation":"app-state","sessionId":"s1","app":"com.apple.Notes","maxElements":200,"maxDepth":8,"screenshot":true}"#
+        XCTAssertNoThrow(try ComputerUseRequest.decode(line: line))
+    }
+
+    func testRejectsMalformedIndexedTargets() throws {
+        for invalid: Any in [-1, 1.5, true, 1_000_001] {
+            let object: [String: Any] = ["version": 1, "requestId": "indexed", "deadlineUnixMs": 9999999999999,
+                                        "operation": "act", "sessionId": "s1", "app": "com.apple.Notes",
+                                        "action": ["type": "click-element", "elementIndex": invalid]]
+            let line = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+            XCTAssertThrowsError(try ComputerUseRequest.decode(line: line), line)
+        }
+    }
+
+    func testRejectsNumericScreenshotFlag() throws {
+        let line = #"{"version":1,"requestId":"app-state","deadlineUnixMs":9999999999999,"operation":"app-state","sessionId":"s1","app":"com.apple.Notes","maxElements":200,"maxDepth":8,"screenshot":1}"#
+        XCTAssertThrowsError(try ComputerUseRequest.decode(line: line))
+    }
+
+    func testKeepsIndexedMouseOptionsAndScrollTarget() throws {
+        let actions: [[String: Any]] = [
+            ["type": "click-element", "elementIndex": 7, "mouseButton": "right", "clickCount": 2],
+            ["type": "scroll", "elementIndex": 9, "deltaX": 0, "deltaY": 100],
+            ["type": "scroll", "x": 12, "y": 34, "deltaX": 0, "deltaY": 100]
+        ]
+        let expectedIndices: [Int?] = [7, 9, nil]
+        for (index, action) in actions.enumerated() {
+            let object: [String: Any] = ["version": 1, "requestId": "indexed", "deadlineUnixMs": 9999999999999,
+                                        "operation": "act", "sessionId": "s1", "app": "com.apple.Notes", "action": action]
+            let line = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+            let parsed = try XCTUnwrap(ComputerUseRequest.decode(line: line).action)
+            XCTAssertEqual(parsed.elementIndex, expectedIndices[index])
+            if index == 0 { XCTAssertEqual(parsed.mouseButton, "right"); XCTAssertEqual(parsed.clickCount, 2) }
+            if index == 2 { XCTAssertEqual(parsed.x, 12); XCTAssertEqual(parsed.y, 34) }
+        }
+    }
+
 }

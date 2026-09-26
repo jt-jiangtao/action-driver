@@ -1,4 +1,5 @@
 import type {
+  AppApprovalDecision,
   AgentCommandService,
   AgentGoalRequest,
   AgentSessionRepository,
@@ -89,6 +90,18 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   async provideInput(taskId: string, value: unknown): Promise<void> {
     try {
       await this.api.provideInput(taskId, value)
+    } catch (error) {
+      throw mapAgentError(error)
+    }
+  }
+
+  async decideAppApproval(
+    taskId: string,
+    requestId: string,
+    decision: AppApprovalDecision
+  ): Promise<void> {
+    try {
+      await this.api.decideAppApproval(taskId, requestId, decision)
     } catch (error) {
       throw mapAgentError(error)
     }

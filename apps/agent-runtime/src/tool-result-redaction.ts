@@ -11,9 +11,37 @@ export function redactCollectedOutput(redact: ToolRedaction | undefined, output:
   if (!redact || output === null || typeof output !== 'object' || !('result' in output)) {
     return output
   }
-  const collected = output as { result: unknown }
+  const collected = output as {
+    result: unknown
+    stdout?: unknown
+    stderr?: unknown
+    content?: unknown
+  }
   return {
     ...collected,
+    ...Object.fromEntries(
+      ['stdout', 'stderr', 'content'].flatMap((key) => {
+        const text = (collected as Record<string, unknown>)[key]
+        return typeof text === 'string'
+          ? [
+              [key, ''],
+              [`${key}Length`, text.length]
+            ]
+          : []
+      })
+    ),
     result: collected.result === null ? null : redact('output', collected.result as ToolJson)
   }
+}
+
+/** Private tool failures can echo screen contents or code; keep diagnostics in live memory only. */
+export function redactToolError<T>(error: T): T {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  )
+    return { ...error, message: `[redacted ${error.message.length} characters]` }
+  return error
 }

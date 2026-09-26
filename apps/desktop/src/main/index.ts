@@ -18,7 +18,7 @@ import { createSecretCipher } from './model-connections/secret-cipher'
 import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
 import { createProductionSkillProviderHost } from './skill-provider-host'
-import { ComputerUseClient } from './computer-use-client'
+import { ComputerUseClient, owningAppBundle } from './computer-use-client'
 import { createComputerUseProvider } from './computer-use-provider'
 import { registerComputerUsePermissionsIpc } from './computer-use-permissions-ipc'
 import {
@@ -161,7 +161,8 @@ app.whenReady().then(async () => {
       computerUseClient = new ComputerUseClient({
         helperPath: paths.computerHelperBundlePath,
         socketPath: join(tmpdir(), 'actiondriver-computer-use.sock'),
-        tokenPath: join(tmpdir(), 'actiondriver-computer-use.token')
+        tokenPath: join(tmpdir(), 'actiondriver-computer-use.token'),
+        ...(owningAppBundle(process.execPath) ? { ownerAppPath: owningAppBundle(process.execPath)! } : {})
       })
       skillProviderHost.register(createComputerUseProvider(computerUseClient))
     }

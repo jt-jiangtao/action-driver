@@ -1,4 +1,4 @@
-import type { ModelRef, TaskProjection } from '@actiondriver/contracts'
+import type { AppApprovalDecision, ModelRef, TaskProjection } from '@actiondriver/contracts'
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
@@ -272,10 +272,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     () => services.skillGateway.takeOver(skillInvocationId()),
     [services, skillInvocationId]
   )
-  const decideComputerAction = useCallback(
-    async (approved: boolean, providerCallId: string) => {
+  const decideAppApproval = useCallback(
+    async (requestId: string, decision: AppApprovalDecision) => {
       const task = taskStore.getState().activeTask
-      if (task) await services.agentCommandService.provideInput(task.id, { approved, providerCallId })
+      if (task) await services.agentCommandService.decideAppApproval(task.id, requestId, decision)
     },
     [services, taskStore]
   )
@@ -354,10 +354,21 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   if (route.kind === 'computer-use') {
+    // The runtime HTTP client exposes the always-allowed grants; the desktop adapter may not.
+    const alwaysAllowed = services.agentCommandService as {
+      listAlwaysAllowedApps?(): Promise<string[]>
+      removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
+    }
     return <ComputerUsePage onBack={() => setRoute(route.returnTo)}
       onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
       onOpenMainPrompt={openMainPrompt} onOpenSkills={openSkills}
-      onOpenComputerUse={openComputerUse} />
+      onOpenComputerUse={openComputerUse}
+      {...(alwaysAllowed.listAlwaysAllowedApps
+        ? { listAlwaysAllowedApps: () => alwaysAllowed.listAlwaysAllowedApps!() }
+        : {})}
+      {...(alwaysAllowed.removeAlwaysAllowedApp
+        ? { removeAlwaysAllowedApp: (bundleId: string) => alwaysAllowed.removeAlwaysAllowedApp!(bundleId) }
+        : {})} />
   }
 
   return (
@@ -398,7 +409,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onPause={pauseTask}
           onResume={resumeTask}
           onTakeOver={takeOverTask}
-          onComputerDecision={decideComputerAction}
+          onAppDecision={decideAppApproval}
           onInterrupt={interruptTask}
           readImage={services.imageAssets ? readImage : undefined}
           readOutputFile={services.outputFiles ? readOutputFile : undefined}

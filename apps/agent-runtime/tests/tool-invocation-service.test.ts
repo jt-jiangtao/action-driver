@@ -54,20 +54,30 @@ describe('ToolInvocationService', () => {
     const tool = createWorkspaceDependenciesTool(dist)
     expect(tool.definition).toMatchObject({
       modelName: 'load_workspace_dependencies',
-      risk: 'low', sideEffects: { filesystem: 'read', network: false }
+      risk: 'low',
+      sideEffects: { filesystem: 'read', network: false }
     })
     const registry = new RuntimeToolRegistry()
     registry.register(tool.definition, tool.executor)
     expect(JSON.stringify(registry.list())).toContain('load_workspace_dependencies')
     const call = { ...readCall(), modelName: 'load_workspace_dependencies', arguments: {} }
     const missing = createFixture(tool.definition, tool.executor)
-    const failed = await collect(missing.service.execute(call, context([`${tool.definition.id}@1`])))
-    expect(failed.map((event) => event.type)).toEqual(['tool.proposed', 'tool.queued', 'tool.running', 'tool.failed'])
+    const failed = await collect(
+      missing.service.execute(call, context([`${tool.definition.id}@1`]))
+    )
+    expect(failed.map((event) => event.type)).toEqual([
+      'tool.proposed',
+      'tool.queued',
+      'tool.running',
+      'tool.failed'
+    ])
     expect(failed.at(-1)).toMatchObject({ error: { code: 'TOOL_UNAVAILABLE' } })
 
     for (const relative of [
-      'dependencies/node/bin/node', 'dependencies/python/bin/python3',
-      'dependencies/bin/override/soffice', 'dependencies/bin/override/pdftoppm'
+      'dependencies/node/bin/node',
+      'dependencies/python/bin/python3',
+      'dependencies/bin/override/soffice',
+      'dependencies/bin/override/pdftoppm'
     ]) {
       const path = join(dist, relative)
       await mkdir(join(path, '..'), { recursive: true })
@@ -76,8 +86,15 @@ describe('ToolInvocationService', () => {
     }
     await mkdir(join(dist, 'dependencies/node/node_modules'))
     const available = createFixture(tool.definition, tool.executor)
-    const events = await collect(available.service.execute(call, context([`${tool.definition.id}@1`])))
-    expect(events.map((event) => event.type)).toEqual(['tool.proposed', 'tool.queued', 'tool.running', 'tool.completed'])
+    const events = await collect(
+      available.service.execute(call, context([`${tool.definition.id}@1`]))
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      'tool.proposed',
+      'tool.queued',
+      'tool.running',
+      'tool.completed'
+    ])
     expect(JSON.stringify(events.at(-1))).toContain(join(dist, 'dependencies/python/bin/python3'))
   })
 
@@ -89,13 +106,35 @@ describe('ToolInvocationService', () => {
       inputSchema: {
         type: 'object',
         properties: {
-          images: { type: 'array', items: { type: 'object', properties: { prompt: { type: 'string' } }, required: ['prompt'] } }
+          images: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { prompt: { type: 'string' } },
+              required: ['prompt']
+            }
+          }
         },
         required: ['images']
       }
     }
-    const fixture = createFixture(definition, { async *execute() { yield { kind: 'result', output: {} } } })
-    await collect(fixture.service.execute({ ...readCall(), modelName: 'image_generate', arguments: { images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` })) } }, context(['image.generate@1'])))
+    const fixture = createFixture(definition, {
+      async *execute() {
+        yield { kind: 'result', output: {} }
+      }
+    })
+    await collect(
+      fixture.service.execute(
+        {
+          ...readCall(),
+          modelName: 'image_generate',
+          arguments: {
+            images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` }))
+          }
+        },
+        context(['image.generate@1'])
+      )
+    )
     const running = fixture.commits.find(({ event }) => event.type === 'tool.running')?.event
     expect(running?.payload).toMatchObject({ imageCount: 16 })
   })
@@ -260,7 +299,9 @@ describe('ToolInvocationService', () => {
 
   it('surfaces a persistence failure after completion instead of an invalid transition', async () => {
     const executor: ToolExecutor = {
-      async *execute() { yield { kind: 'result', output: { ok: true } } }
+      async *execute() {
+        yield { kind: 'result', output: { ok: true } }
+      }
     }
     const registry = new RuntimeToolRegistry()
     registry.register(readDefinition, executor)
@@ -277,20 +318,86 @@ describe('ToolInvocationService', () => {
       },
       clock: { now: () => '2026-01-01T00:00:00.000Z' }
     })
-    await expect(collect(service.execute(readCall(), context(['local.shell.run@1']))))
-      .rejects.toThrow('PERSISTENCE_PAYLOAD_REJECTED: toolInvocation.output')
+    await expect(
+      collect(service.execute(readCall(), context(['local.shell.run@1'])))
+    ).rejects.toThrow('PERSISTENCE_PAYLOAD_REJECTED: toolInvocation.output')
+  })
+
+  it('keeps streamed screen text out of persistence and interaction logs while the caller receives it', async () => {
+    const secret = 'private screen text'
+    const executor: ToolExecutor = {
+      async *execute() {
+        yield { kind: 'content', stream: 'result', delta: secret }
+        yield { kind: 'result', output: { output: secret } }
+      },
+      redactForPersistence: (kind) => (kind === 'input' ? { codeLength: 10 } : { outputLength: 19 })
+    }
+    const fixture = createFixture(readDefinition, executor)
+    const events = await collect(
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
+    )
+    expect(JSON.stringify(events)).toContain(secret)
+    expect(JSON.stringify(fixture.commits)).not.toContain(secret)
+    expect(JSON.stringify(await fixture.interactionStore.list({ limit: 20 }))).not.toContain(secret)
+  })
+
+  it('does not persist a redacting tool error containing private text', async () => {
+    const fixture = createFixture(readDefinition, {
+      async *execute() {
+        yield await Promise.reject(new Error('private-error-654'))
+      },
+      redactForPersistence: () => ({ length: 0 })
+    })
+    const events = await collect(
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
+    )
+    expect(JSON.stringify(events)).toContain('private-error-654')
+    expect(JSON.stringify(fixture.commits)).not.toContain('private-error-654')
+    expect(JSON.stringify(await fixture.interactionStore.list({ limit: 20 }))).not.toContain(
+      'private-error-654'
+    )
+  })
+
+  it('refreshes input summaries after execution instead of persisting the initial snapshot forever', async () => {
+    let lengths: number[] = []
+    const fixture = createFixture(readDefinition, {
+      async *execute() {
+        lengths = [12]
+        yield { kind: 'result', output: { output: 'done' } }
+      },
+      redactForPersistence: (kind) =>
+        kind === 'input'
+          ? { codeLength: 20, executedTextLengths: [...lengths] }
+          : { outputLength: 4 }
+    })
+    await collect(fixture.service.execute(readCall(), context(['local.shell.run@1'])))
+    expect(fixture.commits[0]?.invocation.input).toEqual({
+      codeLength: 20,
+      executedTextLengths: []
+    })
+    expect(fixture.commits.at(-1)?.invocation.input).toEqual({
+      codeLength: 20,
+      executedTextLengths: [12]
+    })
   })
 
   it('persists the executor redaction while the caller keeps the full input and output', async () => {
     const executor: ToolExecutor = {
       async *execute() {
-        yield { kind: 'result', output: { tree: { frame: { x: 1, y: 2 } }, observationId: 'obs-1' } }
+        yield {
+          kind: 'result',
+          output: { tree: { frame: { x: 1, y: 2 } }, observationId: 'obs-1' }
+        }
       },
       redactForPersistence: (kind, value) =>
-        kind === 'input' ? { redacted: 'input' } : { observationId: (value as { observationId: string }).observationId }
+        kind === 'input'
+          ? { redacted: 'input' }
+          : { observationId: (value as { observationId: string }).observationId }
     }
     const fixture = createFixture(readDefinition, executor)
-    const events = await collect(fixture.service.execute(readCall(), context(['local.shell.run@1'])))
+    const events = await collect(
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
+    )
     expect(events.at(-1)).toMatchObject({
       type: 'tool.completed',
       output: { result: { tree: { frame: { x: 1, y: 2 } }, observationId: 'obs-1' } }
@@ -298,7 +405,9 @@ describe('ToolInvocationService', () => {
     const persisted = JSON.stringify(fixture.commits)
     expect(persisted).not.toContain('"x":1')
     expect(persisted).not.toContain('README.md')
-    expect(fixture.commits.at(-1)?.invocation.output).toMatchObject({ result: { observationId: 'obs-1' } })
+    expect(fixture.commits.at(-1)?.invocation.output).toMatchObject({
+      result: { observationId: 'obs-1' }
+    })
     expect(fixture.commits.at(-1)?.invocation.input).toEqual({ redacted: 'input' })
   })
 })

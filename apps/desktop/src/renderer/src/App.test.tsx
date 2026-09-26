@@ -412,7 +412,8 @@ describe('App', () => {
       submitGoal,
       interrupt: async () => undefined,
       continueTask: async () => undefined,
-      provideInput: async () => undefined
+      provideInput: async () => undefined,
+      decideAppApproval: async () => undefined
     }
 
     render(

@@ -10,6 +10,7 @@
 // the previous cell's top-level bindings forward.
 import { createInterface } from 'node:readline'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import { buildCell } from './bindings.mjs'
 
@@ -21,6 +22,9 @@ const SKY_METHODS = [
 const pending = new Map()
 let nextCallId = 1
 let cellCounter = 1
+const vendorRoot = process.env.CUA_VENDOR_ROOT
+let requestMeta = Object.freeze({})
+let cua = null
 
 const send = (message) => { process.stdout.write(`${JSON.stringify(message)}\n`) }
 
@@ -41,6 +45,14 @@ function stringify(value) {
 }
 
 const nodeRepl = Object.freeze({
+  ...(vendorRoot ? {
+    env: Object.freeze({ CUA_REPL_ENABLED_SURFACES: 'computer' }),
+    rpc: (service, input) => {
+      if (service !== 'sky') throw new Error('INVALID_REQUEST: unsupported RPC service')
+      return callHost('sky_rpc', input)
+    }
+  } : {}),
+  get requestMeta() { return requestMeta },
   cwd: process.env.NODE_REPL_CWD || process.cwd(),
   homeDir: process.env.HOME || process.cwd(),
   tmpDir: process.env.TMPDIR || '/tmp',
@@ -81,7 +93,7 @@ function createContext() {
   return vm.createContext({
     console: captureConsole(),
     nodeRepl,
-    sky,
+    ...(vendorRoot ? {} : { sky }),
     Buffer,
     URL,
     URLSearchParams,
@@ -128,20 +140,34 @@ async function carriedModule() {
 }
 
 async function importModule(specifier) {
-  if (specifier === '@oai/sky') return syntheticModule({ sky }, '@oai/sky')
+  if (specifier === '@oai/sky') {
+    if (vendorRoot) return await import(pathToFileURL(join(vendorRoot,
+      '@oai/sky/dist/project/cua/sky_js/src/index.js')).href)
+    return syntheticModule({ sky }, '@oai/sky')
+  }
   if (specifier === '@prev') {
     const module = await carriedModule()
     if (!module) throw new Error('@prev is unavailable before the first js call')
     return module
   }
-  if (specifier === 'node:process' || specifier === 'process') {
-    throw new Error('node:process is unavailable in the js entry')
+  const name = specifier.replace(/^node:/, '')
+  if (['child_process', 'worker_threads', 'cluster', 'inspector', 'inspector/promises', 'process'].includes(name)) {
+    throw new Error(`${specifier} is unavailable in the js entry`)
   }
   // Built-ins such as node:fs/promises stay reachable, matching the bundled Node script tools.
   return await import(specifier)
 }
 
 async function evaluate(id, code) {
+  requestMeta = Object.freeze({ call_id: String(id) })
+  if (vendorRoot && !cua) {
+    globalThis.nodeRepl = nodeRepl
+    const { create_tinysky_alt } = await import(pathToFileURL(join(vendorRoot,
+      '@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js')).href)
+    cua = await create_tinysky_alt({ browser: false, computer: true })
+    Object.assign(cua, { initialize: cua.getState })
+    context.cua = cua
+  }
   const identifier = join(nodeRepl.cwd, `.js_repl_cell_${cellCounter++}.mjs`)
   const compile = (source) => new vm.SourceTextModule(source, { context, identifier })
   const built = buildCell({ code, priorBindings: previous?.bindings ?? [], compile })
@@ -177,11 +203,9 @@ async function handle(line) {
     else entry.reject(new Error(message.error ?? 'sky call failed'))
     return
   }
-  // The host is asking the user about this call; the pending promise stays open, so the cell simply
-  // waits here until the host answers with the callResult that carries the decision's outcome.
-  if (message.type === 'approvalRequired') return
   if (message.reset) {
     context = createContext()
+    cua = null
     previous = null
     send({ id: message.id, ok: true, value: null })
     return

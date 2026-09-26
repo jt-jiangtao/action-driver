@@ -1032,20 +1032,60 @@
     "testName": "wires Computer Use pause, takeover, and resume to the desktop task controls"
   },
   {
-    "target": "e2e/tasks/detail/computer/approval-deny#button",
+    "target": "e2e/tasks/detail/computer/app-approval-deny#button",
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
-    "testName": "shows the exact Computer Use action and sends a single-call approval"
+    "testName": "through app approval"
   },
   {
-    "target": "e2e/tasks/detail/computer/approval-approve#button",
+    "target": "e2e/tasks/detail/computer/app-approval-once#button",
     "route": "tasks",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
-    "testName": "shows the exact Computer Use action and sends a single-call approval"
+    "testName": "through app approval"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/app-approval-session#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "through app approval"
+  },
+  {
+    "target": "e2e/tasks/detail/computer/app-approval-always#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
+    "testName": "through app approval"
+  },
+  {
+    "target": "e2e/settings/computer-use/always-allowed#section",
+    "route": "settings",
+    "type": "section",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "lists always-allowed applications and revokes one from the list"
+  },
+  {
+    "target": "e2e/settings/computer-use/always-allowed#status",
+    "route": "settings",
+    "type": "status",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "hides the always-allowed section when the runtime does not expose it"
+  },
+  {
+    "target": "e2e/settings/computer-use/always-allowed/:app#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/pages/ComputerUsePage.test.tsx",
+    "testName": "lists always-allowed applications and revokes one from the list"
   },
   {
     "target": "e2e/shared/image-preview/save#link",

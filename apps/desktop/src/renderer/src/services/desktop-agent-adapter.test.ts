@@ -33,6 +33,7 @@ function harness() {
     interrupt: vi.fn(async () => undefined),
     continue: vi.fn(async () => undefined),
     provideInput: vi.fn(async () => undefined),
+    decideAppApproval: vi.fn(async () => undefined),
     controlSkill: vi.fn(
       async (invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent> => ({
         id: `event-${command}`,

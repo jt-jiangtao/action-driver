@@ -44,6 +44,7 @@ function createDesktopApi(): DesktopApi {
         eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
       requestPermissions: async () => ({ accessibility: false, screenRecording: false,
         eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
+      getAppIcon: async () => null,
       openSystemSettings: async () => undefined,
       ensureGuidance: async () => true
     }
@@ -167,6 +168,7 @@ describe('renderer composition root', () => {
       interrupt: async () => undefined,
       continueTask: async () => undefined,
       provideInput: async () => undefined,
+      decideAppApproval: async () => undefined,
       getTask: () => projection,
       subscribe: () => () => undefined
     }

@@ -45,34 +45,8 @@ export function buildTaskProjection(
       }
     ],
     browser: null,
-    ...(computerApproval(task.error) ? { pendingComputerApproval: computerApproval(task.error)! } : {}),
     ...(outputFiles.length > 0 ? { outputFiles: [...outputFiles] } : {})
   }
-}
-
-function computerApproval(error: unknown): TaskProjection['pendingComputerApproval'] | null {
-  if (typeof error !== 'object' || error === null) return null
-  const value = error as Record<string, unknown>
-  if (value.code !== 'COMPUTER_ACTION_APPROVAL' || typeof value.providerCallId !== 'string') return null
-  // One action of a JavaScript cell, which has no observation of its own.
-  const jsAction = value.jsAction
-  if (typeof jsAction === 'object' && jsAction !== null && !Array.isArray(jsAction)) {
-    const candidate = jsAction as Record<string, unknown>
-    if (typeof candidate.method !== 'string') return null
-    const args = typeof candidate.args === 'object' && candidate.args !== null &&
-      !Array.isArray(candidate.args) ? candidate.args as Record<string, unknown> : {}
-    return { providerCallId: value.providerCallId, jsAction: {
-      index: typeof candidate.index === 'number' ? candidate.index : 0,
-      method: candidate.method,
-      args
-    } }
-  }
-  if (typeof value.observationId !== 'string' ||
-      typeof value.action !== 'object' || value.action === null || Array.isArray(value.action)) {
-    return null
-  }
-  return { providerCallId: value.providerCallId, observationId: value.observationId,
-    action: value.action as Record<string, unknown> }
 }
 
 export function toOutputFileProjection(file: {

@@ -19,6 +19,7 @@ import {
 } from '@actiondriver/contracts'
 import type { ModelInputMessage } from '@actiondriver/model-connections'
 import type { SessionAssetStore } from './media/session-asset-store'
+import type { AppApprovalBroker, AppApprovalEvent } from './computer-use/app-approval-broker'
 import type { BoundInputFile, SessionInputFileStore } from './media/session-input-file-store'
 import type { OutputBaseline, SessionOutputStore } from './media/session-output-store'
 import type {
@@ -49,6 +50,7 @@ type SnapshotEvent = Extract<StreamServerEvent, { type: 'response.snapshot' }>
 
 type ActiveRequest = {
   sessionId: string
+  taskId: string
   controller: AbortController
   operation: Promise<void>
   delivery: { emit: Emit }
@@ -67,6 +69,12 @@ export class StreamSessionService {
       ids: IdGenerator
       now(): string
       rawToolIO?: { enabled: boolean; maxBytes?: number }
+      appApprovals?: Pick<AppApprovalBroker, 'getPending' | 'cancelTask'>
+      /**
+       * Host cleanup for a finished turn (Computer Use: cancel pending app approvals, release app
+       * leases). Runs once per turn, whatever its outcome, before its response.end is published.
+       */
+      turnEnded?: (taskId: string) => Promise<void>
       listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
       assets?: Pick<SessionAssetStore, 'bindStaged'>
       inputFiles?: Pick<SessionInputFileStore, 'bind'>
@@ -92,6 +100,12 @@ export class StreamSessionService {
     for (const request of active) {
       request.controller.abort(new DOMException('Service shutting down', 'AbortError'))
     }
+    await Promise.all(
+      [...this.active.keys()].map(async (requestId) => {
+        const request = await this.options.repositories.streamRequests.getByRequestId(requestId)
+        if (request) await this.options.appApprovals?.cancelTask(request.taskId)
+      })
+    )
     await Promise.allSettled(active.map((request) => request.operation))
   }
 
@@ -100,14 +114,39 @@ export class StreamSessionService {
     return request ? await this.snapshot(request.requestId) : null
   }
 
+  async publishAppApproval(event: AppApprovalEvent): Promise<void> {
+    const request = await this.options.repositories.streamRequests.getByTaskId(event.request.taskId)
+    const active = request && this.active.get(request.requestId)
+    if (
+      !request ||
+      !active ||
+      request.status !== 'running' ||
+      request.sessionId !== event.request.sessionId
+    ) {
+      throw new Error('CANCELLED: application approval task is no longer active')
+    }
+    const record = await this.options.repositories.events.append(
+      this.runtimeEvent(
+        request,
+        event.type,
+        null,
+        {
+          approval: event.request,
+          ...(event.type === 'computer.app-approval.resolved' ? { decision: event.decision } : {})
+        },
+        `${event.type}:${event.request.requestId}`
+      )
+    )
+    await this.publishThrough(request, record.cursor, active.delivery.emit)
+  }
+
   async handle(event: StreamClientEvent, emit: Emit): Promise<void> {
     if (event.type === 'request.create') {
       await this.create(event, emit)
       return
     }
     if (event.type === 'request.cancel') {
-      const active = this.active.get(event.requestId)
-      if (active) active.controller.abort(new DOMException('Request cancelled', 'AbortError'))
+      await this.cancelRequest(event.requestId, 'Request cancelled')
       return
     }
     if (event.type === 'request.resume') {
@@ -328,11 +367,31 @@ export class StreamSessionService {
     })
     this.active.set(storedRequest.requestId, {
       sessionId: storedRequest.sessionId,
+      taskId: storedRequest.taskId,
       controller,
       operation,
       delivery
     })
     void operation.catch(() => undefined)
+  }
+
+  /**
+   * Aborts the running request of one task and drops its pending Computer Use approvals. The user
+   * stopping Computer Use with Esc takes this path (2.11), so it is the same as `request.cancel`.
+   */
+  async cancelTask(taskId: string): Promise<boolean> {
+    const running = [...this.active.entries()].find(([, request]) => request.taskId === taskId)
+    if (!running) return false
+    await this.cancelRequest(running[0], 'Computer Use stopped by the user')
+    return true
+  }
+
+  private async cancelRequest(requestId: string, reason: string): Promise<void> {
+    const active = this.active.get(requestId)
+    if (!active) return
+    active.controller.abort(new DOMException(reason, 'AbortError'))
+    const request = await this.options.repositories.streamRequests.getByRequestId(requestId)
+    if (request) await this.options.appApprovals?.cancelTask(request.taskId)
   }
 
   private async execute(
@@ -523,7 +582,11 @@ export class StreamSessionService {
               const imageKey = `${callId}:${imageIndex}`
               if (seenImages.has(imageKey)) return
               if (assistantParts.length === 0 && content)
-                assistantParts.push({ kind: 'text', text: content, order: nextPartOrder(assistantParts) })
+                assistantParts.push({
+                  kind: 'text',
+                  text: content,
+                  order: nextPartOrder(assistantParts)
+                })
               // The batch reserved a slot per image, so the picture lands where
               // it was planned even when a later slot finishes first.
               const order = imageOrder(assistantParts, callId, imageIndex)
@@ -644,6 +707,13 @@ export class StreamSessionService {
         })
       }
     }
+    await this.options.appApprovals?.cancelTask(request.taskId)
+    try {
+      await this.options.turnEnded?.(request.taskId)
+    } catch (error) {
+      // Cleanup must not keep the turn from ending; its failure is only reported.
+      console.warn('[stream-session] turn cleanup failed', error)
+    }
     const endRecord = await this.options.repositories.finishStreamTask({
       request: persistedRequest,
       task,
@@ -718,6 +788,12 @@ export class StreamSessionService {
       })
       return
     }
+    if (this.options.appApprovals) {
+      // Approval waiters are process-local. Restore their live state together with the
+      // authoritative task projection rather than briefly displaying historical requests.
+      await emit(await this.snapshot(requestId))
+      return
+    }
     const first = (await this.options.repositories.events.listForRequestAfter(requestId, 0, 1))[0]
     const replayExpired =
       (!first && request.lastSequence >= 0) ||
@@ -785,6 +861,10 @@ export class StreamSessionService {
       occurredAt: this.options.now(),
       sequence: request.lastSequence,
       status: request.status,
+      pendingAppApproval:
+        request.status === 'running' && this.active.has(request.requestId)
+          ? [...(this.options.appApprovals?.getPending(request.taskId) ?? [])]
+          : [],
       ...(await this.outputFilesFor(request.taskId)),
       messages: messages
         .filter((message) => message.role === 'user' || message.role === 'assistant')
@@ -947,6 +1027,17 @@ export class StreamSessionService {
     }
     if (record.type === 'request.accepted') {
       return parseStreamServerEvent({ type: record.type, ...identity })
+    }
+    if (
+      record.type === 'computer.app-approval.requested' ||
+      record.type === 'computer.app-approval.resolved'
+    ) {
+      return parseStreamServerEvent({
+        type: record.type,
+        ...identity,
+        approval: payload.approval,
+        ...(record.type === 'computer.app-approval.resolved' ? { decision: payload.decision } : {})
+      })
     }
     if (record.type === 'runtime.interrupted') {
       return parseStreamServerEvent({

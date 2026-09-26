@@ -2,34 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { createComputerUseProvider } from './computer-use-provider'
 
 describe('Computer Use provider', () => {
-  it('passes a validated observe request to the native helper', async () => {
-    const execute = vi.fn(async () => ({ observationId: 'obs-1', tree: {} }))
-    const provider = createComputerUseProvider({ execute })
-    const result = await provider.execute({ operation: 'observe', maxElements: 50, maxDepth: 5 })
-    expect(provider).toMatchObject({ skillId: 'computer-use', providerId: 'native.computer-use' })
-    expect(execute).toHaveBeenCalledWith(expect.objectContaining({
-      version: 1, operation: 'observe', maxElements: 50, maxDepth: 5
-    }), undefined)
-    expect(result).toEqual({ observationId: 'obs-1', tree: {} })
-  })
-
-  it('passes capture only to the transport that extracts raw bytes before returning a Skill result', async () => {
-    const execute = vi.fn(async () => ({ base64: 'sensitive' }))
-    const provider = createComputerUseProvider({ execute })
-    await provider.execute({ operation: 'capture', maxWidth: 100, maxHeight: 100 })
-    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ operation: 'capture' }), undefined)
-  })
-
-  it('carries the index-addressed state calls the JavaScript entry depends on', async () => {
+  // 4.1 removed the observation-based observe/capture operations, so the provider surface is
+  // app-addressed only: app policy, session-scoped state and session supervision.
+  it('carries the app-addressed state calls the JavaScript entry depends on', async () => {
     const execute = vi.fn(async () => ({ apps: [] }))
     const provider = createComputerUseProvider({ execute })
+    expect(provider).toMatchObject({ skillId: 'computer-use', providerId: 'native.computer-use' })
     await provider.execute({ operation: 'list-apps' })
-    await provider.execute({ operation: 'app-state', app: 'TextEdit',
+    await provider.execute({ operation: 'app-state', sessionId: 'session-1', app: 'TextEdit',
       maxElements: 300, maxDepth: 12, disableDiff: true })
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({ operation: 'list-apps' }), undefined)
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({
-      operation: 'app-state', app: 'TextEdit', maxElements: 300, maxDepth: 12, disableDiff: true
+      operation: 'app-state', sessionId: 'session-1', app: 'TextEdit',
+      maxElements: 300, maxDepth: 12, disableDiff: true
     }), undefined)
+    await expect(provider.execute({ operation: 'observe', maxElements: 50, maxDepth: 5 }))
+      .rejects.toThrow('Unsupported Computer Use command')
     await expect(provider.execute({ operation: 'shutdown' }))
       .rejects.toThrow('Unsupported Computer Use command')
   })

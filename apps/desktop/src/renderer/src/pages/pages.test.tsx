@@ -1,3 +1,4 @@
+import type { AppApprovalDecision } from '@actiondriver/contracts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,37 +8,35 @@ import { mockTaskFixture } from '../services/mock-task-fixture'
 import { mockModelSelection } from '../testing/model-selection-fixture'
 
 describe('ActionDriver pages', () => {
-  it('shows the exact Computer Use action and sends a single-call approval', async () => {
-    const onComputerDecision = vi.fn(async () => undefined)
-    render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null,
-      status: 'waiting-user',
-      pendingComputerApproval: { providerCallId: 'call-one', observationId: 'obs-one',
-        action: { type: 'type', text: '发送前请确认' } }
-    }} modelSelection={mockModelSelection} onSelectModel={vi.fn()}
-      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
-      onTakeOver={vi.fn()} onComputerDecision={onComputerDecision}
-      onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
-    expect(screen.getByText('输入文本：发送前请确认')).toBeVisible()
-    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-deny#button'))
-    expect(onComputerDecision).toHaveBeenCalledWith(false, 'call-one')
-    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
-    expect(onComputerDecision).toHaveBeenCalledWith(true, 'call-one')
+  it.each([['拒绝', 'deny'], ['仅本次', 'once'], ['本会话', 'session'], ['始终允许', 'always']])('sends %s through app approval', async (label, decision) => {
+    const onAppDecision = vi.fn(async () => undefined)
+    const view = renderApproval(onAppDecision)
+    expect(screen.getByText('TextEdit')).toBeVisible()
+    expect(screen.getByText('将允许读取和操作此应用')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: label }))
+    expect(onAppDecision).toHaveBeenCalledExactlyOnceWith('approval-1', decision)
+    expect(screen.getByRole('button', { name: label })).toBeDisabled()
+    view.unmount()
   })
-  it('shows the JavaScript action that waits for the user', async () => {
-    const onComputerDecision = vi.fn(async () => undefined)
-    render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null,
-      status: 'waiting-user',
-      pendingComputerApproval: { providerCallId: 'js-call', jsAction: {
-        index: 1, method: 'press_key', args: { app: 'TextEdit', key: 's' }
-      } }
-    }} modelSelection={mockModelSelection} onSelectModel={vi.fn()}
-      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
-      onTakeOver={vi.fn()} onComputerDecision={onComputerDecision}
-      onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
-    expect(screen.getByText(/模型正在用 JavaScript 操作桌面/)).toBeVisible()
-    expect(screen.getByText('按键：s')).toBeVisible()
-    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
-    expect(onComputerDecision).toHaveBeenCalledWith(true, 'js-call')
+
+  it('hides persistent approval when policy prohibits it and permits retry after failure', async () => {
+    const onAppDecision = vi.fn().mockRejectedValueOnce(new Error('连接失败')).mockResolvedValue(undefined)
+    const view = renderApproval(onAppDecision, false)
+    expect(screen.queryByRole('button', { name: '始终允许' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '仅本次' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('连接失败')
+    await userEvent.click(screen.getByRole('button', { name: '仅本次' }))
+    expect(onAppDecision).toHaveBeenCalledTimes(2)
+    view.unmount()
+  })
+
+  it('blocks duplicate decisions while the request is pending', async () => {
+    const onAppDecision = vi.fn(() => new Promise<void>(() => {}))
+    const view = renderApproval(onAppDecision)
+    await userEvent.click(screen.getByRole('button', { name: '仅本次' }))
+    await userEvent.click(screen.getByRole('button', { name: '拒绝' }))
+    expect(onAppDecision).toHaveBeenCalledOnce()
+    view.unmount()
   })
 
   it('wires Computer Use pause, takeover, and resume to the desktop task controls', async () => {
@@ -833,4 +832,32 @@ describe('ActionDriver pages', () => {
     )
     expect(screen.queryByTestId('e2e/tasks/detail/activity/approve#button')).toBeNull()
   })
+
+  // 3.1: the card shows the real application icon when macOS can provide one.
+  it('shows the real application icon on the approval card', async () => {
+    const getAppIcon = vi.fn(async () => 'data:image/png;base64,QQ==')
+    vi.stubGlobal('actionDriverDesktop', { computerUse: { getAppIcon } })
+    renderApproval(vi.fn())
+    await expect.poll(() => document.querySelector('.app-approval-icon')?.getAttribute('src'))
+      .toBe('data:image/png;base64,QQ==')
+    expect(getAppIcon).toHaveBeenCalledWith('/Applications/TextEdit.app')
+    vi.unstubAllGlobals()
+  })
+
+  it('falls back to the placeholder when the application icon is unavailable', async () => {
+    vi.stubGlobal('actionDriverDesktop', { computerUse: { getAppIcon: vi.fn(async () => null) } })
+    renderApproval(vi.fn())
+    await screen.findByTestId('e2e/tasks/detail/computer/app-approval-once#button')
+    expect(document.querySelector('.app-approval-icon')).toBeNull()
+    vi.unstubAllGlobals()
+  })
 })
+
+function renderApproval(onAppDecision: (requestId: string, decision: AppApprovalDecision) => Promise<unknown>, allowPersistentApproval = true) {
+  return render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null, status: 'running',
+    pendingAppApproval: [{ requestId: 'approval-1', taskId: mockTaskFixture.id, sessionId: mockTaskFixture.sessionId,
+      target: { bundleId: 'com.apple.TextEdit', displayName: 'TextEdit', appPath: '/Applications/TextEdit.app', risk: 'low', warningSubtitle: '将允许读取和操作此应用' }, allowPersistentApproval }]
+  }} modelSelection={mockModelSelection} onSelectModel={vi.fn()} onModeChange={vi.fn()}
+    onPause={vi.fn()} onResume={vi.fn()} onTakeOver={vi.fn()} onAppDecision={onAppDecision}
+    onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
+}

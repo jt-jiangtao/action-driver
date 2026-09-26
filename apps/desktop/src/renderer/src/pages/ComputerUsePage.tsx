@@ -3,6 +3,7 @@ import type { ComputerPermissionStatus } from '../../../shared/computer-use-cont
 import { ActionDriverLogo } from '../components/ActionDriverLogo'
 import { ModelToggle } from '../components/ModelToggle'
 import { SettingsSidebar } from '../components/SettingsSidebar'
+import { e2eId } from '../testing/e2e-id'
 
 function stateLabel(allowed: boolean | undefined): string {
   if (allowed === undefined) return '待检测'
@@ -14,15 +15,21 @@ export function ComputerUsePage({
   onOpenConnections,
   onOpenMainPrompt,
   onOpenSkills,
-  onOpenComputerUse
+  onOpenComputerUse,
+  listAlwaysAllowedApps,
+  removeAlwaysAllowedApp
 }: {
   onBack(): void
   onOpenConnections(): void
   onOpenMainPrompt(): void
   onOpenSkills(): void
   onOpenComputerUse?(): void
+  listAlwaysAllowedApps?(): Promise<string[]>
+  removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
 }) {
   const [status, setStatus] = useState<ComputerPermissionStatus | null>(null)
+  const [alwaysAllowed, setAlwaysAllowed] = useState<string[] | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
   const refresh = useCallback(async () => {
@@ -37,6 +44,27 @@ export function ComputerUsePage({
     } finally { setChecking(false) }
   }, [])
   useEffect(() => { void refresh() }, [refresh])
+
+  const refreshAlwaysAllowed = useCallback(async () => {
+    if (!listAlwaysAllowedApps) return
+    try {
+      setAlwaysAllowed(await listAlwaysAllowedApps())
+    } catch (cause) {
+      setAlwaysAllowed(null)
+      setError(cause instanceof Error ? cause.message : '读取始终允许的应用失败')
+    }
+  }, [listAlwaysAllowedApps])
+  useEffect(() => { void refreshAlwaysAllowed() }, [refreshAlwaysAllowed])
+
+  const removeAlwaysAllowed = async (bundleId: string) => {
+    if (!removeAlwaysAllowedApp) return
+    setRemoving(bundleId)
+    try {
+      setAlwaysAllowed(await removeAlwaysAllowedApp(bundleId))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '移除授权失败')
+    } finally { setRemoving(null) }
+  }
 
   // Controlling any app needs both grants; input events ride along with Accessibility.
   const authorized = status !== null && status.accessibility && status.screenRecording
@@ -101,6 +129,26 @@ export function ComputerUsePage({
           </div>
           {error && <p role="alert">{error}</p>}
         </section>
+
+        {alwaysAllowed !== null && <section className="computer-use-group" aria-label="始终允许的应用">
+          <h2>始终允许的应用</h2>
+          <div className="computer-use-card">
+            {alwaysAllowed.length === 0
+              ? <div className="computer-use-card-row" data-testid="e2e/settings/computer-use/always-allowed#status">
+                  <span className="computer-use-card-copy"><span>还没有应用获得永久授权</span></span>
+                </div>
+              : <ul className="computer-use-always-allowed" data-testid="e2e/settings/computer-use/always-allowed#section">
+                  {alwaysAllowed.map((bundleId) => <li key={bundleId}>
+                    <span>{bundleId}</span>
+                    <button type="button" disabled={removing === bundleId}
+                      data-testid={e2eId('e2e/settings/computer-use/always-allowed/:app#button', { app: bundleId })}
+                      onClick={() => { void removeAlwaysAllowed(bundleId) }}>
+                      {removing === bundleId ? '移除中…' : '移除'}
+                    </button>
+                  </li>)}
+                </ul>}
+          </div>
+        </section>}
       </div>
     </main>
   </div>

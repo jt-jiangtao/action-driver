@@ -14,48 +14,20 @@ export type JsReplEvents = {
   image(bytes: Buffer, mimeType: string): void
 }
 
-/** One desktop action a cell is waiting for, with the position it appeared in. */
-export type JsApprovalAction = { index: number; method: string; args: unknown }
-
-export type JsRunOutcome =
-  | { kind: 'completed'; output: string }
-  | { kind: 'approval'; action: JsApprovalAction }
-
-/**
- * Raised by the `callSky` implementation when an action may not run without the user's consent.
- * The host turns it into a suspended cell instead of an error inside the cell.
- */
-export class ApprovalRequiredError extends Error {
-  readonly code = 'APPROVAL_REQUIRED'
-
-  constructor(readonly action: { method: string; args: unknown }) {
-    super(`APPROVAL_REQUIRED: ${action.method} needs the user's confirmation`)
-    this.name = 'ApprovalRequiredError'
-  }
-}
+export type JsRunOutcome = { kind: 'completed'; output: string }
 
 type CellWaiter = (outcome: JsRunOutcome | Error) => void
-
-/** A cell that stopped on an action: the child keeps running, the promise inside it stays pending. */
-type Suspended = {
-  cellId: number
-  callId: number
-  action: JsApprovalAction
-  events: JsReplEvents
-  collected: string[]
-  actions: number
-}
 
 type Session = {
   taskId: string
   child: JsReplChild
   buffer: string
-  /** Cell id -> waiter for its completion or its next approval request. */
+  /** Cell id -> waiter for its completion. */
   cells: Map<number, CellWaiter>
   nextId: number
+  lastCallId: number
   /** Where the running cell writes text and images. */
-  active: { events: JsReplEvents; collected: string[]; cellId: number; actions: number } | null
-  suspended: Suspended | null
+  active: { events: JsReplEvents; collected: string[]; cellId: number; controller: AbortController; pauseTimer?: () => void; resumeTimer?: () => void } | null
   queue: Promise<unknown>
   stderr: string[]
 }
@@ -74,11 +46,12 @@ const DEFAULT_TIMEOUT_MS = 30_000
 export class JsReplHost {
   private readonly sessions = new Map<string, Session>()
   private readonly spawning = new Map<string, Promise<Session>>()
+  private readonly spawningControllers = new Map<string, AbortController>()
 
   constructor(private readonly options: {
-    spawn(taskId: string): Promise<JsReplChild>
+    spawn(taskId: string, signal: AbortSignal): Promise<JsReplChild>
     /** Releases whatever `spawn` allocated (sandbox, temporary directory) after the child is gone. */
-    close?(taskId: string): Promise<void> | void
+    close?(taskId: string, child: JsReplChild): Promise<void> | void
     callSky(taskId: string, method: string, args: unknown, signal?: AbortSignal): Promise<unknown>
     /** Rejects a cell when the caller gave no explicit budget. */
     defaultTimeoutMs?: number
@@ -93,65 +66,35 @@ export class JsReplHost {
   ): Promise<JsRunOutcome> {
     const session = await this.ensureSession(taskId)
     return await this.enqueue(session, async () => {
-      if (session.suspended) throw new Error(
-        'ENGINE_UNAVAILABLE: the cell is waiting for an approval; answer it before running another')
       const id = session.nextId++
-      return await this.runCell(session, id, { id, code }, options,
-        { events, collected: [], actions: 0 })
+      return await this.runCell(session, id, { id, code }, options, { events, collected: [] })
     })
   }
 
-  /** Answers the action a cell stopped on and lets the same cell continue where it left off. */
-  async continueRun(
-    taskId: string,
-    decision: {
-      action: JsApprovalAction
-      approved: boolean
-      /** Performs the approved action; its result becomes the value the suspended call resolves to. */
-      perform?: () => Promise<unknown>
-    },
-    options: { signal?: AbortSignal | undefined; timeoutMs?: number | undefined }
-  ): Promise<JsRunOutcome> {
-    const session = await this.ensureSession(taskId)
-    return await this.enqueue(session, async () => {
-      const suspended = session.suspended
-      if (!suspended) throw new Error(
-        'ENGINE_UNAVAILABLE: no cell is waiting for an approval')
-      if (suspended.action.index !== decision.action.index ||
-          suspended.action.method !== decision.action.method) {
-        throw new Error('APPROVAL_STALE: the cell is waiting for a different action')
-      }
-      session.suspended = null
-      if (decision.approved) {
-        let value: unknown = null
-        if (decision.perform) value = await decision.perform()
-        return await this.runCell(session, suspended.cellId, {
-          type: 'callResult', id: suspended.callId, ok: true, value: value ?? null
-        }, options, suspended)
-      }
-      return await this.runCell(session, suspended.cellId, {
-        type: 'callResult', id: suspended.callId, ok: false,
-        error: `USER_DENIED: the user declined ${suspended.action.method}`
-      }, options, suspended)
-    })
+  /** Only trusted host services may suspend the running cell budget. */
+  async withSuspendedTimeout<T>(taskId: string, operation: () => Promise<T>): Promise<T> {
+    const active = this.sessions.get(taskId)?.active
+    if (!active?.pauseTimer || !active.resumeTimer) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED: no running cell')
+    active.pauseTimer()
+    try { return await operation() }
+    finally { active.resumeTimer() }
   }
 
   /** Drops every binding of the task and starts a fresh context, keeping the child alive. */
   async reset(taskId: string): Promise<void> {
     const session = this.sessions.get(taskId)
-    if (!session) return
-    // A cell that is waiting for approval cannot finish while it waits, and `js_reset` promises a
-    // fresh session — so drop the child and let the next call start a new one.
-    if (session.suspended) {
+    if (!session) { this.dispose(taskId); return }
+    // A running cell (possibly blocked on the user's app approval) cannot finish while it waits,
+    // and `js_reset` promises a fresh session — so drop the child and let the next call start anew.
+    if (session.active) {
       this.dispose(taskId)
       return
     }
     await this.enqueue(session, async () => {
       const id = session.nextId++
-      session.suspended = null
       await this.runCell(session, id, { id, reset: true },
         { signal: undefined, timeoutMs: 5_000 },
-        { events: { text: () => {}, image: () => {} }, collected: [], actions: 0 })
+        { events: { text: () => {}, image: () => {} }, collected: [] })
     })
   }
 
@@ -159,13 +102,15 @@ export class JsReplHost {
     const session = this.sessions.get(taskId)
     this.sessions.delete(taskId)
     this.spawning.delete(taskId)
+    this.spawningControllers.get(taskId)?.abort(new Error('ENGINE_UNAVAILABLE: js session closed'))
+    this.spawningControllers.delete(taskId)
     if (!session) return
     for (const waiter of session.cells.values()) {
       waiter(new Error('ENGINE_UNAVAILABLE: js session closed'))
     }
     session.cells.clear()
     try { session.child.kill() } catch { /* already gone */ }
-    void this.options.close?.(taskId)
+    void this.options.close?.(taskId, session.child)
   }
 
   disposeAll(): void {
@@ -173,7 +118,11 @@ export class JsReplHost {
   }
 
   private async enqueue<T>(session: Session, operation: () => Promise<T>): Promise<T> {
-    const next = session.queue.then(operation, operation)
+    const guarded = async () => {
+      if (this.sessions.get(session.taskId) !== session) throw new Error('ENGINE_UNAVAILABLE: js session closed')
+      return await operation()
+    }
+    const next = session.queue.then(guarded, guarded)
     session.queue = next.then(() => undefined, () => undefined)
     return await next
   }
@@ -183,21 +132,33 @@ export class JsReplHost {
     if (existing) return existing
     const inFlight = this.spawning.get(taskId)
     if (inFlight) return await inFlight
-    const spawning = this.createSession(taskId)
+    const controller = new AbortController()
+    this.spawningControllers.set(taskId, controller)
+    const spawning = this.createSession(taskId, controller.signal)
     this.spawning.set(taskId, spawning)
     try { return await spawning }
-    finally { if (this.spawning.get(taskId) === spawning) this.spawning.delete(taskId) }
+    finally {
+      if (this.spawning.get(taskId) === spawning) this.spawning.delete(taskId)
+      if (this.spawningControllers.get(taskId) === controller) this.spawningControllers.delete(taskId)
+    }
   }
 
-  private async createSession(taskId: string): Promise<Session> {
-    const child = await this.options.spawn(taskId)
+  private async createSession(taskId: string, signal: AbortSignal): Promise<Session> {
+    const child = await this.options.spawn(taskId, signal)
+    if (signal.aborted) {
+      try { child.kill() } catch { /* already gone */ }
+      await this.options.close?.(taskId, child)
+      throw new Error('ENGINE_UNAVAILABLE: js session closed while starting')
+    }
     const session: Session = {
-      taskId, child, buffer: '', cells: new Map(), nextId: 1, active: null, suspended: null,
-      queue: Promise.resolve(), stderr: []
+      taskId, child, buffer: '', cells: new Map(), nextId: 1, active: null,
+      queue: Promise.resolve(), stderr: [], lastCallId: 0
     }
     this.sessions.set(taskId, session)
     child.stdout.setEncoding('utf8')
-    child.stdout.on('data', (chunk: string) => this.receive(taskId, chunk))
+    child.stdout.on('data', (chunk: string) => {
+      if (this.sessions.get(taskId) === session) this.receive(taskId, chunk)
+    })
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => {
       session.stderr.push(chunk)
@@ -212,36 +173,41 @@ export class JsReplHost {
           `ENGINE_UNAVAILABLE: js entry exited${detail ? ` (${detail.slice(0, 400)})` : ''}`))
       }
       session.cells.clear()
-      void this.options.close?.(taskId)
+      void this.options.close?.(taskId, session.child)
     })
-    child.on('error', () => this.dispose(taskId))
+    child.on('error', () => {
+      if (this.sessions.get(taskId) === session) this.dispose(taskId)
+    })
     return session
   }
 
-  /**
-   * Waits for one turn of a cell: either it finishes, or it stops on an action that needs approval.
-   *
-   * A stop does not end the cell — the child keeps the suspended promise alive — so the answer can
-   * be delivered later without replaying anything the cell already did.
-   */
+  /** Runs one cell to completion within its time budget. */
   private async runCell(
     session: Session,
     cellId: number,
     message: Record<string, unknown>,
     limits: { signal?: AbortSignal | undefined; timeoutMs?: number | undefined },
-    run: { events: JsReplEvents; collected: string[]; actions: number }
+    run: { events: JsReplEvents; collected: string[] }
   ): Promise<JsRunOutcome> {
-    session.active = { events: run.events, collected: run.collected, cellId, actions: run.actions }
+    const active = { events: run.events, collected: run.collected, cellId,
+      controller: new AbortController() }
+    session.active = active
     return await new Promise<JsRunOutcome>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let remaining = limits.timeoutMs ?? this.options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS
+      let started = performance.now()
+      let suspended = 0
+      let finished = false
       const finish = (outcome: JsRunOutcome | Error) => {
         if (session.cells.get(cellId) !== finish) return
+        finished = true
         session.cells.delete(cellId)
+        if (session.active?.cellId === cellId) session.active = null
+        active.controller.abort(new Error('CANCELLED: js cell ended'))
         clearTimeout(timer)
         limits.signal?.removeEventListener('abort', onAbort)
         if (outcome instanceof Error) reject(outcome)
-        else resolve(outcome.kind === 'completed'
-          ? { kind: 'completed', output: run.collected.join('') }
-          : outcome)
+        else resolve({ kind: 'completed', output: run.collected.join('') })
       }
       const onAbort = () => {
         finish(new Error('CANCELLED: js call cancelled'))
@@ -249,33 +215,28 @@ export class JsReplHost {
       }
       session.cells.set(cellId, finish)
       limits.signal?.addEventListener('abort', onAbort, { once: true })
-      // Waiting for the user is not part of the cell's budget: this timer is cleared when the cell
-      // stops for approval, and the continuation arms a fresh one.
-      const timer = setTimeout(() => {
-        finish(new Error('TIMED_OUT: js call exceeded its time budget'))
-        this.dispose(session.taskId)
-      }, limits.timeoutMs ?? this.options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS)
+      // Waiting for the user's app approval is not part of the cell's budget: trusted host services
+      // pause this timer while they wait and re-arm it with what is left.
+      const arm = () => {
+        started = performance.now()
+        timer = setTimeout(() => {
+          finish(new Error('TIMED_OUT: js call exceeded its time budget'))
+          this.dispose(session.taskId)
+        }, Math.max(0, remaining))
+      }
+      session.active!.pauseTimer = () => {
+        if (finished || suspended++ > 0) return
+        clearTimeout(timer)
+        remaining -= performance.now() - started
+      }
+      session.active!.resumeTimer = () => {
+        if (finished || --suspended > 0) return
+        arm()
+      }
+      arm()
       session.child.stdin.write(`${JSON.stringify(message)}\n`)
       if (limits.signal?.aborted) onAbort()
     })
-  }
-
-  /** Stops the running cell on an action and hands the request to the caller. */
-  private suspend(session: Session, callId: number, action: { method: string; args: unknown }): void {
-    const active = session.active
-    if (!active) return
-    const suspended: Suspended = {
-      cellId: active.cellId,
-      callId,
-      action: { index: active.actions, method: action.method, args: action.args },
-      events: active.events,
-      collected: active.collected,
-      actions: active.actions + 1
-    }
-    session.suspended = suspended
-    session.active = null
-    session.child.stdin.write(`${JSON.stringify({ type: 'approvalRequired', id: callId })}\n`)
-    session.cells.get(suspended.cellId)?.({ kind: 'approval', action: suspended.action })
   }
 
   private receive(taskId: string, chunk: string): void {
@@ -289,6 +250,7 @@ export class JsReplHost {
       if (!line) continue
       let message: Record<string, unknown>
       try { message = JSON.parse(line) as Record<string, unknown> } catch { continue }
+      if (typeof message !== 'object' || message === null || Array.isArray(message)) continue
       if (message.type === 'text' && typeof message.text === 'string') {
         session.active?.collected.push(message.text)
         session.active?.events.text(message.text)
@@ -300,17 +262,24 @@ export class JsReplHost {
         continue
       }
       if (message.type === 'call') {
-        const callId = Number(message.id)
-        const method = String(message.method)
-        void this.options.callSky(taskId, method, message.args).then(
-          (value) => session.child.stdin.write(`${JSON.stringify({
+        if (!session.active || !session.cells.has(session.active.cellId)) continue
+        const callId = message.id
+        if (typeof callId !== 'number' || !Number.isSafeInteger(callId) || callId <= session.lastCallId ||
+            typeof message.method !== 'string') continue
+        session.lastCallId = callId
+        const method = message.method
+        const active = session.active
+        const isCurrent = () => this.sessions.get(taskId) === session && session.active === active &&
+          !active.controller.signal.aborted && session.cells.has(active.cellId)
+        void this.options.callSky(taskId, method, message.args, active.controller.signal).then(
+          (value) => {
+            if (!isCurrent()) return
+            session.child.stdin.write(`${JSON.stringify({
             type: 'callResult', id: callId, ok: true, value: value ?? null
-          })}\n`),
+          })}\n`)
+          },
           (error: unknown) => {
-            if (error instanceof ApprovalRequiredError) {
-              this.suspend(session, callId, error.action)
-              return
-            }
+            if (!isCurrent()) return
             session.child.stdin.write(`${JSON.stringify({
               type: 'callResult', id: callId, ok: false,
               error: error instanceof Error ? error.message : String(error)

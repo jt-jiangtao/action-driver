@@ -64,6 +64,8 @@ export class SessionSandbox {
   async prepare(request: {
     workspace: SessionWorkspacePaths
     environment?: NodeJS.ProcessEnv
+    /** JS children are fully untrusted; restrict execution to the bootstrap binary and forbid fork. */
+    jsExecutable?: string
   }): Promise<SandboxPrepared> {
     await this.assertAvailable()
     // Canonical paths only resolve once the workspace exists; the tree lives
@@ -86,7 +88,8 @@ export class SessionSandbox {
           workspaceRoot,
           outputDirectory,
           tempDirectory,
-          runtimeRoots: this.runtimeRoots.map(canonicalPath)
+          runtimeRoots: this.runtimeRoots.map(canonicalPath),
+          ...(request.jsExecutable === undefined ? {} : { jsExecutable: canonicalPath(request.jsExecutable) })
         }),
         'utf8'
       )
@@ -127,14 +130,16 @@ export function buildSandboxProfile(options: {
   outputDirectory: string
   tempDirectory: string
   runtimeRoots: readonly string[]
+  jsExecutable?: string
 }): string {
   const readRoots = [options.workspaceRoot, options.tempDirectory, ...options.runtimeRoots]
   const ancestors = readRoots.map((root) => `(path-ancestors ${quote(root)})`)
   return [
     '(version 1)',
     `(import ${quote(PROFILE_IMPORT)})`,
-    '(allow process-exec*)',
-    '(allow process-fork)',
+    ...(options.jsExecutable === undefined
+      ? ['(allow process-exec*)', '(allow process-fork)']
+      : [`(allow process-exec (literal ${quote(options.jsExecutable)}))`, '(deny process-fork)']),
     '(allow signal (target self))',
     // System and application runtime files stay readable; user data is denied below.
     '(allow file-read*)',

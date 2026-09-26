@@ -53,14 +53,77 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('projects application requests and clears cancelled or historical waiters', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    const approval = {
+      requestId: 'approval-1',
+      taskId: 'task-1',
+      sessionId: 'session-1',
+      target: {
+        bundleId: 'com.apple.Notes',
+        displayName: 'Notes',
+        appPath: '/System/Applications/Notes.app',
+        risk: 'low' as const
+      },
+      allowPersistentApproval: true
+    }
+    projection.apply({
+      type: 'computer.app-approval.requested',
+      ...identity,
+      eventId: 'approval-request',
+      sequence: 0,
+      cursor: 1,
+      approval
+    })
+    expect(projection.snapshot()?.pendingAppApproval).toEqual([approval])
+    expect(projection.snapshot()?.status).toBe('running')
+    projection.apply({
+      type: 'computer.app-approval.resolved',
+      ...identity,
+      eventId: 'approval-resolved',
+      sequence: 1,
+      cursor: 2,
+      approval,
+      decision: 'cancelled'
+    })
+    expect(projection.snapshot()?.pendingAppApproval).toEqual([])
+    projection.apply({
+      type: 'computer.app-approval.requested',
+      ...identity,
+      eventId: 'historical-request',
+      sequence: 2,
+      cursor: 3,
+      approval
+    })
+    projection.apply({
+      type: 'response.snapshot',
+      ...identity,
+      eventId: 'live-snapshot',
+      sequence: 2,
+      cursor: 3,
+      status: 'running',
+      messages: [],
+      tools: [],
+      pendingAppApproval: [],
+      error: null
+    })
+    expect(projection.snapshot()?.pendingAppApproval).toEqual([])
+  })
   it('inserts a batch after text restored from a text-only snapshot', () => {
     const restored = task()
     restored.messages[1] = { id: 'assistant-1', role: 'agent', content: '已开始' }
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(restored)
     projection.apply({
-      type: 'response.image_batch', ...identity, eventId: 'batch-after-old-text',
-      cursor: 1, sequence: 0, callId: 'a', imageCount: 2, contentIndex: 1
+      type: 'response.image_batch',
+      ...identity,
+      eventId: 'batch-after-old-text',
+      cursor: 1,
+      sequence: 0,
+      callId: 'a',
+      imageCount: 2,
+      contentIndex: 1
     })
     // The restored text predates the order contract, so it stays first and the
     // batch takes the next free order.
@@ -69,24 +132,41 @@ describe('StreamTaskProjection', () => {
       { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 }
     ])
   })
-  it.each(['failed', 'cancelled'] as const)('retains partial part order for a %s image batch', (status) => {
-    const projection = new StreamTaskProjection({ onChange: vi.fn() })
-    projection.attach(task())
-    projection.apply({ ...content(0, '过程'), cursor: 1 })
-    projection.apply({
-      type: 'response.image_batch', ...identity, eventId: 'batch-partial',
-      cursor: 2, sequence: 1, callId: 'a', imageCount: 2, contentIndex: 1
-    })
-    projection.apply({
-      type: 'response.end', ...identity, eventId: `end-${status}`, cursor: 3, sequence: 2,
-      status, content: '过程', finishReason: null, usage: null, durationMs: 10,
-      error: { code: status, message: status, retryable: false }
-    })
-    expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
-      { kind: 'text', text: '过程', order: 1 },
-      { kind: 'image-batch', callId: 'a', imageCount: 2, order: 2 }
-    ])
-  })
+  it.each(['failed', 'cancelled'] as const)(
+    'retains partial part order for a %s image batch',
+    (status) => {
+      const projection = new StreamTaskProjection({ onChange: vi.fn() })
+      projection.attach(task())
+      projection.apply({ ...content(0, '过程'), cursor: 1 })
+      projection.apply({
+        type: 'response.image_batch',
+        ...identity,
+        eventId: 'batch-partial',
+        cursor: 2,
+        sequence: 1,
+        callId: 'a',
+        imageCount: 2,
+        contentIndex: 1
+      })
+      projection.apply({
+        type: 'response.end',
+        ...identity,
+        eventId: `end-${status}`,
+        cursor: 3,
+        sequence: 2,
+        status,
+        content: '过程',
+        finishReason: null,
+        usage: null,
+        durationMs: 10,
+        error: { code: status, message: status, retryable: false }
+      })
+      expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
+        { kind: 'text', text: '过程', order: 1 },
+        { kind: 'image-batch', callId: 'a', imageCount: 2, order: 2 }
+      ])
+    }
+  )
   it('anchors the tool group between the prose that preceded and followed it', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())
@@ -125,8 +205,13 @@ describe('StreamTaskProjection', () => {
 
   it('leaves the streamed order untouched when a turn with an image completes', () => {
     const asset = {
-      assetId: 'asset-real', sessionId: 'session-1', mimeType: 'image/png' as const,
-      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+      assetId: 'asset-real',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
     }
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())
@@ -134,41 +219,76 @@ describe('StreamTaskProjection', () => {
     // image, then the answer that keeps streaming after the image.
     projection.apply({ ...content(0, '好的，我来测试'), cursor: 2, contentIndex: 0 })
     projection.apply({
-      type: 'response.image_batch', ...identity, eventId: 'batch-real',
-      cursor: 3, sequence: 1, callId: 'call-real', imageCount: 1, contentIndex: 1
+      type: 'response.image_batch',
+      ...identity,
+      eventId: 'batch-real',
+      cursor: 3,
+      sequence: 1,
+      callId: 'call-real',
+      imageCount: 1,
+      contentIndex: 1
     })
     projection.apply({
-      type: 'response.image', ...identity, eventId: 'image-real', cursor: 4, sequence: 2,
-      asset, callId: 'call-real', index: 0, contentIndex: 2
+      type: 'response.image',
+      ...identity,
+      eventId: 'image-real',
+      cursor: 4,
+      sequence: 2,
+      asset,
+      callId: 'call-real',
+      index: 0,
+      contentIndex: 2
     })
     projection.apply({ ...content(3, '全部完成'), cursor: 5, contentIndex: 3 })
     projection.apply({
-      type: 'response.end', ...identity, eventId: 'end-real', cursor: 6, sequence: 4,
-      status: 'completed', content: '好的，我来测试全部完成', finishReason: 'stop',
-      usage: null, durationMs: 10, error: null
+      type: 'response.end',
+      ...identity,
+      eventId: 'end-real',
+      cursor: 6,
+      sequence: 4,
+      status: 'completed',
+      content: '好的，我来测试全部完成',
+      finishReason: 'stop',
+      usage: null,
+      durationMs: 10,
+      error: null
     })
     expect(
-      projection.snapshot()?.messages.at(-1)?.parts?.map((part) =>
-        part.kind === 'image-batch'
-          ? 'batch'
-          : part.kind === 'image'
-            ? 'image'
-            : part.kind === 'text'
-              ? `text:${part.text}`
-              : part.kind
-      )
+      projection
+        .snapshot()
+        ?.messages.at(-1)
+        ?.parts?.map((part) =>
+          part.kind === 'image-batch'
+            ? 'batch'
+            : part.kind === 'image'
+              ? 'image'
+              : part.kind === 'text'
+                ? `text:${part.text}`
+                : part.kind
+        )
     ).toEqual(['text:好的，我来测试', 'batch', 'image', 'text:全部完成'])
   })
   it('keeps the streamed text position through replay, late images and completion', () => {
     const image = {
-      assetId: 'asset-b', sessionId: 'session-1', mimeType: 'image/png' as const,
-      width: 1, height: 1, byteLength: 20, source: 'generated' as const
+      assetId: 'asset-b',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 20,
+      source: 'generated' as const
     }
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())
     const batch = (sequence: number, callId: string, imageCount: number, contentIndex: number) => ({
-      type: 'response.image_batch' as const, ...identity, eventId: `batch-${callId}`,
-      cursor: sequence + 1, sequence, callId, imageCount, contentIndex
+      type: 'response.image_batch' as const,
+      ...identity,
+      eventId: `batch-${callId}`,
+      cursor: sequence + 1,
+      sequence,
+      callId,
+      imageCount,
+      contentIndex
     })
     projection.apply(batch(0, 'a', 2, 0))
     expect(projection.snapshot()?.messages.at(-1)?.parts).toEqual([
@@ -177,38 +297,83 @@ describe('StreamTaskProjection', () => {
     projection.apply({ ...content(1, '过程'), cursor: 2, contentIndex: 1 })
     projection.apply(batch(2, 'b', 1, 2))
     projection.apply({
-      type: 'response.image', ...identity, eventId: 'image-b', cursor: 4, sequence: 3,
-      asset: image, callId: 'b', index: 0, contentIndex: 3
+      type: 'response.image',
+      ...identity,
+      eventId: 'image-b',
+      cursor: 4,
+      sequence: 3,
+      asset: image,
+      callId: 'b',
+      index: 0,
+      contentIndex: 3
     })
     const snapshot = projection.snapshot()!
     projection.apply({
-      type: 'response.snapshot', ...identity, eventId: 'snapshot-batches', cursor: 5, sequence: 4,
-      status: 'running', messages: snapshot.messages.map((message) => ({
-        ...message, role: message.role === 'agent' ? 'assistant' as const : 'user' as const,
+      type: 'response.snapshot',
+      ...identity,
+      eventId: 'snapshot-batches',
+      cursor: 5,
+      sequence: 4,
+      status: 'running',
+      messages: snapshot.messages.map((message) => ({
+        ...message,
+        role: message.role === 'agent' ? ('assistant' as const) : ('user' as const),
         createdAt: identity.occurredAt
-      })), tools: [], error: null
+      })),
+      tools: [],
+      error: null
     })
     projection.apply({
-      type: 'response.image', ...identity, eventId: 'image-a', cursor: 6, sequence: 5,
-      asset: { ...image, assetId: 'asset-a' }, callId: 'a', index: 1, contentIndex: 4
+      type: 'response.image',
+      ...identity,
+      eventId: 'image-a',
+      cursor: 6,
+      sequence: 5,
+      asset: { ...image, assetId: 'asset-a' },
+      callId: 'a',
+      index: 1,
+      contentIndex: 4
     })
     projection.apply({
-      type: 'response.end', ...identity, eventId: 'end-batches', cursor: 7, sequence: 6,
-      status: 'completed', content: '完成', finishReason: 'stop', usage: null,
-      durationMs: 10, error: null
+      type: 'response.end',
+      ...identity,
+      eventId: 'end-batches',
+      cursor: 7,
+      sequence: 6,
+      status: 'completed',
+      content: '完成',
+      finishReason: 'stop',
+      usage: null,
+      durationMs: 10,
+      error: null
     })
-    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind !== 'image')).toEqual([
+    expect(
+      projection
+        .snapshot()
+        ?.messages.at(-1)
+        ?.parts?.filter((part) => part.kind !== 'image')
+    ).toEqual([
       { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 },
       { kind: 'text', text: '过程', order: 4 },
       { kind: 'image-batch', callId: 'b', imageCount: 1, order: 5 },
       { kind: 'text', text: '完成', order: 7 }
     ])
     projection.apply(batch(0, 'a', 2, 0))
-    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image-batch')).toEqual([
+    expect(
+      projection
+        .snapshot()
+        ?.messages.at(-1)
+        ?.parts?.filter((part) => part.kind === 'image-batch')
+    ).toEqual([
       { kind: 'image-batch', callId: 'a', imageCount: 2, order: 1 },
       { kind: 'image-batch', callId: 'b', imageCount: 1, order: 5 }
     ])
-    expect(projection.snapshot()?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image')).toHaveLength(2)
+    expect(
+      projection
+        .snapshot()
+        ?.messages.at(-1)
+        ?.parts?.filter((part) => part.kind === 'image')
+    ).toHaveLength(2)
   })
   it('projects generated images once and retains them after final text and snapshot', () => {
     const image = {
@@ -288,7 +453,10 @@ describe('StreamTaskProjection', () => {
       error: null
     })
     expect(projection.snapshot()?.messages.at(-1)?.parts).toHaveLength(2)
-    expect(projection.snapshot()?.messages.at(-1)?.parts?.[0]).toEqual({ kind: 'image', asset: image })
+    expect(projection.snapshot()?.messages.at(-1)?.parts?.[0]).toEqual({
+      kind: 'image',
+      asset: image
+    })
   })
   it('shows tool preparation only while the model is preparing its call', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
@@ -1034,12 +1202,25 @@ describe('StreamTaskProjection', () => {
     projection.attach(task())
     let sequence = 0
     const next = <T extends object>(event: T) => {
-      const numbered = { ...identity, ...event, sequence, cursor: sequence + 2, eventId: `e-${sequence}` }
+      const numbered = {
+        ...identity,
+        ...event,
+        sequence,
+        cursor: sequence + 2,
+        eventId: `e-${sequence}`
+      }
       sequence += 1
       return numbered as unknown as StreamServerEvent
     }
-    const tool = { callId: 'call-a', callSequence: 0, toolId: 'shell', modelName: 'shell',
-      summary: '工具 A', argumentsHash: 'hash', activityId: 'research' }
+    const tool = {
+      callId: 'call-a',
+      callSequence: 0,
+      toolId: 'shell',
+      modelName: 'shell',
+      summary: '工具 A',
+      argumentsHash: 'hash',
+      activityId: 'research'
+    }
     const events = [
       next({ type: 'response.start', model: identityModel }),
       next({ type: 'response.content', delta: '第一段', contentIndex: 0 }),
@@ -1048,13 +1229,25 @@ describe('StreamTaskProjection', () => {
       next({ type: 'activity.text', activityId: 'research', textId: 't', delta: '过程' }),
       next({ type: 'activity.text', activityId: 'research', textId: 't', delta: '更多' }),
       next({ type: 'tool.proposed', ...tool }),
-      next({ type: 'tool.completed', ...tool, callSequence: 1, durationMs: 5, resultSummary: '完成' }),
+      next({
+        type: 'tool.completed',
+        ...tool,
+        callSequence: 1,
+        durationMs: 5,
+        resultSummary: '完成'
+      }),
       next({ type: 'activity.text.done', activityId: 'research', textId: 't', phase: 'process' }),
       next({ type: 'activity.completed', activityId: 'research' }),
       next({ type: 'response.content', delta: '答案', contentIndex: 0 }),
       next({ type: 'response.content', delta: '结束', contentIndex: 0 }),
-      next({ type: 'response.end', status: 'completed', content: '第一段继续答案结束',
-        finishReason: 'stop', usage: null, durationMs: 10 })
+      next({
+        type: 'response.end',
+        status: 'completed',
+        content: '第一段继续答案结束',
+        finishReason: 'stop',
+        usage: null,
+        durationMs: 10
+      })
     ]
     for (const event of events) {
       projection.apply(event)

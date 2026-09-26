@@ -1,21 +1,21 @@
 /**
- * Tracks which instruction Skills the agent has actually read per task. Computer Use uses it to
+ * Tracks which instruction Skills the agent has actually read per conversation session. Computer Use uses it to
  * enforce that the `computer-use` Skill is loaded before any computer_* tool may run.
  */
 export class LoadedSkills {
-  private readonly byTask = new Map<string, Set<string>>()
+  private readonly bySession = new Map<string, Set<string>>()
 
-  record(taskId: string, skillId: string): void {
-    const skills = this.byTask.get(taskId) ?? new Set<string>()
+  record(sessionId: string, skillId: string): void {
+    const skills = this.bySession.get(sessionId) ?? new Set<string>()
     skills.add(skillId)
-    this.byTask.set(taskId, skills)
+    this.bySession.set(sessionId, skills)
   }
 
-  has(taskId: string, skillId: string): boolean {
-    return this.byTask.get(taskId)?.has(skillId) ?? false
+  has(sessionId: string, skillId: string): boolean {
+    return this.bySession.get(sessionId)?.has(skillId) ?? false
   }
 
-  clear(taskId: string): void {
-    this.byTask.delete(taskId)
+  clear(sessionId: string): void {
+    this.bySession.delete(sessionId)
   }
 }

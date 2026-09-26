@@ -37,7 +37,11 @@ export class StreamTaskProjection {
 
   attach(task: TaskProjection): void {
     this.task = structuredClone(task)
-    this.task.messages = this.task.messages.map((message) => message.role === 'agent' && message.parts ? { ...message, parts: normalizeAssistantParts(message.parts) } : message)
+    this.task.messages = this.task.messages.map((message) =>
+      message.role === 'agent' && message.parts
+        ? { ...message, parts: normalizeAssistantParts(message.parts) }
+        : message
+    )
     this.lastCursor = task.streamCursor ?? 0
     this.lastSequence = task.streamSequence ?? -1
     this.activityState = activityStateFromTask(task, this.lastCursor)
@@ -75,13 +79,21 @@ export class StreamTaskProjection {
         ...currentTask,
         ...(event.preparingToolName ? { preparingToolName: event.preparingToolName } : {}),
         status: toTaskStatus(event.status),
+        pendingAppApproval: event.status === 'running' ? (event.pendingAppApproval ?? []) : [],
         streamCursor: event.cursor,
         streamSequence: event.sequence,
         messages: event.messages.map((message) => ({
           id: message.id,
           role: message.role === 'assistant' ? 'agent' : 'user',
           content: message.content,
-          ...(message.parts ? { parts: message.role === 'assistant' ? normalizeAssistantParts(message.parts) : message.parts } : {})
+          ...(message.parts
+            ? {
+                parts:
+                  message.role === 'assistant'
+                    ? normalizeAssistantParts(message.parts)
+                    : message.parts
+              }
+            : {})
         })),
         tools: event.tools?.map(toToolProjection) ?? currentTask.tools ?? [],
         ...(event.durationMs === undefined ? {} : { activityDurationMs: event.durationMs }),
@@ -91,7 +103,9 @@ export class StreamTaskProjection {
           ? {
               outputFiles: event.outputFiles.map((file) => ({
                 ...file,
-                kind: file.mimeType.startsWith('image/') ? ('image' as const) : ('document' as const)
+                kind: file.mimeType.startsWith('image/')
+                  ? ('image' as const)
+                  : ('document' as const)
               }))
             }
           : {})
@@ -105,6 +119,28 @@ export class StreamTaskProjection {
     this.lastSequence = event.sequence
     this.recordCursor(event.cursor)
     this.task = { ...this.task, streamSequence: event.sequence }
+    if (event.type === 'computer.app-approval.requested') {
+      if (
+        event.approval.taskId !== this.task.id ||
+        event.approval.sessionId !== this.task.sessionId
+      )
+        return
+      this.task.pendingAppApproval = [
+        ...(this.task.pendingAppApproval ?? []).filter(
+          (approval) => approval.requestId !== event.approval.requestId
+        ),
+        event.approval
+      ]
+      this.flush()
+      return
+    }
+    if (event.type === 'computer.app-approval.resolved') {
+      this.task.pendingAppApproval = (this.task.pendingAppApproval ?? []).filter(
+        (approval) => approval.requestId !== event.approval.requestId
+      )
+      this.flush()
+      return
+    }
     if (event.type === 'request.accepted') {
       this.flush()
       return
@@ -165,6 +201,7 @@ export class StreamTaskProjection {
       this.task = {
         ...this.task,
         status: 'failed',
+        pendingAppApproval: [],
         steps: this.task.steps.map((step) =>
           step.state === 'current'
             ? { ...step, state: 'failed', detail: event.error.message }
@@ -217,17 +254,15 @@ export class StreamTaskProjection {
       // batch stays after it no matter when the pictures land.
       const last = parts.at(-1)
       // Emitted snapshots share their parts, so the trailing block is replaced, never edited.
-      if (last?.kind === 'text') parts[parts.length - 1] = { ...last, text: last.text + event.delta }
+      if (last?.kind === 'text')
+        parts[parts.length - 1] = { ...last, text: last.text + event.delta }
       else
         insertPartByOrder(parts, {
           kind: 'text',
           text: event.delta,
           order: event.order ?? nextPartOrder(parts)
         })
-      this.replaceAssistantContent(
-        event.messageId,
-        `${before?.content ?? ''}${event.delta}`
-      )
+      this.replaceAssistantContent(event.messageId, `${before?.content ?? ''}${event.delta}`)
       this.replaceAssistantParts(event.messageId, normalizeAssistantParts(parts))
       this.scheduleEmit()
       return
@@ -313,6 +348,7 @@ export class StreamTaskProjection {
     this.task = {
       ...this.task,
       status: toTaskStatus(event.status),
+      pendingAppApproval: [],
       streamSequence: event.sequence,
       ...(event.type === 'response.end' ? { activityDurationMs: event.durationMs } : {}),
       ...(event.type === 'response.end' && event.outputFiles
@@ -423,11 +459,7 @@ export class StreamTaskProjection {
  * Order reserved for one image of a batch: the batch owns `index` slots so a
  * picture never has to be moved once it is on screen.
  */
-function imageOrderIn(
-  parts: readonly MessageContentPart[],
-  callId: string,
-  index: number
-): number {
+function imageOrderIn(parts: readonly MessageContentPart[], callId: string, index: number): number {
   const batch = parts.find((part) => part.kind === 'image-batch' && part.callId === callId)
   return batch?.order === undefined ? nextPartOrder(parts) : batch.order + 1 + index
 }

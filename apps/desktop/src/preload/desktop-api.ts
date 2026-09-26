@@ -1,4 +1,5 @@
 import type {
+  AppApprovalDecision,
   RecentTaskProjection,
   SkillControlCommand,
   SkillExecutionEvent,
@@ -33,9 +34,14 @@ import {
 } from '../shared/skill-folder-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
 import { TASK_OUTPUT_OPEN_CHANNEL } from '../shared/task-output-contract'
-import { COMPUTER_GUIDANCE_ENSURE_CHANNEL,
-  COMPUTER_PERMISSIONS_CHECK_CHANNEL, COMPUTER_PERMISSIONS_SETTINGS_CHANNEL,
-  type ComputerPermissionKey, type ComputerPermissionStatus } from '../shared/computer-use-contract'
+import {
+  COMPUTER_APP_ICON_CHANNEL,
+  COMPUTER_GUIDANCE_ENSURE_CHANNEL,
+  COMPUTER_PERMISSIONS_CHECK_CHANNEL,
+  COMPUTER_PERMISSIONS_SETTINGS_CHANNEL,
+  type ComputerPermissionKey,
+  type ComputerPermissionStatus
+} from '../shared/computer-use-contract'
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
@@ -48,6 +54,7 @@ export interface AgentDesktopApi {
   interrupt(taskId: string): Promise<void>
   continue(taskId: string): Promise<void>
   provideInput(taskId: string, value: unknown): Promise<void>
+  decideAppApproval(taskId: string, requestId: string, decision: AppApprovalDecision): Promise<void>
   controlSkill(invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent>
   subscribe(
     taskId: string,
@@ -102,6 +109,8 @@ export interface DesktopApi {
     requestPermissions(target: ComputerPermissionKey): Promise<ComputerPermissionStatus>
     openSystemSettings(): Promise<void>
     ensureGuidance(): Promise<unknown>
+    /** Data URL of the application icon, or null when macOS cannot provide one. */
+    getAppIcon(appPath: string): Promise<string | null>
   }
 }
 
@@ -136,12 +145,19 @@ export function createDesktopApi(
       }
     },
     computerUse: {
-      permissions: async () => (await ipc.invoke(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {})) as ComputerPermissionStatus,
-      requestPermissions: async (target) => (await ipc.invoke(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {
-        prompt: true, target
-      })) as ComputerPermissionStatus,
-      openSystemSettings: async () => { await ipc.invoke(COMPUTER_PERMISSIONS_SETTINGS_CHANNEL, {}) },
-      ensureGuidance: async () => ipc.invoke(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {})
+      permissions: async () =>
+        (await ipc.invoke(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {})) as ComputerPermissionStatus,
+      requestPermissions: async (target) =>
+        (await ipc.invoke(COMPUTER_PERMISSIONS_CHECK_CHANNEL, {
+          prompt: true,
+          target
+        })) as ComputerPermissionStatus,
+      openSystemSettings: async () => {
+        await ipc.invoke(COMPUTER_PERMISSIONS_SETTINGS_CHANNEL, {})
+      },
+      ensureGuidance: async () => ipc.invoke(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {}),
+      getAppIcon: async (appPath) =>
+        (await ipc.invoke(COMPUTER_APP_ICON_CHANNEL, { appPath })) as string | null
     }
   }
 }

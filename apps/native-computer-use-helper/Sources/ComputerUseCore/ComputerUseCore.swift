@@ -5,12 +5,17 @@ public enum ComputerUseError: Error, Equatable {
     case staleReference
     case timedOut
     case cancelled
+    case appForbidden, appDenied, ambiguousApp, appBusy
+    case userStoppedSession, userIntervened, backgroundInputUnsupported
 }
 
 public enum ComputerUseOperation: String {
-    case permissions, observe, capture, act, cancel, shutdown, guidance
+    case permissions, act, cancel, shutdown, guidance
     case listApps = "list-apps"
     case appState = "app-state"
+    case appPolicy = "app-policy"
+    case sessionStart = "session-start"
+    case sessionEnd = "session-end"
 }
 
 public struct ComputerUseAction {
@@ -34,6 +39,9 @@ public struct ComputerUseAction {
     public let toX: Double?
     public let toY: Double?
     public let actionName: String?
+    public let elementIndex: Int?
+    public let mouseButton: String?
+    public let clickCount: Int?
 }
 
 public struct ComputerUseRequest {
@@ -42,15 +50,14 @@ public struct ComputerUseRequest {
     public let operation: ComputerUseOperation
     public let maxElements: Int?
     public let maxDepth: Int?
-    public let maxWidth: Int?
-    public let maxHeight: Int?
-    public let observationId: String?
     public let action: ComputerUseAction?
     public let targetRequestId: String?
     public let prompt: Bool?
     public let target: String?
     public let app: String?
     public let disableDiff: Bool?
+    public let sessionId: String?
+    public let screenshot: Bool?
 
     public static func decode(line: String) throws -> ComputerUseRequest {
         guard let data = line.data(using: .utf8), data.count <= 128 * 1024,
@@ -66,24 +73,42 @@ public struct ComputerUseRequest {
         var expected = common
         var maxElements: Int?
         var maxDepth: Int?
-        var maxWidth: Int?
-        var maxHeight: Int?
-        var observationId: String?
         var action: ComputerUseAction?
         var targetRequestId: String?
         var prompt: Bool?
         var target: String?
         var app: String?
         var disableDiff: Bool?
+        var sessionId: String?
+        var screenshot: Bool?
+        if let rawSession = object["sessionId"] {
+            guard operation == .appState || operation == .act
+                    || operation == .sessionStart || operation == .sessionEnd,
+                  let id = rawSession as? String, (1...128).contains(id.count) else {
+                throw ComputerUseError.invalidRequest("Invalid application session")
+            }
+            sessionId = id
+            expected.insert("sessionId")
+        }
 
         switch operation {
         case .listApps:
             break
+        case .sessionStart, .sessionEnd:
+            guard sessionId != nil else {
+                throw ComputerUseError.invalidRequest("Session operations require a sessionId")
+            }
+        case .appPolicy:
+            expected.insert("app")
+            guard let id = object["app"] as? String, (1...512).contains(id.count) else {
+                throw ComputerUseError.invalidRequest("App identifier missing")
+            }
+            app = id
         case .appState:
             expected.formUnion(["app", "maxElements", "maxDepth"])
             guard let requestedApp = object["app"] as? String,
-                  (1...512).contains(requestedApp.count) else {
-                throw ComputerUseError.invalidRequest("App identifier missing")
+                  (1...512).contains(requestedApp.count), sessionId != nil else {
+                throw ComputerUseError.invalidRequest("Application state requires app and sessionId")
             }
             app = requestedApp
             maxElements = try boundedInt(object["maxElements"], 1...500)
@@ -95,14 +120,13 @@ public struct ComputerUseRequest {
                 disableDiff = flag
                 expected.insert("disableDiff")
             }
-            if let capture = object["capture"] {
-                expected.insert("capture")
-                guard let captureObject = capture as? [String: Any],
-                      Set(captureObject.keys) == ["maxWidth", "maxHeight"] else {
-                    throw ComputerUseError.invalidRequest("Capture bounds invalid")
+            if let rawScreenshot = object["screenshot"] {
+                guard let flag = rawScreenshot as? Bool,
+                      CFGetTypeID(rawScreenshot as CFTypeRef) == CFBooleanGetTypeID() else {
+                    throw ComputerUseError.invalidRequest("Invalid window screenshot flag")
                 }
-                maxWidth = try boundedInt(captureObject["maxWidth"], 1...4096)
-                maxHeight = try boundedInt(captureObject["maxHeight"], 1...4096)
+                screenshot = flag
+                expected.insert("screenshot")
             }
         case .permissions:
             if let rawPrompt = object["prompt"] {
@@ -122,23 +146,18 @@ public struct ComputerUseRequest {
             }
         case .shutdown, .guidance:
             break
-        case .observe:
-            expected.formUnion(["maxElements", "maxDepth"])
-            maxElements = try boundedInt(object["maxElements"], 1...500)
-            maxDepth = try boundedInt(object["maxDepth"], 1...12)
-        case .capture:
-            expected.formUnion(["maxWidth", "maxHeight"])
-            maxWidth = try boundedInt(object["maxWidth"], 1...4096)
-            maxHeight = try boundedInt(object["maxHeight"], 1...4096)
         case .act:
-            expected.formUnion(["observationId", "action"])
-            guard let observed = object["observationId"] as? String,
-                  (1...128).contains(observed.count),
-                  let actionObject = object["action"] as? [String: Any] else {
-                throw ComputerUseError.invalidRequest("Action requires an observation")
+            expected.insert("action")
+            guard let actionObject = object["action"] as? [String: Any] else {
+                throw ComputerUseError.invalidRequest("Action missing")
             }
-            observationId = observed
-            action = try decodeAction(actionObject)
+            expected.insert("app")
+            guard let rawApp = object["app"], let identifier = rawApp as? String,
+                  (1...512).contains(identifier.count), sessionId != nil else {
+                throw ComputerUseError.invalidRequest("Application action requires app and sessionId")
+            }
+            app = identifier
+            action = try decodeIndexedAction(actionObject)
         case .cancel:
             expected.insert("targetRequestId")
             guard let target = object["targetRequestId"] as? String,
@@ -152,28 +171,74 @@ public struct ComputerUseRequest {
         }
         return ComputerUseRequest(
             requestId: requestId, deadlineUnixMs: deadline, operation: operation,
-            maxElements: maxElements, maxDepth: maxDepth, maxWidth: maxWidth,
-            maxHeight: maxHeight, observationId: observationId, action: action,
+            maxElements: maxElements, maxDepth: maxDepth, action: action,
             targetRequestId: targetRequestId, prompt: prompt, target: target,
-            app: app, disableDiff: disableDiff
+            app: app, disableDiff: disableDiff, sessionId: sessionId, screenshot: screenshot
         )
     }
 
     private static func boundedInt(_ value: Any?, _ range: ClosedRange<Int>) throws -> Int {
-        guard let number = value as? Int, range.contains(number) else {
+        guard let value, CFGetTypeID(value as CFTypeRef) != CFBooleanGetTypeID(),
+              let number = value as? Int, range.contains(number) else {
             throw ComputerUseError.invalidRequest("Integer argument out of range")
         }
         return number
     }
 
     private static func boundedDouble(_ value: Any?, _ range: ClosedRange<Double>) throws -> Double {
-        guard let number = value as? Double, number.isFinite, range.contains(number) else {
+        guard let value, CFGetTypeID(value as CFTypeRef) != CFBooleanGetTypeID(),
+              let number = value as? Double, number.isFinite, range.contains(number) else {
             throw ComputerUseError.invalidRequest("Coordinate out of range")
         }
         return number
     }
 
-    private static func decodeAction(_ object: [String: Any]) throws -> ComputerUseAction {
+    private static func decodeIndexedAction(_ object: [String: Any]) throws -> ComputerUseAction {
+        guard let type = object["type"] as? String, object["elementRef"] == nil else {
+            throw ComputerUseError.invalidRequest("Indexed actions cannot use elementRef")
+        }
+        var normalized = object
+        var index: Int?
+        var mouseButton: String?
+        var clickCount: Int?
+        var coordinateX: Double?
+        var coordinateY: Double?
+        let indexedTypes = ["click-element", "set-value", "select-text", "secondary-action"]
+        if let rawIndex = normalized.removeValue(forKey: "elementIndex") {
+            guard indexedTypes.contains(type) || type == "scroll" else {
+                throw ComputerUseError.invalidRequest("This action has no indexed target")
+            }
+            index = try boundedInt(rawIndex, 0...1_000_000)
+            if indexedTypes.contains(type) { normalized["elementRef"] = "indexed-target" }
+        }
+        if let rawButton = normalized.removeValue(forKey: "mouseButton") {
+            guard ["click", "click-element"].contains(type), let button = rawButton as? String,
+                  ["left", "right", "middle"].contains(button) else {
+                throw ComputerUseError.invalidRequest("Invalid mouse button")
+            }
+            mouseButton = button
+        }
+        if let rawCount = normalized.removeValue(forKey: "clickCount") {
+            guard ["click", "click-element"].contains(type) else {
+                throw ComputerUseError.invalidRequest("This action has no click count")
+            }
+            clickCount = try boundedInt(rawCount, 1...3)
+        }
+        if type == "scroll" {
+            if index == nil {
+                coordinateX = try boundedDouble(normalized.removeValue(forKey: "x"), -100_000...100_000)
+                coordinateY = try boundedDouble(normalized.removeValue(forKey: "y"), -100_000...100_000)
+            } else if normalized["x"] != nil || normalized["y"] != nil {
+                throw ComputerUseError.invalidRequest("Scroll must use one target")
+            }
+        }
+        return try decodeAction(normalized, elementIndex: index, mouseButton: mouseButton,
+                                clickCount: clickCount, coordinateX: coordinateX, coordinateY: coordinateY)
+    }
+
+    private static func decodeAction(_ object: [String: Any], elementIndex: Int? = nil,
+                                     mouseButton: String? = nil, clickCount: Int? = nil,
+                                     coordinateX: Double? = nil, coordinateY: Double? = nil) throws -> ComputerUseAction {
         guard let type = object["type"] as? String else {
             throw ComputerUseError.invalidRequest("Action type missing")
         }
@@ -280,28 +345,13 @@ public struct ComputerUseRequest {
         guard Set(object.keys) == expected else {
             throw ComputerUseError.invalidRequest("Unexpected action fields")
         }
-        return ComputerUseAction(type: type, x: x, y: y, elementRef: elementRef,
+        return ComputerUseAction(type: type, x: coordinateX ?? x, y: coordinateY ?? y,
+                                 elementRef: elementIndex == nil ? elementRef : nil,
                                  text: text, key: key, modifiers: modifiers,
                                  deltaX: deltaX, deltaY: deltaY, milliseconds: milliseconds,
                                  value: value, format: format, prefix: prefix, suffix: suffix,
                                  selectionType: selectionType, fromX: fromX, fromY: fromY,
-                                 toX: toX, toY: toY, actionName: actionName)
+                                 toX: toX, toY: toY, actionName: actionName, elementIndex: elementIndex,
+                                 mouseButton: mouseButton, clickCount: clickCount)
     }
-}
-
-public final class ObservationGate {
-    private var current: (id: String, pid: pid_t, windowId: Int)?
-    public init() {}
-    public func record(pid: pid_t, windowId: Int) -> String {
-        let id = UUID().uuidString
-        current = (id, pid, windowId)
-        return id
-    }
-    public func validate(observationId: String, pid: pid_t, windowId: Int) throws {
-        guard let current, current.id == observationId,
-              current.pid == pid, current.windowId == windowId else {
-            throw ComputerUseError.staleReference
-        }
-    }
-    public func invalidate() { current = nil }
 }

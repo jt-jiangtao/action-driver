@@ -1,12 +1,27 @@
 import type {
-  RecentTaskProjection, SkillControlCommand, SkillExecutionEvent, TaskProjection
+  AppApprovalDecision,
+  RecentTaskProjection,
+  SkillControlCommand,
+  SkillExecutionEvent,
+  TaskProjection
 } from '@actiondriver/contracts'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import type { RuntimeHttpClient } from './runtime-http-client'
 
-export type AgentControlApi = Pick<AgentDesktopApi,
-  'get' | 'listTasks' | 'interrupt' | 'continue' | 'provideInput' | 'controlSkill'
->
+export type AgentControlApi = Pick<
+  AgentDesktopApi,
+  | 'get'
+  | 'listTasks'
+  | 'interrupt'
+  | 'continue'
+  | 'provideInput'
+  | 'controlSkill'
+  | 'decideAppApproval'
+> & {
+  /** Persisted "always allow" Computer Use grants, managed from the settings page. */
+  listAlwaysAllowedApps?(): Promise<string[]>
+  removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
+}
 
 export class RuntimeAgentHttpApi implements AgentControlApi {
   constructor(private readonly http: RuntimeHttpClient) {}
@@ -25,6 +40,19 @@ export class RuntimeAgentHttpApi implements AgentControlApi {
     return result.tasks
   }
 
+  async listAlwaysAllowedApps(): Promise<string[]> {
+    const result = await this.http.request<{ bundleIds: string[] }>('/computer-use/always-allowed')
+    return result.bundleIds
+  }
+
+  async removeAlwaysAllowedApp(bundleId: string): Promise<string[]> {
+    const result = await this.http.request<{ bundleIds: string[] }>(
+      '/computer-use/always-allowed/remove',
+      { method: 'POST', body: { bundleId } }
+    )
+    return result.bundleIds
+  }
+
   async interrupt(taskId: string): Promise<void> {
     await this.http.request(`/tasks/${encodeURIComponent(taskId)}/interrupt`, { method: 'POST' })
   }
@@ -35,11 +63,29 @@ export class RuntimeAgentHttpApi implements AgentControlApi {
 
   async provideInput(taskId: string, value: unknown): Promise<void> {
     await this.http.request(`/tasks/${encodeURIComponent(taskId)}/input`, {
-      method: 'POST', body: { value }
+      method: 'POST',
+      body: { value }
     })
   }
 
-  async controlSkill(invocationId: string, command: SkillControlCommand): Promise<SkillExecutionEvent> {
+  async decideAppApproval(
+    taskId: string,
+    requestId: string,
+    decision: AppApprovalDecision
+  ): Promise<void> {
+    await this.http.request(
+      `/tasks/${encodeURIComponent(taskId)}/app-approvals/${encodeURIComponent(requestId)}/decision`,
+      {
+        method: 'POST',
+        body: { decision }
+      }
+    )
+  }
+
+  async controlSkill(
+    invocationId: string,
+    command: SkillControlCommand
+  ): Promise<SkillExecutionEvent> {
     const result = await this.http.request<{ event: SkillExecutionEvent }>(
       `/skills/invocations/${encodeURIComponent(invocationId)}/control`,
       { method: 'POST', body: { command } }

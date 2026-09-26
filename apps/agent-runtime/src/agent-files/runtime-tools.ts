@@ -15,7 +15,7 @@ export function createSkillRuntimeTools(options: {
   store: AgentFileStore
   installer: SkillInstaller
   /** Records which Skills the agent read, so Computer Use can require its Skill first. */
-  loadedSkills?: { record(taskId: string, skillId: string): void }
+  loadedSkills?: { record(sessionId: string, skillId: string): void }
 }): Registered[] {
   return [
     {
@@ -40,7 +40,9 @@ export function createSkillRuntimeTools(options: {
             throw new Error('TOOL_INPUT_INVALID')
           }
           const file = await options.store.readEnabledSkillFile(skillId, path)
-          if (context?.taskId && !path) options.loadedSkills?.record(context.taskId, skillId)
+          if (context?.sessionId && (path === undefined || path === 'SKILL.md')) {
+            options.loadedSkills?.record(context.sessionId, skillId)
+          }
           yield { kind: 'result', output: { skillId, path: file.path, content: file.content } }
         }
       }

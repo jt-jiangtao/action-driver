@@ -13,6 +13,11 @@ import {
 } from './task-projection'
 import type { MessageRepository, RuntimeAdapters, RuntimeTaskRecord } from './ports'
 import type { ComputerUseControlGate } from './computer-use/control-gate'
+import {
+  AppApprovalError,
+  type AppApprovalBroker,
+  type AppApprovalDecision
+} from './computer-use/app-approval-broker'
 
 export type LocalRuntimeServer = {
   close(): Promise<void>
@@ -22,6 +27,9 @@ export type LocalRuntimeServer = {
 export function createLocalRuntimeServer(options: {
   adapters: RuntimeAdapters
   computerControl?: ComputerUseControlGate
+  /** Persisted "always allow" application grants, managed from the settings page. */
+  appApprovalStore?: { list(): string[]; remove(bundleId: string): void }
+  appApprovals?: Pick<AppApprovalBroker, 'decide' | 'cancelTask'>
   messages: MessageRepository
   streamSnapshots?: {
     getTaskSnapshot(
@@ -95,9 +103,7 @@ export function createLocalRuntimeServer(options: {
       await saveStatus(
         taskId,
         result.status,
-        result.status === 'waiting-user' && isComputerActionApproval(result.output)
-          ? { code: 'COMPUTER_ACTION_APPROVAL', ...result.output }
-          : result.error ? { code: 'MODEL_GATEWAY_ERROR', message: result.error } : null
+        result.error ? { code: 'MODEL_GATEWAY_ERROR', message: result.error } : null
       )
     } catch (error) {
       await saveStatus(taskId, 'failed', {
@@ -207,6 +213,7 @@ export function createLocalRuntimeServer(options: {
               activityTimeline: snapshot.activityTimeline ?? [],
               streamCursor: snapshot.cursor,
               streamSequence: snapshot.sequence,
+              pendingAppApproval: snapshot.pendingAppApproval ?? [],
               ...(task.status === 'running'
                 ? {
                     streamRequestId: snapshot.requestId,
@@ -241,6 +248,7 @@ export function createLocalRuntimeServer(options: {
     }
     if (command === 'task.interrupt') {
       const { taskId } = rawInput as { taskId: string }
+      await options.appApprovals?.cancelTask(taskId)
       graphRunner.interrupt(taskId)
       await saveStatus(taskId, 'interrupted')
       return { accepted: true }
@@ -255,6 +263,28 @@ export function createLocalRuntimeServer(options: {
       const { taskId, value } = rawInput as { taskId: string; value: unknown }
       await saveStatus(taskId, 'running')
       track(taskId, runTask(taskId, graphRunner.provideInput(taskId, value)))
+      return { accepted: true }
+    }
+    if (command === 'task.decide-app-approval') {
+      const input = rawInput as Record<string, unknown>
+      if (
+        !input ||
+        typeof input.taskId !== 'string' ||
+        !input.taskId ||
+        typeof input.requestId !== 'string' ||
+        !input.requestId ||
+        typeof input.decision !== 'string' ||
+        !['once', 'session', 'always', 'deny'].includes(input.decision)
+      ) {
+        throw new AppApprovalError('INVALID_REQUEST', 'invalid application approval decision')
+      }
+      if (!options.appApprovals)
+        throw new AppApprovalError('APPROVAL_STALE', 'no active application approval broker')
+      await options.appApprovals.decide(
+        input.taskId,
+        input.requestId,
+        input.decision as AppApprovalDecision
+      )
       return { accepted: true }
     }
     if (command === 'skill.control') {
@@ -285,6 +315,18 @@ export function createLocalRuntimeServer(options: {
       }
       return { event }
     }
+    if (command === 'computer-use.always-allowed.list') {
+      if (!options.appApprovalStore) throw new Error('COMPUTER_USE_UNAVAILABLE: no approval store')
+      return { bundleIds: options.appApprovalStore.list() }
+    }
+    if (command === 'computer-use.always-allowed.remove') {
+      if (!options.appApprovalStore) throw new Error('COMPUTER_USE_UNAVAILABLE: no approval store')
+      const { bundleId } = rawInput as { bundleId?: unknown }
+      if (typeof bundleId !== 'string' || bundleId.trim() === '')
+        throw new Error('INVALID_MESSAGE: bundleId is required')
+      options.appApprovalStore.remove(bundleId)
+      return { bundleIds: options.appApprovalStore.list() }
+    }
     throw new Error(`INVALID_MESSAGE: Unsupported Runtime command: ${command}`)
   }
 
@@ -295,25 +337,6 @@ export function createLocalRuntimeServer(options: {
       await Promise.allSettled(active.values())
     }
   }
-}
-
-function isComputerActionApproval(value: unknown): value is {
-  reason: 'computer-action-approval'
-  providerCallId: string
-  observationId?: string
-  action?: Record<string, unknown>
-  cell?: Record<string, unknown>
-} {
-  if (typeof value !== 'object' || value === null) return false
-  const approval = value as Record<string, unknown>
-  if (approval.reason !== 'computer-action-approval' ||
-      typeof approval.providerCallId !== 'string') return false
-  const single = typeof approval.observationId === 'string' &&
-    typeof approval.action === 'object' && approval.action !== null && !Array.isArray(approval.action)
-  // The JavaScript entry asks for a whole cell instead of one action.
-  const cell = typeof approval.cell === 'object' && approval.cell !== null &&
-    !Array.isArray(approval.cell) && typeof (approval.cell as Record<string, unknown>).code === 'string'
-  return single || cell
 }
 
 function toToolProjection(

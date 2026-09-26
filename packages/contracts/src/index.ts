@@ -91,7 +91,9 @@ export function readMessageContentParts(content: MessageContent): MessageContent
   return 'parts' in content ? content.parts : [{ kind: 'text', text: content.text }]
 }
 
-export function normalizeAssistantParts(parts: readonly MessageContentPart[]): MessageContentPart[] {
+export function normalizeAssistantParts(
+  parts: readonly MessageContentPart[]
+): MessageContentPart[] {
   const normalized: MessageContentPart[] = []
   const seenBatches = new Set<string>()
   const seenImages = new Set<string>()
@@ -152,9 +154,7 @@ export function nextPartOrder(parts: readonly MessageContentPart[]): number {
  * Parts in transcript order. Blocks without an order (transcripts stored before
  * the order contract) keep the position they were persisted in.
  */
-export function sortPartsByOrder(
-  parts: readonly MessageContentPart[]
-): MessageContentPart[] {
+export function sortPartsByOrder(parts: readonly MessageContentPart[]): MessageContentPart[] {
   if (!parts.some((part) => part.order !== undefined)) return [...parts]
   return parts
     .map((part, index) => ({ part, index }))
@@ -282,6 +282,21 @@ export interface PriorActivityTurnProjection {
   outputFiles?: TaskOutputFileProjection[]
 }
 
+export type AppApprovalDecision = 'once' | 'session' | 'always' | 'deny'
+export type AppApprovalRequest = {
+  requestId: string
+  taskId: string
+  sessionId: string
+  target: {
+    bundleId: string
+    displayName: string
+    appPath: string
+    risk: 'high' | 'low'
+    warningSubtitle?: string | undefined
+  }
+  allowPersistentApproval: boolean
+}
+
 export interface TaskProjection {
   id: string
   sessionId: string
@@ -296,6 +311,7 @@ export interface TaskProjection {
   activityStartedAt?: string
   activityDurationMs?: number | undefined
   preparingToolName?: string
+  pendingAppApproval?: AppApprovalRequest[]
   outputFiles?: TaskOutputFileProjection[]
   streamRequestId?: string
   streamResponseId?: string
@@ -309,21 +325,6 @@ export interface TaskProjection {
    */
   orderedTranscript?: boolean
   browser: BrowserSkillProjection | null
-  pendingComputerApproval?:
-    | {
-        providerCallId: string
-        observationId: string
-        action: Record<string, unknown>
-      }
-    /** One action of a JavaScript cell, awaiting the user's answer. */
-    | {
-        providerCallId: string
-        jsAction: {
-          index: number
-          method: string
-          args: Record<string, unknown>
-        }
-      }
 }
 
 export type ModelRef = {
@@ -414,6 +415,7 @@ export interface AgentCommandService {
   interrupt(taskId: string): Promise<void>
   continueTask(taskId: string): Promise<void>
   provideInput(taskId: string, value: unknown): Promise<void>
+  decideAppApproval(taskId: string, requestId: string, decision: AppApprovalDecision): Promise<void>
 }
 
 export interface TaskQueryService {

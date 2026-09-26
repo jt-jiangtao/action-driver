@@ -34,11 +34,12 @@ import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
 import { createImageGenerationTool } from './media/image-generation-tool'
-import { createComputerUseTools } from './computer-use/tools'
-import { createJsEntryTools } from './computer-use/js-tools'
+import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
 import { LoadedSkills } from './computer-use/skill-gate'
+import type { AppApprovalBroker } from './computer-use/app-approval-broker'
+import { AppApprovalStore } from './computer-use/app-approval-store'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -163,32 +164,49 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.releaseVolatileImage = (assetId) => computerImages.discard(assetId)
   const computerControl = new ComputerUseControlGate()
   const loadedSkills = new LoadedSkills()
-  let jsEntry: ReturnType<typeof createJsEntryTools> | null = null
+  let computer: Awaited<ReturnType<typeof createComputerUseEntry>> | null = null
+  let appApprovals: AppApprovalBroker | undefined
+  let approvalStore: AppApprovalStore | undefined
   if (process.platform === 'darwin') {
     const invokeComputer = async (input: Record<string, unknown>, signal?: AbortSignal) => {
       const provider = local.adapters.skillRegistry.resolve('computer-use', 1)
       const result = await provider.execute({ invocationId: randomUUID(), input }, signal)
       return result.input
     }
-    const computerTools = createComputerUseTools(invokeComputer, computerControl, {
-      skillLoaded: (taskId) => loadedSkills.has(taskId, 'computer-use')
-    })
-    for (const tool of computerTools) {
-      local.toolRuntime.registry.register(tool.definition, tool.executor)
-      local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
-    }
-    // The JavaScript entry is the Skill's primary interface: one persistent, sandboxed session per
-    // task that reaches the same helper through the same provider.
-    jsEntry = createJsEntryTools({
+    approvalStore = new AppApprovalStore(database)
+    // The model reaches the desktop only through the Codex js / js_reset entry; each app is
+    // approved inside the call, and the turn's approvals and app leases end with the turn.
+    // A broken Computer Use install (for example missing vendored docs) disables only Computer
+    // Use; the rest of the runtime must still start.
+    computer = await createComputerUseEntry({
       runtimeDist,
-      invokeComputer,
-      saveImage: (sessionId, bytes) => assets.saveGenerated(sessionId, bytes),
-      skillLoaded: (taskId) => loadedSkills.has(taskId, 'computer-use'),
-      gate: computerControl
+      vendorRoot: join(runtimeDist, 'vendor/codex-cua'),
+      invoke: invokeComputer,
+      control: computerControl,
+      // Esc must stop the turn, not only the Computer Use session (2.11). The stream service owns
+      // the per-request AbortController and is assigned below; this closure runs much later.
+      stopTask: (taskId) => {
+        void streamSessions.cancelTask(taskId)
+      },
+      skills: loadedSkills,
+      images: computerImages,
+      approvals: {
+        isAlwaysAllowed: async (bundleId) => approvalStore!.isAllowed(bundleId),
+        persistAlwaysAllowed: async (bundleId) => {
+          approvalStore!.allow(bundleId)
+        },
+        emit: (event) => streamSessions.publishAppApproval(event)
+      }
+    }).catch((error: unknown) => {
+      console.error('[runtime] Computer Use is unavailable', error)
+      return null
     })
-    for (const tool of jsEntry.tools) {
-      local.toolRuntime.registry.register(tool.definition, tool.executor)
-      local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+    if (computer) {
+      appApprovals = computer.approvals
+      for (const tool of computer.tools) {
+        local.toolRuntime.registry.register(tool.definition, tool.executor)
+        local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+      }
     }
   }
   for (const tool of scriptTools) {
@@ -228,6 +246,8 @@ export async function startAgentRuntimeProcess(
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
   const streamSessions = new StreamSessionService({
+    ...(appApprovals ? { appApprovals } : {}),
+    ...(computer ? { turnEnded: computer.endTurn } : {}),
     repositories,
     assets,
     inputFiles,
@@ -254,6 +274,8 @@ export async function startAgentRuntimeProcess(
     rawToolIO: { enabled: true }
   })
   const server = createLocalRuntimeServer({
+    ...(appApprovals ? { appApprovals } : {}),
+    ...(approvalStore ? { appApprovalStore: approvalStore } : {}),
     adapters: local.adapters,
     computerControl,
     messages: repositories.messages,
@@ -296,7 +318,8 @@ export async function startAgentRuntimeProcess(
     }
     parentPort.off('message', handleShutdown)
     void server.close().then(async () => {
-      jsEntry?.dispose()
+      await computer?.dispose()
+      computerImages.clear()
       await httpServer?.close()
       checkpointer.close()
       ownership.release()

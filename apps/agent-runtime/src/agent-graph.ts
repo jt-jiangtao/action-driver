@@ -13,8 +13,6 @@ import {
 import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
 import type { ProviderToolCall } from '@actiondriver/model-connections'
 import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
-import { classifyCellActions } from './computer-use/cell-actions'
-import { ToolApprovalRequired } from './computer-use/tool-approval'
 import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import type { ToolInvocationService } from './tool-invocation-service'
@@ -30,7 +28,7 @@ import type {
   SkillProviderResult,
   SkillRegistry
 } from './ports'
-import { redactCollectedOutput, type ToolRedaction } from './tool-result-redaction'
+import { redactCollectedOutput, redactToolError, type ToolRedaction } from './tool-result-redaction'
 
 type AgentGraphStatus =
   | 'submitted'
@@ -49,52 +47,41 @@ type PlanRoute = 'tools' | 'skill'
 function isVolatileComputerImage(value: unknown): value is ImageAssetRef {
   if (typeof value !== 'object' || value === null) return false
   const image = value as Partial<ImageAssetRef>
-  return typeof image.assetId === 'string' && image.assetId.startsWith('volatile-computer:') &&
-    image.sessionId === 'computer-use' && image.mimeType === 'image/jpeg' &&
-    typeof image.width === 'number' && typeof image.height === 'number' &&
-    typeof image.byteLength === 'number' && image.source === 'upload'
+  return (
+    typeof image.assetId === 'string' &&
+    image.assetId.startsWith('volatile-computer:') &&
+    typeof image.sessionId === 'string' &&
+    (image.mimeType === 'image/png' || image.mimeType === 'image/jpeg') &&
+    typeof image.width === 'number' &&
+    typeof image.height === 'number' &&
+    typeof image.byteLength === 'number' &&
+    image.source === 'upload'
+  )
 }
 
 function stripVolatileScreenshotMessages(messages: RuntimeMessage[]): RuntimeMessage[] {
   return messages.filter((message) => {
     if (message.role !== 'user' || !Array.isArray(message.content)) return true
-    return !message.content.some((part) => part.kind === 'image' &&
-      part.asset.assetId.startsWith('volatile-computer:'))
+    return !message.content.some(
+      (part) => part.kind === 'image' && part.asset.assetId.startsWith('volatile-computer:')
+    )
   })
 }
 
 function volatileScreenshotIds(messages: RuntimeMessage[]): string[] {
-  return messages.flatMap((message) => message.role === 'user' && Array.isArray(message.content)
-    ? message.content.flatMap((part) => part.kind === 'image' &&
-      part.asset.assetId.startsWith('volatile-computer:') ? [part.asset.assetId] : [])
-    : [])
+  return messages.flatMap((message) =>
+    message.role === 'user' && Array.isArray(message.content)
+      ? message.content.flatMap((part) =>
+          part.kind === 'image' && part.asset.assetId.startsWith('volatile-computer:')
+            ? [part.asset.assetId]
+            : []
+        )
+      : []
+  )
 }
 
 function volatileToolResultKey(taskId: string, toolCallId: string): string {
   return `${taskId}\u0000${toolCallId}`
-}
-
-/** What the user is asked to confirm before a call runs, or null when it runs unprompted. */
-type ComputerApprovalRequest = { action: Record<string, unknown>; observationId: string }
-
-/** How many mid-call approvals one JavaScript cell may ask for before we call it a loop. */
-const APPROVAL_ROUND_LIMIT = 24
-
-function computerApprovalRequest(call: ProviderToolCall): ComputerApprovalRequest | null {
-  if (call.modelName !== 'computer_act') return null
-  const action = call.arguments.action
-  if (typeof action !== 'object' || action === null || !('type' in action)) {
-    return { action: {}, observationId: String(call.arguments.observationId ?? '') }
-  }
-  if (action.type === 'wait' || action.type === 'scroll') return null
-  return { action: action as Record<string, unknown>,
-    observationId: String(call.arguments.observationId ?? '') }
-}
-
-function jsActionArguments(args: unknown): Record<string, unknown> {
-  return typeof args === 'object' && args !== null && !Array.isArray(args)
-    ? args as Record<string, unknown>
-    : {}
 }
 
 export type GraphToolRuntime = {
@@ -169,16 +156,6 @@ export class LangGraphRunner implements GraphRunner {
   private readonly activeControllers = new Map<string, AbortController>()
   private readonly modelObservers = new Map<string, ModelEventObserver>()
   private readonly toolObservers = new Map<string, ToolEventObserver>()
-  /**
-   * Approvals the user has already given for one tool call, oldest first.
-   *
-   * A resumed node replays from the start of the round, so the call is driven with this list instead
-   * of asking again: the tool delivers the decisions it has not applied yet and continues.
-   */
-  private readonly toolApprovalDecisions = new Map<
-    string,
-    Array<{ actionIndex: number; approved: boolean }>
-  >()
   private readonly streamRequestIds = new Map<string, string>()
   /**
    * Full results of redacting tools (Computer Use element trees), keyed by task and tool call.
@@ -186,6 +163,7 @@ export class LangGraphRunner implements GraphRunner {
    * resolved into the next model request and then dropped, like volatile screenshots.
    */
   private readonly volatileToolResults = new Map<string, string>()
+  private readonly volatileComputerCalls = new Map<string, ProviderToolCall>()
 
   constructor(
     private readonly modelGateway: ModelGateway,
@@ -337,10 +315,30 @@ export class LangGraphRunner implements GraphRunner {
     }
   }
 
+  private isComputerCode(call: ProviderToolCall): boolean {
+    try {
+      return (
+        this.toolRuntime?.registry.resolveModelName(call.modelName).definition.id === 'computer.js'
+      )
+    } catch {
+      return false
+    }
+  }
+
   /** Puts full in-memory tool results back for the model; checkpointed state keeps summaries. */
   private resolveVolatileToolResults(taskId: string, messages: RuntimeMessage[]): RuntimeMessage[] {
-    if (this.volatileToolResults.size === 0) return messages
+    if (this.volatileToolResults.size === 0 && this.volatileComputerCalls.size === 0)
+      return messages
     return messages.map((message) => {
+      if (message.role === 'assistant' && 'toolCalls' in message)
+        return {
+          ...message,
+          toolCalls: message.toolCalls.map(
+            (call) =>
+              this.volatileComputerCalls.get(volatileToolResultKey(taskId, call.providerCallId)) ??
+              call
+          )
+        }
       if (message.role !== 'tool') return message
       const full = this.volatileToolResults.get(volatileToolResultKey(taskId, message.toolCallId))
       return full === undefined ? message : { ...message, content: full }
@@ -349,12 +347,17 @@ export class LangGraphRunner implements GraphRunner {
 
   private dropVolatileToolResults(taskId: string): void {
     const prefix = volatileToolResultKey(taskId, '')
+    for (const key of this.volatileComputerCalls.keys())
+      if (key.startsWith(prefix)) this.volatileComputerCalls.delete(key)
     for (const key of this.volatileToolResults.keys())
       if (key.startsWith(prefix)) this.volatileToolResults.delete(key)
   }
 
   private releaseVolatileToolResults(taskId: string, messages: RuntimeMessage[]): void {
     for (const message of messages) {
+      if (message.role === 'assistant' && 'toolCalls' in message)
+        for (const call of message.toolCalls)
+          this.volatileComputerCalls.delete(volatileToolResultKey(taskId, call.providerCallId))
       if (message.role === 'tool')
         this.volatileToolResults.delete(volatileToolResultKey(taskId, message.toolCallId))
     }
@@ -416,8 +419,10 @@ export class LangGraphRunner implements GraphRunner {
             requestId: `plan:${state.taskId}${state.toolRound ? `:${state.toolRound}` : ''}`,
             model: state.model,
             messages: capabilityNotice
-              ? [{ role: 'system' as const, content: capabilityNotice },
-                  ...this.resolveVolatileToolResults(state.taskId, state.modelMessages)]
+              ? [
+                  { role: 'system' as const, content: capabilityNotice },
+                  ...this.resolveVolatileToolResults(state.taskId, state.modelMessages)
+                ]
               : this.resolveVolatileToolResults(state.taskId, state.modelMessages),
             ...(tools.length ? { tools } : {}),
             skills: state.skills,
@@ -495,7 +500,20 @@ export class LangGraphRunner implements GraphRunner {
           return {
             status: 'planned' as const,
             modelMessages: retainedMessages,
-            pendingToolCalls: plan.calls,
+            pendingToolCalls: plan.calls.map((call) => {
+              if (!this.isComputerCode(call)) return call
+              this.volatileComputerCalls.set(
+                volatileToolResultKey(state.taskId, call.providerCallId),
+                structuredClone(call)
+              )
+              return {
+                ...call,
+                arguments: {
+                  codeLength:
+                    typeof call.arguments.code === 'string' ? call.arguments.code.length : 0
+                }
+              }
+            }),
             planRoute: 'tools' as const,
             activeActivityId,
             activityTitleRevision: activityClosed ? 0 : state.activityTitleRevision,
@@ -519,30 +537,18 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('executeTools', async (state, config) => {
         const results: RuntimeMessage[] = []
         const screenshots: ImageAssetRef[] = []
-        const approval = state.pendingToolCalls
-          .map((call) => ({ call, request: computerApprovalRequest(call) }))
-          .find((entry) => entry.request !== null) ?? null
-        const approvalCall = approval?.call ?? null
-        let approved = true
-        if (approvalCall) {
-          if (state.pendingToolCalls.length !== 1)
-            throw new Error('COMPUTER_ACTION_BATCH_UNSUPPORTED: call one modifying action at a time')
-          const request = approval!.request!
-          const decision = langGraphInterrupt({
-            reason: 'computer-action-approval', taskId: state.taskId,
-            providerCallId: approvalCall.providerCallId,
-            action: request.action, observationId: request.observationId
-          }) as unknown
-          approved = typeof decision === 'object' && decision !== null &&
-            'approved' in decision && decision.approved === true &&
-            'providerCallId' in decision && decision.providerCallId === approvalCall.providerCallId
-        }
         let activeActivityId = state.activeActivityId
         let activityTitleRevision = state.activityTitleRevision
         let activityCapturesProgress = state.activityCapturesProgress
         let activityToolNames = state.activityToolNames
         let activityIssueCount = state.activityIssueCount
-        for (const [index, providerCall] of state.pendingToolCalls.entries()) {
+        for (const [index, persistedCall] of state.pendingToolCalls.entries()) {
+          const providerCall =
+            this.volatileComputerCalls.get(
+              volatileToolResultKey(state.taskId, persistedCall.providerCallId)
+            ) ?? persistedCall
+          if (this.isComputerCode(providerCall) && typeof providerCall.arguments.code !== 'string')
+            throw new Error('COMPUTER_CODE_UNAVAILABLE: source was lost; start a new request')
           if (config.signal?.aborted) throw config.signal.reason
           if (!this.toolRuntime) {
             return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
@@ -583,115 +589,56 @@ export class LangGraphRunner implements GraphRunner {
             modelName: providerCall.modelName,
             arguments: providerCall.arguments
           })
-          if (providerCall === approvalCall && !approved) {
-            results.push({ role: 'tool', toolCallId: providerCall.providerCallId,
-              name: providerCall.modelName,
-              content: JSON.stringify({ ok: false, error: {
-                code: 'USER_DENIED', message: 'The user declined this Computer Use action'
-              } }) })
-            activityIssueCount += 1
-            continue
-          }
-          // A JavaScript cell asks for its actions while it runs, so it has to be alone in the
-          // round: on resume the whole round replays, and any other call would run twice.
-          if (providerCall.modelName === 'js' &&
-              classifyCellActions(String(providerCall.arguments.code ?? '')).acts &&
-              state.pendingToolCalls.length !== 1) {
-            throw new Error('COMPUTER_ACTION_BATCH_UNSUPPORTED: call one modifying action at a time')
-          }
           let terminal: Extract<
             ToolEvent,
             { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
           > | null = null
-          // A tool may stop mid-call on an action the user has to confirm. The call is then resumed
-          // with the decision, so the tool continues instead of starting over.
-          const decisions = this.toolApprovalDecisions.get(call.callId) ?? []
-          this.toolApprovalDecisions.set(call.callId, decisions)
-          for (let attempt = 0; ; attempt += 1) {
-            try {
-              for await (const toolEvent of this.toolRuntime.invocations.execute(
-                call,
-                {
-                  taskId: state.taskId,
-                  threadId: state.threadId,
-                  checkpointId: `tool:${state.toolRound}`,
-                  requestId:
-                    this.streamRequestIds.get(state.taskId) ??
-                    `plan:${state.taskId}:${state.toolRound}`,
-                  grants: state.toolGrants,
-                  activityId: activeActivityId,
-                  ...(decisions.length ? { continuation: { decisions: [...decisions] } } : {}),
-                  ...(this.toolObservers.get(state.taskId)
-                    ? { onEvent: this.toolObservers.get(state.taskId)! }
-                    : {})
-                },
-                config.signal
-              )) {
-                if (
-                  toolEvent.type === 'tool.completed' ||
-                  toolEvent.type === 'tool.failed' ||
-                  toolEvent.type === 'tool.cancelled'
-                ) {
-                  terminal = toolEvent
-                }
-              }
-              break
-            } catch (error) {
-              if (config.signal?.aborted) throw error
-              if (error instanceof ToolApprovalRequired) {
-                if (attempt >= APPROVAL_ROUND_LIMIT) {
-                  throw new Error('COMPUTER_APPROVAL_LOOP: too many approvals in one tool call')
-                }
-                if (decisions.length > 0) {
-                  terminal = {
-                    type: 'tool.failed',
-                    callId: call.callId,
-                    taskId: state.taskId,
-                    sequence: 0,
-                    error: {
-                      code: 'COMPUTER_ACTION_SPLIT_REQUIRED',
-                      message: 'Put each desktop action in its own js call so each one can be ' +
-                        'confirmed on its own',
-                      retryable: false
-                    }
-                  }
-                  break
-                }
-                const decision = langGraphInterrupt({
-                  reason: 'computer-action-approval',
-                  taskId: state.taskId,
-                  providerCallId: providerCall.providerCallId,
-                  jsAction: { index: error.approval.index, method: error.approval.method,
-                    args: jsActionArguments(error.approval.args) }
-                }) as unknown
-                const granted = typeof decision === 'object' && decision !== null &&
-                  'approved' in decision && decision.approved === true &&
-                  'providerCallId' in decision &&
-                  decision.providerCallId === providerCall.providerCallId
-                decisions.push({ actionIndex: error.approval.index, approved: granted })
-                continue
-              }
-              terminal = {
-                type: 'tool.failed',
-                callId: call.callId,
+          try {
+            for await (const toolEvent of this.toolRuntime.invocations.execute(
+              call,
+              {
                 taskId: state.taskId,
-                sequence: 0,
-                error: {
-                  code:
-                    error instanceof Error && 'code' in error
-                      ? String(error.code)
-                      : 'TOOL_UNAVAILABLE',
-                  message: error instanceof Error ? error.message : String(error),
-                  retryable: false
-                }
+                threadId: state.threadId,
+                checkpointId: `tool:${state.toolRound}`,
+                requestId:
+                  this.streamRequestIds.get(state.taskId) ??
+                  `plan:${state.taskId}:${state.toolRound}`,
+                grants: state.toolGrants,
+                activityId: activeActivityId,
+                ...(this.toolObservers.get(state.taskId)
+                  ? { onEvent: this.toolObservers.get(state.taskId)! }
+                  : {})
+              },
+              config.signal
+            )) {
+              if (
+                toolEvent.type === 'tool.completed' ||
+                toolEvent.type === 'tool.failed' ||
+                toolEvent.type === 'tool.cancelled'
+              ) {
+                terminal = toolEvent
               }
-              break
+              // Screenshots a Computer Use cell emits stay in memory and are shown to the next
+              // model request only; history keeps just the handle.
+              if (toolEvent.type === 'tool.asset' && isVolatileComputerImage(toolEvent.asset))
+                screenshots.push(toolEvent.asset)
+            }
+          } catch (error) {
+            if (config.signal?.aborted) throw error
+            terminal = {
+              type: 'tool.failed',
+              callId: call.callId,
+              taskId: state.taskId,
+              sequence: 0,
+              error: {
+                code:
+                  error instanceof Error && 'code' in error ? String(error.code) : 'TOOL_UNAVAILABLE',
+                message: error instanceof Error ? error.message : String(error),
+                retryable: false
+              }
             }
           }
-          this.toolApprovalDecisions.delete(call.callId)
-          const redact = terminal?.type === 'tool.completed'
-            ? this.toolRedaction(providerCall.modelName)
-            : undefined
+          const redact = this.toolRedaction(providerCall.modelName)
           if (redact && terminal?.type === 'tool.completed') {
             this.volatileToolResults.set(
               volatileToolResultKey(state.taskId, providerCall.providerCallId),
@@ -706,22 +653,21 @@ export class LangGraphRunner implements GraphRunner {
               terminal?.type === 'tool.completed'
                 ? {
                     ok: true,
-                    output: redact ? redactCollectedOutput(redact, terminal.output) : terminal.output
+                    output: redact
+                      ? redactCollectedOutput(redact, terminal.output)
+                      : terminal.output
                   }
                 : {
                     ok: false,
                     error:
                       terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled'
-                        ? terminal.error
+                        ? redact
+                          ? redactToolError(terminal.error)
+                          : terminal.error
                         : { code: 'TOOL_NO_TERMINAL' }
                   }
             )
           })
-          if (providerCall.modelName === 'computer_capture' && terminal?.type === 'tool.completed') {
-            const output = terminal.output as { result?: { screenshot?: unknown } }
-            const asset = output?.result?.screenshot
-            if (isVolatileComputerImage(asset)) screenshots.push(asset)
-          }
           if (terminal?.type !== 'tool.completed') activityIssueCount += 1
           activityTitleRevision += 1
           await this.modelObservers.get(state.taskId)?.({
@@ -748,13 +694,18 @@ export class LangGraphRunner implements GraphRunner {
             ...state.modelMessages,
             { role: 'assistant' as const, toolCalls: state.pendingToolCalls },
             ...results,
-            ...screenshots.map((asset): RuntimeMessage => ({
-              role: 'user',
-              content: [
-                { kind: 'text', text: 'Current desktop screenshot. Use its matching observation ID for the next action.' },
-                { kind: 'image', asset }
-              ]
-            }))
+            ...screenshots.map(
+              (asset): RuntimeMessage => ({
+                role: 'user',
+                content: [
+                  {
+                    kind: 'text',
+                    text: 'Screenshot from the previous js call.'
+                  },
+                  { kind: 'image', asset }
+                ]
+              })
+            )
           ],
           pendingToolCalls: [],
           activeActivityId,

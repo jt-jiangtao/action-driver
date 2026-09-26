@@ -1,9 +1,11 @@
 import type { ComputerUseClient } from './computer-use-client'
 import {
+  COMPUTER_APP_ICON_CHANNEL,
   COMPUTER_PERMISSIONS_CHECK_CHANNEL,
   COMPUTER_PERMISSIONS_SETTINGS_CHANNEL,
   type ComputerPermissionStatus
 } from '../shared/computer-use-contract'
+import { app } from 'electron'
 
 export function registerComputerUsePermissionsIpc(
   ipc: { handle(channel: string, handler: (_event: unknown, input: unknown) => Promise<unknown>): void },
@@ -29,5 +31,16 @@ export function registerComputerUsePermissionsIpc(
   })
   ipc.handle(COMPUTER_PERMISSIONS_SETTINGS_CHANNEL, async () => {
     await openSystemSettings()
+  })
+  // The approval card shows the real application icon; the runtime already sends the app path.
+  ipc.handle(COMPUTER_APP_ICON_CHANNEL, async (_event, input) => {
+    const { appPath } = (input ?? {}) as { appPath?: unknown }
+    if (typeof appPath !== 'string' || !appPath.endsWith('.app')) return null
+    try {
+      const icon = await app.getFileIcon(appPath, { size: 'small' })
+      return icon.isEmpty() ? null : icon.toDataURL()
+    } catch {
+      return null
+    }
   })
 }

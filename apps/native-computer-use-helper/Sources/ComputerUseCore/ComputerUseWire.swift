@@ -21,6 +21,20 @@ public final class ComputerUseWire {
             let code: String
             let message: String
             switch error {
+            case ComputerUseError.appForbidden:
+                code = "APP_FORBIDDEN"; message = "Application forbidden by Computer Use policy"
+            case ComputerUseError.appDenied:
+                code = "APP_DENIED"; message = "Application denied by organization policy"
+            case ComputerUseError.ambiguousApp:
+                code = "AMBIGUOUS_APP"; message = "Use an unambiguous application identifier"
+            case ComputerUseError.appBusy:
+                code = "APP_BUSY"; message = "Application is in use by another session"
+            case ComputerUseError.userStoppedSession:
+                code = "USER_STOPPED_SESSION"; message = "User stopped the Computer Use session"
+            case ComputerUseError.userIntervened:
+                code = "USER_INTERVENED"; message = "User input interrupted the current action"
+            case ComputerUseError.backgroundInputUnsupported:
+                code = "BACKGROUND_INPUT_UNSUPPORTED"; message = "Bring the target application to the foreground"
             case ComputerUseError.invalidRequest(let detail):
                 code = "INVALID_REQUEST"; message = detail
             case ComputerUseError.staleReference:

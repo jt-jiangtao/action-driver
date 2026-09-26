@@ -27,6 +27,34 @@ function stubComputerUse(status: {
 }
 
 describe('Computer Use settings page', () => {
+  it('lists always-allowed applications and revokes one from the list', async () => {
+    stubComputerUse({ accessibility: true, screenRecording: true, eventPosting: true })
+    const listAlwaysAllowedApps = vi.fn(async () => ['com.apple.Notes', 'com.apple.Preview'])
+    const removeAlwaysAllowedApp = vi.fn(async () => ['com.apple.Preview'])
+    render(<ComputerUsePage onBack={() => undefined} onOpenConnections={() => undefined}
+      onOpenMainPrompt={() => undefined} onOpenSkills={() => undefined}
+      listAlwaysAllowedApps={listAlwaysAllowedApps}
+      removeAlwaysAllowedApp={removeAlwaysAllowedApp} />)
+
+    const list = await screen.findByTestId('e2e/settings/computer-use/always-allowed#section')
+    expect(list).toHaveTextContent('com.apple.Notes')
+    await userEvent.click(
+      screen.getByTestId('e2e/settings/computer-use/always-allowed/com.apple.Notes#button')
+    )
+    await waitFor(() => expect(removeAlwaysAllowedApp).toHaveBeenCalledWith('com.apple.Notes'))
+    await waitFor(() =>
+      expect(screen.getByTestId('e2e/settings/computer-use/always-allowed#section'))
+        .not.toHaveTextContent('com.apple.Notes'))
+  })
+
+  it('hides the always-allowed section when the runtime does not expose it', async () => {
+    stubComputerUse({ accessibility: true, screenRecording: true, eventPosting: true })
+    renderPage()
+    await screen.findByTestId('e2e/settings/computer-use/recheck#button')
+    expect(screen.queryByTestId('e2e/settings/computer-use/always-allowed#section')).toBeNull()
+    expect(screen.queryByTestId('e2e/settings/computer-use/always-allowed#status')).toBeNull()
+  })
+
   it('offers a single any-app control that reports the live authorization', async () => {
     stubComputerUse({ accessibility: true, screenRecording: true, eventPosting: true })
     renderPage()

@@ -17,12 +17,11 @@ import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import { ToolInvocationStateMachine } from './tool-invocation-state-machine'
 import { ToolOutputCollector, ToolOutputLimitError } from './tool-output-collector'
-import { redactCollectedOutput, type ToolJson } from './tool-result-redaction'
+import { redactCollectedOutput, redactToolError, type ToolJson } from './tool-result-redaction'
 import { toolActivityDurationMs, toolActivitySummary, toolActivityTitle } from './tool-activity'
 import { ProcessExitError, ProcessOutputLimitError } from './execution/process-runner'
 import { OfficeDependenciesUnavailableError } from './execution/runtime-paths'
 import { ExecutionContextUnavailableError } from './execution/session-execution-context'
-import { ToolApprovalRequired } from './computer-use/tool-approval'
 
 export type ToolInvocationContext = {
   taskId: string
@@ -32,8 +31,6 @@ export type ToolInvocationContext = {
   grants: string[]
   activityId?: string | null
   onEvent?: (event: RuntimeEventRecord) => void | Promise<void>
-  /** Set when the graph continues a call that stopped for the user's approval. */
-  continuation?: { decisions: Array<{ actionIndex: number; approved: boolean }> }
 }
 
 export class ToolInvocationService {
@@ -62,9 +59,10 @@ export class ToolInvocationService {
     const registered = this.options.registry.resolveModelName(call.modelName)
     const definition = registered.definition
     const decision = this.options.policy.decide(definition, call, context)
-    const imageCount = definition.id === 'image.generate' && Array.isArray(call.arguments.images)
-      ? call.arguments.images.length
-      : undefined
+    const imageCount =
+      definition.id === 'image.generate' && Array.isArray(call.arguments.images)
+        ? call.arguments.images.length
+        : undefined
     const startedAt = this.options.clock.now()
     const invocation: PersistedToolInvocation = {
       id: call.callId,
@@ -85,18 +83,24 @@ export class ToolInvocationService {
     let sequence = 0
     // History and events only ever see the executor's safe summary; the caller keeps full values.
     const redact = registered.executor.redactForPersistence?.bind(registered.executor)
-    const persistedInput = redact ? redact('input', call.arguments as ToolJson) : call.arguments
+    const safeInput = () => (redact ? redact('input', call.arguments as ToolJson) : call.arguments)
     const persistedOutput = (output: unknown): unknown => redactCollectedOutput(redact, output)
     const persist = async (event: ToolEvent): Promise<ToolEvent> => {
       invocation.updatedAt = this.options.clock.now()
       const stored: PersistedToolInvocation = {
         ...invocation,
-        input: persistedInput as PersistedToolInvocation['input'],
+        error: redact && invocation.error ? redactToolError(invocation.error) : invocation.error,
+        input: safeInput() as PersistedToolInvocation['input'],
         output: persistedOutput(invocation.output) as PersistedToolInvocation['output']
       }
-      const storedEvent = 'output' in event
-        ? { ...event, output: persistedOutput(event.output) }
-        : event
+      const safeEvent =
+        redact && 'error' in event ? { ...event, error: redactToolError(event.error) } : event
+      const storedEvent =
+        'output' in safeEvent
+          ? { ...safeEvent, output: persistedOutput(safeEvent.output) }
+          : redact && safeEvent.type === 'tool.content'
+            ? { ...safeEvent, delta: `[redacted ${safeEvent.delta.length} characters]` }
+            : safeEvent
       const record = await this.options.persistence.commitToolInvocationWithEvent(stored, {
         taskId: context.taskId,
         threadId: context.threadId,
@@ -113,7 +117,7 @@ export class ToolInvocationService {
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,
           ...(imageCount && imageCount >= 1 && imageCount <= 16 ? { imageCount } : {}),
-          input: persistedInput
+          input: safeInput()
         },
         occurredAt: invocation.updatedAt,
         eventId: `${call.callId}.${event.sequence}`,
@@ -147,7 +151,7 @@ export class ToolInvocationService {
           operation: definition.id,
           requestId: context.requestId,
           taskId: context.taskId,
-          request: { kind: 'json', value: call.arguments }
+          request: { kind: 'json', value: safeInput() }
         })
       : null
     const completeLog = async (outcome: 'ok' | 'error', error?: ToolError): Promise<void> => {
@@ -155,8 +159,15 @@ export class ToolInvocationService {
         outcome,
         ...(invocation.output === null
           ? {}
-          : { response: { kind: 'json', value: invocation.output } as const }),
-        ...(error ? { error: { code: error.code, message: error.message } } : {})
+          : { response: { kind: 'json', value: persistedOutput(invocation.output) } as const }),
+        ...(error
+          ? {
+              error: {
+                code: error.code,
+                message: redact ? redactToolError(error).message : error.message
+              }
+            }
+          : {})
       })
     }
 
@@ -198,12 +209,9 @@ export class ToolInvocationService {
       if (controller.signal.aborted) throw controller.signal.reason
       yield await transition('queued')
       yield await transition('running')
-      const resolved = this.options.executionContext
+      const executionContext = this.options.executionContext
         ? await this.options.executionContext(context.taskId)
         : undefined
-      const executionContext = resolved && context.continuation
-        ? { ...resolved, continuation: context.continuation }
-        : resolved
       for await (const part of registered.executor.execute(
         call,
         controller.signal,
@@ -224,12 +232,6 @@ export class ToolInvocationService {
       yield await transition('completed', { output: invocation.output })
       await completeLog('ok')
     } catch (caught) {
-      // A suspended tool call is not a failure: the graph asks the user and continues this call with
-      // the decision, so the invocation stays running instead of turning into a failed one.
-      if (caught instanceof ToolApprovalRequired && machine.state !== 'completed') {
-        await completeLog('ok')
-        throw caught
-      }
       // Once completed, the state is terminal: a later failure (for example storage rejecting the
       // result) must surface as itself rather than as an impossible completed -> failed transition.
       if (machine.state === 'completed') throw caught
@@ -264,10 +266,10 @@ export class ToolInvocationService {
                   ? toolError(caught.code, caught.message)
                   : caught instanceof ExecutionContextUnavailableError
                     ? toolError(caught.code, caught.message)
-                : toolError(
-                    cancelled ? 'TOOL_CANCELLED' : 'TOOL_EXECUTION_FAILED',
-                    caught instanceof Error ? caught.message : String(caught)
-                  )
+                    : toolError(
+                        cancelled ? 'TOOL_CANCELLED' : 'TOOL_EXECUTION_FAILED',
+                        caught instanceof Error ? caught.message : String(caught)
+                      )
       invocation.error = error
       yield await transition(cancelled ? 'cancelled' : 'failed', { error })
       await completeLog('error', error)

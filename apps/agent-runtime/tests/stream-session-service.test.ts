@@ -16,6 +16,7 @@ import { SessionInputFileStore } from '../src/media/session-input-file-store'
 import { SessionWorkspaceStore } from '../src/execution/session-workspace'
 import { SessionOutputStore } from '../src/media/session-output-store'
 import { readFileSync } from 'node:fs'
+import { AppApprovalBroker } from '../src/computer-use/app-approval-broker'
 
 const temporaryDirectories: string[] = []
 
@@ -25,7 +26,9 @@ function createHarness(
   listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>,
   describeSessionInputs?: (
     sessionId: string
-  ) => Promise<Array<{ name: string; path: string; mimeType: string }>>
+  ) => Promise<Array<{ name: string; path: string; mimeType: string }>>,
+  appApprovals?: AppApprovalBroker,
+  turnEnded?: (taskId: string) => Promise<void>
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
@@ -59,6 +62,8 @@ function createHarness(
     outputs,
     listOutputs: (taskId) => outputs.listByTask(taskId),
     graphRunner,
+    ...(appApprovals ? { appApprovals } : {}),
+    ...(turnEnded ? { turnEnded } : {}),
     ids,
     now: () => new Date(now++).toISOString(),
     ...(rawToolIO ? { rawToolIO } : {}),
@@ -113,6 +118,234 @@ async function runToEnd(
 }
 
 describe('StreamSessionService', () => {
+  it('ends every turn once, completed or failed, before its response.end is published', async () => {
+    const order: string[] = []
+    const turnEnded = vi.fn(async (taskId: string) => {
+      order.push(`ended:${taskId}`)
+    })
+    let fail = false
+    const harness = createHarness(
+      {
+        async run(request, _signal, observer) {
+          await observer?.({ kind: 'end', content: '好', finishReason: 'stop', usage: null })
+          return {
+            taskId: request.taskId,
+            threadId: request.taskId,
+            status: fail ? ('failed' as const) : ('completed' as const),
+            output: fail ? null : '好',
+            error: fail ? 'MODEL_GATEWAY_ERROR' : null,
+            trace: []
+          }
+        },
+        interrupt: () => false,
+        async continue() {
+          throw new Error('unused')
+        },
+        async provideInput() {
+          throw new Error('unused')
+        }
+      } as GraphRunner,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      turnEnded
+    )
+    const collect = async (event: RequestCreateEvent) => {
+      const published: StreamServerEvent[] = []
+      await new Promise<void>((resolve) => {
+        void harness.service.handle(event, (serverEvent) => {
+          published.push(serverEvent)
+          if (serverEvent.type === 'response.end') {
+            order.push(`end:${serverEvent.taskId}`)
+            resolve()
+          }
+        })
+      })
+      return published.find((item) => item.type === 'request.accepted') as Extract<
+        StreamServerEvent,
+        { type: 'request.accepted' }
+      >
+    }
+
+    const first = await collect(createEvent)
+    fail = true
+    const second = await collect({
+      ...createEvent,
+      eventId: 'client-event-2',
+      requestId: 'request-client-2',
+      idempotencyKey: 'idempotency-2'
+    })
+
+    expect(turnEnded.mock.calls).toEqual([[first.taskId], [second.taskId]])
+    expect(order).toEqual([
+      `ended:${first.taskId}`,
+      `end:${first.taskId}`,
+      `ended:${second.taskId}`,
+      `end:${second.taskId}`
+    ])
+  })
+
+  it('persists approval events with cursors and exposes only live approvals in snapshots', async () => {
+    const ready: { service?: StreamSessionService } = {}
+    const broker = new AppApprovalBroker({
+      queryPolicy: async () => ({
+        decision: 'allowed',
+        allowPersistentApproval: true,
+        target: {
+          bundleId: 'com.apple.Notes',
+          displayName: 'Notes',
+          appPath: '/System/Applications/Notes.app',
+          risk: 'low'
+        }
+      }),
+      isAlwaysAllowed: async () => false,
+      persistAlwaysAllowed: async () => {},
+      withSuspendedTimeout: async (_, wait) => wait(),
+      emit: (event) => ready.service!.publishAppApproval(event)
+    })
+    const run = vi.fn<GraphRunner['run']>(async (request, _signal, observer) => {
+      await broker.authorize(
+        { taskId: request.taskId, sessionId: request.sessionId! },
+        { app: 'Notes' }
+      )
+      await observer?.({ kind: 'end', content: 'approved', finishReason: 'stop', usage: null })
+      return {
+        taskId: request.taskId,
+        threadId: request.taskId,
+        status: 'completed',
+        output: 'approved',
+        error: null,
+        trace: []
+      }
+    })
+    const harness = createHarness(
+      {
+        run,
+        interrupt: () => false,
+        continue: async () => {
+          throw new Error('must not continue')
+        },
+        provideInput: async () => {
+          throw new Error('must not replay')
+        }
+      },
+      undefined,
+      undefined,
+      undefined,
+      broker
+    )
+    const service = harness.service
+    ready.service = service
+    const events: StreamServerEvent[] = []
+    await service.handle(createEvent, (event) => {
+      events.push(event)
+    })
+    await vi.waitFor(() =>
+      expect(
+        events.map((e) => e.type),
+        JSON.stringify(events)
+      ).toContain('computer.app-approval.requested')
+    )
+    const requested = events.find((e) => e.type === 'computer.app-approval.requested')!
+    if (requested.type !== 'computer.app-approval.requested') throw new Error('missing approval')
+    expect((await service.getTaskSnapshot(requested.taskId))?.pendingAppApproval).toEqual([
+      requested.approval
+    ])
+    const liveReconnect: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'live-resume',
+        createdAt: createEvent.createdAt,
+        requestId: createEvent.requestId,
+        afterCursor: 0
+      },
+      (event) => {
+        liveReconnect.push(event)
+        events.push(event)
+      }
+    )
+    expect(liveReconnect).toHaveLength(1)
+    expect(liveReconnect[0]).toMatchObject({
+      type: 'response.snapshot',
+      pendingAppApproval: [requested.approval]
+    })
+    await broker.decide(requested.taskId, requested.approval.requestId, 'once')
+    await vi.waitFor(() => expect(events.some((e) => e.type === 'response.end')).toBe(true))
+    const resolved = events.find((e) => e.type === 'computer.app-approval.resolved')!
+    expect(resolved.cursor).toBeGreaterThan(requested.cursor)
+    expect((await service.getTaskSnapshot(requested.taskId))?.pendingAppApproval).toEqual([])
+    expect((await service.getTaskSnapshot(requested.taskId))?.status).toBe('completed')
+    const resumed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'resume',
+        createdAt: createEvent.createdAt,
+        requestId: createEvent.requestId,
+        afterCursor: requested.cursor
+      },
+      (event) => {
+        resumed.push(event)
+      }
+    )
+    expect(resumed.at(-1)).toMatchObject({ type: 'response.snapshot', pendingAppApproval: [] })
+    expect(resumed).toHaveLength(1)
+    expect(run).toHaveBeenCalledTimes(1)
+    await service.handle(
+      {
+        ...createEvent,
+        eventId: 'next-create',
+        requestId: 'next-request',
+        idempotencyKey: 'next-idempotency',
+        sessionId: requested.sessionId,
+        payload: { input: { role: 'user', content: 'continue' }, skills: [] }
+      },
+      (event) => {
+        events.push(event)
+      }
+    )
+    await vi.waitFor(() =>
+      expect(events.filter((e) => e.type === 'computer.app-approval.requested')).toHaveLength(2)
+    )
+    const nextRequested = events.filter((e) => e.type === 'computer.app-approval.requested').at(-1)!
+    if (nextRequested.type !== 'computer.app-approval.requested')
+      throw new Error('missing next approval')
+    await service.handle(
+      {
+        type: 'request.cancel',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'cancel-request',
+        createdAt: createEvent.createdAt,
+        requestId: 'next-request',
+        taskId: nextRequested.taskId,
+        responseId: nextRequested.responseId
+      },
+      () => {}
+    )
+    await vi.waitFor(() =>
+      expect(events.some((e) => e.type === 'response.end' && e.requestId === 'next-request')).toBe(
+        true
+      )
+    )
+    expect(
+      events.find(
+        (e) =>
+          e.type === 'computer.app-approval.resolved' &&
+          e.approval.requestId === nextRequested.approval.requestId
+      )
+    ).toMatchObject({ decision: 'cancelled' })
+    expect((await service.getTaskSnapshot(nextRequested.taskId))?.pendingAppApproval).toEqual([])
+    expect((await service.getTaskSnapshot(nextRequested.taskId))?.status).toBe('cancelled')
+    await expect(
+      broker.decide(nextRequested.taskId, nextRequested.approval.requestId, 'once')
+    ).rejects.toThrow('APPROVAL_STALE')
+    await service.close()
+    harness.database.close()
+  })
   const pdf = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n%%EOF\n')
   const completedGraph: GraphRunner = {
     async run(request) {
@@ -218,7 +451,11 @@ describe('StreamSessionService', () => {
     ])
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
     expect(snapshot?.outputFiles).toEqual([
-      expect.objectContaining({ taskId: accepted.taskId, name: 'report.pdf', byteLength: pdf.byteLength })
+      expect.objectContaining({
+        taskId: accepted.taskId,
+        name: 'report.pdf',
+        byteLength: pdf.byteLength
+      })
     ])
 
     // The same session, an untouched old file and a failed task add nothing.
@@ -746,7 +983,9 @@ describe('StreamSessionService', () => {
     if (!accepted || accepted.type !== 'request.accepted') throw new Error('missing request')
 
     const stored = (await harness.repositories.messages.listByTask(accepted.taskId)).at(-1)
-      ?.content as { parts?: Array<{ kind: string; text?: string; generation?: { index: number } }> }
+      ?.content as {
+      parts?: Array<{ kind: string; text?: string; generation?: { index: number } }>
+    }
     expect(
       stored.parts?.map((part) =>
         part.kind === 'image'
@@ -816,9 +1055,9 @@ describe('StreamSessionService', () => {
       2,
       ...Array.from({ length: 12 }, (_, offset) => offset + 3)
     ])
-    expect(
-      imageEvents.every((event) => 'contentIndex' in event && event.contentIndex >= 0)
-    ).toBe(true)
+    expect(imageEvents.every((event) => 'contentIndex' in event && event.contentIndex >= 0)).toBe(
+      true
+    )
     const accepted = events.find((event) => event.type === 'request.accepted')
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     const snapshot = await harness.service.getTaskSnapshot(accepted.taskId)
@@ -829,9 +1068,7 @@ describe('StreamSessionService', () => {
     // A stream without a batch anchor has no reservation to honour, so each
     // picture takes the next order and the transcript keeps arrival order; the
     // reserved slot order is covered by the batch tests above.
-    const snapshotImages = snapshot?.messages
-      .at(-1)
-      ?.parts?.filter((part) => part.kind === 'image')
+    const snapshotImages = snapshot?.messages.at(-1)?.parts?.filter((part) => part.kind === 'image')
     expect(snapshotImages?.map((part) => part.generation?.index)).toEqual(completionOrder)
     expect(snapshotImages?.map((part) => part.order)).toEqual(
       Array.from({ length: 16 }, (_, index) => index + 1)
@@ -1675,6 +1912,62 @@ describe('StreamSessionService', () => {
     await expect(repositories.messages.listByTask(accepted.taskId)).resolves.toContainEqual(
       expect.objectContaining({ role: 'assistant', content: { text: 'partial answer' } })
     )
+
+    repositories.close()
+  })
+
+  // 2.11: the user pressing Esc during Computer Use ends the session and stops the turn, using the
+  // same abort path as a client-sent request.cancel.
+  it('stops the running turn when Computer Use reports that the user pressed Esc', async () => {
+    let started!: () => void
+    const running = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const graphRunner: GraphRunner = {
+      async run(request, signal) {
+        started()
+        await new Promise<void>((resolve) => {
+          signal?.addEventListener('abort', () => resolve(), { once: true })
+        })
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'interrupted',
+          output: null,
+          error: null,
+          trace: ['acceptGoal']
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner)
+    const published: StreamServerEvent[] = []
+    let resolveEnd!: () => void
+    const ended = new Promise<void>((resolve) => {
+      resolveEnd = resolve
+    })
+    await service.handle(createEvent, (event) => {
+      published.push(event)
+      if (event.type === 'response.end') resolveEnd()
+    })
+    await running
+    const accepted = published.find((event) => event.type === 'request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted') throw new Error('expected request.accepted')
+
+    await expect(service.cancelTask(accepted.taskId)).resolves.toBe(true)
+    await ended
+    expect(published.at(-1)).toMatchObject({
+      type: 'response.end',
+      status: 'cancelled',
+      error: { code: 'cancelled' }
+    })
+    await expect(service.cancelTask('task-not-running')).resolves.toBe(false)
 
     repositories.close()
   })

@@ -1,9 +1,11 @@
 import type {
+  AppApprovalDecision,
+  AppApprovalRequest,
   AgentMessageProjection,
   PriorActivityTurnProjection,
   TaskProjection
 } from '@actiondriver/contracts'
-import { Fragment, memo, useMemo, useState } from 'react'
+import { Fragment, memo, useEffect, useMemo, useState } from 'react'
 import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
@@ -32,7 +34,7 @@ export function TaskPage({
   onPause,
   onResume,
   onTakeOver,
-  onComputerDecision,
+  onAppDecision,
   onInterrupt,
   readImage,
   readOutputFile,
@@ -49,14 +51,13 @@ export function TaskPage({
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
   onTakeOver(): Promise<unknown> | void
-  onComputerDecision?(approved: boolean, providerCallId: string): Promise<unknown> | void
+  onAppDecision?(requestId: string, decision: AppApprovalDecision): Promise<unknown> | void
   onInterrupt(): void
   readImage?: ImageReader | undefined
   readOutputFile?: OutputFileReader | undefined
   onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
-  const [approvalError, setApprovalError] = useState<string | null>(null)
   const hasComputer = (task.tools ?? []).some((tool) => tool.toolId.startsWith('computer.'))
   const pageMode = hasBrowser ? mode : 'agent-only'
   const agentWidth = !hasBrowser
@@ -190,30 +191,9 @@ export function TaskPage({
                 readImage={readImage}
               />
               <ActivityTimeline task={task} />
-              {task.status === 'waiting-user' && task.pendingComputerApproval &&
-                <section className="computer-action-approval" aria-label="Computer Use 动作确认">
-                  <h2>确认这一步桌面操作</h2>
-                  {'jsAction' in task.pendingComputerApproval
-                    ? <>
-                        <p>模型正在用 JavaScript 操作桌面。确认仅适用于这一次动作。</p>
-                        <pre>{describeJsAction(task.pendingComputerApproval.jsAction)}</pre>
-                      </>
-                    : <>
-                        <p>ActionDriver 将在当前应用执行以下动作。确认仅适用于这一次调用。</p>
-                        <pre>{describeComputerAction(task.pendingComputerApproval.action)}</pre>
-                      </>}
-                  {approvalError && <p role="alert">{approvalError}</p>}
-                  <div>
-                    <button type="button" data-testid="e2e/tasks/detail/computer/approval-deny#button"
-                      onClick={() => { void Promise.resolve(onComputerDecision?.(
-                      false, task.pendingComputerApproval!.providerCallId)).catch((error: unknown) =>
-                      setApprovalError(error instanceof Error ? error.message : String(error))) }}>拒绝</button>
-                    <button type="button" data-testid="e2e/tasks/detail/computer/approval-approve#button"
-                      onClick={() => { void Promise.resolve(onComputerDecision?.(
-                      true, task.pendingComputerApproval!.providerCallId)).catch((error: unknown) =>
-                      setApprovalError(error instanceof Error ? error.message : String(error))) }}>确认执行</button>
-                  </div>
-                </section>}
+              {(task.pendingAppApproval ?? []).map((request) => (
+                <AppApprovalCard key={request.requestId} request={request} onDecision={onAppDecision} />
+              ))}
               {visibleAssistantMessages.length > 0 ? (
                 <ConversationMessages
                   messages={visibleAssistantMessages}
@@ -341,34 +321,54 @@ function samePriorTurn(previous: PriorTurnProps, next: PriorTurnProps): boolean 
   )
 }
 
-function describeComputerAction(action: Record<string, unknown>): string {
-  switch (action.type) {
-    case 'click': return `点击坐标 (${String(action.x)}, ${String(action.y)})`
-    case 'click-element': return `点击界面元素 ${String(action.elementRef)}`
-    case 'type': return `输入文本：${String(action.text)}`
-    case 'key': return `按键：${[...(Array.isArray(action.modifiers) ? action.modifiers : []), action.key].join(' + ')}`
-    default: return JSON.stringify(action)
+function AppApprovalCard({ request, onDecision }: {
+  request: AppApprovalRequest
+  onDecision: ((requestId: string, decision: AppApprovalDecision) => Promise<unknown> | void) | undefined
+}) {
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [icon, setIcon] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void window.actionDriverDesktop?.computerUse?.getAppIcon(request.target.appPath)
+      .then((value) => { if (!cancelled) setIcon(value ?? null) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [request.target.appPath])
+  async function decide(decision: AppApprovalDecision) {
+    if (pending || !onDecision) return
+    setPending(true)
+    setError(null)
+    try {
+      await onDecision(request.requestId, decision)
+      // Keep disabled until the resolved event removes this request.
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+      setPending(false)
+    }
   }
-}
-
-/** Describes one action of a JavaScript cell, the way the Skill's API names it. */
-function describeJsAction(action: { index: number; method: string; args: Record<string, unknown> }): string {
-  const element = action.args.element_index
-  const at = typeof element === 'number' ? `第 ${element} 个界面元素` : '界面'
-  const text = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value)
-  switch (action.method) {
-    case 'click':
-      return typeof action.args.x === 'number' && typeof action.args.y === 'number'
-        ? `点击坐标 (${action.args.x}, ${action.args.y})`
-        : `点击${at}`
-    case 'type_text': return `输入文本：${text(action.args.text)}`
-    case 'paste': return `粘贴文本（${String(action.args.format ?? 'text')}）：${text(action.args.text)}`
-    case 'press_key': return `按键：${String(action.args.key ?? '')}`
-    case 'set_value': return `把${at}的值设为：${text(action.args.value)}`
-    case 'select_text': return `在${at}中选中：${text(action.args.text)}`
-    case 'drag': return `从 (${String(action.args.from_x)}, ${String(action.args.from_y)}) ` +
-      `拖到 (${String(action.args.to_x)}, ${String(action.args.to_y)})`
-    case 'perform_secondary_action': return `对${at}执行「${String(action.args.action ?? '')}」`
-    default: return `${action.method} ${JSON.stringify(action.args)}`
-  }
+  return (
+    <section className="app-approval" aria-label={`${request.target.displayName} 应用授权`}>
+      <h2>
+        {icon
+          ? <img className="app-approval-icon" src={icon} alt="" aria-hidden="true" />
+          : <span aria-hidden="true">▣</span>}
+        <span>{request.target.displayName}</span>
+      </h2>
+      <p>{request.target.warningSubtitle ?? '允许读取和操作此应用？'}</p>
+      {error && <p role="alert">{error}</p>}
+      <div className="app-approval-actions">
+        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-deny#button"
+          disabled={pending || !onDecision} onClick={() => { void decide('deny') }}>拒绝</button>
+        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-once#button"
+          disabled={pending || !onDecision} onClick={() => { void decide('once') }}>仅本次</button>
+        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-session#button"
+          disabled={pending || !onDecision} onClick={() => { void decide('session') }}>本会话</button>
+        {request.allowPersistentApproval && (
+          <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-always#button"
+            disabled={pending || !onDecision} onClick={() => { void decide('always') }}>始终允许</button>
+        )}
+      </div>
+    </section>
+  )
 }

@@ -1,3 +1,4 @@
+import { MemorySaver } from '@langchain/langgraph'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -796,6 +797,89 @@ describe('minimal agent StateGraph', () => {
         event: expect.objectContaining({ type: 'text.done', phase: 'final' })
       })
     )
+  })
+
+  it('keeps Computer Use source out of every checkpoint while executing and returning it in memory', async () => {
+    const source = 'nodeRepl.write("private-source-987")'
+    let round = 0
+    let received = ''
+    let modelReceived = ''
+    const model: ModelGateway = {
+      async complete(request) {
+        if (round++ === 0)
+          return {
+            kind: 'tool-calls',
+            calls: [
+              { providerCallId: 'private-call', modelName: 'js', arguments: { code: source } }
+            ]
+          }
+        modelReceived = JSON.stringify(request.messages)
+        return { kind: 'finish', content: 'done' }
+      }
+    }
+    const registry = new RuntimeToolRegistry()
+    registry.register(
+      {
+        ...shellTool,
+        id: 'computer.js',
+        modelName: 'js',
+        inputSchema: {
+          type: 'object',
+          properties: { code: { type: 'string' } },
+          required: ['code']
+        }
+      },
+      {
+        async *execute(call) {
+          received = String(call.arguments.code)
+          yield { kind: 'result', output: { output: 'done' } }
+        },
+        redactForPersistence: (kind, value) =>
+          kind === 'input'
+            ? {
+                codeLength:
+                  typeof value === 'object' &&
+                  value !== null &&
+                  'code' in value &&
+                  typeof value.code === 'string'
+                    ? value.code.length
+                    : 0
+              }
+            : { outputLength: 4 }
+      }
+    )
+    const saver = new MemorySaver()
+    const invocations = new ToolInvocationService({
+      registry,
+      policy: new RuntimeToolPolicy(),
+      persistence: {
+        async commitToolInvocationWithEvent(_invocation, event) {
+          return { ...event, cursor: 1 }
+        }
+      },
+      clock: { now: () => new Date().toISOString() }
+    })
+    const runner = new LangGraphRunner(model, new MockSkillRegistry(), saver, {
+      registry,
+      policy: new RuntimeToolPolicy(),
+      invocations,
+      grants: ['computer.js@1']
+    })
+    const result = await runner.run({
+      taskId: 'private-source-task',
+      goal: 'run code',
+      model: modelRef
+    })
+    expect(result.status).toBe('completed')
+    expect(received).toBe(source)
+    expect(modelReceived).toContain('private-source-987')
+    const checkpoints = []
+    for await (const checkpoint of saver.list({
+      configurable: { thread_id: 'private-source-task' }
+    }))
+      checkpoints.push(checkpoint)
+    expect(checkpoints.length).toBeGreaterThan(0)
+    expect(JSON.stringify(checkpoints)).not.toContain('private-source-987')
   })
 
   it('runs a model tool request and returns only the final model answer', async () => {

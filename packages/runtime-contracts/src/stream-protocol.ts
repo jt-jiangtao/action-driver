@@ -5,6 +5,24 @@ export const STREAM_PROTOCOL = 'actiondriver.stream.v2' as const
 
 const idSchema = z.string().trim().min(1)
 const timestampSchema = z.string().trim().min(1)
+export const appApprovalRequestSchema = z
+  .object({
+    requestId: idSchema,
+    taskId: idSchema,
+    sessionId: idSchema,
+    target: z
+      .object({
+        bundleId: idSchema,
+        displayName: idSchema,
+        appPath: idSchema,
+        risk: z.enum(['high', 'low']),
+        warningSubtitle: z.string().optional()
+      })
+      .strict(),
+    allowPersistentApproval: z.boolean()
+  })
+  .strict()
+export type AppApprovalRequest = z.infer<typeof appApprovalRequestSchema>
 const protocolSchema = z.literal(STREAM_PROTOCOL)
 const modelRefSchema = z
   .object({
@@ -29,9 +47,7 @@ const partOrderSchema = z.number().int().nonnegative().optional()
 
 const messagePartSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string(), order: partOrderSchema }).strict(),
-  z
-    .object({ kind: z.literal('activity'), activityId: idSchema, order: partOrderSchema })
-    .strict(),
+  z.object({ kind: z.literal('activity'), activityId: idSchema, order: partOrderSchema }).strict(),
   z
     .object({
       kind: z.literal('image-batch'),
@@ -317,6 +333,7 @@ const responseSnapshotEventSchema = z
     ...streamIdentity,
     sequence: z.number().int().nonnegative(),
     status: z.enum(['running', 'completed', 'failed', 'cancelled']),
+    pendingAppApproval: z.array(appApprovalRequestSchema).optional(),
     messages: z.array(
       z
         .object({
@@ -524,7 +541,25 @@ const toolStreamEventSchemas = [
     .strict()
 ] as const
 
+const appApprovalRequestedEventSchema = z
+  .object({
+    type: z.literal('computer.app-approval.requested'),
+    ...streamIdentity,
+    approval: appApprovalRequestSchema
+  })
+  .strict()
+const appApprovalResolvedEventSchema = z
+  .object({
+    type: z.literal('computer.app-approval.resolved'),
+    ...streamIdentity,
+    approval: appApprovalRequestSchema,
+    decision: z.enum(['once', 'session', 'always', 'deny', 'cancelled'])
+  })
+  .strict()
+
 export const streamServerEventSchema = z.discriminatedUnion('type', [
+  appApprovalRequestedEventSchema,
+  appApprovalResolvedEventSchema,
   sessionReadyEventSchema,
   requestAcceptedEventSchema,
   requestErrorEventSchema,

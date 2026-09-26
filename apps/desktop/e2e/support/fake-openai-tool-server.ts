@@ -9,6 +9,7 @@ type ToolMode =
   | 'python'
   | 'python-blocking'
   | 'node'
+  | 'computer-approval'
   | 'triple'
   | 'text'
   | 'tool-preparing'
@@ -230,7 +231,13 @@ export class FakeOpenAiToolServer {
                           : toolMode === 'shell-timeout'
                             ? '{"script":"sleep 12"}'
                             : '{"script":"mkdir -p output && printf \'needle is present\\n\' > output/README.md && rg needle output/README.md"}'
-        const midpoint = Math.ceil(argumentsJson.length / 2)
+        // The Computer Use entry reaches the model as `js`; the runtime then asks the helper for the
+        // app policy, which is what makes the approval card appear in the local e2e run.
+        const resolvedToolName = toolMode === 'computer-approval' ? 'js' : toolName
+        const resolvedArguments = toolMode === 'computer-approval'
+          ? '{"code":"await cua.getApp(\\"Notes\\")"}'
+          : argumentsJson
+        const midpoint = Math.ceil(resolvedArguments.length / 2)
         if (this.mode === 'activity') {
           response.write(sseChunk({ content: turn === 1 ? '正文 A' : '正文 B' }, null))
         }
@@ -242,7 +249,7 @@ export class FakeOpenAiToolServer {
                   index: 0,
                   id: `provider-tool-${turn}`,
                   type: 'function',
-                  function: { name: toolName, arguments: argumentsJson.slice(0, midpoint) }
+                  function: { name: resolvedToolName, arguments: resolvedArguments.slice(0, midpoint) }
                 }
               ]
             },
@@ -257,7 +264,7 @@ export class FakeOpenAiToolServer {
         response.write(
           sseChunk(
             {
-              tool_calls: [{ index: 0, function: { arguments: argumentsJson.slice(midpoint) } }]
+              tool_calls: [{ index: 0, function: { arguments: resolvedArguments.slice(midpoint) } }]
             },
             'tool_calls'
           )

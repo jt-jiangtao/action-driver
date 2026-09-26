@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { copyComputerUseResources } from './computer-use-resources.mjs'
 
 if (process.platform !== 'darwin') throw new Error('Computer Use helper requires macOS')
 const arch = process.env.ACTIONDRIVER_NATIVE_ARCH?.trim() || process.arch
@@ -26,6 +27,7 @@ const destination = join(packagePath, 'dist', arch, 'actiondriver-computer-use')
 mkdirSync(dirname(destination), { recursive: true })
 copyFileSync(source, destination)
 chmodSync(destination, 0o755)
+copyComputerUseResources(binDirectory, dirname(destination))
 if (!(statSync(destination).mode & 0o111)) throw new Error('Computer Use helper is not executable')
 execFileSync('/usr/bin/file', [destination], { stdio: 'inherit' })
 
@@ -37,6 +39,7 @@ chmodSync(executable, 0o755)
 const brandSource = join(root, 'apps', 'desktop', 'resources', 'actiondriver.png')
 const brandDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.png')
 mkdirSync(dirname(brandDestination), { recursive: true })
+copyComputerUseResources(binDirectory, dirname(brandDestination))
 copyFileSync(brandSource, brandDestination)
 
 // A real .icns so System Settings and the Dock show the brand instead of a blank app icon.

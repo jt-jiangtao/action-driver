@@ -23,6 +23,7 @@ import {
   withRemoteTraceparent
 } from '@actiondriver/observability'
 import { z } from 'zod'
+import { AppApprovalError } from '../computer-use/app-approval-broker'
 import type { ModelRef } from '@actiondriver/contracts'
 import { attachServiceWebSocketServer, type ServiceStreamSessionPort } from './websocket-service'
 import { attachLocalCapabilityService } from './local-capability-service'
@@ -110,12 +111,43 @@ const modelSchema = z
     imageGenerationEnabled: z.boolean().optional(),
     kind: z.enum(['chat', 'image']).optional(),
     imageGenerationApi: z.enum(['openai-images', 'token-plan']).optional(),
-    capabilities: z.partialRecord(z.enum(['text', 'reasoning', 'vision', 'image_generation']), z.object({
-      state: z.enum(['untested', 'testing', 'success', 'unsupported', 'failed', 'inconclusive']),
-      source: z.enum(['catalog', 'probe', 'legacy']),
-      testedAt: z.string().optional(),
-      failure: z.object({ code: z.enum(['unauthorized', 'not-found', 'model-not-found', 'rate-limited', 'provider-error', 'network', 'timeout', 'cancelled', 'invalid-request', 'invalid-response', 'secret-unavailable', 'storage-error', 'unknown']), message: z.string() }).optional()
-    })).optional(),
+    capabilities: z
+      .partialRecord(
+        z.enum(['text', 'reasoning', 'vision', 'image_generation']),
+        z.object({
+          state: z.enum([
+            'untested',
+            'testing',
+            'success',
+            'unsupported',
+            'failed',
+            'inconclusive'
+          ]),
+          source: z.enum(['catalog', 'probe', 'legacy']),
+          testedAt: z.string().optional(),
+          failure: z
+            .object({
+              code: z.enum([
+                'unauthorized',
+                'not-found',
+                'model-not-found',
+                'rate-limited',
+                'provider-error',
+                'network',
+                'timeout',
+                'cancelled',
+                'invalid-request',
+                'invalid-response',
+                'secret-unavailable',
+                'storage-error',
+                'unknown'
+              ]),
+              message: z.string()
+            })
+            .optional()
+        })
+      )
+      .optional(),
     catalogLabels: z.array(z.string()).optional()
   })
   .strict()
@@ -139,7 +171,11 @@ const installSkillSchema = z.discriminatedUnion('source', [
 const renameAgentSkillSchema = z.object({ name: id }).strict()
 const resetPromptSchema = z.object({ expectedDigest: id }).strict()
 const taskInputSchema = z.object({ value: z.unknown() }).strict()
+const appApprovalDecisionSchema = z
+  .object({ decision: z.enum(['once', 'session', 'always', 'deny']) })
+  .strict()
 const skillControlSchema = z.object({ command: z.enum(['pause', 'resume', 'take-over']) }).strict()
+const alwaysAllowedSchema = z.object({ bundleId: z.string().min(1).max(512) }).strict()
 const invalid = () => failure('invalid-request', 'Request body does not match the route schema')
 const validate = <T extends z.ZodType>(schema: T) =>
   zValidator('json', schema, (result, context) => {
@@ -154,33 +190,39 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
 
   app.onError((error, context) => {
     const mapped =
-      error instanceof ModelServiceError
-        ? { status: 200 as const, code: error.code, message: error.message }
-        : error instanceof AssetError
-          ? {
-              status:
-                error.code === 'ASSET_NOT_FOUND' || error.code === 'ASSET_SESSION_MISMATCH'
-                  ? (404 as const)
-                  : (400 as const),
-              code: error.code,
-              message: error.message
-            }
-          : error instanceof AgentFileStoreError
+      error instanceof AppApprovalError
+        ? {
+            status: error.code === 'APPROVAL_STALE' ? (409 as const) : (400 as const),
+            code: error.code,
+            message: error.message
+          }
+        : error instanceof ModelServiceError
+          ? { status: 200 as const, code: error.code, message: error.message }
+          : error instanceof AssetError
             ? {
                 status:
-                  error.code === 'NOT_FOUND'
+                  error.code === 'ASSET_NOT_FOUND' || error.code === 'ASSET_SESSION_MISMATCH'
                     ? (404 as const)
-                    : error.code === 'CONFLICT'
-                      ? (409 as const)
-                      : (400 as const),
+                    : (400 as const),
                 code: error.code,
                 message: error.message
               }
-            : {
-                status: 500 as const,
-                code: 'unknown' as const,
-                message: error instanceof Error ? error.message : String(error)
-              }
+            : error instanceof AgentFileStoreError
+              ? {
+                  status:
+                    error.code === 'NOT_FOUND'
+                      ? (404 as const)
+                      : error.code === 'CONFLICT'
+                        ? (409 as const)
+                        : (400 as const),
+                  code: error.code,
+                  message: error.message
+                }
+              : {
+                  status: 500 as const,
+                  code: 'unknown' as const,
+                  message: error instanceof Error ? error.message : String(error)
+                }
     return context.json(failure(mapped.code, mapped.message), mapped.status)
   })
 
@@ -206,7 +248,8 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         !requestedMethod ||
         !['GET', 'POST', 'PUT', 'DELETE'].includes(requestedMethod) ||
         requestedHeaders.some(
-          (header) => !['authorization', 'content-type', 'x-actiondriver-file-name'].includes(header)
+          (header) =>
+            !['authorization', 'content-type', 'x-actiondriver-file-name'].includes(header)
         )
       ) {
         return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
@@ -214,8 +257,7 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       return context.body(null, 204, {
         'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
-        'Access-Control-Allow-Headers':
-          'Authorization, Content-Type, X-ActionDriver-File-Name',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-ActionDriver-File-Name',
         'Access-Control-Max-Age': '600',
         Vary: 'Origin'
       })
@@ -401,7 +443,8 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
       } catch {
         return context.json(failure('INPUT_FILE_NAME_INVALID', 'File name is invalid'), 400)
       }
-      if (!name) return context.json(failure('INPUT_FILE_NAME_INVALID', 'File name is required'), 400)
+      if (!name)
+        return context.json(failure('INPUT_FILE_NAME_INVALID', 'File name is required'), 400)
       const bytes = await readLimitedBytes(context.req.raw, MAX_INPUT_FILE_BYTES)
       if (!bytes) return context.json(failure('INPUT_FILE_TOO_LARGE', 'File is too large'), 413)
       try {
@@ -440,7 +483,10 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
         })
       } catch (error) {
         if (error instanceof OutputStoreError) {
-          return context.json(failure(error.code, error.message), error.code === 'OUTPUT_FILE_NOT_FOUND' ? 404 : 400)
+          return context.json(
+            failure(error.code, error.message),
+            error.code === 'OUTPUT_FILE_NOT_FOUND' ? 404 : 400
+          )
         }
         throw error
       }
@@ -561,6 +607,18 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
   }
   if (options.taskControl) {
     const tasks = options.taskControl
+    // Settings page: persisted "always allow" Computer Use grants live in the runtime store.
+    app.get('/computer-use/always-allowed', async (context) =>
+      context.json(success(await tasks.execute('computer-use.always-allowed.list', {})))
+    )
+    app.post('/computer-use/always-allowed/remove', validate(alwaysAllowedSchema), async (context) => {
+      const body = context.req.valid('json')
+      return context.json(
+        success(
+          await tasks.execute('computer-use.always-allowed.remove', { bundleId: body.bundleId })
+        )
+      )
+    })
     app.get('/tasks', async (context) => {
       const limit = Number(context.req.query('limit') ?? 20)
       if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -592,6 +650,20 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
           })
         )
       )
+    )
+    app.post(
+      '/tasks/:taskId/app-approvals/:approvalRequestId/decision',
+      validate(appApprovalDecisionSchema),
+      async (context) =>
+        context.json(
+          success(
+            await tasks.execute('task.decide-app-approval', {
+              taskId: context.req.param('taskId'),
+              requestId: context.req.param('approvalRequestId'),
+              decision: context.req.valid('json').decision
+            })
+          )
+        )
     )
     app.post(
       '/skills/invocations/:invocationId/control',
@@ -645,7 +717,7 @@ export async function startServiceHttpServer(
       })
     : null
   const localCapabilities = options.skillRegistry
-      ? attachLocalCapabilityService(server, {
+    ? attachLocalCapabilityService(server, {
         registry: options.skillRegistry,
         ...(options.computerImages ? { images: options.computerImages } : {}),
         tokenMatches: (token) => tokenMatches(token, tokenDigest)

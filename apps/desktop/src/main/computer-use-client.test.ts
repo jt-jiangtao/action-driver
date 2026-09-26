@@ -1,9 +1,9 @@
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, type Server, type Socket } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ComputerUseClient } from './computer-use-client'
+import { ComputerUseClient, helperLaunchArguments, owningAppBundle } from './computer-use-client'
 
 let server: Server | undefined
 let liveSocket: Socket | undefined
@@ -78,6 +78,35 @@ function createClient(helper: FakeHelper, overrides: Partial<{ connectTimeoutMs:
 }
 
 describe('ComputerUseClient', () => {
+  it('leaves ownership of the listening socket path to the helper when closing', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    const pending = client.execute({version:1,requestId:'before-close',
+      deadlineUnixMs:Date.now()+1000,operation:'permissions'})
+    await vi.waitFor(()=>expect(helper.requests).toHaveLength(1))
+    helper.reply({version:1,requestId:'before-close',ok:true,result:{}})
+    await pending
+    vi.useFakeTimers()
+    try {
+      client.close()
+      await vi.advanceTimersByTimeAsync(400)
+      expect(existsSync(helper.socketPath)).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('reads the current token when establishing a connection after token replacement', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    writeFileSync(helper.tokenPath, 'replacement-token', {mode: 0o600})
+    const pending = client.execute({version:1,requestId:'rotated-token',
+      deadlineUnixMs:Date.now()+1000,operation:'permissions'})
+    await vi.waitFor(()=>expect(helper.requests).toHaveLength(1))
+    expect(helper.handshakes).toEqual(['replacement-token'])
+    helper.reply({version:1,requestId:'rotated-token',ok:true,result:{}})
+    await pending
+    client.close()
+  })
   it('handshakes with a token and correlates a fragmented reply', async () => {
     const helper = await startFakeHelper()
     const client = createClient(helper)
@@ -119,7 +148,8 @@ describe('ComputerUseClient', () => {
     const client = createClient(helper)
     const pending = client.execute({
       version: 1, requestId: 'observe-1', deadlineUnixMs: Date.now() + 1000,
-      operation: 'observe', maxDepth: 8, maxElements: 100
+      operation: 'app-state', sessionId: 'session-1', app: 'com.apple.Notes',
+      maxDepth: 8, maxElements: 100
     })
     await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
     helper.close()
@@ -129,18 +159,38 @@ describe('ComputerUseClient', () => {
 
   it('fails when no helper ever starts listening', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'actiondriver-nohelper-'))
+    const launch = vi.fn()
     const client = new ComputerUseClient({
       helperPath: '/unused/ActionDriver Computer Use.app',
       socketPath: join(directory, 'missing.sock'),
       tokenPath: join(directory, 'missing.token'),
-      launch: () => undefined,
+      ownerAppPath: '/Applications/ActionDriver.app',
+      launch,
       connectTimeoutMs: 150
     })
     await expect(client.execute({
       version: 1, requestId: 'observe-2', deadlineUnixMs: Date.now() + 5000,
-      operation: 'observe', maxDepth: 8, maxElements: 100
+      operation: 'app-state', sessionId: 'session-1', app: 'com.apple.Notes',
+      maxDepth: 8, maxElements: 100
     })).rejects.toThrow('ENGINE_UNAVAILABLE')
+    expect(launch).toHaveBeenCalledTimes(1)
+    expect(launch).toHaveBeenCalledWith('/unused/ActionDriver Computer Use.app',
+      join(directory, 'missing.sock'), join(directory, 'missing.token'), '/Applications/ActionDriver.app')
     client.close()
+  })
+
+  // The helper refuses to drive ActionDriver itself, which it can only recognize by path (D9).
+  it('names ActionDriver itself when launching the helper', () => {
+    expect(helperLaunchArguments('/h.app', '/s.sock', '/t.token', '/Applications/ActionDriver.app')).toEqual([
+      '-a', '/h.app', '--args', '--socket', '/s.sock', '--token-file', '/t.token',
+      '--owner-app', '/Applications/ActionDriver.app'
+    ])
+    expect(helperLaunchArguments('/h.app', '/s.sock', '/t.token')).not.toContain('--owner-app')
+    expect(owningAppBundle('/Applications/ActionDriver.app/Contents/MacOS/ActionDriver'))
+      .toBe('/Applications/ActionDriver.app')
+    expect(owningAppBundle('/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'))
+      .toBe('/repo/node_modules/electron/dist/Electron.app')
+    expect(owningAppBundle('/usr/local/bin/node')).toBeUndefined()
   })
 
   it('sends cancellation to the helper and rejects the original call', async () => {
@@ -149,13 +199,72 @@ describe('ComputerUseClient', () => {
     const abort = new AbortController()
     const pending = client.execute({
       version: 1, requestId: 'observe-3', deadlineUnixMs: Date.now() + 1000,
-      operation: 'observe', maxDepth: 8, maxElements: 100
+      operation: 'app-state', sessionId: 'session-1', app: 'com.apple.Notes',
+      maxDepth: 8, maxElements: 100
     }, abort.signal)
     await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
     abort.abort()
     await expect(pending).rejects.toThrow('CANCELLED')
     await vi.waitFor(() => expect(helper.requests.some((request) =>
       request.operation === 'cancel')).toBe(true))
+    client.close()
+  })
+})
+
+describe('helper uncertain outcomes', () => {
+  it('reports unknown action outcome on timeout and ignores a late success without resending', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    const action = client.execute({ version: 1, requestId: 'slow-action', deadlineUnixMs: Date.now() + 200,
+      operation: 'act', sessionId: 'session-1', app: 'com.apple.Notes',
+      action: { type: 'click', x: 1, y: 2 } })
+    const failed = expect(action).rejects.toThrow('动作可能已执行')
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    await failed
+    helper.reply({ version: 1, requestId: 'slow-action', ok: true, result: { executed: true } })
+    const observe = client.execute({ version: 1, requestId: 'after-timeout', deadlineUnixMs: Date.now() + 1000,
+      operation: 'permissions' })
+    await vi.waitFor(() => expect(helper.requests.some(r => r.requestId === 'after-timeout')).toBe(true))
+    helper.reply({ version: 1, requestId: 'after-timeout', ok: true, result: { accessibility: true } })
+    await expect(observe).resolves.toEqual({ accessibility: true })
+    expect(helper.requests.filter(r => r.requestId === 'slow-action')).toHaveLength(1)
+    client.close()
+  })
+
+  it('reports an unknown action outcome when the connection closes after dispatch', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    const action = client.execute({ version: 1, requestId: 'lost-action', deadlineUnixMs: Date.now() + 1000,
+      operation: 'act', sessionId: 'session-1', app: 'com.apple.Notes',
+      action: { type: 'click', x: 1, y: 2 } })
+    const failed = expect(action).rejects.toThrow('动作可能已执行')
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    helper.close()
+    await failed
+    expect(helper.requests.filter(r => r.requestId === 'lost-action')).toHaveLength(1)
+    client.close()
+  })
+})
+
+describe('queued helper cancellation', () => {
+  it('cancels before dispatch without waiting for an earlier request to finish', async () => {
+    const helper = await startFakeHelper()
+    const client = createClient(helper)
+    const first = client.execute({ version: 1, requestId: 'blocking', deadlineUnixMs: Date.now() + 2000,
+      operation: 'permissions' })
+    void first.catch(() => undefined)
+    await vi.waitFor(() => expect(helper.requests).toHaveLength(1))
+    const abort = new AbortController()
+    let cancelled = false
+    const queued = client.execute({ version: 1, requestId: 'queued', deadlineUnixMs: Date.now() + 2000,
+      operation: 'permissions' }, abort.signal)
+    void queued.catch(() => { cancelled = true })
+    abort.abort()
+    await vi.waitFor(() => expect(cancelled).toBe(true), { timeout: 300 })
+    await expect(queued).rejects.toThrow('CANCELLED')
+    expect(helper.requests).toHaveLength(1)
+    helper.reply({ version: 1, requestId: 'blocking', ok: true, result: {} })
+    await first
     client.close()
   })
 })

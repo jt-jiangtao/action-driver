@@ -19,6 +19,7 @@ import { SessionInputFileStore } from '../src/media/session-input-file-store'
 import { SessionWorkspaceStore } from '../src/execution/session-workspace'
 import type { AgentFileStore } from '../src/agent-files/agent-file-store'
 import type { SkillInstaller } from '../src/agent-files/skill-installer'
+import { AppApprovalError } from '../src/computer-use/app-approval-broker'
 
 const connection: ModelConnectionDto = {
   id: 'company-gateway',
@@ -94,22 +95,58 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 
 describe('service HTTP surface', () => {
   it('accepts and returns per-capability model results', async () => {
-    const capabilities = { text: { state: 'success', source: 'probe' }, image_generation: { state: 'failed', source: 'probe', failure: { code: 'provider-error', message: 'Generation failed' } } } as const
-    const add = vi.fn(async () => ({ ...connection, models: [{ id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success' as const, capabilities }] }))
-    const testModels = vi.fn(async () => [{ modelId: 'hybrid', state: 'success' as const, capabilities }])
+    const capabilities = {
+      text: { state: 'success', source: 'probe' },
+      image_generation: {
+        state: 'failed',
+        source: 'probe',
+        failure: { code: 'provider-error', message: 'Generation failed' }
+      }
+    } as const
+    const add = vi.fn(async () => ({
+      ...connection,
+      models: [
+        { id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success' as const, capabilities }
+      ]
+    }))
+    const testModels = vi.fn(async () => [
+      { modelId: 'hybrid', state: 'success' as const, capabilities }
+    ])
     await startService({ add, testModels })
     const result = await authorized('/model-connections/test-models', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, modelIds: ['hybrid'] })
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        draft: {
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example.com/v1',
+          apiKey: 'sk-test'
+        },
+        modelIds: ['hybrid']
+      })
     })
     expect(result.status).toBe(200)
     expect(await result.json()).toMatchObject({ value: [{ modelId: 'hybrid', capabilities }] })
     const saved = await authorized('/model-connections', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ draft: { name: 'Gateway', protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', apiKey: 'sk-test' }, models: [{ id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success', capabilities }] })
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        draft: {
+          name: 'Gateway',
+          protocol: 'openai-compatible',
+          baseUrl: 'https://api.example.com/v1',
+          apiKey: 'sk-test'
+        },
+        models: [
+          { id: 'hybrid', name: 'hybrid', enabled: true, testState: 'success', capabilities }
+        ]
+      })
     })
     expect(saved.status).toBe(200)
-    expect(add).toHaveBeenCalledWith(expect.objectContaining({ models: [expect.objectContaining({ capabilities })] }))
+    expect(add).toHaveBeenCalledWith(
+      expect.objectContaining({ models: [expect.objectContaining({ capabilities })] })
+    )
   })
   it('routes image capability and default model settings through authenticated APIs', async () => {
     const setDefaultImageModel = vi.fn(async () => undefined)
@@ -307,6 +344,88 @@ describe('service HTTP surface', () => {
     ])
   })
 
+  // 3.2: the settings page reads and revokes persisted "always allow" grants over these routes.
+  it('exposes the always-allowed grants and validates the removal body', async () => {
+    const execute = vi.fn(async () => ({ bundleIds: ['com.apple.Notes'] }))
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      taskControl: { execute }
+    })
+    expect((await authorized('/computer-use/always-allowed')).status).toBe(200)
+    expect(execute).toHaveBeenCalledWith('computer-use.always-allowed.list', {})
+    const removed = await authorized('/computer-use/always-allowed/remove', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ bundleId: 'com.apple.Notes' })
+    })
+    expect(removed.status).toBe(200)
+    expect(execute).toHaveBeenCalledWith('computer-use.always-allowed.remove', {
+      bundleId: 'com.apple.Notes'
+    })
+    const invalidBody = await authorized('/computer-use/always-allowed/remove', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ bundleId: '' })
+    })
+    expect(invalidBody.status).toBe(400)
+  })
+
+  it('routes application decisions through a dedicated command and validates the body', async () => {
+    const execute = vi.fn(async () => ({ accepted: true }))
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      taskControl: { execute }
+    })
+    const path = '/tasks/task-1/app-approvals/approval-1/decision'
+    const response = await authorized(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decision: 'session' })
+    })
+    expect(response.status).toBe(200)
+    expect(execute).toHaveBeenCalledExactlyOnceWith('task.decide-app-approval', {
+      taskId: 'task-1',
+      requestId: 'approval-1',
+      decision: 'session'
+    })
+    for (const body of [{ decision: 'invalid' }, { decision: 'once', value: 'injected' }, {}]) {
+      const invalid = await authorized(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      expect(invalid.status).toBe(400)
+    }
+    expect(execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports stale application decisions as a conflict', async () => {
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      taskControl: {
+        execute: async () => {
+          throw new AppApprovalError('APPROVAL_STALE', 'approval ended')
+        }
+      }
+    })
+    const response = await authorized('/tasks/task-1/app-approvals/approval-1/decision', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decision: 'once' })
+    })
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'APPROVAL_STALE' }
+    })
+  })
+
   it('rejects invalid write payloads with 400 before calling the service', async () => {
     const { service } = await startService()
     const cases = [
@@ -482,11 +601,14 @@ describe('service HTTP surface', () => {
       enabled: false
     })
 
-    const retired = await authorized('/model-connections/company-gateway/models/qwen3.7-plus/kind', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind: 'image' })
-    })
+    const retired = await authorized(
+      '/model-connections/company-gateway/models/qwen3.7-plus/kind',
+      {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind: 'image' })
+      }
+    )
     expect(retired.status).toBe(404)
 
     await authorized('/model-connections/company-gateway', { method: 'DELETE' })

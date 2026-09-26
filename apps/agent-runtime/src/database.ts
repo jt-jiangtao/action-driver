@@ -424,6 +424,16 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
     up(database) {
       repairSessionInputFiles(database)
     }
+  },
+  {
+    version: 16,
+    name: 'add-computer-app-approvals',
+    up(database) {
+      database.exec(`CREATE TABLE computer_app_approvals (
+        bundle_id TEXT PRIMARY KEY,
+        approved_at TEXT NOT NULL
+      )`)
+    }
   }
 ]
 

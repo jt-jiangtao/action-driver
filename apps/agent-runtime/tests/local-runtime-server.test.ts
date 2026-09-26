@@ -12,6 +12,7 @@ import {
   type ModelGateway
 } from '../src/index'
 import { ComputerUseControlGate } from '../src/computer-use/control-gate'
+import { AppApprovalBroker } from '../src/computer-use/app-approval-broker'
 
 function createHarness(
   modelGateway: ModelGateway,
@@ -20,7 +21,9 @@ function createHarness(
       taskId: string
     ): Promise<Extract<StreamServerEvent, { type: 'response.snapshot' }> | null>
   },
-  computerControl?: ComputerUseControlGate
+  computerControl?: ComputerUseControlGate,
+  appApprovals?: AppApprovalBroker,
+  appApprovalStore?: { list(): string[]; remove(bundleId: string): void }
 ) {
   const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-server-')), 'actiondriver.db')
   const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
@@ -28,6 +31,8 @@ function createHarness(
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
   const server = createLocalRuntimeServer({
     adapters: local.adapters,
+    ...(appApprovals ? { appApprovals } : {}),
+    ...(appApprovalStore ? { appApprovalStore } : {}),
     ...(computerControl ? { computerControl } : {}),
     messages: repositories.messages,
     ...(streamSnapshots ? { streamSnapshots } : {})
@@ -38,29 +43,126 @@ function createHarness(
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('local Runtime server composition', () => {
+  // 3.2: the settings page lists and revokes persisted "always allow" grants through these commands.
+  it('lists and removes always-allowed applications', async () => {
+    const allowed = new Set(['com.apple.Notes', 'com.apple.Preview'])
+    const store = {
+      list: () => [...allowed].sort(),
+      remove: (bundleId: string) => {
+        allowed.delete(bundleId)
+      }
+    }
+    const harness = createHarness({ complete: async () => ({ kind: 'finish', content: 'unused' }) }, undefined, undefined, undefined, store)
+    await expect(harness.server.execute('computer-use.always-allowed.list', {})).resolves.toEqual({
+      bundleIds: ['com.apple.Notes', 'com.apple.Preview']
+    })
+    await expect(
+      harness.server.execute('computer-use.always-allowed.remove', { bundleId: 'com.apple.Notes' })
+    ).resolves.toEqual({ bundleIds: ['com.apple.Preview'] })
+    await expect(
+      harness.server.execute('computer-use.always-allowed.remove', { bundleId: '  ' })
+    ).rejects.toThrow(/bundleId/)
+    harness.repositories.close()
+  })
+
+  it('reports Computer Use as unavailable without an approval store', async () => {
+    const harness = createHarness({ complete: async () => ({ kind: 'finish', content: 'unused' }) })
+    await expect(harness.server.execute('computer-use.always-allowed.list', {})).rejects.toThrow(
+      /COMPUTER_USE_UNAVAILABLE/
+    )
+    harness.repositories.close()
+  })
+
+  it('settles the same broker without calling the graph or replaying a task', async () => {
+    const complete = vi.fn(async () => ({ kind: 'finish' as const, content: 'unexpected' }))
+    const broker = new AppApprovalBroker({
+      queryPolicy: async () => ({
+        decision: 'allowed',
+        allowPersistentApproval: true,
+        target: {
+          bundleId: 'com.apple.Notes',
+          displayName: 'Notes',
+          appPath: '/System/Applications/Notes.app',
+          risk: 'low'
+        }
+      }),
+      isAlwaysAllowed: async () => false,
+      persistAlwaysAllowed: async () => {},
+      emit: () => {},
+      withSuspendedTimeout: async (_, wait) => wait()
+    })
+    const harness = createHarness({ complete }, undefined, undefined, broker)
+    const waiting = broker.authorize(
+      { taskId: 'stream-task', sessionId: 'session' },
+      { app: 'Notes' }
+    )
+    await vi.waitFor(() => expect(broker.getPending('stream-task')).toHaveLength(1))
+    const requestId = broker.getPending('stream-task')[0]!.requestId
+    await expect(
+      harness.server.execute('task.decide-app-approval', {
+        taskId: 'foreign-task',
+        requestId,
+        decision: 'once'
+      })
+    ).rejects.toThrow('APPROVAL_STALE')
+    await expect(
+      harness.server.execute('task.decide-app-approval', {
+        taskId: 'stream-task',
+        requestId,
+        decision: 'once'
+      })
+    ).resolves.toEqual({ accepted: true })
+    await expect(waiting).resolves.toMatchObject({ app: '/System/Applications/Notes.app' })
+    await expect(
+      harness.server.execute('task.decide-app-approval', {
+        taskId: 'stream-task',
+        requestId,
+        decision: 'once'
+      })
+    ).rejects.toThrow('APPROVAL_STALE')
+    expect(complete).not.toHaveBeenCalled()
+    await harness.server.close()
+  })
   it('interrupts a Computer Use task on takeover and resumes only after control returns', async () => {
     const gate = new ComputerUseControlGate()
     let started!: () => void
-    const firstStarted = new Promise<void>((resolve) => { started = resolve })
+    const firstStarted = new Promise<void>((resolve) => {
+      started = resolve
+    })
     let calls = 0
-    const harness = createHarness({ async complete(_request, signal) {
-      if (++calls > 1) return { kind: 'finish', content: '完成' }
-      started()
-      return await new Promise((_, reject) => signal?.addEventListener('abort',
-        () => reject(new DOMException('aborted', 'AbortError')), { once: true }))
-    } }, undefined, gate)
-    const { taskId } = await harness.server.execute('task.submit', {
-      goal: '操作桌面', model, skills: []
-    }) as { taskId: string }
+    const harness = createHarness(
+      {
+        async complete(_request, signal) {
+          if (++calls > 1) return { kind: 'finish', content: '完成' }
+          started()
+          return await new Promise((_, reject) =>
+            signal?.addEventListener(
+              'abort',
+              () => reject(new DOMException('aborted', 'AbortError')),
+              { once: true }
+            )
+          )
+        }
+      },
+      undefined,
+      gate
+    )
+    const { taskId } = (await harness.server.execute('task.submit', {
+      goal: '操作桌面',
+      model,
+      skills: []
+    })) as { taskId: string }
     await firstStarted
-    const taken = await harness.server.execute('skill.control', {
-      invocationId: taskId, command: 'take-over'
-    }) as { event: { skillId: string; state: string } }
+    const taken = (await harness.server.execute('skill.control', {
+      invocationId: taskId,
+      command: 'take-over'
+    })) as { event: { skillId: string; state: string } }
     expect(taken.event).toMatchObject({ skillId: 'computer-use', state: 'taken-over' })
     expect(() => gate.assertRunning(taskId)).toThrow('COMPUTER_USE_TAKEN_OVER')
     await harness.server.execute('skill.control', { invocationId: taskId, command: 'resume' })
-    await vi.waitFor(async () => expect((await harness.repositories.tasks.get(taskId))?.status)
-      .toBe('completed'))
+    await vi.waitFor(async () =>
+      expect((await harness.repositories.tasks.get(taskId))?.status).toBe('completed')
+    )
     expect(() => gate.assertRunning(taskId)).not.toThrow()
   })
   it('restores the first turn duration and activity when opening a later turn', async () => {

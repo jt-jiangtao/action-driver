@@ -185,7 +185,7 @@ describe('runtime SQLite database', () => {
     ).toThrow()
     upgraded.close()
     expect(
-      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v15-'))
+      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v16-'))
     ).toBe(true)
   })
   it('creates the business schema with production pragmas before becoming ready', () => {
@@ -236,7 +236,8 @@ describe('runtime SQLite database', () => {
       { version: 12 },
       { version: 13 },
       { version: 14 },
-      { version: 15 }
+      { version: 15 },
+      { version: 16 }
     ])
 
     expect(
@@ -296,7 +297,8 @@ describe('runtime SQLite database', () => {
       { version: 12, count: 1 },
       { version: 13, count: 1 },
       { version: 14, count: 1 },
-      { version: 15, count: 1 }
+      { version: 15, count: 1 },
+      { version: 16, count: 1 }
     ])
 
     database.close()
@@ -305,7 +307,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 16,
+      version: 17,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -315,7 +317,7 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 16 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 17 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
@@ -333,7 +335,8 @@ describe('runtime SQLite database', () => {
       { version: 12 },
       { version: 13 },
       { version: 14 },
-      { version: 15 }
+      { version: 15 },
+      { version: 16 }
     ])
     expect(
       database
@@ -380,7 +383,9 @@ describe('runtime SQLite database', () => {
       .run()
     expect(() =>
       drifted
-        .prepare("UPDATE session_input_files SET status = 'bound', task_id = 'task-not-yet-saved' WHERE file_id = 'kept'")
+        .prepare(
+          "UPDATE session_input_files SET status = 'bound', task_id = 'task-not-yet-saved' WHERE file_id = 'kept'"
+        )
         .run()
     ).toThrow(/FOREIGN KEY/)
     drifted.close()
@@ -389,7 +394,9 @@ describe('runtime SQLite database', () => {
     expect(database.prepare('PRAGMA foreign_key_list(session_input_files)').all()).toEqual([])
     expect(
       database
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'session_input_files' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name")
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'session_input_files' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name"
+        )
         .all()
     ).toEqual([
       { name: 'session_input_files_session_created_idx' },
@@ -401,7 +408,9 @@ describe('runtime SQLite database', () => {
       )
       .run()
     expect(
-      database.prepare("SELECT status, task_id FROM session_input_files WHERE file_id = 'kept'").get()
+      database
+        .prepare("SELECT status, task_id FROM session_input_files WHERE file_id = 'kept'")
+        .get()
     ).toEqual({ status: 'bound', task_id: 'task-not-yet-saved' })
     database.close()
   })
@@ -411,12 +420,21 @@ describe('runtime SQLite database', () => {
     const database = openRuntimeDatabase(path)
     expect(database.prepare('PRAGMA foreign_key_list(session_input_files)').all()).toEqual([])
     expect(
-      (database.prepare('PRAGMA table_info(session_input_files)').all() as Array<{ name: string }>).map(
-        (column) => column.name
-      )
+      (
+        database.prepare('PRAGMA table_info(session_input_files)').all() as Array<{ name: string }>
+      ).map((column) => column.name)
     ).toEqual([
-      'file_id', 'status', 'session_id', 'task_id', 'name', 'mime_type', 'byte_length',
-      'relative_path', 'checksum', 'created_at', 'bound_at'
+      'file_id',
+      'status',
+      'session_id',
+      'task_id',
+      'name',
+      'mime_type',
+      'byte_length',
+      'relative_path',
+      'checksum',
+      'created_at',
+      'bound_at'
     ])
     database.close()
   })

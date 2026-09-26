@@ -7,6 +7,7 @@ import { AgentFileStore } from '../src/agent-files/agent-file-store'
 import { SkillInstaller } from '../src/agent-files/skill-installer'
 import { createSkillRuntimeTools } from '../src/agent-files/runtime-tools'
 import { createScriptTools } from '../src/execution/tools'
+import { LoadedSkills } from '../src/computer-use/skill-gate'
 import { RuntimeToolPolicy } from '../src/tool-policy'
 
 function sessionContext(workspaceRoot: string): ToolExecutionContext {
@@ -62,6 +63,18 @@ async function collectEvents(
 }
 
 describe('Skill Runtime tools', () => {
+  it('records the entry Skill by conversation session including an explicit SKILL.md path', async () => {
+    const { homeDirectory, store, call } = await fixture()
+    const loaded = new LoadedSkills()
+    const tools = createSkillRuntimeTools({ store, installer: new SkillInstaller({ homeDirectory, store }), loadedSkills: loaded })
+    const read = tools.find(tool => tool.definition.modelName === 'skill_read')!
+    for await (const _event of read.executor.execute(call('skill_read', { skillId: 'skill-creator', path: 'SKILL.md' }),
+      undefined, sessionContext(homeDirectory))) { /* consume the real read */ }
+    expect(loaded.has('session-1', 'skill-creator')).toBe(true)
+    expect(loaded.has('task-1', 'skill-creator')).toBe(false)
+    expect(loaded.has('session-2', 'skill-creator')).toBe(false)
+  })
+
   it('refuses to install a Skill that lives in another session workspace', async () => {
     const { homeDirectory, store, tools } = await fixture()
     const other = join(homeDirectory, 'output', 'sessions', 'session-b')
