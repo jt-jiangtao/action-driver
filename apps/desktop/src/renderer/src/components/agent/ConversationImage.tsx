@@ -1,52 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Download, X } from 'lucide-react'
 import type { ImageAssetRef } from '@actiondriver/contracts'
 import { e2eId } from '../../testing/e2e-id'
+import { useObjectUrl } from '../../hooks/use-object-url'
+import { ImagePreviewGroup } from './ImagePreviewGroup'
 
 export type ImageReader = (sessionId: string, assetId: string) => Promise<Blob>
 
+/** One thumbnail. Opening it is the group's decision; the thumbnail only reports its URL. */
 export function ConversationImage({
   asset,
-  readImage
+  readImage,
+  onOpen,
+  onUrlChange
 }: {
   asset: ImageAssetRef
   readImage?: ImageReader | undefined
+  onOpen?: ((assetId: string) => void) | undefined
+  onUrlChange?: ((assetId: string, url: string | null) => void) | undefined
 }) {
-  const [url, setUrl] = useState<string | null>(null)
-  const [error, setError] = useState(false)
-  const [zoomed, setZoomed] = useState(false)
+  const load = useCallback(
+    () => readImage!(asset.sessionId, asset.assetId),
+    [asset.assetId, asset.sessionId, readImage]
+  )
+  const loaded = useObjectUrl(readImage ? load : null)
+  const [failed, setFailed] = useState(false)
+  const url = failed ? null : loaded.url
   useEffect(() => {
-    let cancelled = false
-    let objectUrl: string | null = null
-    if (!readImage) {
-      setError(true)
-      return
-    }
-    setError(false)
-    setUrl(null)
-    void readImage(asset.sessionId, asset.assetId)
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setUrl(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setError(true)
-      })
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [asset.assetId, asset.sessionId, readImage])
-  useEffect(() => {
-    if (!zoomed) return
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setZoomed(false)
-    }
-    window.addEventListener('keydown', onEscape)
-    return () => window.removeEventListener('keydown', onEscape)
-  }, [zoomed])
-  if (error)
+    onUrlChange?.(asset.assetId, url)
+  }, [asset.assetId, onUrlChange, url])
+  if (loaded.error || failed)
     return (
       <span className="conversation-image-missing" role="status">
         图片无法读取
@@ -67,17 +50,13 @@ export function ConversationImage({
         data-testid={e2eId('e2e/tasks/detail/images/:asset-id/open#button', {
           'asset-id': asset.assetId
         })}
-        onClick={() => setZoomed(true)}
+        onClick={() => onOpen?.(asset.assetId)}
       >
-        <img
-          src={url}
-          alt={asset.source === 'generated' ? '生成的图片' : '上传的图片'}
-          onError={() => setError(true)}
-        />
+        <img src={url} alt={imageAlt(asset)} onError={() => setFailed(true)} />
       </button>
       <a
         href={url}
-        download={`${asset.assetId}.${asset.mimeType.split('/')[1] === 'jpeg' ? 'jpg' : asset.mimeType.split('/')[1]}`}
+        download={downloadName(asset)}
         aria-label="保存图片"
         data-testid={e2eId('e2e/tasks/detail/images/:asset-id/save#link', {
           'asset-id': asset.assetId
@@ -86,26 +65,61 @@ export function ConversationImage({
       >
         <Download size={15} />
       </a>
-      {zoomed ? (
-        <div
-          className="conversation-image-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="图片预览"
-        >
-          <button
-            type="button"
-            aria-label="关闭图片预览"
-            data-testid={e2eId('e2e/tasks/detail/images/:asset-id/close#button', {
-              'asset-id': asset.assetId
-            })}
-            onClick={() => setZoomed(false)}
-          >
-            <X size={20} />
-          </button>
-          <img src={url} alt="图片预览" />
-        </div>
-      ) : null}
     </span>
   )
+}
+
+/**
+ * Preview state for one group of conversation images (one generation call or one message). The
+ * thumbnails report their URLs; the preview switches only within this group.
+ */
+export function useImagePreview(assets: readonly ImageAssetRef[]): {
+  open(assetId: string): void
+  reportUrl(assetId: string, url: string | null): void
+  preview: ReactNode
+} {
+  const [urls, setUrls] = useState<Record<string, string | null>>({})
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const reportUrl = useCallback((assetId: string, url: string | null) => {
+    setUrls((current) => (current[assetId] === url ? current : { ...current, [assetId]: url }))
+  }, [])
+  const open = useCallback(
+    (assetId: string) => {
+      const index = assets.findIndex((asset) => asset.assetId === assetId)
+      if (index >= 0) setOpenIndex(index)
+    },
+    [assets]
+  )
+  const preview = assets.length ? (
+    <ImagePreviewGroup
+      items={assets.map((asset) => ({
+        key: asset.assetId,
+        url: urls[asset.assetId] ?? null,
+        alt: imageAlt(asset),
+        downloadName: downloadName(asset)
+      }))}
+      openIndex={openIndex}
+      onOpenChange={setOpenIndex}
+      renderClose={(image) => (
+        <span
+          aria-label="关闭图片预览"
+          data-testid={e2eId('e2e/tasks/detail/images/:asset-id/close#button', {
+            'asset-id': image.key
+          })}
+        >
+          <X size={20} aria-hidden="true" />
+        </span>
+      )}
+    />
+  ) : null
+  return { open, reportUrl, preview }
+}
+
+function imageAlt(asset: ImageAssetRef): string {
+  return asset.source === 'generated' ? '生成的图片' : '上传的图片'
+}
+
+function downloadName(asset: ImageAssetRef): string {
+  const subtype = asset.mimeType.split('/')[1]
+  return `${asset.assetId}.${subtype === 'jpeg' ? 'jpg' : subtype}`
 }

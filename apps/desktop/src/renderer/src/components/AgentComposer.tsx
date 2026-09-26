@@ -7,6 +7,7 @@ import { ModelSelector } from './model-selector/ModelSelector'
 import type { ModelRef } from '@actiondriver/contracts'
 import { e2eId } from '../testing/e2e-id'
 import { useScrollFade } from './scroll-fade'
+import { ImagePreviewGroup } from './agent/ImagePreviewGroup'
 
 type Paragraph = { type: 'paragraph'; children: { text: string }[] }
 
@@ -69,14 +70,6 @@ export function AgentComposer({
     },
     [previews]
   )
-  useEffect(() => {
-    if (zoomedPreviewIndex === null) return
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setZoomedPreviewIndex(null)
-    }
-    window.addEventListener('keydown', onEscape)
-    return () => window.removeEventListener('keydown', onEscape)
-  }, [zoomedPreviewIndex])
   const initialValue = useMemo<Descendant[]>(
     () => [{ type: 'paragraph', children: [{ text: initialText }] } as Paragraph],
     [initialText]
@@ -142,7 +135,6 @@ export function AgentComposer({
       )
       .finally(() => setSubmitting(false))
   }
-  const zoomedPreview = zoomedPreviewIndex === null ? null : previews[zoomedPreviewIndex]
 
   return (
     <div
@@ -257,24 +249,25 @@ export function AgentComposer({
           }}
         />
       </Slate>
-      {zoomedPreview?.url ? (
-        <div
-          className="conversation-image-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="待发送图片预览"
-        >
-          <button
-            type="button"
-            aria-label="关闭待发送图片预览"
+      {/* All images waiting to be sent form one preview group. */}
+      <ImagePreviewGroup
+        items={previews.map((preview, index) => ({
+          key: `${preview.file.name}:${index}`,
+          url: preview.url,
+          alt: preview.file.name,
+          downloadName: preview.file.name
+        }))}
+        openIndex={zoomedPreviewIndex}
+        onOpenChange={setZoomedPreviewIndex}
+        renderClose={() => (
+          <span
+            aria-label="关闭图片预览"
             data-testid="e2e/shared/composer/images/preview-close#button"
-            onClick={() => setZoomedPreviewIndex(null)}
           >
-            <X size={20} />
-          </button>
-          <img src={zoomedPreview.url} alt={zoomedPreview.file.name} />
-        </div>
-      ) : null}
+            <X size={20} aria-hidden="true" />
+          </span>
+        )}
+      />
       {submitError ? (
         <div className="composer-submit-error" role="alert">
           {submitError}

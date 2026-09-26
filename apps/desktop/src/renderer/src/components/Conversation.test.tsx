@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ConversationMessages, TaskHeader } from './Conversation'
@@ -6,6 +6,49 @@ import { AgentResponse } from './agent/AgentResponse'
 import { UserMessage } from './agent/UserMessage'
 import { mockTaskFixture } from '../services/mock-task-fixture'
 import agentStyles from '../styles/agent.css?raw'
+
+/** The image the preview currently shows, or null while it is closed. */
+function previewSource(): string | null {
+  return document.querySelector('.image-preview img')?.getAttribute('src') ?? null
+}
+
+function imageAsset(assetId: string, source: 'generated' | 'upload' = 'generated') {
+  return {
+    assetId,
+    sessionId: 'session-1',
+    mimeType: 'image/png' as const,
+    width: 1,
+    height: 1,
+    byteLength: 20,
+    source
+  }
+}
+
+/** Object URLs named after the asset they were read for, so a test can tell images apart. */
+function stubObjectUrls() {
+  const owners = new Map<Blob, string>()
+  const previous = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+  URL.createObjectURL = vi.fn((blob: Blob) => `blob:${owners.get(blob)}`)
+  URL.revokeObjectURL = vi.fn()
+  const readImage = vi.fn(async (_sessionId: string, assetId: string) => {
+    const blob = new Blob(['png'], { type: 'image/png' })
+    owners.set(blob, assetId)
+    return blob
+  })
+  return {
+    readImage,
+    restore() {
+      URL.createObjectURL = previous.create
+      URL.revokeObjectURL = previous.revoke
+    }
+  }
+}
+
+function pressArrowRight() {
+  act(() => {
+    fireEvent.keyDown(window, { key: 'ArrowRight', keyCode: 39, which: 39 })
+  })
+}
 
 describe('conversation components', () => {
   it('shows an attached document as a card with its format, name and size', () => {
@@ -288,6 +331,70 @@ describe('conversation components', () => {
       URL.revokeObjectURL = previousRevoke
     }
   })
+  it('switches between the images of one generation call but not into another call', async () => {
+    const urls = stubObjectUrls()
+    let view: ReturnType<typeof render> | undefined
+    try {
+      view = render(
+        <AgentResponse
+          message={{
+            id: 'a',
+            role: 'agent',
+            content: '',
+            parts: [
+              { kind: 'image-batch', callId: 'first', imageCount: 2, order: 1 },
+              { kind: 'image', asset: imageAsset('a0'), generation: { callId: 'first', index: 0 }, order: 2 },
+              { kind: 'image', asset: imageAsset('a1'), generation: { callId: 'first', index: 1 }, order: 3 },
+              { kind: 'image-batch', callId: 'second', imageCount: 1, order: 4 },
+              { kind: 'image', asset: imageAsset('b0'), generation: { callId: 'second', index: 0 }, order: 5 }
+            ]
+          }}
+          readImage={urls.readImage}
+        />
+      )
+      expect(await screen.findAllByRole('img', { name: '生成的图片' })).toHaveLength(3)
+      fireEvent.click(screen.getByTestId('e2e/tasks/detail/images/a0/open#button'))
+      expect(previewSource()).toBe('blob:a0')
+
+      pressArrowRight()
+      expect(previewSource()).toBe('blob:a1')
+      pressArrowRight()
+      expect(previewSource()).toBe('blob:a1')
+    } finally {
+      view?.unmount()
+      urls.restore()
+    }
+  })
+
+  it('switches between the images one user message uploaded', async () => {
+    const urls = stubObjectUrls()
+    let view: ReturnType<typeof render> | undefined
+    try {
+      view = render(
+        <UserMessage
+          message={{
+            id: 'u',
+            role: 'user',
+            content: '看这两张',
+            parts: [
+              { kind: 'text', text: '看这两张' },
+              { kind: 'image', asset: imageAsset('u0', 'upload') },
+              { kind: 'image', asset: imageAsset('u1', 'upload') }
+            ]
+          }}
+          readImage={urls.readImage}
+        />
+      )
+      expect(await screen.findAllByRole('img', { name: '上传的图片' })).toHaveLength(2)
+      fireEvent.click(screen.getByTestId('e2e/tasks/detail/images/u0/open#button'))
+      pressArrowRight()
+      expect(previewSource()).toBe('blob:u1')
+    } finally {
+      view?.unmount()
+      urls.restore()
+    }
+  })
+
   it('loads a generated image, opens it with the keyboard, and offers download', async () => {
     const previousCreate = URL.createObjectURL
     const previousRevoke = URL.revokeObjectURL
@@ -318,9 +425,10 @@ describe('conversation components', () => {
         'asset-1.png'
       )
       await user.click(screen.getByRole('button', { name: '放大图片' }))
-      expect(screen.getByRole('dialog', { name: '图片预览' })).toBeVisible()
+      expect(previewSource()).toBe('blob:conversation-image')
+      expect(screen.getByRole('button', { name: 'rotateRight' })).toBeInTheDocument()
       await user.keyboard('{Escape}')
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(previewSource()).toBeNull()
       view.unmount()
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:conversation-image')
     } finally {

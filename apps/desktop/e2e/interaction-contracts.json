@@ -1046,5 +1046,21 @@
     "coverage": "functional",
     "testFile": "apps/desktop/src/renderer/src/pages/pages.test.tsx",
     "testName": "shows the exact Computer Use action and sends a single-call approval"
+  },
+  {
+    "target": "e2e/shared/image-preview/save#link",
+    "route": "shared",
+    "type": "link",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/agent/ImagePreviewGroup.test.tsx",
+    "testName": "saves the image on screen"
+  },
+  {
+    "target": "e2e/tasks/detail/output-file/preview#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/src/renderer/src/components/agent/TaskOutputFiles.test.tsx",
+    "testName": "previews the image deliverables as one group and skips the documents"
   }
 ]

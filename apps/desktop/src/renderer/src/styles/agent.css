@@ -959,6 +959,8 @@
 }
 .task-output-file-thumb {
   flex: none;
+  padding: 0;
+  border: 0;
   display: grid;
   place-items: center;
   width: 26px;
@@ -967,6 +969,9 @@
   border-radius: 6px;
   background: var(--ad-color-bg-subtle, #f1f1f2);
   color: var(--ad-color-text-secondary);
+}
+button.task-output-file-thumb {
+  cursor: zoom-in;
 }
 .task-output-file-thumb img {
   width: 100%;
@@ -1185,25 +1190,37 @@
   color: var(--ad-color-text-secondary);
   font-size: 12px;
 }
-.conversation-image-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 48px;
+/* Image preview (antd Image.PreviewGroup), scoped to its own root so other antd components keep
+   their theme. Matches the dark overlay the conversation used before. */
+/* The headers are window drag regions, which the OS resolves before the page regardless of what
+   is stacked on top; without this the close button in the top corner only drags the window. */
+.image-preview {
+  -webkit-app-region: no-drag;
+}
+.image-preview .ant-image-preview-mask {
   background: rgb(0 0 0 / 82%);
 }
-.conversation-image-overlay img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+.image-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.conversation-image-overlay > button {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+.image-preview-save {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: rgb(255 255 255 / 85%);
+}
+.image-preview-save:hover,
+.image-preview-save:focus-visible {
+  background: rgb(255 255 255 / 12%);
   color: white;
+}
+.image-preview-loading {
+  color: rgb(255 255 255 / 85%);
+  font-size: 13px;
 }
 /* Codex-like markdown scale: 14px body, modest headings, calm colours. */
 .markdown-content {

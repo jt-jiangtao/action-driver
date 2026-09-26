@@ -27,15 +27,18 @@ describe('AgentComposer', () => {
       expect(preview?.querySelector('.composer-image-preview-meta')).not.toBeNull()
       expect(preview?.querySelector('img')).toHaveAttribute('alt', 'wide-screenshot.png')
       expect(agentStyles).toMatch(/\.composer-image-preview img\s*\{[^}]*object-fit:\s*contain/s)
+      const previewSource = () =>
+        document.querySelector('.image-preview img')?.getAttribute('src') ?? null
       await user.click(screen.getByRole('button', { name: '放大 wide-screenshot.png' }))
-      expect(screen.getByRole('dialog', { name: '待发送图片预览' })).toBeVisible()
+      expect(previewSource()).toBe(preview?.querySelector('img')?.getAttribute('src'))
+      expect(screen.getByRole('button', { name: 'flipX' })).toBeInTheDocument()
       await user.keyboard('{Escape}')
-      expect(screen.queryByRole('dialog', { name: '待发送图片预览' })).not.toBeInTheDocument()
+      expect(previewSource()).toBeNull()
       screen.getByRole('button', { name: '放大 wide-screenshot.png' }).focus()
       await user.keyboard('{Enter}')
-      expect(screen.getByRole('dialog', { name: '待发送图片预览' })).toBeVisible()
-      await user.click(screen.getByRole('button', { name: '关闭待发送图片预览' }))
-      expect(screen.queryByRole('dialog', { name: '待发送图片预览' })).not.toBeInTheDocument()
+      expect(previewSource()).not.toBeNull()
+      await user.click(screen.getByLabelText('关闭图片预览'))
+      expect(previewSource()).toBeNull()
       view.unmount()
       view = undefined
     } finally {

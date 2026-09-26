@@ -1,6 +1,6 @@
 import type { AgentMessageProjection } from '@actiondriver/contracts'
-import { memo } from 'react'
-import { ConversationImage, type ImageReader } from './ConversationImage'
+import { memo, useMemo } from 'react'
+import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
 import documentIconUrl from '../../assets/file-document.png'
 import pdfIconUrl from '../../assets/file-pdf.png'
 import presentationIconUrl from '../../assets/file-presentation.png'
@@ -27,6 +27,12 @@ export const UserMessage = memo(function UserMessage({
   message: AgentMessageProjection
   readImage?: ImageReader | undefined
 }) {
+  // The images one message uploaded form one preview group.
+  const assets = useMemo(
+    () => (message.parts ?? []).flatMap((part) => (part.kind === 'image' ? [part.asset] : [])),
+    [message.parts]
+  )
+  const { open, reportUrl, preview } = useImagePreview(assets)
   if (!message.parts?.some((part) => part.kind === 'image' || part.kind === 'document'))
     return <div className="user-message">{message.content}</div>
   return (
@@ -39,6 +45,8 @@ export const UserMessage = memo(function UserMessage({
               key={`${part.asset.assetId}:${index}`}
               asset={part.asset}
               readImage={readImage}
+              onOpen={open}
+              onUrlChange={reportUrl}
             />
           ) : part.kind === 'document' ? (
             <article
@@ -63,6 +71,7 @@ export const UserMessage = memo(function UserMessage({
             <span key={`text:${index}`}>{part.text}</span>
           ) : null
         )}
+      {preview}
     </div>
   )
 })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Image as ImageIcon, SquareArrowOutUpRight } from 'lucide-react'
 import type { TaskOutputFileProjection } from '@actiondriver/contracts'
 import { openTaskOutput } from '../../services/task-output-open'
@@ -7,6 +7,8 @@ import pdfIconUrl from '../../assets/file-pdf.png'
 import presentationIconUrl from '../../assets/file-presentation.png'
 import spreadsheetIconUrl from '../../assets/file-spreadsheet.png'
 import imageIconUrl from '../../assets/file-image.svg'
+import { useObjectUrl } from '../../hooks/use-object-url'
+import { ImagePreviewGroup } from './ImagePreviewGroup'
 
 const FORMAT_LABELS: Record<string, string> = {
   'application/pdf': 'PDF',
@@ -28,6 +30,17 @@ export function TaskOutputFiles({
   readOutputFile?: OutputFileReader | undefined
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // The task's image deliverables form one preview group; documents stay out of it.
+  const images = useMemo(() => files.filter((file) => file.kind === 'image'), [files])
+  const [urls, setUrls] = useState<Record<string, string | null>>({})
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const reportUrl = useCallback((fileId: string, url: string | null) => {
+    setUrls((current) => (current[fileId] === url ? current : { ...current, [fileId]: url }))
+  }, [])
+  const openImage = useCallback(
+    (fileId: string) => setOpenIndex(images.findIndex((file) => file.fileId === fileId)),
+    [images]
+  )
   if (files.length === 0) return null
   return (
     <section className="task-output-files" aria-label="任务成品">
@@ -39,7 +52,12 @@ export function TaskOutputFiles({
           data-testid="e2e/tasks/detail/output-file#section"
         >
           {file.kind === 'image' && readOutputFile ? (
-            <TaskOutputThumbnail file={file} readOutputFile={readOutputFile} />
+            <TaskOutputThumbnail
+              file={file}
+              readOutputFile={readOutputFile}
+              onOpen={openImage}
+              onUrlChange={reportUrl}
+            />
           ) : (
             <img
               className="task-output-file-icon"
@@ -78,37 +96,52 @@ export function TaskOutputFiles({
           ) : null}
         </article>
       ))}
+      <ImagePreviewGroup
+        items={images.map((file) => ({
+          key: file.fileId,
+          url: urls[file.fileId] ?? null,
+          alt: file.name,
+          downloadName: file.name
+        }))}
+        openIndex={openIndex}
+        onOpenChange={setOpenIndex}
+      />
     </section>
   )
 }
 
 function TaskOutputThumbnail({
   file,
-  readOutputFile
+  readOutputFile,
+  onOpen,
+  onUrlChange
 }: {
   file: TaskOutputFileProjection
   readOutputFile: OutputFileReader
+  onOpen(fileId: string): void
+  onUrlChange(fileId: string, url: string | null): void
 }) {
-  const [url, setUrl] = useState<string | null>(null)
+  const load = useCallback(
+    () => readOutputFile(file.sessionId, file.fileId, file.taskId),
+    [file.fileId, file.sessionId, file.taskId, readOutputFile]
+  )
+  const { url } = useObjectUrl(load)
   useEffect(() => {
-    let revoked: string | null = null
-    let cancelled = false
-    void readOutputFile(file.sessionId, file.fileId, file.taskId)
-      .then((blob) => {
-        if (cancelled) return
-        const next = URL.createObjectURL(blob)
-        revoked = next
-        setUrl(next)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-      if (revoked) URL.revokeObjectURL(revoked)
-    }
-  }, [file.fileId, file.sessionId, file.taskId, readOutputFile])
-  return (
+    onUrlChange(file.fileId, url)
+  }, [file.fileId, onUrlChange, url])
+  return url ? (
+    <button
+      type="button"
+      className="task-output-file-thumb"
+      aria-label={`预览 ${file.name}`}
+      data-testid="e2e/tasks/detail/output-file/preview#button"
+      onClick={() => onOpen(file.fileId)}
+    >
+      <img src={url} alt={file.name} />
+    </button>
+  ) : (
     <span className="task-output-file-thumb">
-      {url ? <img src={url} alt={file.name} /> : <ImageIcon size={16} aria-hidden="true" />}
+      <ImageIcon size={16} aria-hidden="true" />
     </span>
   )
 }

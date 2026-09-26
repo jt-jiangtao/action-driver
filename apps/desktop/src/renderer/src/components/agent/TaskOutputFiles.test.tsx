@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { TaskOutputFiles } from './TaskOutputFiles'
@@ -31,6 +31,40 @@ function withBridge(open: (input: unknown) => Promise<void>) {
 }
 
 describe('task output files', () => {
+  it('previews the image deliverables as one group and skips the documents', async () => {
+    const previous = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+    const owners = new Map<Blob, string>()
+    URL.createObjectURL = vi.fn((blob: Blob) => `blob:${owners.get(blob)}`)
+    URL.revokeObjectURL = vi.fn()
+    const readOutputFile = vi.fn(async (_sessionId: string, fileId: string) => {
+      const blob = new Blob(['png'], { type: 'image/png' })
+      owners.set(blob, fileId)
+      return blob
+    })
+    const withSecondImage = [
+      ...files,
+      { ...files[1]!, fileId: 'file-3', name: 'photo.png' }
+    ]
+    const previewSource = () =>
+      document.querySelector('.image-preview img')?.getAttribute('src') ?? null
+    let view: ReturnType<typeof render> | undefined
+    try {
+      view = render(<TaskOutputFiles files={withSecondImage} readOutputFile={readOutputFile} />)
+      fireEvent.click(await screen.findByRole('button', { name: '预览 chart.png' }))
+      expect(previewSource()).toBe('blob:file-2')
+
+      act(() => {
+        fireEvent.keyDown(window, { key: 'ArrowRight', keyCode: 39, which: 39 })
+      })
+      expect(previewSource()).toBe('blob:file-3')
+      expect(readOutputFile).not.toHaveBeenCalledWith('session-1', 'file-1', 'task-1')
+    } finally {
+      view?.unmount()
+      URL.createObjectURL = previous.create
+      URL.revokeObjectURL = previous.revoke
+    }
+  })
+
   it('shows each deliverable with format, name, size and an open action', async () => {
     const user = userEvent.setup()
     const open = vi.fn(async () => undefined)
