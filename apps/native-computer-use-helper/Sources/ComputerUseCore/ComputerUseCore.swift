@@ -24,6 +24,16 @@ public struct ComputerUseAction {
     public let deltaX: Double?
     public let deltaY: Double?
     public let milliseconds: Int?
+    public let value: String?
+    public let format: String?
+    public let prefix: String?
+    public let suffix: String?
+    public let selectionType: String?
+    public let fromX: Double?
+    public let fromY: Double?
+    public let toX: Double?
+    public let toY: Double?
+    public let actionName: String?
 }
 
 public struct ComputerUseRequest {
@@ -171,6 +181,9 @@ public struct ComputerUseRequest {
         var x: Double?, y: Double?, elementRef: String?, text: String?, key: String?
         var modifiers: [String] = []
         var deltaX: Double?, deltaY: Double?, milliseconds: Int?
+        var value: String?, format: String?, prefix: String?, suffix: String?
+        var selectionType: String?, fromX: Double?, fromY: Double?, toX: Double?, toY: Double?
+        var actionName: String?
         switch type {
         case "click":
             expected.formUnion(["x", "y"])
@@ -205,6 +218,62 @@ public struct ComputerUseRequest {
         case "wait":
             expected.insert("milliseconds")
             milliseconds = try boundedInt(object["milliseconds"], 0...10_000)
+        case "set-value":
+            expected.formUnion(["elementRef", "value"])
+            guard let reference = object["elementRef"] as? String, (1...256).contains(reference.count),
+                  let newValue = object["value"] as? String, newValue.count <= 8_192 else {
+                throw ComputerUseError.invalidRequest("set-value requires an element reference and value")
+            }
+            elementRef = reference
+            value = newValue
+        case "paste":
+            expected.formUnion(["text", "format"])
+            guard let pasteText = object["text"] as? String, pasteText.count <= 200_000,
+                  let pasteFormat = object["format"] as? String,
+                  ["text", "md", "html"].contains(pasteFormat) else {
+                throw ComputerUseError.invalidRequest("paste requires text and a supported format")
+            }
+            text = pasteText
+            format = pasteFormat
+        case "select-text":
+            expected.formUnion(["elementRef", "text"])
+            guard let reference = object["elementRef"] as? String, (1...256).contains(reference.count),
+                  let target = object["text"] as? String, target.count <= 8_192 else {
+                throw ComputerUseError.invalidRequest("select-text requires an element reference and text")
+            }
+            elementRef = reference
+            text = target
+            for (key, bound) in [("prefix", 2_048), ("suffix", 2_048)] {
+                if let raw = object[key] {
+                    guard let parsed = raw as? String, parsed.count <= bound else {
+                        throw ComputerUseError.invalidRequest("select-text \(key) invalid")
+                    }
+                    expected.insert(key)
+                    if key == "prefix" { prefix = parsed } else { suffix = parsed }
+                }
+            }
+            if let raw = object["selectionType"] {
+                guard let parsed = raw as? String,
+                      ["text", "cursor-before", "cursor-after"].contains(parsed) else {
+                    throw ComputerUseError.invalidRequest("select-text selectionType invalid")
+                }
+                expected.insert("selectionType")
+                selectionType = parsed
+            }
+        case "drag":
+            expected.formUnion(["fromX", "fromY", "toX", "toY"])
+            fromX = try boundedDouble(object["fromX"], -100_000...100_000)
+            fromY = try boundedDouble(object["fromY"], -100_000...100_000)
+            toX = try boundedDouble(object["toX"], -100_000...100_000)
+            toY = try boundedDouble(object["toY"], -100_000...100_000)
+        case "secondary-action":
+            expected.formUnion(["elementRef", "action"])
+            guard let reference = object["elementRef"] as? String, (1...256).contains(reference.count),
+                  let name = object["action"] as? String, (1...128).contains(name.count) else {
+                throw ComputerUseError.invalidRequest("secondary-action requires an element reference and action")
+            }
+            elementRef = reference
+            actionName = name
         default:
             throw ComputerUseError.invalidRequest("Unsupported action")
         }
@@ -213,7 +282,10 @@ public struct ComputerUseRequest {
         }
         return ComputerUseAction(type: type, x: x, y: y, elementRef: elementRef,
                                  text: text, key: key, modifiers: modifiers,
-                                 deltaX: deltaX, deltaY: deltaY, milliseconds: milliseconds)
+                                 deltaX: deltaX, deltaY: deltaY, milliseconds: milliseconds,
+                                 value: value, format: format, prefix: prefix, suffix: suffix,
+                                 selectionType: selectionType, fromX: fromX, fromY: fromY,
+                                 toX: toX, toY: toY, actionName: actionName)
     }
 }
 

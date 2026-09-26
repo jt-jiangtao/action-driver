@@ -367,6 +367,25 @@ public final class NativeComputerUseService {
             try scroll(deltaX: action.deltaX ?? 0, deltaY: action.deltaY ?? 0)
         case "wait":
             try await Task.sleep(nanoseconds: UInt64(action.milliseconds ?? 0) * 1_000_000)
+        case "set-value":
+            let element = try staleCheckedElement(action.elementRef)
+            guard AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString,
+                                               (action.value ?? "") as CFTypeRef) == .success else {
+                throw NativeComputerUseError.actionFailed("Unable to set the element value")
+            }
+        case "paste":
+            try paste(text: action.text ?? "", format: action.format ?? "text")
+        case "select-text":
+            try selectText(in: staleCheckedElement(action.elementRef), action: action)
+        case "drag":
+            try drag(from: CGPoint(x: action.fromX ?? 0, y: action.fromY ?? 0),
+                     to: CGPoint(x: action.toX ?? 0, y: action.toY ?? 0))
+        case "secondary-action":
+            let element = try staleCheckedElement(action.elementRef)
+            guard AXUIElementPerformAction(element, (action.actionName ?? "") as CFString) == .success else {
+                throw NativeComputerUseError.actionFailed(
+                    "The element does not expose the requested secondary action")
+            }
         default:
             throw ComputerUseError.invalidRequest("Unsupported action")
         }
@@ -376,6 +395,97 @@ public final class NativeComputerUseService {
 
     private func requireEventPosting() throws {
         guard CGPreflightPostEventAccess() else { throw NativeComputerUseError.eventPostingDenied }
+    }
+
+    /// Re-validates a stored element reference against its live attributes before acting on it.
+    private func staleCheckedElement(_ reference: String?) throws -> AXUIElement {
+        guard let reference, let snapshot = elements[reference] else {
+            throw ComputerUseError.staleReference
+        }
+        let element = snapshot.element
+        guard (attributeValue(element, kAXRoleAttribute as CFString) as? String) == snapshot.role,
+              (attributeValue(element, kAXTitleAttribute as CFString) as? String) == snapshot.title,
+              (attributeValue(element, kAXIdentifierAttribute as CFString) as? String) == snapshot.identifier,
+              elementFrame(element) == snapshot.frame else {
+            throw ComputerUseError.staleReference
+        }
+        return element
+    }
+
+    /// Pastes through the system pasteboard and restores whatever the user had copied before.
+    private func paste(text: String, format: String) throws {
+        try requireEventPosting()
+        let pasteboard = NSPasteboard.general
+        let saved = pasteboard.pasteboardItems?.compactMap { item
+            -> [NSPasteboard.PasteboardType: Data]? in
+            var copy: [NSPasteboard.PasteboardType: Data] = [:]
+            for type in item.types { if let data = item.data(forType: type) { copy[type] = data } }
+            return copy.isEmpty ? nil : copy
+        }
+        pasteboard.clearContents()
+        switch format {
+        case "html": pasteboard.setString(text, forType: .html)
+        default: pasteboard.setString(text, forType: .string)
+        }
+        try pressKey("v", modifiers: ["command"])
+        guard let saved, !saved.isEmpty else { return }
+        pasteboard.clearContents()
+        pasteboard.writeObjects(saved.map { entry in
+            let item = NSPasteboardItem()
+            for (type, data) in entry { item.setData(data, forType: type) }
+            return item
+        })
+    }
+
+    private func drag(from start: CGPoint, to end: CGPoint) throws {
+        try requireEventPosting()
+        guard let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown,
+                                 mouseCursorPosition: start, mouseButton: .left),
+              let move = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDragged,
+                                 mouseCursorPosition: end, mouseButton: .left),
+              let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp,
+                               mouseCursorPosition: end, mouseButton: .left) else {
+            throw NativeComputerUseError.actionFailed("Unable to create drag events")
+        }
+        down.post(tap: .cghidEventTap)
+        move.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+    }
+
+    private func selectText(in element: AXUIElement, action: ComputerUseAction) throws {
+        guard let current = attributeValue(element, kAXValueAttribute as CFString) as? String,
+              let target = action.text, !target.isEmpty else {
+            throw NativeComputerUseError.actionFailed("The element has no selectable text value")
+        }
+        var matches: [Range<String.Index>] = []
+        var searchStart = current.startIndex
+        while let found = current.range(of: target, range: searchStart..<current.endIndex) {
+            matches.append(found)
+            searchStart = found.upperBound
+        }
+        let disambiguated = matches.first { range in
+            let prefixMatches = action.prefix.map { !$0.isEmpty &&
+                current[..<range.lowerBound].hasSuffix($0) } ?? true
+            let suffixMatches = action.suffix.map { !$0.isEmpty &&
+                current[range.upperBound...].hasPrefix($0) } ?? true
+            return prefixMatches && suffixMatches
+        }
+        guard let range = disambiguated else {
+            throw NativeComputerUseError.actionFailed("Text not found in the element value")
+        }
+        var lower = current.distance(from: current.startIndex, to: range.lowerBound)
+        var upper = current.distance(from: current.startIndex, to: range.upperBound)
+        switch action.selectionType ?? "text" {
+        case "cursor-before": upper = lower
+        case "cursor-after": lower = upper
+        default: break
+        }
+        var cfRange = CFRange(location: lower, length: max(0, upper - lower))
+        guard let value = AXValueCreate(.cfRange, &cfRange),
+              AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString,
+                                           value) == .success else {
+            throw NativeComputerUseError.actionFailed("Unable to set the selection range")
+        }
     }
 
     private func click(_ point: CGPoint) throws {

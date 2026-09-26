@@ -14,6 +14,19 @@ const action = z.discriminatedUnion('type', [
   z.object({ type: z.literal('key'), key: z.string().min(1).max(64), modifiers: z.array(z.enum(['command', 'control', 'option', 'shift'])).max(4) }).strict(),
   z.object({ type: z.literal('scroll'), deltaX: z.number().finite().min(-10_000).max(10_000), deltaY: z.number().finite().min(-10_000).max(10_000) }).strict(),
   z.object({ type: z.literal('wait'), milliseconds: z.number().int().min(0).max(10_000) }).strict()
+  ,
+  z.object({ type: z.literal('set-value'), elementRef: z.string().min(1).max(256),
+    value: z.string().max(8_192) }).strict(),
+  z.object({ type: z.literal('paste'), text: z.string().max(200_000),
+    format: z.enum(['text', 'md', 'html']) }).strict(),
+  z.object({ type: z.literal('select-text'), elementRef: z.string().min(1).max(256),
+    text: z.string().max(8_192), prefix: z.string().max(2_048).optional(),
+    suffix: z.string().max(2_048).optional(),
+    selectionType: z.enum(['text', 'cursor-before', 'cursor-after']).optional() }).strict(),
+  z.object({ type: z.literal('drag'), fromX: finiteCoordinate, fromY: finiteCoordinate,
+    toX: finiteCoordinate, toY: finiteCoordinate }).strict(),
+  z.object({ type: z.literal('secondary-action'), elementRef: z.string().min(1).max(256),
+    action: z.string().min(1).max(128) }).strict()
 ])
 
 export const computerHelperRequest = z.discriminatedUnion('operation', [

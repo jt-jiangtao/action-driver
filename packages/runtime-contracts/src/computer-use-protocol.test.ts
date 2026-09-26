@@ -57,6 +57,27 @@ describe('computer helper protocol', () => {
     }).success).toBe(true)
   })
 
+  it('accepts the Codex-parity action set and rejects malformed variants', () => {
+    const base = {
+      version: 1, requestId: 'act-1', deadlineUnixMs: Date.now() + 1000,
+      operation: 'act', observationId: 'observation-1'
+    }
+    const actions = [
+      { type: 'set-value', elementRef: 'ref-1', value: 'hello' },
+      { type: 'paste', text: 'hello', format: 'md' },
+      { type: 'select-text', elementRef: 'ref-1', text: 'hello', selectionType: 'cursor-after' },
+      { type: 'drag', fromX: 1, fromY: 2, toX: 30, toY: 40 },
+      { type: 'secondary-action', elementRef: 'ref-1', action: 'Show Menu' }
+    ]
+    for (const action of actions) {
+      expect(computerHelperRequest.safeParse({ ...base, action }).success).toBe(true)
+    }
+    expect(computerHelperRequest.safeParse({ ...base,
+      action: { type: 'paste', text: 'x', format: 'pdf' } }).success).toBe(false)
+    expect(computerHelperRequest.safeParse({ ...base,
+      action: { type: 'set-value', elementRef: 'ref-1' } }).success).toBe(false)
+  })
+
   it('keeps helper errors structured and rejects unknown response fields', () => {
     const error = {
       version: 1,

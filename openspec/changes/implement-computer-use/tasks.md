@@ -90,6 +90,8 @@
 - 开发签名：本机无 Apple 签名身份，改为独立钥匙串 `~/Library/Keychains/actiondriver-dev.keychain-db` 中的自签名 `ActionDriver Dev Signing`；构建用 `ACTIONDRIVER_CODESIGN_IDENTITY` + `ACTIONDRIVER_CODESIGN_KEYCHAIN` 传入，脚本会先解锁该钥匙串。
 - 路径长度坑：Unix domain socket 路径上限约 104 字节，e2e 的临时 userData 路径会超限导致 bind 失败；socket 因此改放到 `os.tmpdir()`（`actiondriver-computer-use.sock`）。helper 在 socket 创建失败时直接退出，避免每次重试都残留一个空转进程。
 - 构建脚本现在**默认**使用本机开发签名身份（存在 `actiondriver-dev.keychain-db` 时），否则才退回 ad-hoc；这样 `pnpm dev`、e2e、打包冒烟的重建都不会再把授权条目弄失效。
+- 打包冒烟（`pnpm test:e2e:packaged:macos`）在启动路径改为 LaunchServices + socket 之后重跑通过：打包应用启动内置 Runtime 并完成 Renderer 鉴权（1 项通过，18.7s）。
+- `pnpm test:e2e:local` 在该版本为 7 通过 / 1 失败，失败项是既有的 Token Plan 生图接口下拉框用例（与本次改动无关）。
 
 ## 验证记录
 
