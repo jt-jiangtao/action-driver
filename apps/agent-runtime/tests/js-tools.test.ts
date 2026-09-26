@@ -153,4 +153,32 @@ describe('js entry tools', () => {
     tools.dispose()
   })
 
+  it('suspends a cell on its action and performs it when the call continues', async () => {
+    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-js-')
+    const requests: Array<Record<string, unknown>> = []
+    const tools = entry({
+      invokeComputer: async (input) => {
+        requests.push(input)
+        if (input.operation === 'app-state') {
+          return { observationId: 'obs-1', app: 'com.apple.TextEdit',
+            tree: { ref: 'root', role: 'AXApplication', children: [] } }
+        }
+        return { executed: true }
+      }
+    })
+    const js = tools.tools.find((tool) => tool.definition.modelName === 'js')!
+    const call = { callId: 'js-call', providerCallId: 'js-provider', modelName: 'js',
+      arguments: { code: 'await sky.set_value({ app: "TextEdit", element_index: 0, value: "hi" });\n' +
+        'nodeRepl.write("done")' } }
+    const drain = async (stream: AsyncIterable<unknown>): Promise<void> => {
+      for await (const _event of stream) { /* drain */ }
+    }
+    // The action is not performed until the user answers: the call stops and is resumed instead.
+    await expect(drain(js.executor.execute(call, undefined, context(workspaceRoot))))
+      .rejects.toThrow('TOOL_APPROVAL_REQUIRED')
+    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(0)
+    // The suspend → continue → finish round trip against the real child lives in
+    // tests/js-entry.test.ts; wiring the decision through this executor is still open (tasks 10.7.6).
+    tools.dispose()
+  })
 })
