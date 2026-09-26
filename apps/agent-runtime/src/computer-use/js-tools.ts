@@ -13,6 +13,7 @@ import type {
 } from '@actiondriver/runtime-contracts'
 import { SessionSandbox, type SandboxPrepared } from '../execution/session-sandbox'
 import { resolveExecutionRuntimePaths } from '../execution/runtime-paths'
+import { classifyCellActions } from './cell-actions'
 import type { ComputerUseControlGate } from './control-gate'
 import { JsReplHost, type JsReplChild } from './js-repl'
 import { createSkySession, type SkySession } from './sky-session'
@@ -39,7 +40,10 @@ const JS_DESCRIPTION =
   '`sky` and `nodeRepl` are also available as globals. Use `nodeRepl.write(value)` for output and ' +
   '`nodeRepl.emitImage({ bytes, mimeType })` for images. Screenshots are written to files and ' +
   'returned as `screenshot.url` file URLs. Files can be written under `output/`; the working ' +
-  'directory itself is read-only. Top-level static imports and node:process are unavailable.'
+  'directory itself is read-only. Top-level static imports and node:process are unavailable. ' +
+  'A call whose code mentions a method that changes the desktop (click, drag, paste, press_key, ' +
+  'select_text, set_value, type_text, perform_secondary_action) is confirmed by the user before it ' +
+  'runs, so keep one such action per call; observation-only calls run without a prompt.'
 
 const jsSchema: ToolDefinition['inputSchema'] = {
   type: 'object',
@@ -68,6 +72,8 @@ export function createJsEntryTools(options: {
   const sandbox = options.sandbox ?? new SessionSandbox({ runtimeRoots: [options.runtimeDist] })
   const sessions = new Map<string, TaskSession>()
   const workspaces = new Map<string, SessionWorkspacePaths>()
+  /** Whether the cell currently running for a task may change the desktop. */
+  const actingCells = new Map<string, boolean>()
 
   const skyFor = (taskId: string): SkySession => {
     const session = sessions.get(taskId)
@@ -85,7 +91,10 @@ export function createJsEntryTools(options: {
       session.sky.dispose()
       void session.sandbox.dispose()
     },
-    callSky: async (taskId, method, args, signal) => await skyFor(taskId).invoke(method, args, signal),
+    callSky: async (taskId, method, args, signal) =>
+      await skyFor(taskId).invoke(method, args, signal, {
+        allowActions: actingCells.get(taskId) === true
+      }),
     ...(options.defaultTimeoutMs === undefined
       ? {} : { defaultTimeoutMs: options.defaultTimeoutMs })
   })
@@ -149,6 +158,9 @@ export function createJsEntryTools(options: {
         options.gate?.assertRunning(execution.taskId)
         const { code, timeoutMs } = readInput(call.arguments)
         workspaces.set(execution.taskId, execution.workspace)
+        // The graph asks the user before running a cell that may act; this is the same verdict, and
+        // it is what allows the sky layer to perform the action inside that cell.
+        actingCells.set(execution.taskId, classifyCellActions(code).acts)
 
         const queue: ToolExecutorEvent[] = []
         // Held in one object so the closures below and the loop after them agree on every value.
@@ -187,6 +199,7 @@ export function createJsEntryTools(options: {
           } catch (error) {
             state.failure = error instanceof Error ? error : new Error(String(error))
           } finally {
+            actingCells.delete(execution.taskId)
             state.finished = true
             state.notify?.()
             state.notify = null

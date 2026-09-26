@@ -216,8 +216,21 @@ export function TaskPage({
               {task.status === 'waiting-user' && task.pendingComputerApproval &&
                 <section className="computer-action-approval" aria-label="Computer Use 动作确认">
                   <h2>确认这一步桌面操作</h2>
-                  <p>ActionDriver 将在当前应用执行以下动作。确认仅适用于这一次调用。</p>
-                  <pre>{describeComputerAction(task.pendingComputerApproval.action)}</pre>
+                  {'cell' in task.pendingComputerApproval
+                    ? <>
+                        <p>
+                          这段 JavaScript 会操作桌面（
+                          {describeComputerCellActions(task.pendingComputerApproval.cell.actions)}）。
+                          确认仅适用于这一次调用。
+                        </p>
+                        {task.pendingComputerApproval.cell.title &&
+                          <p>{task.pendingComputerApproval.cell.title}</p>}
+                        <pre>{task.pendingComputerApproval.cell.code}</pre>
+                      </>
+                    : <>
+                        <p>ActionDriver 将在当前应用执行以下动作。确认仅适用于这一次调用。</p>
+                        <pre>{describeComputerAction(task.pendingComputerApproval.action)}</pre>
+                      </>}
                   {approvalError && <p role="alert">{approvalError}</p>}
                   <div>
                     <button type="button" data-testid="e2e/tasks/detail/computer/approval-deny#button"
@@ -296,4 +309,15 @@ function describeComputerAction(action: Record<string, unknown>): string {
     case 'key': return `按键：${[...(Array.isArray(action.modifiers) ? action.modifiers : []), action.key].join(' + ')}`
     default: return JSON.stringify(action)
   }
+}
+
+/** Names the desktop actions a JavaScript cell may perform, for the approval card. */
+const COMPUTER_CELL_ACTION_LABELS: Record<string, string> = {
+  click: '点击', drag: '拖拽', paste: '粘贴', press_key: '按键', select_text: '选中文本',
+  set_value: '写入字段', type_text: '输入文本', perform_secondary_action: '次级动作'
+}
+
+function describeComputerCellActions(actions: readonly string[]): string {
+  if (actions.length === 0) return '桌面动作'
+  return actions.map((action) => COMPUTER_CELL_ACTION_LABELS[action] ?? action).join('、')
 }

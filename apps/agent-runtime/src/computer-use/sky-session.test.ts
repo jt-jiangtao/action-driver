@@ -55,7 +55,7 @@ describe('sky session', () => {
   it('resolves an element index against the latest state', async () => {
     const { session, calls } = harness()
     await session.invoke('get_app_state', { app: 'TextEdit' })
-    await session.invoke('click', { app: 'TextEdit', element_index: 2 })
+    await session.invoke('click', { app: 'TextEdit', element_index: 2 }, undefined, { allowActions: true })
     const acts = calls.filter((call) => call.operation === 'act')
     expect(acts).toHaveLength(1)
     expect(acts[0]!.action).toEqual({ type: 'click-element', elementRef: 'button' })
@@ -64,7 +64,8 @@ describe('sky session', () => {
 
   it('reads the interface first when the app has no state yet', async () => {
     const { session, calls } = harness()
-    await session.invoke('set_value', { app: 'TextEdit', element_index: 1, value: 'hello' })
+    await session.invoke('set_value', { app: 'TextEdit', element_index: 1, value: 'hello' },
+      undefined, { allowActions: true })
     expect(calls.map((call) => call.operation)).toEqual(['app-state', 'act'])
     expect(calls[1]!.action).toEqual({ type: 'set-value', elementRef: 'field', value: 'hello' })
   })
@@ -79,7 +80,7 @@ describe('sky session', () => {
       return { executed: true }
     })
     await session.invoke('get_app_state', { app: 'TextEdit' })
-    await session.invoke('click', { app: 'TextEdit', element_index: 0 })
+    await session.invoke('click', { app: 'TextEdit', element_index: 0 }, undefined, { allowActions: true })
     const acts = calls.filter((call) => call.operation === 'act')
     expect(acts).toHaveLength(2)
     expect(acts[1]!.observationId).not.toBe('obs-1')
@@ -88,16 +89,18 @@ describe('sky session', () => {
   it('rejects an element index outside the latest state', async () => {
     const { session, calls } = harness()
     await session.invoke('get_app_state', { app: 'TextEdit' })
-    await expect(session.invoke('click', { app: 'TextEdit', element_index: 99 }))
+    await expect(session.invoke('click', { app: 'TextEdit', element_index: 99 }, undefined,
+      { allowActions: true }))
       .rejects.toThrow('element_index 99 is outside the latest state')
     expect(calls.filter((call) => call.operation === 'act')).toHaveLength(0)
   })
 
   it('translates keyboard syntax the helper understands', async () => {
     const { session, calls } = harness()
-    await session.invoke('press_key', { app: 'TextEdit', key: 'super+c' })
+    await session.invoke('press_key', { app: 'TextEdit', key: 'super+c' }, undefined, { allowActions: true })
     expect(calls.at(-1)!.action).toEqual({ type: 'key', key: 'c', modifiers: ['command'] })
-    await expect(session.invoke('press_key', { app: 'TextEdit', key: 'F13' }))
+    await expect(session.invoke('press_key', { app: 'TextEdit', key: 'F13' }, undefined,
+      { allowActions: true }))
       .rejects.toThrow('is not supported by the native helper')
   })
 
@@ -130,7 +133,28 @@ describe('sky session', () => {
     expect(result.app).toBe('com.apple.TextEdit')
     expect(calls.map((call) => call.operation)).toEqual(['app-state', 'list-apps', 'app-state'])
     // The learned spelling is reused, so the next call goes straight to the bundle id.
-    await session.invoke('click', { app: '文本编辑', element_index: 0 })
+    await session.invoke('click', { app: '文本编辑', element_index: 0 }, undefined, { allowActions: true })
     expect(calls.filter((call) => call.operation === 'app-state')).toHaveLength(2)
+  })
+
+  it('refuses a desktop action in a cell that was not confirmed', async () => {
+    const { session, calls } = harness()
+    await expect(session.invoke('click', { app: 'TextEdit', element_index: 0 }))
+      .rejects.toThrow('APPROVAL_REQUIRED')
+    await expect(session.invoke('type_text', { app: 'TextEdit', text: 'hi' }))
+      .rejects.toThrow('APPROVAL_REQUIRED')
+    // Reads and scrolling stay available without confirmation, exactly like `computer_act`.
+    await expect(session.invoke('list_apps', {})).resolves.toBeTruthy()
+    await session.invoke('scroll', { app: 'TextEdit', direction: 'down' })
+    expect(calls.some((call) => call.operation === 'act')).toBe(true)
+  })
+
+  it('performs the action once the cell is confirmed', async () => {
+    const { session, calls } = harness()
+    await session.invoke('get_app_state', { app: 'TextEdit' }, undefined, { allowActions: true })
+    await session.invoke('type_text', { app: 'TextEdit', text: 'hello' }, undefined,
+      { allowActions: true })
+    expect(calls.filter((call) => call.operation === 'act'))
+      .toEqual([{ operation: 'act', observationId: 'obs-1', action: { type: 'type', text: 'hello' } }])
   })
 })

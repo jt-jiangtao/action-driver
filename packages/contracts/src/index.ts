@@ -309,11 +309,22 @@ export interface TaskProjection {
    */
   orderedTranscript?: boolean
   browser: BrowserSkillProjection | null
-  pendingComputerApproval?: {
-    providerCallId: string
-    observationId: string
-    action: Record<string, unknown>
-  }
+  pendingComputerApproval?:
+    | {
+        providerCallId: string
+        observationId: string
+        action: Record<string, unknown>
+      }
+    /** A whole JavaScript call the user has to confirm before it runs. */
+    | {
+        providerCallId: string
+        cell: {
+          title?: string
+          code: string
+          codeLength: number
+          actions: string[]
+        }
+      }
 }
 
 export type ModelRef = {

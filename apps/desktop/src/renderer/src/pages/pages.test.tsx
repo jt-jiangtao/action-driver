@@ -23,6 +23,27 @@ describe('ActionDriver pages', () => {
     await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
     expect(onComputerDecision).toHaveBeenCalledWith(true, 'call-one')
   })
+  it('shows the JavaScript cell behind a confirmation and its desktop actions', async () => {
+    const onComputerDecision = vi.fn(async () => undefined)
+    render(<TaskPage mode="split" task={{ ...mockTaskFixture, browser: null,
+      status: 'waiting-user',
+      pendingComputerApproval: { providerCallId: 'js-call', cell: {
+        title: '保存文档',
+        code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
+        codeLength: 52,
+        actions: ['press_key']
+      } }
+    }} modelSelection={mockModelSelection} onSelectModel={vi.fn()}
+      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()}
+      onTakeOver={vi.fn()} onComputerDecision={onComputerDecision}
+      onInterrupt={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByText(/这段 JavaScript 会操作桌面（按键）/)).toBeVisible()
+    expect(screen.getByText('保存文档')).toBeVisible()
+    expect(screen.getByText(/await sky\.press_key/)).toBeVisible()
+    await userEvent.click(screen.getByTestId('e2e/tasks/detail/computer/approval-approve#button'))
+    expect(onComputerDecision).toHaveBeenCalledWith(true, 'js-call')
+  })
+
   it('wires Computer Use pause, takeover, and resume to the desktop task controls', async () => {
     const onPause = vi.fn()
     const onResume = vi.fn()

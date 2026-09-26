@@ -300,16 +300,20 @@ export function createLocalRuntimeServer(options: {
 function isComputerActionApproval(value: unknown): value is {
   reason: 'computer-action-approval'
   providerCallId: string
-  observationId: string
-  action: Record<string, unknown>
+  observationId?: string
+  action?: Record<string, unknown>
+  cell?: Record<string, unknown>
 } {
   if (typeof value !== 'object' || value === null) return false
   const approval = value as Record<string, unknown>
-  return approval.reason === 'computer-action-approval' &&
-    typeof approval.providerCallId === 'string' &&
-    typeof approval.observationId === 'string' &&
-    typeof approval.action === 'object' && approval.action !== null &&
-    !Array.isArray(approval.action)
+  if (approval.reason !== 'computer-action-approval' ||
+      typeof approval.providerCallId !== 'string') return false
+  const single = typeof approval.observationId === 'string' &&
+    typeof approval.action === 'object' && approval.action !== null && !Array.isArray(approval.action)
+  // The JavaScript entry asks for a whole cell instead of one action.
+  const cell = typeof approval.cell === 'object' && approval.cell !== null &&
+    !Array.isArray(approval.cell) && typeof (approval.cell as Record<string, unknown>).code === 'string'
+  return single || cell
 }
 
 function toToolProjection(

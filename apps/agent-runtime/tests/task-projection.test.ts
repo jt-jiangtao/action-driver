@@ -27,6 +27,19 @@ function task(id: string, status: string, error: unknown = null): RuntimeTaskRec
 }
 
 describe('repository-backed task projections', () => {
+  it('projects a JavaScript cell approval with its action names', () => {
+    const projection = buildTaskProjection(task('task-js-approval', 'waiting-user', {
+      code: 'COMPUTER_ACTION_APPROVAL', providerCallId: 'js-1',
+      cell: { title: '保存文档', code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
+        codeLength: 52, actions: ['press_key'] }
+    }), [])
+    expect(projection.pendingComputerApproval).toEqual({
+      providerCallId: 'js-1',
+      cell: { title: '保存文档', code: 'await sky.press_key({ app: "TextEdit", key: "s" })',
+        codeLength: 52, actions: ['press_key'] }
+    })
+  })
+
   it('normalizes a persisted image-first assistant message without changing a user bubble', () => {
     const asset = { assetId: 'old-generated', sessionId: 'session-1', mimeType: 'image/png' as const, width: 1, height: 1, byteLength: 1, source: 'generated' as const }
     const projection = buildTaskProjection(task('task-success', 'completed'), [{

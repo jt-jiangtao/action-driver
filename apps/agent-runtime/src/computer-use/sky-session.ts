@@ -1,3 +1,5 @@
+import { CONSEQUENTIAL_SKY_METHODS } from './cell-actions'
+
 /**
  * The `sky` object the JavaScript entry exposes, mapped onto the native helper protocol.
  *
@@ -14,7 +16,8 @@ export type SkyInvoker = (input: Record<string, unknown>, signal?: AbortSignal) 
 export type SkyScreenshotWriter = (bytes: Buffer, mimeType: string) => Promise<string>
 
 export type SkySession = {
-  invoke(method: string, args: unknown, signal?: AbortSignal): Promise<unknown>
+  invoke(method: string, args: unknown, signal?: AbortSignal,
+         options?: { allowActions?: boolean }): Promise<unknown>
   dispose(): void
 }
 
@@ -31,6 +34,8 @@ const SKY_METHODS = new Set([
   'list_apps', 'get_app_state', 'click', 'drag', 'paste', 'press_key', 'scroll',
   'select_text', 'set_value', 'type_text', 'perform_secondary_action'
 ])
+
+const CONSEQUENTIAL = new Set<string>(CONSEQUENTIAL_SKY_METHODS)
 
 /** Pixel distance one `pages` step scrolls: about one screen of content. */
 const PIXELS_PER_PAGE = 600
@@ -384,9 +389,16 @@ export function createSkySession(options: {
   }
 
   return {
-    async invoke(method, args, signal) {
+    async invoke(method, args, signal, invokeOptions) {
       if (!SKY_METHODS.has(method)) throw new Error(`sky.${method} does not exist`)
       if (args !== undefined && !isRecord(args)) throw new Error(`sky.${method} expects an object`)
+      // Acting is only allowed in a cell the user approved. A cell that reaches this point without
+      // one was classified as a read (for example because it built the method name at runtime), so
+      // the action fails here instead of touching the desktop.
+      if (CONSEQUENTIAL.has(method) && invokeOptions?.allowActions !== true) {
+        throw new Error(`APPROVAL_REQUIRED: sky.${method} changes the desktop and the current js ` +
+          'call was not confirmed. Put the action in its own js call so the user is asked first.')
+      }
       return await methods[method]!(args ?? {}, signal)
     },
     dispose() { closed = true; observations.clear() }

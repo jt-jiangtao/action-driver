@@ -123,6 +123,28 @@ Main 侧对 helper 的请求串行化：helper 单实例、同时刻只处理一
 
 ## 10.x 实施记录：有状态 JS 入口（2026-09-26）
 
+### Battle 结论：JS 入口的动作确认（2026-09-26，用户裁决「确认」= 采纳推荐的 A）
+
+- 类型：混合（交互流程 + 运行时/工具调用边界）。
+- 目标：JS 入口里的桌面动作同样要经过用户确认；拒绝后动作不执行；纯观察不打断；**不能因为恢复执行而让动作跑两遍**。
+- 当前方案（被挑战的原提议）：把逐动作确认下沉到 JS 入口内部，由 sky 层在每个动作前 `interrupt()`。
+- 主要质疑：LangGraph 恢复会重跑 `executeTools`，整个 JS 单元会重放；要让确认不等于执行两次，必须给 sky 调用做按序记忆化重放，并处理同一 `callId` 的第二次工具记录、重复 `write`/`emitImage` 输出。重放语义出错属于"用户副作用翻倍"级别的高危 bug；且 Codex 本身只在 `js` 调用边界确认，B 超过了 Codex。
+- 替代方案：
+  - A（单元级确认 + 门面强制，最终采纳）：执行前静态判断单元是否需要确认，命中才弹卡；sky 层要求副作用方法必须带本单元授权，未授权直接 `APPROVAL_REQUIRED`。
+  - B（真·逐动作确认 + 记忆化重放）：最强，但需要重放记忆化与重复记录处理，风险最高。
+  - C（动作改走独立工具）：最省实现，但要改 skill（与"逐字照搬 Codex"冲突），调用流程分叉。
+  - D（任务级一次性授权）：最省打扰，控制最粗，且与"不需要不再提示的记忆"的既有偏好相反。
+- 最终决策：A。
+- 主要权衡：确认落在工具调用边界 → 无重放风险；代价是确认粒度是"单元"而不是"动作"，且分类器是静态的（运行时拼出的方法名看不出来），由 sky 层的 `APPROVAL_REQUIRED` 兜住，模型重试即走确认。纯观察单元不打断，优于 Codex 的每次调用都问。
+- 用户覆盖：无（用户确认了推荐方案 A）。
+- 重新开启条件：若用户要求"每个动作都必须由用户逐个确认，且不接受模型重试一次"的强保证，则按 B 单独立项（重放记忆化 + 工具调用幂等）；若确认过于频繁，则评估 D 或按动作类型分级。
+
+实施：`computer-use/cell-actions.ts` 用与子进程同一份 tokenizer 做分类；`agent-graph.ts` 把确认请求推广为 action｜cell 两种形态；`sky-session.ts` 增加 `allowActions` 强制；`packages/contracts` 的 `pendingComputerApproval` 增加 cell 形态；审批卡按形态渲染；`js-tools.ts` 在每个单元开始时把同一判定交给 sky 层。测试：`cell-actions.test.ts`、`js-approval.test.ts`（确认/批准/拒绝/纯读不打断/批量拒绝）、`sky-session.test.ts`（未确认拒绝、已确认放行、读与滚动不受限）、`js-tools.test.ts`（确认单元到达 helper，运行时拼名字被拒）、`pages.test.tsx` 与 `task-projection.test.ts` 的单元确认形态。
+
+主提示词同步：`resources/prompts/main.md` 的 Computer Use 段改为以 `js` 入口为默认路径（`await import("@oai/sky")`、动作后重新读状态、每个单元一个动作、确认与纯观察不打断），旧文本按仓库惯例存入 `resources/prompts/legacy/2026-09-26-tool-guidance.md`，这样已安装的 agent home 会在下次启动时刷新成新文案。
+
+提交前一次性验证：`pnpm typecheck` 通过；`pnpm lint` 通过（139 项交互契约）；`pnpm test` 160 个文件通过、2 跳过，1012 个用例通过、2 跳过；`pnpm test:e2e:local` 7 项通过、1 项既有失败（Token Plan 生图下拉框）；`pnpm test:e2e:packaged:macos` 通过。
+
 ### Decisions
 
 **1. 单次调用 = 一个 ES module，绑定靠合成模块 `@prev` 传递（而不是解析改写用户代码）。**
@@ -148,7 +170,7 @@ helper 只按 bundle id、路径或英文 `.app` 名解析应用，中文显示�
 
 - **扫描器的边界**：正则字面量与 `/` 除法的歧义、`for (const … of …)` 之外的非典型顶层声明都可能漏判；代价被限制为“该名字不跨调用保留”，且引擎校验会兜住过度判定。若将来出现真实漏判案例，再评估是否引入解析器。
 - **无 diff 的 token 成本**：每次 `get_app_state` 返回完整树；换来的是索引不会静默指向别的元素。需要用真实应用对比 token 与步数后再决定是否引入“带稳定索引的 diff”。
-- **JS 入口内的逐动作确认缺失**（tasks 10.5.1）：入口是中转层，动作发生在一次工具调用内部，现有中断式确认只在工具调用边界生效（`computer_act`）。当前依赖 skill 的 Confirmations Policy 由模型主动确认；若用户要求更硬的约束，需要把确认通道下沉到工具调用内部（新的架构决策）。
+- **JS 入口的确认粒度是单元**（tasks 10.5.1，Battle 后裁决 A）：动作发生在一次工具调用内部，所以确认落在工具调用边界——命中动作方法的单元在执行前确认，纯观察单元不打断；分类是静态的，运行时拼出的方法名由 sky 层的 `APPROVAL_REQUIRED` 兜住（模型重试即走确认）。若需要"每个动作逐个确认"的强保证，按 Battle 的重新开启条件单独立项 B。
 - **helper 能力边界如实暴露**：`press_key` 只支持 helper 键表（`return`/`tab`/`space`/`escape`/`delete`/方向键/`a,c,v,x,z,s`）；`scroll` 只能落在当前指针位置（helper 无按元素滚动）；`click` 只支持左键单击，右键语义走 `perform_secondary_action`。这些都以明确报错结束，不做静默降级。
 
 ### 验证记录

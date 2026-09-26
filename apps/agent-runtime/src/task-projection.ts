@@ -53,9 +53,24 @@ export function buildTaskProjection(
 function computerApproval(error: unknown): TaskProjection['pendingComputerApproval'] | null {
   if (typeof error !== 'object' || error === null) return null
   const value = error as Record<string, unknown>
-  if (value.code !== 'COMPUTER_ACTION_APPROVAL' ||
-      typeof value.providerCallId !== 'string' || typeof value.observationId !== 'string' ||
-      typeof value.action !== 'object' || value.action === null || Array.isArray(value.action)) return null
+  if (value.code !== 'COMPUTER_ACTION_APPROVAL' || typeof value.providerCallId !== 'string') return null
+  const cell = value.cell
+  if (typeof cell === 'object' && cell !== null && !Array.isArray(cell)) {
+    const candidate = cell as Record<string, unknown>
+    if (typeof candidate.code !== 'string') return null
+    return { providerCallId: value.providerCallId, cell: {
+      ...(typeof candidate.title === 'string' ? { title: candidate.title } : {}),
+      code: candidate.code,
+      codeLength: typeof candidate.codeLength === 'number' ? candidate.codeLength : candidate.code.length,
+      actions: Array.isArray(candidate.actions)
+        ? candidate.actions.filter((action): action is string => typeof action === 'string')
+        : []
+    } }
+  }
+  if (typeof value.observationId !== 'string' ||
+      typeof value.action !== 'object' || value.action === null || Array.isArray(value.action)) {
+    return null
+  }
   return { providerCallId: value.providerCallId, observationId: value.observationId,
     action: value.action as Record<string, unknown> }
 }

@@ -116,7 +116,9 @@ describe('sky facade through the js entry', () => {
       spawn: async () => (spawn(process.execPath,
         ['--experimental-vm-modules', '--no-warnings', serverPath],
         { stdio: ['pipe', 'pipe', 'pipe'] }) as unknown as JsReplChild),
-      callSky: async (_taskId, method, args) => await sky.invoke(method, args),
+      // The tool decides whether a cell was confirmed; this harness runs one confirmed cell.
+      callSky: async (_taskId, method, args) => await sky.invoke(method, args, undefined,
+        { allowActions: true }),
       defaultTimeoutMs: 15_000
     })
     host = entry

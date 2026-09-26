@@ -80,7 +80,9 @@
   - [x] 10.4.4 `nodeRepl`：`write`／`emitImage({bytes, mimeType})`／`cwd`／`homeDir`／`tmpDir`；`emitImage` 用 `ArrayBuffer.isView` 判定，兼容子 realm 的 `Uint8Array`。
   - [x] 10.4.5 工具面：`js`（`code` / `timeout_ms` / `title`，单次默认 30s、上限 300s）与 `js_reset`；模型侧名字与 Codex 的 `node_repl` 工具一致。
 - [x] 10.5 门禁与前置条件：调用 Computer Use 前必须先加载 `computer-use` skill；11 个 API 全部接入既有 Tool/Policy 门禁，确认分级遵循 skill 里的 Confirmations Policy。
-  - [ ] 10.5.1 待补：JS 入口内的逐动作**中断式**确认尚未实现，当前由模型按 Confirmations Policy 主动询问；中断式确认目前只覆盖 `computer_act`。
+  - [x] 10.5.1 JS 入口的确认按**单元**落在工具调用边界（Battle 结论选 A）：分类器用与子进程同一份 tokenizer 找 `click`/`drag`/`paste`/`press_key`/`select_text`/`set_value`/`type_text`/`perform_secondary_action` 的方法名，命中才在执行前弹确认卡（显示模型 `title`、命中动作与代码摘要），纯观察单元不打断；确认卡复用既有的 `COMPUTER_ACTION_APPROVAL` 通道，但投影改为 action｜cell 两种形态。
+  - [x] 10.5.2 分类只是"要不要提前问"，不是许可：sky 层要求有副作用的方法必须带本单元授权，否则回 `APPROVAL_REQUIRED`（运行时拼名字绕开分类的情形因此不会静默执行，模型换一个单元重试即会走确认）。
+  - [x] 10.5.3 拒绝时该单元不执行，工具结果回 `USER_DENIED`；把需要确认的单元与其它工具调用放在同一轮仍按 `COMPUTER_ACTION_BATCH_UNSUPPORTED` 拒绝。
 - [x] 10.6 验证：定向测试（协议/helper/工具面/JS 入口）、真实 helper 二进制冒烟、打包冒烟（见 `design.md` 的「10.x 实施记录」）。
 
 - [x] 9.1 helper 提供 Unix domain socket 服务：私有运行目录（0700）、socket 0600、token 握手、单连接串行、无 TCP 监听。

@@ -13,6 +13,7 @@ import {
 import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
 import type { ProviderToolCall } from '@actiondriver/model-connections'
 import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
+import { classifyCellActions } from './computer-use/cell-actions'
 import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import type { ToolInvocationService } from './tool-invocation-service'
@@ -72,11 +73,39 @@ function volatileToolResultKey(taskId: string, toolCallId: string): string {
   return `${taskId}\u0000${toolCallId}`
 }
 
-function requiresComputerApproval(call: ProviderToolCall): boolean {
-  if (call.modelName !== 'computer_act') return false
-  const action = call.arguments.action
-  if (typeof action !== 'object' || action === null || !('type' in action)) return true
-  return action.type !== 'wait' && action.type !== 'scroll'
+/** What the user is asked to confirm before a call runs, or null when it runs unprompted. */
+type ComputerApprovalRequest =
+  | { kind: 'action'; action: Record<string, unknown>; observationId: string }
+  | { kind: 'cell'; cell: { title?: string; code: string; codeLength: number; actions: string[] } }
+
+/** Longest code excerpt sent with an approval prompt; the full source stays in the tool record. */
+const APPROVAL_CODE_EXCERPT = 1_200
+
+function computerApprovalRequest(call: ProviderToolCall): ComputerApprovalRequest | null {
+  if (call.modelName === 'computer_act') {
+    const action = call.arguments.action
+    if (typeof action !== 'object' || action === null || !('type' in action)) {
+      return { kind: 'action', action: {}, observationId: String(call.arguments.observationId ?? '') }
+    }
+    if (action.type === 'wait' || action.type === 'scroll') return null
+    return { kind: 'action', action: action as Record<string, unknown>,
+      observationId: String(call.arguments.observationId ?? '') }
+  }
+  // The JavaScript entry runs the whole Skill API, so the confirmation belongs to the cell: ask once
+  // before running code that can change the desktop, and let observation-only cells run untouched.
+  if (call.modelName === 'js') {
+    const code = typeof call.arguments.code === 'string' ? call.arguments.code : ''
+    const classified = classifyCellActions(code)
+    if (!classified.acts) return null
+    const title = call.arguments.title
+    return { kind: 'cell', cell: {
+      ...(typeof title === 'string' && title.trim() ? { title } : {}),
+      code: code.slice(0, APPROVAL_CODE_EXCERPT),
+      codeLength: code.length,
+      actions: classified.methods
+    } }
+  }
+  return null
 }
 
 export type GraphToolRuntime = {
@@ -491,16 +520,21 @@ export class LangGraphRunner implements GraphRunner {
       .addNode('executeTools', async (state, config) => {
         const results: RuntimeMessage[] = []
         const screenshots: ImageAssetRef[] = []
-        const approvalCall = state.pendingToolCalls.find(requiresComputerApproval)
+        const approval = state.pendingToolCalls
+          .map((call) => ({ call, request: computerApprovalRequest(call) }))
+          .find((entry) => entry.request !== null) ?? null
+        const approvalCall = approval?.call ?? null
         let approved = true
         if (approvalCall) {
           if (state.pendingToolCalls.length !== 1)
             throw new Error('COMPUTER_ACTION_BATCH_UNSUPPORTED: call one modifying action at a time')
+          const request = approval!.request!
           const decision = langGraphInterrupt({
             reason: 'computer-action-approval', taskId: state.taskId,
             providerCallId: approvalCall.providerCallId,
-            action: approvalCall.arguments.action,
-            observationId: approvalCall.arguments.observationId
+            ...(request.kind === 'action'
+              ? { action: request.action, observationId: request.observationId }
+              : { cell: request.cell })
           }) as unknown
           approved = typeof decision === 'object' && decision !== null &&
             'approved' in decision && decision.approved === true &&

@@ -149,4 +149,32 @@ describe('js entry tools', () => {
       .rejects.toThrow('TOOL_INPUT_INVALID')
     tools.dispose()
   })
+
+  it('lets a confirmed acting cell act and blocks an unconfirmed one', async () => {
+    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-js-')
+    const requests: Array<Record<string, unknown>> = []
+    const tools = entry({
+      invokeComputer: async (input) => {
+        requests.push(input)
+        if (input.operation === 'app-state') {
+          return { observationId: 'obs-1', app: 'com.apple.TextEdit',
+            tree: { ref: 'root', role: 'AXApplication', children: [] } }
+        }
+        return { executed: true }
+      }
+    })
+    // Acting code was confirmed before the call, so the action reaches the helper.
+    await run(tools.tools, 'js', {
+      code: 'await sky.set_value({ app: "TextEdit", element_index: 0, value: "hi" });\n' +
+        'nodeRepl.write("done")'
+    }, workspaceRoot)
+    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(1)
+    // A name built at runtime is not visible to the classifier, so the cell has no confirmation and
+    // the sky layer refuses to touch the desktop.
+    await expect(run(tools.tools, 'js', {
+      code: 'const name = ["cli", "ck"].join("");\nawait sky[name]({ app: "TextEdit", element_index: 0 })'
+    }, workspaceRoot)).rejects.toThrow('APPROVAL_REQUIRED')
+    expect(requests.filter((request) => request.operation === 'act')).toHaveLength(1)
+    tools.dispose()
+  })
 })
