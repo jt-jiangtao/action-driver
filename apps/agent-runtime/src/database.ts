@@ -417,8 +417,72 @@ export const DEFAULT_RUNTIME_MIGRATIONS: readonly RuntimeMigration[] = [
           ON task_output_files(session_id, created_at, file_id);
       `)
     }
+  },
+  {
+    version: 15,
+    name: 'repair-session-input-files',
+    up(database) {
+      repairSessionInputFiles(database)
+    }
   }
 ]
+
+const SESSION_INPUT_FILES_COLUMNS = [
+  'file_id', 'status', 'session_id', 'task_id', 'name', 'mime_type', 'byte_length',
+  'relative_path', 'checksum', 'created_at', 'bound_at'
+] as const
+const SESSION_INPUT_FILES_REQUIRED = [
+  'file_id', 'status', 'name', 'mime_type', 'byte_length', 'checksum', 'created_at'
+] as const
+
+/**
+ * Some local databases ran an earlier draft of migration 13 whose `session_input_files` had
+ * foreign keys (for example `task_id REFERENCES tasks(id)`). Uploads are bound before their task
+ * row exists, so those databases reject every attachment with SQLITE_CONSTRAINT_FOREIGNKEY. This
+ * rebuilds the table with the canonical shape when it drifted and leaves a correct table alone.
+ */
+function repairSessionInputFiles(database: Database.Database): void {
+  const foreignKeys = database.prepare('PRAGMA foreign_key_list(session_input_files)').all()
+  const columns = (
+    database.prepare('PRAGMA table_info(session_input_files)').all() as Array<{ name: string }>
+  ).map((column) => column.name)
+  const canonical =
+    columns.length === SESSION_INPUT_FILES_COLUMNS.length &&
+    SESSION_INPUT_FILES_COLUMNS.every((column, index) => columns[index] === column)
+  if (foreignKeys.length === 0 && canonical) return
+
+  database.exec(`
+    CREATE TABLE session_input_files_repaired (
+      file_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL CHECK (status IN ('staged', 'bound')),
+      session_id TEXT,
+      task_id TEXT,
+      name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      byte_length INTEGER NOT NULL,
+      relative_path TEXT,
+      checksum TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      bound_at TEXT
+    );
+  `)
+  // Rows can only be carried over when every required column exists; otherwise the old rows
+  // (staged uploads and upload metadata) are dropped, while the uploaded files stay on disk.
+  if (SESSION_INPUT_FILES_REQUIRED.every((column) => columns.includes(column))) {
+    const shared = SESSION_INPUT_FILES_COLUMNS.filter((column) => columns.includes(column))
+    const list = shared.join(', ')
+    database.exec(
+      `INSERT INTO session_input_files_repaired (${list}) SELECT ${list} FROM session_input_files`
+    )
+  }
+  database.exec(`
+    DROP TABLE session_input_files;
+    ALTER TABLE session_input_files_repaired RENAME TO session_input_files;
+    CREATE INDEX session_input_files_session_created_idx
+      ON session_input_files(session_id, created_at, file_id);
+    CREATE INDEX session_input_files_task_idx ON session_input_files(task_id);
+  `)
+}
 
 export function openRuntimeDatabase(
   path: string,

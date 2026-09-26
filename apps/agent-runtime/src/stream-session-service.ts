@@ -169,11 +169,12 @@ export class StreamSessionService {
       boundAssets = await Promise.all(
         imageIds.map((assetId) => this.options.assets!.bindStaged(assetId, sessionId))
       )
-    } catch {
+    } catch (error) {
+      console.warn('[stream-session] image asset bind failed', error)
       await this.emitRequestError(
         event.requestId,
         'image-invalid',
-        'Image cannot be attached',
+        `Image cannot be attached (${attachmentErrorCode(error)})`,
         emit
       )
       return
@@ -234,11 +235,12 @@ export class StreamSessionService {
             })
           )
         }
-      } catch {
+      } catch (error) {
+        console.warn('[stream-session] input file bind failed', error)
         await this.emitRequestError(
           event.requestId,
           'input-invalid',
-          'File cannot be attached',
+          `File cannot be attached (${attachmentErrorCode(error)})`,
           emit
         )
         return
@@ -1155,4 +1157,10 @@ function toStreamError(value: unknown): {
   const error = value as { code?: unknown; message?: unknown; retryable?: unknown }
   if (typeof error.code !== 'string' || typeof error.message !== 'string') return null
   return { code: error.code, message: error.message, retryable: error.retryable === true }
+}
+
+/** The store error code (for example `INPUT_FILE_NOT_FOUND`), so a failed attachment is diagnosable. */
+function attachmentErrorCode(error: unknown): string {
+  if (error instanceof Error && 'code' in error && typeof error.code === 'string') return error.code
+  return error instanceof Error ? error.name : 'UNKNOWN'
 }
