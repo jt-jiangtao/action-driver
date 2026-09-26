@@ -96,7 +96,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
 
   getTask(taskId: string): TaskProjection | null {
     const task = this.tasks.get(taskId)
-    return task ? structuredClone(task) : null
+    return task ?? null
   }
 
   async restoreTaskStream(task: TaskProjection): Promise<void> {
@@ -148,7 +148,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   }
 
   private emit(task: TaskProjection): void {
-    this.listeners.forEach((listener) => listener(structuredClone(task)))
+    this.listeners.forEach((listener) => listener(task))
   }
 }
 

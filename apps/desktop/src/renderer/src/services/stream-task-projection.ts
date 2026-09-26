@@ -216,7 +216,8 @@ export class StreamTaskProjection {
       // starts a new block at its own order, so text that streams after an image
       // batch stays after it no matter when the pictures land.
       const last = parts.at(-1)
-      if (last?.kind === 'text') last.text += event.delta
+      // Emitted snapshots share their parts, so the trailing block is replaced, never edited.
+      if (last?.kind === 'text') parts[parts.length - 1] = { ...last, text: last.text + event.delta }
       else
         insertPartByOrder(parts, {
           kind: 'text',
@@ -344,7 +345,7 @@ export class StreamTaskProjection {
   }
 
   snapshot(): TaskProjection | null {
-    return this.task ? structuredClone(this.task) : null
+    return this.task
   }
 
   private assistantMessage(messageId: string) {

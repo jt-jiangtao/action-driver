@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import type {
   AgentMessageProjection,
   MessageContentPart,
@@ -10,9 +10,11 @@ import { ImageGallery } from './ImageGallery'
 
 type ImagePart = Extract<MessageContentPart, { kind: 'image' }>
 
-export function AgentResponse({
+const NO_TOOLS: ToolInvocationProjection[] = []
+
+export const AgentResponse = memo(function AgentResponse({
   message,
-  tools = [],
+  tools = NO_TOOLS,
   readImage
 }: {
   message: AgentMessageProjection
@@ -78,4 +80,4 @@ export function AgentResponse({
   )
   if (pendingTools.length) blocks.push(<ImageGallery key="pending-batches" images={[]} tools={pendingTools} readImage={readImage} />)
   return <div className="agent-message agent-message-with-images">{blocks}</div>
-}
+})

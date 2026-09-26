@@ -1,9 +1,10 @@
 import type { ModelRef, TaskProjection } from '@actiondriver/contracts'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import type { TaskLayoutMode } from './components/BrowserPanel'
-import { useAppServices } from './di/services-context'
+import { useAppServices, useTaskStore, useTaskStoreApi } from './di/services-context'
 import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TaskPage } from './pages/TaskPage'
@@ -21,7 +22,7 @@ import {
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
 import type { ComposerAttachments } from './components/AgentComposer'
-import { useComputerUseGuidance } from './services/computer-use-guidance'
+import { taskUsesComputerUse, useComputerUseGuidance } from './services/computer-use-guidance'
 
 const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
 
@@ -34,8 +35,16 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       ? { kind: 'task', taskId: restoredTaskId.current }
       : initialAppRoute(initialRoute)
   )
-  const [task, setTask] = useState<TaskProjection | null>(null)
-  useComputerUseGuidance(task)
+  // The shell follows only what it routes on; streamed content re-renders the task page alone.
+  const taskStore = useTaskStoreApi()
+  const activeTask = useTaskStore(
+    useShallow((state) => ({
+      id: state.activeTask?.id ?? null,
+      running: state.activeTask?.status === 'running',
+      usesComputerUse: taskUsesComputerUse(state.activeTask)
+    }))
+  )
+  useComputerUseGuidance(activeTask.id, activeTask.usesComputerUse)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modelSelection, setModelSelection] =
@@ -84,7 +93,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         const restored = await services.taskCatalog.getTask(recent[0].id)
         if (requestId !== taskRequestId.current) return
         if (restored) {
-          setTask(restored)
+          taskStore.getState().open(restored)
           setRoute({ kind: 'task', taskId: restored.id })
           rememberActiveTaskId(restored.id)
         }
@@ -96,7 +105,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     } finally {
       if (requestId === taskRequestId.current) setRecentTasksLoading(false)
     }
-  }, [initialRoute, queryClient, services])
+  }, [initialRoute, queryClient, services, taskStore])
 
   useEffect(() => {
     void loadModels()
@@ -112,7 +121,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       .then((restored) => {
         if (cancelled || restoredTaskId.current !== taskId) return
         if (restored) {
-          setTask(restored)
+          taskStore.getState().open(restored)
           setRoute({ kind: 'task', taskId: restored.id })
         } else {
           restoredTaskId.current = null
@@ -126,22 +135,15 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     return () => {
       cancelled = true
     }
-  }, [services])
-
-  useEffect(
-    () =>
-      services.agentSessionRepository.subscribe((projection) =>
-        setTask((current) => (current?.id === projection.id ? projection : current))
-      ),
-    [services]
-  )
+  }, [services, taskStore])
 
   useEffect(() => {
+    const task = taskStore.getState().activeTask
     if (!task || task.status !== 'running') return
     void services.restoreTaskStream?.(task).catch((error: unknown) => {
       console.error('Failed to restore running task stream', error)
     })
-  }, [services, task])
+  }, [services, taskStore, activeTask.id, activeTask.running])
 
   const openHome = () => {
     restoredTaskId.current = null
@@ -157,7 +159,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     if (!projection) return
     restoredTaskId.current = projection.id
     rememberActiveTaskId(projection.id)
-    setTask(projection)
+    taskStore.getState().open(projection)
     setRoute({ kind: 'task', taskId: projection.id })
   }
 
@@ -165,14 +167,14 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     (projection: TaskProjection, previousTaskId?: string) => {
       restoredTaskId.current = projection.id
       rememberActiveTaskId(projection.id)
-      setTask(projection)
+      taskStore.getState().open(projection)
       setRecentTasks((current) => [
         { id: projection.id, title: projection.title, state: 'default' },
         ...current.filter((item) => item.id !== projection.id && item.id !== previousTaskId)
       ])
       setRoute({ kind: 'task', taskId: projection.id })
     },
-    []
+    [taskStore]
   )
 
   const stageImages = useCallback(
@@ -232,6 +234,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
 
   const submitContinuation = useCallback(
     async (goal: string, attachments?: ComposerAttachments) => {
+      const task = taskStore.getState().activeTask
       if (!task) return
       const imageFiles = attachments?.images ?? []
       const documentFiles = attachments?.documents ?? []
@@ -249,7 +252,41 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       })
       presentSubmittedTask(projection, previousTaskId)
     },
-    [presentSubmittedTask, services, stageImages, stageInputFiles, task]
+    [presentSubmittedTask, services, stageImages, stageInputFiles, taskStore]
+  )
+
+  // Task controls read the task when they run, so their identity survives streamed updates.
+  const skillInvocationId = useCallback(() => {
+    const task = taskStore.getState().activeTask
+    return task && taskUsesComputerUse(task) ? task.id : 'browser-invocation'
+  }, [taskStore])
+  const pauseTask = useCallback(
+    () => services.skillGateway.pause(skillInvocationId()),
+    [services, skillInvocationId]
+  )
+  const resumeTask = useCallback(
+    () => services.skillGateway.resume(skillInvocationId()),
+    [services, skillInvocationId]
+  )
+  const takeOverTask = useCallback(
+    () => services.skillGateway.takeOver(skillInvocationId()),
+    [services, skillInvocationId]
+  )
+  const decideComputerAction = useCallback(
+    async (approved: boolean, providerCallId: string) => {
+      const task = taskStore.getState().activeTask
+      if (task) await services.agentCommandService.provideInput(task.id, { approved, providerCallId })
+    },
+    [services, taskStore]
+  )
+  const interruptTask = useCallback(() => {
+    const task = taskStore.getState().activeTask
+    if (task) void services.agentCommandService.interrupt(task.id)
+  }, [services, taskStore])
+  const expandSidebar = useCallback(() => setSidebarCollapsed(false), [])
+  const selectModel = useCallback(
+    (selected: ModelRef) => setModelSelection((current) => ({ ...current, selected })),
+    []
   )
 
   const mainRoute: MainAppRoute =
@@ -349,25 +386,20 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           onOpenModelSettings={openSettings}
           onSubmit={submitNewSession}
         />
-      ) : task ? (
-        <TaskPage
+      ) : activeTask.id ? (
+        <ActiveTaskPage
           onOpenModelSettings={openSettings}
           sidebarCollapsed={sidebarCollapsed}
-          onExpandSidebar={() => setSidebarCollapsed(false)}
+          onExpandSidebar={expandSidebar}
           mode={mode}
-          task={task}
           modelSelection={modelSelection}
-          onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
+          onSelectModel={selectModel}
           onModeChange={setMode}
-          onPause={() => services.skillGateway.pause(
-            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
-          onResume={() => services.skillGateway.resume(
-            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
-          onTakeOver={() => services.skillGateway.takeOver(
-            task.tools?.some((tool) => tool.toolId.startsWith('computer.')) ? task.id : 'browser-invocation')}
-          onComputerDecision={(approved, providerCallId) =>
-            services.agentCommandService.provideInput(task.id, { approved, providerCallId })}
-          onInterrupt={() => void services.agentCommandService.interrupt(task.id)}
+          onPause={pauseTask}
+          onResume={resumeTask}
+          onTakeOver={takeOverTask}
+          onComputerDecision={decideComputerAction}
+          onInterrupt={interruptTask}
           readImage={services.imageAssets ? readImage : undefined}
           readOutputFile={services.outputFiles ? readOutputFile : undefined}
           onSubmit={submitContinuation}
@@ -375,6 +407,12 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       ) : null}
     </div>
   )
+}
+
+/** The task page for the active task; the only part of the app that re-renders as it streams. */
+function ActiveTaskPage(props: Omit<ComponentProps<typeof TaskPage>, 'task'>) {
+  const task = useTaskStore((state) => state.activeTask)
+  return task ? <TaskPage {...props} task={task} /> : null
 }
 
 function readActiveTaskId(): string | null {

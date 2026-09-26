@@ -1,4 +1,5 @@
 import type { AgentMessageProjection } from '@actiondriver/contracts'
+import { memo } from 'react'
 import { ConversationImage, type ImageReader } from './ConversationImage'
 import documentIconUrl from '../../assets/file-document.png'
 import pdfIconUrl from '../../assets/file-pdf.png'
@@ -19,7 +20,7 @@ function documentIcon(mimeType: string): string {
   return documentIconUrl
 }
 
-export function UserMessage({
+export const UserMessage = memo(function UserMessage({
   message,
   readImage
 }: {
@@ -64,7 +65,7 @@ export function UserMessage({
         )}
     </div>
   )
-}
+})
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

@@ -5,9 +5,12 @@ import type { ImageReader } from './agent/ConversationImage'
 
 export { TaskHeader } from './agent/TaskHeader'
 
+// One shared empty list, so a message without tools keeps equal props between renders.
+const NO_TOOLS: ToolInvocationProjection[] = []
+
 export function ConversationMessages({
   messages,
-  tools = [],
+  tools = NO_TOOLS,
   readImage
 }: {
   messages: AgentMessageProjection[]
@@ -24,7 +27,7 @@ export function ConversationMessages({
           <AgentResponse
             key={message.id}
             message={message}
-            tools={message.id === lastAgentId ? tools : []}
+            tools={message.id === lastAgentId ? tools : NO_TOOLS}
             readImage={readImage}
           />
         )

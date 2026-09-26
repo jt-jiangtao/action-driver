@@ -1,15 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import type { TaskProjection } from '@actiondriver/contracts'
 import { MarkdownContent } from './MarkdownContent'
 import { ActivityGroup, ToolRow } from './agent/ToolGroup'
 import { isActivityOwnedText } from './agent/activity-mirror'
 
-export function ActivityTimeline({ task }: { task: TaskProjection }) {
-  const activities = new Map(
-    (task.activities ?? []).map((activity) => [activity.activityId, activity])
+/** The task fields the activity area reads; a prior turn passes just these. */
+export type ActivityTimelineTask = Pick<
+  TaskProjection,
+  | 'id'
+  | 'status'
+  | 'messages'
+  | 'tools'
+  | 'activities'
+  | 'activityTimeline'
+  | 'activityStartedAt'
+  | 'activityDurationMs'
+  | 'preparingToolName'
+>
+
+export function ActivityTimeline({ task }: { task: ActivityTimelineTask }) {
+  // Keyed by reference so memoized groups and rows skip renders while text streams elsewhere.
+  const activities = useMemo(
+    () => new Map((task.activities ?? []).map((activity) => [activity.activityId, activity])),
+    [task.activities]
   )
-  const tools = new Map((task.tools ?? []).map((tool) => [tool.callId, tool]))
+  const tools = useMemo(
+    () => new Map((task.tools ?? []).map((tool) => [tool.callId, tool])),
+    [task.tools]
+  )
   const timeline =
     task.activityTimeline && task.activityTimeline.length > 0
       ? task.activityTimeline

@@ -143,4 +143,32 @@ describe('cursor-ordered activity projection', () => {
       'tool:call-a', 'text:plan:next'
     ])
   })
+
+  it('copies only the activity an event changes and keeps the rest by reference', () => {
+    let state = emptyActivityTimelineState()
+    for (const next of [
+      event(1, { type: 'activity.started', activityId: 'first', title: '一', titleRevision: 1 }),
+      event(2, { type: 'activity.text', activityId: 'first', textId: 'a', delta: '甲' }),
+      event(3, { type: 'activity.started', activityId: 'second', title: '二', titleRevision: 1 })
+    ])
+      state = reduceActivityProjection(state, next)
+    const before = state
+    const after = reduceActivityProjection(
+      before,
+      event(4, { type: 'activity.text', activityId: 'second', textId: 'b', delta: '乙' })
+    )
+
+    expect(after.activities[0]).toBe(before.activities[0])
+    expect(after.activities[1]).not.toBe(before.activities[1])
+    expect(before.activities[1]?.items).toEqual([])
+    expect(after.timeline).toBe(before.timeline)
+    expect(after.toolActivityIds).toBe(before.toolActivityIds)
+
+    const appended = reduceActivityProjection(
+      after,
+      event(5, { type: 'activity.text', activityId: 'second', textId: 'b', delta: '丙' })
+    )
+    expect(appended.activities[1]?.items[0]).toMatchObject({ content: '乙丙' })
+    expect(after.activities[1]?.items[0]).toMatchObject({ content: '乙' })
+  })
 })

@@ -55,3 +55,14 @@
 - [memo 依赖稳定引用，任一上游重新创建对象都会让优化失效且不报错] → 渲染次数测试把「不重渲染」固化为断言。
 - [用户覆盖：选择 zustand 而非零依赖方案] → 接受新增运行时依赖及其升级维护成本；Agent 无法联网安装，需用户执行 `pnpm --filter @actiondriver/desktop add zustand`。
 - [验证依赖用户] → Agent 的 shell 无法运行 macOS 版 `node_modules`，每一批改动由用户运行定向测试与 `pnpm typecheck` 并回传结果。
+
+## 实施记录（2026-09-26）
+
+以下调整均在已裁决范围内，没有改变目标、依赖或对外契约：
+
+- store 只提供 `open` 与 `clear`：`present` 与 `open` 语义相同，不再单独提供。
+- store 创建时不订阅仓库，由 `AppServicesProvider` 在 effect 中调用 `connect()` 并在卸载时断开，兼容 StrictMode 的二次挂载。
+- `useComputerUseGuidance` 改为接收 `(taskId, usesComputerUse)`；`App` 通过 `useShallow` 只订阅 `id`、是否运行、是否用到 Computer Use，因此只在任务运行状态切换时重渲染，文本和工具增量不会触发。
+- `submitGoal` 的返回值保留一次 `structuredClone`：它不在流式路径上，已有测试保护返回值与内部状态隔离。
+- 旧测试「returns immutable snapshots」断言调用方修改快照不影响投影，与共享快照相矛盾，已由深度冻结测试取代；`ActivityTimeline` 中一处原地修改任务的测试改为不可变更新。
+- `ActivityTimeline` 的入参收窄为 `ActivityTimelineTask`（所需字段），并按引用缓存工具与活动组映射，使记忆化的活动组生效。

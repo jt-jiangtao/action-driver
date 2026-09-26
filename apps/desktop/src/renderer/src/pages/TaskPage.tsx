@@ -1,5 +1,9 @@
-import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
-import { Fragment, useState } from 'react'
+import type {
+  AgentMessageProjection,
+  PriorActivityTurnProjection,
+  TaskProjection
+} from '@actiondriver/contracts'
+import { Fragment, memo, useMemo, useState } from 'react'
 import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
@@ -93,8 +97,9 @@ export function TaskPage({
     if (message.role === 'user') precedingTurns.push({ user: message, replies: [] })
     else precedingTurns.at(-1)?.replies.push(message)
   }
-  const priorActivityByUserId = new Map(
-    (task.priorActivityTurns ?? []).map((turn) => [turn.userMessageId, turn])
+  const priorActivityByUserId = useMemo(
+    () => new Map((task.priorActivityTurns ?? []).map((turn) => [turn.userMessageId, turn])),
+    [task.priorActivityTurns]
   )
   const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
   const assistantMessages =
@@ -170,44 +175,16 @@ export function TaskPage({
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
-              {precedingTurns.map((turn) => {
-                const activity = priorActivityByUserId.get(turn.user.id)
-                const activityTask = activity
-                  ? {
-                      ...task,
-                      id: activity.taskId,
-                      status: 'succeeded' as const,
-                      activityDurationMs: activity.durationMs,
-                      activities: activity.activities,
-                      activityTimeline: activity.activityTimeline,
-                      // The turn's own messages decide whether its groups are
-                      // anchored in the transcript.
-                      messages: turn.replies,
-                      tools: activity.tools
-                    }
-                  : null
-                const activityText = activityTask ? activityOwnedText(activityTask) : ''
-                return (
-                  <Fragment key={turn.user.id}>
-                    <ConversationMessages
-                      messages={[turn.user]}
-                      readImage={readImage}
-                    />
-                    {activityTask ? <ActivityTimeline task={activityTask} /> : null}
-                    <ConversationMessages
-                      messages={turn.replies.map((message) =>
-                        dedupeAssistantText(message, activityText)
-                      )}
-                      tools={activity?.tools ?? []}
-                      readImage={readImage}
-                    />
-                    <TaskOutputFiles
-                      files={activity?.outputFiles ?? []}
-                      readOutputFile={readOutputFile}
-                    />
-                  </Fragment>
-                )
-              })}
+              {precedingTurns.map((turn) => (
+                <PriorTurn
+                  key={turn.user.id}
+                  user={turn.user}
+                  replies={turn.replies}
+                  activity={priorActivityByUserId.get(turn.user.id)}
+                  readImage={readImage}
+                  readOutputFile={readOutputFile}
+                />
+              ))}
               <ConversationMessages
                 messages={processMessages}
                 readImage={readImage}
@@ -292,6 +269,75 @@ export function TaskPage({
         </section>
       ) : null}
     </main>
+  )
+}
+
+type PriorTurnProps = {
+  user: AgentMessageProjection
+  replies: AgentMessageProjection[]
+  activity: PriorActivityTurnProjection | undefined
+  readImage: ImageReader | undefined
+  readOutputFile: OutputFileReader | undefined
+}
+
+/**
+ * One finished turn above the current one. Its messages keep their references while the current
+ * turn streams, so the turn renders once and is skipped for every later delta.
+ */
+const PriorTurn = memo(function PriorTurn({
+  user,
+  replies,
+  activity,
+  readImage,
+  readOutputFile
+}: PriorTurnProps) {
+  const activityTask = useMemo(
+    () =>
+      activity
+        ? {
+            id: activity.taskId,
+            status: 'succeeded' as const,
+            activityDurationMs: activity.durationMs,
+            activities: activity.activities,
+            activityTimeline: activity.activityTimeline,
+            // The turn's own messages decide whether its groups are anchored in the transcript.
+            messages: replies,
+            tools: activity.tools
+          }
+        : null,
+    [activity, replies]
+  )
+  const userMessages = useMemo(() => [user], [user])
+  const visibleReplies = useMemo(() => {
+    const activityText = activityTask ? activityOwnedText(activityTask) : ''
+    return replies.map((message) => dedupeAssistantText(message, activityText))
+  }, [activityTask, replies])
+  return (
+    <Fragment>
+      <ConversationMessages messages={userMessages} readImage={readImage} />
+      {activityTask ? <ActivityTimeline task={activityTask} /> : null}
+      <ConversationMessages
+        messages={visibleReplies}
+        tools={activity?.tools ?? NO_TOOLS}
+        readImage={readImage}
+      />
+      <TaskOutputFiles files={activity?.outputFiles ?? NO_FILES} readOutputFile={readOutputFile} />
+    </Fragment>
+  )
+}, samePriorTurn)
+
+const NO_TOOLS: NonNullable<TaskProjection['tools']> = []
+const NO_FILES: NonNullable<TaskProjection['outputFiles']> = []
+
+/** Replies are regrouped on every render, so they compare by their messages, not the array. */
+function samePriorTurn(previous: PriorTurnProps, next: PriorTurnProps): boolean {
+  return (
+    previous.user === next.user &&
+    previous.activity === next.activity &&
+    previous.readImage === next.readImage &&
+    previous.readOutputFile === next.readOutputFile &&
+    previous.replies.length === next.replies.length &&
+    previous.replies.every((message, index) => message === next.replies[index])
   )
 }
 

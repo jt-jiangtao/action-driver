@@ -31,7 +31,7 @@ describe('Computer Use guidance trigger', () => {
     const ensureGuidance = vi.fn(async () => true)
     vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
     const task = taskWith('task-1', 'computer.observe')
-    const view = renderHook(({ value }) => useComputerUseGuidance(value), {
+    const view = renderHook(({ value }) => useComputerUseGuidance(value.id, taskUsesComputerUse(value)), {
       initialProps: { value: task }
     })
     await waitFor(() => expect(ensureGuidance).toHaveBeenCalledOnce())
@@ -44,7 +44,7 @@ describe('Computer Use guidance trigger', () => {
   it('stays quiet for tasks that never use Computer Use', async () => {
     const ensureGuidance = vi.fn(async () => true)
     vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
-    renderHook(() => useComputerUseGuidance(taskWith('task-2', 'web.open')))
+    renderHook(() => useComputerUseGuidance('task-2', false))
     await Promise.resolve()
     expect(ensureGuidance).not.toHaveBeenCalled()
   })

@@ -507,9 +507,20 @@ describe('ActivityTimeline', () => {
     ).not.toBeNull()
     expect(screen.getByText('正在执行 2 项操作')).toHaveClass('activity-active-title')
     expect(screen.getByText('正在执行命令')).toHaveClass('activity-active-title')
-    mixed.tools![1] = { ...mixed.tools![1]!, title: '已执行命令', status: 'completed' }
-    mixed.activities![0]!.title = '已执行 2 项操作'
-    rerender(<ActivityTimeline task={{ ...mixed }} />)
+    // Projections are immutable: an update replaces the changed tool and activity.
+    rerender(
+      <ActivityTimeline
+        task={{
+          ...mixed,
+          tools: mixed.tools!.map((tool, index) =>
+            index === 1 ? { ...tool, title: '已执行命令', status: 'completed' as const } : tool
+          ),
+          activities: mixed.activities!.map((activity, index) =>
+            index === 0 ? { ...activity, title: '已执行 2 项操作' } : activity
+          )
+        }}
+      />
+    )
     expect(
       container.querySelector('.activity-group > summary .lucide-square-terminal')
     ).not.toBeNull()

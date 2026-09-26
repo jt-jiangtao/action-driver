@@ -10,13 +10,13 @@ export function taskUsesComputerUse(task: TaskProjection | null | undefined): bo
  * open the standalone authorization guidance only when the helper reports a missing permission,
  * while the renderer only knows that Computer Use has started.
  */
-export function useComputerUseGuidance(task: TaskProjection | null | undefined): void {
+export function useComputerUseGuidance(taskId: string | null, usesComputerUse: boolean): void {
   const ensured = useRef(new Set<string>())
   useEffect(() => {
-    if (!task || !taskUsesComputerUse(task) || ensured.current.has(task.id)) return
-    ensured.current.add(task.id)
+    if (!taskId || !usesComputerUse || ensured.current.has(taskId)) return
+    ensured.current.add(taskId)
     const api = window.actionDriverDesktop?.computerUse
     if (!api?.ensureGuidance) return
     void api.ensureGuidance().catch(() => undefined)
-  }, [task])
+  }, [taskId, usesComputerUse])
 }

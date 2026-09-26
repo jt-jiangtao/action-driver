@@ -1023,11 +1023,64 @@ describe('StreamTaskProjection', () => {
     }
   )
 
-  it('returns immutable snapshots', () => {
-    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+  it('never mutates an emitted snapshot and shares what did not change', () => {
+    const emitted: TaskProjection[] = []
+    const pending: Array<() => void> = []
+    const projection = new StreamTaskProjection({
+      onChange: (snapshot) => emitted.push(deepFreeze(snapshot)),
+      schedule: (callback) => pending.push(callback),
+      cancelScheduled: () => pending.splice(0)
+    })
     projection.attach(task())
-    const external = projection.snapshot()!
-    external.messages[0]!.content = 'mutated'
-    expect(projection.snapshot()?.messages[0]?.content).toBe('写代码')
+    let sequence = 0
+    const next = <T extends object>(event: T) => {
+      const numbered = { ...identity, ...event, sequence, cursor: sequence + 2, eventId: `e-${sequence}` }
+      sequence += 1
+      return numbered as unknown as StreamServerEvent
+    }
+    const tool = { callId: 'call-a', callSequence: 0, toolId: 'shell', modelName: 'shell',
+      summary: '工具 A', argumentsHash: 'hash', activityId: 'research' }
+    const events = [
+      next({ type: 'response.start', model: identityModel }),
+      next({ type: 'response.content', delta: '第一段', contentIndex: 0 }),
+      next({ type: 'response.content', delta: '继续', contentIndex: 0 }),
+      next({ type: 'activity.started', activityId: 'research', title: '调研', titleRevision: 1 }),
+      next({ type: 'activity.text', activityId: 'research', textId: 't', delta: '过程' }),
+      next({ type: 'activity.text', activityId: 'research', textId: 't', delta: '更多' }),
+      next({ type: 'tool.proposed', ...tool }),
+      next({ type: 'tool.completed', ...tool, callSequence: 1, durationMs: 5, resultSummary: '完成' }),
+      next({ type: 'activity.text.done', activityId: 'research', textId: 't', phase: 'process' }),
+      next({ type: 'activity.completed', activityId: 'research' }),
+      next({ type: 'response.content', delta: '答案', contentIndex: 0 }),
+      next({ type: 'response.content', delta: '结束', contentIndex: 0 }),
+      next({ type: 'response.end', status: 'completed', content: '第一段继续答案结束',
+        finishReason: 'stop', usage: null, durationMs: 10 })
+    ]
+    for (const event of events) {
+      projection.apply(event)
+      pending.splice(0).forEach((callback) => callback())
+    }
+
+    const last = emitted.at(-1)!
+    expect(last.status).toBe('succeeded')
+    expect(last.messages.at(-1)?.content).toBe('第一段继续答案结束')
+    expect(last.activities?.[0]?.items.find((item) => item.id === 'text:t')).toMatchObject({
+      content: '过程更多',
+      phase: 'process'
+    })
+    const [before, after] = emitted.slice(-3, -1)
+    expect(after!.messages[0]).toBe(before!.messages[0])
+    expect(after!.steps).toBe(before!.steps)
+    expect(after!.activities).toBe(before!.activities)
   })
 })
+
+const identityModel = { connectionId: 'connection-1', modelId: 'qwen3.7-max' }
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value)
+    for (const child of Object.values(value)) deepFreeze(child)
+  }
+  return value
+}

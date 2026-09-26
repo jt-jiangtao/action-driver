@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import {
   BookOpen,
   Boxes,
@@ -26,7 +26,7 @@ import { useScrollFade } from '../scroll-fade'
  * anchors a group where its tools ran, so prose, tools and images keep the
  * order the model produced them in — exactly like Codex's item stream.
  */
-export function ActivityGroup({
+export const ActivityGroup = memo(function ActivityGroup({
   activity,
   tools
 }: {
@@ -78,7 +78,7 @@ export function ActivityGroup({
       </ActivityItems>
     </details>
   )
-}
+})
 
 export function ActivityItems({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -124,7 +124,7 @@ function ActivityIcon({
   return <Boxes aria-hidden="true" size={16} />
 }
 
-export function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
+export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   if (!tool) return null
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
   const shellTranscript = shellToolTranscript(tool)
@@ -230,7 +230,7 @@ export function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }
       </div>
     </details>
   )
-}
+})
 
 /** Image generation: show the prompts and the outcome, never the plumbing JSON. */
 function imageToolSummary(
