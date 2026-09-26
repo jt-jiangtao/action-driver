@@ -19,7 +19,9 @@ export function createComputerUseProvider(helper: Helper): HostedSkillProvider {
         requestId: randomUUID(),
         deadlineUnixMs: Date.now() + 25_000
       })
-      if (!request.success || !['permissions', 'observe', 'capture', 'act'].includes(request.data.operation)) {
+      if (!request.success ||
+          !['permissions', 'observe', 'capture', 'act', 'list-apps', 'app-state']
+            .includes(request.data.operation)) {
         throw new Error('INVALID_REQUEST: Unsupported Computer Use command')
       }
       return helper.execute(request.data, signal)

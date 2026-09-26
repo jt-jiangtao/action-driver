@@ -13,6 +13,7 @@ describe('agent runtime build', () => {
     expect(packageJson.scripts.build).toContain('scripts/stage-runtimes.mjs')
     expect(packageJson.scripts.build).toContain('scripts/copy-rg.mjs')
     expect(packageJson.scripts.build).toContain('scripts/copy-system-skills.mjs')
+    expect(packageJson.scripts.build).toContain('scripts/copy-js-entry.mjs')
     expect(packageJson.scripts.build).not.toContain('stage-office-dependencies.mjs')
     expect(packageJson.scripts['build:office-local']).toContain('stage-office-dependencies.mjs')
   })

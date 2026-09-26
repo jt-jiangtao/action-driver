@@ -66,8 +66,21 @@ try {
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
   run('ditto', [join(builtRuntimeDist, 'prompts'), join(runtimeDist, 'prompts')])
+  run('ditto', [join(builtRuntimeDist, 'js-repl'), join(runtimeDist, 'js-repl')])
   if (!existsSync(join(runtimeDist, 'prompts', 'main.md'))) {
     throw new Error('PACKAGED_MAIN_PROMPT_MISSING')
+  }
+  // The JavaScript entry runs as its own Node process, so the packaged tree must carry the child
+  // script and be able to answer one call with the bundled runtime.
+  const jsEntry = join(runtimeDist, 'js-repl', 'repl-server.mjs')
+  if (!existsSync(jsEntry)) throw new Error('PACKAGED_JS_ENTRY_MISSING')
+  const jsProbe = spawnSync(
+    join(runtimeDist, 'runtimes', `darwin-${process.arch}`, 'node', 'bin', 'node'),
+    ['--experimental-vm-modules', '--no-warnings', jsEntry],
+    { input: `${JSON.stringify({ id: 1, code: 'nodeRepl.write(String(1 + 1))' })}\n`, encoding: 'utf8' }
+  )
+  if (jsProbe.status !== 0 || !jsProbe.stdout.includes('"text":"2"')) {
+    throw new Error(`PACKAGED_JS_ENTRY_FAILED: ${jsProbe.stdout}${jsProbe.stderr}`)
   }
   // The verifier stages the local dependency tree the same way it stages the
   // bundled runtimes; release packaging keeps its own decision on this tree.

@@ -70,12 +70,18 @@
 
 ## 10. 能力面对齐 Codex（Battle 后裁决）
 
-- [ ] 10.1 协议与 helper 新增 `list_apps`：返回应用 id／显示名／是否运行／最近使用，供按 bundle id 重试。
-- [ ] 10.2 `get_app_state`：按 app（名/路径/bundle id）取 AX 文本 + 截图；未运行则经 LaunchServices 透明启动；动作后自动等待（约 1s，加载中最多再等 5s）；默认输出相对上次的 diff，`disableDiff` 关闭。
-- [ ] 10.3 动作补齐：`set_value`、`paste`（系统剪贴板，写入后恢复原内容，支持 text/md/html）、`select_text`（含 prefix/suffix/selection_type）、`drag`、`perform_secondary_action`（仅限元素实际暴露的 action）。
-- [ ] 10.4 模型入口：提供 `node_repl` 式有状态 JS 入口（状态跨调用保留、可 emit 图像），在 JS 中 `import` Computer Use 库调用上述 11 个 API；除用户明确要求外不使用 AppleScript/osascript/JXA/System Events/CGEvent 合成。
-- [ ] 10.5 门禁与前置条件：调用 Computer Use 前必须先加载 `computer-use` skill；11 个 API 全部接入既有 Tool/Policy 与逐动作确认门禁，确认分级遵循 skill 里的 Confirmations Policy。
-- [ ] 10.6 验证：定向测试（协议/helper/工具面/JS 入口）、真实应用冒烟（启动走 LaunchServices、观察/点击/取值/粘贴/次级动作可用、WPS 类应用不再因 shell 启动而崩溃）、打包冒烟。
+- [x] 10.1 协议与 helper 新增 `list_apps`：返回应用 id／显示名／是否运行／路径。
+- [x] 10.2 `get_app_state`：按 app（名/路径/bundle id）取 AX 文本 + 截图；未运行则经 LaunchServices 透明启动；动作后自动等待（约 1s，加载中最多再等 5s）；输出相对上次的 diff，`disableDiff` 关闭。
+- [x] 10.3 动作补齐：`set_value`、`paste`（系统剪贴板，写入后恢复原内容，支持 text/md/html）、`select_text`（含 prefix/suffix/selection_type）、`drag`、`perform_secondary_action`（仅限元素实际暴露的 action）。
+- [x] 10.4 模型入口：提供 `node_repl` 式有状态 JS 入口（状态跨调用保留、可 emit 图像），在 JS 中 `import` Computer Use 库调用上述 11 个 API；除用户明确要求外不使用 AppleScript/osascript/JXA/System Events/CGEvent 合成。
+  - [x] 10.4.1 单次调用 = 一个 ES module：`vm.SourceTextModule` + 持久 `vm` 上下文，天然支持顶层 `await`、跨调用重声明 `const`/`let`、`globalThis` 持久。
+  - [x] 10.4.2 顶层绑定跨调用保留：`resources/js-repl/bindings.mjs` 用自研 tokenizer 取顶层绑定名，prelude 从合成模块 `@prev` 重新声明未被本单元覆盖的名字，再把合并后的名字 `export` 给下一单元；引擎语法错误会回退重试（冲突就取消 carry、导出不存在就删名），最终兜底是原样运行代码。
+  - [x] 10.4.3 `@oai/sky`：动态 import 解析为合成模块（`const { sky } = await import("@oai/sky")`，同时预置同名全局）；`node:*` 走真实动态 import，`node:process` 与顶层静态 import 按 Codex 文案拒绝。
+  - [x] 10.4.4 `nodeRepl`：`write`／`emitImage({bytes, mimeType})`／`cwd`／`homeDir`／`tmpDir`；`emitImage` 用 `ArrayBuffer.isView` 判定，兼容子 realm 的 `Uint8Array`。
+  - [x] 10.4.5 工具面：`js`（`code` / `timeout_ms` / `title`，单次默认 30s、上限 300s）与 `js_reset`；模型侧名字与 Codex 的 `node_repl` 工具一致。
+- [x] 10.5 门禁与前置条件：调用 Computer Use 前必须先加载 `computer-use` skill；11 个 API 全部接入既有 Tool/Policy 门禁，确认分级遵循 skill 里的 Confirmations Policy。
+  - [ ] 10.5.1 待补：JS 入口内的逐动作**中断式**确认尚未实现，当前由模型按 Confirmations Policy 主动询问；中断式确认目前只覆盖 `computer_act`。
+- [x] 10.6 验证：定向测试（协议/helper/工具面/JS 入口）、真实 helper 二进制冒烟、打包冒烟（见 `design.md` 的「10.x 实施记录」）。
 
 - [x] 9.1 helper 提供 Unix domain socket 服务：私有运行目录（0700）、socket 0600、token 握手、单连接串行、无 TCP 监听。
 - [x] 9.2 Main 通过 LaunchServices 启动 helper 并连接 socket：既有 socket 复用、就绪超时、崩溃感知与重启、shutdown 与残留清理；删除 stdio 通道与相关回退开关。

@@ -19,4 +19,18 @@ describe('Computer Use provider', () => {
     await provider.execute({ operation: 'capture', maxWidth: 100, maxHeight: 100 })
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({ operation: 'capture' }), undefined)
   })
+
+  it('carries the index-addressed state calls the JavaScript entry depends on', async () => {
+    const execute = vi.fn(async () => ({ apps: [] }))
+    const provider = createComputerUseProvider({ execute })
+    await provider.execute({ operation: 'list-apps' })
+    await provider.execute({ operation: 'app-state', app: 'TextEdit',
+      maxElements: 300, maxDepth: 12, disableDiff: true })
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ operation: 'list-apps' }), undefined)
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({
+      operation: 'app-state', app: 'TextEdit', maxElements: 300, maxDepth: 12, disableDiff: true
+    }), undefined)
+    await expect(provider.execute({ operation: 'shutdown' }))
+      .rejects.toThrow('Unsupported Computer Use command')
+  })
 })

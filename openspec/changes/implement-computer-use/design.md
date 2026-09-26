@@ -120,3 +120,43 @@ Main 侧对 helper 的请求串行化：helper 单实例、同时刻只处理一
 5. 打包与权限冒烟验证。
 
 回滚：把 Computer Skill 绑定回 Mock Provider，原生服务不随应用启动。
+
+## 10.x 实施记录：有状态 JS 入口（2026-09-26）
+
+### Decisions
+
+**1. 单次调用 = 一个 ES module，绑定靠合成模块 `@prev` 传递（而不是解析改写用户代码）。**
+Codex 的 `node_repl` 内核同样以 module 为单位执行，因为只有 module 才能同时给出顶层 `await`、“下一个单元可以重新声明同名 `const`/`let`”和共享的 `globalThis`。绑定保留由此拆成两步：`resources/js-repl/bindings.mjs` 只负责找出本单元**顶层**声明了哪些名字，未被子单元覆盖的旧名字从 `@prev` 合成模块用 `let` 重新声明，合并后的名字集合再 `export` 给下一个单元。
+
+- 名字发现用仓库自研 tokenizer（跳过字符串、模板、注释、正则、嵌套块），**不引入第三方解析器**，避免为了一个入口把 meriyah 之类的解析器连同许可证 vendored 进仓库。
+- 自研扫描一定会有边界情况：因此每次组装后的源码都要先交给引擎编译，冲突（`Identifier 'x' has already been declared`）就把该名字从 carry 里摘掉、导出不存在（`Export 'x' is not defined`）就删名重试，最多 8 轮；仍然编译不过时退回“原样运行这个单元的代码”。失败单元不更新 carry 基线，所以上一步的值不会被半初始化的绑定污染。
+- 由此形成一个可接受的最坏情况：扫描漏掉某个名字，效果是“这个名字不会被带到下一次调用”，而不是执行到不同的代码。
+
+**2. 输出只走 `nodeRepl.write`。** module 没有 completion value，这与 Codex 工具说明里“要读整个对象就自己 `JSON.stringify` 后用 `nodeRepl.write` 输出”一致；`emitImage({bytes, mimeType})` 用 `ArrayBuffer.isView` 判定，兼容执行上下文（另一个 realm）里创建的 `Uint8Array`。
+
+**3. `get_app_state` 在 JS 入口里返回**完整**索引文本，不做 diff。** Codex 的 `@oai/sky` 是索引寻址（`element_index`），而 diff 只会列出变化的行：模型若沿用一份旧索引，适配层可能把它解析成另一个真实存在的元素，形成**静默误点**。因此入口一律请求 `disableDiff: true`，由 `sky-session.ts` 自行渲染 `[index] role "title" actions=[...]`，并把索引→`elementRef` 的映射留在 Runtime（模型看不到 `ref`）。helper 的 diff 能力保留给既有的 `computer_app_state`/工具面。
+
+**4. 动作前的状态与自动恢复。** 动作需要 observation：入口先复用该 app 最近一次 `get_app_state` 的 observation，没有就先读一次（顺带完成“未运行经 LaunchServices 透明启动 + 激活”）；`act` 遇到 `STALE_REFERENCE` 或 `ENGINE_UNAVAILABLE`（前台窗口已换、helper 窗口在最前）时自动重读并重试一次，仍失败才把错误交给模型。
+
+**5. 子进程跑在既有会话沙箱里。** `js` 用与脚本工具相同的 `sandbox-exec` 配置启动随包 Node（`--experimental-vm-modules --no-warnings`）：只读会话工作区与运行时资源，可写 `output/` 与沙箱临时目录；截图写进沙箱临时目录，以 `file://` URL 交给模型，模型用 `await import("node:fs/promises")` 读回再 `emitImage`。每任务一个子进程（最多 4 个，超出淘汰最旧），`js_reset` 只换 `vm` 上下文不换进程，Runtime 关闭或子进程退出时释放沙箱目录。
+
+**6. 工具名与 Codex 对齐**：模型侧是 `js` 与 `js_reset`（对应 `computer.js@1` / `computer.js_reset@1`），同样受 `computer-use` Skill 前置门禁；`computer.*` 原工具保留。
+
+### Risks / Trade-offs
+
+- **扫描器的边界**：正则字面量与 `/` 除法的歧义、`for (const … of …)` 之外的非典型顶层声明都可能漏判；代价被限制为“该名字不跨调用保留”，且引擎校验会兜住过度判定。若将来出现真实漏判案例，再评估是否引入解析器。
+- **无 diff 的 token 成本**：每次 `get_app_state` 返回完整树；换来的是索引不会静默指向别的元素。需要用真实应用对比 token 与步数后再决定是否引入“带稳定索引的 diff”。
+- **JS 入口内的逐动作确认缺失**（tasks 10.5.1）：入口是中转层，动作发生在一次工具调用内部，现有中断式确认只在工具调用边界生效（`computer_act`）。当前依赖 skill 的 Confirmations Policy 由模型主动确认；若用户要求更硬的约束，需要把确认通道下沉到工具调用内部（新的架构决策）。
+- **helper 能力边界如实暴露**：`press_key` 只支持 helper 键表（`return`/`tab`/`space`/`escape`/`delete`/方向键/`a,c,v,x,z,s`）；`scroll` 只能落在当前指针位置（helper 无按元素滚动）；`click` 只支持左键单击，右键语义走 `perform_secondary_action`。这些都以明确报错结束，不做静默降级。
+
+### 验证记录
+
+2026-09-26，本机 macOS arm64：
+
+- 定向测试：`apps/agent-runtime/src/computer-use/{bindings,js-repl,sky-session,control-gate,skill-gate,tools,approval,graph-capture,volatile-images}.test.ts`、`apps/agent-runtime/tests/{js-entry,js-tools,computer-use-integration,runtime-process,package-build}.test.ts`、`apps/desktop/src/main/computer-use-provider.test.ts` 全部通过（53 项）。
+- `js-entry.test.ts` 用真实子进程验证：文档里的 `globalThis.sky = (await import("@oai/sky")).sky` 引导、`get_app_state` 文本回传、`const` 跨调用保留与重声明、单元抛错后旧绑定仍在、`emitImage` 字节到达宿主、顶层静态 import 按 Codex 文案被拒、`js_reset` 后绑定清空，以及 `element_index` → `elementRef` 的解析（文本里不出现 `ref`）。
+- `js-tools.test.ts` 在真实沙箱里验证：单元可读写会话 `output/`、`nodeRepl.cwd` 是会话根、`sky.list_apps` 请求到达 provider、图像变成 asset 事件、未加载 skill 时 `SKILL_NOT_LOADED`、读取会话工作区之外的临时文件被沙箱拒绝（EPERM）、参数校验（空 `code`、越界 `timeout_ms`）生效。
+- 打包：`apps/agent-runtime` 构建新增 `scripts/copy-js-entry.mjs`，把 `resources/js-repl` 复制到 `dist/js-repl`；`scripts/test-packaged-macos.mjs` 同步复制该目录，并用打包后的 Node 跑一次真实单元（断言输出 `2`），缺失即打包冒烟失败。
+- Desktop provider：`list-apps` 与 `app-state` 从“不支持的指令”改为放行（原先只有 `permissions/observe/capture/act`，JS 入口的 `list_apps`/`get_app_state` 会被拒）。
+- 提交前一次性验证：`pnpm typecheck` 通过；`pnpm lint` 通过（交互契约 139 项）；`pnpm test` 158 个文件通过、2 跳过，996 个用例通过、2 跳过；`pnpm test:e2e:packaged:macos` 通过（含新的入口探针）；`pnpm test:e2e:local` 7 项通过、1 项失败（既有 `persists the selected Token Plan image API and default model in settings`）。
+- 环境问题（非本次改动）：一次 `pnpm test:e2e:local` 里 `opens the native guidance window only when a permission is missing` 报 `ENGINE_UNAVAILABLE: helper client closed`，原因是本机残留了 13:20 启动的旧 `actiondriver-computer-use` 进程占着 `/var/folders/…/actiondriver-computer-use.sock`；终止该残留进程后该用例单独重跑通过，整组回到 7 通过 / 1 既有失败。开发期重跑 e2e 前建议先确认没有遗留 helper 进程。

@@ -35,6 +35,7 @@ import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
 import { createImageGenerationTool } from './media/image-generation-tool'
 import { createComputerUseTools } from './computer-use/tools'
+import { createJsEntryTools } from './computer-use/js-tools'
 import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
 import { LoadedSkills } from './computer-use/skill-gate'
@@ -162,15 +163,30 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.releaseVolatileImage = (assetId) => computerImages.discard(assetId)
   const computerControl = new ComputerUseControlGate()
   const loadedSkills = new LoadedSkills()
+  let jsEntry: ReturnType<typeof createJsEntryTools> | null = null
   if (process.platform === 'darwin') {
-    const computerTools = createComputerUseTools(async (input, signal) => {
+    const invokeComputer = async (input: Record<string, unknown>, signal?: AbortSignal) => {
       const provider = local.adapters.skillRegistry.resolve('computer-use', 1)
       const result = await provider.execute({ invocationId: randomUUID(), input }, signal)
       return result.input
-    }, computerControl, {
+    }
+    const computerTools = createComputerUseTools(invokeComputer, computerControl, {
       skillLoaded: (taskId) => loadedSkills.has(taskId, 'computer-use')
     })
     for (const tool of computerTools) {
+      local.toolRuntime.registry.register(tool.definition, tool.executor)
+      local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
+    }
+    // The JavaScript entry is the Skill's primary interface: one persistent, sandboxed session per
+    // task that reaches the same helper through the same provider.
+    jsEntry = createJsEntryTools({
+      runtimeDist,
+      invokeComputer,
+      saveImage: (sessionId, bytes) => assets.saveGenerated(sessionId, bytes),
+      skillLoaded: (taskId) => loadedSkills.has(taskId, 'computer-use'),
+      gate: computerControl
+    })
+    for (const tool of jsEntry.tools) {
       local.toolRuntime.registry.register(tool.definition, tool.executor)
       local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
     }
@@ -280,6 +296,7 @@ export async function startAgentRuntimeProcess(
     }
     parentPort.off('message', handleShutdown)
     void server.close().then(async () => {
+      jsEntry?.dispose()
       await httpServer?.close()
       checkpointer.close()
       ownership.release()

@@ -16,15 +16,30 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['scripts/**/*.mjs'],
+    // Node-side helper scripts that ship with the runtime or the packaging flow.
+    files: ['scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
+      'apps/agent-runtime/resources/js-repl/**/*.mjs'],
     languageOptions: {
       globals: {
         Buffer: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        TextDecoder: 'readonly',
+        TextEncoder: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
         clearTimeout: 'readonly',
+        clearInterval: 'readonly',
         console: 'readonly',
         fetch: 'readonly',
+        queueMicrotask: 'readonly',
         process: 'readonly',
-        setTimeout: 'readonly'
+        require: 'readonly',
+        setInterval: 'readonly',
+        setTimeout: 'readonly',
+        structuredClone: 'readonly'
       }
     }
   },

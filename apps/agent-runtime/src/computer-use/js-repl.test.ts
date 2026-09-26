@@ -1,0 +1,157 @@
+import { describe, expect, it, vi } from 'vitest'
+import { JsReplHost, type JsReplChild } from './js-repl'
+
+type Message = Record<string, unknown>
+
+/**
+ * Stands in for the real child: it answers each cell with the messages the test scripted for that
+ * code (an empty answer when it wrote no script), and records what the host wrote back.
+ */
+class FakeChild {
+  private emit: ((chunk: string) => void) | null = null
+  private readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>()
+  readonly written: string[] = []
+  killed = false
+
+  constructor(readonly replies: Map<string, Message[]> = new Map()) {}
+
+  readonly stdin = {
+    write: (line: string) => {
+      this.written.push(line)
+      const message = JSON.parse(line) as Message
+      if (message.reset === true) { this.send({ id: message.id, ok: true }); return }
+      for (const reply of this.replies.get(String(message.code)) ?? [{ ok: true }]) {
+        this.send({ ...reply, id: reply.id ?? message.id })
+      }
+    }
+  }
+
+  readonly stdout = {
+    setEncoding: () => undefined,
+    on: (_event: string, listener: (chunk: string) => void) => { this.emit = listener }
+  }
+
+  readonly stderr = {
+    setEncoding: () => undefined,
+    on: (_event: string, _listener: (chunk: string) => void) => undefined
+  }
+
+  on(event: string, listener: (...args: unknown[]) => void): this {
+    const listeners = this.listeners.get(event) ?? []
+    listeners.push(listener)
+    this.listeners.set(event, listeners)
+    return this
+  }
+
+  kill(): boolean { this.killed = true; return true }
+  exit(code = 0): void { for (const listener of this.listeners.get('exit') ?? []) listener(code) }
+  send(message: Message): void { this.emit?.(`${JSON.stringify(message)}\n`) }
+}
+
+function harness(overrides: {
+  callSky?: (taskId: string, method: string, args: unknown) => Promise<unknown>
+  replies?: Map<string, Message[]>
+} = {}) {
+  const children: FakeChild[] = []
+  const closed: string[] = []
+  const callSky = vi.fn(overrides.callSky ?? (async () => ({ ok: true })))
+  const host = new JsReplHost({
+    spawn: async () => {
+      const child = new FakeChild(overrides.replies)
+      children.push(child)
+      return child as unknown as JsReplChild
+    },
+    close: (taskId) => { closed.push(taskId) },
+    callSky,
+    defaultTimeoutMs: 1_000
+  })
+  return { host, children, callSky, closed }
+}
+
+const events = () => ({ text: vi.fn(), image: vi.fn() })
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+describe('JsReplHost', () => {
+  it('keeps one child per task and returns the text the cell wrote', async () => {
+    const replies = new Map([
+      ['nodeRepl.write("one")', [{ type: 'text', text: 'one' }, { ok: true }]],
+      ['nodeRepl.write("two")', [{ type: 'text', text: 'two' }, { ok: true }]]
+    ])
+    const { host, children } = harness({ replies })
+    const reported = events()
+    expect(await host.run('task-1', 'nodeRepl.write("one")', {}, reported)).toBe('one')
+    expect(await host.run('task-1', 'nodeRepl.write("two")', {}, reported)).toBe('two')
+    expect(children).toHaveLength(1)
+    expect(reported.text).toHaveBeenCalledWith('one')
+    host.dispose('task-1')
+    expect(children[0]!.killed).toBe(true)
+  })
+
+  it('answers a sky call through the host bridge', async () => {
+    const { host, children, callSky } = harness({
+      callSky: async () => [{ id: 'com.apple.TextEdit' }]
+    })
+    const running = host.run('task-2', 'await sky.list_apps()', {}, events())
+    await settle()
+    children[0]!.send({ type: 'call', id: 7, method: 'list_apps', args: { app: 'TextEdit' } })
+    expect(await running).toBe('')
+    expect(callSky).toHaveBeenCalledWith('task-2', 'list_apps', { app: 'TextEdit' })
+    expect(children[0]!.written.at(-1)).toContain('"type":"callResult"')
+    host.dispose('task-2')
+  })
+
+  it('reports a sky failure back to the cell', async () => {
+    const { host, children } = harness({
+      callSky: async () => { throw new Error('ACCESSIBILITY_DENIED: nope') }
+    })
+    const running = host.run('task-3', 'await sky.list_apps()', {}, events())
+    await settle()
+    children[0]!.send({ type: 'call', id: 3, method: 'list_apps', args: {} })
+    await running
+    expect(children[0]!.written.at(-1)).toContain('ACCESSIBILITY_DENIED')
+    host.dispose('task-3')
+  })
+
+  it('streams images emitted by the session', async () => {
+    const replies = new Map([['emit', [
+      { type: 'image', mimeType: 'image/png', base64: Buffer.from('png').toString('base64') },
+      { ok: true }
+    ]]])
+    const { host } = harness({ replies })
+    const reported = events()
+    expect(await host.run('task-4', 'emit', {}, reported)).toBe('')
+    expect(reported.image).toHaveBeenCalledWith(Buffer.from('png'), 'image/png')
+    host.dispose('task-4')
+  })
+
+  it('fails the call with the message the cell threw', async () => {
+    const replies = new Map([['boom', [{ ok: false, error: 'Error: boom' }]]])
+    const { host } = harness({ replies })
+    await expect(host.run('task-5', 'boom', {}, events())).rejects.toThrow('Error: boom')
+    host.dispose('task-5')
+  })
+
+  it('ends the session when a call runs out of time', async () => {
+    const { host, children, closed } = harness({ replies: new Map([['hang', []]]) })
+    await expect(host.run('task-6', 'hang', { timeoutMs: 20 }, events())).rejects.toThrow('TIMED_OUT')
+    expect(children[0]!.killed).toBe(true)
+    expect(closed).toContain('task-6')
+  })
+
+  it('fails pending work when the child exits', async () => {
+    const { host, children } = harness({ replies: new Map([['slow', []]]) })
+    const running = host.run('task-7', 'slow', {}, events())
+    await settle()
+    children[0]!.exit(1)
+    await expect(running).rejects.toThrow('ENGINE_UNAVAILABLE')
+  })
+
+  it('resets bindings without replacing the child', async () => {
+    const { host, children } = harness()
+    await host.run('task-8', 'const x = 1', {}, events())
+    await host.reset('task-8')
+    expect(children).toHaveLength(1)
+    expect(children[0]!.written.at(-1)).toContain('"reset":true')
+    host.dispose('task-8')
+  })
+})
