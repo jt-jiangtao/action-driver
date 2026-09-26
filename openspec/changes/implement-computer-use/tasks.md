@@ -89,6 +89,7 @@
 - [x] 10.7.1 子进程协议与宿主 API：出现有副作用的 sky 调用时，宿主不再直接执行，而是给子进程回 `approvalRequired` 并让该 promise 保持 pending；宿主把这轮以"待审批动作（序号 + 方法 + 参数）"结束。续接时宿主把决定交回同一挂起单元（`continueRun`），批准则先执行动作再把结果写入，拒绝则写入 `USER_DENIED`，然后继续等到单元完成或下一个待审批动作。等待审批的时间不计入单元超时。
 - [x] 10.7.2 工具调用续跑：`ToolInvocationService` 把 `continuation.decisions` 通过执行上下文交给工具，`ToolApprovalRequired` 原样上抛（不写成 `tool.failed`、不重复写终态事件，`commitToolInvocationWithEvent` 按 `eventKey` 幂等）。`js` 执行器在第一次执行时把待审批动作记进任务级表并上抛，续接时按"决策序号与等待中的动作比对"逐个投递，已投递过的（小于当前等待序号）跳过，大于则 `APPROVAL_STALE`。
   - [ ] 10.7.6 **待补**：`js-tools` 里"把已有决策真正投递回宿主并完成单元"这一段尚未通过测试（`js-tools.test.ts` 目前只验证到挂起与动作未被提前执行）；宿主层的挂起→续接→完成已由 `tests/js-entry.test.ts` 用真实子进程覆盖。修复方向：续接时 `host.continueRun` 的 `perform` 需要与宿主悬挂调用对齐（疑似首轮被放弃的 tool 生成器让宿主会话状态与执行器视图不一致）。
+- [x] 10.7.7 临时可用性回退（用户裁决"先保住可用性"）：`js` 入口只做观察与脚本，`sky.click`/`set_value`/`type_text`/`press_key`/`drag`/`paste`/`select_text`/`perform_secondary_action` 一律拒绝并提示改用 `computer_act`（先用 `computer_observe` 取 `observationId` 与 `elementRef`，逐动作确认）；B2 的挂起协议、图循环与 `jsAction` 卡片代码保留但不启用，等 10.7.6 修好并按需恢复。
 - [x] 10.7.3 图节点循环：`executeTools` 用"执行 → 工具上抛待审批动作 → `interrupt()` → 恢复 → 用已给出的决策列表继续同一 `callId`"的循环，`js` 不再发单元级确认；决策列表按 callId 记在运行时，恢复时整体重放（工具按序号跳过已投递的决策），并在调用结束时清空。
   - 实测发现：同一轮里连续第二次 `interrupt()` 在真实节点里会拿到和第一次相同的恢复值（与最小 spike 的结论不一致），因此**一次 `js` 调用只允许一个桌面动作**：同一单元出现第二个待审批动作时，工具结果返回 `COMPUTER_ACTION_SPLIT_REQUIRED`，要求模型拆成两次调用。多动作单元留待对 LangGraph 的多次中断语义再做一次 spike 后评估。
 - [ ] 10.7.4 提示词与工具描述改为"每个动作各自确认、可以在一个单元里连续写多个动作"。

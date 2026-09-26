@@ -16,7 +16,6 @@ import { resolveExecutionRuntimePaths } from '../execution/runtime-paths'
 import { CONSEQUENTIAL_SKY_METHODS } from './cell-actions'
 import type { ComputerUseControlGate } from './control-gate'
 import {
-  ApprovalRequiredError,
   JsReplHost,
   type JsApprovalAction,
   type JsReplChild,
@@ -49,10 +48,9 @@ const JS_DESCRIPTION =
   '`nodeRepl.emitImage({ bytes, mimeType })` for images. Screenshots are written to files and ' +
   'returned as `screenshot.url` file URLs. Files can be written under `output/`; the working ' +
   'directory itself is read-only. Top-level static imports and node:process are unavailable. ' +
-  'A call that reaches a method changing the desktop (click, drag, paste, press_key, select_text, ' +
-  'set_value, type_text, perform_secondary_action) stops and asks the user before that action runs; ' +
-  'keep one such action per call, since a second one is refused with COMPUTER_ACTION_SPLIT_REQUIRED. ' +
-  'Observation-only calls run without a prompt, and a denied action comes back as USER_DENIED.'
+  'This entry observes and scripts: methods that change the desktop (click, drag, paste, ' +
+  'press_key, select_text, set_value, type_text, perform_secondary_action) are refused, and those ' +
+  'actions go through the computer_act tool, which confirms each one on its own.'
 
 const jsSchema: ToolDefinition['inputSchema'] = {
   type: 'object',
@@ -101,11 +99,14 @@ export function createJsEntryTools(options: {
       session.sky.dispose()
       void session.sandbox.dispose()
     },
-    // Every desktop action from inside the cell stops here for the user's answer; the approved one is
-    // performed by the resumed call itself, which is why this path never performs one directly.
+    // Interim: the entry observes and scripts, while desktop actions go through `computer_act`, which
+    // already confirms each action on its own. Per-action confirmation inside the entry (tasks 10.7.6)
+    // turns this back into a suspension once the resumed call is verified end to end.
     callSky: async (taskId, method, args, signal) => {
       if (CONSEQUENTIAL_SKY_METHODS.includes(method as typeof CONSEQUENTIAL_SKY_METHODS[number])) {
-        throw new ApprovalRequiredError({ method, args })
+        throw new Error(`APPROVAL_REQUIRED: the js entry does not perform desktop actions yet; read ` +
+          `the interface with sky.get_app_state and use the computer_act tool (observationId + ` +
+          `elementRef from computer_observe) for ${method}`)
       }
       return await skyFor(taskId).invoke(method, args, signal)
     },
@@ -251,7 +252,6 @@ export function createJsEntryTools(options: {
             }
             const outcome = await continueOrStart(execution, code, limits, events, signal)
             if (outcome.kind === 'approval') {
-              // Stop the tool call here; the graph asks the user and resumes this same cell.
               pendingApprovals.set(execution.taskId, outcome.action)
               throw new ToolApprovalRequired(outcome.action)
             }
