@@ -26,4 +26,4 @@
 
 - [x] 5.1 用户运行定向测试：`pnpm vitest run apps/desktop/src/renderer packages/activity-projection` 与 `pnpm typecheck`，结果记录于此。
   - 2026-09-26 由 Agent 在 worktree 中运行：`pnpm vitest run apps/desktop/src/renderer packages/activity-projection` → 46 个文件、338 个用例全部通过；`pnpm typecheck` → 通过。
-- [ ] 5.2 用户在 `pnpm dev` 中用长对话手动确认流式输出流畅、界面无回归。
+- [x] 5.2 用户在 `pnpm dev` 中用长对话手动确认流式输出流畅、界面无回归。（2026-09-26 用户确认已验证。）
