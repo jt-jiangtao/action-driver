@@ -137,7 +137,8 @@ Main 侧对 helper 的请求串行化：helper 单实例、同时刻只处理一
 - 最终决策：A。
 - 主要权衡：确认落在工具调用边界 → 无重放风险；代价是确认粒度是"单元"而不是"动作"，且分类器是静态的（运行时拼出的方法名看不出来），由 sky 层的 `APPROVAL_REQUIRED` 兜住，模型重试即走确认。纯观察单元不打断，优于 Codex 的每次调用都问。
 - 用户覆盖：无（用户确认了推荐方案 A）。
-- 重新开启条件：若用户要求"每个动作都必须由用户逐个确认，且不接受模型重试一次"的强保证，则按 B 单独立项（重放记忆化 + 工具调用幂等）；若确认过于频繁，则评估 D 或按动作类型分级。
+- 重新开启条件：若用户要求"每个动作都必须由用户逐个确认，且不接受模型重试一次"的强保证，则按 B 单独立项；若确认过于频繁，则评估 D 或按动作类型分级。
+- B 的实测结论（2026-09-26 spike，临时用例未入库）：在**工具执行器内部**调用 `interrupt()` 不会挂起图——它会让这一轮直接以任务失败结束（同一次实验里先看到 completed 再看到 failed，说明错误是从 `for await` 流里逃逸出来的，不能作为暂停点）。所以 B 不是"在 sky 层加一个 interrupt"，而要先引入一条"审批中"通道：执行器需要能中断并**返回**一个待审批事件，节点据它 `interrupt()`，恢复时用同一 `callId` **续跑**该工具；由于节点恢复会重放，续跑必须依赖按序记忆化（记忆要放在能在重放中存活的地方，例如 JS 会话内按单元+序号的调用日志），并让工具 invocation 状态机接受"审批中 → 继续"的新状态。这条通道属于工具契约与调用生命周期变更，返工面明显大于 A。
 
 实施：`computer-use/cell-actions.ts` 用与子进程同一份 tokenizer 做分类；`agent-graph.ts` 把确认请求推广为 action｜cell 两种形态；`sky-session.ts` 增加 `allowActions` 强制；`packages/contracts` 的 `pendingComputerApproval` 增加 cell 形态；审批卡按形态渲染；`js-tools.ts` 在每个单元开始时把同一判定交给 sky 层。测试：`cell-actions.test.ts`、`js-approval.test.ts`（确认/批准/拒绝/纯读不打断/批量拒绝）、`sky-session.test.ts`（未确认拒绝、已确认放行、读与滚动不受限）、`js-tools.test.ts`（确认单元到达 helper，运行时拼名字被拒）、`pages.test.tsx` 与 `task-projection.test.ts` 的单元确认形态。
 
