@@ -56,6 +56,33 @@ describe('Computer Use tools', () => {
     }, undefined)
   })
 
+  it('refuses to run before the computer-use Skill has been read', async () => {
+    const invoke = vi.fn(async () => ({}))
+    const loaded = new Set<string>()
+    const tools = createComputerUseTools(invoke, undefined, {
+      skillLoaded: (taskId) => loaded.has(taskId)
+    })
+    const observe = tools[1]!
+    const call = {
+      callId: 'call-1', providerCallId: 'provider-1', modelName: 'computer_observe',
+      arguments: { maxElements: 50, maxDepth: 5 }
+    }
+    const drain = async () => {
+      for await (const _event of observe.executor.execute(call, undefined, {
+        taskId: 'task-1', sessionId: 'task-1',
+        workspace: { root: '/tmp', input: '/tmp/in', output: '/tmp/out' }
+      })) {
+        /* drain */
+      }
+    }
+    await expect(drain()).rejects.toThrow('SKILL_NOT_LOADED')
+    expect(invoke).not.toHaveBeenCalled()
+
+    loaded.add('task-1')
+    await drain()
+    expect(invoke).toHaveBeenCalledOnce()
+  })
+
   it('persists only safe summaries of screen data, element trees, and coordinates', () => {
     const [permissions, observe, capture, act] = createComputerUseTools(vi.fn())
     const tree = {

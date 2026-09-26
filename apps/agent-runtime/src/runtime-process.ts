@@ -37,6 +37,7 @@ import { createImageGenerationTool } from './media/image-generation-tool'
 import { createComputerUseTools } from './computer-use/tools'
 import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
+import { LoadedSkills } from './computer-use/skill-gate'
 
 type ParentMessageEvent = { data: unknown }
 
@@ -160,12 +161,15 @@ export async function startAgentRuntimeProcess(
   })
   local.toolRuntime.releaseVolatileImage = (assetId) => computerImages.discard(assetId)
   const computerControl = new ComputerUseControlGate()
+  const loadedSkills = new LoadedSkills()
   if (process.platform === 'darwin') {
     const computerTools = createComputerUseTools(async (input, signal) => {
       const provider = local.adapters.skillRegistry.resolve('computer-use', 1)
       const result = await provider.execute({ invocationId: randomUUID(), input }, signal)
       return result.input
-    }, computerControl)
+    }, computerControl, {
+      skillLoaded: (taskId) => loadedSkills.has(taskId, 'computer-use')
+    })
     for (const tool of computerTools) {
       local.toolRuntime.registry.register(tool.definition, tool.executor)
       local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
@@ -201,7 +205,9 @@ export async function startAgentRuntimeProcess(
       : null
   registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
   registerWebOpenTool(local.toolRuntime)
-  for (const tool of createSkillRuntimeTools({ store: agentFiles, installer: skillInstaller })) {
+  for (const tool of createSkillRuntimeTools({
+    store: agentFiles, installer: skillInstaller, loadedSkills
+  })) {
     local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }

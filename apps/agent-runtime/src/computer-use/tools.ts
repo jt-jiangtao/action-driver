@@ -113,7 +113,11 @@ const specs: Array<{
 
 export function createComputerUseTools(
   invoke: (input: Input, signal?: AbortSignal) => Promise<unknown>,
-  gate?: ComputerUseControlGate
+  gate?: ComputerUseControlGate,
+  options?: {
+    /** Computer Use only runs after the agent read the `computer-use` instruction Skill. */
+    skillLoaded?: (taskId: string) => boolean
+  }
 ): Registered[] {
   return specs.map(({ operation, id, modelName, description, inputSchema, risk }) => ({
     definition: { id, version: 1, modelName, description, inputSchema, risk,
@@ -121,6 +125,13 @@ export function createComputerUseTools(
     executor: {
       async *execute(call: ToolCall, signal?: AbortSignal,
                      context?: { taskId: string }): AsyncIterable<ToolExecutorEvent> {
+        if (options?.skillLoaded) {
+          if (!context?.taskId) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+          if (!options.skillLoaded(context.taskId)) {
+            throw new Error(
+              'SKILL_NOT_LOADED: read the computer-use Skill with skill_read before using Computer Use')
+          }
+        }
         if (gate) {
           if (!context?.taskId) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
           gate.assertRunning(context.taskId)

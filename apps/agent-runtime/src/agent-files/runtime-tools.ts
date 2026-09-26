@@ -14,6 +14,8 @@ type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 export function createSkillRuntimeTools(options: {
   store: AgentFileStore
   installer: SkillInstaller
+  /** Records which Skills the agent read, so Computer Use can require its Skill first. */
+  loadedSkills?: { record(taskId: string, skillId: string): void }
 }): Registered[] {
   return [
     {
@@ -31,13 +33,14 @@ export function createSkillRuntimeTools(options: {
         risk: 'low', sideEffects: { filesystem: 'read', network: false }, timeoutMs: 30_000
       },
       executor: {
-        async *execute(call: ToolCall) {
+        async *execute(call: ToolCall, _signal?: AbortSignal, context?: ToolExecutionContext) {
           const skillId = call.arguments.skillId
           const path = call.arguments.path
           if (typeof skillId !== 'string' || (path !== undefined && typeof path !== 'string')) {
             throw new Error('TOOL_INPUT_INVALID')
           }
           const file = await options.store.readEnabledSkillFile(skillId, path)
+          if (context?.taskId && !path) options.loadedSkills?.record(context.taskId, skillId)
           yield { kind: 'result', output: { skillId, path: file.path, content: file.content } }
         }
       }
