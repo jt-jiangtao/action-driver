@@ -83,6 +83,14 @@
   - [x] 10.5.1 JS 入口的确认按**单元**落在工具调用边界（Battle 结论选 A）：分类器用与子进程同一份 tokenizer 找 `click`/`drag`/`paste`/`press_key`/`select_text`/`set_value`/`type_text`/`perform_secondary_action` 的方法名，命中才在执行前弹确认卡（显示模型 `title`、命中动作与代码摘要），纯观察单元不打断；确认卡复用既有的 `COMPUTER_ACTION_APPROVAL` 通道，但投影改为 action｜cell 两种形态。
   - [x] 10.5.2 分类只是"要不要提前问"，不是许可：sky 层要求有副作用的方法必须带本单元授权，否则回 `APPROVAL_REQUIRED`（运行时拼名字绕开分类的情形因此不会静默执行，模型换一个单元重试即会走确认）。
   - [x] 10.5.3 拒绝时该单元不执行，工具结果回 `USER_DENIED`；把需要确认的单元与其它工具调用放在同一轮仍按 `COMPUTER_ACTION_BATCH_UNSUPPORTED` 拒绝。
+
+### 10.7 逐动作确认（Battle 第二轮，裁决 B2：挂起 + 续接）
+
+- [x] 10.7.1 子进程协议与宿主 API：出现有副作用的 sky 调用时，宿主不再直接执行，而是给子进程回 `approvalRequired` 并让该 promise 保持 pending；宿主把这轮以"待审批动作（序号 + 方法 + 参数）"结束。续接时宿主把决定交回同一挂起单元（`continueRun`），批准则先执行动作再把结果写入，拒绝则写入 `USER_DENIED`，然后继续等到单元完成或下一个待审批动作。等待审批的时间不计入单元超时。
+- [ ] 10.7.2 工具调用续跑：`ToolInvocationService` 接受同一 `callId` 的"审批中 → 继续"（不重复写终态事件），工具执行上下文新增续接决定，`js` 执行器据此把决定转给宿主。
+- [ ] 10.7.3 图节点循环：`executeTools` 对 `js` 用"执行 → 待审批动作写入图状态 → `interrupt()` → 恢复 → 续接"的循环，让每个动作各弹一次确认；`js` 不再发出单元级确认。
+- [ ] 10.7.4 提示词与工具描述改为"每个动作各自确认、可以在一个单元里连续写多个动作"。
+- [ ] 10.7.5 验证：定向测试（挂起/续接协议、多动作逐个确认、拒绝只影响该动作、单元不重跑）、`pnpm typecheck`/`lint`/`test`、打包冒烟；真实应用冒烟由用户侧完成。
 - [x] 10.6 验证：定向测试（协议/helper/工具面/JS 入口）、真实 helper 二进制冒烟、打包冒烟（见 `design.md` 的「10.x 实施记录」）。
 
 - [x] 9.1 helper 提供 Unix domain socket 服务：私有运行目录（0700）、socket 0600、token 握手、单连接串行、无 TCP 监听。

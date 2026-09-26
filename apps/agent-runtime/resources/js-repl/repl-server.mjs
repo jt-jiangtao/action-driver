@@ -177,6 +177,9 @@ async function handle(line) {
     else entry.reject(new Error(message.error ?? 'sky call failed'))
     return
   }
+  // The host is asking the user about this call; the pending promise stays open, so the cell simply
+  // waits here until the host answers with the callResult that carries the decision's outcome.
+  if (message.type === 'approvalRequired') return
   if (message.reset) {
     context = createContext()
     previous = null

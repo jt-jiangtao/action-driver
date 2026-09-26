@@ -177,7 +177,7 @@ export function createJsEntryTools(options: {
         }
         const running = (async () => {
           try {
-            const output = await host.run(
+            const outcome = await host.run(
               execution.taskId,
               code,
               { ...(signal === undefined ? {} : { signal }),
@@ -195,7 +195,12 @@ export function createJsEntryTools(options: {
                 }
               }
             )
-            push({ kind: 'result', output: { output } })
+            // A cell that stops for an approval is resumed by the graph; until that wiring lands the
+            // suspension can only come from a stale session, so fail loudly instead of silently.
+            if (outcome.kind === 'approval') {
+              throw new Error('APPROVAL_REQUIRED: the cell stopped before performing an action')
+            }
+            push({ kind: 'result', output: { output: outcome.output } })
           } catch (error) {
             state.failure = error instanceof Error ? error : new Error(String(error))
           } finally {

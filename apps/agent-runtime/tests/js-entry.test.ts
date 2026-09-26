@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { JsReplHost, type JsReplChild, type JsReplEvents } from '../src/computer-use/js-repl'
+import { ApprovalRequiredError } from '../src/computer-use/js-repl'
 import { createSkySession } from '../src/computer-use/sky-session'
 
 // End-to-end over the real child process: JavaScript in, helper requests out.
@@ -93,6 +94,40 @@ describe('js entry over the real child process', () => {
     await host.reset('task-4')
     await host.run('task-4', 'nodeRepl.write(String(typeof kept))', {}, reported)
     expect(reported.texts.join('')).toBe('undefined')
+  })
+
+  it('suspends a real cell on an action and continues it without replaying anything', async () => {
+    const host = new JsReplHost({
+      spawn: async () => (spawn(process.execPath,
+        ['--experimental-vm-modules', '--no-warnings', serverPath],
+        { stdio: ['pipe', 'pipe', 'pipe'] }) as unknown as JsReplChild),
+      callSky: async (_taskId, method, args) => {
+        if (method === 'click') throw new ApprovalRequiredError({ method, args })
+        return []
+      },
+      defaultTimeoutMs: 15_000
+    })
+    const reported = events()
+    const stopped = await host.run('task-suspend',
+      'nodeRepl.write("before\\n");\n' +
+      'await sky.click({ app: "TextEdit", element_index: 1 });\n' +
+      'nodeRepl.write("after");', {}, reported)
+    expect(stopped).toMatchObject({
+      kind: 'approval',
+      action: { index: 0, method: 'click', args: { app: 'TextEdit', element_index: 1 } }
+    })
+    // The cell already wrote "before" and must not write it a second time.
+    expect(reported.texts.join('')).toBe('before\n')
+    const performed: string[] = []
+    const finished = await host.continueRun('task-suspend', {
+      action: stopped.kind === 'approval' ? stopped.action : { index: 0, method: '', args: {} },
+      approved: true,
+      perform: async () => { performed.push('click'); return { ok: true } }
+    }, {})
+    expect(performed).toEqual(['click'])
+    expect(finished).toEqual({ kind: 'completed', output: 'before\nafter' })
+    expect(reported.texts.join('')).toBe('before\nafter')
+    host.dispose('task-suspend')
   })
 })
 
