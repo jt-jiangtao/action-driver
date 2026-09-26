@@ -138,6 +138,8 @@ Codex 的 `node_repl` 内核同样以 module 为单位执行，因为只有 modu
 
 **4. 动作前的状态与自动恢复。** 动作需要 observation：入口先复用该 app 最近一次 `get_app_state` 的 observation，没有就先读一次（顺带完成“未运行经 LaunchServices 透明启动 + 激活”）；`act` 遇到 `STALE_REFERENCE` 或 `ENGINE_UNAVAILABLE`（前台窗口已换、helper 窗口在最前）时自动重读并重试一次，仍失败才把错误交给模型。
 
+helper 只按 bundle id、路径或英文 `.app` 名解析应用，中文显示名（例如 `文本编辑`）会被拒；入口在 `Unknown application` 时用 `list_apps` 的 `displayName → id` 自动重试一次并记住该拼写，Skill 里“显示名失败就用 bundle id 重试”的那条要求因此不需要模型自己执行。
+
 **5. 子进程跑在既有会话沙箱里。** `js` 用与脚本工具相同的 `sandbox-exec` 配置启动随包 Node（`--experimental-vm-modules --no-warnings`）：只读会话工作区与运行时资源，可写 `output/` 与沙箱临时目录；截图写进沙箱临时目录，以 `file://` URL 交给模型，模型用 `await import("node:fs/promises")` 读回再 `emitImage`。每任务一个子进程（最多 4 个，超出淘汰最旧），`js_reset` 只换 `vm` 上下文不换进程，Runtime 关闭或子进程退出时释放沙箱目录。
 
 **6. 工具名与 Codex 对齐**：模型侧是 `js` 与 `js_reset`（对应 `computer.js@1` / `computer.js_reset@1`），同样受 `computer-use` Skill 前置门禁；`computer.*` 原工具保留。
@@ -160,3 +162,4 @@ Codex 的 `node_repl` 内核同样以 module 为单位执行，因为只有 modu
 - Desktop provider：`list-apps` 与 `app-state` 从“不支持的指令”改为放行（原先只有 `permissions/observe/capture/act`，JS 入口的 `list_apps`/`get_app_state` 会被拒）。
 - 提交前一次性验证：`pnpm typecheck` 通过；`pnpm lint` 通过（交互契约 139 项）；`pnpm test` 158 个文件通过、2 跳过，996 个用例通过、2 跳过；`pnpm test:e2e:packaged:macos` 通过（含新的入口探针）；`pnpm test:e2e:local` 7 项通过、1 项失败（既有 `persists the selected Token Plan image API and default model in settings`）。
 - 环境问题（非本次改动）：一次 `pnpm test:e2e:local` 里 `opens the native guidance window only when a permission is missing` 报 `ENGINE_UNAVAILABLE: helper client closed`，原因是本机残留了 13:20 启动的旧 `actiondriver-computer-use` 进程占着 `/var/folders/…/actiondriver-computer-use.sock`；终止该残留进程后该用例单独重跑通过，整组回到 7 通过 / 1 既有失败。开发期重跑 e2e 前建议先确认没有遗留 helper 进程。
+- 真实 helper + 真实 AX 冒烟（只读，不动用户桌面）：用当前构建的 `actiondriver-computer-use` 起私有 socket，经 `sky-session` 调用 `list_apps` → 81 个应用（含 `id`/`displayName`/`path`/`isRunning`）；用**本地化显示名**`文本编辑`调 `get_app_state` 时 helper 会回 `ACTION_FAILED: Unknown application: 文本编辑`（它只认 bundle id、路径与英文 `.app` 名），适配层按 `list_apps` 的 `displayName → id` 自动重试成功：返回 300 行 `[index] role "title" actions=[…]` 文本、`app=com.apple.TextEdit`，以及 177 KB 的 JPEG 截图文件（`file://` 路径写盘、模型可读）。

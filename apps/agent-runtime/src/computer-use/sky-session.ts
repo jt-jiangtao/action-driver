@@ -114,6 +114,9 @@ export function createSkySession(options: {
   writeScreenshot: SkyScreenshotWriter
 }): SkySession {
   const observations = new Map<string, Observation>()
+  /** Every spelling the model used or we learned (display name, file name, bundle id) -> bundle id. */
+  const aliases = new Map<string, string>()
+  let appIndex: { at: number; entries: JsonRecord[] } | null = null
   let closed = false
 
   const request = async (input: JsonRecord, signal?: AbortSignal): Promise<JsonRecord> => {
@@ -122,7 +125,43 @@ export function createSkySession(options: {
     return isRecord(result) ? result : {}
   }
 
-  const readState = async (app: string, signal?: AbortSignal):
+  /**
+   * The helper resolves a bundle id, a path or the English `.app` name, so a localized display name
+   * (`文本编辑`) comes back as "Unknown application". `list_apps` knows both spellings, which is the
+   * retry the Skill documents — done here so the model does not have to.
+   */
+  const listApps = async (signal?: AbortSignal): Promise<JsonRecord[]> => {
+    if (appIndex && Date.now() - appIndex.at < 30_000) return appIndex.entries
+    const result = await request({ operation: 'list-apps' }, signal)
+    const entries = (Array.isArray(result.apps) ? result.apps : [])
+      .filter((entry): entry is JsonRecord => isRecord(entry) && typeof entry.id === 'string')
+    appIndex = { at: Date.now(), entries }
+    for (const entry of entries) {
+      if (typeof entry.displayName === 'string') aliases.set(entry.displayName, String(entry.id))
+    }
+    return entries
+  }
+
+  const resolveApp = async (app: string, signal?: AbortSignal): Promise<string> => {
+    const known = aliases.get(app)
+    if (known) return known
+    for (const entry of await listApps(signal)) {
+      if (entry.id === app || entry.displayName === app) return String(entry.id)
+    }
+    return app
+  }
+
+  const isUnknownApp = (error: unknown): boolean =>
+    /Unknown application/.test(error instanceof Error ? error.message : String(error))
+
+  const remember = (requested: string, observation: Observation): void => {
+    observations.set(requested, observation)
+    observations.set(observation.app, observation)
+    aliases.set(requested, observation.app)
+    aliases.set(observation.app, observation.app)
+  }
+
+  const readStateOnce = async (app: string, signal?: AbortSignal):
     Promise<{ observation: Observation; result: JsonRecord }> => {
     const result = await request({
       operation: 'app-state',
@@ -142,8 +181,23 @@ export function createSkySession(options: {
       text: tree.lines.join('\n')
     }
     if (!observation.observationId) throw new Error('ENGINE_UNAVAILABLE: app state came back without an observation')
-    observations.set(app, observation)
+    remember(app, observation)
     return { observation, result }
+  }
+
+  const readState = async (app: string, signal?: AbortSignal):
+    Promise<{ observation: Observation; result: JsonRecord }> => {
+    try {
+      return await readStateOnce(app, signal)
+    } catch (error) {
+      if (!isUnknownApp(error)) throw error
+      const resolved = await resolveApp(app, signal)
+      if (resolved === app) throw error
+      const result = await readStateOnce(resolved, signal)
+      // Keep the spelling the model used working for the actions that follow.
+      remember(app, result.observation)
+      return result
+    }
   }
 
   const observationFor = async (app: string, signal?: AbortSignal): Promise<Observation> =>
@@ -211,8 +265,7 @@ export function createSkySession(options: {
 
   const methods: Record<string, (args: JsonRecord, signal?: AbortSignal) => Promise<unknown>> = {
     async list_apps(_args, signal) {
-      const result = await request({ operation: 'list-apps' }, signal)
-      return Array.isArray(result.apps) ? result.apps : []
+      return await listApps(signal)
     },
 
     async get_app_state(args, signal) {

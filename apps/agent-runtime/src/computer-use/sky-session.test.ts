@@ -111,4 +111,26 @@ describe('sky session', () => {
     const { session } = harness()
     await expect(session.invoke('launch_missiles', {})).rejects.toThrow('does not exist')
   })
+
+  it('retries a localized display name with the bundle id from list_apps', async () => {
+    const { session, calls } = harness(async (request) => {
+      if (request.operation === 'list-apps') {
+        return { apps: [{ id: 'com.apple.TextEdit', displayName: '文本编辑', isRunning: true }] }
+      }
+      if (request.operation === 'app-state' && request.app === 'com.apple.TextEdit') {
+        return { ...state('obs-1'), app: 'com.apple.TextEdit' }
+      }
+      if (request.operation === 'app-state') {
+        // The helper only understands bundle ids, paths and English `.app` names.
+        throw new Error(`ACTION_FAILED: Unknown application: ${String(request.app)}`)
+      }
+      return { executed: true }
+    })
+    const result = await session.invoke('get_app_state', { app: '文本编辑' }) as { app: string }
+    expect(result.app).toBe('com.apple.TextEdit')
+    expect(calls.map((call) => call.operation)).toEqual(['app-state', 'list-apps', 'app-state'])
+    // The learned spelling is reused, so the next call goes straight to the bundle id.
+    await session.invoke('click', { app: '文本编辑', element_index: 0 })
+    expect(calls.filter((call) => call.operation === 'app-state')).toHaveLength(2)
+  })
 })
