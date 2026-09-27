@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 
 // A fresh Node host is required for the original service's vm.SourceTextModule.
 async function probe(source: string) {
@@ -226,6 +227,33 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
     expect(value.fresh).toContain('undefined')
   }, 20_000)
 
+  it('fails a js call made before the Skill is read with the readable gate message', async () => {
+    const value = await probe(`
+      const tools=await createCuaEntryTools({...runtimeOptions,skillLoaded:()=>false,
+        saveImage:async(session,bytes,mimeType)=>({assetId:'volatile-computer:test',sessionId:session,source:'upload',mimeType,width:1,height:1,byteLength:bytes.length})});
+      const js=tools.tools.find(t=>t.definition.modelName==='js');const failures=[];
+      const call={callId:'test',providerCallId:'test',modelName:'js',arguments:{code:'await cua.getState()'}};
+      try{for await(const event of js.executor.execute(call,undefined,context('tool-task')))failures.push(event.kind)}
+      catch(error){failures.push(error.message)}
+      finally{await tools.dispose()}
+      process.stdout.write(JSON.stringify({failures}));
+    `)
+    expect(value.failures).toEqual([COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded])
+    expect(JSON.stringify(value)).not.toContain('[redacted')
+  }, 20_000)
+
+  it('lets a cell import the vendored sky package despite its missing telemetry dependency', async () => {
+    const value = await probe(`
+      let outcome='';
+      try {await runtime.run(context('one'),
+        'const mod = await import("@oai/sky"); throw new Error("keys:" + Object.keys(mod).length)',
+        {},{text:()=>{},image:()=>{}})}
+      catch (error) {outcome=error.message}
+      process.stdout.write(JSON.stringify({outcome}));
+    `)
+    expect(value.outcome).toMatch(/keys:[1-9][0-9]*$/)
+  }, 20_000)
+
   it('exposes only js and reset and awaits image delivery before the tool finishes', async () => {
     const value = await probe(`
       const saved=[];
@@ -304,22 +332,19 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
     expect(value.texts.join('')).toMatch(/reached the app, but the app gave no confirmation[\s\S]*getScreenshot\(\) or getAXState\(\)/)
     expect(value.notices).toBe(2)
   }, 20_000)
-  it('summarizes successful input lengths without persisting the source or entered text', async () => {
+  it('persists the cell source and output so the call survives a reload', async () => {
     const value = await probe(`
       const tools=await createCuaEntryTools({...runtimeOptions,skillLoaded:()=>true,saveImage:async()=>{throw new Error('no images')}});
       await runtime.dispose();runtime=tools;
       const js=tools.tools[0];
-      const call={callId:'lengths',providerCallId:'lengths',modelName:'js',arguments:{code:'const app=await cua.getApp("Notes"); await app.typeText("secret-value");'}};
-      const before=js.executor.redactForPersistence('input',call.arguments);
-      const pending=(async()=>{for await(const event of js.executor.execute(call,undefined,context('one'))){} })();
-      await wait(()=>events.length===1);await broker.decide('one',events[0].request.requestId,'session');await pending;
-      const after=js.executor.redactForPersistence('input',call.arguments);
+      const call={callId:'persisted',providerCallId:'persisted',modelName:'js',arguments:{code:'nodeRepl.write("kept output")'}};
+      const events=[];
+      for await(const event of js.executor.execute(call,undefined,context('one')))events.push(event);
       await tools.dispose();
-      process.stdout.write(JSON.stringify({before,after}));
+      process.stdout.write(JSON.stringify({redacts:typeof js.executor.redactForPersistence,events}));
     `)
-    expect(value.before).toMatchObject({ executedTextLengths: [] })
-    expect(value.before.codeLength).toBeGreaterThan(0)
-    expect(value.after.executedTextLengths).toEqual([12])
-    expect(JSON.stringify(value)).not.toContain('secret-value')
+    expect(value.redacts).toBe('undefined')
+    expect(JSON.stringify(value.events)).toContain('nodeRepl.write')
+    expect(JSON.stringify(value.events)).toContain('kept output')
   }, 20_000)
 })

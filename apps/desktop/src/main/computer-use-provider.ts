@@ -20,7 +20,9 @@ export function createComputerUseProvider(helper: Helper): HostedSkillProvider {
         deadlineUnixMs: Date.now() + 25_000
       })
       if (!request.success ||
-          !['permissions', 'observe', 'capture', 'act', 'list-apps', 'app-state']
+          // The JavaScript entry drives the app-addressed surface: policy, supervision and state.
+          // `permissions` and `guidance` stay desktop-only, and `observe`/`capture` are gone (4.1).
+          !['act', 'list-apps', 'app-state', 'app-policy', 'session-start', 'session-end']
             .includes(request.data.operation)) {
         throw new Error('INVALID_REQUEST: Unsupported Computer Use command')
       }

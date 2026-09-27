@@ -228,23 +228,37 @@ export type ElectronRuntimeProcessFactoryOptions = {
   trustedRendererOrigin?: string
 }
 
+/**
+ * Environment for the Runtime utility process. The trusted Computer Use host inside the Runtime
+ * loads the vendored `@oai/sky` sources through `vm.SourceTextModule`, and Electron only enables
+ * that API through `NODE_OPTIONS` — `execArgv` is ignored for utility processes.
+ */
+export function runtimeProcessEnvironment(
+  options: ElectronRuntimeProcessFactoryOptions,
+  base: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv {
+  const nodeOptions = [base.NODE_OPTIONS?.trim(), '--experimental-vm-modules']
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+  return {
+    ...base,
+    NODE_OPTIONS: nodeOptions,
+    ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
+    ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
+    ...(options.agentHomeDirectory ? { ACTIONDRIVER_AGENT_HOME: options.agentHomeDirectory } : {}),
+    ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
+    ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {}),
+    ACTIONDRIVER_RENDERER_ORIGIN: options.trustedRendererOrigin ?? ''
+  }
+}
+
 export function createElectronRuntimeProcessFactory(
   options: ElectronRuntimeProcessFactoryOptions
 ): RuntimeProcessFactory {
   return {
     fork(entryPath) {
       const child = utilityProcess.fork(entryPath, [], {
-        env: {
-          ...process.env,
-          ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
-          ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
-          ...(options.agentHomeDirectory
-            ? { ACTIONDRIVER_AGENT_HOME: options.agentHomeDirectory }
-            : {}),
-          ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
-          ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {}),
-          ACTIONDRIVER_RENDERER_ORIGIN: options.trustedRendererOrigin ?? ''
-        }
+        env: runtimeProcessEnvironment(options)
       })
       return {
         postMessage(message) {

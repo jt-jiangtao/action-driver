@@ -13,6 +13,8 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   if (toolId === 'local.node.run') return '运行 Node.js'
   if (toolId === 'local.typescript.run') return '运行 TypeScript'
   if (toolId === 'image.generate@1' || toolId === 'image.generate') return '生成图片'
+  if (toolId === 'computer.js') return 'Computer Use'
+  if (toolId === 'computer.js_reset') return 'Computer Use 重置'
   return `运行 ${toolId}`
 }
 
@@ -39,7 +41,11 @@ export function toolActivityTitle(
                   ? '运行 TypeScript'
                   : type === 'image.generate'
                     ? '生成图片'
-                    : '调用工具'
+                    : type === 'computer.js'
+                      ? '操作桌面应用'
+                      : type === 'computer.js_reset'
+                        ? '重置 Computer Use'
+                        : '调用工具'
   const target =
     type === 'web.search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
@@ -53,9 +59,13 @@ export function toolActivityTitle(
         ? 'Python 执行失败'
         : type === 'local.node.run'
           ? 'Node.js 执行失败'
-          : type === 'local.typescript.run'
-            ? 'TypeScript 执行失败'
-            : `${label}失败`
+        : type === 'local.typescript.run'
+          ? 'TypeScript 执行失败'
+          : type === 'computer.js'
+            ? '操作桌面应用失败'
+            : type === 'computer.js_reset'
+              ? '重置 Computer Use 失败'
+              : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
   if (status === 'unknown') return `${label}结果未知`
   if (status === 'waiting_approval') return `等待批准：${label}`

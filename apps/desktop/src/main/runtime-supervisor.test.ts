@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   RuntimeSupervisor,
+  runtimeProcessEnvironment,
   type RuntimeProcess,
   type RuntimeProcessFactory
 } from './runtime-supervisor'
@@ -49,6 +50,25 @@ function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {
 }
 
 describe('RuntimeSupervisor', () => {
+  it('enables vm modules for the Runtime process and keeps an existing NODE_OPTIONS', () => {
+    expect(
+      runtimeProcessEnvironment(
+        { databasePath: '/data/actiondriver.db', workspaceRoot: '/workspace' },
+        { NODE_OPTIONS: '--max-old-space-size=2048' }
+      )
+    ).toMatchObject({
+      NODE_OPTIONS: '--max-old-space-size=2048 --experimental-vm-modules',
+      ACTIONDRIVER_RUNTIME_DATABASE_PATH: '/data/actiondriver.db',
+      ACTIONDRIVER_WORKSPACE_ROOT: '/workspace'
+    })
+    expect(
+      runtimeProcessEnvironment(
+        { databasePath: '/data/actiondriver.db', workspaceRoot: '/workspace' },
+        {}
+      ).NODE_OPTIONS
+    ).toBe('--experimental-vm-modules')
+  })
+
   it('waits for the local capability connection before reporting ready', async () => {
     let releaseConnection: (() => void) | undefined
     const onServiceReady = vi.fn(

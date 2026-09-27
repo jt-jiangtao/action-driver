@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
 import {
+  COMPUTER_USE_GUIDANCE_ERRORS,
   LangGraphRunner,
   MockSkillRegistry,
   RuntimeToolPolicy,
@@ -60,6 +61,8 @@ describe('minimal agent StateGraph', () => {
     expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
     expect(activityTitleForTool('web_open')).toBe('正在读取网页')
+    expect(activityTitleForTool('js')).toBe('正在操作桌面应用')
+    expect(activityTitleForTool('js', 'failed')).toBe('操作桌面应用失败')
     expect(activityTitleForTools('read pages', ['web_open', 'web_open'])).toBe(
       '正在执行 2 项网页读取'
     )
@@ -799,7 +802,7 @@ describe('minimal agent StateGraph', () => {
     )
   })
 
-  it('keeps Computer Use source out of every checkpoint while executing and returning it in memory', async () => {
+  it('persists the Computer Use source for the model and for later turns', async () => {
     const source = 'nodeRepl.write("private-source-987")'
     let round = 0
     let received = ''
@@ -833,19 +836,7 @@ describe('minimal agent StateGraph', () => {
         async *execute(call) {
           received = String(call.arguments.code)
           yield { kind: 'result', output: { output: 'done' } }
-        },
-        redactForPersistence: (kind, value) =>
-          kind === 'input'
-            ? {
-                codeLength:
-                  typeof value === 'object' &&
-                  value !== null &&
-                  'code' in value &&
-                  typeof value.code === 'string'
-                    ? value.code.length
-                    : 0
-              }
-            : { outputLength: 4 }
+        }
       }
     )
     const saver = new MemorySaver()
@@ -879,7 +870,147 @@ describe('minimal agent StateGraph', () => {
     }))
       checkpoints.push(checkpoint)
     expect(checkpoints.length).toBeGreaterThan(0)
-    expect(JSON.stringify(checkpoints)).not.toContain('private-source-987')
+    expect(JSON.stringify(checkpoints)).toContain('private-source-987')
+  })
+
+  it('hands the Computer Use skill gate failure back to the model without redacting it', async () => {
+    let round = 0
+    let modelReceived = ''
+    const model: ModelGateway = {
+      async complete(request) {
+        if (round++ === 0)
+          return {
+            kind: 'tool-calls',
+            calls: [
+              {
+                providerCallId: 'gate-call',
+                modelName: 'js',
+                arguments: { code: 'await cua.getState()' }
+              }
+            ]
+          }
+        modelReceived = JSON.stringify(request.messages)
+        return { kind: 'finish', content: 'done' }
+      }
+    }
+    const registry = new RuntimeToolRegistry()
+    registry.register(
+      {
+        ...shellTool,
+        id: 'computer.js',
+        modelName: 'js',
+        inputSchema: {
+          type: 'object',
+          properties: { code: { type: 'string' } },
+          required: ['code']
+        }
+      },
+      {
+        async *execute() {
+          yield await Promise.reject(new Error(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded))
+        },
+        redactForPersistence: (kind) => (kind === 'input' ? { codeLength: 20 } : { outputLength: 0 })
+      }
+    )
+    const invocations = new ToolInvocationService({
+      registry,
+      policy: new RuntimeToolPolicy(),
+      persistence: {
+        async commitToolInvocationWithEvent(_invocation, event) {
+          return { ...event, cursor: 1 }
+        }
+      },
+      clock: { now: () => new Date().toISOString() }
+    })
+    const runner = new LangGraphRunner(model, new MockSkillRegistry(), new MemorySaver(), {
+      registry,
+      policy: new RuntimeToolPolicy(),
+      invocations,
+      grants: ['computer.js@1']
+    })
+    const result = await runner.run({
+      taskId: 'gate-task',
+      goal: 'use the computer',
+      model: modelRef
+    })
+    expect(result.status).toBe('completed')
+    expect(modelReceived).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
+    expect(modelReceived).not.toContain('[redacted')
+  })
+
+  it('persists a failed Computer Use cell so the model and later turns keep the diagnostics', async () => {
+    const documentation = 'Computer Use entry: call cua.getState() to see the current desktop'
+    const failure = 'ReferenceError: sky is not defined'
+    let round = 0
+    let modelReceived = ''
+    const model: ModelGateway = {
+      async complete(request) {
+        if (round++ === 0)
+          return {
+            kind: 'tool-calls',
+            calls: [
+              {
+                providerCallId: 'failed-cell',
+                modelName: 'js',
+                arguments: { code: 'await sky.listApps()' }
+              }
+            ]
+          }
+        modelReceived = JSON.stringify(request.messages)
+        return { kind: 'finish', content: 'done' }
+      }
+    }
+    const registry = new RuntimeToolRegistry()
+    registry.register(
+      {
+        ...shellTool,
+        id: 'computer.js',
+        modelName: 'js',
+        inputSchema: {
+          type: 'object',
+          properties: { code: { type: 'string' } },
+          required: ['code']
+        }
+      },
+      {
+        async *execute() {
+          yield { kind: 'content', stream: 'result', delta: documentation }
+          yield await Promise.reject(new Error(failure))
+        }
+      }
+    )
+    const saver = new MemorySaver()
+    const invocations = new ToolInvocationService({
+      registry,
+      policy: new RuntimeToolPolicy(),
+      persistence: {
+        async commitToolInvocationWithEvent(_invocation, event) {
+          return { ...event, cursor: 1 }
+        }
+      },
+      clock: { now: () => new Date().toISOString() }
+    })
+    const runner = new LangGraphRunner(model, new MockSkillRegistry(), saver, {
+      registry,
+      policy: new RuntimeToolPolicy(),
+      invocations,
+      grants: ['computer.js@1']
+    })
+    const result = await runner.run({
+      taskId: 'failed-cell-task',
+      goal: 'use the computer',
+      model: modelRef
+    })
+    expect(result.status).toBe('completed')
+    expect(modelReceived).toContain(failure)
+    expect(modelReceived).toContain(documentation)
+    const checkpoints: unknown[] = []
+    for await (const checkpoint of saver.list({
+      configurable: { thread_id: 'failed-cell-task' }
+    }))
+      checkpoints.push(checkpoint)
+    expect(JSON.stringify(checkpoints)).toContain(failure)
+    expect(JSON.stringify(checkpoints)).toContain(documentation)
   })
 
   it('runs a model tool request and returns only the final model answer', async () => {

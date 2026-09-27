@@ -1,5 +1,6 @@
 import { computerHelperRequest } from '@actiondriver/runtime-contracts'
 import { z } from 'zod'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 
 export type CodexCallContext = { taskId: string; sessionId: string; signal?: AbortSignal }
 type Input = Record<string, unknown>
@@ -83,7 +84,7 @@ export function createCodexNativeClient(options: Options) {
           )
         })
         .safeParse(result)
-      if (!parsed.success) throw new Error('ENGINE_UNAVAILABLE: invalid application inventory')
+      if (!parsed.success) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.inventoryInvalid)
       return parsed.data.apps.map(({ id, path, ...app }) => ({
         ...app,
         bundleIdentifier: id,
@@ -104,12 +105,12 @@ export function createCodexNativeClient(options: Options) {
         context
       )
       const parsed = stateSchema.safeParse(result)
-      if (!parsed.success) throw new Error('ENGINE_UNAVAILABLE: invalid application state')
+      if (!parsed.success) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.stateInvalid)
       const state = parsed.data
       let screenshot: { url: string } | undefined
       if (state.screenshot) {
         const bytes = Buffer.from(state.screenshot.base64, 'base64')
-        if (!bytes.length) throw new Error('ENGINE_UNAVAILABLE: empty screenshot')
+        if (!bytes.length) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.screenshotEmpty)
         screenshot = {
           url: await options.writeScreenshot(context.sessionId, bytes, state.screenshot.mimeType)
         }

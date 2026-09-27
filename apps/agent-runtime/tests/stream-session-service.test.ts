@@ -631,7 +631,7 @@ describe('StreamSessionService', () => {
   it('does not place an uncommitted image in the terminal snapshot after asset write failure', async () => {
     const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
     const graphRunner: GraphRunner = {
-      async run(request, _signal, _observer, onToolEvent) {
+      async run(request, _signal, observer, onToolEvent) {
         const asset = await harness.assets.saveGenerated(request.sessionId!, png)
         const record = await harness.repositories.events.append({
           taskId: request.taskId,
@@ -2275,6 +2275,74 @@ describe('StreamSessionService', () => {
     if (raw?.type !== 'tool.completed') throw new Error('expected raw tool event')
     expect(Buffer.byteLength(raw.rawInput ?? '', 'utf8')).toBeLessThanOrEqual(12)
     expect(Buffer.byteLength(raw.rawOutput ?? '', 'utf8')).toBeLessThanOrEqual(12)
+    repositories.close()
+  })
+
+  it('replays the persisted Computer Use source and output after a reload', async () => {
+    const source = 'await cua.getApp("Calculator")'
+    const graphRunner: GraphRunner = {
+      async run(request) {
+        return {
+          taskId: request.taskId,
+          threadId: request.taskId,
+          status: 'completed',
+          output: '',
+          error: null,
+          trace: []
+        }
+      },
+      interrupt: () => false,
+      async continue() {
+        throw new Error('not used')
+      },
+      async provideInput() {
+        throw new Error('not used')
+      }
+    }
+    const { repositories, service } = createHarness(graphRunner, { enabled: true })
+    const initial = await runToEnd(service, createEvent)
+    const accepted = initial[0]
+    if (accepted?.type !== 'request.accepted') throw new Error('expected request.accepted')
+    const stored = await repositories.events.append({
+      taskId: accepted.taskId,
+      threadId: accepted.sessionId,
+      checkpointId: accepted.responseId,
+      eventKey: 'call-persisted.1',
+      type: 'tool.completed',
+      payload: {
+        callId: 'call-persisted',
+        toolId: 'computer.js',
+        modelName: 'js',
+        summary: 'Computer Use',
+        argumentsHash: '',
+        input: { code: source },
+        output: { stdout: '', stderr: '', content: 'printed before failing', result: null },
+        durationMs: 1
+      },
+      occurredAt: '2026-09-23T00:00:03.000Z',
+      eventId: 'tool-persisted',
+      requestId: accepted.requestId,
+      sequence: 1
+    })
+    expect(JSON.stringify(stored)).toContain('cua.getApp')
+    const replayed: StreamServerEvent[] = []
+    await service.handle(
+      {
+        type: 'request.resume',
+        protocol: STREAM_PROTOCOL,
+        eventId: 'resume-persisted',
+        createdAt: '2026-09-23T00:00:04.000Z',
+        requestId: accepted.requestId,
+        afterCursor: stored.cursor - 1
+      },
+      (event) => {
+        replayed.push(event)
+      }
+    )
+    const toolEvent = replayed.find((event) => event.type === 'tool.completed')
+    if (toolEvent?.type !== 'tool.completed') throw new Error('expected tool.completed')
+    expect(toolEvent.rawInput).toBe(JSON.stringify({ code: source }))
+    expect(toolEvent.rawOutput).toContain('printed before failing')
     repositories.close()
   })
 

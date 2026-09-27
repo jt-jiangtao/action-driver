@@ -128,6 +128,7 @@ export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationPro
   if (!tool) return null
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
   const shellTranscript = shellToolTranscript(tool)
+  const computerCell = computerUseCell(tool)
   const imageSummary = imageToolSummary(tool)
   const webpage = webOpenResult(tool)
   const active = tool.status === 'running'
@@ -201,6 +202,13 @@ export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationPro
             value={shellTranscript.text}
             language={shellTranscript.language}
           />
+        ) : computerCell ? (
+          <>
+            <ReadOnlyCode value={computerCell.text} language="javascript" />
+            {computerCell.output ? (
+              <ReadOnlyCode value={computerCell.output} language="plaintext" />
+            ) : null}
+          </>
         ) : (
           <>
             {tool.rawInput !== undefined ? (
@@ -356,6 +364,22 @@ function shellToolTranscript(
   }
 }
 
+/**
+ * Computer Use cells show the JavaScript the model ran together with the output the cell produced;
+ * both are part of the persisted call, so they survive a reload.
+ */
+function computerUseCell(
+  tool: ToolInvocationProjection
+): { text: string; output?: string } | null {
+  if (tool.toolId !== 'computer.js') return null
+  const input = parseObject(tool.rawInput ?? '')
+  if (typeof input?.code !== 'string' || input.code.length === 0) return null
+  return {
+    text: input.code,
+    ...(tool.rawOutput && tool.rawOutput.length > 0 ? { output: tool.rawOutput } : {})
+  }
+}
+
 function parseObject(value: string): Record<string, unknown> | null {
   try {
     const parsed: unknown = JSON.parse(value)
@@ -419,6 +443,16 @@ function toolAction(tool: ToolInvocationProjection): string {
     if (tool.status === 'cancelled') return '已取消：'
     return tool.status === 'completed' ? '已生成图片：' : '正在生成图片 '
   }
+  if (/^computer\.js_reset/.test(tool.toolId)) {
+    if (tool.status === 'failed') return '重置 Computer Use 失败：'
+    if (tool.status === 'cancelled') return '已取消重置 Computer Use：'
+    return tool.status === 'completed' ? '已重置 Computer Use：' : '正在重置 Computer Use '
+  }
+  if (/^computer\.js/.test(tool.toolId)) {
+    if (tool.status === 'failed') return '操作桌面应用失败：'
+    if (tool.status === 'cancelled') return '已取消操作桌面应用：'
+    return tool.status === 'completed' ? '已操作桌面应用：' : '正在操作桌面应用 '
+  }
   if (tool.status === 'unknown') return '结果未知：'
   if (tool.status === 'failed') return '执行失败：'
   if (tool.status === 'cancelled') return '已取消：'
@@ -434,6 +468,7 @@ function toolAction(tool: ToolInvocationProjection): string {
 
 function toolTitle(tool: ToolInvocationProjection): string {
   if (/image/.test(tool.toolId)) return '图片生成'
+  if (/^computer\.js/.test(tool.toolId)) return 'Computer Use'
   if (/shell|command/.test(tool.toolId)) return 'Shell'
   if (/python/.test(tool.toolId)) return 'Python'
   if (/node\.run/.test(tool.toolId)) return 'Node.js'

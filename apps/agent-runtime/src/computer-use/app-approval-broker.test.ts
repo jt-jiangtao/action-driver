@@ -33,6 +33,26 @@ function harness(selected: AppPolicy = policy) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('AppApprovalBroker', () => {
+  it('keeps the caller signal out of the persisted approval request', async () => {
+    const h = harness()
+    const controller = new AbortController()
+    const waiting = h.broker.requestApproval(
+      { taskId: 'task', sessionId: 'session', signal: controller.signal } as never,
+      policy,
+      controller.signal
+    )
+    await settle()
+    expect(h.requested[0]).toEqual({
+      requestId: expect.any(String),
+      taskId: 'task',
+      sessionId: 'session',
+      target: policy.target,
+      allowPersistentApproval: policy.allowPersistentApproval
+    })
+    await h.broker.decide('task', h.requested[0]!.requestId, 'once')
+    await waiting
+  })
+
   it('approves the trusted policy already queried by the original sky wrapper', async () => {
     const h = harness()
     const supplied = structuredClone(policy)

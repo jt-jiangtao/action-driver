@@ -1,3 +1,5 @@
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
+
 type Owner = { sessionId: string; turns: Set<string> }
 
 /** Trusted runtime ownership; app keys must be canonical bundle identifiers from helper policy. */
@@ -13,7 +15,7 @@ export class ApplicationLeases {
       throw new Error('INVALID_REQUEST: task session mismatch')
     const owner = this.owners.get(app)
     if (owner && owner.sessionId !== context.sessionId)
-      throw new Error('APP_BUSY: application is in use by another session')
+      throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.appBusy)
     const held = owner ?? { sessionId: context.sessionId, turns: new Set<string>() }
     held.turns.add(context.taskId)
     this.owners.set(app, held)

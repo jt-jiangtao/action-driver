@@ -3,6 +3,7 @@ import type { ComputerUseControlGate } from './control-gate'
 import { createCuaEntryTools } from './cua-tools'
 import type { LoadedSkills } from './skill-gate'
 import type { VolatileComputerImages } from './volatile-images'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 
 /**
  * Assembles Computer Use for the runtime: the Codex `js` / `js_reset` tools over the trusted CUA
@@ -26,7 +27,7 @@ export async function createComputerUseEntry(options: {
     queryPolicy: async (app) =>
       appPolicySchema.parse(await options.invoke({ operation: 'app-policy', app })),
     withSuspendedTimeout: async (taskId, wait) => {
-      if (!ready.cua) throw new Error('ENGINE_UNAVAILABLE: Computer Use is not ready')
+      if (!ready.cua) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.engineNotReady)
       await ready.cua.withSuspendedTimeout(taskId, wait)
     }
   })

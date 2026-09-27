@@ -1,4 +1,5 @@
 import type { ToolExecutor } from '@actiondriver/runtime-contracts'
+import { isExposableToolError } from './tool-error-exposure'
 
 export type ToolRedaction = NonNullable<ToolExecutor['redactForPersistence']>
 export type ToolJson = Parameters<ToolRedaction>[1]
@@ -41,7 +42,11 @@ export function redactToolError<T>(error: T): T {
     error !== null &&
     'message' in error &&
     typeof error.message === 'string'
-  )
+  ) {
+    // Fixed guidance failures stay readable: the model needs them to recover and they hold no
+    // screen content, JavaScript source or user text.
+    if (isExposableToolError(error.message)) return error
     return { ...error, message: `[redacted ${error.message.length} characters]` }
+  }
   return error
 }

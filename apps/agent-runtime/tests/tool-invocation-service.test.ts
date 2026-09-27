@@ -13,6 +13,7 @@ import type {
   ToolExecutor
 } from '@actiondriver/runtime-contracts'
 import {
+  COMPUTER_USE_GUIDANCE_ERRORS,
   RuntimeToolPolicy,
   RuntimeToolRegistry,
   ToolInvocationService,
@@ -356,6 +357,24 @@ describe('ToolInvocationService', () => {
     expect(JSON.stringify(await fixture.interactionStore.list({ limit: 20 }))).not.toContain(
       'private-error-654'
     )
+  })
+
+  it('persists a Computer Use guidance failure readably instead of redacting it', async () => {
+    const fixture = createFixture(readDefinition, {
+      async *execute() {
+        yield await Promise.reject(new Error(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded))
+      },
+      redactForPersistence: () => ({ length: 0 })
+    })
+    const events = await collect(
+      fixture.service.execute(readCall(), context(['local.shell.run@1']))
+    )
+    expect(JSON.stringify(events)).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
+    expect(JSON.stringify(fixture.commits)).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
+    expect(JSON.stringify(await fixture.interactionStore.list({ limit: 20 }))).toContain(
+      COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded
+    )
+    expect(JSON.stringify(fixture.commits)).not.toContain('[redacted')
   })
 
   it('refreshes input summaries after execution instead of persisting the initial snapshot forever', async () => {

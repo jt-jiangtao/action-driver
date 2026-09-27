@@ -112,6 +112,49 @@ describe('ActivityTimeline', () => {
     }
   })
 
+  it('shows the Computer Use cell source and falls back to its length summary', () => {
+    const live = task('running')
+    live.tools![0]!.toolId = 'computer.js'
+    live.tools![0]!.modelName = 'js'
+    live.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getState()' })
+    const liveView = render(<ActivityTimeline task={live} />)
+    expect(liveView.container.querySelector('.activity-tool-line')).toHaveTextContent(
+      '操作桌面应用'
+    )
+    screen.getByText('调研实现').closest('summary')!.click()
+    screen.getByText('读取 README').click()
+    expect(liveView.container.querySelector('.activity-tool-io-title')).toHaveTextContent(
+      'Computer Use'
+    )
+    expect(liveView.container.querySelector('.activity-tool-io pre')?.textContent).toBe(
+      'await cua.getState()'
+    )
+    liveView.unmount()
+
+    const failed = task('running')
+    failed.tools![0]!.toolId = 'computer.js'
+    failed.tools![0]!.modelName = 'js'
+    failed.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getApp("Calculator")' })
+    failed.tools![0]!.rawOutput = 'printed before failing'
+    const failedView = render(<ActivityTimeline task={failed} />)
+    screen.getByText('调研实现').closest('summary')!.click()
+    screen.getByText('读取 README').click()
+    const failedIo = failedView.container.querySelector('.activity-tool-io')
+    expect(failedIo).toHaveTextContent('await cua.getApp("Calculator")')
+    expect(failedIo).toHaveTextContent('printed before failing')
+    failedView.unmount()
+
+    const persisted = task('running')
+    persisted.tools![0]!.toolId = 'computer.js'
+    persisted.tools![0]!.modelName = 'js'
+    persisted.tools![0]!.rawInput = JSON.stringify({ codeLength: 20, executedTextLengths: [] })
+    const persistedView = render(<ActivityTimeline task={persisted} />)
+    screen.getByText('调研实现').closest('summary')!.click()
+    screen.getByText('读取 README').click()
+    expect(persistedView.container.querySelector('.activity-tool-io')).toHaveTextContent('codeLength')
+    persistedView.unmount()
+  })
+
   it('summarizes image generation instead of dumping transport JSON', () => {
     const image = task('running')
     image.tools = [

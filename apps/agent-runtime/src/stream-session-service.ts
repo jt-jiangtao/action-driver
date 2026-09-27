@@ -1124,7 +1124,9 @@ export class StreamSessionService {
       const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
       const rawInput = rawToolIO ? boundedJson(tool.input, maxRawBytes) : null
       const rawOutput =
-        rawToolIO && record.type === 'tool.completed' ? boundedJson(tool.output, maxRawBytes) : null
+        rawToolIO && record.type === 'tool.completed'
+          ? boundedJson(tool.output, maxRawBytes)
+          : null
       return parseStreamServerEvent({
         type: record.type,
         ...identity,

@@ -10,6 +10,7 @@ import { ApplicationLeases } from './application-leases'
 import { createCodexSkySession } from './codex-sky-session'
 import type { CodexCallContext } from './codex-native-client'
 import { JsReplHost, type JsReplChild, type JsReplEvents } from './js-repl'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 
 type Context = { taskId: string; sessionId: string; workspace: SessionWorkspacePaths }
 type Sky = Awaited<ReturnType<typeof createCodexSkySession>>
@@ -139,7 +140,7 @@ export function createCuaRuntime(options: {
             withSuspendedTimeout: (taskId, operation) => {
               const current = tasks.get(taskId)
               if (!current || current.active?.taskId !== taskId)
-                throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+                throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
               return host.withSuspendedTimeout(current.id, operation)
             },
             invoke: options.invoke,
@@ -167,6 +168,8 @@ export function createCuaRuntime(options: {
           const wrapped = prepared.wrap(paths.node, [
             '--experimental-vm-modules',
             '--no-warnings',
+            '--experimental-loader',
+            join(dirname(entryPath), 'codex-module-loader.mjs'),
             entryPath
           ])
           const child = spawn(wrapped.executable, wrapped.args, {
@@ -197,7 +200,8 @@ export function createCuaRuntime(options: {
     callSky: async (id, method, input, signal) => {
       const session = sessions.get(id)
       const resource = resources.get(id)
-      if (!session?.active || !resource) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+      if (!session?.active || !resource)
+        throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
       if (method !== 'sky_rpc') throw new Error('INVALID_REQUEST: only sky RPC is supported')
       const context = { ...session.active, ...(signal === undefined ? {} : { signal }) }
       assertRunning(context.taskId)
@@ -239,7 +243,8 @@ export function createCuaRuntime(options: {
       events: JsReplEvents & { executedText?(length: number): void }
     ) {
       if (disposed) throw new Error('ENGINE_UNAVAILABLE: runtime closed')
-      if (!context.taskId || !context.sessionId) throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+      if (!context.taskId || !context.sessionId)
+        throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
       const bound = tasks.get(context.taskId)
       if (bound && bound.id !== context.sessionId)
         throw new Error('INVALID_REQUEST: task session changed')
@@ -297,7 +302,7 @@ export function createCuaRuntime(options: {
     withSuspendedTimeout<T>(taskId: string, operation: () => Promise<T>) {
       const session = tasks.get(taskId)
       if (!session || session.active?.taskId !== taskId)
-        throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+        throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
       return host.withSuspendedTimeout(session.id, operation)
     },
     async endTurn(taskId: string) {

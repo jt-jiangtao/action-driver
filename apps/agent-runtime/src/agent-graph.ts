@@ -80,10 +80,6 @@ function volatileScreenshotIds(messages: RuntimeMessage[]): string[] {
   )
 }
 
-function volatileToolResultKey(taskId: string, toolCallId: string): string {
-  return `${taskId}\u0000${toolCallId}`
-}
-
 export type GraphToolRuntime = {
   registry: RuntimeToolRegistry
   policy: RuntimeToolPolicy
@@ -157,13 +153,6 @@ export class LangGraphRunner implements GraphRunner {
   private readonly modelObservers = new Map<string, ModelEventObserver>()
   private readonly toolObservers = new Map<string, ToolEventObserver>()
   private readonly streamRequestIds = new Map<string, string>()
-  /**
-   * Full results of redacting tools (Computer Use element trees), keyed by task and tool call.
-   * Graph state and therefore checkpoints hold only the redacted summary; the full text is
-   * resolved into the next model request and then dropped, like volatile screenshots.
-   */
-  private readonly volatileToolResults = new Map<string, string>()
-  private readonly volatileComputerCalls = new Map<string, ProviderToolCall>()
 
   constructor(
     private readonly modelGateway: ModelGateway,
@@ -276,8 +265,6 @@ export class LangGraphRunner implements GraphRunner {
     const abortFromExternal = () => controller.abort(externalSignal?.reason)
     externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
     this.activeControllers.set(taskId, controller)
-    let waitingForUser = false
-
     try {
       const state = await this.graph.invoke(input as Parameters<typeof this.graph.invoke>[0], {
         configurable: { thread_id: threadId },
@@ -286,7 +273,6 @@ export class LangGraphRunner implements GraphRunner {
       })
 
       if (isInterrupted(state)) {
-        waitingForUser = true
         const interrupted = this.toResult(state, taskId, 'waiting-user')
         return { ...interrupted, output: state[INTERRUPT][0]?.value ?? null }
       }
@@ -300,9 +286,6 @@ export class LangGraphRunner implements GraphRunner {
     } finally {
       externalSignal?.removeEventListener('abort', abortFromExternal)
       if (this.activeControllers.get(taskId) === controller) this.activeControllers.delete(taskId)
-      // A finished, failed or interrupted run never resumes a model request that would consume
-      // the in-memory results; only a run waiting for the user keeps them.
-      if (!waitingForUser) this.dropVolatileToolResults(taskId)
     }
   }
 
@@ -312,54 +295,6 @@ export class LangGraphRunner implements GraphRunner {
       return executor.redactForPersistence?.bind(executor)
     } catch {
       return undefined
-    }
-  }
-
-  private isComputerCode(call: ProviderToolCall): boolean {
-    try {
-      return (
-        this.toolRuntime?.registry.resolveModelName(call.modelName).definition.id === 'computer.js'
-      )
-    } catch {
-      return false
-    }
-  }
-
-  /** Puts full in-memory tool results back for the model; checkpointed state keeps summaries. */
-  private resolveVolatileToolResults(taskId: string, messages: RuntimeMessage[]): RuntimeMessage[] {
-    if (this.volatileToolResults.size === 0 && this.volatileComputerCalls.size === 0)
-      return messages
-    return messages.map((message) => {
-      if (message.role === 'assistant' && 'toolCalls' in message)
-        return {
-          ...message,
-          toolCalls: message.toolCalls.map(
-            (call) =>
-              this.volatileComputerCalls.get(volatileToolResultKey(taskId, call.providerCallId)) ??
-              call
-          )
-        }
-      if (message.role !== 'tool') return message
-      const full = this.volatileToolResults.get(volatileToolResultKey(taskId, message.toolCallId))
-      return full === undefined ? message : { ...message, content: full }
-    })
-  }
-
-  private dropVolatileToolResults(taskId: string): void {
-    const prefix = volatileToolResultKey(taskId, '')
-    for (const key of this.volatileComputerCalls.keys())
-      if (key.startsWith(prefix)) this.volatileComputerCalls.delete(key)
-    for (const key of this.volatileToolResults.keys())
-      if (key.startsWith(prefix)) this.volatileToolResults.delete(key)
-  }
-
-  private releaseVolatileToolResults(taskId: string, messages: RuntimeMessage[]): void {
-    for (const message of messages) {
-      if (message.role === 'assistant' && 'toolCalls' in message)
-        for (const call of message.toolCalls)
-          this.volatileComputerCalls.delete(volatileToolResultKey(taskId, call.providerCallId))
-      if (message.role === 'tool')
-        this.volatileToolResults.delete(volatileToolResultKey(taskId, message.toolCallId))
     }
   }
 
@@ -421,9 +356,9 @@ export class LangGraphRunner implements GraphRunner {
             messages: capabilityNotice
               ? [
                   { role: 'system' as const, content: capabilityNotice },
-                  ...this.resolveVolatileToolResults(state.taskId, state.modelMessages)
+                  ...state.modelMessages
                 ]
-              : this.resolveVolatileToolResults(state.taskId, state.modelMessages),
+              : state.modelMessages,
             ...(tools.length ? { tools } : {}),
             skills: state.skills,
             parameters: { temperature: 0 }
@@ -452,7 +387,6 @@ export class LangGraphRunner implements GraphRunner {
         } finally {
           for (const id of volatileScreenshotIds(state.modelMessages))
             this.toolRuntime?.releaseVolatileImage?.(id)
-          this.releaseVolatileToolResults(state.taskId, state.modelMessages)
         }
 
         const activeActivityId = activityClosed ? null : state.activeActivityId
@@ -500,20 +434,7 @@ export class LangGraphRunner implements GraphRunner {
           return {
             status: 'planned' as const,
             modelMessages: retainedMessages,
-            pendingToolCalls: plan.calls.map((call) => {
-              if (!this.isComputerCode(call)) return call
-              this.volatileComputerCalls.set(
-                volatileToolResultKey(state.taskId, call.providerCallId),
-                structuredClone(call)
-              )
-              return {
-                ...call,
-                arguments: {
-                  codeLength:
-                    typeof call.arguments.code === 'string' ? call.arguments.code.length : 0
-                }
-              }
-            }),
+            pendingToolCalls: plan.calls,
             planRoute: 'tools' as const,
             activeActivityId,
             activityTitleRevision: activityClosed ? 0 : state.activityTitleRevision,
@@ -542,13 +463,7 @@ export class LangGraphRunner implements GraphRunner {
         let activityCapturesProgress = state.activityCapturesProgress
         let activityToolNames = state.activityToolNames
         let activityIssueCount = state.activityIssueCount
-        for (const [index, persistedCall] of state.pendingToolCalls.entries()) {
-          const providerCall =
-            this.volatileComputerCalls.get(
-              volatileToolResultKey(state.taskId, persistedCall.providerCallId)
-            ) ?? persistedCall
-          if (this.isComputerCode(providerCall) && typeof providerCall.arguments.code !== 'string')
-            throw new Error('COMPUTER_CODE_UNAVAILABLE: source was lost; start a new request')
+        for (const [index, providerCall] of state.pendingToolCalls.entries()) {
           if (config.signal?.aborted) throw config.signal.reason
           if (!this.toolRuntime) {
             return { error: 'TOOL_CALLS_NOT_CONFIGURED', trace: ['executeTools'] }
@@ -593,6 +508,7 @@ export class LangGraphRunner implements GraphRunner {
             ToolEvent,
             { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
           > | null = null
+          const printed = { stdout: '', stderr: '', result: '' }
           try {
             for await (const toolEvent of this.toolRuntime.invocations.execute(
               call,
@@ -618,6 +534,8 @@ export class LangGraphRunner implements GraphRunner {
               ) {
                 terminal = toolEvent
               }
+              // A failing tool keeps what it printed before failing, for the model and for history.
+              if (toolEvent.type === 'tool.content') printed[toolEvent.stream] += toolEvent.delta
               // Screenshots a Computer Use cell emits stay in memory and are shown to the next
               // model request only; history keeps just the handle.
               if (toolEvent.type === 'tool.asset' && isVolatileComputerImage(toolEvent.asset))
@@ -639,12 +557,6 @@ export class LangGraphRunner implements GraphRunner {
             }
           }
           const redact = this.toolRedaction(providerCall.modelName)
-          if (redact && terminal?.type === 'tool.completed') {
-            this.volatileToolResults.set(
-              volatileToolResultKey(state.taskId, providerCall.providerCallId),
-              JSON.stringify({ ok: true, output: terminal.output })
-            )
-          }
           results.push({
             role: 'tool',
             toolCallId: providerCall.providerCallId,
@@ -664,7 +576,16 @@ export class LangGraphRunner implements GraphRunner {
                         ? redact
                           ? redactToolError(terminal.error)
                           : terminal.error
-                        : { code: 'TOOL_NO_TERMINAL' }
+                        : { code: 'TOOL_NO_TERMINAL' },
+                    ...(printed.stdout || printed.stderr || printed.result
+                      ? {
+                          output: {
+                            stdout: printed.stdout,
+                            stderr: printed.stderr,
+                            content: printed.result
+                          }
+                        }
+                      : {})
                   }
             )
           })
@@ -905,7 +826,11 @@ export function activityTitleForTool(
               ? '运行 TypeScript'
               : normalized.includes('node_run') || normalized.includes('node.run')
                 ? '运行 Node.js'
-                : '调用工具'
+                : normalized === 'js'
+                  ? '操作桌面应用'
+                  : normalized === 'js_reset'
+                    ? '重置 Computer Use'
+                    : '调用工具'
   if (status === 'running') return `正在${action}`
   if (status === 'completed') return `已${action}`
   if (status === 'cancelled') return `已取消${action}`

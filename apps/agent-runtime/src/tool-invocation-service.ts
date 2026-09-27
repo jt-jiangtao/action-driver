@@ -246,6 +246,9 @@ export class ToolInvocationService {
       if (caught instanceof ProcessExitError) {
         invocation.output = { ...collector.snapshot(), result: { exitCode: caught.exitCode } }
       }
+      // Whatever the tool printed before failing stays with the failure, so history and the model
+      // both keep the diagnostics instead of only the error.
+      if (invocation.output === null) invocation.output = collector.snapshot()
       const timedOut =
         controller.signal.aborted &&
         !signal?.aborted &&

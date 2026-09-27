@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { AppApprovalRequest, AppApprovalDecision } from '@actiondriver/contracts'
 import { appApprovalRequestSchema } from '@actiondriver/runtime-contracts'
 import { z } from 'zod'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 export type { AppApprovalRequest, AppApprovalDecision } from '@actiondriver/contracts'
 
 export class AppApprovalError extends Error {
@@ -68,7 +69,7 @@ export class AppApprovalBroker {
       throw new Error('INVALID_REQUEST: a non-empty app is required')
     }
     const checkCancelled = () => {
-      if (signal?.aborted) throw new Error('CANCELLED: application approval cancelled')
+      if (signal?.aborted) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.approvalCancelled)
     }
     checkCancelled()
     const policy = await this.options.queryPolicy(snapshot.app)
@@ -84,11 +85,15 @@ export class AppApprovalBroker {
   ): Promise<void> {
     const policy = appPolicySchema.parse(copyData(input))
     const checkCancelled = () => {
-      if (signal?.aborted) throw new Error('CANCELLED: application approval cancelled')
+      if (signal?.aborted) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.approvalCancelled)
     }
     checkCancelled()
     if (policy.decision !== 'allowed') {
-      throw new Error(policy.decision === 'forbidden' ? 'APP_FORBIDDEN' : 'APP_DENIED')
+      throw new Error(
+        policy.decision === 'forbidden'
+          ? COMPUTER_USE_GUIDANCE_ERRORS.appForbidden
+          : COMPUTER_USE_GUIDANCE_ERRORS.appDenied
+      )
     }
     const id = policy.target.bundleId
     const persistent = policy.allowPersistentApproval && (await this.options.isAlwaysAllowed(id))
@@ -157,7 +162,9 @@ export class AppApprovalBroker {
   ): Promise<void> {
     const request: AppApprovalRequest = Object.freeze({
       requestId: randomUUID(),
-      ...context,
+      // Only the persisted fields: the caller's context also carries an AbortSignal for the wait.
+      taskId: context.taskId,
+      sessionId: context.sessionId,
       target: Object.freeze({ ...policy.target }),
       allowPersistentApproval: policy.allowPersistentApproval
     })
@@ -184,7 +191,7 @@ export class AppApprovalBroker {
         await this.options.emit({ type: 'computer.app-approval.resolved', request, decision })
       }
       const cancel = () => {
-        void pending.reject(new Error('CANCELLED: application approval cancelled'))
+        void pending.reject(new Error(COMPUTER_USE_GUIDANCE_ERRORS.approvalCancelled))
       }
       const pending: Pending = {
         request,

@@ -34,6 +34,18 @@ describe('Computer Use entry', () => {
     await computer.dispose()
   })
 
+  it('states the computer-use Skill prerequisite in the js tool description', async () => {
+    const computer = await entry()
+    const description =
+      computer.tools.find((tool) => tool.definition.modelName === 'js')?.definition.description ?? ''
+    expect(description).toContain('skill_read')
+    expect(description).toContain('computer-use')
+    expect(description).toContain('SKILL_NOT_LOADED')
+    expect(description).toContain('@oai/sky')
+    expect(description).toContain('cua.getState()')
+    await computer.dispose()
+  })
+
   it('shares one approval broker between the tools and the runtime', async () => {
     const computer = await entry()
     expect(computer.approvals.getPending('task-1')).toEqual([])

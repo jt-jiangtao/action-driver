@@ -19,6 +19,15 @@ describe('tool activity titles', () => {
     )
   })
 
+  it('names the Computer Use cell instead of a generic tool call', () => {
+    expect(toolActivityTitle('computer.js', { codeLength: 20 }, 'running')).toBe('正在操作桌面应用')
+    expect(toolActivityTitle('computer.js', { codeLength: 20 }, 'completed')).toBe('已操作桌面应用')
+    expect(toolActivityTitle('computer.js', { codeLength: 20 }, 'failed')).toBe('操作桌面应用失败')
+    expect(toolActivityTitle('computer.js_reset', {}, 'completed')).toBe('已重置 Computer Use')
+    expect(toolActivitySummary('computer.js', { codeLength: 20 })).toBe('Computer Use')
+    expect(toolActivitySummary('computer.js_reset', {})).toBe('Computer Use 重置')
+  })
+
   it('does not include shell arguments in titles', () => {
     expect(
       toolActivityTitle(

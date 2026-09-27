@@ -11,11 +11,26 @@ describe('Computer Use provider', () => {
     await provider.execute({ operation: 'list-apps' })
     await provider.execute({ operation: 'app-state', sessionId: 'session-1', app: 'TextEdit',
       maxElements: 300, maxDepth: 12, disableDiff: true })
+    await provider.execute({ operation: 'app-policy', app: 'TextEdit' })
+    await provider.execute({ operation: 'session-start', sessionId: 'session-1' })
+    await provider.execute({ operation: 'session-end', sessionId: 'session-1' })
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({ operation: 'list-apps' }), undefined)
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({
       operation: 'app-state', sessionId: 'session-1', app: 'TextEdit',
       maxElements: 300, maxDepth: 12, disableDiff: true
     }), undefined)
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'app-policy', app: 'TextEdit' }),
+      undefined
+    )
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'session-start', sessionId: 'session-1' }),
+      undefined
+    )
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'session-end', sessionId: 'session-1' }),
+      undefined
+    )
     await expect(provider.execute({ operation: 'observe', maxElements: 50, maxDepth: 5 }))
       .rejects.toThrow('Unsupported Computer Use command')
     await expect(provider.execute({ operation: 'shutdown' }))

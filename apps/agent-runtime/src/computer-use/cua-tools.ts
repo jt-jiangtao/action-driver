@@ -8,6 +8,15 @@ import type {
   ToolExecutionContext
 } from '@actiondriver/runtime-contracts'
 import { createCuaRuntime } from './cua-runtime'
+import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
+
+/** Project-level prerequisite the vendored Codex instructions do not carry. */
+const skillPrerequisite =
+  'Prerequisite: before the first `js` call in a conversation, read the `computer-use` Skill with `skill_read` (`skillId: "computer-use"`). Calls that skip it fail with `SKILL_NOT_LOADED`.'
+
+/** Keeps the model on the host-provided entry instead of importing the vendored package itself. */
+const entryPointNote =
+  'Entry point: the host provides the global `cua` object — call `cua.getState()`, `cua.getApp("...")` and the application methods. Do not `import("@oai/sky")` and do not reference a `sky` global; the vendored package is only loadable through the host.'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 type Options = Parameters<typeof createCuaRuntime>[0] & {
@@ -30,10 +39,9 @@ export async function createCuaEntryTools(options: Options) {
       load('code')
     ])
   const runtime = createCuaRuntime(options)
-  const executedTexts = new WeakMap<object, number[]>()
   const requireContext = (context?: ToolExecutionContext) => {
     if (!context?.taskId || !context.sessionId || !context.workspace)
-      throw new Error('COMPUTER_USE_CONTEXT_REQUIRED')
+      throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
     return { taskId: context.taskId, sessionId: context.sessionId, workspace: context.workspace }
   }
   const tools: Registered[] = [
@@ -42,7 +50,14 @@ export async function createCuaEntryTools(options: Options) {
         id: 'computer.js',
         version: 1,
         modelName: 'js',
-        description: [description, disabledBrowser, computer, output].join('\n\n'),
+        description: [
+          description,
+          skillPrerequisite,
+          entryPointNote,
+          disabledBrowser,
+          computer,
+          output
+        ].join('\n\n'),
         inputSchema: {
           type: 'object',
           properties: {
@@ -66,10 +81,8 @@ export async function createCuaEntryTools(options: Options) {
         async *execute(call, signal, context): AsyncIterable<ToolExecutorEvent> {
           const execution = requireContext(context)
           if (!options.skillLoaded(execution.sessionId))
-            throw new Error('SKILL_NOT_LOADED: read the computer-use Skill with skill_read')
+            throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
           const input = call.arguments
-          const lengths: number[] = []
-          executedTexts.set(input, lengths)
           const code = input.code
           const timeout = input.timeout_ms
           if (
@@ -85,7 +98,7 @@ export async function createCuaEntryTools(options: Options) {
             (input.title !== undefined &&
               (typeof input.title !== 'string' || input.title.length > 200))
           )
-            throw new Error('TOOL_INPUT_INVALID')
+            throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.invalidInput)
           const cancel = new AbortController()
           const combined = signal ? AbortSignal.any([signal, cancel.signal]) : cancel.signal
           const queue: ToolExecutorEvent[] = []
@@ -108,10 +121,9 @@ export async function createCuaEntryTools(options: Options) {
                   ...(timeout === undefined ? {} : { timeoutMs: timeout as number })
                 },
                 {
-                  executedText: (length) => {
-                    lengths.push(length)
+                  text: (delta) => {
+                    push({ kind: 'content', stream: 'result', delta })
                   },
-                  text: (delta) => push({ kind: 'content', stream: 'result', delta }),
                   image: (bytes, mimeType) => {
                     const index = images.length
                     const pending = options
@@ -150,32 +162,6 @@ export async function createCuaEntryTools(options: Options) {
             cancel.abort(new Error('CANCELLED: tool consumer ended'))
             await running
           }
-        },
-        redactForPersistence: (kind, value) => {
-          if (kind === 'input')
-            return {
-              codeLength:
-                typeof value === 'object' &&
-                value !== null &&
-                'code' in value &&
-                typeof value.code === 'string'
-                  ? value.code.length
-                  : 0,
-              executedTextLengths:
-                typeof value === 'object' && value !== null
-                  ? [...(executedTexts.get(value) ?? [])]
-                  : []
-            }
-          return {
-            outputLength:
-              typeof value === 'object' &&
-              value !== null &&
-              !Array.isArray(value) &&
-              'output' in value &&
-              typeof value.output === 'string'
-                ? value.output.length
-                : 0
-          }
         }
       }
     },
@@ -193,7 +179,8 @@ export async function createCuaEntryTools(options: Options) {
       executor: {
         async *execute(call, _signal, context) {
           const execution = requireContext(context)
-          if (Object.keys(call.arguments).length) throw new Error('TOOL_INPUT_INVALID')
+          if (Object.keys(call.arguments).length)
+            throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.invalidInput)
           await runtime.reset(execution.sessionId)
           yield { kind: 'result', output: { reset: true } }
         }
