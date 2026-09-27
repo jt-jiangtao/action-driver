@@ -84,9 +84,11 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     if (provenance.watermark?.developmentDefault) {
       const screenshotDirectory = join(process.cwd(), 'thridparty/build/verification/watermark')
       mkdirSync(screenshotDirectory, { recursive: true })
-      const nativeId = await application.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0].getMediaSourceId()
-      )
+      const nativeId = await application.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]
+        if (!window) throw new Error('PACKAGED_WATERMARK_WINDOW_MISSING')
+        return window.getMediaSourceId()
+      })
       execFileSync('/usr/sbin/screencapture', [
         '-x',
         '-o',
