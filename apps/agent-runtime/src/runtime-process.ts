@@ -24,7 +24,7 @@ import { SessionSandbox } from './execution/session-sandbox'
 import { SessionWorkspaceStore } from './execution/session-workspace'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseSearxngEndpoint } from './searxng/search-tool'
+import { createWebCredentialPort } from './plugins/web-credentials'
 import { createRuntimePluginPlatform } from './plugins/composition'
 import { PluginInstructionHost } from './plugins/instruction-host'
 import { createDesktopResourcePort } from './plugins/desktop-resource-port'
@@ -222,7 +222,10 @@ export async function startAgentRuntimeProcess(
   const workspaceDependenciesTool = createWorkspaceDependenciesTool(runtimeDist)
   local.toolRuntime.grants.push(`${workspaceDependenciesTool.definition.id}@${workspaceDependenciesTool.definition.version}`)
   local.toolRuntime.grants.push(`${imageDefinition.id}@${imageDefinition.version}`)
+  const webCredentials = createWebCredentialPort(environment)
   local.toolRuntime.isAvailable = async (definition) => {
+    if (definition.id === 'tools.local.web.search') return webCredentials.configuration.searchConfigured
+    if (definition.id === 'tools.local.web.open') return webCredentials.configuration.readerConfigured
     if (definition.id === imageDefinition.id)
       return (await service.getDefaultImageModel()) !== null
     if (definition.id.startsWith('tools.local.computer-use.')) {
@@ -236,14 +239,14 @@ export async function startAgentRuntimeProcess(
       ? '本应用支持图片生成，但当前没有配置默认生图模型。若用户请求生成图片，请说明需前往“设置 → 模型连接”启用一个模型的图片生成能力并设为默认模型；不要说应用完全没有生图工具。'
       : null
   let computerActivated = false
-  const searchEndpoint = environment.ACTIONDRIVER_SEARXNG_ENDPOINT?.trim()
   const runtimePaths = await resolveExecutionRuntimePaths(runtimeDist, process.arch, ['node'])
   const pluginPlatform = await createRuntimePluginPlatform({
     node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
     packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
     dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
     retiredPluginIds: ['search', 'web-reader'],
-    configuration: searchEndpoint ? { web: { endpoint: parseSearxngEndpoint(searchEndpoint) } } : {},
+    configuration: { web: webCredentials.configuration },
+    apiPorts: { credentials: webCredentials.credentials },
     skills: {
       stage: (owner, skill, root) => pluginInstructions.stage(owner, skill, root),
       publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }
@@ -286,12 +289,12 @@ export async function startAgentRuntimeProcess(
     now: Date.now, ids: randomUUID,
     log: entry => console.error('[plugin]', JSON.stringify(entry))
   })
-  if (searchEndpoint) {
-    // Existing configured-search policy is assembled here, never by the plugin or its catalog.
+  if (webCredentials.configuration.searchConfigured) {
+    // Tool grants remain host-owned; a plugin never authorizes itself.
     local.toolRuntime.grants.push('tools.local.web.search@1')
   }
   await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => pluginPlatform.enable(id)))
-  local.toolRuntime.grants.push('tools.local.web.open@1')
+  if (webCredentials.configuration.readerConfigured) local.toolRuntime.grants.push('tools.local.web.open@1')
   local.toolRuntime.grants.push('tools.local.skills.read@1', 'tools.local.skills.install@1')
   const streamSessions = new StreamSessionService({
     ...(appApprovals ? { appApprovals } : {}),

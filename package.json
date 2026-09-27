@@ -8,7 +8,7 @@
     "node": ">=20.14.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop dev",
+    "dev": "node scripts/dev.mjs",
     "build": "pnpm validate:e2e-interactions && pnpm --filter @actiondriver/desktop build",
     "build:native:electron": "node scripts/build-electron-native.mjs",
     "build:native:computer-use": "node scripts/build-computer-use-helper.mjs",

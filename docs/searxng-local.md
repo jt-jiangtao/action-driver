@@ -56,3 +56,6 @@ ACTIONDRIVER_SEARXNG_ENDPOINT=http://127.0.0.1:8080 corepack pnpm dev
 - 搜索为空或上游报错：这是 SearXNG 上游引擎的运行状态；ActionDriver 不回退到公共实例，也不会抓取网页作为替代。
 
 官方参考：[SearXNG Docker 安装](https://docs.searxng.org/admin/installation-docker.html) 与 [搜索 API](https://docs.searxng.org/dev/search_api.html)。
+# 历史部署说明
+
+默认 web 搜索已迁移至 Tavily，网页读取使用 Jina Reader。请按 [网络工具配置](web-tools.md) 设置密钥；下文保留用于维护已有 SearXNG 部署，旧 endpoint 不再启用默认工具。

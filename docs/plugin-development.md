@@ -44,7 +44,7 @@ Skill 由统一指令宿主发布，资源来自同一包，停用后立即不�
 
 提交前按 AGENTS.md 验证；迭代时只运行相关定向测试。脚手架回归会在仓库外实际安装 npm tarball、构建、加载 catalog、运行宿主并验证 Skill 回收。
 
-能力按职责归属：web 同时暴露 `tools.local.web.search` 与 `tools.local.web.open`，未配置搜索 endpoint 时仍可读取网页；skills 暴露 `tools.local.skills.read`、`tools.local.skills.install` 与 skill-creator 指令；四类文档分别独立发布完整 Skill、脚本和资源；image-generation 包含 imagegen 指令和图片 provider 实现。任务、凭据、沙箱与持久化权限校验仍由宿主拥有。旧 search/web-reader 安装记录保留，启动时不再自动发现。
+能力按职责归属：web 同时暴露 `tools.local.web.search`（Tavily）与 `tools.local.web.open`（Jina Reader），按各自凭据独立可用，配置见 [网络工具说明](web-tools.md)；skills 暴露 `tools.local.skills.read`、`tools.local.skills.install` 与 skill-creator 指令；四类文档分别独立发布完整 Skill、脚本和资源；image-generation 包含 imagegen 指令和图片 provider 实现。任务、凭据、沙箱与持久化权限校验仍由宿主拥有。旧 search/web-reader 安装记录保留，启动时不再自动发现。
 
 Skill 内容直接导入包内文件，例如 `import content from '../skills/pdf/SKILL.md?raw'`，其他 Markdown 指令同样导入。脚手架默认采用相同的文件导入方式。TypeScript 通过 `raw-assets.d.ts` 声明文本模块，Vite 测试和 esbuild 的 `.md: text` loader 读取原文件；构建后的 catalog 不需要源码路径。`scripts/sync-plugin-skills.mjs` 只更新元数据与资源清单，不再内嵌 Skill 正文。
 

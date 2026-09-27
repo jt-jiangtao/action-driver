@@ -29,7 +29,5 @@
     }
   ],
   "dependencies": [],
-  "requires": [
-    "host.web.extract"
-  ]
+  "requires": []
 }

@@ -1,4 +1,5 @@
 import { createSearchDefinition } from './catalog.js'
+export { createTavilySearchTool } from './tavily.js'
 import type { ToolCall, ToolDefinition, ToolExecutor, ToolExecutorEvent } from '@actiondriver/plugin-sdk'
 
 const MAX_RESULTS = 10
