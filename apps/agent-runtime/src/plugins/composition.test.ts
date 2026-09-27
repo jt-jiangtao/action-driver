@@ -136,3 +136,34 @@ it('ignores retired built-in packages on restart and preserves their private dat
     } finally { await platform.dispose() }
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
+
+it('loads the new Reader when the previous web 1.2.0 package is already cached', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-web-upgrade-'))
+  const packageRoot = join(directory, 'package')
+  const dataRoot = join(directory, 'data')
+  const cached = join(dataRoot, 'installed/web/1.2.0')
+  let platform: Awaited<ReturnType<typeof createRuntimePluginPlatform>> | undefined
+  try {
+    await cp(resolve('apps/agent-runtime/dist/plugins/web'), packageRoot, { recursive: true })
+    const manifest = JSON.parse(await readFile(join(packageRoot, 'plugin.json'), 'utf8'))
+    await mkdir(join(cached, 'dist'), { recursive: true })
+    await writeFile(join(cached, 'dist/extension.js'), "export function activate() { throw new Error('STALE_WEB_PACKAGE') }")
+    await writeFile(join(cached, 'package.json'), '{"type":"module"}')
+    await writeFile(join(dataRoot, 'installed/web/current.json'), JSON.stringify({ ...manifest, version: '1.2.0' }))
+    const entry = join(packageRoot, manifest.entry)
+    await writeFile(entry, `globalThis.fetch = async (url, init) => {
+      if (url !== 'https://r.jina.ai/https://93.184.216.34/' || init.headers.Authorization !== 'Bearer fixture-secret') throw new Error('Wrong Reader protocol');
+      return new Response(JSON.stringify({data: {title: 'New Reader', content: 'Fresh content'}}), {headers: {'content-type': 'application/json'}})
+    };\n` + await readFile(entry, 'utf8'))
+    const registry = new RuntimeToolRegistry()
+    const credentials = createWebCredentialPort({ JINA_API_KEY: 'fixture-secret' })
+    platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [packageRoot], dataRoot, registry, configuration: { web: credentials.configuration }, apiPorts: { credentials: credentials.credentials }, now: Date.now, ids: () => String(Math.random()) })
+    await platform.enable('web')
+    const resolved = registry.resolve('tools.local.web.open', 1)
+    expect(resolved.owner?.version).not.toBe('1.2.0')
+    const events = []
+    for await (const event of resolved.executor.execute({callId: 'c', providerCallId: 'p', modelName: 'tools.local.web.open', arguments: {url: 'https://93.184.216.34/'}}, new AbortController().signal, {taskId: 't', sessionId: 's', workspace: {root: directory, input: directory, output: directory}, grants: ['tools.local.web.open@1']})) events.push(event)
+    expect(events).toEqual([{kind: 'result', output: {title: 'New Reader', url: 'https://93.184.216.34/', text: 'Fresh content', truncated: false}}])
+    expect(await readFile(join(cached, 'dist/extension.js'), 'utf8')).toContain('STALE_WEB_PACKAGE')
+  } finally { await platform?.dispose(); await rm(directory, {recursive: true, force: true}) }
+}, 10000)

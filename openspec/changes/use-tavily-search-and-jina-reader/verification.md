@@ -23,3 +23,14 @@
 ## 交付状态
 
 代码与配置已落地，默认 Search=Tavily、Open=Jina。运行中的旧进程不会热替换插件，需重新执行 pnpm dev 生效。保留活动 OpenSpec 变更，未以全量通过为名归档；日志/Computer Use/图片失败需要单独调查。
+
+## 同版本缓存修复补充
+
+用户重启后仍旧 URL_DENIED，根因是先前修改保持 web 1.2.0 版本，安装器按版本不可变规则继续使用旧包。递增 plugin.json/package.json 至 1.3.0。
+
+- 回归用例预置旧 web/1.2.0 缓存：修复前 STALE_WEB_PACKAGE 失败，递增版本与构建后通过；新执行器请求 Jina 协议正确，旧包保留。
+- 已重启用户开发实例（无运行中任务），实际 current.json 为 1.3.0，安装包包含 cloudflare-dns.com；未清理旧版本或用户数据。
+- 使用用户真实安装目录、打包 Node 和真实插件宿主调用：www.example.com 成功 149 字符；news.ycombinator.com 成功 12,000 字符。
+- 本次提交前 pnpm typecheck 通过；pnpm lint 29 错误全部来自前次遗漏的冒烟嵌套 bundle，已移除，改动测试定向 ESLint 通过；没有重复全量 lint。
+- pnpm test 一次：1285 通过、14 失败、2 跳过；web 升级回归通过。失败为既有 Runtime shutdown（6）、日志关闭（4）、Computer Use（4），未声明全量通过。
+- 本次只改包版本和缓存场景测试，不重复前次本地 E2E；真实安装与跨进程调用已验证版本升级效果。
