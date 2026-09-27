@@ -1,33 +1,36 @@
 ## Why
 
-Browser Use 是产品第一阶段的核心能力（"网页必须直接嵌入产品内部，不启动外部浏览器"），当前只有内嵌浏览器占位与 Mock Provider。模型与 Skill 边界已就绪后，需要让浏览器真实执行：Agent 观察页面、选择动作、执行并展示结果，用户可以在页面内暂停、继续和接管。
+本期仅建立自有 Playwright 与 Electron/Chromium Fork 基线，验证源码构建与两套产物兼容运行，为后续接口扩展提供可追溯基础。不接入 ActionDriver 产品。
 
 ## What Changes
 
-- 内嵌浏览器真实导航：在应用内部载入页面，不调起外部浏览器；保留现有浏览器面板布局与导航栏视觉。
-- Browser Skill Provider 真实实现：按统一 Skill 契约提供观察与受约束动作（导航、点击、输入、滚动、截图/文本观察、取消），带超时与取消语义。
-- Action Graph 首次落地：把页面元素结构化为带稳定引用的观察结果，供 Agent 选择动作；引用在页面变化后按规则失效而不是静默指向错误元素。
-- 页面投影：时间线展示观察与步骤，浏览器区域展示当前目标高亮；浮动控制条承载暂停、继续与人工接管。
-- 引擎边界：首版实现 Playwright Fork 引擎，注册为 `browser-use.playwright`；为 Native/定制 Chromium 引擎保留独立 Provider 标识与评测边界，不抽象成同一底层实现。
+- 使用 https://github.com/jt-jiangtao/playwright 与 https://github.com/jt-jiangtao/electron，锁定确切上游版本和提交。
+- 在独立工作区编译两套自有产物；Chromium 由 Electron 构建链获取，自有内核差异以补丁队列保存。
+- 使用独立 Electron 测试夹具验证自有 Playwright 的导航、点击、输入、截图与关闭。
+- Chromium 自有行为改动必须受 ACTION_DRIVER 平台宏控制；Playwright 自有实现必须位于自有目录，必要接线冲突先裁决，不隐含豁免。
+- 记录来源、构建配置、架构、校验值与运行证据。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `browser-use`: 定义内嵌浏览器的导航、观察、动作、目标高亮、控制与引擎替换行为。
+- `browser-use`: 仅定义双 Fork 基线的独立兼容验证、生命周期及来源追踪行为。
+
+### Modified Capabilities
+
+无。
 
 ## Impact
 
-- 新增 Browser 引擎适配层与 Provider 实现；Runtime 通过既有反向调用通道请求 Main 执行动作。
-- Main 新增内嵌浏览器宿主（视图挂载、导航控制、页面注入脚本）。
-- 页面：浏览器面板与浮动控制条接线；时间线接收观察与动作事件。
-- 测试：观察/动作使用确定性的本地页面夹具；视觉用例保持既有占位基线或按新状态更新。
+- 两个 Fork 的源码基线、构建环境、补丁与独立兼容夹具。
+- ActionDriver 仓库仅更新本期规划；产品代码、依赖、面板、工具与打包不属于本期。
 
 ## Battle Status
 
-- 类型：产品（核心能力）+ 架构（引擎与观察模型）。
-- 状态：**方向已裁决**（Browser Use 优先、内嵌不调外部浏览器、Action Graph 与稳定引用、Browser 与 Computer 独立），实现细节待裁决：
-  1. 内嵌实现：Electron `WebContentsView` 挂载（推荐，贴近产品形态）还是独立窗口视图。
-  2. 观察粒度：可交互元素 + 可见文本 + 结构层级（推荐），是否包含全量 DOM。
-  3. 引用失效策略：页面变更后按指纹校验并标记失效（推荐），还是重新全量观察。
-  4. Playwright Fork 与定制 Chromium Fork 的关系：Playwright Fork 先落地、Native 引擎并行保留（推荐），还是先不做 Playwright 直接投入定制内核。
+- 类型：架构决策型。
+- 状态：2026-09-27 用户确认规划更新，随后明确收窄为只考虑 Fork；书面规划与执行计划已确认，按本会话执行。
+- 最终方向：真实双 Fork 编译并独立跑通，不考虑具体扩展接口，不接入产品。
+- 替代方案：用官方二进制验证连接。更快，但无法证明自有源码构建链路，故不采用。
+- 用户覆盖：选择本期同时维护双 Fork，覆盖最初延后内核 Fork 的建议，接受初次构建与维护成本。
+- 延后：ActionDriver 消费、内嵌面板、Browser Tool、Agent 闭环、具体扩展接口、Action Graph、Jev、高亮、接管与记忆。
+- 重新开启条件：必要接线无法满足隔离要求、需改变控制边界或显著升级基线；不得擅自放宽约束。

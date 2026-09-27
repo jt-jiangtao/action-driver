@@ -9,6 +9,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/.superpowers/**',
+      'thridparty/**',
       'apps/agent-runtime/resources/system-skills/**',
       'apps/agent-runtime/vendor/**',
       'scripts/e2e-interactions/fixtures/**'
