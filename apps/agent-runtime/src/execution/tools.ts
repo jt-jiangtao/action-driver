@@ -12,7 +12,7 @@ import {
 import { runProcess } from './process-runner'
 import { ExecutionContextUnavailableError } from './session-execution-context'
 import { SessionSandbox } from './session-sandbox'
-import { commandDescriptors, createCommandCatalog } from '../../../../plugins/command/src/catalog'
+import { commandDescriptors, createCommandCatalog } from '@actiondriver/command-plugin/catalog'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 

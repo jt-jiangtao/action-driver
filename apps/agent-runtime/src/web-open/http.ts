@@ -1,1 +1,1 @@
-export * from '../../../../plugins/web-reader/src/http'
+export * from '@actiondriver/web-plugin/http'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RuntimeToolRegistry } from '../src/tool-registry'
-import { activate } from '../../../plugins/search/src/extension'
-import { catalog } from '../../../plugins/search/src/catalog'
+import { activate } from '../../../plugins/web/src/search/extension'
+import { catalog } from '../../../plugins/web/src/search/catalog'
 import { createPluginContext } from '@actiondriver/plugin-sdk'
 describe('SearXNG plugin registration', () => {
   it('keeps discovery separate from availability and task grants', async () => {

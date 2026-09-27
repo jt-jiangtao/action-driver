@@ -6,7 +6,8 @@ import { join } from 'node:path'
 import { fileTypeFromBuffer } from 'file-type'
 import { imageSize } from 'image-size'
 
-export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+import { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
+export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
 export const MAX_IMAGE_PIXELS = 16_777_216
 export type StagedAssetRef = Omit<ImageAssetRef, 'sessionId'>
 type ImageMime = ImageAssetRef['mimeType']

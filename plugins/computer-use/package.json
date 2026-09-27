@@ -1,11 +1,25 @@
 {
   "name": "@actiondriver/computer-use-plugin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/extension.ts",
-    "./catalog": "./src/catalog.ts"
+    ".": {
+      "development": {
+        "types": "./src/extension.ts",
+        "default": "./src/extension.ts"
+      },
+      "types": "./dist/extension.d.ts",
+      "default": "./dist/extension.js"
+    },
+    "./catalog": {
+      "development": {
+        "types": "./src/catalog.ts",
+        "default": "./src/catalog.ts"
+      },
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    }
   },
   "files": [
     "dist",
@@ -15,10 +29,11 @@
     "native/Package.swift",
     "native/Sources",
     "native/Tests",
-    "native/dist"
+    "native/dist",
+    "instructions"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/build-plugin.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 import { z } from 'zod'
 import type { InvocationContext, Json } from './index.js'
 // Portable public DTOs. No Runtime/Desktop implementation or repository path crosses this API.

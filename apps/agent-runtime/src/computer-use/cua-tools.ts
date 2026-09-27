@@ -5,7 +5,7 @@ import type {
   ToolExecutorEvent,
   ToolExecutionContext
 } from '@actiondriver/runtime-contracts'
-import { catalog } from '../../../../plugins/computer-use/src/catalog'
+import { catalog } from '@actiondriver/computer-use-plugin/catalog'
 import { createCuaRuntime } from './cua-runtime'
 import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 

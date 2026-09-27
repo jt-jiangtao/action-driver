@@ -11,6 +11,7 @@ export default tseslint.config(
       '**/.superpowers/**',
       'thridparty/**',
       'apps/agent-runtime/resources/system-skills/**',
+      'plugins/*/skills/**',
       'apps/agent-runtime/vendor/**',
       'scripts/e2e-interactions/fixtures/**'
     ]

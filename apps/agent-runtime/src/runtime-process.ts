@@ -34,12 +34,12 @@ import { extractPageTextIsolated } from './web-open/extract-isolated'
 import { PluginError } from '@actiondriver/plugin-contracts'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { SkillInstaller } from './agent-files/skill-installer'
-import { createSkillRuntimeTools } from './agent-files/runtime-tools'
+import { createSkillStoragePorts } from './plugins/skill-port'
 import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
-import { definition as imageDefinition } from '../../../plugins/image-generation/src/catalog'
+import { definition as imageDefinition } from '@actiondriver/image-generation-plugin/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
@@ -137,7 +137,7 @@ export async function startAgentRuntimeProcess(
     tasks: repositories.tasks,
     workspaceRoot
   })
-  const pluginInstructions = new PluginInstructionHost(agentHome, ['computer-use'])
+  const pluginInstructions = new PluginInstructionHost(agentHome, ['computer-use', 'documents', 'pdf', 'presentations', 'spreadsheets', 'skill-creator', 'imagegen'])
   const agentFiles = new AgentFileStore({
     pluginSkills: pluginInstructions,
     homeDirectory: agentHome,
@@ -241,9 +241,10 @@ export async function startAgentRuntimeProcess(
   const runtimePaths = await resolveExecutionRuntimePaths(runtimeDist, process.arch, ['node'])
   const pluginPlatform = await createRuntimePluginPlatform({
     node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
-    packageRoots: [join(runtimeDist, 'plugins/command'), join(runtimeDist, 'plugins/web-reader'), join(runtimeDist, 'plugins/image-generation'), ...(computer ? [join(runtimeDist, 'plugins/computer-use')] : []), ...(searchEndpoint ? [join(runtimeDist, 'plugins/search')] : [])],
+    packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
     dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
-    configuration: searchEndpoint ? { search: { endpoint: parseSearxngEndpoint(searchEndpoint) } } : {},
+    retiredPluginIds: ['search', 'web-reader'],
+    configuration: searchEndpoint ? { web: { endpoint: parseSearxngEndpoint(searchEndpoint) } } : {},
     skills: {
       stage: (owner, skill, root) => pluginInstructions.stage(owner, skill, root),
       publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }
@@ -251,6 +252,7 @@ export async function startAgentRuntimeProcess(
     desktopResources: createDesktopResourcePort(local.adapters.skillRegistry, randomUUID),
     toolTimeouts: Object.fromEntries(scriptTools.map(tool => [tool.definition.id, tool.definition.timeoutMs])),
     hostCapabilities: {
+      ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
       ...(computer ? { 'host.computer.execute': {
         plugins: ['computer-use'], grants: ['computer.js@1', 'computer.js_reset@1'],
         async start() {
@@ -277,7 +279,7 @@ export async function startAgentRuntimeProcess(
         return { ...await assets.saveGenerated(task.sessionId, bytes) }
       } },
       'host.command.execute': createCommandExecutionPort(scriptTools, executionContexts),
-      'host.web.extract': { plugins: ['web-reader'], grants: ['web.open@1'], async invoke(input, _context, signal) {
+      'host.web.extract': { plugins: ['web'], grants: ['web.open@1'], async invoke(input, _context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.html !== 'string' || Buffer.byteLength(input.html) > 4 * 1024 * 1024 || typeof input.url !== 'string' || input.url.length > 2048) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid bounded HTML input')
         return { ...await extractPageTextIsolated(input.html, input.url, { signal }) }
       } }
@@ -285,22 +287,13 @@ export async function startAgentRuntimeProcess(
     now: Date.now, ids: randomUUID,
     log: entry => console.error('[plugin]', JSON.stringify(entry))
   })
-  await pluginPlatform.enable('command')
-  await pluginPlatform.enable('image-generation')
-  if (computer) await pluginPlatform.enable('computer-use')
   if (searchEndpoint) {
-    await pluginPlatform.enable('search')
     // Existing configured-search policy is assembled here, never by the plugin or its catalog.
     local.toolRuntime.grants.push('web.search@1')
   }
-  await pluginPlatform.enable('web-reader')
+  await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => pluginPlatform.enable(id)))
   local.toolRuntime.grants.push('web.open@1')
-  for (const tool of createSkillRuntimeTools({
-    store: agentFiles, installer: skillInstaller, loadedSkills
-  })) {
-    local.toolRuntime.registry.register(tool.definition, tool.executor)
-    local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
-  }
+  local.toolRuntime.grants.push('skill.read@1', 'skill.install@1')
   const streamSessions = new StreamSessionService({
     ...(appApprovals ? { appApprovals } : {}),
     ...(computer ? { turnEnded: computer.endTurn } : {}),

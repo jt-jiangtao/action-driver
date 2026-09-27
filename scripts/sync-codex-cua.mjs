@@ -60,6 +60,8 @@ syncComputerUseSkill({
 const instructionFiles = { description: 'macos/description', disabledBrowser: 'browser-disabled', computer: 'macos/computer', output: 'macos/output', reset: 'reset', codeDescription: 'code' }
 const instructions = Object.fromEntries(Object.entries(instructionFiles).map(([key, file]) => [key, readFileSync(join(target, 'cua-repl/instructions', file + '.md'), 'utf8').trimEnd()]))
 const { writeFileSync } = await import('node:fs')
-writeFileSync(join(root, 'plugins/computer-use/src/instructions.ts'), '// Verbatim OpenAI instruction snapshots; see ../SOURCE.md. Regenerate via scripts/sync-codex-cua.mjs.\nexport const instructions = ' + JSON.stringify(instructions, null, 2) + '\nexport const skillContent = ' + JSON.stringify(readFileSync(join(root, 'plugins/computer-use/skills/computer-use/SKILL.md'), 'utf8')) + '\n')
+mkdirSync(join(root, 'plugins/computer-use/instructions'), { recursive: true })
+for (const [key, content] of Object.entries(instructions)) writeFileSync(join(root, 'plugins/computer-use/instructions', key + '.md'), content)
+writeFileSync(join(root, 'plugins/computer-use/src/instructions.ts'), '// Verbatim OpenAI instruction snapshots; see ../SOURCE.md.\n' + Object.keys(instructions).map(key => `import ${key} from '../instructions/${key}.md?raw'\n`).join('') + "export { default as skillContent } from '../skills/computer-use/SKILL.md?raw'\nexport const instructions = { " + Object.keys(instructions).join(', ') + ' }\n')
 console.log('Complete Computer Use Skill directory copied; current cua_repl body unchanged.')
 console.log('Update vendor/codex-cua/SOURCE.md with the source app version and date.')

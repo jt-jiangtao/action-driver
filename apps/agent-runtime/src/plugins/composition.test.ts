@@ -14,23 +14,23 @@ describe('runtime plugin composition', () => {
     const server = createServer((_req, res) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ results: [{ title: 'Title', url: 'https://example.test/', content: 'Snippet' }] })) })
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
     const address = server.address() as { port: number }
-    const root = join(directory, 'search')
+    const root = join(directory, 'web')
     await mkdir(join(root, 'dist'), { recursive: true })
-    await cp(resolve('plugins/search/plugin.json'), join(root, 'plugin.json'))
-    await cp(resolve('plugins/search/package.json'), join(root, 'package.json'))
-    await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/search/src/catalog.ts'), resolve('plugins/search/src/extension.ts'), '--outdir=' + join(root, 'dist'), '--bundle', '--platform=node', '--format=esm'])
+    await cp(resolve('plugins/web/plugin.json'), join(root, 'plugin.json'))
+    await cp(resolve('plugins/web/package.json'), join(root, 'package.json'))
+    await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(root, 'dist'), '--bundle', '--platform=node', '--format=esm'])
     const registry = new RuntimeToolRegistry(), grants: string[] = []
     let platform: Awaited<ReturnType<typeof createRuntimePluginPlatform>> | undefined
     try {
-      platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [root], registry, configuration: { search: { endpoint: `http://127.0.0.1:${address.port}` } }, dataRoot: join(directory, 'data'), now: () => Date.now(), ids: () => 'instance' })
+      platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [root], registry, configuration: { web: { endpoint: `http://127.0.0.1:${address.port}` } }, dataRoot: join(directory, 'data'), now: () => Date.now(), ids: () => 'instance' })
       expect(platform.catalogs()[0]?.catalog.tools[0]?.inputSchema.required).toEqual(['query'])
       expect(grants).toEqual([])
-      await platform.enable('search')
-      expect(registry.resolve('web.search', 1).owner?.pluginId).toBe('search')
+      await platform.enable('web')
+      expect(registry.resolve('web.search', 1).owner?.pluginId).toBe('web')
       const events = []
       for await (const part of registry.resolve('web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'web_search', arguments: { query: 'test' } })) events.push(part)
       expect(events).toEqual([{ kind: 'result', output: { results: [{ title: 'Title', url: 'https://example.test/', snippet: 'Snippet' }], truncated: false, totalResults: 1 } }])
-      await platform.disable('search')
+      await platform.disable('web')
       expect(registry.list()).toEqual([])
     } finally {
       await platform?.dispose(); server.close(); await rm(directory, { recursive: true, force: true })
@@ -116,3 +116,23 @@ it('routes an authenticated declared panel message to a live plugin without gran
     await expect(platform.panelMessage(owner, 'fixture.view', 'control', {})).rejects.toThrow('PROTOCOL_ERROR')
   } finally { await platform.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 10000)
+
+it('ignores retired built-in packages on restart and preserves their private data', async () => {
+  const { writeFile, readFile } = await import('node:fs/promises')
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-retired-plugins-'))
+  try {
+    for (const id of ['search', 'web-reader']) {
+      const root = join(directory, 'installed', id)
+      await mkdir(root, { recursive: true })
+      await writeFile(join(root, 'current.json'), JSON.stringify({ id, version: '1.0.0', entry: 'missing.mjs', catalog: 'missing.mjs', sdk: '^1.0.0', platforms: [`${process.platform}-${process.arch}`], contributions: [] }))
+      const data = join(directory, 'data', id); await mkdir(data, { recursive: true }); await writeFile(join(data, 'saved.json'), '{"preserved":true}')
+    }
+    const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [resolve('apps/agent-runtime/dist/plugins/web')], retiredPluginIds: ['search', 'web-reader'], registry: new RuntimeToolRegistry(), configuration: {}, dataRoot: directory, now: Date.now, ids: () => String(Math.random()) })
+    try {
+      expect(platform.catalogs().map(value => value.manifest.id)).toEqual(['web'])
+      await platform.enable('web')
+      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['web.open'])
+      for (const id of ['search', 'web-reader']) expect(await readFile(join(directory, 'data', id, 'saved.json'), 'utf8')).toBe('{"preserved":true}')
+    } finally { await platform.dispose() }
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})

@@ -1,5 +1,5 @@
 {
-  "id": "web-reader",
+  "id": "documents",
   "version": "1.0.0",
   "sdk": "^1.0.0",
   "entry": "dist/extension.js",
@@ -13,17 +13,13 @@
     "win32-x64"
   ],
   "activation": [
-    "onTool:web.open"
+    "onSkill:documents"
   ],
   "contributions": [
     {
-      "kind": "tool",
-      "id": "web.open",
-      "modelName": "web_open"
+      "kind": "skill",
+      "id": "documents"
     }
   ],
-  "dependencies": [],
-  "requires": [
-    "host.web.extract"
-  ]
+  "dependencies": []
 }

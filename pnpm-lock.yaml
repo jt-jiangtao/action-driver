@@ -235,9 +235,18 @@ importers:
       '@actiondriver/activity-projection':
         specifier: workspace:*
         version: link:../../packages/activity-projection
+      '@actiondriver/command-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/command
+      '@actiondriver/computer-use-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/computer-use
       '@actiondriver/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@actiondriver/image-generation-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/image-generation
       '@actiondriver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
@@ -253,6 +262,12 @@ importers:
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
+      '@actiondriver/skills-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/skills
+      '@actiondriver/web-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/web
       '@hono/node-server':
         specifier: 2.1.1
         version: 2.1.1(hono@4.11.7)
@@ -517,19 +532,43 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
+  plugins/documents:
+    dependencies:
+      '@actiondriver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
   plugins/image-generation:
     dependencies:
       '@actiondriver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
-  plugins/search:
+  plugins/pdf:
     dependencies:
       '@actiondriver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
-  plugins/web-reader:
+  plugins/presentations:
+    dependencies:
+      '@actiondriver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
+  plugins/skills:
+    dependencies:
+      '@actiondriver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
+  plugins/spreadsheets:
+    dependencies:
+      '@actiondriver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
+  plugins/web:
     dependencies:
       '@actiondriver/plugin-sdk':
         specifier: workspace:*

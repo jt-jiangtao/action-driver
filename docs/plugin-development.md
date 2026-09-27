@@ -18,7 +18,7 @@ corepack pnpm --filter @actiondriver/plugin-sdk pack --pack-destination /absolut
 
 在生成目录用 `npm install /absolute/path/npm-packs/<contracts-tarball> /absolute/path/npm-packs/<sdk-tarball>` 安装本地产物，再执行 `npm test` 和 `npm pack`。脚手架拒绝覆盖非空目录。发布后入口为 `npm create actiondriver-plugin example`；`--directory` 参数通过 npm 的 `--` 传递。
 
-模板对 extension 与 catalog 分别打包，运行时依赖不要求宿主安装第三方 node_modules。包导出 `example/catalog`，外部消费者可直接读取 `catalog.tools` 与 `catalog.skills` 继续拼接；执行层依赖公共 SDK，不导入 Runtime/Desktop 内部模块。
+模板对 extension 与 catalog 分别打包，运行时依赖不要求宿主安装第三方 node_modules。包导出构建后的 `example/catalog`，外部消费者可直接读取 `catalog.tools` 与 `catalog.skills` 继续拼接；执行层依赖公共 SDK，不导入 Runtime/Desktop 内部模块。
 
 ## 宿主与生命周期
 
@@ -40,6 +40,12 @@ Skill 由统一指令宿主发布，资源来自同一包，停用后立即不�
 
 ## 内置包与构建
 
-内置 search、command、web-reader、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @actiondriver/agent-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
+内置 command、web、skills、documents、pdf、presentations、spreadsheets、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @actiondriver/agent-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
 
 提交前按 AGENTS.md 验证；迭代时只运行相关定向测试。脚手架回归会在仓库外实际安装 npm tarball、构建、加载 catalog、运行宿主并验证 Skill 回收。
+
+能力按职责归属：web 同时暴露 `web.search` 与 `web.open`，未配置搜索 endpoint 时仍可读取网页；skills 暴露 `skill.read`、`skill.install` 与 skill-creator 指令；四类文档分别独立发布完整 Skill、脚本和资源；image-generation 包含 imagegen 指令和图片 provider 实现。任务、凭据、沙箱与持久化权限校验仍由宿主拥有。旧 search/web-reader 安装记录保留，启动时不再自动发现。
+
+Skill 内容直接导入包内文件，例如 `import content from '../skills/pdf/SKILL.md?raw'`，其他 Markdown 指令同样导入。脚手架默认采用相同的文件导入方式。TypeScript 通过 `raw-assets.d.ts` 声明文本模块，Vite 测试和 esbuild 的 `.md: text` loader 读取原文件；构建后的 catalog 不需要源码路径。`scripts/sync-plugin-skills.mjs` 只更新元数据与资源清单，不再内嵌 Skill 正文。
+
+内置包同样导出 `dist` 构建产物；`development` condition 供仓库内开发解析源码。Runtime 通过 `@actiondriver/skills-plugin/execution`、`@actiondriver/web-plugin/*` 和 `@actiondriver/image-generation-plugin/providers/*` 公共入口装配，禁止以相对路径穿透插件源码。

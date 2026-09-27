@@ -26,7 +26,7 @@ describe('plugin generator', () => {
     expect(pkg.exports).toEqual({ '.': './dist/extension.js', './catalog': './dist/catalog.js' })
     expect(manifest.entry).toBe('dist/extension.js')
     expect(manifest.catalog).toBe('dist/catalog.js')
-    expect(await readdir(join(target, 'src'))).toEqual(['catalog.ts', 'execution.ts', 'extension.ts'])
+    expect(await readdir(join(target, 'src'))).toEqual(['catalog.ts', 'execution.ts', 'extension.ts', 'raw-assets.d.ts'])
     expect(await readFile(join(target, 'skills/hello/SKILL.md'), 'utf8')).toContain('example-tools.echo')
   })
   it('refuses existing files and invalid plugin IDs without changing destinations', async () => {

@@ -1,0 +1,39 @@
+{
+  "id": "skills",
+  "version": "1.0.0",
+  "sdk": "^1.0.0",
+  "entry": "dist/extension.js",
+  "catalog": "dist/catalog.js",
+  "platforms": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "activation": [
+    "onSkill:skill-creator"
+  ],
+  "contributions": [
+    {
+      "kind": "skill",
+      "id": "skill-creator"
+    },
+    {
+      "kind": "tool",
+      "id": "skill.read",
+      "modelName": "skill_read"
+    },
+    {
+      "kind": "tool",
+      "id": "skill.install",
+      "modelName": "skill_install"
+    }
+  ],
+  "dependencies": [],
+  "requires": [
+    "host.skills.read",
+    "host.skills.install"
+  ]
+}

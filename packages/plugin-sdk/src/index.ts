@@ -41,3 +41,5 @@ export { createPluginContext, ResourceLedger } from './context.js'
 export { EventQueue } from './event-queue.js'
 
 export { PluginError } from '@actiondriver/plugin-contracts'
+
+export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'

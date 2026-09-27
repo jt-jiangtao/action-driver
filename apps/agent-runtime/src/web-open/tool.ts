@@ -1,5 +1,5 @@
 import type { RuntimeToolRegistry } from '../tool-registry'
-import { createWebOpenTool as createPluginTool } from '../../../../plugins/web-reader/src/execution'
+import { createWebOpenTool as createPluginTool } from '@actiondriver/web-plugin/reader'
 import { extractPageTextIsolated } from './extract-isolated'
 export function createWebOpenTool(options: Partial<Parameters<typeof createPluginTool>[0]> = {}) {
   return createPluginTool({ ...options, extract: options.extract ?? ((html, url, signal) => extractPageTextIsolated(html, url, signal ? { signal } : {})) })

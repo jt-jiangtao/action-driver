@@ -1,3 +1,4 @@
+import { skill } from './skill.js'
 import type { ToolDefinition, PluginCatalog } from '@actiondriver/plugin-sdk'
 export const definition: ToolDefinition = {
   id: 'image.generate',
@@ -28,5 +29,5 @@ export const definition: ToolDefinition = {
   timeoutMs: 600_000
 }
 
-export const catalog: PluginCatalog = { tools: [definition], skills: [] }
+export const catalog: PluginCatalog = { tools: [definition], skills: [skill] }
 export default catalog

@@ -1,0 +1,44 @@
+{
+  "name": "@actiondriver/skills-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": {
+        "types": "./src/extension.ts",
+        "default": "./src/extension.ts"
+      },
+      "types": "./dist/extension.d.ts",
+      "default": "./dist/extension.js"
+    },
+    "./catalog": {
+      "development": {
+        "types": "./src/catalog.ts",
+        "default": "./src/catalog.ts"
+      },
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    },
+    "./execution": {
+      "development": {
+        "types": "./src/execution.ts",
+        "default": "./src/execution.ts"
+      },
+      "types": "./dist/execution.d.ts",
+      "default": "./dist/execution.js"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin.json",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/build-plugin.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@actiondriver/plugin-sdk": "workspace:*"
+  }
+}

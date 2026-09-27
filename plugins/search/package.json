@@ -1,1 +1,0 @@
-{"name":"@actiondriver/search-plugin","version":"1.0.0","private":true,"type":"module","exports":{".":"./src/extension.ts","./catalog":"./src/catalog.ts","./execution":"./src/execution.ts"},"files":["dist","plugin.json"],"scripts":{"build":"tsc -p tsconfig.build.json","typecheck":"tsc --noEmit -p tsconfig.json"},"dependencies":{"@actiondriver/plugin-sdk":"workspace:*"}}

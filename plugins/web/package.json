@@ -1,0 +1,81 @@
+{
+  "name": "@actiondriver/web-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": {
+        "types": "./src/extension.ts",
+        "default": "./src/extension.ts"
+      },
+      "types": "./dist/extension.d.ts",
+      "default": "./dist/extension.js"
+    },
+    "./catalog": {
+      "development": {
+        "types": "./src/catalog.ts",
+        "default": "./src/catalog.ts"
+      },
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    },
+    "./search": {
+      "development": {
+        "types": "./src/search/execution.ts",
+        "default": "./src/search/execution.ts"
+      },
+      "types": "./dist/search/execution.d.ts",
+      "default": "./dist/search/execution.js"
+    },
+    "./reader": {
+      "development": {
+        "types": "./src/reader/execution.ts",
+        "default": "./src/reader/execution.ts"
+      },
+      "types": "./dist/reader/execution.d.ts",
+      "default": "./dist/reader/execution.js"
+    },
+    "./address": {
+      "development": {
+        "types": "./src/reader/address.ts",
+        "default": "./src/reader/address.ts"
+      },
+      "types": "./dist/reader/address.d.ts",
+      "default": "./dist/reader/address.js"
+    },
+    "./http": {
+      "development": {
+        "types": "./src/reader/http.ts",
+        "default": "./src/reader/http.ts"
+      },
+      "types": "./dist/reader/http.d.ts",
+      "default": "./dist/reader/http.js"
+    },
+    "./extract": {
+      "development": {
+        "types": "./src/reader/extract.ts",
+        "default": "./src/reader/extract.ts"
+      },
+      "types": "./dist/reader/extract.d.ts",
+      "default": "./dist/reader/extract.js"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/build-plugin.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@actiondriver/plugin-sdk": "workspace:*",
+    "ipaddr.js": "2.5.0",
+    "@mozilla/readability": "0.6.0",
+    "jsdom": "26.1.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "21.1.7"
+  }
+}

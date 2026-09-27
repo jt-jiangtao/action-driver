@@ -1,1 +1,1 @@
-export * from '../../../../plugins/web-reader/src/address'
+export * from '@actiondriver/web-plugin/address'

@@ -100,17 +100,18 @@ export class AgentFileStore {
     for (const id of RETIRED_BUILT_INS) {
       await rm(join(this.systemRoot, id), { recursive: true, force: true })
     }
-    await this.seedSystemSkill('skill-creator')
-    await this.seedSystemSkill('imagegen')
-    if (!this.pluginSkills?.owns('computer-use')) await this.seedSystemSkill('computer-use')
-    else await rm(join(this.systemRoot, 'computer-use'), { recursive: true, force: true })
-    for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
-      await this.seedSystemSkill(id)
+    for (const id of ['skill-creator', 'imagegen', 'computer-use', 'documents', 'pdf', 'presentations', 'spreadsheets']) {
+      if (this.pluginSkills?.owns(id)) await rm(join(this.systemRoot, id), { recursive: true, force: true })
+      else await this.seedSystemSkill(id)
     }
   }
 
   private async seedSystemSkill(id: string): Promise<void> {
-    await cp(id === 'computer-use' && this.systemSkillsSourceRoot === join(process.cwd(), 'apps/agent-runtime/resources/system-skills') ? join(process.cwd(), 'plugins/computer-use/skills/computer-use') : join(this.systemSkillsSourceRoot, id), join(this.systemRoot, id), {
+    const owners: Record<string, string> = { 'computer-use': 'computer-use', 'skill-creator': 'skills', imagegen: 'image-generation', documents: 'documents', pdf: 'pdf', presentations: 'presentations', spreadsheets: 'spreadsheets' }
+    const source = this.systemSkillsSourceRoot === join(process.cwd(), 'apps/agent-runtime/resources/system-skills')
+      ? join(process.cwd(), 'plugins', owners[id]!, 'skills', id)
+      : join(this.systemSkillsSourceRoot, id)
+    await cp(source, join(this.systemRoot, id), {
       recursive: true,
       force: false,
       errorOnExist: false

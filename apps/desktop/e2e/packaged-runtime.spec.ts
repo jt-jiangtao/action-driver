@@ -94,7 +94,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(packagedSkills.value).toEqual(
       expect.arrayContaining(
         ['documents', 'pdf', 'imagegen', 'presentations', 'skill-creator'].map((id) =>
-          expect.objectContaining({ id, source: 'builtin' })
+          expect.objectContaining({ id, source: 'plugin' })
         )
       )
     )

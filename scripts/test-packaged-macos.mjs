@@ -104,17 +104,10 @@ try {
   for (const relativePath of ['plugin.json', 'dist/extension.js', 'dist/catalog.js', 'skills/computer-use/SKILL.md', 'SOURCE.md']) {
     if (!existsSync(join(runtimeDist, 'plugins', 'computer-use', relativePath))) throw new Error(`PACKAGED_COMPUTER_PLUGIN_MISSING: ${relativePath}`)
   }
-  for (const skill of [
-    'documents',
-    'imagegen',
-    'pdf',
-    'presentations',
-    'skill-creator',
-    'spreadsheets'
-  ]) {
-    if (!existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) {
-      throw new Error(`PACKAGED_SYSTEM_SKILL_MISSING: ${skill}`)
-    }
+  const skillOwners = { documents: 'documents', pdf: 'pdf', presentations: 'presentations', spreadsheets: 'spreadsheets', 'skill-creator': 'skills', imagegen: 'image-generation' }
+  for (const [skill, owner] of Object.entries(skillOwners)) {
+    if (!existsSync(join(runtimeDist, 'plugins', owner, 'skills', skill, 'SKILL.md'))) throw new Error(`PACKAGED_PLUGIN_SKILL_MISSING: ${skill}`)
+    if (existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) throw new Error(`PACKAGED_DUPLICATE_SKILL: ${skill}`)
   }
   for (const relativePath of [
     'LICENSE.txt',
@@ -130,7 +123,7 @@ try {
     'scripts/image_gen.py',
     'scripts/remove_chroma_key.py'
   ]) {
-    if (!existsSync(join(runtimeDist, 'system-skills', 'imagegen', relativePath))) {
+    if (!existsSync(join(runtimeDist, 'plugins', 'image-generation', 'skills', 'imagegen', relativePath))) {
       throw new Error(`PACKAGED_IMAGEGEN_RESOURCE_MISSING: ${relativePath}`)
     }
   }
@@ -145,7 +138,7 @@ try {
     'assets/skill-creator.png',
     'license.txt'
   ]) {
-    if (!existsSync(join(runtimeDist, 'system-skills', 'skill-creator', relativePath))) {
+    if (!existsSync(join(runtimeDist, 'plugins', 'skills', 'skills', 'skill-creator', relativePath))) {
       throw new Error(`PACKAGED_SKILL_CREATOR_RESOURCE_MISSING: ${relativePath}`)
     }
   }

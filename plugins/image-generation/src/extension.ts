@@ -1,7 +1,8 @@
 import { PluginError, type PluginContext, type ImageAssetRef } from '@actiondriver/plugin-sdk'
-import { definition } from './catalog.js'
+import { definition, catalog } from './catalog.js'
 import { createImageGenerationTool, type ModelRef } from './execution.js'
 export function activate(context: PluginContext): void {
+  for (const skill of catalog.skills) context.api.skills.register(skill)
   context.api.tools.register(definition, {
     async *execute(call, signal, _execution, invocation) {
       if (!invocation || !signal) throw new PluginError('PROTOCOL_ERROR', 'Missing image invocation')

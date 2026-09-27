@@ -1,19 +1,57 @@
 {
   "name": "@actiondriver/image-generation-plugin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/extension.ts",
-    "./catalog": "./src/catalog.ts",
-    "./execution": "./src/execution.ts"
+    ".": {
+      "development": {
+        "types": "./src/extension.ts",
+        "default": "./src/extension.ts"
+      },
+      "types": "./dist/extension.d.ts",
+      "default": "./dist/extension.js"
+    },
+    "./catalog": {
+      "development": {
+        "types": "./src/catalog.ts",
+        "default": "./src/catalog.ts"
+      },
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    },
+    "./providers/image": {
+      "development": {
+        "types": "./src/providers/image-generation-adapter.ts",
+        "default": "./src/providers/image-generation-adapter.ts"
+      },
+      "types": "./dist/providers/image-generation-adapter.d.ts",
+      "default": "./dist/providers/image-generation-adapter.js"
+    },
+    "./providers/token-plan": {
+      "development": {
+        "types": "./src/providers/token-plan-image-generation-adapter.ts",
+        "default": "./src/providers/token-plan-image-generation-adapter.ts"
+      },
+      "types": "./dist/providers/token-plan-image-generation-adapter.d.ts",
+      "default": "./dist/providers/token-plan-image-generation-adapter.js"
+    },
+    "./execution": {
+      "development": {
+        "types": "./src/execution.ts",
+        "default": "./src/execution.ts"
+      },
+      "types": "./dist/execution.d.ts",
+      "default": "./dist/execution.js"
+    }
   },
   "files": [
     "dist",
-    "plugin.json"
+    "plugin.json",
+    "skills"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/build-plugin.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

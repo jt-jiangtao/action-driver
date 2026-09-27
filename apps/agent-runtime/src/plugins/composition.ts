@@ -14,6 +14,7 @@ import { CapabilityRouter } from './capability-router'
 import { PluginResourceHost } from './resource-host'
 import { NodeServiceSupervisor } from './service-supervisor'
 export interface RuntimePluginCompositionOptions {
+  retiredPluginIds?: string[]
   node: string; hostEntry: string; packageRoots: string[]; dataRoot: string
   registry: RuntimeToolRegistry; configuration: Record<string, Json>
   toolTimeouts?: Record<string, number>
@@ -37,11 +38,9 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
   const host = { sdk: '1.0.0', platform: `${process.platform}-${process.arch}` }
   const persisted = new FilesystemPluginRepository(options.dataRoot, () => { throw new Error('Read-only repository') }, options.ids)
   const suppliedIds = new Set(await Promise.all(options.packageRoots.map(async root => (JSON.parse(await readFile(join(root, 'plugin.json'), 'utf8')) as PluginManifest).id)))
-  const persistedRoots = (await persisted.list()).filter(manifest => !suppliedIds.has(manifest.id)).map(manifest => persisted.packageRoot(validateManifest(manifest, host)))
-  for (const root of [...options.packageRoots, ...persistedRoots]) {
+  const persistedRoots = (await persisted.list()).filter(manifest => !suppliedIds.has(manifest.id) && !options.retiredPluginIds?.includes(manifest.id)).map(manifest => persisted.packageRoot(validateManifest(manifest, host)))
+  const catalogs = await Promise.all([...options.packageRoots, ...persistedRoots].map(async root => {
     const manifest = validateManifest(JSON.parse(await readFile(join(root, 'plugin.json'), 'utf8')), host)
-    if (descriptors.has(manifest.id)) throw new PluginError('CONTRIBUTION_CONFLICT', manifest.id)
-    roots.set(`${manifest.id}@${manifest.version}`, root)
     const catalog = await readPluginCatalog(options.node, root, manifest)
     for (const tool of catalog.tools) {
       const timeout = options.toolTimeouts?.[tool.id]
@@ -50,6 +49,11 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
         tool.timeoutMs = timeout
       }
     }
+    return { root, manifest, catalog }
+  }))
+  for (const { root, manifest, catalog } of catalogs) {
+    if (descriptors.has(manifest.id)) throw new PluginError('CONTRIBUTION_CONFLICT', manifest.id)
+    roots.set(`${manifest.id}@${manifest.version}`, root)
     descriptors.set(manifest.id, { manifest, catalog })
     versions.set(`${manifest.id}@${manifest.version}`, { manifest, catalog })
   }
@@ -170,10 +174,10 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
     assertInstance: owner => manager.assertInstance(owner), authority: (owner, callId) => manager.authority(owner, callId), storage,
     ...(options.log ? { logging: { write: entry => options.log!({ pluginId: entry.pluginId, version: entry.version, hostEpoch: entry.hostEpoch, payload: { level: entry.level, message: entry.message, fields: entry.fields } }) } } : {})
   })
-  for (const { manifest } of descriptors.values()) {
+  await Promise.all([...descriptors.values()].map(async ({ manifest }) => {
     await manager.install(manifest)
     if (options.configuration[manifest.id] !== undefined) await storage.set(manifest.id, 'configuration', options.configuration[manifest.id]!)
-  }
+  }))
   return {
     manager,
     install: async (root: string) => {
