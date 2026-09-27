@@ -3,7 +3,7 @@
 // apps/agent-runtime/vendor/codex-cua. Internal use only: these files are proprietary and must not
 // ship in a release build. The copy is verbatim; behaviour differences live in the runtime loader hooks.
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import { syncComputerUseSkill } from './sync-codex-cua-skill.mjs'
@@ -20,8 +20,7 @@ const plan = {
   cua: ['package.json', 'docs', 'dist'],
   'cua-repl': ['package.json', 'README.md', 'instructions', 'dist', 'plugin']
 }
-// Out of scope: the browser surface and every native binary (we use our own helper).
-const excluded = [join('cua', 'dist', 'lib', 'js', 'oai_js_browser')]
+// Native binaries remain out of scope (we use our own helper). Browser resources are copied verbatim.
 
 if (!existsSync(source)) {
   console.error(`Codex packages not found at ${source}`)
@@ -37,11 +36,7 @@ for (const [name, entries] of Object.entries(plan)) {
   mkdirSync(to, { recursive: true })
   for (const entry of entries) {
     cpSync(join(from, entry), join(to, entry), {
-      recursive: true,
-      filter: (path) => {
-        const rel = relative(source, path)
-        return !excluded.some((prefix) => rel === prefix || rel.startsWith(prefix + sep))
-      }
+      recursive: true
     })
   }
   const version = JSON.parse(readFileSync(join(to, 'package.json'), 'utf8')).version
