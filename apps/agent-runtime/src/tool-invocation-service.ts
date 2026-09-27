@@ -1,3 +1,4 @@
+import { PluginError } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import {
   parseToolCall,
@@ -215,7 +216,7 @@ export class ToolInvocationService {
       for await (const part of registered.executor.execute(
         call,
         controller.signal,
-        executionContext
+        executionContext ? { ...executionContext, grants: [...context.grants] } : undefined
       )) {
         if (controller.signal.aborted) throw controller.signal.reason
         if (part.kind === 'asset') {
@@ -256,8 +257,13 @@ export class ToolInvocationService {
         controller.signal.reason.message === 'TOOL_TIMEOUT'
       const cancelled =
         !timedOut && (signal?.aborted || (caught instanceof Error && caught.name === 'AbortError'))
+      const unknown = caught instanceof PluginError && caught.code === 'RESULT_UNKNOWN'
       const error =
-        caught instanceof ToolOutputLimitError
+        unknown
+          ? toolError('TOOL_OUTCOME_UNKNOWN', caught.message)
+          : caught instanceof PluginError && !cancelled && !timedOut
+            ? toolError(caught.code, caught.message)
+          : caught instanceof ToolOutputLimitError
           ? toolError(caught.code, caught.message)
           : caught instanceof ProcessOutputLimitError
             ? toolError(caught.code, caught.message)
@@ -274,7 +280,7 @@ export class ToolInvocationService {
                         caught instanceof Error ? caught.message : String(caught)
                       )
       invocation.error = error
-      yield await transition(cancelled ? 'cancelled' : 'failed', { error })
+      yield await transition(unknown ? 'unknown' : cancelled ? 'cancelled' : 'failed', { error })
       await completeLog('error', error)
     } finally {
       clearTimeout(timeout)

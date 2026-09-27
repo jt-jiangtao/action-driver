@@ -21,3 +21,6 @@ apps/agent-runtime/.runtime-cache/
 
 # Independent browser Fork sources, toolchains, and build artifacts
 /thridparty/
+
+# Native sources and platform artifacts belong to the Computer Use plugin
+plugins/computer-use/native/.build/

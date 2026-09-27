@@ -1,0 +1,47 @@
+{
+  "id": "command",
+  "version": "1.0.0",
+  "sdk": "^1.0.0",
+  "entry": "dist/extension.js",
+  "catalog": "dist/catalog.js",
+  "platforms": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "activation": [
+    "onTool:local.shell.run",
+    "onTool:local.python.run",
+    "onTool:local.node.run",
+    "onTool:local.typescript.run"
+  ],
+  "contributions": [
+    {
+      "kind": "tool",
+      "id": "local.shell.run",
+      "modelName": "shell_run"
+    },
+    {
+      "kind": "tool",
+      "id": "local.python.run",
+      "modelName": "python_run"
+    },
+    {
+      "kind": "tool",
+      "id": "local.node.run",
+      "modelName": "node_run"
+    },
+    {
+      "kind": "tool",
+      "id": "local.typescript.run",
+      "modelName": "ts_run"
+    }
+  ],
+  "dependencies": [],
+  "requires": [
+    "host.command.execute"
+  ]
+}

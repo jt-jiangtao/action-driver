@@ -1,0 +1,27 @@
+{
+  "name": "@actiondriver/computer-use-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/extension.ts",
+    "./catalog": "./src/catalog.ts"
+  },
+  "files": [
+    "dist",
+    "plugin.json",
+    "skills",
+    "SOURCE.md",
+    "native/Package.swift",
+    "native/Sources",
+    "native/Tests",
+    "native/dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@actiondriver/plugin-sdk": "workspace:*"
+  }
+}

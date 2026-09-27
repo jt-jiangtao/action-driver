@@ -506,7 +506,7 @@ export class LangGraphRunner implements GraphRunner {
           })
           let terminal: Extract<
             ToolEvent,
-            { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' }
+            { type: 'tool.completed' | 'tool.failed' | 'tool.cancelled' | 'tool.unknown' }
           > | null = null
           const printed = { stdout: '', stderr: '', result: '' }
           try {
@@ -530,7 +530,7 @@ export class LangGraphRunner implements GraphRunner {
               if (
                 toolEvent.type === 'tool.completed' ||
                 toolEvent.type === 'tool.failed' ||
-                toolEvent.type === 'tool.cancelled'
+                toolEvent.type === 'tool.cancelled' || toolEvent.type === 'tool.unknown'
               ) {
                 terminal = toolEvent
               }
@@ -571,8 +571,9 @@ export class LangGraphRunner implements GraphRunner {
                   }
                 : {
                     ok: false,
+                    ...(terminal?.type === 'tool.unknown' ? { outcome: 'unknown', recovery: 'Side effects may have occurred. Verify current state before retrying.' } : {}),
                     error:
-                      terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled'
+                      terminal?.type === 'tool.failed' || terminal?.type === 'tool.cancelled' || terminal?.type === 'tool.unknown'
                         ? redact
                           ? redactToolError(terminal.error)
                           : terminal.error

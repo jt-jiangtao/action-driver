@@ -12,6 +12,7 @@ export function createLocalRuntimeServices(
     credentialKey: string
     agentHomeDirectory?: string
     trustedRendererOrigin?: string
+    capabilityDisconnected?(): void
     authorizeSkillExecution?: (skillId: string) => Promise<void>
   }
 ): { runtimeSupervisor: RuntimeSupervisor } {
@@ -37,6 +38,7 @@ export function createLocalRuntimeServices(
           baseUrl: service.baseUrl,
           token: options.serviceToken,
           host: skillProviderHost,
+          ...(options.capabilityDisconnected ? { disconnected: options.capabilityDisconnected } : {}),
           ...(options.authorizeSkillExecution
             ? { authorize: options.authorizeSkillExecution } : {})
         })

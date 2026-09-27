@@ -1,0 +1,25 @@
+{
+  "name": "@actiondriver/plugin-sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@actiondriver/plugin-contracts": "workspace:*"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

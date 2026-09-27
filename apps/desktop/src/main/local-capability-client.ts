@@ -9,6 +9,7 @@ export async function connectLocalCapabilityHost(options: {
   baseUrl: string
   token: string
   host: SkillProviderHost
+  disconnected?(): void
   authorize?: (skillId: string) => Promise<void>
 }): Promise<{ close(): void }> {
   const url = new URL(LOCAL_CAPABILITY_PATH, options.baseUrl)
@@ -116,6 +117,7 @@ export async function connectLocalCapabilityHost(options: {
     ).finally(() => running.delete(frame.invocationId))
   })
   socket.on('close', () => {
+    options.disconnected?.()
     for (const controller of running.values()) controller.abort()
     running.clear()
   })

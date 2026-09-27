@@ -62,21 +62,25 @@ export class AgentFileStore {
   private readonly systemRoot: string
   private readonly systemSkillsSourceRoot: string
   private readonly promptSourceRoot: string
+  private readonly pluginSkills: { owns(id: string): boolean; list(): AgentSkillSummaryDto[]; read(id: string, path: string): Promise<AgentTextFileDto>; tree(id: string): Promise<AgentFileNodeDto[]> } | undefined
   private defaultPrompt = ''
   private managedRootRealPath: string | null = null
   private readonly isExecutorRegistered: (executorId: string) => boolean
 
   constructor({
     homeDirectory,
+    pluginSkills,
     isExecutorRegistered = () => false,
     systemSkillsSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/system-skills'),
     promptSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/prompts')
   }: {
     homeDirectory: string
+    pluginSkills?: { owns(id: string): boolean; list(): AgentSkillSummaryDto[]; read(id: string, path: string): Promise<AgentTextFileDto>; tree(id: string): Promise<AgentFileNodeDto[]> }
     isExecutorRegistered?: (executorId: string) => boolean
     systemSkillsSourceRoot?: string
     promptSourceRoot?: string
   }) {
+    this.pluginSkills = pluginSkills
     this.managedRoot = join(homeDirectory, MANAGED_DIRECTORY)
     this.skillsRoot = join(this.managedRoot, 'skills')
     this.systemRoot = join(this.skillsRoot, '.system')
@@ -98,14 +102,15 @@ export class AgentFileStore {
     }
     await this.seedSystemSkill('skill-creator')
     await this.seedSystemSkill('imagegen')
-    await this.seedSystemSkill('computer-use')
+    if (!this.pluginSkills?.owns('computer-use')) await this.seedSystemSkill('computer-use')
+    else await rm(join(this.systemRoot, 'computer-use'), { recursive: true, force: true })
     for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
       await this.seedSystemSkill(id)
     }
   }
 
   private async seedSystemSkill(id: string): Promise<void> {
-    await cp(join(this.systemSkillsSourceRoot, id), join(this.systemRoot, id), {
+    await cp(id === 'computer-use' && this.systemSkillsSourceRoot === join(process.cwd(), 'apps/agent-runtime/resources/system-skills') ? join(process.cwd(), 'plugins/computer-use/skills/computer-use') : join(this.systemSkillsSourceRoot, id), join(this.systemRoot, id), {
       recursive: true,
       force: false,
       errorOnExist: false
@@ -157,7 +162,7 @@ export class AgentFileStore {
     const entries = [...personal.filter((entry) => !entry.name.startsWith('.')), ...system]
     const skills = await Promise.all(
       entries
-        .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+        .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink() && !this.pluginSkills?.owns(entry.name))
         .sort((left, right) => left.name.localeCompare(right.name))
         .map(async (entry) => {
           try {
@@ -167,13 +172,14 @@ export class AgentFileStore {
           }
         })
     )
-    return skills.sort((left, right) => {
+    return [...skills, ...(this.pluginSkills?.list() ?? [])].sort((left, right) => {
       const builtInDifference = Number(right.protected) - Number(left.protected)
       return builtInDifference || left.name.localeCompare(right.name)
     })
   }
 
   async getSkillTree(skillId: string): Promise<AgentFileNodeDto[]> {
+    if (this.pluginSkills?.owns(skillId)) return this.pluginSkills.tree(skillId)
     const publicPath = this.skillPublicPath(this.validateSkillId(skillId))
     const directory = await this.resolveExisting(publicPath)
     return this.readTree(directory, publicPath)
@@ -193,7 +199,10 @@ export class AgentFileStore {
   }
 
   async saveFile(input: SaveAgentFileDto): Promise<AgentTextFileDto> {
+    if (input.path.startsWith(`${SKILLS_PATH}/.plugins/`)) throw new AgentFileStoreError('PROTECTED', '插件 Skill 内容只读。')
     const absolutePath = await this.resolveExisting(input.path)
+    const managedPath = relative(await realpath(this.skillsRoot), absolutePath)
+    if (managedPath === '.plugins' || managedPath.startsWith(`.plugins${sep}`)) throw new AgentFileStoreError('PROTECTED', '插件 Skill 内容只读。')
     const withinSystem = relative(await realpath(this.systemRoot), absolutePath)
     if (withinSystem === '' || (!withinSystem.startsWith('..') && !isAbsolute(withinSystem))) {
       throw new AgentFileStoreError('PROTECTED', '系统 Skill 内容只读。')
@@ -246,6 +255,7 @@ export class AgentFileStore {
   }
 
   async setSkillEnabled(skillId: string, enabled: boolean): Promise<AgentSkillSummaryDto> {
+    if (this.pluginSkills?.owns(skillId)) throw new AgentFileStoreError('PROTECTED', '插件 Skill 由插件生命周期管理。')
     const id = this.validateSkillId(skillId)
     const directory = await this.resolveExisting(this.skillPublicPath(id))
     const summary = await this.summarizeSkill(id)
@@ -300,6 +310,7 @@ export class AgentFileStore {
     if (!skill?.available || !skill.enabled) {
       throw new AgentFileStoreError('VALIDATION', `Skill 未启用：${id}`)
     }
+    if (this.pluginSkills?.owns(id)) return this.pluginSkills.read(id, relativePath)
     const skillRoot = await realpath(
       join(BUILT_IN_SKILLS.has(id) ? this.systemRoot : this.skillsRoot, id)
     )
@@ -450,6 +461,7 @@ export class AgentFileStore {
 
   private validateSkillId(value: string): string {
     const id = value.trim().toLowerCase()
+    if (this.pluginSkills?.owns(id)) return id
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
       throw new AgentFileStoreError('VALIDATION', 'Skill 名称只能使用小写英文、数字和单个连字符。')
     }
@@ -470,7 +482,7 @@ export class AgentFileStore {
   }
 
   private assertMutable(id: string): void {
-    if (BUILT_IN_SKILLS.has(id)) {
+    if (BUILT_IN_SKILLS.has(id) || this.pluginSkills?.owns(id)) {
       throw new AgentFileStoreError('PROTECTED', '内置 Skill 不能重命名或删除。')
     }
   }

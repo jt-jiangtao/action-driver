@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { ImageAssetRef } from '@actiondriver/contracts'
 import type {
   ToolDefinition,
@@ -7,16 +5,9 @@ import type {
   ToolExecutorEvent,
   ToolExecutionContext
 } from '@actiondriver/runtime-contracts'
+import { catalog } from '../../../../plugins/computer-use/src/catalog'
 import { createCuaRuntime } from './cua-runtime'
 import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
-
-/** Project-level prerequisite the vendored Codex instructions do not carry. */
-const skillPrerequisite =
-  'Prerequisite: before the first `js` call in a conversation, read the `computer-use` Skill with `skill_read` (`skillId: "computer-use"`). Calls that skip it fail with `SKILL_NOT_LOADED`.'
-
-/** Keeps the model on the host-provided entry instead of importing the vendored package itself. */
-const entryPointNote =
-  'Entry point: the host provides the global `cua` object — call `cua.getState()`, `cua.getApp("...")` and the application methods. Do not `import("@oai/sky")` and do not reference a `sky` global; the vendored package is only loadable through the host.'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 type Options = Parameters<typeof createCuaRuntime>[0] & {
@@ -27,17 +18,6 @@ type Options = Parameters<typeof createCuaRuntime>[0] & {
 
 /** Tool adapter for the original computer-only CUA entry; host lifecycle is kept off the model API. */
 export async function createCuaEntryTools(options: Options) {
-  const root = join(options.vendorRoot, '@oai/cua-repl/instructions')
-  const load = async (file: string) => (await readFile(join(root, `${file}.md`), 'utf8')).trimEnd()
-  const [description, disabledBrowser, computer, output, reset, codeDescription] =
-    await Promise.all([
-      load('macos/description'),
-      load('browser-disabled'),
-      load('macos/computer'),
-      load('macos/output'),
-      load('reset'),
-      load('code')
-    ])
   const runtime = createCuaRuntime(options)
   const requireContext = (context?: ToolExecutionContext) => {
     if (!context?.taskId || !context.sessionId || !context.workspace)
@@ -46,37 +26,7 @@ export async function createCuaEntryTools(options: Options) {
   }
   const tools: Registered[] = [
     {
-      definition: {
-        id: 'computer.js',
-        version: 1,
-        modelName: 'js',
-        description: [
-          description,
-          skillPrerequisite,
-          entryPointNote,
-          disabledBrowser,
-          computer,
-          output
-        ].join('\n\n'),
-        inputSchema: {
-          type: 'object',
-          properties: {
-            code: {
-              type: 'string',
-              minLength: 1,
-              maxLength: 200_000,
-              description: codeDescription
-            },
-            timeout_ms: { type: 'integer', minimum: 1_000, maximum: 300_000 },
-            title: { type: 'string', maxLength: 200 }
-          },
-          required: ['code'],
-          additionalProperties: false
-        },
-        risk: 'high',
-        sideEffects: { filesystem: 'write', network: true },
-        timeoutMs: 320_000
-      },
+      definition: catalog.tools[0]!,
       executor: {
         async *execute(call, signal, context): AsyncIterable<ToolExecutorEvent> {
           const execution = requireContext(context)
@@ -166,16 +116,7 @@ export async function createCuaEntryTools(options: Options) {
       }
     },
     {
-      definition: {
-        id: 'computer.js_reset',
-        version: 1,
-        modelName: 'js_reset',
-        description: reset,
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        risk: 'low',
-        sideEffects: { filesystem: 'none', network: false },
-        timeoutMs: 10_000
-      },
+      definition: catalog.tools[1]!,
       executor: {
         async *execute(call, _signal, context) {
           const execution = requireContext(context)

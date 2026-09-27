@@ -20,7 +20,8 @@ export default tseslint.config(
   {
     // Node-side helper scripts that ship with the runtime or the packaging flow.
     files: ['scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
-      'apps/agent-runtime/resources/js-repl/**/*.mjs'],
+      'apps/agent-runtime/resources/js-repl/**/*.mjs',
+      'apps/agent-runtime/src/plugins/**/*.mjs', 'packages/create-actiondriver-plugin/src/**/*.mjs'],
     languageOptions: {
       globals: {
         Buffer: 'readonly',

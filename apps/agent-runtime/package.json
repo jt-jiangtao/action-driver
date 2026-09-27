@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws --external:jsdom --external:@mozilla/readability && esbuild src/web-open/extract-worker.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/web-open-worker.js --external:jsdom --external:@mozilla/readability && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs && node scripts/copy-system-skills.mjs && node scripts/copy-js-entry.mjs",
+    "build": "pnpm --filter @actiondriver/plugin-contracts build && pnpm --filter @actiondriver/plugin-sdk build && esbuild src/runtime-entry.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/index.js --external:better-sqlite3 --external:electron --external:ws --external:jsdom --external:@mozilla/readability && esbuild src/web-open/extract-worker.ts --bundle --platform=node --format=esm --banner:js='import { createRequire as __actionDriverCreateRequire } from \"node:module\"; const require = __actionDriverCreateRequire(import.meta.url);' --outfile=dist/web-open-worker.js --external:jsdom --external:@mozilla/readability && node scripts/copy-rg.mjs && node scripts/stage-runtimes.mjs && node scripts/copy-system-skills.mjs && node scripts/copy-js-entry.mjs && node scripts/stage-plugins.mjs",
     "build:office-local": "pnpm build && node scripts/stage-office-dependencies.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
@@ -32,12 +32,17 @@
     "openai": "6.49.0",
     "ws": "8.21.3",
     "yaml": "2.9.1",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@actiondriver/plugin-contracts": "workspace:*",
+    "@actiondriver/plugin-sdk": "workspace:*",
+    "semver": "7.7.3",
+    "@modelcontextprotocol/sdk": "1.30.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",
     "@types/jsdom": "21.1.7",
     "@types/ws": "8.18.1",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "@types/semver": "7.7.1"
   }
 }

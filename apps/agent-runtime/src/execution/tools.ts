@@ -12,19 +12,10 @@ import {
 import { runProcess } from './process-runner'
 import { ExecutionContextUnavailableError } from './session-execution-context'
 import { SessionSandbox } from './session-sandbox'
+import { commandDescriptors, createCommandCatalog } from '../../../../plugins/command/src/catalog'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
-type Kind = 'shell' | 'python' | 'node' | 'ts'
 
-const inputSchema: ToolDefinition['inputSchema'] = {
-  type: 'object',
-  properties: {
-    script: { type: 'string', minLength: 1, maxLength: 1024 * 1024 },
-    args: { type: 'array', items: { type: 'string' }, maxItems: 256 }
-  },
-  required: ['script'],
-  additionalProperties: false
-}
 
 function readInput(input: Record<string, unknown>): { script: string; args: string[] } {
   const { script, args } = input
@@ -44,18 +35,8 @@ export async function createScriptTools(options: {
 }): Promise<Registered[]> {
   const sandbox =
     options.sandbox ?? new SessionSandbox({ runtimeRoots: [options.runtimeDist] })
-  const descriptors: Array<{ kind: Kind; id: string; modelName: string; description: string }> = [
-    { kind: 'shell', id: 'local.shell.run', modelName: 'shell_run', description: 'Run macOS zsh script source in the current session workspace. Bundled rg is available.' },
-    { kind: 'python', id: 'local.python.run', modelName: 'python_run', description: 'Run Python 3 source with the bundled interpreter and standard library.' },
-    { kind: 'node', id: 'local.node.run', modelName: 'node_run', description: 'Run JavaScript source with bundled Node.js and built-in modules.' },
-    { kind: 'ts', id: 'local.typescript.run', modelName: 'ts_run', description: 'Run TypeScript source with bundled Node.js native type stripping. Only erasable TypeScript syntax is supported.' }
-  ]
-  return descriptors.map(({ kind, id, modelName, description }) => ({
-    definition: {
-      id, version: 2, modelName, description, inputSchema,
-      risk: 'high', sideEffects: { filesystem: 'write', network: true },
-      timeoutMs: options.timeoutMs ?? 120_000
-    },
+  return commandDescriptors.map(({ kind }, index) => ({
+    definition: createCommandCatalog(options.timeoutMs).tools[index]!,
     executor: {
       async *execute(
         call: ToolCall,

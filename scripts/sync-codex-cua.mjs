@@ -54,7 +54,12 @@ cpSync(skillSource, vendoredSkill, { recursive: true })
 syncComputerUseSkill({
   sourceDirectory: vendoredSkill,
   documentsDirectory: join(target, 'cua/docs'),
-  destinationDirectory: join(root, 'apps/agent-runtime/resources/system-skills/computer-use')
+  destinationDirectory: join(root, 'plugins/computer-use/skills/computer-use')
 })
+// Keep the pure catalog snapshot synchronized with its same-package instructions.
+const instructionFiles = { description: 'macos/description', disabledBrowser: 'browser-disabled', computer: 'macos/computer', output: 'macos/output', reset: 'reset', codeDescription: 'code' }
+const instructions = Object.fromEntries(Object.entries(instructionFiles).map(([key, file]) => [key, readFileSync(join(target, 'cua-repl/instructions', file + '.md'), 'utf8').trimEnd()]))
+const { writeFileSync } = await import('node:fs')
+writeFileSync(join(root, 'plugins/computer-use/src/instructions.ts'), '// Verbatim OpenAI instruction snapshots; see ../SOURCE.md. Regenerate via scripts/sync-codex-cua.mjs.\nexport const instructions = ' + JSON.stringify(instructions, null, 2) + '\nexport const skillContent = ' + JSON.stringify(readFileSync(join(root, 'plugins/computer-use/skills/computer-use/SKILL.md'), 'utf8')) + '\n')
 console.log('Complete Computer Use Skill directory copied; current cua_repl body unchanged.')
 console.log('Update vendor/codex-cua/SOURCE.md with the source app version and date.')

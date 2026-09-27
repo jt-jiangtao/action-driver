@@ -520,3 +520,16 @@ async function waitFor(assertion: () => boolean): Promise<void> {
   }
   throw new Error('Timed out waiting for condition')
 }
+
+it('persists a crashed plugin side effect as unknown even after cancellation, without replay', async () => {
+  const { PluginError } = await import('@actiondriver/plugin-contracts')
+  const controller = new AbortController()
+  let executions = 0
+  const fixture = createFixture({ ...readDefinition, sideEffects: { filesystem: 'write', network: false } }, {
+    async *execute() { yield* []; executions++; controller.abort(); throw new PluginError('RESULT_UNKNOWN', 'host exited') }
+  })
+  const events = await collect(fixture.service.execute(readCall(), context(['local.shell.run@1']), controller.signal))
+  expect(events.at(-1)).toMatchObject({ type: 'tool.unknown', error: { code: 'TOOL_OUTCOME_UNKNOWN', retryable: false } })
+  expect(fixture.commits.at(-1)?.invocation.status).toBe('unknown')
+  expect(executions).toBe(1)
+})

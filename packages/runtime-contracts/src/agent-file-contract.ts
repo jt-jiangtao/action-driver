@@ -29,7 +29,7 @@ export interface AgentSkillSummaryDto {
   id: string
   name: string
   description: string
-  source: 'builtin' | 'local' | 'github'
+  source: 'builtin' | 'local' | 'github' | 'plugin'
   enabled: boolean
   available: boolean
   executorId: string | null

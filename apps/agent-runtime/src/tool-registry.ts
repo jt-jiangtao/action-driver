@@ -1,3 +1,5 @@
+import type { PluginOwner } from '@actiondriver/plugin-contracts'
+import type { Disposable } from '@actiondriver/plugin-sdk'
 import {
   parseToolDefinition,
   type ToolDefinition,
@@ -6,7 +8,7 @@ import {
 
 export class ToolRegistryError extends Error {
   constructor(
-    readonly code: 'TOOL_DEFINITION_INVALID' | 'TOOL_MODEL_NAME_CONFLICT' | 'TOOL_UNAVAILABLE',
+    readonly code: 'TOOL_DEFINITION_INVALID' | 'TOOL_MODEL_NAME_CONFLICT' | 'TOOL_UNAVAILABLE' | 'TOOL_OWNER_CONFLICT',
     message: string
   ) {
     super(`${code}: ${message}`)
@@ -14,13 +16,13 @@ export class ToolRegistryError extends Error {
   }
 }
 
-export type RegisteredTool = { definition: ToolDefinition; executor: ToolExecutor }
+export type RegisteredTool = { definition: ToolDefinition; executor: ToolExecutor; owner?: PluginOwner }
 
 export class RuntimeToolRegistry {
   private readonly byVersion = new Map<string, RegisteredTool>()
   private readonly byModelName = new Map<string, RegisteredTool>()
 
-  register(definition: ToolDefinition, executor: ToolExecutor): void {
+  register(definition: ToolDefinition, executor: ToolExecutor, owner?: PluginOwner): Disposable {
     let parsed: ToolDefinition
     try {
       parsed = parseToolDefinition(definition)
@@ -32,6 +34,8 @@ export class RuntimeToolRegistry {
       )
     }
 
+    const existingVersion = this.byVersion.get(this.key(parsed))
+    if (existingVersion && (owner || existingVersion.owner)) throw new ToolRegistryError('TOOL_OWNER_CONFLICT', `${parsed.id}: ${existingVersion.owner?.pluginId ?? 'runtime'} conflicts with ${owner?.pluginId ?? 'runtime'}`)
     const existingName = this.byModelName.get(parsed.modelName)
     if (existingName && this.key(existingName.definition) !== this.key(parsed)) {
       throw new ToolRegistryError(
@@ -40,9 +44,13 @@ export class RuntimeToolRegistry {
       )
     }
 
-    const registered = { definition: parsed, executor }
+    const registered: RegisteredTool = { definition: parsed, executor, ...(owner ? { owner: structuredClone(owner) } : {}) }
     this.byVersion.set(this.key(parsed), registered)
     this.byModelName.set(parsed.modelName, registered)
+    return { dispose: () => {
+      if (this.byVersion.get(this.key(parsed)) === registered) this.byVersion.delete(this.key(parsed))
+      if (this.byModelName.get(parsed.modelName) === registered) this.byModelName.delete(parsed.modelName)
+    } }
   }
 
   resolve(id: string, version: number): RegisteredTool {

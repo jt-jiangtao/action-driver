@@ -1,0 +1,1 @@
+{"name":"create-actiondriver-plugin","version":"1.0.0","type":"module","bin":{"create-actiondriver-plugin":"src/index.mjs"},"files":["src/index.mjs","src/generate.mjs"],"scripts":{"test":"vitest run src/generate.test.ts","typecheck":"node --check src/index.mjs && node --check src/generate.mjs"}}

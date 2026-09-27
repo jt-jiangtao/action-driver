@@ -31,7 +31,7 @@ export async function createComputerUseEntry(options: {
       await ready.cua.withSuspendedTimeout(taskId, wait)
     }
   })
-  const cua = await createCuaEntryTools({
+  const create = () => createCuaEntryTools({
     runtimeDist: options.runtimeDist,
     vendorRoot: options.vendorRoot,
     broker: approvals,
@@ -43,9 +43,11 @@ export async function createComputerUseEntry(options: {
     skillLoaded: (sessionId) => options.skills.has(sessionId, 'computer-use'),
     saveImage: async (sessionId, bytes, mimeType) => options.images.put(sessionId, bytes, mimeType)
   })
+  let cua = await create()
   ready.cua = cua
   return {
-    tools: cua.tools,
+    get tools() { return cua.tools },
+    restart: async () => { await cua.dispose(); cua = await create(); ready.cua = cua },
     approvals,
     endTurn: (taskId: string) => cua.endTurn(taskId),
     dispose: () => cua.dispose()

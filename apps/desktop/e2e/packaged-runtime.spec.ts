@@ -98,6 +98,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
         )
       )
     )
+    expect(packagedSkills.value).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })]))
     const root = join(appPath!, 'Contents', 'Resources', 'agent-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
     const env = { ...process.env, HOME: '/nonexistent-actiondriver-home', PATH: '/usr/bin:/bin' }

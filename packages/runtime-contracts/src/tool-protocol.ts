@@ -58,6 +58,7 @@ const toolErrorSchema = z
   .strict()
 
 export const toolEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('tool.unknown'), ...toolEventBase, error: toolErrorSchema }).strict(),
   z.object({ type: z.literal('tool.proposed'), ...toolEventBase }).strict(),
   z.object({ type: z.literal('tool.waiting_approval'), ...toolEventBase }).strict(),
   z.object({ type: z.literal('tool.queued'), ...toolEventBase }).strict(),
@@ -124,6 +125,7 @@ export type SessionWorkspacePaths = {
  * Tools that touch files MUST fail closed when it is absent.
  */
 export type ToolExecutionContext = {
+  grants?: string[]
   taskId: string
   sessionId: string
   workspace: SessionWorkspacePaths

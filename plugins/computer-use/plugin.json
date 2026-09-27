@@ -1,0 +1,34 @@
+{
+  "id": "computer-use",
+  "version": "1.0.0",
+  "sdk": "^1.0.0",
+  "entry": "dist/extension.js",
+  "catalog": "dist/catalog.js",
+  "platforms": [
+    "darwin-arm64",
+    "darwin-x64"
+  ],
+  "activation": [
+    "onTool:computer.js"
+  ],
+  "contributions": [
+    {
+      "kind": "tool",
+      "id": "computer.js",
+      "modelName": "js"
+    },
+    {
+      "kind": "tool",
+      "id": "computer.js_reset",
+      "modelName": "js_reset"
+    },
+    {
+      "kind": "skill",
+      "id": "computer-use"
+    }
+  ],
+  "dependencies": [],
+  "requires": [
+    "host.computer.execute"
+  ]
+}

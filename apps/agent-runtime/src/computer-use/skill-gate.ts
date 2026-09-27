@@ -15,6 +15,8 @@ export class LoadedSkills {
     return this.bySession.get(sessionId)?.has(skillId) ?? false
   }
 
+  forget(skillId: string): void { for (const skills of this.bySession.values()) skills.delete(skillId) }
+
   clear(sessionId: string): void {
     this.bySession.delete(sessionId)
   }

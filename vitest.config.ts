@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@actiondriver/plugin-contracts': `${root}packages/plugin-contracts/src/index.ts`,
+      '@actiondriver/plugin-sdk': `${root}packages/plugin-sdk/src/index.ts`,
       '@actiondriver/contracts': `${root}packages/contracts/src/index.ts`,
       '@actiondriver/design-tokens': `${root}packages/design-tokens/src/index.ts`,
       '@desktop': `${root}apps/desktop/src/renderer`

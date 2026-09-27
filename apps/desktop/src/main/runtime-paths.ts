@@ -28,7 +28,7 @@ export function resolveRuntimePaths(options: RuntimePathOptions): RuntimePaths {
 
   const computerHelperBundlePath = options.isPackaged
     ? resolve(options.resourcesPath, '..', 'Helpers', 'ActionDriver Computer Use.app')
-    : resolve(options.appPath, '..', 'native-computer-use-helper', 'dist', options.arch,
+    : resolve(options.appPath, '../..', 'plugins', 'computer-use', 'native', 'dist', options.arch,
       'ActionDriver Computer Use.app')
   return {
     runtimeEntryPath: options.isPackaged

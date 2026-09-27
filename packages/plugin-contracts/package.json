@@ -1,0 +1,27 @@
+{
+  "name": "@actiondriver/plugin-contracts",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "zod": "4.6.5",
+    "semver": "7.7.3"
+  },
+  "devDependencies": {
+    "@types/semver": "7.7.1",
+    "typescript": "5.9.3"
+  },
+  "files": [
+    "dist"
+  ]
+}

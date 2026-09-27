@@ -1719,3 +1719,18 @@ function toolRunner(model: ModelGateway, executor: ToolExecutor) {
     commits
   }
 }
+
+it('tells the model that crashed plugin side effects have an unknown outcome', async () => {
+  const { PluginError } = await import('@actiondriver/plugin-contracts')
+  let round = 0, toolMessage: unknown
+  const model: ModelGateway = { async complete(request) {
+    if (round++ === 0) return { kind: 'tool-calls', calls: [{ providerCallId: 'p', modelName: 'shell_run', arguments: { command: 'write' } }] }
+    toolMessage = request.messages.find(message => message.role === 'tool')?.content
+    return { kind: 'finish', content: 'Outcome uncertain; inspect before retrying.' }
+  } }
+  const { runner } = toolRunner(model, { async *execute() { yield* []; throw new PluginError('RESULT_UNKNOWN', 'Host exited after dispatch') } })
+  await runner.run({ taskId: 'unknown-plugin', goal: 'write', model: modelRef })
+  expect(String(toolMessage)).toContain('TOOL_OUTCOME_UNKNOWN')
+  expect(String(toolMessage)).toContain('Host exited after dispatch')
+  expect(String(toolMessage)).not.toContain('TOOL_NO_TERMINAL')
+})

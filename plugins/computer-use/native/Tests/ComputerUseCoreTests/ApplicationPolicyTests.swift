@@ -87,7 +87,7 @@ extension ApplicationPolicyTests {
         XCTAssertEqual(ApplicationPolicy.containingApplication(of: helper)?.path,
                        "/Applications/ActionDriver.app")
         XCTAssertNil(ApplicationPolicy.containingApplication(of: URL(fileURLWithPath:
-            "/Users/dev/action-driver/apps/native-computer-use-helper/dist/arm64/ActionDriver Computer Use.app")))
+            "/Users/dev/action-driver/plugins/computer-use/native/dist/arm64/ActionDriver Computer Use.app")))
     }
 }
 

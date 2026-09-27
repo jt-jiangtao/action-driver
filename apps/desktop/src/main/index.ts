@@ -1,3 +1,8 @@
+import { readFile } from 'node:fs/promises'
+import { validateManifest, PluginError } from '@actiondriver/plugin-contracts'
+import { createPanelMessageClient } from './plugins/panel-message-client'
+import { createPluginPanelProvider } from './plugins/panel-provider'
+import { createElectronPluginPanelHost } from './plugins/electron-panel-host'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
@@ -108,6 +113,7 @@ async function readComputerUsePermissions() {
   }
 }
 
+let pluginPanels: ReturnType<typeof createPluginPanelProvider> | undefined
 app.whenReady().then(async () => {
   registerExternalLinkIpc(ipcMain, (url) => shell.openExternal(url))
   protocol.handle('actiondriver', (request) => {
@@ -154,6 +160,12 @@ app.whenReady().then(async () => {
       platform: process.platform,
       arch: process.arch
     })
+    const pluginPackageRoot = (owner: { pluginId: string; version: string }) => join(dirname(paths.databasePath), 'plugins/installed', owner.pluginId, owner.version)
+    pluginPanels = createPluginPanelProvider({
+      loadManifest: async owner => validateManifest(JSON.parse(await readFile(join(pluginPackageRoot(owner), 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: `${process.platform}-${process.arch}` }),
+      createHost: ports => createElectronPluginPanelHost({ ...ports, ids: () => randomBytes(16).toString('hex'), packageRoot: pluginPackageRoot, preload: join(moduleDirectory, '../preload/pluginPanel.cjs'), message: createPanelMessageClient({ fetch: globalThis.fetch, connection: () => { const url = runtime.runtimeSupervisor.serviceUrl; if (!url) throw new PluginError('UNAVAILABLE', 'Runtime is not ready'); return { url, token: serviceToken } } }) })
+    })
+    skillProviderHost.register(pluginPanels.provider)
     if (existsSync(paths.computerHelperPath)) {
       // LaunchServices owns the helper process so macOS attributes its permissions to the helper.
       // The socket lives in the short per-user temp directory: Unix domain socket paths are capped
@@ -190,6 +202,7 @@ app.whenReady().then(async () => {
     })
     const runtime = createLocalRuntimeServices(paths, skillProviderHost, {
       serviceToken,
+      capabilityDisconnected: () => { void pluginPanels?.disconnected().catch(error => console.error(error)) },
       credentialKey: credentialKey.toString('base64'),
       agentHomeDirectory,
       ...(trustedRendererOrigin ? { trustedRendererOrigin } : {}),
@@ -270,6 +283,7 @@ async function migrateLegacyModelConnections(
 app.on('window-all-closed', () => app.quit())
 app.on('before-quit', (event) => {
   computerUseClient?.close()
+  void pluginPanels?.dispose().catch(error => console.error(error))
   if (!services?.runtimeSupervisor || quitting) return
   event.preventDefault()
   quitting = true

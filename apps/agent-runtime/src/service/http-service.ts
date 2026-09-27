@@ -1,3 +1,4 @@
+import { PluginError, type PluginOwner, type Json } from '@actiondriver/plugin-contracts'
 import {
   ModelServiceError,
   type ModelAddRequestDto,
@@ -61,6 +62,7 @@ export type ServiceModelConnectionPort = {
 
 export type ServiceHttpOptions = {
   service: ServiceModelConnectionPort
+  pluginPanels?: { message(owner: PluginOwner, panelId: string, type: string, payload: Json): Promise<Json> }
   agentFiles?: AgentFileStore
   skillInstaller?: SkillInstaller
   taskControl?: { execute(command: string, input: unknown): Promise<unknown> }
@@ -190,7 +192,9 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
 
   app.onError((error, context) => {
     const mapped =
-      error instanceof AppApprovalError
+      error instanceof PluginError
+        ? { status: error.code === 'AUTHORIZATION_DENIED' ? (403 as const) : error.code === 'STALE_INSTANCE' ? (409 as const) : error.code === 'UNAVAILABLE' ? (404 as const) : (400 as const), code: error.code, message: error.message }
+        : error instanceof AppApprovalError
         ? {
             status: error.code === 'APPROVAL_STALE' ? (409 as const) : (400 as const),
             code: error.code,
@@ -406,6 +410,10 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
     }
   })
 
+  if (options.pluginPanels) app.post('/plugins/panels/messages', async context => {
+    const input = z.object({ owner: z.object({ pluginId: z.string().min(1), version: z.string().min(1), hostEpoch: z.string().min(1) }).strict(), panelId: z.string().min(1), type: z.string().min(1), payload: z.json() }).strict().parse(await context.req.json())
+    return context.json(success(await options.pluginPanels!.message(input.owner, input.panelId, input.type, input.payload)))
+  })
   app.get('/readyz', (context) => context.text('ok'))
   app.get('/healthz', (context) => context.text('ok'))
   app.get('/version', (context) =>

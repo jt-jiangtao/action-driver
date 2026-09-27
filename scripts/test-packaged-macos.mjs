@@ -50,7 +50,7 @@ try {
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
-  const computerHelperSource = join(root, 'apps', 'native-computer-use-helper',
+  const computerHelperSource = join(root, 'plugins', 'computer-use', 'native',
     'dist', process.arch, 'ActionDriver Computer Use.app')
   const computerHelperBundle = join(app, 'Contents', 'Helpers', 'ActionDriver Computer Use.app')
   run('ditto', [computerHelperSource, computerHelperBundle])
@@ -101,8 +101,10 @@ try {
       throw new Error(`PACKAGED_DEPENDENCY_MISSING: ${relativePath}`)
     }
   }
+  for (const relativePath of ['plugin.json', 'dist/extension.js', 'dist/catalog.js', 'skills/computer-use/SKILL.md', 'SOURCE.md']) {
+    if (!existsSync(join(runtimeDist, 'plugins', 'computer-use', relativePath))) throw new Error(`PACKAGED_COMPUTER_PLUGIN_MISSING: ${relativePath}`)
+  }
   for (const skill of [
-    'computer-use',
     'documents',
     'imagegen',
     'pdf',

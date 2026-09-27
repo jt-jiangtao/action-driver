@@ -16,7 +16,7 @@ export interface AgentTextFile {
 
 export interface AgentSkillSummary {
   id: string
-  source: 'builtin' | 'local' | 'github'
+  source: 'builtin' | 'local' | 'github' | 'plugin'
   name: string
   description: string
   enabled: boolean

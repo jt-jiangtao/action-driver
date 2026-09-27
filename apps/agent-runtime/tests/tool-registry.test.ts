@@ -65,3 +65,18 @@ describe('RuntimeToolRegistry', () => {
     expect(() => registry.resolve(readTool.id, 2)).toThrow('TOOL_UNAVAILABLE')
   })
 })
+describe('plugin owned registrations', () => {
+  it('rejects duplicate owners and disposes only its exact registration', () => {
+    const registry = new RuntimeToolRegistry()
+    const owner = { pluginId: 'search', version: '1.0.0', hostEpoch: 'a' }
+    const registration = registry.register(readTool, executor, owner)
+    expect(() => registry.register(readTool, executor, { ...owner, pluginId: 'other' })).toThrow('search')
+    expect(registry.resolve(readTool.id, 1).owner).toEqual(owner)
+    registration.dispose()
+    expect(() => registry.resolve(readTool.id, 1)).toThrow('TOOL_UNAVAILABLE')
+    const next = registry.register(readTool, executor, { ...owner, hostEpoch: 'b' })
+    registration.dispose()
+    expect(registry.resolve(readTool.id, 1).owner?.hostEpoch).toBe('b')
+    next.dispose()
+  })
+})

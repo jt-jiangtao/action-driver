@@ -16,7 +16,7 @@ import type {
 import { e2eId } from '../testing/e2e-id'
 
 function skillSourceLabel(source: AgentSkillSummary['source']): string {
-  return source === 'builtin' ? '系统' : source === 'github' ? 'GitHub' : '个人'
+  return source === 'plugin' ? '插件' : source === 'builtin' ? '系统' : source === 'github' ? 'GitHub' : '个人'
 }
 
 function FileTree({
@@ -389,7 +389,7 @@ export function SkillsPage({
                         role="switch"
                         aria-checked={skill.enabled}
                         aria-label={`${skill.enabled ? '停用' : '启用'} ${skill.name}`}
-                        disabled={!skill.available || pendingSkillId === skill.id}
+                        disabled={skill.source === 'plugin' || !skill.available || pendingSkillId === skill.id}
                         onClick={async () => {
                           const previousSkills = skills
                           setPendingSkillId(skill.id)
@@ -440,7 +440,7 @@ export function SkillsPage({
                     data-testid="e2e/settings/skills/detail/toggle#switch"
                     type="button" role="switch" aria-checked={selectedSkill.enabled}
                     aria-label={`${selectedSkill.enabled ? '停用' : '启用'} ${selectedSkill.name}`}
-                    disabled={!selectedSkill.available || pendingSkillId === selectedSkill.id}
+                    disabled={selectedSkill.source === 'plugin' || !selectedSkill.available || pendingSkillId === selectedSkill.id}
                     onClick={async () => {
                       setPendingSkillId(selectedSkill.id)
                       try {

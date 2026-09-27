@@ -15,7 +15,7 @@ const arch = process.env.ACTIONDRIVER_NATIVE_ARCH?.trim() || process.arch
 if (arch !== 'arm64' && arch !== 'x64') throw new Error(`Unsupported Computer Use architecture: ${arch}`)
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const packagePath = join(root, 'apps', 'native-computer-use-helper')
+const packagePath = join(root, 'plugins', 'computer-use', 'native')
 const triple = `${arch === 'x64' ? 'x86_64' : 'arm64'}-apple-macosx14.0`
 const options = ['--package-path', packagePath, '-c', 'release', '--triple', triple]
 execFileSync('swift', ['build', ...options], { cwd: root, stdio: 'inherit' })

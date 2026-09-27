@@ -24,8 +24,14 @@ import { SessionSandbox } from './execution/session-sandbox'
 import { SessionWorkspaceStore } from './execution/session-workspace'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { registerSearxngTool } from './searxng/runtime-tools'
-import { registerWebOpenTool } from './web-open/tool'
+import { parseSearxngEndpoint } from './searxng/search-tool'
+import { createRuntimePluginPlatform } from './plugins/composition'
+import { PluginInstructionHost } from './plugins/instruction-host'
+import { createDesktopResourcePort } from './plugins/desktop-resource-port'
+import { createCommandExecutionPort } from './plugins/command-port'
+import { resolveExecutionRuntimePaths } from './execution/runtime-paths'
+import { extractPageTextIsolated } from './web-open/extract-isolated'
+import { PluginError } from '@actiondriver/plugin-contracts'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { SkillInstaller } from './agent-files/skill-installer'
 import { createSkillRuntimeTools } from './agent-files/runtime-tools'
@@ -33,7 +39,7 @@ import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
-import { createImageGenerationTool } from './media/image-generation-tool'
+import { definition as imageDefinition } from '../../../plugins/image-generation/src/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
@@ -131,7 +137,9 @@ export async function startAgentRuntimeProcess(
     tasks: repositories.tasks,
     workspaceRoot
   })
+  const pluginInstructions = new PluginInstructionHost(agentHome, ['computer-use'])
   const agentFiles = new AgentFileStore({
+    pluginSkills: pluginInstructions,
     homeDirectory: agentHome,
     systemSkillsSourceRoot: resolve(
       runtimeEntry.endsWith('.ts') ? dirname(runtimeEntry) : runtimeDist,
@@ -204,28 +212,19 @@ export async function startAgentRuntimeProcess(
     if (computer) {
       appApprovals = computer.approvals
       for (const tool of computer.tools) {
-        local.toolRuntime.registry.register(tool.definition, tool.executor)
         local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
       }
     }
   }
   for (const tool of scriptTools) {
-    local.toolRuntime.registry.register(tool.definition, tool.executor)
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
   const workspaceDependenciesTool = createWorkspaceDependenciesTool(runtimeDist)
   local.toolRuntime.registry.register(workspaceDependenciesTool.definition, workspaceDependenciesTool.executor)
   local.toolRuntime.grants.push(`${workspaceDependenciesTool.definition.id}@${workspaceDependenciesTool.definition.version}`)
-  const imageTool = createImageGenerationTool({
-    defaultModel: () => service.getDefaultImageModel(),
-    generate: (request, signal) => service.generateImage(request, signal),
-    assets,
-    sessionForTask: async (taskId) => (await repositories.tasks.get(taskId))?.sessionId ?? null
-  })
-  local.toolRuntime.registry.register(imageTool.definition, imageTool.executor)
-  local.toolRuntime.grants.push(`${imageTool.definition.id}@${imageTool.definition.version}`)
+  local.toolRuntime.grants.push(`${imageDefinition.id}@${imageDefinition.version}`)
   local.toolRuntime.isAvailable = async (definition) => {
-    if (definition.id === imageTool.definition.id)
+    if (definition.id === imageDefinition.id)
       return (await service.getDefaultImageModel()) !== null
     if (definition.id.startsWith('computer.')) {
       try { local.adapters.skillRegistry.resolve('computer-use', 1); return true }
@@ -237,8 +236,65 @@ export async function startAgentRuntimeProcess(
     (await service.getDefaultImageModel()) === null
       ? '本应用支持图片生成，但当前没有配置默认生图模型。若用户请求生成图片，请说明需前往“设置 → 模型连接”启用一个模型的图片生成能力并设为默认模型；不要说应用完全没有生图工具。'
       : null
-  registerSearxngTool(local.toolRuntime, environment.ACTIONDRIVER_SEARXNG_ENDPOINT)
-  registerWebOpenTool(local.toolRuntime)
+  let computerActivated = false
+  const searchEndpoint = environment.ACTIONDRIVER_SEARXNG_ENDPOINT?.trim()
+  const runtimePaths = await resolveExecutionRuntimePaths(runtimeDist, process.arch, ['node'])
+  const pluginPlatform = await createRuntimePluginPlatform({
+    node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
+    packageRoots: [join(runtimeDist, 'plugins/command'), join(runtimeDist, 'plugins/web-reader'), join(runtimeDist, 'plugins/image-generation'), ...(computer ? [join(runtimeDist, 'plugins/computer-use')] : []), ...(searchEndpoint ? [join(runtimeDist, 'plugins/search')] : [])],
+    dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
+    configuration: searchEndpoint ? { search: { endpoint: parseSearxngEndpoint(searchEndpoint) } } : {},
+    skills: {
+      stage: (owner, skill, root) => pluginInstructions.stage(owner, skill, root),
+      publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }
+    },
+    desktopResources: createDesktopResourcePort(local.adapters.skillRegistry, randomUUID),
+    toolTimeouts: Object.fromEntries(scriptTools.map(tool => [tool.definition.id, tool.definition.timeoutMs])),
+    hostCapabilities: {
+      ...(computer ? { 'host.computer.execute': {
+        plugins: ['computer-use'], grants: ['computer.js@1', 'computer.js_reset@1'],
+        async start() {
+          if (computerActivated) await computer!.restart()
+          computerActivated = true
+          return { dispose: () => computer!.dispose() }
+        },
+        stream: (input, context, signal) => createCommandExecutionPort(computer!.tools, executionContexts, ['computer-use']).stream(input, context, signal)
+      } } : {}),
+      'host.image.model': { plugins: ['image-generation'], grants: ['image.generate@1'], async invoke() {
+        const model = await service.getDefaultImageModel()
+        return model ? { ...model } : null
+      } },
+      'host.image.generate': { plugins: ['image-generation'], grants: ['image.generate@1'], async invoke(input, context, signal) {
+        if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 4000 || !context.taskId) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid image request')
+        const task = await repositories.tasks.get(context.taskId)
+        if (!task || task.sessionId !== context.sessionId) throw new PluginError('IMAGE_SESSION_NOT_FOUND', 'Image task has no owned session')
+        const model = await service.getDefaultImageModel()
+        if (!model) throw new PluginError('IMAGE_MODEL_NOT_CONFIGURED', 'No default image model')
+        const selected = input.model
+        if (!selected || typeof selected !== 'object' || Array.isArray(selected) || selected.connectionId !== model.connectionId || selected.modelId !== model.modelId) throw new PluginError('AUTHORIZATION_DENIED', 'Image model selection changed')
+        const bytes = await service.generateImage({ model, prompt: input.prompt }, signal)
+        signal.throwIfAborted()
+        return { ...await assets.saveGenerated(task.sessionId, bytes) }
+      } },
+      'host.command.execute': createCommandExecutionPort(scriptTools, executionContexts),
+      'host.web.extract': { plugins: ['web-reader'], grants: ['web.open@1'], async invoke(input, _context, signal) {
+        if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.html !== 'string' || Buffer.byteLength(input.html) > 4 * 1024 * 1024 || typeof input.url !== 'string' || input.url.length > 2048) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid bounded HTML input')
+        return { ...await extractPageTextIsolated(input.html, input.url, { signal }) }
+      } }
+    },
+    now: Date.now, ids: randomUUID,
+    log: entry => console.error('[plugin]', JSON.stringify(entry))
+  })
+  await pluginPlatform.enable('command')
+  await pluginPlatform.enable('image-generation')
+  if (computer) await pluginPlatform.enable('computer-use')
+  if (searchEndpoint) {
+    await pluginPlatform.enable('search')
+    // Existing configured-search policy is assembled here, never by the plugin or its catalog.
+    local.toolRuntime.grants.push('web.search@1')
+  }
+  await pluginPlatform.enable('web-reader')
+  local.toolRuntime.grants.push('web.open@1')
   for (const tool of createSkillRuntimeTools({
     store: agentFiles, installer: skillInstaller, loadedSkills
   })) {
@@ -287,6 +343,7 @@ export async function startAgentRuntimeProcess(
 
   if (serviceToken) {
     httpServer = await startServiceHttpServer({
+      pluginPanels: { message: pluginPlatform.panelMessage },
       service,
       assets,
       inputFiles,
@@ -318,6 +375,7 @@ export async function startAgentRuntimeProcess(
     }
     parentPort.off('message', handleShutdown)
     void server.close().then(async () => {
+      await pluginPlatform?.dispose()
       await computer?.dispose()
       computerImages.clear()
       await httpServer?.close()

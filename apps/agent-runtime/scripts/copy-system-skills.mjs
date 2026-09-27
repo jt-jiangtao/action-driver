@@ -6,7 +6,7 @@ const appRoot = fileURLToPath(new URL('../', import.meta.url))
 const source = join(appRoot, 'resources', 'system-skills')
 const destination = join(appRoot, 'dist', 'system-skills')
 await mkdir(destination, { recursive: true })
-for (const id of ['browser-tools', 'computer-tools', 'report-writer']) {
+for (const id of ['browser-tools', 'computer-tools', 'report-writer', 'computer-use']) {
   await rm(join(destination, id), { recursive: true, force: true })
 }
 await cp(source, destination, { recursive: true, force: true })

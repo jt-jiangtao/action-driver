@@ -8,6 +8,8 @@ export default defineConfig({
       externalizeDepsPlugin({
         exclude: [
           '@actiondriver/runtime-contracts',
+          '@actiondriver/plugin-contracts',
+          '@actiondriver/plugin-sdk',
           '@actiondriver/model-connections',
           '@actiondriver/observability'
         ]
@@ -20,6 +22,7 @@ export default defineConfig({
     ],
     build: {
       rollupOptions: {
+        input: { index: resolve('src/preload/index.ts'), pluginPanel: resolve('src/preload/plugin-panel.ts') },
         // Sandboxed preload scripts must be CommonJS; the package is ESM, so emit .cjs explicitly.
         output: { format: 'cjs', entryFileNames: '[name].cjs' }
       }
