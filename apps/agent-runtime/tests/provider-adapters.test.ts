@@ -121,7 +121,7 @@ describe('OpenAI compatible adapter', () => {
       ]
     }))
       events.push(event)
-    expect(sdk.create.mock.calls[0]?.[0]).toMatchObject({
+    expect((sdk.create.mock.calls as unknown as Array<[unknown]>)[0]?.[0]).toMatchObject({
       messages: [
         {
           content: [
@@ -343,7 +343,7 @@ describe('OpenAI compatible adapter', () => {
         {
           id: 'tools.local.command.shell.run',
           version: 1,
-          modelName: 'tools_local_command_shell_run',
+          modelName: 'tools.local.command.shell.run',
           description: 'Read a workspace file',
           inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
           risk: 'low',
@@ -363,7 +363,7 @@ describe('OpenAI compatible adapter', () => {
             type: 'function',
             function: {
               name: 'tools_local_command_shell_run',
-              description: 'Read a workspace file',
+              description: expect.stringContaining('Public tool ID: tools.local.command.shell.run'),
               parameters: { type: 'object', properties: { path: { type: 'string' } } }
             }
           }
@@ -373,8 +373,8 @@ describe('OpenAI compatible adapter', () => {
       expect.anything()
     )
     expect(events).toEqual([
-      { kind: 'tool-call-preparing', index: 1, modelName: 'tools_local_command_shell_run' },
-      { kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' },
+      { kind: 'tool-call-preparing', index: 1, modelName: 'tools.local.command.shell.run' },
+      { kind: 'tool-call-preparing', index: 0, modelName: 'tools.local.command.shell.run' },
       expect.objectContaining({
         kind: 'end',
         result: {
@@ -382,12 +382,12 @@ describe('OpenAI compatible adapter', () => {
           calls: [
             {
               providerCallId: 'provider-1',
-              modelName: 'tools_local_command_shell_run',
+              modelName: 'tools.local.command.shell.run',
               arguments: { path: 'README.md' }
             },
             {
               providerCallId: 'provider-2',
-              modelName: 'tools_local_command_shell_run',
+              modelName: 'tools.local.command.shell.run',
               arguments: { path: 'src' }
             }
           ]
@@ -478,7 +478,7 @@ describe('OpenAI compatible adapter', () => {
         {
           id: 'tools.local.command.shell.run',
           version: 1,
-          modelName: 'tools_local_command_shell_run',
+          modelName: 'tools.local.command.shell.run',
           description: 'Run command',
           inputSchema: { type: 'object', properties: { command: { type: 'string' } } },
           risk: 'high',
@@ -490,7 +490,11 @@ describe('OpenAI compatible adapter', () => {
     })
     const stream = iterable[Symbol.asyncIterator]()
     const first = await stream.next()
-    expect(first.value).toEqual({ kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' })
+    expect(first.value).toEqual({
+      kind: 'tool-call-preparing',
+      index: 0,
+      modelName: 'tools.local.command.shell.run'
+    })
     expect(JSON.stringify(first.value)).not.toContain('secret')
     const terminal = await stream.next()
     expect(terminal.value).toMatchObject({
@@ -500,7 +504,7 @@ describe('OpenAI compatible adapter', () => {
         calls: [
           {
             providerCallId: 'provider-1',
-            modelName: 'tools_local_command_shell_run',
+            modelName: 'tools.local.command.shell.run',
             arguments: { command: 'secret' }
           }
         ]
@@ -1045,4 +1049,190 @@ describe('provider response classification', () => {
     expect(classifyResponse(422, {}, '')).toMatchObject({ code: 'invalid-request' })
     expect(classifyResponse(418, {}, '')).toMatchObject({ code: 'unknown' })
   })
+})
+
+const dottedTool = (modelName = 'tools.local.command.node.run') => ({
+  id: modelName,
+  modelName,
+  version: 1,
+  description: 'Run code',
+  inputSchema: { type: 'object' },
+  risk: 'low' as const,
+  sideEffects: { filesystem: 'none' as const, network: false },
+  timeoutMs: 1000
+})
+it('maps historical calls and results only in the provider request without changing history', async () => {
+  const sdk = openAiFactory([
+    chunk({ choices: [{ index: 0, delta: { content: 'done' }, finish_reason: 'stop' }] })
+  ])
+  const adapter = createOpenAiCompatibleAdapter(
+    transportOf(() => ({ status: 200, body: {}, text: '' })),
+    sdk.factory
+  )
+  const messages = [
+    {
+      role: 'assistant' as const,
+      toolCalls: [{ providerCallId: 'p', modelName: 'tools.local.command.node.run', arguments: {} }]
+    },
+    { role: 'tool' as const, toolCallId: 'p', name: 'tools.local.command.node.run', content: 'ok' }
+  ]
+  const before = JSON.stringify(messages)
+  for await (const event of adapter.stream({
+    ...endpoint,
+    modelId: 'model',
+    messages,
+    tools: [dottedTool()],
+    parameters: {}
+  }))
+    void event
+  const body = (sdk.create.mock.calls as unknown as Array<[unknown]>)[0]?.[0] as unknown as {
+    messages: Array<Record<string, unknown>>
+  }
+  expect(body.messages).toEqual([
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'p',
+          type: 'function',
+          function: { name: 'tools_local_command_node_run', arguments: '{}' }
+        }
+      ]
+    },
+    { role: 'tool', tool_call_id: 'p', name: 'tools_local_command_node_run', content: 'ok' }
+  ])
+  expect(JSON.stringify(messages)).toBe(before)
+})
+it.each([
+  ['collision', [dottedTool('a.b'), dottedTool('a_b')]],
+  ['overlong', [dottedTool('x'.repeat(65))]]
+])('rejects %s wire names before sending', async (_label, tools) => {
+  const sdk = openAiFactory([])
+  const adapter = createOpenAiCompatibleAdapter(
+    transportOf(() => ({ status: 200, body: {}, text: '' })),
+    sdk.factory
+  )
+  await expect(
+    (async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'model',
+        messages: [],
+        tools,
+        parameters: {}
+      }))
+        void event
+    })()
+  ).rejects.toMatchObject({ code: 'invalid-request' })
+  expect(sdk.create).not.toHaveBeenCalled()
+})
+it('rejects an unknown wire response rather than guessing a public tool name', async () => {
+  const sdk = openAiFactory([
+    chunk({
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [{ index: 0, id: 'p', function: { name: 'unknown_tool', arguments: '{}' } }]
+          },
+          finish_reason: 'tool_calls'
+        }
+      ]
+    })
+  ])
+  const adapter = createOpenAiCompatibleAdapter(
+    transportOf(() => ({ status: 200, body: {}, text: '' })),
+    sdk.factory
+  )
+  await expect(
+    (async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'model',
+        messages: [],
+        tools: [dottedTool()],
+        parameters: {}
+      }))
+        void event
+    })()
+  ).rejects.toMatchObject({ code: 'invalid-response' })
+})
+
+it('rejects collisions between history and current tools before sending', async () => {
+  const sdk = openAiFactory([])
+  const adapter = createOpenAiCompatibleAdapter(
+    transportOf(() => ({ status: 200, body: {}, text: '' })),
+    sdk.factory
+  )
+  const messages = [
+    {
+      role: 'assistant' as const,
+      toolCalls: [{ providerCallId: 'old', modelName: 'a_b', arguments: {} }]
+    }
+  ]
+  await expect(
+    (async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'model',
+        messages,
+        tools: [dottedTool('a.b')],
+        parameters: {}
+      }))
+        void event
+    })()
+  ).rejects.toMatchObject({ code: 'invalid-request' })
+  expect(sdk.create).not.toHaveBeenCalled()
+})
+it('rejects collisions within history even without currently available tools', async () => {
+  const sdk = openAiFactory([])
+  const adapter = createOpenAiCompatibleAdapter(
+    transportOf(() => ({ status: 200, body: {}, text: '' })),
+    sdk.factory
+  )
+  const messages = [
+    {
+      role: 'assistant' as const,
+      toolCalls: [{ providerCallId: 'one', modelName: 'a.b', arguments: {} }]
+    },
+    { role: 'tool' as const, toolCallId: 'two', name: 'a_b', content: 'result' }
+  ]
+  await expect(
+    (async () => {
+      for await (const event of adapter.stream({
+        ...endpoint,
+        modelId: 'model',
+        messages,
+        tools: [],
+        parameters: {}
+      }))
+        void event
+    })()
+  ).rejects.toMatchObject({ code: 'invalid-request' })
+  expect(sdk.create).not.toHaveBeenCalled()
+})
+
+it('rejects conflicting history in non-streaming provider requests too', async () => {
+  const transport = transportOf(() => ({
+    status: 200,
+    body: { choices: [{ message: { content: 'done' } }] },
+    text: ''
+  }))
+  const adapter = createOpenAiCompatibleAdapter(transport)
+  await expect(
+    adapter.complete({
+      ...endpoint,
+      modelId: 'model',
+      messages: [
+        {
+          role: 'assistant',
+          toolCalls: [{ providerCallId: 'p', modelName: 'a.b', arguments: {} }]
+        },
+        { role: 'tool', toolCallId: 'p', name: 'a_b', content: 'ok' }
+      ],
+      parameters: {}
+    })
+  ).rejects.toMatchObject({ code: 'invalid-request' })
+  expect(transport.requests).toHaveLength(0)
 })

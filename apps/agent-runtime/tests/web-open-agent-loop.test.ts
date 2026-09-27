@@ -8,20 +8,20 @@ import { createWebOpenTool } from '../src/web-open/tool'
 import { extractPageText } from '../src/web-open/extract'
 import type { ModelGateway } from '../src/ports'
 
-describe('search-to-tools_local_web_open agent loop', () => {
+describe('search-to-tools.local.web.open agent loop', () => {
   it('searches, reads the returned URL, and gives the model sourced text', async () => {
     let turn = 0
     const model: ModelGateway = {
       async complete(request) {
         turn += 1
         if (turn === 1) {
-          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['tools_local_web_search', 'tools_local_web_open'])
+          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['tools.local.web.search', 'tools.local.web.open'])
           return {
             kind: 'tool-calls',
             calls: [
               {
                 providerCallId: 'search-1',
-                modelName: 'tools_local_web_search',
+                modelName: 'tools.local.web.search',
                 arguments: { query: 'ActionDriver' }
               }
             ]
@@ -34,7 +34,7 @@ describe('search-to-tools_local_web_open agent loop', () => {
             calls: [
               {
                 providerCallId: 'open-1',
-                modelName: 'tools_local_web_open',
+                modelName: 'tools.local.web.open',
                 arguments: { url: 'https://example.com/article' }
               }
             ]

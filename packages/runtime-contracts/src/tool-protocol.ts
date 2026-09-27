@@ -19,7 +19,7 @@ export const toolDefinitionSchema = z
   .object({
     id: idSchema,
     version: z.number().int().positive(),
-    modelName: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    modelName: z.string().regex(/^[A-Za-z0-9_.-]+$/),
     description: idSchema,
     inputSchema: jsonObjectSchema.refine((schema) => schema.type === 'object', {
       message: 'Tool input schema must describe an object'

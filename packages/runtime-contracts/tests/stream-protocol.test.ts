@@ -60,7 +60,7 @@ describe('agent stream protocol', () => {
       callId: 'call-1',
       callSequence: 1,
       toolId: 'tools.local.image-generation.generate',
-      modelName: 'tools_local_image_generation_generate',
+      modelName: 'tools.local.image-generation.generate',
       summary: '生成图片',
       argumentsHash: '',
       imageCount: 16,
@@ -73,7 +73,7 @@ describe('agent stream protocol', () => {
       type: 'response.snapshot',
       status: 'running',
       messages: [],
-      tools: [{ callId: 'call-1', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: '生成图片', argumentsHash: '', imageCount: 16, status: 'running', durationMs: 0 }],
+      tools: [{ callId: 'call-1', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate', summary: '生成图片', argumentsHash: '', imageCount: 16, status: 'running', durationMs: 0 }],
       error: null
     }
     expect(parseStreamServerEvent(snapshot)).toMatchObject({ tools: [{ imageCount: 16 }] })
@@ -274,12 +274,12 @@ describe('agent stream protocol', () => {
       messageId: 'message-1',
       occurredAt,
       index: 0,
-      modelName: 'tools_local_command_shell_run'
+      modelName: 'tools.local.command.shell.run'
     })
     expect(event).toMatchObject({
       type: 'response.tool_preparing',
       index: 0,
-      modelName: 'tools_local_command_shell_run'
+      modelName: 'tools.local.command.shell.run'
     })
     expect(() => parseStreamServerEvent({ ...event, arguments: '{"command":"secret"}' })).toThrow()
   })

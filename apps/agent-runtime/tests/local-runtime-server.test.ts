@@ -190,7 +190,7 @@ describe('local Runtime server composition', () => {
             {
               callId: 'first',
               toolId: 'tools.local.web.search@1',
-              modelName: 'tools_local_web_search',
+              modelName: 'tools.local.web.search',
               summary: '搜索网页',
               argumentsHash: 'hash',
               status: 'completed'
@@ -296,7 +296,7 @@ describe('local Runtime server composition', () => {
             {
               callId: 'call',
               toolId: 'tools.local.command.shell.run',
-              modelName: 'tools_local_command_shell_run',
+              modelName: 'tools.local.command.shell.run',
               summary: 'README',
               argumentsHash: 'hash',
               status: 'completed',

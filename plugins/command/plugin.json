@@ -23,27 +23,27 @@
     {
       "kind": "tool",
       "id": "tools.local.command.shell.run",
-      "modelName": "tools_local_command_shell_run"
+      "modelName": "tools.local.command.shell.run"
     },
     {
       "kind": "tool",
       "id": "tools.local.command.python.run",
-      "modelName": "tools_local_command_python_run"
+      "modelName": "tools.local.command.python.run"
     },
     {
       "kind": "tool",
       "id": "tools.local.command.node.run",
-      "modelName": "tools_local_command_node_run"
+      "modelName": "tools.local.command.node.run"
     },
     {
       "kind": "tool",
       "id": "tools.local.command.typescript.run",
-      "modelName": "tools_local_command_typescript_run"
+      "modelName": "tools.local.command.typescript.run"
     },
     {
       "kind": "tool",
       "id": "tools.local.command.dependencies.load",
-      "modelName": "tools_local_command_dependencies_load"
+      "modelName": "tools.local.command.dependencies.load"
     }
   ],
   "dependencies": [],

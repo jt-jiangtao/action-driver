@@ -28,7 +28,7 @@ describe('runtime plugin composition', () => {
       await platform.enable('web')
       expect(registry.resolve('tools.local.web.search', 1).owner?.pluginId).toBe('web')
       const events = []
-      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } })) events.push(part)
+      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools.local.web.search', arguments: { query: 'test' } })) events.push(part)
       expect(events).toEqual([{ kind: 'result', output: { results: [{ title: 'Title', url: 'https://example.test/', snippet: 'Snippet' }], truncated: false, totalResults: 1 } }])
       await platform.disable('web')
       expect(registry.list()).toEqual([])

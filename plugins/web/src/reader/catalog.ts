@@ -4,7 +4,7 @@ export const definition: ToolDefinition = {
     id: 'tools.local.web.open',
         presentation: presentations['tools.local.web.open'],
     version: 1,
-    modelName: 'tools_local_web_open',
+    modelName: 'tools.local.web.open',
     description:
       'Read the bounded plain-text content of one public HTTP(S) HTML page by URL. Does not execute JavaScript or follow page links.',
     inputSchema: {

@@ -1,4 +1,5 @@
 import { createPluginContext, EventQueue, PluginError } from '@actiondriver/plugin-sdk'
+import { PLUGIN_SDK_VERSION } from '@actiondriver/plugin-contracts'
 import { pathToFileURL } from 'node:url'
 let binding, module, context
 const events = new Map(), handlers = new Map(), pending = new Map(), controllers = new Map()
@@ -43,7 +44,7 @@ process.on('message', async message => {
       module = await import(pathToFileURL(message.entry).href)
       if (typeof module.activate !== 'function') throw new Error('Plugin must export activate')
       await module.activate(context)
-      send({ type: 'ready', sdk: '1.0.0' })
+      send({ type: 'ready', sdk: PLUGIN_SDK_VERSION })
     } catch (error) { send({ type: 'activation-error', error: String(error) }) }
     return
   }

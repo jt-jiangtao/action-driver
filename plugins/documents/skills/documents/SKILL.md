@@ -471,7 +471,7 @@ Then inspect the generated `page-<N>.png` files.
 
 **Note:** LibreOffice sometimes prints scary-looking stderr (e.g., `error : Unknown IO error`) even when output is correct. Treat the render as successful if the PNGs exist and look right (and if you used `--emit_pdf`, the PDF exists and is non-empty).
 
-If you need to use LibreOffice, use the absolute path to bundled LibreOffice resolved through `tools_local_command_dependencies_load`, never use the user's installed desktop LibreOffice even if the bundled version fails. Include this instruction and the bundled path in every subagent handoff.
+If you need to use LibreOffice, use the absolute path to bundled LibreOffice resolved through `tools.local.command.dependencies.load`, never use the user's installed desktop LibreOffice even if the bundled version fails. Include this instruction and the bundled path in every subagent handoff.
 
 ### What rendering does and doesn’t validate
 
@@ -547,4 +547,4 @@ Document locators support only `page_number`; otherwise use a plain citation. Do
 
 - Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
 - Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
-- Resolve interpreters and packages through `tools_local_command_dependencies_load` instead of installing anything.
+- Resolve interpreters and packages through `tools.local.command.dependencies.load` instead of installing anything.

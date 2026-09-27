@@ -23,12 +23,12 @@
     {
       "kind": "tool",
       "id": "tools.local.skills.read",
-      "modelName": "tools_local_skills_read"
+      "modelName": "tools.local.skills.read"
     },
     {
       "kind": "tool",
       "id": "tools.local.skills.install",
-      "modelName": "tools_local_skills_install"
+      "modelName": "tools.local.skills.install"
     }
   ],
   "dependencies": [],

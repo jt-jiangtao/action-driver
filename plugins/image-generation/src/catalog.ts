@@ -5,7 +5,7 @@ export const definition: ToolDefinition = {
   id: 'tools.local.image-generation.generate',
         presentation: presentations['tools.local.image-generation.generate'],
   version: 1,
-  modelName: 'tools_local_image_generation_generate',
+  modelName: 'tools.local.image-generation.generate',
   description:
     'Generate one to sixteen images from independent text prompts, with up to four requests running at once. Each image may complete separately.',
   inputSchema: {

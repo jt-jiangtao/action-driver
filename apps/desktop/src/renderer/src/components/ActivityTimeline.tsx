@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import type { TaskProjection } from '@actiondriver/contracts'
@@ -62,7 +61,7 @@ export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTa
   // the tool group and the images.
   const imageInFlight = (task.tools ?? []).some(
     (tool) =>
-      canonicalToolId(tool.toolId) === 'tools.local.image-generation.generate' &&
+      tool.toolId === 'tools.local.image-generation.generate' &&
       ['proposed', 'queued', 'running', 'waiting_approval'].includes(tool.status)
   )
   const showThinking =

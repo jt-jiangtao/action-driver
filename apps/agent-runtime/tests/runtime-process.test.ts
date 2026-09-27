@@ -349,7 +349,7 @@ describe('Agent Runtime process entry', () => {
     ])
     expect(() => registry.resolveModelName('sandbox_fs_read')).toThrow('TOOL_UNAVAILABLE')
     expect(() => registry.resolveModelName('sandbox_fs_list')).toThrow('TOOL_UNAVAILABLE')
-    const shell = registry.resolveModelName('tools_local_command_shell_run').definition
+    const shell = registry.resolveModelName('tools.local.command.shell.run').definition
     expect(
       policy.decide(
         shell,

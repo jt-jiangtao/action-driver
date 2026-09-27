@@ -28,8 +28,8 @@ describe('Computer Use entry', () => {
   it('offers the model only the Codex js and js_reset tools', async () => {
     const computer = await entry()
     expect(computer.tools.map((tool) => [tool.definition.id, tool.definition.modelName])).toEqual([
-      ['tools.local.computer-use.js', 'tools_local_computer_use_js'],
-      ['tools.local.computer-use.reset', 'tools_local_computer_use_reset']
+      ['tools.local.computer-use.js', 'tools.local.computer-use.js'],
+      ['tools.local.computer-use.reset', 'tools.local.computer-use.reset']
     ])
     await computer.dispose()
   })
@@ -37,8 +37,8 @@ describe('Computer Use entry', () => {
   it('states the computer-use Skill prerequisite in the js tool description', async () => {
     const computer = await entry()
     const description =
-      computer.tools.find((tool) => tool.definition.modelName === 'tools_local_computer_use_js')?.definition.description ?? ''
-    expect(description).toContain('tools_local_skills_read')
+      computer.tools.find((tool) => tool.definition.modelName === 'tools.local.computer-use.js')?.definition.description ?? ''
+    expect(description).toContain('tools.local.skills.read')
     expect(description).toContain('computer-use')
     expect(description).toContain('SKILL_NOT_LOADED')
     expect(description).toContain('@oai/sky')

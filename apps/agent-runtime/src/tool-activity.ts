@@ -1,10 +1,8 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { PersistedToolInvocation } from './ports'
 
 type ToolErrorLike = { code?: unknown }
 
 export function toolActivitySummary(toolId: string, input: unknown): string {
-  toolId = canonicalToolId(toolId)
   if (toolId === 'tools.local.web.open@1') return `读取 ${webOpenHostname(input)}`
   if (toolId === 'tools.local.web.search@1' && isRecord(input) && typeof input.query === 'string') {
     return `搜索 “${truncate(input.query, 120)}”`
@@ -25,7 +23,7 @@ export function toolActivityTitle(
   input: unknown,
   status: PersistedToolInvocation['status']
 ): string {
-  const type = canonicalToolId(toolId).split('@')[0] ?? toolId
+  const type = toolId.split('@')[0] ?? toolId
   const action =
     type === 'tools.local.web.open'
       ? `读取网页 ${webOpenHostname(input)}`
@@ -75,7 +73,6 @@ export function toolActivityTitle(
 }
 
 export function toolActivityResultSummary(toolId: string, output: unknown): string {
-  toolId = canonicalToolId(toolId)
   const result = isRecord(output) && 'result' in output ? output.result : output
   if (toolId === 'tools.local.web.open@1' && isRecord(result) && typeof result.title === 'string') {
     return truncate(result.title, 160)

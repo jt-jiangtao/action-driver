@@ -54,9 +54,9 @@ Skill 内容直接导入包内文件，例如 `import content from '../skills/pd
 
 内置工具统一 `tools.<target>.<plugin>.<operation>`。target 为 local 或 cloud，表示执行上下文和资源归属；本地工具调用远程图片/搜索 API 仍属于 local。插件 ID 使用小写 kebab-case，操作使用点号分层，版本独立存储。
 
-公共 SDK 的 `createToolIdentity('local', 'command', 'node.run')` 返回 id `tools.local.command.node.run`、modelName `tools_local_command_node_run` 和位置无关 capabilityId `command.node.run`。构造 ToolDefinition 时选择 id/modelName 字段；capabilityId 是身份元数据，不属于工具 schema。宿主选择实际绑定，声明 cloud 名称不产生云端执行器或授权。
+公共 SDK 的 `createToolIdentity('local', 'command', 'node.run')` 返回 id `tools.local.command.node.run`、modelName `tools.local.command.node.run` 和位置无关 capabilityId `command.node.run`。构造 ToolDefinition 时选择 id/modelName 字段；capabilityId 是身份元数据，不属于工具 schema。宿主选择实际绑定，声明 cloud 名称不产生云端执行器或授权。
 
-当前模型发现只提供新名称。registry/policy 兼容原十二项内置 ID/模型名称/版本化 grants，只映射 local，不改写历史数据、不猜测第三方名称、不回退 cloud 到 local。旧别名占用与新定义发生冲突时拒绝注册，停用后一并撤销。CUA 上游文档及内部 js/js_reset 保留，项目 Skill 导读说明新的模型入口。
+公开目录只提供点分隔名称，不注册未发布旧 ID、模型名或 grants 的兼容别名，也不回退 cloud 到 local。CUA 上游文档及内部 js/js_reset 保留，项目 Skill 导读说明公开点分隔入口。
 
 依赖路径工具归入 `tools.local.command.dependencies.load`，随 command 生命周期注册；路径与执行环境仍由原宿主安全端口提供。脚手架默认生成 `tools.local.<plugin>.echo`。
 
@@ -82,3 +82,5 @@ export const presentations: Record<string, ToolPresentation> = {
 字段必须包含有意义的 `label`、`path` 与 `kind`。类型为 `text`、`code`、`link` 或 `image`；代码可用 `language` 指明语言，布尔状态可用 `hideFalse: true` 隐藏没有发生的状态。缺失或空值自动跳过，零和 false 默认保留。链接只支持无凭据 HTTP(S)，图片只接受已校验的 `ImageAssetRef`，不能使用任意文件路径或 URL。投影有字段数量和文本长度预算，对象不会转换为 JSON；旧插件没有声明仍可执行，详情仅显示有效摘要。展示声明不改变模型参数 schema、权限或执行结果。
 
 工具详情的 `placement: 'footer'` 仅用于输出侧文本状态字段（例如退出码）；代码、链接和图片保持正文展示。`layout: 'terminal'` 合并代码与文本输出，仍保留富链接和图片。任务组及工具正文均使用 640px 上限，溢出方向显示渐变。
+
+公开工具 ID 和 modelName 保留点号；只有模型协议适配器发送请求时使用兼容名称，回传调用还原公开名称。协议名称冲突或超过长度限制会在发送前拒绝，插件无需进行名称转换。

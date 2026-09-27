@@ -4,7 +4,7 @@ import content from '../skills/imagegen/SKILL.md?raw'
 export const skill: SkillContribution = { ...{
   "id": "imagegen",
   "name": "imagegen",
-  "description": "Use when the user asks ActionDriver to generate raster images, illustrations, photos, mockups, or visual variants from text. Shape precise prompts and call the available tools_local_image_generation_generate tool. This Skill does not enable a model or grant tool access by itself.",
+  "description": "Use when the user asks ActionDriver to generate raster images, illustrations, photos, mockups, or visual variants from text. Shape precise prompts and call the available tools.local.image-generation.generate tool. This Skill does not enable a model or grant tool access by itself.",
   "resources": [
     "skills/imagegen/LICENSE.txt",
     "skills/imagegen/SKILL.md",

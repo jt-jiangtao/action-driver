@@ -43,8 +43,8 @@ describe('independent contribution catalog', () => {
 })
 
 it('preserves remote error text without repeated prefixes so fixed guidance survives transport', () => {
-  const error = PluginError.fromDTO({ code: 'TOOL_EXECUTION_FAILED', message: 'SKILL_NOT_LOADED: read the computer-use Skill with tools_local_skills_read' })
-  expect(error.message).toBe('SKILL_NOT_LOADED: read the computer-use Skill with tools_local_skills_read')
+  const error = PluginError.fromDTO({ code: 'TOOL_EXECUTION_FAILED', message: 'SKILL_NOT_LOADED: read the computer-use Skill with tools.local.skills.read' })
+  expect(error.message).toBe('SKILL_NOT_LOADED: read the computer-use Skill with tools.local.skills.read')
   expect(error.code).toBe('TOOL_EXECUTION_FAILED')
 })
 
@@ -54,13 +54,13 @@ it('preserves existing underscore tool identities while keeping package identiti
 })
 
 it('constructs public target-qualified identities and rejects ambiguous targets', async () => {
-  const { createToolIdentity, canonicalToolId, canonicalModelName } = await import('./index')
-  expect(createToolIdentity('cloud', 'command', 'node.run')).toEqual({ id: 'tools.cloud.command.node.run', modelName: 'tools_cloud_command_node_run', capabilityId: 'command.node.run' })
-  expect(createToolIdentity('local', 'image-generation', 'generate').modelName).toBe('tools_local_image_generation_generate')
+  const { createToolIdentity } = await import('./index')
+  expect(createToolIdentity('cloud', 'command', 'node.run')).toEqual({ id: 'tools.cloud.command.node.run', modelName: 'tools.cloud.command.node.run', capabilityId: 'command.node.run' })
+  expect(createToolIdentity('local', 'image-generation', 'generate').modelName).toBe('tools.local.image-generation.generate')
   expect(() => createToolIdentity('remote' as 'local', 'command', 'node.run')).toThrow()
   expect(() => createToolIdentity('local', 'ambiguous.plugin', 'read')).toThrow()
-  expect(canonicalToolId('web.open@1')).toBe('tools.local.web.open@1')
-  expect(canonicalToolId('tools.cloud.web.open@1')).toBe('tools.cloud.web.open@1')
-  expect(canonicalToolId('external.read@7')).toBe('external.read@7')
-  expect(canonicalModelName('js')).toBe('tools_local_computer_use_js')
+})
+
+it('accepts dotted public contribution names', () => {
+  expect(validateManifest({ ...manifest(), contributions: [{ kind: 'tool', id: 'tools.local.fixture.read', modelName: 'tools.local.fixture.read' }] }, host).contributions[0]?.modelName).toBe('tools.local.fixture.read')
 })

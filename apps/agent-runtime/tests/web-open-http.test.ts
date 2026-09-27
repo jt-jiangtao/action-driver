@@ -23,7 +23,7 @@ function page(
   }
 }
 
-describe('tools_local_web_open bounded public HTTP', () => {
+describe('tools.local.web.open bounded public HTTP', () => {
   it('uses the pinned address in a real Node HTTP connection', async () => {
     const server = createServer((_request, response) => {
       response.setHeader('content-type', 'text/html')

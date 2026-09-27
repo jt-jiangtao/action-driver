@@ -6,7 +6,7 @@
  * fixed literal that cannot embed runtime data.
  */
 export const COMPUTER_USE_GUIDANCE_ERRORS = {
-  skillNotLoaded: 'SKILL_NOT_LOADED: read the computer-use Skill with tools_local_skills_read',
+  skillNotLoaded: 'SKILL_NOT_LOADED: read the computer-use Skill with tools.local.skills.read',
   engineNotReady: 'ENGINE_UNAVAILABLE: Computer Use is not ready',
   inventoryInvalid: 'ENGINE_UNAVAILABLE: invalid application inventory',
   stateInvalid: 'ENGINE_UNAVAILABLE: invalid application state',

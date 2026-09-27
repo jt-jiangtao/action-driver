@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { extractPageText } from '../src/web-open/extract'
 
-describe('tools_local_web_open text extraction', () => {
+describe('tools.local.web.open text extraction', () => {
   it('extracts an article title and Chinese body text', () => {
     const html = `<html><head><title>站点标题</title></head><body>
       <nav>导航入口</nav><article><h1>文章标题</h1><p>${'这是一段公开网页正文。'.repeat(60)}</p></article>

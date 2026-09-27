@@ -25,7 +25,7 @@ import { createWorkspaceDependenciesTool } from '../src/execution/workspace-depe
 const readDefinition: ToolDefinition = {
   id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'tools_local_command_shell_run',
+  modelName: 'tools.local.command.shell.run',
   description: 'Read one workspace file',
   inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
   risk: 'low',
@@ -72,14 +72,14 @@ describe('ToolInvocationService', () => {
     const dist = await mkdtemp(join(tmpdir(), 'actiondriver-dependency-tool-'))
     const tool = createWorkspaceDependenciesTool(dist)
     expect(tool.definition).toMatchObject({
-      modelName: 'tools_local_command_dependencies_load',
+      modelName: 'tools.local.command.dependencies.load',
       risk: 'low',
       sideEffects: { filesystem: 'read', network: false }
     })
     const registry = new RuntimeToolRegistry()
     registry.register(tool.definition, tool.executor)
-    expect(JSON.stringify(registry.list())).toContain('tools_local_command_dependencies_load')
-    const call = { ...readCall(), modelName: 'tools_local_command_dependencies_load', arguments: {} }
+    expect(JSON.stringify(registry.list())).toContain('tools.local.command.dependencies.load')
+    const call = { ...readCall(), modelName: 'tools.local.command.dependencies.load', arguments: {} }
     const missing = createFixture(tool.definition, tool.executor)
     const failed = await collect(
       missing.service.execute(call, context([`${tool.definition.id}@1`]))
@@ -121,7 +121,7 @@ describe('ToolInvocationService', () => {
     const definition: ToolDefinition = {
       ...readDefinition,
       id: 'tools.local.image-generation.generate',
-      modelName: 'tools_local_image_generation_generate',
+      modelName: 'tools.local.image-generation.generate',
       inputSchema: {
         type: 'object',
         properties: {
@@ -146,7 +146,7 @@ describe('ToolInvocationService', () => {
       fixture.service.execute(
         {
           ...readCall(),
-          modelName: 'tools_local_image_generation_generate',
+          modelName: 'tools.local.image-generation.generate',
           arguments: {
             images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` }))
           }
@@ -497,7 +497,7 @@ function readCall(): ToolCall {
   return {
     callId: 'call-1',
     providerCallId: 'provider-1',
-    modelName: 'tools_local_command_shell_run',
+    modelName: 'tools.local.command.shell.run',
     arguments: { path: 'README.md' }
   }
 }
@@ -552,13 +552,13 @@ it('persists a crashed plugin side effect as unknown even after cancellation, wi
   expect(executions).toBe(1)
 })
 
-it('normalizes old local model names before executing and persists the new identity', async () => {
+it('executes and persists the dotted public name unchanged', async () => {
   const execute = vi.fn(async function* (call: ToolCall) {
-    expect(call.modelName).toBe('tools_local_command_shell_run')
-    yield { kind: 'result' as const, output: { oldCallSucceeded: true } }
+    expect(call.modelName).toBe('tools.local.command.shell.run')
+    yield { kind: 'result' as const, output: { callSucceeded: true } }
   })
   const fixture = createFixture(readDefinition, { execute })
-  const events = await collect(fixture.service.execute({ ...readCall(), modelName: 'shell_run' }, context(['local.shell.run@1'])))
+  const events = await collect(fixture.service.execute({ ...readCall(), modelName: 'tools.local.command.shell.run' }, context(['tools.local.command.shell.run@1'])))
   expect(events.at(-1)).toMatchObject({ type: 'tool.completed' })
   expect(execute).toHaveBeenCalledOnce()
   expect(fixture.commits.at(-1)?.invocation.toolId).toBe('tools.local.command.shell.run')

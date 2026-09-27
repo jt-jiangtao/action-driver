@@ -11,7 +11,7 @@ const executor: ToolExecutor = {
 const readTool: ToolDefinition = {
   id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'tools_local_command_shell_run',
+  modelName: 'tools.local.command.shell.run',
   description: 'Read a workspace file',
   inputSchema: {
     type: 'object',
@@ -29,7 +29,7 @@ describe('RuntimeToolRegistry', () => {
     const registry = new RuntimeToolRegistry()
     registry.register(readTool, executor)
 
-    expect(registry.resolveModelName('tools_local_command_shell_run')).toEqual({ definition: readTool, executor })
+    expect(registry.resolveModelName('tools.local.command.shell.run')).toEqual({ definition: readTool, executor })
     expect(registry.resolve('tools.local.command.shell.run', 1)).toEqual({ definition: readTool, executor })
   })
 
@@ -48,7 +48,7 @@ describe('RuntimeToolRegistry', () => {
 
   it.each([
     { ...readTool, version: 0 },
-    { ...readTool, modelName: 'contains.dot' },
+    { ...readTool, modelName: 'contains space' },
     { ...readTool, inputSchema: { type: 'string' } },
     { ...readTool, inputSchema: { type: 'object', default: () => undefined } }
   ])('rejects invalid tool definitions', (invalid) => {

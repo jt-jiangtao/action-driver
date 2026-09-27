@@ -55,7 +55,7 @@ describe('independent script tools', () => {
       // trees must be readable inside the sandbox.
       sandbox: new SessionSandbox({ runtimeRoots: [runtimeDist, bundledRuntime] })
     })
-    const shell = tools.find((tool) => tool.definition.modelName === 'tools_local_command_shell_run')!
+    const shell = tools.find((tool) => tool.definition.modelName === 'tools.local.command.shell.run')!
     const script = 'printf "%s\\n" "${RUNTIME_NODE-unset}"'
     expect(JSON.stringify(await collect(shell, { script }, workspaceRoot))).toContain('unset')
     for (const relative of [
@@ -89,9 +89,9 @@ describe('independent script tools', () => {
       await mkdir(join(link, '..'), { recursive: true })
       await symlink(join(bundled, name, 'bin', binary), link)
     }
-    for (const name of ['tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run']) {
+    for (const name of ['tools.local.command.python.run', 'tools.local.command.node.run', 'tools.local.command.typescript.run']) {
       const tool = tools.find((candidate) => candidate.definition.modelName === name)!
-      const script = name === 'tools_local_command_python_run'
+      const script = name === 'tools.local.command.python.run'
         ? 'import os; print(os.environ["RUNTIME_PYTHON"], os.environ["RUNTIME_NODE"], os.environ["RUNTIME_BIN_DIR"], os.environ["RUNTIME_NODE_MODULES"])'
         : 'console.log(process.env.RUNTIME_PYTHON, process.env.RUNTIME_NODE, process.env.RUNTIME_BIN_DIR, process.env.RUNTIME_NODE_MODULES)'
       const result = JSON.stringify(await collect(tool, { script }, workspaceRoot))
@@ -103,7 +103,7 @@ describe('independent script tools', () => {
   it('runs shell syntax, Python standard library and Node built-ins from bundled paths', async () => {
     const workspaceRoot = await sessionWorkspaceRoot('actiondriver-tools-')
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
-    expect(tools.map((tool) => tool.definition.modelName)).toEqual(['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run'])
+    expect(tools.map((tool) => tool.definition.modelName)).toEqual(['tools.local.command.shell.run', 'tools.local.command.python.run', 'tools.local.command.node.run', 'tools.local.command.typescript.run'])
     expect(tools.map((tool) => tool.definition.timeoutMs)).toEqual([120_000, 120_000, 120_000, 120_000])
     const shell = tools[0]!
     const python = tools[1]!
@@ -138,7 +138,7 @@ describe('independent script tools', () => {
   it('reports unsupported TypeScript syntax without invoking a system compiler', async () => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), 'actiondriver-tools-ts-'))
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
-    const ts = tools.find((tool) => tool.definition.modelName === 'tools_local_command_typescript_run')!
+    const ts = tools.find((tool) => tool.definition.modelName === 'tools.local.command.typescript.run')!
     await expect(collect(ts, { script: 'enum Color { Red }\nconsole.log(Color.Red)' }, workspaceRoot))
       .rejects.toThrow('PROCESS_EXIT_NONZERO')
   })
@@ -148,9 +148,9 @@ describe('independent script tools', () => {
     const physicalRoot = await realpath(join(workspaceRoot, 'sessions', 'session-1'))
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
     for (const tool of tools) {
-      const script = tool.definition.modelName === 'tools_local_command_shell_run'
+      const script = tool.definition.modelName === 'tools.local.command.shell.run'
         ? 'pwd -P'
-        : tool.definition.modelName === 'tools_local_command_python_run'
+        : tool.definition.modelName === 'tools.local.command.python.run'
           ? 'import os; print(os.getcwd())'
           : 'console.log(process.cwd())'
       const output = JSON.stringify(
@@ -165,7 +165,7 @@ describe('independent script tools', () => {
     const call: ToolCall = {
       callId: 'test',
       providerCallId: 'provider-test',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       arguments: { script: 'true' }
     }
     await expect(async () => {

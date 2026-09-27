@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { PluginError } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import {
@@ -219,7 +218,7 @@ export class ToolInvocationService {
       for await (const part of registered.executor.execute(
         { ...call, modelName: definition.modelName },
         controller.signal,
-        executionContext ? { ...executionContext, grants: context.grants.map(canonicalToolId) } : undefined
+        executionContext ? { ...executionContext, grants: context.grants } : undefined
       )) {
         if (controller.signal.aborted) throw controller.signal.reason
         if (part.kind === 'asset') {

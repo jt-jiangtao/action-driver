@@ -22,7 +22,7 @@ describe('Computer Use screenshot graph boundary', () => {
       {
         id: 'tools.local.computer-use.js',
         version: 1,
-        modelName: 'tools_local_computer_use_js',
+        modelName: 'tools.local.computer-use.js',
         description: 'Run JavaScript',
         inputSchema: {
           type: 'object',
@@ -80,7 +80,7 @@ describe('Computer Use screenshot graph boundary', () => {
             calls: [
               {
                 providerCallId: `js-${round}`,
-                modelName: 'tools_local_computer_use_js',
+                modelName: 'tools.local.computer-use.js',
                 arguments: { code: round === 1 ? 'await app.getScreenshot()' : '1' }
               }
             ]

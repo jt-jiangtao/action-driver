@@ -89,8 +89,8 @@ describe('conversation components', () => {
       width: 1, height: 1, byteLength: 20, source: 'generated' as const
     })
     const tools = [
-      { callId: 'a', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: 'A', argumentsHash: '', status: 'running' as const, imageCount: 2 },
-      { callId: 'b', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: 'B', argumentsHash: '', status: 'completed' as const, imageCount: 1 }
+      { callId: 'a', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate', summary: 'A', argumentsHash: '', status: 'running' as const, imageCount: 2 },
+      { callId: 'b', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate', summary: 'B', argumentsHash: '', status: 'completed' as const, imageCount: 1 }
     ]
     const message = { id: 'a', role: 'agent' as const, content: '完成', parts: [
       { kind: 'image-batch' as const, callId: 'a', imageCount: 2 },
@@ -135,7 +135,7 @@ describe('conversation components', () => {
       width: 1, height: 1, byteLength: 20, source: 'generated' as const
     }
     const tools = [{
-      callId: 'call-gallery', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+      callId: 'call-gallery', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate',
       summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 3
     }]
     const readImage = () => new Promise<Blob>(() => {})
@@ -151,7 +151,7 @@ describe('conversation components', () => {
     expect(view.container.querySelectorAll('.image-gallery-slot')[2]).toContainElement(view.container.querySelector('.conversation-image-loading'))
   })
   it('keeps all four slots after partial failure or cancellation', () => {
-    const base = { callId: 'four', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: '生成图片', argumentsHash: '', imageCount: 4 }
+    const base = { callId: 'four', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate', summary: '生成图片', argumentsHash: '', imageCount: 4 }
     const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '四张' }} tools={[{ ...base, status: 'running' }]} />)
     expect(view.container.querySelectorAll('.image-gallery-slot')).toHaveLength(4)
     expect(screen.getAllByRole('status', { name: '正在生成图片' })).toHaveLength(4)
@@ -174,7 +174,7 @@ describe('conversation components', () => {
       const view = render(<AgentResponse message={{ id: 'animated', role: 'agent', content: '', parts: [
         { kind: 'image-batch', callId: 'animated-call', imageCount: 4 }
       ] }} tools={[{
-        callId: 'animated-call', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+        callId: 'animated-call', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate',
         summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
       }]} />)
       expect(animate).toHaveBeenCalledTimes(4)
@@ -185,7 +185,7 @@ describe('conversation components', () => {
         { kind: 'image-batch', callId: 'animated-call', imageCount: 4 },
         { kind: 'image', asset, generation: { callId: 'animated-call', index: 0 } }
       ] }} tools={[{
-        callId: 'animated-call', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+        callId: 'animated-call', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate',
         summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 4
       }]} readImage={() => new Promise<Blob>(() => {})} />)
       expect(cancel).toHaveBeenCalledTimes(1)
@@ -201,7 +201,7 @@ describe('conversation components', () => {
 
   it.each([5, 16])('keeps %i generated image slots in input order through completion and cancellation', (count) => {
     const tool = {
-      callId: `batch-${count}`, toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+      callId: `batch-${count}`, toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate',
       summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: count
     }
     const asset = {
@@ -241,7 +241,7 @@ describe('conversation components', () => {
 
   it('uses one column for a single generated image', () => {
     const view = render(<AgentResponse message={{ id: 'a', role: 'agent', content: '' }} tools={[{
-      callId: 'single', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+      callId: 'single', toolId: 'tools.local.image-generation.generate', modelName: 'tools.local.image-generation.generate',
       summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 1
     }]} />)
     expect(view.container.querySelector('.image-gallery-grid')).toHaveClass('is-single')

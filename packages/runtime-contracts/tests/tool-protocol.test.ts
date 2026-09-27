@@ -4,7 +4,7 @@ import { parseToolCall, parseToolDefinition, parseToolEvent, type ToolDefinition
 const definition: ToolDefinition = {
   id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'tools_local_command_shell_run',
+  modelName: 'tools.local.command.shell.run',
   description: 'Read a UTF-8 file in the workspace',
   inputSchema: {
     type: 'object',
@@ -24,13 +24,13 @@ describe('tool protocol', () => {
       parseToolCall({
         callId: 'call-1',
         providerCallId: 'provider-1',
-        modelName: 'tools_local_command_shell_run',
+        modelName: 'tools.local.command.shell.run',
         arguments: { path: 'README.md' }
       })
     ).toEqual({
       callId: 'call-1',
       providerCallId: 'provider-1',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       arguments: { path: 'README.md' }
     })
   })
@@ -41,7 +41,7 @@ describe('tool protocol', () => {
       parseToolCall({
         callId: 'call-1',
         providerCallId: 'provider-1',
-        modelName: 'tools_local_command_shell_run',
+        modelName: 'tools.local.command.shell.run',
         arguments: { callback: () => undefined }
       })
     ).toThrow()

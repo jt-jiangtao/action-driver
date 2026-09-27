@@ -6,7 +6,7 @@ export function createSearchDefinition(timeoutMs = 10_000): ToolDefinition {
     id: 'tools.local.web.search',
         presentation: presentations['tools.local.web.search'],
     version: 1,
-    modelName: 'tools_local_web_search',
+    modelName: 'tools.local.web.search',
     description: 'Search the public web through a local SearXNG service',
     inputSchema: {
       type: 'object',

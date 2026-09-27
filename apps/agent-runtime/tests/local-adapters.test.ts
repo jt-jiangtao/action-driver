@@ -115,7 +115,7 @@ describe('local runtime adapters', () => {
     const call: ToolCall = {
       callId: 'call-a',
       providerCallId: 'provider-a',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       arguments: { script: 'printf session-a > output/marker.txt' }
     }
     const events: ToolEvent[] = []

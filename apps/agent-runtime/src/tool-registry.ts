@@ -1,4 +1,4 @@
-import { legacyToolAliases, legacyModelAliases, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { type PluginOwner } from '@actiondriver/plugin-contracts'
 import type { Disposable } from '@actiondriver/plugin-sdk'
 import {
   parseToolDefinition,
@@ -34,8 +34,8 @@ export class RuntimeToolRegistry {
       )
     }
 
-    const versionKeys = [parsed.id, ...legacyToolAliases(parsed.id)]
-    const modelNames = [parsed.modelName, ...legacyModelAliases(parsed.modelName)]
+    const versionKeys = [parsed.id]
+    const modelNames = [parsed.modelName]
     for (const alias of versionKeys) {
       const existing = this.byVersion.get(`${alias}@${parsed.version}`)
       if (existing && existing.definition.id !== parsed.id) throw new ToolRegistryError('TOOL_OWNER_CONFLICT', alias)

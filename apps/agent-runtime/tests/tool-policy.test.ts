@@ -6,7 +6,7 @@ import { createSearxngSearchTool } from '../src/searxng/search-tool'
 const readTool: ToolDefinition = {
   id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'tools_local_command_shell_run',
+  modelName: 'tools.local.command.shell.run',
   description: 'Read one workspace file',
   inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
   risk: 'low',

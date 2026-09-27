@@ -290,7 +290,7 @@ describe('StreamTaskProjection', () => {
         sequence,
         callId: 'call-shell',
         toolId: 'sandbox.shell.run',
-        modelName: 'tools_local_command_shell_run',
+        modelName: 'tools.local.command.shell.run',
         summary: '执行命令',
         argumentsHash: '',
         activityId: 'activity:default',
@@ -579,10 +579,10 @@ describe('StreamTaskProjection', () => {
       cursor: 3,
       sequence: 1,
       index: 0,
-      modelName: 'tools_local_command_shell_run'
+      modelName: 'tools.local.command.shell.run'
     })
     expect(projection.snapshot()).toMatchObject({
-      preparingToolName: 'tools_local_command_shell_run'
+      preparingToolName: 'tools.local.command.shell.run'
     })
     projection.apply({
       type: 'tool.proposed',
@@ -593,7 +593,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-1',
       callSequence: 0,
       toolId: 'tools.local.command.shell.run',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       summary: '执行命令',
       argumentsHash: 'hash',
       activityId: null
@@ -919,7 +919,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-research',
       callSequence: 1,
       toolId: 'tools.local.web.search',
-      modelName: 'tools_local_web_search',
+      modelName: 'tools.local.web.search',
       summary: '搜索活动协议',
       argumentsHash: 'sha256:research',
       activityId: 'research',
@@ -1000,7 +1000,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-first',
       callSequence: 1,
       toolId: 'tools.local.command.shell.run',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       summary: '读取 README',
       argumentsHash: '',
       activityId: 'first-tool'
@@ -1046,7 +1046,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-cursor',
       callSequence: 3,
       toolId: 'tools.local.command.shell.run',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       summary: '已读取 README.md',
       argumentsHash: '',
       activityId: 'research',
@@ -1070,7 +1070,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-standalone',
       callSequence: 2,
       toolId: 'tools.local.command.shell.run',
-      modelName: 'tools_local_command_shell_run',
+      modelName: 'tools.local.command.shell.run',
       summary: '访问文件 /',
       argumentsHash: '',
       activityId: null,
@@ -1093,7 +1093,7 @@ describe('StreamTaskProjection', () => {
       callId: 'call-1',
       callSequence: 1,
       toolId: 'tools.local.web.search',
-      modelName: 'tools_local_web_search',
+      modelName: 'tools.local.web.search',
       summary: 'ActionDriver',
       argumentsHash: 'sha256:abc',
       activityId: null,
@@ -1156,7 +1156,7 @@ describe('StreamTaskProjection', () => {
         {
           callId: 'call-images',
           toolId: 'tools.local.image-generation.generate',
-          modelName: 'tools_local_image_generation_generate',
+          modelName: 'tools.local.image-generation.generate',
           summary: '生成图片',
           argumentsHash: '',
           status: 'running',
@@ -1186,7 +1186,7 @@ describe('StreamTaskProjection', () => {
         {
           callId: 'call-snapshot-activity',
           toolId: 'tools.local.command.shell.run',
-          modelName: 'tools_local_command_shell_run',
+          modelName: 'tools.local.command.shell.run',
           summary: '读取 README.md',
           argumentsHash: '',
           status: 'completed',

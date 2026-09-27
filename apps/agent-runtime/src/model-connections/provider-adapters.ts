@@ -168,6 +168,7 @@ export function createOpenAiCompatibleAdapter(
   return {
     discover,
     async *stream({ baseUrl, apiKey, modelId, messages, tools = [], parameters }, signal) {
+      const publicNames = providerToolNames(tools, messages)
       const requestBody = await streamRequestBody(
         modelId,
         messages,
@@ -208,7 +209,7 @@ export function createOpenAiCompatibleAdapter(
         number,
         { providerCallId: string; modelName: string; argumentsText: string }
       >()
-      const knownToolNames = new Set(tools.map((tool) => tool.modelName))
+      const knownToolNames = new Set(publicNames.keys())
       const preparingToolIndexes = new Set<number>()
       try {
         for await (const chunk of stream) {
@@ -239,7 +240,7 @@ export function createOpenAiCompatibleAdapter(
               yield {
                 kind: 'tool-call-preparing',
                 index: toolCall.index,
-                modelName: current.modelName
+                modelName: publicNames.get(current.modelName)!
               }
             }
           }
@@ -259,7 +260,7 @@ export function createOpenAiCompatibleAdapter(
         finishReason === 'tool_calls'
           ? {
               kind: 'tool-calls' as const,
-              calls: parsePendingToolCalls(pendingToolCalls)
+              calls: parsePendingToolCalls(pendingToolCalls, publicNames)
             }
           : { kind: 'final-text' as const, content }
       if (result.kind === 'final-text' && !content.trim()) {
@@ -288,6 +289,7 @@ export function createOpenAiCompatibleAdapter(
       }
     },
     async complete({ baseUrl, apiKey, modelId, messages, parameters }, signal) {
+      providerToolNames([], messages)
       const requestBody = {
         model: modelId,
         messages: await toOpenAiMessages(messages, imageResolver),
@@ -421,6 +423,40 @@ export function createAnthropicAdapter(transport: HttpTransport): ModelProviderA
   }
 }
 
+/** Compatibility names exist only at this provider boundary, never in public catalogs. */
+function protocolToolName(name: string): string {
+  const compatible = name.replace(/[.-]/g, '_')
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(compatible))
+    throw new ModelStreamError(
+      'invalid-request',
+      'Tool name cannot be represented by the model protocol'
+    )
+  return compatible
+}
+
+function providerToolNames(
+  tools: readonly ToolDefinition[],
+  messages: readonly ModelInputMessage[]
+): Map<string, string> {
+  const declared = new Map<string, string>()
+  const involved = new Map<string, string>()
+  const check = (name: string): string => {
+    const compatible = protocolToolName(name)
+    const existing = involved.get(compatible)
+    if (existing && existing !== name)
+      throw new ModelStreamError('invalid-request', 'Tool names conflict in the model protocol')
+    involved.set(compatible, name)
+    return compatible
+  }
+  for (const tool of tools) declared.set(check(tool.modelName), tool.modelName)
+  for (const message of messages) {
+    if ('toolCalls' in message) for (const call of message.toolCalls) check(call.modelName)
+    if (message.role === 'tool') check(message.name)
+  }
+  // History participates in validation, but cannot authorize new model calls.
+  return declared
+}
+
 async function streamRequestBody(
   modelId: string,
   messages: ProviderCompletionInput['messages'],
@@ -441,8 +477,8 @@ async function streamRequestBody(
           tools: tools.map((tool) => ({
             type: 'function',
             function: {
-              name: tool.modelName,
-              description: tool.description,
+              name: protocolToolName(tool.modelName),
+              description: `${tool.description}\nPublic tool ID: ${tool.id}. Use this public ID when displaying tool names to the user.`,
               parameters: tool.inputSchema
             }
           })),
@@ -464,7 +500,10 @@ async function toOpenAiMessages(
           tool_calls: message.toolCalls.map((call) => ({
             id: call.providerCallId,
             type: 'function',
-            function: { name: call.modelName, arguments: JSON.stringify(call.arguments) }
+            function: {
+              name: protocolToolName(call.modelName),
+              arguments: JSON.stringify(call.arguments)
+            }
           }))
         }
       }
@@ -472,7 +511,7 @@ async function toOpenAiMessages(
         return {
           role: 'tool',
           tool_call_id: message.toolCallId,
-          name: message.name,
+          name: protocolToolName(message.name),
           content: message.content
         }
       }
@@ -518,7 +557,8 @@ function redactImageData(value: unknown): unknown {
 }
 
 function parsePendingToolCalls(
-  pending: Map<number, { providerCallId: string; modelName: string; argumentsText: string }>
+  pending: Map<number, { providerCallId: string; modelName: string; argumentsText: string }>,
+  publicNames: ReadonlyMap<string, string>
 ) {
   if (pending.size === 0) {
     throw new ModelStreamError('invalid-response', 'Tool-call finish reason contained no calls')
@@ -538,9 +578,12 @@ function parsePendingToolCalls(
       if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
         throw new ModelStreamError('invalid-response', 'Tool call arguments must be an object')
       }
+      const modelName = publicNames.get(call.modelName)
+      if (!modelName)
+        throw new ModelStreamError('invalid-response', 'Provider returned an undeclared tool name')
       return {
         providerCallId: call.providerCallId,
-        modelName: call.modelName,
+        modelName,
         arguments: parsed as Record<string, unknown>
       }
     })

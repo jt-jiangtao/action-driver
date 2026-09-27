@@ -163,7 +163,7 @@ describe('trusted session execution context', () => {
 const definition: ToolDefinition = {
   id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'tools_local_command_shell_run',
+  modelName: 'tools.local.command.shell.run',
   description: 'Run a script',
   inputSchema: { type: 'object', properties: { script: { type: 'string' } } },
   risk: 'high',
@@ -175,7 +175,7 @@ function readCall(): ToolCall {
   return {
     callId: 'call-1',
     providerCallId: 'provider-1',
-    modelName: 'tools_local_command_shell_run',
+    modelName: 'tools.local.command.shell.run',
     arguments: { script: 'true' }
   }
 }

@@ -4,7 +4,7 @@ import { instructions, skillContent } from './instructions.js'
 const { description, disabledBrowser, computer, output, reset, codeDescription } = instructions
 /** Project-level prerequisite the vendored Codex instructions do not carry. */
 const skillPrerequisite =
-  'Prerequisite: before the first `tools_local_computer_use_js` call in a conversation, read the `computer-use` Skill with `tools_local_skills_read` (`skillId: "computer-use"`). Calls that skip it fail with `SKILL_NOT_LOADED`.'
+  'Prerequisite: before the first `tools.local.computer-use.js` call in a conversation, read the `computer-use` Skill with `tools.local.skills.read` (`skillId: "computer-use"`). Calls that skip it fail with `SKILL_NOT_LOADED`.'
 
 /** Keeps the model on the host-provided entry instead of importing the vendored package itself. */
 const entryPointNote =
@@ -16,7 +16,7 @@ export const catalog: PluginCatalog = { tools: [
         id: 'tools.local.computer-use.js',
         presentation: presentations['tools.local.computer-use.js'],
         version: 1,
-        modelName: 'tools_local_computer_use_js',
+        modelName: 'tools.local.computer-use.js',
         description: [
           description,
           skillPrerequisite,
@@ -48,8 +48,8 @@ export const catalog: PluginCatalog = { tools: [
         id: 'tools.local.computer-use.reset',
         presentation: presentations['tools.local.computer-use.reset'],
         version: 1,
-        modelName: 'tools_local_computer_use_reset',
-        description: reset.replaceAll('cua_repl.js', 'tools_local_computer_use_js'),
+        modelName: 'tools.local.computer-use.reset',
+        description: reset.replaceAll('cua_repl.js', 'tools.local.computer-use.js'),
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         risk: 'low',
         sideEffects: { filesystem: 'none', network: false },

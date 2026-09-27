@@ -15,7 +15,7 @@ const asset = (index: number) => ({
 const call = (prompts: string[]): ToolCall => ({
   callId: 'tool:task-1:0:0',
   providerCallId: 'provider-1',
-  modelName: 'tools_local_image_generation_generate',
+  modelName: 'tools.local.image-generation.generate',
   arguments: { images: prompts.map((prompt) => ({ prompt })) }
 })
 const deferred = <T>() => {
@@ -29,7 +29,7 @@ const deferred = <T>() => {
 }
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-describe('tools_local_image_generation_generate', () => {
+describe('tools.local.image-generation.generate', () => {
   it('stores three Token Plan images from a four-image batch without leaking provider URLs', async () => {
     const temporaryUrl = 'https://temporary-provider.example/private-image.png'
     const png = Buffer.from(

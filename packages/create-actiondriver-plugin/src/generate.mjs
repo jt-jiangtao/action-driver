@@ -13,7 +13,7 @@ export async function generatePlugin({ id, directory, sdkVersion = '^1.0.0' }) {
   await mkdir(parent, { recursive: true })
   const staging = await mkdtemp(join(parent, `.${basename(target)}-`))
   const toolId = `tools.local.${id}.echo`
-  const modelName = `tools_local_${id.replace(/[.-]/g, '_')}_echo`
+  const modelName = toolId
   const skill = `---\nname: ${id}-hello\ndescription: Use the ${id} echo tool when the user wants a message echoed.\n---\n\nCall ${modelName} with a message. This instruction does not grant tool authorization.\n`
   const files = {
     'package.json': JSON.stringify({ name: id, version: '0.1.0', type: 'module', exports: { '.': './dist/extension.js', './catalog': './dist/catalog.js', './presentation': './dist/presentation.js' }, files: ['dist', 'plugin.json', 'skills'], scripts: { build: 'tsc -p tsconfig.json && esbuild src/extension.ts src/catalog.ts src/presentation.ts --outdir=dist --loader:.md=text --bundle --platform=node --format=esm', test: 'npm run build && node --test tests/lifecycle.test.mjs', prepack: 'npm run build' }, dependencies: { '@actiondriver/plugin-sdk': sdkVersion }, devDependencies: { typescript: '5.9.3', esbuild: '0.28.2' } }, null, 2) + '\n',

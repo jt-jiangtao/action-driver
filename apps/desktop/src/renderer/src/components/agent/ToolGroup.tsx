@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { ReactNode } from 'react'
 import { memo, useRef, useState } from 'react'
 import {
@@ -147,7 +146,6 @@ export const ToolRow = memo(function ToolRow({
 }) {
   const [expanded, setExpanded] = useState(false)
   if (!tool) return null
-  tool = { ...tool, toolId: canonicalToolId(tool.toolId) }
   const details = toolDetails(tool)
   const hasDetails =
     details.input.length > 0 ||

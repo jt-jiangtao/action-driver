@@ -58,7 +58,7 @@ it('loads all instruction packages through real hosts and withdraws a stopped pa
     expect((await store.listSkills()).map(skill => [skill.id, skill.source])).toEqual(expect.arrayContaining(ids.filter(id => id !== 'computer-use').map(id => [id, 'plugin'])))
     expect(await readdir(join(home, '.action-driver/skills/.system'))).toEqual([])
     const events = []
-    for await (const event of registry.resolve('tools.local.skills.read', 1).executor.execute({ callId: 'read', providerCallId: 'p', modelName: 'tools_local_skills_read', arguments: { skillId: 'pdf' } }, new AbortController().signal, { taskId: 'task', sessionId: 'session', workspace: { root, input: root, output: root }, grants: ['tools.local.skills.read@1'] })) events.push(event)
+    for await (const event of registry.resolve('tools.local.skills.read', 1).executor.execute({ callId: 'read', providerCallId: 'p', modelName: 'tools.local.skills.read', arguments: { skillId: 'pdf' } }, new AbortController().signal, { taskId: 'task', sessionId: 'session', workspace: { root, input: root, output: root }, grants: ['tools.local.skills.read@1'] })) events.push(event)
     expect(events).toEqual([{ kind: 'result', output: expect.objectContaining({ skillId: 'pdf', content: expect.any(String) }) }])
     await platform.disable('pdf')
     expect((await store.listSkills()).find(skill => skill.id === 'pdf')).toBeUndefined()
@@ -68,7 +68,7 @@ it('loads all instruction packages through real hosts and withdraws a stopped pa
     expect(registry.list().find(tool => tool.id === 'tools.local.skills.read')).toBeUndefined()
   } finally { await platform.dispose(); await rm(home, { recursive: true, force: true }) }
 }, 20000)
-it('normalizes legacy dependency calls and grants through the command host and withdraws both identities on disable', async () => {
+it('routes dotted dependency calls and grants through the command host and withdraws them on disable', async () => {
   const { mkdtemp, rm } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
   const { createRuntimePluginPlatform } = await import('../src/plugins/composition')
@@ -78,7 +78,7 @@ it('normalizes legacy dependency calls and grants through the command host and w
   const id = 'tools.local.command.dependencies.load'
   const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/dist/plugin-host.mjs'), packageRoots: [resolve('apps/agent-runtime/dist/plugins/command')], dataRoot: home, registry, configuration: {}, now: Date.now, ids: () => String(Math.random()),
     hostCapabilities: { 'host.command.execute': { plugins: ['command'], grants: [`${id}@1`], async *stream(input, authority) {
-      expect(input).toMatchObject({ toolId: id, call: { modelName: 'tools_local_command_dependencies_load' } })
+      expect(input).toMatchObject({ toolId: id, call: { modelName: 'tools.local.command.dependencies.load' } })
       expect(authority.grants).toEqual([`${id}@1`])
       yield { kind: 'result', output: { node: '/bundled/node' } }
     } } }
@@ -88,10 +88,10 @@ it('normalizes legacy dependency calls and grants through the command host and w
     expect(registry.resolve(id, 1).owner?.pluginId).toBe('command')
     expect(registry.list()).toHaveLength(5)
     const events = []
-    for await (const event of registry.resolveModelName('load_workspace_dependencies').executor.execute({ callId: 'legacy', providerCallId: 'p', modelName: 'load_workspace_dependencies', arguments: {} }, new AbortController().signal, { taskId: 't', sessionId: 's', workspace: { root: home, input: home, output: home }, grants: ['workspace.dependencies.load@1'] })) events.push(event)
+    for await (const event of registry.resolveModelName('tools.local.command.dependencies.load').executor.execute({ callId: 'legacy', providerCallId: 'p', modelName: 'tools.local.command.dependencies.load', arguments: {} }, new AbortController().signal, { taskId: 't', sessionId: 's', workspace: { root: home, input: home, output: home }, grants: ['tools.local.command.dependencies.load@1'] })) events.push(event)
     expect(events).toEqual([{ kind: 'result', output: { node: '/bundled/node' } }])
     await platform.disable('command')
     expect(() => registry.resolve(id, 1)).toThrow('TOOL_UNAVAILABLE')
-    expect(() => registry.resolveModelName('load_workspace_dependencies')).toThrow('TOOL_UNAVAILABLE')
+    expect(() => registry.resolveModelName('tools.local.command.dependencies.load')).toThrow('TOOL_UNAVAILABLE')
   } finally { await platform.dispose(); await rm(home, { recursive: true, force: true }) }
 }, 10000)

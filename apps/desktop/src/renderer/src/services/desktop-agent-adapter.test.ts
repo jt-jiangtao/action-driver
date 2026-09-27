@@ -100,7 +100,7 @@ describe('DesktopAgentAdapter', () => {
       streamResponseId: 'response-1',
       streamCursor: 5,
       streamSequence: 2,
-      preparingToolName: 'tools_local_command_shell_run'
+      preparingToolName: 'tools.local.command.shell.run'
     }
     await adapter.restoreTaskStream(restored)
     await adapter.restoreTaskStream(restored)
@@ -112,7 +112,7 @@ describe('DesktopAgentAdapter', () => {
       cursor: 5,
       sequence: 2
     })
-    expect(adapter.getTask('task-1')?.preparingToolName).toBe('tools_local_command_shell_run')
+    expect(adapter.getTask('task-1')?.preparingToolName).toBe('tools.local.command.shell.run')
     emitStream({
       type: 'response.end',
       protocol: 'actiondriver.stream.v2',

@@ -15,12 +15,12 @@
     {
       "kind": "tool",
       "id": "tools.local.computer-use.js",
-      "modelName": "tools_local_computer_use_js"
+      "modelName": "tools.local.computer-use.js"
     },
     {
       "kind": "tool",
       "id": "tools.local.computer-use.reset",
-      "modelName": "tools_local_computer_use_reset"
+      "modelName": "tools.local.computer-use.reset"
     },
     {
       "kind": "skill",

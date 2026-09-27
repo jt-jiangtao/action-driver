@@ -387,7 +387,7 @@ describe('RendererStreamClient', () => {
             callId: 'call-order',
             callSequence: 3,
             toolId: 'tools.local.command.shell.run',
-            modelName: 'tools_local_command_shell_run',
+            modelName: 'tools.local.command.shell.run',
             summary: '读取文件',
             argumentsHash: '',
             activityId: 'activity-order',

@@ -7,7 +7,7 @@ function call(url: string) {
   return {
     callId: 'call-web-open',
     providerCallId: 'provider-web-open',
-    modelName: 'tools_local_web_open',
+    modelName: 'tools.local.web.open',
     arguments: { url }
   }
 }
@@ -18,7 +18,7 @@ async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
   return events
 }
 
-describe('tools_local_web_open tool', () => {
+describe('tools.local.web.open tool', () => {
   it('registers a separate network tool and grants it by default', () => {
     const runtime = { registry: new RuntimeToolRegistry(), grants: [] as string[] }
     registerWebOpenTool(runtime)
@@ -26,7 +26,7 @@ describe('tools_local_web_open tool', () => {
       {
         id: 'tools.local.web.open',
         version: 1,
-        modelName: 'tools_local_web_open',
+        modelName: 'tools.local.web.open',
         sideEffects: { filesystem: 'none', network: true }
       }
     ])

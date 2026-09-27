@@ -5,7 +5,7 @@ Read before creating or editing a local PPTX. Do not modify this skill's files w
 
 ## Runtime and paths
 
-Call `tools_local_command_dependencies_load`. Use its Node.js executable, Node.js packages, override binaries and Python executable as `RUNTIME_NODE`, `RUNTIME_NODE_MODULES`, `RUNTIME_BIN_DIR` and `RUNTIME_PYTHON`. Do not install substitutes or modify the bundled dependencies.
+Call `tools.local.command.dependencies.load`. Use its Node.js executable, Node.js packages, override binaries and Python executable as `RUNTIME_NODE`, `RUNTIME_NODE_MODULES`, `RUNTIME_BIN_DIR` and `RUNTIME_PYTHON`. Do not install substitutes or modify the bundled dependencies.
 
 Set `SKILL_DIR` to this skill's absolute directory, `workspaceDir` to the task directory, `TMP_DIR` to a private build subdirectory, and `FINAL_PPTX` to a new file in a separate output subdirectory. Create both directories before export. For bare imports in authored `.mjs` files, link `node_modules` inside the build directory to `RUNTIME_NODE_MODULES`. Run modules with `RUNTIME_NODE`; plain `.mjs` files cannot contain TypeScript annotations or JSX syntax.
 

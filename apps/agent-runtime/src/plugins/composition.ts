@@ -1,4 +1,4 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
+import { PLUGIN_SDK_VERSION } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
@@ -36,7 +36,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
     if (!value) throw new PluginError('UNAVAILABLE', key(owner))
     return value
   }
-  const host = { sdk: '1.0.0', platform: `${process.platform}-${process.arch}` }
+  const host = { sdk: PLUGIN_SDK_VERSION, platform: `${process.platform}-${process.arch}` }
   const persisted = new FilesystemPluginRepository(options.dataRoot, () => { throw new Error('Read-only repository') }, options.ids)
   const suppliedIds = new Set(await Promise.all(options.packageRoots.map(async root => (JSON.parse(await readFile(join(root, 'plugin.json'), 'utf8')) as PluginManifest).id)))
   const persistedRoots = (await persisted.list()).filter(manifest => !suppliedIds.has(manifest.id) && !options.retiredPluginIds?.includes(manifest.id)).map(manifest => persisted.packageRoot(validateManifest(manifest, host)))
@@ -127,7 +127,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
               const completed = manager.invoke(definition.id, { call: { ...call, modelName: definition.modelName }, ...(executionContext ? { executionContext } : {}) } as unknown as Json, {
                 callId: call.callId, requestId: options.ids(), deadline: options.now() + definition.timeoutMs,
                 source: { kind: 'runtime' }, chain: [],
-                ...(executionContext ? { taskId: executionContext.taskId, sessionId: executionContext.sessionId, workspaceHandle: executionContext.sessionId, ...(executionContext.grants ? { grants: executionContext.grants.map(canonicalToolId) } : {}) } : {})
+                ...(executionContext ? { taskId: executionContext.taskId, sessionId: executionContext.sessionId, workspaceHandle: executionContext.sessionId, ...(executionContext.grants ? { grants: executionContext.grants } : {}) } : {})
               }, signal ?? new AbortController().signal, event => progress.push(event)).then(() => progress.end(), error => progress.fail(error instanceof Error ? error : new Error(String(error))))
               try { for await (const event of progress) yield event as ToolExecutorEvent } finally { await completed }
             }

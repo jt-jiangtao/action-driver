@@ -5,8 +5,8 @@ const authority: InvocationContext = { requestId: 'r', callId: 'c', taskId: 'per
 it('resolves command workspace from runtime facts and enforces the exact tool grant', async () => {
   const execute = vi.fn(async function* (_call, _signal, context) { yield { kind: 'result' as const, output: context.workspace.root } })
   const resolve = vi.fn(async () => ({ taskId: 'persisted', sessionId: 'session', workspace: { root: '/owned', input: '/owned/input', output: '/owned/output' } }))
-  const port = createCommandExecutionPort([{ definition: { id: 'tools.local.command.shell.run', version: 2, modelName: 'tools_local_command_shell_run' }, executor: { execute } }], { resolve })
-  const input = { toolId: 'tools.local.command.shell.run', call: { callId: 'forged', providerCallId: 'p', modelName: 'tools_local_command_shell_run', arguments: { script: 'echo yes' }, executionContext: { workspace: { root: '/forged' } } } }
+  const port = createCommandExecutionPort([{ definition: { id: 'tools.local.command.shell.run', version: 2, modelName: 'tools.local.command.shell.run' }, executor: { execute } }], { resolve })
+  const input = { toolId: 'tools.local.command.shell.run', call: { callId: 'forged', providerCallId: 'p', modelName: 'tools.local.command.shell.run', arguments: { script: 'echo yes' }, executionContext: { workspace: { root: '/forged' } } } }
   const events = []
   for await (const event of port.stream(input, authority, new AbortController().signal)) events.push(event)
   expect(events).toEqual([{ kind: 'result', output: '/owned' }])

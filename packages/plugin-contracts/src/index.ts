@@ -13,7 +13,7 @@ const entry = z.string().min(1).refine(value => !value.startsWith('/') && !value
 export const contributionSchema = z.object({
   kind: z.enum(['tool', 'command', 'skill', 'capability', 'service', 'panel']),
   id: contributionId,
-  modelName: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional()
+  modelName: z.string().regex(/^[a-zA-Z0-9_.-]+$/).optional()
 }).strict()
 export const manifestSchema = z.object({
   id: identity, version, sdk: range, entry, catalog: entry.optional(),
