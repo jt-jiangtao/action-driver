@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript、Node IPC、Zod、semver、esbuild、Vitest、现有 Electron/MCP 适配层。
 
-**Spec:** openspec/changes/introduce-trusted-plugin-platform/design.md 与 specs/plugin-platform/spec.md、specs/agent-tool-runtime/spec.md。
+**Spec:** openspec/changes/archive/2026-09-27-introduce-trusted-plugin-platform/design.md 与 specs/plugin-platform/spec.md、specs/agent-tool-runtime/spec.md。
 
 ## Global Constraints
 
@@ -89,6 +89,6 @@
 - [x] 执行导入约束、停用/卸载/数据保留与打包验证，记录未验证平台。
 - [x] 准备提交时一次运行 corepack pnpm typecheck、lint、test，按实际 UI/打包影响追加 E2E；只提交本任务文件。
 - [x] Fresh reviewer 审查整体 diff；重要问题定向修复并验证。
-- [ ] 更新 tasks，完成后按 OpenSpec archive；未完成不得归档。
+- [x] 更新 tasks，用户确认同步主规范并归档；归档前逐块核对两份规范。
 
-实施与验证证据见 openspec/changes/introduce-trusted-plugin-platform/validation.md。Verify 勾选表示相应检查已执行；CUA 批准等待的已知基线失败、未验证 x64 和首次全量失败均保留记录，不代表无条件全部通过。RED 历史项未回溯补造记录。
+实施与验证证据见 openspec/changes/archive/2026-09-27-introduce-trusted-plugin-platform/validation.md。Verify 勾选表示相应检查已执行；CUA 批准等待的已知基线失败、未验证 x64 和首次全量失败均保留记录，不代表无条件全部通过。RED 历史项未回溯补造记录。

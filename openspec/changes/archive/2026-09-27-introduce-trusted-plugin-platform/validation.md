@@ -21,3 +21,18 @@
 - `corepack pnpm test:e2e:packaged:macos`：首次旧检查仍要求 system-skills/computer-use，迁移后报 PACKAGED_SYSTEM_SKILL_MISSING。已将检查更新为插件包内 manifest/catalog/extension/Skill/SOURCE，并定向确认旧目录不存在、插件内容完整。arm64 helper 文件与签名在安装包内通过校验；随后仅定向运行 packaged-runtime 场景：临时定向装配首次缺少 pnpm deploy 未保留的 Python 运行时，按正式脚本的独立 ditto staging 补齐后 1/1 通过（8.9s）。覆盖认证、Computer 插件 Skill、Python/Node/Shell、沙箱越界、Office、取消与图片恢复；未重复全量打包验证命令。
 
 这些记录保留首次失败，不把定向重跑描述为全量通过。无 npm registry 发布动作。
+
+## 归档收尾
+
+用户确认同步主规范并归档。plugin-platform 新增规范、agent-tool-runtime 新增插件工具归属规则已逐块比对同步；归档保留前述失败与已知基线限制，不将其改写为全量通过。此次仅文档收尾，未重复运行全量测试。
+
+## 归档文档提交验证
+
+用户再次确认提交归档文档，本次未改运行时代码。
+
+- `corepack pnpm typecheck`：17 workspace projects 通过。
+- `corepack pnpm lint`：通过，146 interaction declarations 校验通过。
+- `corepack pnpm test`：189 文件通过、3 失败、2 跳过；1173 测试通过、4 失败、2 跳过（1179）。失败为 CUA bindings/reset、CUA approval-wait、App remount 恢复以及 SettingsPage testing 状态。
+- 对上述 4 项仅做定向复查：3 通过、1 失败、46 未选中。仅 CUA approval-wait 的 TIMED_OUT 继续失败，其 HEAD 基线复现证据见前文；未改用例或扩大时间预算。未重复全量测试。
+- plugin-platform、agent-tool-runtime 主规范 strict 验证通过；归档 29 项 tasks 全部完成、两份 delta 逐块比对通过；git diff --check 通过。
+- 本次为文档提交，未重复运行时/打包 E2E；对应实施提交的真实 E2E 结果保留于前文。
