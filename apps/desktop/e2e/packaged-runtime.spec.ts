@@ -59,11 +59,41 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
       resourcesPath: process.resourcesPath,
-      defaultApp: process.defaultApp
+      defaultApp: process.defaultApp,
+      executablePath: process.execPath,
+      electron: process.versions.electron,
+      chromium: process.versions.chrome,
+      arch: process.arch
     }))
     expect(runtime.isPackaged, JSON.stringify(runtime)).toBe(true)
+    const provenance = JSON.parse(
+      readFileSync(
+        join(appPath!, 'Contents', 'Resources', 'actiondriver-electron-provenance.json'),
+        'utf8'
+      )
+    )
+    expect(runtime.executablePath).toBe(
+      realpathSync(join(appPath!, 'Contents', 'MacOS', 'ActionDriver'))
+    )
+    expect(runtime.electron).toBe(provenance.version)
+    expect(runtime.chromium).toBe(provenance.chromiumVersion)
+    expect(runtime.arch).toBe(provenance.arch)
+    expect(provenance.repo).toBe('https://github.com/jt-jiangtao/electron.git')
     const page = await application.firstWindow()
     await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    if (provenance.watermark?.developmentDefault) {
+      const screenshotDirectory = join(process.cwd(), 'thridparty/build/verification/watermark')
+      mkdirSync(screenshotDirectory, { recursive: true })
+      const nativeId = await application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].getMediaSourceId()
+      )
+      execFileSync('/usr/sbin/screencapture', [
+        '-x',
+        '-o',
+        `-l${nativeId.split(':')[1]}`,
+        join(screenshotDirectory, 'packaged-actiondriver.png')
+      ])
+    }
     expect(page.url()).toBe('actiondriver://renderer/index.html')
     const result = await page.evaluate(async () => {
       const connection = await window.actionDriverDesktop.runtimeConnection.get()
@@ -98,7 +128,9 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
         )
       )
     )
-    expect(packagedSkills.value).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })]))
+    expect(packagedSkills.value).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })])
+    )
     const root = join(appPath!, 'Contents', 'Resources', 'agent-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
     const env = { ...process.env, HOME: '/nonexistent-actiondriver-home', PATH: '/usr/bin:/bin' }
@@ -164,7 +196,12 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(provider.completions).toHaveLength(4)
     const modelTools = provider.completions[0]?.tools?.map((tool) => tool.function?.name)
     expect(modelTools).toEqual(
-      expect.arrayContaining(['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run'])
+      expect.arrayContaining([
+        'tools_local_command_shell_run',
+        'tools_local_command_python_run',
+        'tools_local_command_node_run',
+        'tools_local_command_typescript_run'
+      ])
     )
     const messages = JSON.stringify(provider.completions.at(-1)?.messages)
     expect(messages).toContain(root)

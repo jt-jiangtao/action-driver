@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -81,6 +82,7 @@ async function launch(
   writeFileSync(join(workspace, 'README.md'), '# E2E workspace\n\nneedle is present.\n')
   if (mode === 'shell-timeout') execFileSync('mkfifo', [join(workspace, 'BLOCKING_FIFO')])
   application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {
@@ -517,7 +519,9 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
   )
   await expect.poll(() => provider!.completions.length).toBe(2)
   const [first, second] = provider!.completions
-  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('tools_local_command_shell_run')
+  expect(first?.tools?.map((tool) => tool.function?.name)).toContain(
+    'tools_local_command_shell_run'
+  )
   expect(first?.tool_choice).toBe('auto')
   expect(second?.messages).toContainEqual(
     expect.objectContaining({
@@ -768,7 +772,10 @@ test('registers a generated deliverable as a task output card after reload', asy
     })
   })
   expect(hovered).toBe(
-    JSON.stringify({ boxShadow: JSON.parse(resting).boxShadow, borderColor: JSON.parse(resting).borderColor })
+    JSON.stringify({
+      boxShadow: JSON.parse(resting).boxShadow,
+      borderColor: JSON.parse(resting).borderColor
+    })
   )
   if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
     await page.locator('.task-output-files').screenshot({

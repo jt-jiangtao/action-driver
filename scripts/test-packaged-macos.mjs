@@ -1,7 +1,7 @@
-import { existsSync, mkdtempSync, renameSync, rmSync, statSync } from 'node:fs'
+import { resolveElectronFork } from './lib/electron-fork.mjs'
+import { existsSync, mkdtempSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
-import { createRequire } from 'node:module'
+import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 if (process.platform !== 'darwin') throw new Error('macOS packaged smoke requires macOS')
@@ -40,21 +40,36 @@ try {
     runtimeDeployment
   ])
 
-  const require = createRequire(import.meta.url)
-  const electronExecutable = require('electron')
-  const electronApp = dirname(dirname(dirname(electronExecutable)))
+  const artifact = await resolveElectronFork()
+  const electronApp = artifact.appPath
   if (!existsSync(join(electronApp, 'Contents', 'Info.plist'))) {
     throw new Error('Electron macOS application bundle was not found')
   }
   run('ditto', [electronApp, app])
+  writeFileSync(
+    join(app, 'Contents', 'Resources', 'actiondriver-electron-provenance.json'),
+    `${JSON.stringify(artifact.provenance, null, 2)}\n`
+  )
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
-  const computerHelperSource = join(root, 'plugins', 'computer-use', 'native',
-    'dist', process.arch, 'ActionDriver Computer Use.app')
+  const computerHelperSource = join(
+    root,
+    'plugins',
+    'computer-use',
+    'native',
+    'dist',
+    process.arch,
+    'ActionDriver Computer Use.app'
+  )
   const computerHelperBundle = join(app, 'Contents', 'Helpers', 'ActionDriver Computer Use.app')
   run('ditto', [computerHelperSource, computerHelperBundle])
-  const computerHelper = join(computerHelperBundle, 'Contents', 'MacOS', 'actiondriver-computer-use')
+  const computerHelper = join(
+    computerHelperBundle,
+    'Contents',
+    'MacOS',
+    'actiondriver-computer-use'
+  )
   if (!(statSync(computerHelper).mode & 0o111)) {
     throw new Error('PACKAGED_COMPUTER_HELPER_NOT_EXECUTABLE')
   }
@@ -77,7 +92,10 @@ try {
   const jsProbe = spawnSync(
     join(runtimeDist, 'runtimes', `darwin-${process.arch}`, 'node', 'bin', 'node'),
     ['--experimental-vm-modules', '--no-warnings', jsEntry],
-    { input: `${JSON.stringify({ id: 1, code: 'nodeRepl.write(String(1 + 1))' })}\n`, encoding: 'utf8' }
+    {
+      input: `${JSON.stringify({ id: 1, code: 'nodeRepl.write(String(1 + 1))' })}\n`,
+      encoding: 'utf8'
+    }
   )
   if (jsProbe.status !== 0 || !jsProbe.stdout.includes('"text":"2"')) {
     throw new Error(`PACKAGED_JS_ENTRY_FAILED: ${jsProbe.stdout}${jsProbe.stderr}`)
@@ -101,13 +119,29 @@ try {
       throw new Error(`PACKAGED_DEPENDENCY_MISSING: ${relativePath}`)
     }
   }
-  for (const relativePath of ['plugin.json', 'dist/extension.js', 'dist/catalog.js', 'skills/computer-use/SKILL.md', 'SOURCE.md']) {
-    if (!existsSync(join(runtimeDist, 'plugins', 'computer-use', relativePath))) throw new Error(`PACKAGED_COMPUTER_PLUGIN_MISSING: ${relativePath}`)
+  for (const relativePath of [
+    'plugin.json',
+    'dist/extension.js',
+    'dist/catalog.js',
+    'skills/computer-use/SKILL.md',
+    'SOURCE.md'
+  ]) {
+    if (!existsSync(join(runtimeDist, 'plugins', 'computer-use', relativePath)))
+      throw new Error(`PACKAGED_COMPUTER_PLUGIN_MISSING: ${relativePath}`)
   }
-  const skillOwners = { documents: 'documents', pdf: 'pdf', presentations: 'presentations', spreadsheets: 'spreadsheets', 'skill-creator': 'skills', imagegen: 'image-generation' }
+  const skillOwners = {
+    documents: 'documents',
+    pdf: 'pdf',
+    presentations: 'presentations',
+    spreadsheets: 'spreadsheets',
+    'skill-creator': 'skills',
+    imagegen: 'image-generation'
+  }
   for (const [skill, owner] of Object.entries(skillOwners)) {
-    if (!existsSync(join(runtimeDist, 'plugins', owner, 'skills', skill, 'SKILL.md'))) throw new Error(`PACKAGED_PLUGIN_SKILL_MISSING: ${skill}`)
-    if (existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md'))) throw new Error(`PACKAGED_DUPLICATE_SKILL: ${skill}`)
+    if (!existsSync(join(runtimeDist, 'plugins', owner, 'skills', skill, 'SKILL.md')))
+      throw new Error(`PACKAGED_PLUGIN_SKILL_MISSING: ${skill}`)
+    if (existsSync(join(runtimeDist, 'system-skills', skill, 'SKILL.md')))
+      throw new Error(`PACKAGED_DUPLICATE_SKILL: ${skill}`)
   }
   for (const relativePath of [
     'LICENSE.txt',
@@ -123,7 +157,11 @@ try {
     'scripts/image_gen.py',
     'scripts/remove_chroma_key.py'
   ]) {
-    if (!existsSync(join(runtimeDist, 'plugins', 'image-generation', 'skills', 'imagegen', relativePath))) {
+    if (
+      !existsSync(
+        join(runtimeDist, 'plugins', 'image-generation', 'skills', 'imagegen', relativePath)
+      )
+    ) {
       throw new Error(`PACKAGED_IMAGEGEN_RESOURCE_MISSING: ${relativePath}`)
     }
   }
@@ -138,7 +176,9 @@ try {
     'assets/skill-creator.png',
     'license.txt'
   ]) {
-    if (!existsSync(join(runtimeDist, 'plugins', 'skills', 'skills', 'skill-creator', relativePath))) {
+    if (
+      !existsSync(join(runtimeDist, 'plugins', 'skills', 'skills', 'skill-creator', relativePath))
+    ) {
       throw new Error(`PACKAGED_SKILL_CREATOR_RESOURCE_MISSING: ${relativePath}`)
     }
   }

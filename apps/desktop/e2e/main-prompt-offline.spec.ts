@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import { expect, test, _electron as electron } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,6 +11,7 @@ test('主提示词源码在 Monaco CDN 不可用时仍显示内容', async () =>
   const userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-monaco-e2e-'))
   const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-monaco-home-'))
   const application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {

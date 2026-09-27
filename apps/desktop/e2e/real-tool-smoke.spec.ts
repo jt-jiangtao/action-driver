@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -64,6 +65,7 @@ test('calls a saved real model and observes a real shell file read', async () =>
   let application: ElectronApplication | undefined
   try {
     application = await electron.launch({
+      executablePath: await getElectronForkExecutable(),
       args: ['.', `--user-data-dir=${userDataPath}`],
       cwd: desktopRoot,
       env: {

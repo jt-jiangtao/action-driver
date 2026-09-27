@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -45,6 +46,7 @@ async function launch(): Promise<Page> {
   provider = new FakeOpenAiToolServer('computer-approval')
   await provider.start()
   application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${join(runDirectory, 'data')}`],
     cwd: desktopRoot,
     env: {
@@ -126,8 +128,12 @@ test.fixme('asks for per-application approval and continues after 仅本次', as
   const card = page.getByRole('region', { name: 'Notes 应用授权' })
   await expect(card).toBeVisible({ timeout: 60_000 })
   await expect(page.getByTestId('e2e/tasks/detail/computer/app-approval-once#button')).toBeVisible()
-  await expect(page.getByTestId('e2e/tasks/detail/computer/app-approval-session#button')).toBeVisible()
-  await expect(page.getByTestId('e2e/tasks/detail/computer/app-approval-always#button')).toBeVisible()
+  await expect(
+    page.getByTestId('e2e/tasks/detail/computer/app-approval-session#button')
+  ).toBeVisible()
+  await expect(
+    page.getByTestId('e2e/tasks/detail/computer/app-approval-always#button')
+  ).toBeVisible()
   // The policy query is what produced the card, and the decision must reach the runtime.
   expect(helper?.requests.some((request) => request.operation === 'app-policy')).toBe(true)
 
@@ -136,8 +142,11 @@ test.fixme('asks for per-application approval and continues after 仅本次', as
 
   // With the approval settled the cell reaches the helper for the application state.
   await expect
-    .poll(() => helper?.requests.filter((request) => request.operation === 'app-state').length ?? 0, {
-      timeout: 60_000
-    })
+    .poll(
+      () => helper?.requests.filter((request) => request.operation === 'app-state').length ?? 0,
+      {
+        timeout: 60_000
+      }
+    )
     .toBeGreaterThan(0)
 })

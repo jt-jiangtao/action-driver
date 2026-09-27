@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -52,6 +53,7 @@ async function launch(
     homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
   }
   application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {
@@ -158,8 +160,9 @@ test('opens the native guidance window only when a permission is missing', async
   expect(opened).toBe(!status.accessibility || !status.screenRecording)
   // The guidance window is native and lives in the helper process, so Electron still owns exactly
   // one window; its presence and behaviour are covered by the helper tests and the packaged smoke.
-  expect(await application!.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows().length)).toBe(1)
+  expect(
+    await application!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+  ).toBe(1)
 })
 
 test('persists the selected Token Plan image API and default model in settings', async () => {

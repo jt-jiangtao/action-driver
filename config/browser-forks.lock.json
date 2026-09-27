@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "platform": "darwin",
+  "arch": "arm64",
+  "sources": {
+    "playwright": {
+      "path": "thridparty/playwright",
+      "repo": "https://github.com/jt-jiangtao/playwright.git",
+      "commit": "10591bdc1e05692ba829287bf300f81abb2d9001",
+      "version": "1.63.0"
+    },
+    "electron": {
+      "path": "thridparty/electron",
+      "repo": "https://github.com/jt-jiangtao/electron.git",
+      "commit": "593df43ccabaf6ae642534c249cce0423ccb21c2",
+      "version": "38.8.6"
+    }
+  },
+  "chromium": {
+    "repo": "https://github.com/chromium/chromium.git",
+    "commit": "51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2",
+    "version": "140.0.7339.249"
+  },
+  "tools": {
+    "node": {
+      "version": "22.23.3",
+      "url": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-arm64.tar.gz",
+      "sha256": "23b25245dcfb9af7262f8ff142e9e2e0af025368117329e7a7458a51e5922f53"
+    },
+    "depotTools": {
+      "repo": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+      "commit": "41c9bd890277c2f551499d171d215dfdf5dab97d"
+    },
+    "pnpm": "12.4.1",
+    "yarn": "4.12.0",
+    "nodeGyp": "11.5.0"
+  },
+  "system": {
+    "sdkVersion": "26.5",
+    "metalRequired": true
+  },
+  "build": {
+    "jobs": 8,
+    "fileLimit": 65536,
+    "output": "out/ActionDriver"
+  }
+}

@@ -19,8 +19,10 @@ apps/agent-runtime/.runtime-cache/
 # Swift build output from running swift at the repository root
 /.build/
 
-# Independent browser Fork sources, toolchains, and build artifacts
-/thridparty/
+# Track only the two Fork submodules; keep dependencies and artifacts local.
+/thridparty/*
+!/thridparty/playwright/
+!/thridparty/electron/
 
 # Native sources and platform artifacts belong to the Computer Use plugin
 plugins/computer-use/native/.build/
