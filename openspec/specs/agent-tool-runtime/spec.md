@@ -157,15 +157,15 @@
 - **THEN** 只有本轮已授权工具可执行，Skill 文本本身不授予任何权限
 
 ### Requirement: 网络搜索调用遵守当前工具执行策略
-系统 MUST 将 Web Search 视为网络副作用工具，且只允许本轮已授予、配置了本地 SearXNG 服务并通过参数校验的调用。按 `remove-interactive-tool-approval` 已裁决的策略，合法调用 SHALL 无需逐次人工批准而直接执行；取消与超时仍沿用工具生命周期和模型续跑行为。
+系统 MUST 将 Web Search 视为网络副作用工具，且只允许本轮已授予、配置了 Tavily 凭据并通过参数校验的调用。按 `remove-interactive-tool-approval` 已裁决的策略，合法调用 SHALL 无需逐次人工批准而直接执行；取消与超时仍沿用工具生命周期和模型续跑行为。
 
 #### Scenario: 已启用搜索自动运行
-- **WHEN** 模型请求已启用的 Web Search 且参数有效
-- **THEN** Runtime 直接执行该次调用，并将规范化搜索结果作为带原 provider tool call id 的工具结果交回模型
+- **WHEN** 模型请求已配置且获本轮授权的 Tavily Web Search 且参数有效
+- **THEN** Runtime 直接执行该次调用，并将规范化搜索结果作为带原 provider tool call id 的工具结果交回模型，不产生 waiting_approval
 
 #### Scenario: 未授予或参数无效
 - **WHEN** 模型请求未授予的 Web Search 或参数不符合输入 Schema
-- **THEN** Runtime 不发起网络请求，并把结构化错误交回模型
+- **THEN** 调用在执行器运行前失败，不获取密钥或请求 Tavily，并把结构化错误交回模型
 
 ### Requirement: 为活动界面投影安全的工具摘要
 系统 MUST 为每个工具调用的实时事件和恢复快照提供稳定 call id、工具标识、生命周期状态、受限参数摘要、调用顺序与终态耗时；终态调用还 MUST 提供可安全展示的受限结果或错误摘要。该投影 MUST NOT 包含原始执行输出、凭据、认证头、Cookie 或 transport 元数据。

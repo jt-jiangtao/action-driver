@@ -34,3 +34,9 @@
 - 本次提交前 pnpm typecheck 通过；pnpm lint 29 错误全部来自前次遗漏的冒烟嵌套 bundle，已移除，改动测试定向 ESLint 通过；没有重复全量 lint。
 - pnpm test 一次：1285 通过、14 失败、2 跳过；web 升级回归通过。失败为既有 Runtime shutdown（6）、日志关闭（4）、Computer Use（4），未声明全量通过。
 - 本次只改包版本和缓存场景测试，不重复前次本地 E2E；真实安装与跨进程调用已验证版本升级效果。
+
+## 用户要求提交归档（2026-09-28）
+
+用户明确要求提交归档。14 项任务完成，三份增量规范逐项合并且核对：agent-tool-runtime、public-web-page-reading、searxng-web-search；修改两份既有 Purpose 以反映供应商迁移，保持原能力路径。全部主规范校验 23 通过，三份受影响规范 strict 校验通过。
+
+本次归档提交前一次执行：pnpm typecheck 通过；pnpm lint 通过；pnpm test 为 1286 通过、13 失败、2 跳过（205 文件）。失败仍为 Runtime shutdown 6、日志关闭 4、Computer Use 3，与前述未解决项一致。归档保留此记录，不表示全量通过。仅规范同步与归档移动，无新的运行时/UI/打包行为变更，不重复本地或打包 E2E。
