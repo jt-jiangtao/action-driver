@@ -40,3 +40,30 @@ Chromium 自有行为改动 MUST 受 ACTION_DRIVER 平台宏控制；Playwright 
 #### Scenario: 零行为差异基线
 - **WHEN** 本期没有自有行为扩展
 - **THEN** 清单如实记录零行为差异，不以新增示例接口满足验收
+
+### Requirement: 主仓库可递归拉取锁定 Fork 源码
+主仓库 MUST 使用 Git submodule 记录自有 Playwright 与 Electron 的来源和确切提交，分别使用直属 `thridparty/playwright/` 与 `thridparty/electron/` 路径。源码提交 MUST 在对应 Fork 远端可获取；工具、Chromium 依赖及构建产物 MUST NOT 作为这两个源码 submodule 的主仓库内容提交。
+
+#### Scenario: 新检出获取源码
+- **WHEN** 用户对主仓库执行递归 clone
+- **THEN** 两个 Fork 在约定路径初始化，origin 指向对应自有仓库，HEAD 与主仓库锁定的 gitlink 提交一致
+
+#### Scenario: 已有检出初始化源码
+- **WHEN** 用户执行 git submodule update --init --recursive
+- **THEN** 两个 Fork 可按主仓库指针初始化，文档说明 .git 可能为指向主仓库模块元数据的文件
+
+#### Scenario: Chromium 依赖独立同步
+- **WHEN** 用户准备 Electron 构建所需 Chromium 和工具链
+- **THEN** 文档提供独立工作区的 gclient 配置和同步步骤，构建使用与直属 Electron 源码相同提交的独立检出，保留已注册 Electron submodule，不将源码递归拉取声明为依赖下载或构建完成
+
+#### Scenario: 保留现有工作区
+- **WHEN** 在当前工作区注册两个 submodule
+- **THEN** 主仓库索引包含两条 mode 160000 的源码记录，现有 Fork 分支、未提交文件和构建产物保持可用
+
+#### Scenario: 直属子仓库识别
+- **WHEN** 在两个源码 submodule 中查询所属主仓库
+- **THEN** 均返回 ActionDriver 主仓库路径，不受 Chromium 中间 Git 仓库影响
+
+#### Scenario: 构建源码一致
+- **WHEN** 使用 thridparty/build/electron-workspace 准备构建
+- **THEN** 独立 Electron 检出与直属源码的已提交 HEAD 一致；存在冲突或用户改动时明确报告，不静默覆盖
