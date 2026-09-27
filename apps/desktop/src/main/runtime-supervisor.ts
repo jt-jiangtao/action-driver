@@ -42,6 +42,7 @@ export class RuntimeSupervisor {
   private readyPromise: Promise<void> | null = null
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: Error) => void) | null = null
+  private startupFailure: Error | null = null
   private stopPromise: Promise<void> | null = null
   private resolveStop: (() => void) | null = null
   private shutdownTimer: ReturnType<typeof setTimeout> | null = null
@@ -114,6 +115,7 @@ export class RuntimeSupervisor {
 
   private spawn(preservePendingStart = false): Promise<void> {
     this.state = 'starting'
+    this.startupFailure = null
     if (!preservePendingStart || !this.readyPromise) {
       this.readyPromise = new Promise<void>((resolve, reject) => {
         this.resolveReady = resolve
@@ -129,6 +131,14 @@ export class RuntimeSupervisor {
 
   private async handleMessage(process: RuntimeProcess, message: unknown): Promise<void> {
     if (this.currentProcess !== process) return
+    if (
+      typeof message === 'object' && message !== null &&
+      'type' in message && message.type === 'runtime.failed' &&
+      'message' in message && typeof message.message === 'string'
+    ) {
+      this.startupFailure = new Error(message.message)
+      return
+    }
     if (
       typeof message === 'object' &&
       message !== null &&
@@ -171,6 +181,7 @@ export class RuntimeSupervisor {
         if (this.currentProcess !== process) return
       }
       this.state = 'ready'
+      this.startupFailure = null
       this.resolveReady?.()
       this.resolveReady = null
       this.rejectReady = null
@@ -198,13 +209,14 @@ export class RuntimeSupervisor {
     }
     if (this.restartTimestamps.length >= this.maxRestarts) {
       this.state = 'failed'
-      this.rejectReady?.(new Error(`Runtime exited with code ${String(code)}`))
+      this.rejectReady?.(this.startupFailure ?? new Error(`Runtime exited with code ${String(code)}`))
       return
     }
 
     this.state = 'degraded'
     this.restartTimestamps.push(now)
-    void this.spawn(preservePendingStart)
+    // Automatic restarts have no caller awaiting their readiness promise.
+    void this.spawn(preservePendingStart).catch(() => undefined)
   }
 
   private finishStop(): void {

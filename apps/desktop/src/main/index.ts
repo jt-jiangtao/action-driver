@@ -242,6 +242,9 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
   })
+}).catch((error: unknown) => {
+  console.error('ActionDriver startup failed:', error)
+  app.quit()
 })
 
 async function migrateLegacyModelConnections(

@@ -50,6 +50,28 @@ function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {
 }
 
 describe('RuntimeSupervisor', () => {
+  it('preserves the runtime startup failure when the restart budget is exhausted', async () => {
+    const { processes, supervisor } = harness({ maxRestarts: 1 })
+    const starting = supervisor.start()
+    const rejected = expect(starting).rejects.toThrow('Undeclared contribution tools.local.command.shell.run')
+    processes[0]?.emitExit(1)
+    processes[1]?.emitMessage({ type: 'runtime.failed', message: 'Undeclared contribution tools.local.command.shell.run' })
+    processes[1]?.emitExit(1)
+    await rejected
+    expect(supervisor.state).toBe('failed')
+  })
+
+  it('handles an automatic restart failure after the original start has resolved', async () => {
+    const { processes, supervisor } = harness({ maxRestarts: 1 })
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({ type: 'runtime.ready' })
+    await starting
+    processes[0]?.emitExit(1)
+    processes[1]?.emitExit(1)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(supervisor.state).toBe('failed')
+  })
+
   it('enables vm modules for the Runtime process and keeps an existing NODE_OPTIONS', () => {
     expect(
       runtimeProcessEnvironment(
