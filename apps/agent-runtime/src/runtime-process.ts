@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { createLocalRuntimeServer } from './local-runtime-server'
 import { createLocalRuntimeAdapters } from './local-adapters'
 import type { ParentPortLike } from './runtime-parent-port'
@@ -319,7 +320,8 @@ export async function startAgentRuntimeProcess(
     ids: local.adapters.idGenerator,
     now: () => local.adapters.clock.now(),
     listEnabledSkills: () => agentFiles.listEnabledSkillDescriptions(),
-    rawToolIO: { enabled: true }
+    rawToolIO: { enabled: true },
+    toolPresentation: toolId => pluginPlatform.catalogs().flatMap(({ catalog }) => catalog.tools).find(tool => canonicalToolId(tool.id) === canonicalToolId(toolId))?.presentation
   })
   const server = createLocalRuntimeServer({
     ...(appApprovals ? { appApprovals } : {}),

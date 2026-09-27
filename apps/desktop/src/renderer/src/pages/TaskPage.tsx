@@ -191,7 +191,7 @@ export function TaskPage({
                 messages={processMessages}
                 readImage={readImage}
               />
-              <ActivityTimeline task={task} />
+              <ActivityTimeline task={task} readImage={readImage} />
               {(task.pendingAppApproval ?? []).map((request) => (
                 <AppApprovalCard key={request.requestId} request={request} onDecision={onAppDecision} />
               ))}
@@ -296,7 +296,7 @@ const PriorTurn = memo(function PriorTurn({
   return (
     <Fragment>
       <ConversationMessages messages={userMessages} readImage={readImage} />
-      {activityTask ? <ActivityTimeline task={activityTask} /> : null}
+      {activityTask ? <ActivityTimeline task={activityTask} readImage={readImage} /> : null}
       <ConversationMessages
         messages={visibleReplies}
         tools={activity?.tools ?? NO_TOOLS}

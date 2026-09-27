@@ -591,8 +591,8 @@
   display: grid;
   gap: 2px;
   padding: 2px 0 1px;
-  max-height: min(420px, 50vh);
-  overflow-y: auto;
+  max-height: 640px;
+  overflow: auto;
   /* Reaching the end keeps scrolling the conversation instead of trapping the wheel. */
   overscroll-behavior: auto;
 }
@@ -665,18 +665,13 @@
   line-height: 1.4;
 }
 .activity-tool-code {
-  max-height: 480px;
+  max-height: 640px;
   overflow: hidden;
   border-radius: 8px;
   background: #f8f8fa;
-  /* Terminal block: always fade the cut-off code at both ends. */
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 14px,
-    #000 calc(100% - 22px),
-    transparent 100%
-  );
+}
+.activity-tool-code.is-natural {
+  max-height: none;
 }
 .activity-tool-code .monaco-editor,
 .activity-tool-code .monaco-editor-background,
@@ -684,53 +679,67 @@
   background: transparent !important;
 }
 .activity-tool-io pre {
-  max-height: 480px;
   margin: 0;
-  overflow: auto;
-  padding: 12px 9px;
+  padding: 10px;
   color: #62676d;
-  font:
-    13px/20px ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
+  font: 13px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.activity-tool-code {
-  max-height: 480px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #f8f8fa;
-  /* Terminal block: always fade the cut-off code at both ends. */
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 14px,
-    #000 calc(100% - 22px),
-    transparent 100%
-  );
-}
-.activity-tool-code .monaco-editor,
-.activity-tool-code .monaco-editor-background,
-.activity-tool-code .monaco-editor .margin {
-  background: transparent !important;
-}
-.activity-tool-io pre {
-  --io-fade-top: 0px;
-  --io-fade-bottom: 0px;
+.activity-tool-details {
+  padding: 10px;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
   overscroll-behavior: auto;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 var(--io-fade-top),
-    #000 calc(100% - var(--io-fade-bottom)),
-    transparent 100%
-  );
 }
-.activity-tool-io pre.is-long {
-  --io-fade-top: 12px;
-  --io-fade-bottom: 18px;
+.tool-details-section + .tool-details-section {
+  margin-top: 16px;
+}
+.tool-details-section h4 {
+  margin: 0 0 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #30343a;
+}
+.tool-details-section dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.tool-details-field {
+  min-width: 0;
+}
+.tool-details-field dt {
+  margin-bottom: 4px;
+  color: #777c83;
+  font-size: 12px;
+}
+.tool-details-field dd {
+  min-width: 0;
+  margin: 0;
+}
+.tool-details-section p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #555b63;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.tool-details-field a {
+  color: #526786;
+  font-size: 13px;
+}
+.tool-details-field.is-image img {
+  max-width: 100%;
+  height: auto;
+}
+.tool-details-section.is-error p {
+  color: #ad493f;
+}
+.tool-details-truncated {
+  margin: 12px 0 0;
+  color: #777c83;
+  font-size: 12px;
 }
 .activity-web-page {
   display: grid;
@@ -748,9 +757,7 @@
   overflow-wrap: anywhere;
 }
 .activity-web-page p {
-  max-height: 240px;
   margin: 0;
-  overflow: auto;
   color: #555b63;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1409,3 +1416,35 @@ button.task-output-file-thumb {
   font-size: 12px;
   line-height: 16px;
 }
+
+/* Combine both axes so horizontal overflow never replaces the vertical fade. */
+.activity-items[data-fade],
+.activity-tool-details[data-fade] {
+  mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+.activity-items[data-fade~='left'],
+.activity-tool-details[data-fade~='left'] { --fade-left: 26px; }
+.activity-items[data-fade~='right'],
+.activity-tool-details[data-fade~='right'] { --fade-right: 26px; }
+.tool-details-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 4px 10px 0;
+  color: #777c83;
+  font-size: 12px;
+}
+
+.tool-details-error { min-width: 0; color: #ad493f; overflow-wrap: anywhere; white-space: pre-wrap; }
+.tool-details-exit { display: flex; justify-content: flex-end; gap: 10px; white-space: nowrap; }
+.command-preview { color: #858a91; }
+.activity-tool.is-command .activity-tool-label { display: flex; align-items: center; gap: 4px; }
+.activity-tool.is-command .activity-tool-label > span:not(.command-preview) { flex: 0 0 auto; }
+.activity-tool.is-command .command-preview { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-tool-details,
+.activity-items { box-sizing: border-box; }

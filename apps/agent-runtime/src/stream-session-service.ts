@@ -1,4 +1,9 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
+import {
+  projectToolDetails,
+  toolPresentationSchema,
+  type ToolPresentation,
+  canonicalToolId
+} from '@actiondriver/plugin-contracts'
 import {
   STREAM_PROTOCOL,
   parseStreamServerEvent,
@@ -70,6 +75,7 @@ export class StreamSessionService {
       ids: IdGenerator
       now(): string
       rawToolIO?: { enabled: boolean; maxBytes?: number }
+      toolPresentation?: (toolId: string) => ToolPresentation | undefined
       appApprovals?: Pick<AppApprovalBroker, 'getPending' | 'cancelTask'>
       /**
        * Host cleanup for a finished turn (Computer Use: cancel pending app approvals, release app
@@ -517,7 +523,8 @@ export class StreamSessionService {
                 imageCount?: unknown
               }
               if (
-                typeof payload.toolId === 'string' && canonicalToolId(payload.toolId) === 'tools.local.image-generation.generate' &&
+                typeof payload.toolId === 'string' &&
+                canonicalToolId(payload.toolId) === 'tools.local.image-generation.generate' &&
                 typeof payload.callId === 'string' &&
                 typeof payload.imageCount === 'number' &&
                 Number.isInteger(payload.imageCount) &&
@@ -888,6 +895,24 @@ export class StreamSessionService {
         const activityId = activity.toolActivityIds[invocation.id] ?? null
         const rawToolIO = this.options.rawToolIO?.enabled === true
         const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
+        const metadata = [...events]
+          .reverse()
+          .find(
+            (event) =>
+              (event.payload as { callId?: string }).callId === invocation.id &&
+              Object.hasOwn(event.payload as object, 'presentation')
+          )?.payload as { presentation?: unknown } | undefined
+        const presentation = metadata
+          ? toolPresentationSchema.safeParse(metadata.presentation).data
+          : this.options.toolPresentation?.(canonicalToolId(invocation.toolId))
+        const assets = events
+          .filter(
+            (event) =>
+              event.type === 'tool.asset' &&
+              (event.payload as { callId?: string }).callId === invocation.id
+          )
+          .map((event) => (event.payload as { asset?: unknown }).asset)
+        const output = withAssets(invocation.output, assets)
         const rawInput = rawToolIO ? boundedJson(invocation.input, maxRawBytes) : null
         const rawOutput = rawToolIO ? boundedJson(invocation.output, maxRawBytes) : null
         return {
@@ -904,6 +929,14 @@ export class StreamSessionService {
             : {}),
           status: invocation.status,
           activityId,
+          ...(rawToolIO
+            ? {
+                details: projectToolDetails(presentation, invocation.input, output, {
+                  maxBytes: maxRawBytes
+                }),
+                ...(presentation ? { presentation } : {})
+              }
+            : {}),
           ...(rawInput ? { rawInput: rawInput.value } : {}),
           ...(rawOutput ? { rawOutput: rawOutput.value } : {}),
           ...(rawInput?.truncated || rawOutput?.truncated ? { rawOutputTruncated: true } : {})
@@ -1111,6 +1144,7 @@ export class StreamSessionService {
         argumentsHash: string
         activityId?: string | null
         input?: unknown
+        presentation?: unknown
         stream?: string
         delta?: string
         output?: unknown
@@ -1123,11 +1157,18 @@ export class StreamSessionService {
       }
       const rawToolIO = this.options.rawToolIO?.enabled === true
       const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
+      const presentation = Object.hasOwn(tool, 'presentation')
+        ? toolPresentationSchema.safeParse(tool.presentation).data
+        : this.options.toolPresentation?.(canonicalToolId(tool.toolId))
+      const details = projectToolDetails(
+        presentation,
+        tool.input,
+        record.type === 'tool.asset' ? { assets: [tool.asset] } : tool.output,
+        { maxBytes: maxRawBytes }
+      )
       const rawInput = rawToolIO ? boundedJson(tool.input, maxRawBytes) : null
       const rawOutput =
-        rawToolIO && record.type === 'tool.completed'
-          ? boundedJson(tool.output, maxRawBytes)
-          : null
+        rawToolIO && record.type === 'tool.completed' ? boundedJson(tool.output, maxRawBytes) : null
       return parseStreamServerEvent({
         type: record.type,
         ...identity,
@@ -1145,6 +1186,7 @@ export class StreamSessionService {
         ...(tool.title ? { title: tool.title } : {}),
         argumentsHash: tool.argumentsHash,
         activityId: tool.activityId ?? null,
+        ...(rawToolIO ? { details, ...(presentation ? { presentation } : {}) } : {}),
         ...(rawInput ? { rawInput: rawInput.value, rawOutputTruncated: rawInput.truncated } : {}),
         ...(record.type === 'tool.content'
           ? {
@@ -1257,4 +1299,12 @@ function toStreamError(value: unknown): {
 function attachmentErrorCode(error: unknown): string {
   if (error instanceof Error && 'code' in error && typeof error.code === 'string') return error.code
   return error instanceof Error ? error.name : 'UNKNOWN'
+}
+
+function withAssets(output: unknown, assets: unknown[]): unknown {
+  if (!assets.length) return output
+  return {
+    ...(output && typeof output === 'object' && !Array.isArray(output) ? output : {}),
+    assets
+  }
 }

@@ -1,3 +1,4 @@
+import { toolPresentationSchema } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import type { ImageAssetRef } from '@actiondriver/contracts'
 
@@ -30,7 +31,8 @@ export const toolDefinitionSchema = z
         network: z.boolean()
       })
       .strict(),
-    timeoutMs: z.number().int().positive()
+    timeoutMs: z.number().int().positive(),
+    presentation: toolPresentationSchema.optional()
   })
   .strict()
 

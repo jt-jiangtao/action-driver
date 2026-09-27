@@ -1,3 +1,4 @@
+import { projectToolDetails } from '@actiondriver/plugin-contracts'
 import {
   appendActivityAnchor,
   currentActivityId,
@@ -21,6 +22,7 @@ export class StreamTaskProjection {
   private task: TaskProjection | null = null
   private readonly buffered: StreamServerEvent[] = []
   private readonly seenEventIds = new Set<string>()
+  private readonly toolStreams = new Map<string, Record<string, string>>()
   private readonly toolSequences = new Map<string, number>()
   private activityState: ActivityTimelineState = emptyActivityTimelineState()
   private lastSequence = -1
@@ -36,6 +38,7 @@ export class StreamTaskProjection {
   ) {}
 
   attach(task: TaskProjection): void {
+    this.toolStreams.clear()
     this.task = structuredClone(task)
     this.task.messages = this.task.messages.map((message) =>
       message.role === 'agent' && message.parts
@@ -65,6 +68,7 @@ export class StreamTaskProjection {
       this.lastSequence = event.sequence
       this.lastCursor = event.cursor
       this.toolSequences.clear()
+      this.toolStreams.clear()
       this.activityState = activityStateFromTask(
         {
           ...this.task,
@@ -160,9 +164,83 @@ export class StreamTaskProjection {
       if (toolEvent.callSequence <= (this.toolSequences.get(toolEvent.callId) ?? -1)) return
       this.toolSequences.set(toolEvent.callId, toolEvent.callSequence)
       this.anchorToolGroup(toolEvent.messageId, toolEvent.activityId)
-      if (toolEvent.type !== 'tool.content' && toolEvent.type !== 'tool.asset') {
+      const previous = this.task.tools?.find((tool) => tool.callId === toolEvent.callId)
+      const presentation = toolEvent.presentation ?? previous?.presentation
+      let details = toolEvent.details
+      const retainedImages =
+        previous?.details?.output.filter((field) => field.kind === 'image') ?? []
+      if (toolEvent.type === 'tool.content' && details && presentation) {
+        let streams = this.toolStreams.get(toolEvent.callId)
+        if (!streams) {
+          streams = {}
+          try {
+            const output = JSON.parse(previous?.rawOutput ?? '{}')
+            for (const key of ['stdout', 'stderr', 'result'])
+              if (typeof output[key] === 'string') streams[key] = output[key]
+          } catch {
+            /* bounded legacy JSON may be incomplete */
+          }
+        }
+        streams[toolEvent.stream] = ((streams[toolEvent.stream] ?? '') + toolEvent.delta).slice(
+          0,
+          64 * 1024
+        )
+        this.toolStreams.set(toolEvent.callId, streams)
+        // Server details can already contain the authoritative aggregate after replay or reload.
+        const projected = projectToolDetails(presentation, undefined, streams)
+        if (!details.output.length && !details.truncated)
+          details = {
+            ...details,
+            output: projected.output,
+            ...(projected.truncated ? { truncated: true } : {})
+          }
+      }
+      if (details) {
+        details = {
+          ...details,
+          input: details.input.length ? details.input : (previous?.details?.input ?? []),
+          output: details.output.length ? details.output : (previous?.details?.output ?? [])
+        }
+        const output =
+          toolEvent.type === 'tool.asset'
+            ? [
+                ...(previous?.details?.output ?? []),
+                ...(toolEvent.details?.output ?? []).filter(
+                  (field) =>
+                    !previous?.details?.output.some(
+                      (existing) =>
+                        existing.asset?.assetId === field.asset?.assetId && field.kind === 'image'
+                    )
+                )
+              ]
+            : [...details.output]
+        for (const image of retainedImages)
+          if (!output.some((field) => field.asset?.assetId === image.asset?.assetId)) {
+            if (output.length < 100) output.push(image)
+            else details.truncated = true
+          }
+        details = {
+          ...details,
+          output: output.slice(0, 100),
+          ...(output.length > 100 ? { truncated: true } : {})
+        }
+      }
+      if (toolEvent.type === 'tool.content' || toolEvent.type === 'tool.asset') {
+        if (previous && details) {
+          const next = { ...previous, details, ...(presentation ? { presentation } : {}) }
+          this.task = {
+            ...this.task,
+            tools: (this.task.tools ?? []).map((tool) =>
+              tool.callId === next.callId ? next : tool
+            )
+          }
+          this.scheduleEmit()
+        }
+      } else {
         const status = toolEvent.type.slice('tool.'.length) as ToolInvocationProjection['status']
         const next: ToolInvocationProjection = {
+          ...(details ? { details } : {}),
+          ...(presentation ? { presentation } : {}),
           callId: toolEvent.callId,
           toolId: toolEvent.toolId,
           modelName: toolEvent.modelName,
@@ -482,6 +560,8 @@ function toToolProjection(
   tool: NonNullable<Extract<StreamServerEvent, { type: 'response.snapshot' }>['tools']>[number]
 ): ToolInvocationProjection {
   return {
+    ...(tool.details ? { details: tool.details } : {}),
+    ...(tool.presentation ? { presentation: tool.presentation } : {}),
     callId: tool.callId,
     toolId: tool.toolId,
     modelName: tool.modelName,

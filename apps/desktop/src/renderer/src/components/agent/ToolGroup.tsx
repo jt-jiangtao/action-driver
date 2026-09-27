@@ -1,6 +1,6 @@
 import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { ReactNode } from 'react'
-import { memo, useRef } from 'react'
+import { memo, useRef, useState } from 'react'
 import {
   BookOpen,
   Boxes,
@@ -19,7 +19,14 @@ import {
   SquareTerminal
 } from 'lucide-react'
 import type { ActivityProjection, ToolInvocationProjection } from '@actiondriver/contracts'
-import { codeLanguage, ReadOnlyCode } from '../ReadOnlyCode'
+import {
+  ToolDetails,
+  toolDetails,
+  toolPresentation,
+  commandPreview,
+  TOOL_DETAILS_MAX_HEIGHT
+} from './ToolDetails'
+import type { ImageReader } from './ConversationImage'
 import { useScrollFade } from '../scroll-fade'
 
 /**
@@ -29,10 +36,12 @@ import { useScrollFade } from '../scroll-fade'
  */
 export const ActivityGroup = memo(function ActivityGroup({
   activity,
-  tools
+  tools,
+  readImage
 }: {
   activity: ActivityProjection
   tools: Map<string, ToolInvocationProjection>
+  readImage?: ImageReader | undefined
 }) {
   const visibleToolItems = activity.items.filter(
     (child): child is Extract<typeof child, { kind: 'tool' }> =>
@@ -74,7 +83,7 @@ export const ActivityGroup = memo(function ActivityGroup({
       </summary>
       <ActivityItems>
         {visibleToolItems.map((child) => (
-          <ToolRow key={child.id} tool={tools.get(child.callId)} />
+          <ToolRow key={child.id} tool={tools.get(child.callId)} readImage={readImage} />
         ))}
       </ActivityItems>
     </details>
@@ -85,7 +94,11 @@ export function ActivityItems({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   useScrollFade(ref)
   return (
-    <div ref={ref} className="activity-items">
+    <div
+      ref={ref}
+      className="activity-items"
+      style={{ maxHeight: TOOL_DETAILS_MAX_HEIGHT, overflow: 'auto' }}
+    >
       {children}
     </div>
   )
@@ -125,32 +138,61 @@ function ActivityIcon({
   return <Boxes aria-hidden="true" size={16} />
 }
 
-export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
+export const ToolRow = memo(function ToolRow({
+  tool,
+  readImage
+}: {
+  tool: ToolInvocationProjection | undefined
+  readImage?: ImageReader | undefined
+}) {
+  const [expanded, setExpanded] = useState(false)
   if (!tool) return null
   tool = { ...tool, toolId: canonicalToolId(tool.toolId) }
-  const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
-  const shellTranscript = shellToolTranscript(tool)
-  const computerCell = computerUseCell(tool)
-  const imageSummary = imageToolSummary(tool)
-  const webpage = webOpenResult(tool)
+  const details = toolDetails(tool)
+  const hasDetails =
+    details.input.length > 0 ||
+    details.output.length > 0 ||
+    tool.rawInput !== undefined ||
+    tool.rawOutput !== undefined
+  const terminal = (details.layout ?? toolPresentation(tool)?.layout) === 'terminal'
+  const preview = terminal ? commandPreview(details) : ''
+  const commandTitle =
+    terminal && preview.length > 0 && tool.durationMs !== undefined
+      ? commandStatus(tool, expanded)
+      : null
   const active = tool.status === 'running'
   const row = (
     <>
       <ToolIcon tool={tool} />
       <span className={`activity-tool-label${active ? ' activity-active-title' : ''}`}>
-        {tool.title ? (
-          tool.title
+        {commandTitle ? (
+          <>
+            <span>{commandTitle}</span>
+            {!expanded && preview ? <span className="command-preview"> {preview}</span> : null}
+          </>
+        ) : tool.title ? (
+          <>
+            <span>{tool.title}</span>
+            {terminal && !expanded && preview ? (
+              <span className="command-preview"> {preview}</span>
+            ) : null}
+          </>
         ) : (
           <>
             <span>{toolAction(tool)}</span>
             <span>{tool.summary}</span>
+            {terminal && !expanded && preview ? (
+              <span className="command-preview"> {preview}</span>
+            ) : null}
           </>
         )}
       </span>
-      {hasRawIO ? <ChevronRight aria-hidden="true" className="activity-chevron" size={16} /> : null}
+      {hasDetails ? (
+        <ChevronRight aria-hidden="true" className="activity-chevron" size={16} />
+      ) : null}
     </>
   )
-  if (!hasRawIO) {
+  if (!hasDetails) {
     return (
       <div className={`activity-tool is-${tool.status}`}>
         <div className="activity-tool-line">{row}</div>
@@ -158,270 +200,43 @@ export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationPro
     )
   }
   return (
-    <details className={`activity-tool is-${tool.status}`}>
+    <details
+      className={`activity-tool is-${tool.status}${terminal ? ' is-command' : ''}`}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
       <summary className="activity-tool-line" data-testid="e2e/tasks/detail/activity/raw-io#button">
         {row}
       </summary>
-      <div className={`activity-tool-io${shellTranscript ? ' is-terminal' : ''}`}>
+      <div className="activity-tool-io">
         <div className="activity-tool-io-title">{toolTitle(tool)}</div>
-        {webpage ? (
-          <div className="activity-web-page">
-            <div className="activity-web-page-title">{webpage.title}</div>
-            <a
-              href={webpage.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => {
-                event.preventDefault()
-                void window.actionDriverDesktop.externalLinks.open(webpage.url).catch((error) => {
-                  console.error('[web-open] Failed to open source link:', error)
-                })
-              }}
-              data-testid="e2e/tasks/detail/activity/web-open/source#link"
-            >
-              {webpage.url}
-            </a>
-            <p>{webpage.text}</p>
-            {webpage.truncated ? <div className="activity-tool-status">内容已截断</div> : null}
-          </div>
-        ) : imageSummary ? (
-          <div className="activity-tool-image">
-            {imageSummary.prompts.length > 0 ? (
-              <ul className="activity-tool-image-prompts">
-                {imageSummary.prompts.map((prompt, index) => (
-                  <li key={`${index}:${prompt}`}>{prompt}</li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="activity-tool-image-result">
-              {imageSummary.failed > 0
-                ? `已生成 ${imageSummary.succeeded} 张 · ${imageSummary.failed} 张失败`
-                : `已生成 ${imageSummary.succeeded} 张图片`}
-            </div>
-          </div>
-        ) : shellTranscript ? (
-          <ReadOnlyCode
-            value={shellTranscript.text}
-            language={shellTranscript.language}
-          />
-        ) : computerCell ? (
-          <>
-            <ReadOnlyCode value={computerCell.text} language="javascript" />
-            {computerCell.output ? (
-              <ReadOnlyCode value={computerCell.output} language="plaintext" />
-            ) : null}
-          </>
-        ) : (
-          <>
-            {tool.rawInput !== undefined ? (
-              <ReadOnlyCode
-                value={essentialJson(tool.rawInput)}
-                language={codeLanguage(tool.toolId, 'json')}
-              />
-            ) : null}
-            {tool.rawOutput !== undefined ? (
-              <ReadOnlyCode
-                value={
-                  tool.rawOutputTruncated
-                    ? `${essentialJson(tool.rawOutput)}\n…输出已截断`
-                    : essentialJson(tool.rawOutput)
-                }
-                language={codeLanguage(tool.toolId, 'json')}
-              />
-            ) : null}
-          </>
-        )}
-        {shellTranscript?.exitCode !== null && shellTranscript?.exitCode !== undefined ? (
-          <div className="activity-tool-status">退出码 {shellTranscript.exitCode}</div>
-        ) : null}
-        {tool.errorSummary && !repeatsExitCode(tool.errorSummary, shellTranscript?.exitCode) ? (
-          <div className="activity-tool-status is-error">{tool.errorSummary}</div>
-        ) : null}
+        <ToolDetails
+          details={terminal ? { ...details, layout: 'terminal' } : details}
+          summary={tool.summary}
+          resultSummary={tool.resultSummary}
+          errorSummary={tool.errorSummary}
+          truncated={tool.rawOutputTruncated}
+          readImage={readImage}
+        />
       </div>
     </details>
   )
 })
 
-/** Image generation: show the prompts and the outcome, never the plumbing JSON. */
-function imageToolSummary(
-  tool: ToolInvocationProjection
-): { prompts: string[]; succeeded: number; failed: number } | null {
-  if (canonicalToolId(tool.toolId) !== 'tools.local.image-generation.generate') return null
-  const input = parseObject(tool.rawInput ?? '')
-  const images = Array.isArray(input?.images) ? input.images : []
-  const prompts = images
-    .map((entry) =>
-      entry && typeof entry === 'object' && typeof (entry as { prompt?: unknown }).prompt === 'string'
-        ? (entry as { prompt: string }).prompt.trim()
-        : ''
-    )
-    .filter((prompt) => prompt.length > 0)
-  const output = parseObject(tool.rawOutput ?? '')
-  const result = output?.result
-  const succeeded =
-    result && typeof result === 'object' && typeof (result as { succeeded?: unknown }).succeeded === 'number'
-      ? (result as { succeeded: number }).succeeded
-      : tool.status === 'completed'
-        ? prompts.length
-        : 0
-  const failed =
-    result && typeof result === 'object' && typeof (result as { failed?: unknown }).failed === 'number'
-      ? (result as { failed: number }).failed
-      : 0
-  return { prompts, succeeded, failed }
-}
-
-/** Hide empty transport fields so only meaningful output remains visible. */
-function essentialJson(raw: string): string {
-  const parsed = parseObject(raw)
-  if (!parsed) return raw
-  const essential: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(parsed)) {
-    if (typeof value === 'string' && value.trim() === '') continue
-    if (value === null || value === false) continue
-    essential[key] = value
-  }
-  return Object.keys(essential).length > 0 ? JSON.stringify(essential, null, 2) : '{\n}'
-}
-
-/** Streams and structured fields can repeat the same line; keep each one once. */
-function dedupeTranscriptLines(raw: string): string {
-  const lines = raw.split('\n').map((line) => line.replace(/\s+$/, ''))
-  const seen = new Set<string>()
-  const kept: string[] = []
-  for (const line of lines) {
-    // The exit code is rendered as its own status line below the transcript.
-    if (/^退出码\s+\d+$/.test(line.trim())) continue
-    if (line.trim() && seen.has(line)) continue
-    if (line.trim()) seen.add(line)
-    kept.push(line)
-  }
-  return kept.join('\n').trimEnd()
-}
-
-/** The exit code is already shown above; do not repeat it as an error line. */
-function repeatsExitCode(summary: string, exitCode: number | null | undefined): boolean {
-  if (exitCode === null || exitCode === undefined) return false
-  const text = summary.trim()
-  return (
-    text === `退出码 ${exitCode}` ||
-    /^PROCESS_EXIT_NONZERO/.test(text) ||
-    new RegExp(`(^|\\D)${exitCode}$`).test(text)
-  )
-}
-
-function shellToolTranscript(
-  tool: ToolInvocationProjection
-): { text: string; language: string; exitCode: number | null } | null {
-  if (!/shell|command|python|node\.run|typescript/.test(tool.toolId) || !tool.rawInput) return null
-  const input = parseObject(tool.rawInput)
-  const args = input?.args === undefined ? [] : input.args
-  if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) return null
-  const command =
-    typeof input?.command === 'string'
-      ? input.command
-      : typeof input?.code === 'string'
-        ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${/python/.test(tool.toolId) ? '-c' : '-e'} ${JSON.stringify(input.code)}`
-        : typeof input?.file === 'string'
-          ? `${/python/.test(tool.toolId) ? 'python3' : 'node'} ${JSON.stringify(input.file)}`
-          : null
-  const script = typeof input?.script === 'string' ? input.script : null
-  if (command === null && script === null) return null
-  const escapedArgs = args.map((arg: string) => (/[\s"'\\]/.test(arg) ? JSON.stringify(arg) : arg))
-  // A: mark the input the way a terminal would, so it never reads as output.
-  const invocation =
-    script === null
-      ? `$ ${[command, ...escapedArgs].join(' ')}`
-      : script
-          .split('\n')
-          // Every script line is marked, including blank lines, so the input
-          // stays distinguishable from the output.
-          .map((line) => (line ? `› ${line}` : '›'))
-          .join('\n')
-  const output = tool.rawOutput === undefined ? null : parseObject(tool.rawOutput)
-  const chunks = output
-    ? [output.stdout, output.stderr, output.content].filter(
-        (value): value is string => typeof value === 'string' && value.length > 0
-      )
-    : []
-  const response = dedupeTranscriptLines(
-    chunks.length ? chunks.join('\n').trimEnd() : tool.rawOutput && !output ? tool.rawOutput : ''
-  )
-  const result = output?.result
-  const exitCode =
-    result &&
-    typeof result === 'object' &&
-    'exitCode' in result &&
-    typeof result.exitCode === 'number'
-      ? result.exitCode
-      : null
-  // One blank line separates the marked input from the raw output.
-  const sections = [invocation]
-  if (response) sections.push('', response)
-  if (tool.rawOutputTruncated) sections.push('…输出已截断')
-  return {
-    text: sections.join('\n'),
-    language: codeLanguage(tool.toolId),
-    exitCode
-  }
-}
-
-/**
- * Computer Use cells show the JavaScript the model ran together with the output the cell produced;
- * both are part of the persisted call, so they survive a reload.
- */
-function computerUseCell(
-  tool: ToolInvocationProjection
-): { text: string; output?: string } | null {
-  if (tool.toolId !== 'tools.local.computer-use.js') return null
-  const input = parseObject(tool.rawInput ?? '')
-  if (typeof input?.code !== 'string' || input.code.length === 0) return null
-  return {
-    text: input.code,
-    ...(tool.rawOutput && tool.rawOutput.length > 0 ? { output: tool.rawOutput } : {})
-  }
-}
-
-function parseObject(value: string): Record<string, unknown> | null {
-  try {
-    const parsed: unknown = JSON.parse(value)
-    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null
-  } catch {
-    return null
-  }
-}
-
-function webOpenResult(tool: ToolInvocationProjection): {
-  title: string
-  url: string
-  text: string
-  truncated: boolean
-} | null {
-  if (!tool.toolId.startsWith('tools.local.web.open') || !tool.rawOutput) return null
-  const raw = parseObject(tool.rawOutput)
-  const result = raw?.result
-  if (!result || typeof result !== 'object' || Array.isArray(result)) return null
-  const page = result as Record<string, unknown>
-  if (
-    typeof page.title !== 'string' ||
-    typeof page.url !== 'string' ||
-    typeof page.text !== 'string' ||
-    typeof page.truncated !== 'boolean'
-  )
-    return null
-  try {
-    const url = new URL(page.url)
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null
-  } catch {
-    return null
-  }
-  return { title: page.title, url: page.url, text: page.text, truncated: page.truncated }
+function commandStatus(tool: ToolInvocationProjection, expanded: boolean): string {
+  const milliseconds = Math.max(1, Math.round(tool.durationMs ?? 0))
+  const duration =
+    milliseconds < 1000 ? `${milliseconds}ms` : `${Math.round(milliseconds / 100) / 10}s`
+  if (tool.status === 'completed')
+    return expanded ? `命令已在 ${duration} 内运行完成` : `已在 ${duration} 内运行`
+  if (tool.status === 'failed')
+    return expanded ? `命令在 ${duration} 内运行失败` : `运行失败（${duration}）`
+  if (tool.status === 'cancelled') return expanded ? '命令已取消' : '已取消运行'
+  return expanded ? '命令正在运行' : '正在运行'
 }
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
-  if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(tool.toolId)) return <MousePointer2 aria-hidden="true" size={16} />
+  if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(tool.toolId))
+    return <MousePointer2 aria-hidden="true" size={16} />
   // Codex marks image generation with the imagegen Skill icon.
   if (/image/.test(tool.toolId)) return <ImageIcon aria-hidden="true" size={16} />
   if (/skills?\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />

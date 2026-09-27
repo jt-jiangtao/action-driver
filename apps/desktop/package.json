@@ -33,7 +33,12 @@
     "zustand": "5.0.15",
     "@actiondriver/plugin-contracts": "workspace:*",
     "@actiondriver/plugin-sdk": "workspace:*",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@actiondriver/command-plugin": "workspace:*",
+    "@actiondriver/web-plugin": "workspace:*",
+    "@actiondriver/skills-plugin": "workspace:*",
+    "@actiondriver/image-generation-plugin": "workspace:*",
+    "@actiondriver/computer-use-plugin": "workspace:*"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.2.0",

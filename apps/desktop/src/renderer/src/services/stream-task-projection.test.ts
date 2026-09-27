@@ -53,6 +53,116 @@ function start(): StreamServerEvent {
 }
 
 describe('StreamTaskProjection', () => {
+  it('merges asset-only details with preceding semantic output', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    const input = [{ label: 'Code', kind: 'code' as const, value: 'capture()' }]
+    const output = [{ label: 'Log', kind: 'text' as const, value: 'captured' }]
+    const base = {
+      ...identity,
+      callId: 'call',
+      toolId: 'capture',
+      modelName: 'capture',
+      summary: 'capture',
+      argumentsHash: '',
+      activityId: null
+    }
+    projection.apply({
+      ...base,
+      type: 'tool.running',
+      eventId: 'run',
+      sequence: 0,
+      callSequence: 0,
+      details: { input, output }
+    })
+    const asset = {
+      assetId: 'image',
+      sessionId: 'session-1',
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      byteLength: 1,
+      source: 'generated' as const
+    }
+    const image = { label: 'Image 1', kind: 'image' as const, value: 'image', asset }
+    projection.apply({
+      ...base,
+      type: 'tool.asset',
+      eventId: 'asset',
+      cursor: 3,
+      sequence: 1,
+      callSequence: 1,
+      index: 0,
+      asset,
+      details: { input, output: [image] }
+    })
+    expect(projection.snapshot()?.tools?.[0]?.details).toEqual({
+      input,
+      output: [...output, image]
+    })
+  })
+
+  it('keeps semantic inputs while aggregating streamed output and partial failure details', () => {
+    const projection = new StreamTaskProjection({ onChange: vi.fn() })
+    projection.attach(task())
+    const presentation = {
+      input: [{ label: 'Command', path: 'command', kind: 'code' as const }],
+      output: [{ label: 'Output', path: 'stdout', kind: 'code' as const }]
+    }
+    const base = {
+      ...identity,
+      callId: 'call',
+      toolId: 'shell',
+      modelName: 'shell',
+      summary: 'run',
+      argumentsHash: '',
+      activityId: null,
+      presentation,
+      details: { input: [{ label: 'Command', kind: 'code' as const, value: 'pwd' }], output: [] }
+    }
+    projection.apply({
+      ...base,
+      type: 'tool.running',
+      eventId: 'run',
+      sequence: 0,
+      callSequence: 0
+    })
+    projection.apply({
+      ...base,
+      type: 'tool.content',
+      eventId: 'c1',
+      sequence: 1,
+      cursor: 3,
+      callSequence: 1,
+      stream: 'stdout',
+      delta: 'hello '
+    })
+    projection.apply({
+      ...base,
+      type: 'tool.content',
+      eventId: 'c2',
+      sequence: 2,
+      cursor: 4,
+      callSequence: 2,
+      stream: 'stdout',
+      delta: 'world'
+    })
+    expect(projection.snapshot()?.tools?.[0]?.details).toEqual({
+      input: base.details.input,
+      output: [{ label: 'Output', kind: 'code', value: 'hello world' }]
+    })
+    projection.apply({
+      ...base,
+      type: 'tool.failed',
+      eventId: 'fail',
+      sequence: 3,
+      cursor: 5,
+      callSequence: 3,
+      error: { code: 'FAIL', message: 'failed', retryable: false }
+    })
+    expect(projection.snapshot()?.tools?.[0]?.details?.output[0]?.value).toBe('hello world')
+  })
+
   it('projects application requests and clears cancelled or historical waiters', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())
@@ -471,7 +581,9 @@ describe('StreamTaskProjection', () => {
       index: 0,
       modelName: 'tools_local_command_shell_run'
     })
-    expect(projection.snapshot()).toMatchObject({ preparingToolName: 'tools_local_command_shell_run' })
+    expect(projection.snapshot()).toMatchObject({
+      preparingToolName: 'tools_local_command_shell_run'
+    })
     projection.apply({
       type: 'tool.proposed',
       ...identity,

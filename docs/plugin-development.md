@@ -59,3 +59,26 @@ Skill 内容直接导入包内文件，例如 `import content from '../skills/pd
 当前模型发现只提供新名称。registry/policy 兼容原十二项内置 ID/模型名称/版本化 grants，只映射 local，不改写历史数据、不猜测第三方名称、不回退 cloud 到 local。旧别名占用与新定义发生冲突时拒绝注册，停用后一并撤销。CUA 上游文档及内部 js/js_reset 保留，项目 Skill 导读说明新的模型入口。
 
 依赖路径工具归入 `tools.local.command.dependencies.load`，随 command 生命周期注册；路径与执行环境仍由原宿主安全端口提供。脚手架默认生成 `tools.local.<plugin>.echo`。
+
+## 工具详情字段
+
+`ToolDefinition.presentation` 是公共 SDK 导出的可选 `ToolPresentation`。插件在纯 `src/presentation.ts` 导出按规范工具 ID 索引的 `presentations: Record<string, ToolPresentation>`，catalog 引用同一声明；包通过 `./presentation` 暴露独立入口。此入口只依赖类型，不导入 Skill 内容、执行器或激活逻辑，界面可用于历史调用恢复。
+
+```ts
+import type { ToolPresentation } from '@actiondriver/plugin-sdk'
+
+export const presentations: Record<string, ToolPresentation> = {
+  'tools.local.example.echo': {
+    input: [{ label: '消息', path: 'message', kind: 'text' }],
+    output: [{ label: '回显消息', path: 'result.message', kind: 'text' }]
+  }
+}
+```
+
+`input` 路径相对于工具参数；`output` 路径相对于宿主收集的输出，`stdout`、`stderr`、`content` 分别对应流文本，最终结果位于 `result` 下。路径采用点号，`*` 展开数组成员，例如 `images.*.prompt` 和 `result.results.*.title`；声明叶子字段，不声明整块对象。图片事件由宿主保存为 asset 引用，声明 `assets.*` 展示这些引用。
+
+`presentation.layout` 可声明 `terminal`，由统一详情组件将代码和输出按终端外观排列；未声明时使用普通字段布局。字段可声明 `placement: 'footer'`，例如将退出码置于详情右下角。这些提示不改变字段含义，终端布局可省略可见标签。
+
+字段必须包含有意义的 `label`、`path` 与 `kind`。类型为 `text`、`code`、`link` 或 `image`；代码可用 `language` 指明语言，布尔状态可用 `hideFalse: true` 隐藏没有发生的状态。缺失或空值自动跳过，零和 false 默认保留。链接只支持无凭据 HTTP(S)，图片只接受已校验的 `ImageAssetRef`，不能使用任意文件路径或 URL。投影有字段数量和文本长度预算，对象不会转换为 JSON；旧插件没有声明仍可执行，详情仅显示有效摘要。展示声明不改变模型参数 schema、权限或执行结果。
+
+工具详情的 `placement: 'footer'` 仅用于输出侧文本状态字段（例如退出码）；代码、链接和图片保持正文展示。`layout: 'terminal'` 合并代码与文本输出，仍保留富链接和图片。任务组及工具正文均使用 640px 上限，溢出方向显示渐变。

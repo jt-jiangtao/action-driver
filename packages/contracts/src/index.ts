@@ -1,3 +1,4 @@
+import type { ToolDetails, ToolPresentation } from '@actiondriver/plugin-contracts'
 export type SkillExecutionState =
   | 'queued'
   | 'running'
@@ -215,6 +216,8 @@ export interface ExecutionStepProjection {
 }
 
 export interface ToolInvocationProjection {
+  details?: ToolDetails
+  presentation?: ToolPresentation
   callId: string
   toolId: string
   modelName: string

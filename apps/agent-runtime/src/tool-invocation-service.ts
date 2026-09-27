@@ -119,7 +119,9 @@ export class ToolInvocationService {
           argumentsHash: invocation.argumentsHash,
           activityId: context.activityId ?? null,
           ...(imageCount && imageCount >= 1 && imageCount <= 16 ? { imageCount } : {}),
-          input: safeInput()
+          input: safeInput(),
+          presentation: definition.presentation ?? null,
+          ...(!('output' in storedEvent) && stored.output !== null ? { output: stored.output } : {})
         },
         occurredAt: invocation.updatedAt,
         eventId: `${call.callId}.${event.sequence}`,
@@ -226,6 +228,7 @@ export class ToolInvocationService {
         }
         collector.add(part)
         if (part.kind === 'content') {
+          invocation.output = collector.snapshot()
           yield await persist(event('tool.content', { stream: part.stream, delta: part.delta }))
         }
       }
@@ -250,7 +253,7 @@ export class ToolInvocationService {
       }
       // Whatever the tool printed before failing stays with the failure, so history and the model
       // both keep the diagnostics instead of only the error.
-      if (invocation.output === null) invocation.output = collector.snapshot()
+      if (!(caught instanceof ToolOutputLimitError) && !(caught instanceof ProcessOutputLimitError) && !(caught instanceof ProcessExitError)) invocation.output = collector.snapshot()
       const timedOut =
         controller.signal.aborted &&
         !signal?.aborted &&

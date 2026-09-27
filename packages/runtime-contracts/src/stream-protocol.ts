@@ -1,3 +1,4 @@
+import { toolPresentationSchema, toolDetailsSchema } from '@actiondriver/plugin-contracts'
 import type { ModelRef } from '@actiondriver/contracts'
 import { z } from 'zod'
 
@@ -370,6 +371,8 @@ const responseSnapshotEventSchema = z
             resultSummary: z.string().optional(),
             errorSummary: z.string().optional(),
             activityId: idSchema.nullable().optional(),
+            presentation: toolPresentationSchema.optional(),
+            details: toolDetailsSchema.optional(),
             rawInput: z.string().optional(),
             rawOutput: z.string().optional(),
             rawOutputTruncated: z.boolean().optional()
@@ -492,6 +495,8 @@ const toolStreamBase = {
   argumentsHash: z.string(),
   imageCount: z.number().int().min(1).max(16).optional(),
   activityId: idSchema.nullable(),
+  presentation: toolPresentationSchema.optional(),
+  details: toolDetailsSchema.optional(),
   rawInput: z.string().optional(),
   rawOutputTruncated: z.boolean().optional()
 } as const

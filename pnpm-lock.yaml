@@ -350,9 +350,18 @@ importers:
       '@actiondriver/activity-projection':
         specifier: workspace:*
         version: link:../../packages/activity-projection
+      '@actiondriver/command-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/command
+      '@actiondriver/computer-use-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/computer-use
       '@actiondriver/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@actiondriver/image-generation-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/image-generation
       '@actiondriver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
@@ -368,6 +377,12 @@ importers:
       '@actiondriver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
+      '@actiondriver/skills-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/skills
+      '@actiondriver/web-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/web
       '@monaco-editor/react':
         specifier: 4.7.0
         version: 4.7.0(monaco-editor@0.52.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -433,7 +448,11 @@ importers:
         specifier: workspace:*
         version: link:../runtime-contracts
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      '@actiondriver/plugin-contracts':
+        specifier: workspace:*
+        version: link:../plugin-contracts
 
   packages/create-actiondriver-plugin: {}
 
@@ -510,6 +529,9 @@ importers:
       '@actiondriver/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@actiondriver/plugin-contracts':
+        specifier: workspace:*
+        version: link:../plugin-contracts
       zod:
         specifier: 4.6.5
         version: 4.6.5

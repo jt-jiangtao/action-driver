@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import type { TaskProjection } from '@actiondriver/contracts'
 import { MarkdownContent } from './MarkdownContent'
 import { ActivityGroup, ToolRow } from './agent/ToolGroup'
+import type { ImageReader } from './agent/ConversationImage'
 import { isActivityOwnedText } from './agent/activity-mirror'
 
 /** The task fields the activity area reads; a prior turn passes just these. */
@@ -20,7 +21,7 @@ export type ActivityTimelineTask = Pick<
   | 'preparingToolName'
 >
 
-export function ActivityTimeline({ task }: { task: ActivityTimelineTask }) {
+export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTask; readImage?: ImageReader | undefined }) {
   // Keyed by reference so memoized groups and rows skip renders while text streams elsewhere.
   const activities = useMemo(
     () => new Map((task.activities ?? []).map((activity) => [activity.activityId, activity])),
@@ -99,10 +100,10 @@ export function ActivityTimeline({ task }: { task: ActivityTimelineTask }) {
             />
           )
         }
-        if (item.kind === 'tool') return <ToolRow key={item.id} tool={tools.get(item.callId)} />
+        if (item.kind === 'tool') return <ToolRow key={item.id} tool={tools.get(item.callId)} readImage={readImage} />
         const activity = activities.get(item.activityId)
         if (!activity) return null
-        return <ActivityGroup key={item.id} activity={activity} tools={tools} />
+        return <ActivityGroup key={item.id} activity={activity} tools={tools} readImage={readImage} />
       })}
     </div>
   )

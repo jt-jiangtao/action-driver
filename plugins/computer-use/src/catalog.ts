@@ -1,3 +1,4 @@
+import { presentations } from './presentation.js'
 import type { PluginCatalog } from '@actiondriver/plugin-sdk'
 import { instructions, skillContent } from './instructions.js'
 const { description, disabledBrowser, computer, output, reset, codeDescription } = instructions
@@ -13,6 +14,7 @@ const entryPointNote =
 export const catalog: PluginCatalog = { tools: [
 {
         id: 'tools.local.computer-use.js',
+        presentation: presentations['tools.local.computer-use.js'],
         version: 1,
         modelName: 'tools_local_computer_use_js',
         description: [
@@ -44,6 +46,7 @@ export const catalog: PluginCatalog = { tools: [
       },
 {
         id: 'tools.local.computer-use.reset',
+        presentation: presentations['tools.local.computer-use.reset'],
         version: 1,
         modelName: 'tools_local_computer_use_reset',
         description: reset.replaceAll('cua_repl.js', 'tools_local_computer_use_js'),

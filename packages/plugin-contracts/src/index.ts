@@ -131,3 +131,5 @@ export const panelDefinitionSchema = z.object({
 export type PanelDefinition = z.infer<typeof panelDefinitionSchema>
 
 export * from './tool-identity.js'
+
+export { toolPresentationSchema, toolDetailsSchema, projectToolDetails, type ToolPresentation, type ToolPresentationField, type ToolDetails, type ToolDetailField } from './tool-presentation.js'

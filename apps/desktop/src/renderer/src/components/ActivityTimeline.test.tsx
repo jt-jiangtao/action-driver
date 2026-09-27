@@ -100,12 +100,8 @@ describe('ActivityTimeline', () => {
       const { container, unmount } = render(<ActivityTimeline task={scripted} />)
       screen.getByText('调研实现').closest('summary')!.click()
       screen.getByText('读取 README').click()
-      expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
-        `${source
-          .split('\n')
-          .map((line) => `› ${line}`)
-          .join('\n')}\n\nhello`
-      )
+      expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(`${toolId.includes('shell') ? '$ ' : ''}${source}\n\n参数 1：one\n\nhello`)
+      expect(container.querySelector('.activity-tool-io')).toHaveTextContent('hello')
       expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
       expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"script"')
       unmount()
@@ -151,7 +147,7 @@ describe('ActivityTimeline', () => {
     const persistedView = render(<ActivityTimeline task={persisted} />)
     screen.getByText('调研实现').closest('summary')!.click()
     screen.getByText('读取 README').click()
-    expect(persistedView.container.querySelector('.activity-tool-io')).toHaveTextContent('codeLength')
+    expect(persistedView.container.querySelector('.activity-tool-io')).toHaveTextContent('执行代码长度')
     persistedView.unmount()
   })
 
@@ -190,7 +186,7 @@ describe('ActivityTimeline', () => {
     screen.getByText('生成 2 张图片').click()
 
     const panel = container.querySelector('.activity-tool-io')
-    expect(panel).toHaveTextContent('已生成 2 张图片')
+    expect(panel).toHaveTextContent('已生成图片2')
     expect(panel).toHaveTextContent('一只在雨中的猫')
     expect(panel).toHaveTextContent(
       'A cozy Japanese countryside cottage in autumn, surrounded by red maple trees and a small stream, warm golden sunlight filtering through leaves, Studio Ghibli inspired illustration'
@@ -200,7 +196,7 @@ describe('ActivityTimeline', () => {
     expect(panel).not.toHaveTextContent('byteLength')
   })
 
-  it('marks blank script lines so they stay distinguishable from output', () => {
+  it('keeps blank script lines in the labeled input section', () => {
     const scripted = task('running')
     scripted.tools![0]!.toolId = 'tools.local.command.python.run'
     scripted.tools![0]!.rawInput = JSON.stringify({ script: 'print("a")\n\nprint("b")', args: [] })
@@ -210,7 +206,7 @@ describe('ActivityTimeline', () => {
     screen.getByText('读取 README').click()
 
     expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
-      '› print("a")\n›\n› print("b")\n\na\nb'
+      'print("a")\n\nprint("b")\n\na\nb'
     )
   })
 
@@ -284,8 +280,8 @@ describe('ActivityTimeline', () => {
     })
     mixed.tools!.push({
       callId: 'shell',
-      toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '执行命令',
       title: '已执行命令',
       argumentsHash: '',
@@ -328,8 +324,8 @@ describe('ActivityTimeline', () => {
     mixed.activityTimeline!.push({ id: 'activity:next', kind: 'activity', activityId: 'next' })
     mixed.tools!.push({
       callId: 'next',
-      toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '执行命令',
       argumentsHash: '',
       activityId: 'next',
@@ -402,8 +398,8 @@ describe('ActivityTimeline', () => {
     mixed.activities![0]!.items.push({ id: 'tool:queued', kind: 'tool', callId: 'queued' })
     mixed.tools!.push({
       callId: 'queued',
-      toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '等待执行命令',
       argumentsHash: '',
       activityId: 'research',
@@ -469,7 +465,7 @@ describe('ActivityTimeline', () => {
     expect(screen.queryByText('⌘')).not.toBeInTheDocument()
     expect(screen.queryByText('输入与输出')).not.toBeInTheDocument()
     screen.getByText('读取 README').click()
-    expect(document.querySelector('.activity-tool-io pre')?.textContent).toContain('内容')
+    expect(document.querySelector('.activity-tool-io')).toHaveTextContent('内容')
   })
 
   it('shows a shell summary without file-specific decoration', () => {
@@ -487,8 +483,8 @@ describe('ActivityTimeline', () => {
     mixed.activities![0]!.items.push({ id: 'tool:search', kind: 'tool', callId: 'search' })
     mixed.tools!.push({
       callId: 'shell',
-      toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: 'sed -n README.md',
       argumentsHash: '',
       activityId: 'research',
@@ -536,8 +532,8 @@ describe('ActivityTimeline', () => {
     mixed.activities![0]!.items.push({ id: 'tool:shell', kind: 'tool', callId: 'shell' })
     mixed.tools!.push({
       callId: 'shell',
-      toolId: 'sandbox.shell.run',
-      modelName: 'sandbox_shell_run',
+      toolId: 'local.shell.run',
+      modelName: 'shell_run',
       summary: '执行命令',
       title: '正在执行命令',
       argumentsHash: '',
@@ -549,7 +545,7 @@ describe('ActivityTimeline', () => {
       container.querySelector('.activity-group > summary .lucide-square-terminal')
     ).not.toBeNull()
     expect(screen.getByText('正在执行 2 项操作')).toHaveClass('activity-active-title')
-    expect(screen.getByText('正在执行命令')).toHaveClass('activity-active-title')
+    expect(screen.getByText('正在执行命令').closest('.activity-tool-label')).toHaveClass('activity-active-title')
     // Projections are immutable: an update replaces the changed tool and activity.
     rerender(
       <ActivityTimeline
@@ -571,13 +567,13 @@ describe('ActivityTimeline', () => {
     expect(screen.getByText('已执行命令')).not.toHaveClass('activity-active-title')
   })
 
-  it('renders shell input and output as a terminal transcript without JSON wrappers', () => {
+  it('renders legacy shell input and output as labeled fields without JSON wrappers', () => {
     const shell = task('running')
     shell.tools = [
       {
         callId: 'shell',
-        toolId: 'sandbox.shell.run',
-        modelName: 'sandbox_shell_run',
+        toolId: 'local.shell.run',
+        modelName: 'shell_run',
         summary: 'rg needle README.md',
         argumentsHash: '',
         activityId: 'research',
@@ -589,7 +585,7 @@ describe('ActivityTimeline', () => {
     ]
     shell.activities![0]!.items = [{ id: 'tool:shell', kind: 'tool', callId: 'shell' }]
     const { container } = render(<ActivityTimeline task={shell} />)
-    screen.getByText('rg needle README.md').click()
+    screen.getAllByText('rg needle README.md')[0]!.click()
     expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
       '$ rg needle README.md\n\nneedle is present.'
     )
@@ -646,21 +642,21 @@ describe('ActivityTimeline', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders Python and Node input as expandable terminal details', () => {
+  it('renders Python and Node inputs as expandable semantic details', () => {
     for (const [toolId, modelName, title, input, command] of [
       [
         'tools.local.command.python.run',
         'tools_local_command_python_run',
         '已运行 Python',
         '{"code":"print(1)"}',
-        '$ python3 -c "print(1)"'
+        'print(1)'
       ],
       [
         'tools.local.command.node.run',
         'tools_local_command_node_run',
         '已运行 Node.js',
         '{"file":"script.js","args":["hi"]}',
-        '$ node "script.js" hi'
+        'script.js'
       ]
     ] as const) {
       const script = task('running')
@@ -681,7 +677,7 @@ describe('ActivityTimeline', () => {
       script.activities![0]!.items = [{ id: 'tool:script', kind: 'tool', callId: 'script' }]
       const { container, unmount } = render(<ActivityTimeline task={script} />)
       screen.getByText(title).click()
-      expect(container.querySelector('.activity-tool-io pre')?.textContent).toContain(command)
+      expect(container.querySelector('.activity-tool-io')).toHaveTextContent(command)
       expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
       unmount()
     }

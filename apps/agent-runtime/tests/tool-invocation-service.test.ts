@@ -50,6 +50,24 @@ const shellDefinition: ToolDefinition = {
 }
 
 describe('ToolInvocationService', () => {
+  it('keeps the latest collected result after output streaming then a generic failure', async () => {
+    const fixture = createFixture(readDefinition, { async *execute() {
+      yield { kind: 'content' as const, stream: 'stdout' as const, delta: 'partial' }
+      yield { kind: 'result' as const, output: { status: 'latest' } }
+      throw new Error('late failure')
+    } })
+    await collect(fixture.service.execute(readCall(), context([`${readDefinition.id}@1`])))
+    expect(fixture.commits.at(-1)?.invocation.output).toMatchObject({ stdout: 'partial', result: { status: 'latest' } })
+    expect(fixture.commits.at(-1)?.event.payload).toMatchObject({ output: { stdout: 'partial', result: { status: 'latest' } } })
+  })
+
+  it('persists the presentation snapshot and safe partial output on failure', async () => {
+    const presentation = { input: [{ label: 'Path', path: 'path', kind: 'text' as const }], output: [{ label: 'Output', path: 'stdout', kind: 'code' as const }] }
+    const fixture = createFixture({ ...readDefinition, presentation }, { async *execute() { yield { kind: 'content' as const, stream: 'stdout' as const, delta: 'partial' }; throw new Error('failure') } })
+    await collect(fixture.service.execute(readCall(), context([`${readDefinition.id}@1`])))
+    expect(fixture.commits.at(-1)?.event.payload).toMatchObject({ presentation, output: { stdout: 'partial' } })
+  })
+
   it('runs the read-only office dependency tool through the normal lifecycle and reports missing bundles', async () => {
     const dist = await mkdtemp(join(tmpdir(), 'actiondriver-dependency-tool-'))
     const tool = createWorkspaceDependenciesTool(dist)

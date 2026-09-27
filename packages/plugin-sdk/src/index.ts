@@ -45,3 +45,5 @@ export { PluginError } from '@actiondriver/plugin-contracts'
 export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
 
 export { createToolIdentity, canonicalToolId, canonicalModelName, legacyToolAliases, legacyModelAliases, type ToolTarget } from '@actiondriver/plugin-contracts'
+
+export { toolPresentationSchema, toolDetailsSchema, projectToolDetails, type ToolPresentation, type ToolPresentationField, type ToolDetails, type ToolDetailField } from '@actiondriver/plugin-contracts'

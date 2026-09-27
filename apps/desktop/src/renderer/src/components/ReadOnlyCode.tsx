@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
 type MonacoInstance = {
   editor: { defineTheme(name: string, theme: Record<string, unknown>): void }
@@ -9,7 +9,7 @@ type EditorComponent = ComponentType<Record<string, unknown>>
 const THEME = 'actiondriver-light'
 const LINE_HEIGHT = 18
 const MIN_HEIGHT = 56
-const MAX_HEIGHT = 360
+const MAX_HEIGHT = 640
 
 let themeDefined = false
 
@@ -52,12 +52,30 @@ function defineTheme(instance: MonacoInstance): void {
  * syntax highlighted and wrapped instead of being shown as one long line, and
  * falls back to a plain block where an editor cannot render (unit tests).
  */
-export function ReadOnlyCode({ value, language }: { value: string; language: string }) {
+export function ReadOnlyCode({
+  value,
+  language,
+  constrainHeight = true
+}: {
+  value: string
+  language: string
+  constrainHeight?: boolean
+}) {
+  const [contentHeight, setContentHeight] = useState<number | null>(null)
+  const heightSubscription = useRef<{ dispose(): void } | null>(null)
+  useEffect(
+    () => () => {
+      heightSubscription.current?.dispose()
+    },
+    []
+  )
   const [Editor, setEditor] = useState<EditorComponent | null>(null)
   const height = useMemo(() => {
-    const lines = Math.min(value.split('\n').length, 60)
-    return Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, lines * LINE_HEIGHT + 16))
-  }, [value])
+    const natural = contentHeight ?? value.split('\n').length * LINE_HEIGHT + 20
+    return constrainHeight
+      ? Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, natural))
+      : Math.max(MIN_HEIGHT, natural)
+  }, [value, contentHeight, constrainHeight])
 
   useEffect(() => {
     // Monaco cannot render outside a real window; tests and the first paint use
@@ -84,12 +102,21 @@ export function ReadOnlyCode({ value, language }: { value: string; language: str
   }
 
   return (
-    <div className="activity-tool-code" style={{ height }}>
+    <div className={`activity-tool-code${constrainHeight ? '' : ' is-natural'}`} style={{ height }}>
       <Editor
         language={language}
         theme={THEME}
         value={value}
         beforeMount={defineTheme}
+        onMount={(editor: {
+          getContentHeight(): number
+          onDidContentSizeChange(callback: () => void): { dispose(): void }
+        }) => {
+          heightSubscription.current?.dispose()
+          const updateHeight = () => setContentHeight(editor.getContentHeight())
+          updateHeight()
+          heightSubscription.current = editor.onDidContentSizeChange(updateHeight)
+        }}
         loading=""
         options={{
           readOnly: true,
@@ -120,7 +147,12 @@ export function ReadOnlyCode({ value, language }: { value: string; language: str
           fontLigatures: false,
           padding: { top: 10, bottom: 10 },
           contextmenu: true,
-          scrollbar: { alwaysConsumeMouseWheel: false, verticalScrollbarSize: 8 },
+          scrollbar: {
+            alwaysConsumeMouseWheel: false,
+            vertical: constrainHeight ? 'auto' : 'hidden',
+            horizontal: 'hidden',
+            verticalScrollbarSize: 8
+          },
           automaticLayout: true
         }}
       />

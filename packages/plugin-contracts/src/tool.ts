@@ -1,5 +1,6 @@
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 import { z } from 'zod'
+import { toolPresentationSchema } from './tool-presentation.js'
 import type { InvocationContext, Json } from './index.js'
 // Portable public DTOs. No Runtime/Desktop implementation or repository path crosses this API.
 export const pluginToolDefinitionSchema = z.object({
@@ -8,7 +9,7 @@ export const pluginToolDefinitionSchema = z.object({
   inputSchema: z.record(z.string(), z.json()).refine(value => value.type === 'object', 'Tool schema must describe an object'),
   risk: z.enum(['low', 'medium', 'high']),
   sideEffects: z.object({ filesystem: z.enum(['none', 'read', 'write']), network: z.boolean() }).strict(),
-  timeoutMs: z.number().int().positive()
+  timeoutMs: z.number().int().positive(), presentation: toolPresentationSchema.optional()
 }).strict()
 export type ToolDefinition = z.infer<typeof pluginToolDefinitionSchema>
 export interface ToolCall { callId: string; providerCallId: string; modelName: string; arguments: Record<string, Json> }

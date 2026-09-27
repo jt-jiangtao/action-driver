@@ -1,6 +1,6 @@
 {
   "name": "@actiondriver/web-plugin",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -59,6 +59,14 @@
       },
       "types": "./dist/reader/extract.d.ts",
       "default": "./dist/reader/extract.js"
+    },
+    "./presentation": {
+      "development": {
+        "types": "./src/presentation.ts",
+        "default": "./src/presentation.ts"
+      },
+      "types": "./dist/presentation.d.ts",
+      "default": "./dist/presentation.js"
     }
   },
   "files": [

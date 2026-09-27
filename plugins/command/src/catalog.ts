@@ -1,3 +1,4 @@
+import { presentations } from './presentation.js'
 import type { PluginCatalog, ToolDefinition } from '@actiondriver/plugin-sdk'
 type Kind = 'shell' | 'python' | 'node' | 'ts'
 
@@ -20,14 +21,14 @@ export const commandDescriptors: Array<{ kind: Kind; id: string; modelName: stri
 
 export function createCommandCatalog(timeoutMs = 120_000): PluginCatalog {
   return { tools: [...commandDescriptors.map<ToolDefinition>(({ id, modelName, description }) => ({
-    id, version: 2, modelName, description, inputSchema, risk: 'high',
+    id, presentation: presentations[id], version: 2, modelName, description, inputSchema, risk: 'high',
     sideEffects: { filesystem: 'write', network: true }, timeoutMs
   })), workspaceDependenciesDefinition], skills: [] }
 }
 
 
 export const workspaceDependenciesDefinition: ToolDefinition = {
-  id: 'tools.local.command.dependencies.load', version: 1, modelName: 'tools_local_command_dependencies_load',
+  id: 'tools.local.command.dependencies.load', presentation: presentations['tools.local.command.dependencies.load'], version: 1, modelName: 'tools_local_command_dependencies_load',
   description: 'Read the absolute paths of bundled office document dependencies.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   risk: 'low', sideEffects: { filesystem: 'read', network: false }, timeoutMs: 30_000

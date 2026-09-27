@@ -1,6 +1,6 @@
 {
   "name": "@actiondriver/skills-plugin",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -27,6 +27,14 @@
       },
       "types": "./dist/execution.d.ts",
       "default": "./dist/execution.js"
+    },
+    "./presentation": {
+      "development": {
+        "types": "./src/presentation.ts",
+        "default": "./src/presentation.ts"
+      },
+      "types": "./dist/presentation.d.ts",
+      "default": "./dist/presentation.js"
     }
   },
   "files": [

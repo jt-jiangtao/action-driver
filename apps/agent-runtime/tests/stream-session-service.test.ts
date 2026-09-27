@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ToolPresentation } from '@actiondriver/plugin-contracts'
 import type { RequestCreateEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
 import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
 import {
@@ -28,7 +29,8 @@ function createHarness(
     sessionId: string
   ) => Promise<Array<{ name: string; path: string; mimeType: string }>>,
   appApprovals?: AppApprovalBroker,
-  turnEnded?: (taskId: string) => Promise<void>
+  turnEnded?: (taskId: string) => Promise<void>,
+  toolPresentation?: (toolId: string) => ToolPresentation | undefined
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
@@ -64,6 +66,7 @@ function createHarness(
     graphRunner,
     ...(appApprovals ? { appApprovals } : {}),
     ...(turnEnded ? { turnEnded } : {}),
+    ...(toolPresentation ? { toolPresentation } : {}),
     ids,
     now: () => new Date(now++).toISOString(),
     ...(rawToolIO ? { rawToolIO } : {}),
@@ -1169,7 +1172,11 @@ describe('StreamSessionService', () => {
     })
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
-        await observer?.({ kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' })
+        await observer?.({
+          kind: 'tool-call-preparing',
+          index: 0,
+          modelName: 'tools_local_command_shell_run'
+        })
         await gate
         await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
         return {
@@ -1213,7 +1220,10 @@ describe('StreamSessionService', () => {
     expect(progress).not.toHaveProperty('command')
     expect(progress).not.toHaveProperty('arguments')
     const runningSnapshot = await service.getTaskSnapshot(accepted.taskId)
-    expect(runningSnapshot).toMatchObject({ status: 'running', preparingToolName: 'tools_local_command_shell_run' })
+    expect(runningSnapshot).toMatchObject({
+      status: 'running',
+      preparingToolName: 'tools_local_command_shell_run'
+    })
     release()
     await end
     const completedSnapshot = await service.getTaskSnapshot(accepted.taskId)
@@ -1959,7 +1969,8 @@ describe('StreamSessionService', () => {
     })
     await running
     const accepted = published.find((event) => event.type === 'request.accepted')
-    if (!accepted || accepted.type !== 'request.accepted') throw new Error('expected request.accepted')
+    if (!accepted || accepted.type !== 'request.accepted')
+      throw new Error('expected request.accepted')
 
     await expect(service.cancelTask(accepted.taskId)).resolves.toBe(true)
     await ended
@@ -2241,6 +2252,7 @@ describe('StreamSessionService', () => {
         modelName: 'sandbox_shell_run',
         summary: '执行命令',
         argumentsHash: '',
+        presentation: { input: [{ label: 'Command', path: 'command', kind: 'code' }], output: [] },
         input: { command: 'printf long-output' },
         output: 'this output is deliberately long',
         durationMs: 1
@@ -2274,6 +2286,11 @@ describe('StreamSessionService', () => {
     )
     const raw = replayed.find((event) => event.type === 'tool.completed')
     if (raw?.type !== 'tool.completed') throw new Error('expected raw tool event')
+    expect(raw.details).toEqual({
+      input: [{ label: 'Command', kind: 'code', value: 'printf long-' }],
+      output: [],
+      truncated: true
+    })
     expect(Buffer.byteLength(raw.rawInput ?? '', 'utf8')).toBeLessThanOrEqual(12)
     expect(Buffer.byteLength(raw.rawOutput ?? '', 'utf8')).toBeLessThanOrEqual(12)
     repositories.close()
@@ -2442,4 +2459,117 @@ describe('StreamSessionService', () => {
     ).resolves.toMatchObject({ status: 'cancelled' })
     repositories.close()
   })
+})
+
+describe('semantic snapshot privacy and declaration ownership', () => {
+  it.each([true, false])(
+    'restores stored declarations and existing assets only when rawToolIO=%s',
+    async (enabled) => {
+      const graphRunner: GraphRunner = {
+        async run(request) {
+          return {
+            taskId: request.taskId,
+            threadId: request.taskId,
+            status: 'completed',
+            output: '',
+            error: null,
+            trace: []
+          }
+        },
+        interrupt: () => false,
+        async continue() {
+          throw new Error('unused')
+        },
+        async provideInput() {
+          throw new Error('unused')
+        }
+      }
+      const fallback = {
+        input: [{ label: 'Changed label', path: 'path', kind: 'text' as const }],
+        output: []
+      }
+      const stored = {
+        input: [{ label: 'Original', path: 'path', kind: 'text' as const }],
+        output: [
+          { label: 'Image', path: 'assets.*', kind: 'image' as const },
+          { label: 'Count', path: 'result.count', kind: 'text' as const }
+        ]
+      }
+      const { repositories, service } = createHarness(
+        graphRunner,
+        { enabled },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        () => fallback
+      )
+      const events = await runToEnd(service, createEvent)
+      const accepted = events[0]
+      if (accepted?.type !== 'request.accepted') throw new Error('accepted expected')
+      const invocation = {
+        id: 'semantic-call',
+        providerCallId: 'provider-call',
+        taskId: accepted.taskId,
+        toolId: 'tools.local.example.run',
+        toolVersion: 1,
+        argumentsHash: '',
+        decision: 'allow' as const,
+        status: 'completed' as const,
+        input: { path: 'safe', secret: 'private' },
+        output: { result: { count: 0 } },
+        error: null,
+        createdAt: '2026-09-23T00:00:00.000Z',
+        updatedAt: '2026-09-23T00:00:01.000Z'
+      }
+      const asset = {
+        assetId: 'image',
+        sessionId: accepted.sessionId,
+        mimeType: 'image/png',
+        width: 1,
+        height: 1,
+        byteLength: 1,
+        source: 'generated'
+      }
+      await repositories.commitToolInvocationWithEvent(invocation, {
+        taskId: accepted.taskId,
+        threadId: accepted.sessionId,
+        checkpointId: accepted.responseId,
+        eventKey: 'semantic-asset',
+        type: 'tool.asset',
+        payload: {
+          callId: invocation.id,
+          toolId: invocation.toolId,
+          modelName: 'example',
+          summary: 'Example',
+          argumentsHash: '',
+          index: 0,
+          asset,
+          presentation: stored,
+          input: invocation.input
+        },
+        occurredAt: invocation.updatedAt,
+        eventId: 'semantic-asset',
+        requestId: accepted.requestId,
+        sequence: 0
+      })
+      const snapshot = await service.getTaskSnapshot(accepted.taskId)
+      const tool = snapshot?.tools?.find((tool) => tool.callId === invocation.id)
+      if (enabled) {
+        expect(tool?.presentation).toEqual(stored)
+        expect(tool?.details).toEqual({
+          input: [{ label: 'Original', kind: 'text', value: 'safe' }],
+          output: [
+            { label: 'Image 1', kind: 'image', value: 'image', asset },
+            { label: 'Count', kind: 'text', value: '0' }
+          ]
+        })
+        expect(JSON.stringify(tool?.details)).not.toContain('private')
+      } else {
+        expect(tool?.details).toBeUndefined()
+        expect(tool?.presentation).toBeUndefined()
+      }
+      repositories.close()
+    }
+  )
 })
