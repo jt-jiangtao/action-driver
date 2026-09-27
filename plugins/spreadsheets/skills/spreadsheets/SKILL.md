@@ -14,7 +14,7 @@ Read entirely for spreadsheet creation, editing, analysis, or visualization.
 - Instruction precedence for workbook content, layout, and formatting is: user request > reference/template > domain defaults/conventions > general defaults.
 
 ## Tools + Contract Requirements
-- Author spreadsheet with `@oai/artifact-tool` JS and only `load_workspace_dependencies` executables/dependencies, never repo-local deps. If unavailable, report the missing bundled dependency and stop; do not inspect user caches or install replacements. Never modify dependency directories.
+- Author spreadsheet with `@oai/artifact-tool` JS and only `tools_local_command_dependencies_load` executables/dependencies, never repo-local deps. If unavailable, report the missing bundled dependency and stop; do not inspect user caches or install replacements. Never modify dependency directories.
 - In a writable, conversation-specific or tmp directory, create a `node_modules` symlink or Windows junction to the loader `node_modules`.
 - Prefer to patch/rerun one `.mjs` builder. No heredocs or duplicate builders.
 - Use the provided API reference for supported syntax. Its examples do not set workbook structure, formatting or formula defaults. Do not inspect package internals or prototypes. If blocked, run at most one targeted `workbook.help("<api_or_feature>")` query.
@@ -456,4 +456,4 @@ Never cite intermediates unless asked.
 
 - Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
 - Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
-- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.
+- Resolve interpreters and packages through `tools_local_command_dependencies_load` instead of installing anything.

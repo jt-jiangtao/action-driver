@@ -1,8 +1,9 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { useEffect, useRef } from 'react'
 import type { TaskProjection } from '@actiondriver/contracts'
 
 export function taskUsesComputerUse(task: TaskProjection | null | undefined): boolean {
-  return Boolean(task?.tools?.some((tool) => tool.toolId.startsWith('computer.')))
+  return Boolean(task?.tools?.some((tool) => (canonicalToolId(tool.toolId).startsWith('tools.local.computer-use.') || tool.toolId.startsWith('computer.'))))
 }
 
 /**

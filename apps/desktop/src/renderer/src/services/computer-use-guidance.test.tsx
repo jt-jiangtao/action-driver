@@ -23,7 +23,7 @@ function taskWith(id: string, toolId: string | null): TaskProjection {
 describe('Computer Use guidance trigger', () => {
   it('only counts tasks that actually invoke Computer Use', () => {
     expect(taskUsesComputerUse(taskWith('t1', 'computer.observe'))).toBe(true)
-    expect(taskUsesComputerUse(taskWith('t2', 'web.open'))).toBe(false)
+    expect(taskUsesComputerUse(taskWith('t2', 'tools.local.web.open'))).toBe(false)
     expect(taskUsesComputerUse(null)).toBe(false)
   })
 

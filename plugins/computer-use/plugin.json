@@ -1,6 +1,6 @@
 {
   "id": "computer-use",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "sdk": "^1.0.0",
   "entry": "dist/extension.js",
   "catalog": "dist/catalog.js",
@@ -9,18 +9,18 @@
     "darwin-x64"
   ],
   "activation": [
-    "onTool:computer.js"
+    "onTool:tools.local.computer-use.js"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "computer.js",
-      "modelName": "js"
+      "id": "tools.local.computer-use.js",
+      "modelName": "tools_local_computer_use_js"
     },
     {
       "kind": "tool",
-      "id": "computer.js_reset",
-      "modelName": "js_reset"
+      "id": "tools.local.computer-use.reset",
+      "modelName": "tools_local_computer_use_reset"
     },
     {
       "kind": "skill",

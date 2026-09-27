@@ -1,8 +1,8 @@
 import type { ToolDefinition, PluginCatalog } from '@actiondriver/plugin-sdk'
 export const definition: ToolDefinition = {
-    id: 'web.open',
+    id: 'tools.local.web.open',
     version: 1,
-    modelName: 'web_open',
+    modelName: 'tools_local_web_open',
     description:
       'Read the bounded plain-text content of one public HTTP(S) HTML page by URL. Does not execute JavaScript or follow page links.',
     inputSchema: {

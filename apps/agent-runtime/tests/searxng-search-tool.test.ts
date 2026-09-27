@@ -47,7 +47,7 @@ describe('SearXNG search tool', () => {
       tool.executor.execute({
         callId: 'call-1',
         providerCallId: 'provider-1',
-        modelName: 'web_search',
+        modelName: 'tools_local_web_search',
         arguments: {
           query: 'ActionDriver',
           categories: 'general',
@@ -60,8 +60,8 @@ describe('SearXNG search tool', () => {
     )
 
     expect(tool.definition).toMatchObject({
-      id: 'web.search',
-      modelName: 'web_search',
+      id: 'tools.local.web.search',
+      modelName: 'tools_local_web_search',
       sideEffects: { network: true }
     })
     expect(events.at(-1)).toEqual({
@@ -104,7 +104,7 @@ describe('SearXNG search tool', () => {
         tool.executor.execute({
           callId: 'call-1',
           providerCallId: 'provider-1',
-          modelName: 'web_search',
+          modelName: 'tools_local_web_search',
           arguments: { query: 'ActionDriver' }
         })
       )
@@ -178,7 +178,7 @@ function call() {
   return {
     callId: 'call-1',
     providerCallId: 'provider-1',
-    modelName: 'web_search',
+    modelName: 'tools_local_web_search',
     arguments: { query: 'ActionDriver' }
   }
 }

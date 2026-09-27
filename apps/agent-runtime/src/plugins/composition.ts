@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
@@ -123,10 +124,10 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
                 return
               }
               const progress = new EventQueue<Json>()
-              const completed = manager.invoke(definition.id, { call, ...(executionContext ? { executionContext } : {}) } as unknown as Json, {
+              const completed = manager.invoke(definition.id, { call: { ...call, modelName: definition.modelName }, ...(executionContext ? { executionContext } : {}) } as unknown as Json, {
                 callId: call.callId, requestId: options.ids(), deadline: options.now() + definition.timeoutMs,
                 source: { kind: 'runtime' }, chain: [],
-                ...(executionContext ? { taskId: executionContext.taskId, sessionId: executionContext.sessionId, workspaceHandle: executionContext.sessionId, ...(executionContext.grants ? { grants: executionContext.grants } : {}) } : {})
+                ...(executionContext ? { taskId: executionContext.taskId, sessionId: executionContext.sessionId, workspaceHandle: executionContext.sessionId, ...(executionContext.grants ? { grants: executionContext.grants.map(canonicalToolId) } : {}) } : {})
               }, signal ?? new AbortController().signal, event => progress.push(event)).then(() => progress.end(), error => progress.fail(error instanceof Error ? error : new Error(String(error))))
               try { for await (const event of progress) yield event as ToolExecutorEvent } finally { await completed }
             }

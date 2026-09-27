@@ -36,9 +36,9 @@ const DEFAULT_MAIN_PROMPT = `# ActionDriver 主提示词
 
 ## 使用工具
 
-- 需要执行脚本或处理本地文件时用 \`shell_run\`、\`python_run\`、\`node_run\`、\`ts_run\`：它们运行在会话工作目录内，请优先用随包运行时和 \`load_workspace_dependencies\` 返回的路径，而不是系统解释器。
-- 需要联网查资料用 \`web_search\` 与 \`web_open\`；生成图片用 \`image_generate\`。
-- 任务与某个已启用 Skill 的能力匹配时，先读该 Skill（\`skill_read\`）并遵循其流程与输出约定，再动手执行。
+- 需要执行脚本或处理本地文件时用 \`tools_local_command_shell_run\`、\`tools_local_command_python_run\`、\`tools_local_command_node_run\`、\`tools_local_command_typescript_run\`：它们运行在会话工作目录内，请优先用随包运行时和 \`tools_local_command_dependencies_load\` 返回的路径，而不是系统解释器。
+- 需要联网查资料用 \`tools_local_web_search\` 与 \`tools_local_web_open\`；生成图片用 \`tools_local_image_generation_generate\`。
+- 任务与某个已启用 Skill 的能力匹配时，先读该 Skill（\`tools_local_skills_read\`）并遵循其流程与输出约定，再动手执行。
 - 工具失败时读懂错误、换一种可行方式重试，或如实说明阻塞原因；不要把失败包装成成功的结果。
 
 ## 验证

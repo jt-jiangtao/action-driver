@@ -71,22 +71,22 @@ describe('explicit 100 calls per tool stress verification', () => {
         const search = createSearxngSearchTool({ endpoint: `http://127.0.0.1:${address.port}` })
         const cases = [
           {
-            name: 'shell_run',
+            name: 'tools_local_command_shell_run',
             executor: tools[0]!.executor,
             input: (i: number) => ({ command: `printf stress-${i}` })
           },
           {
-            name: 'python_run',
+            name: 'tools_local_command_python_run',
             executor: tools[1]!.executor,
             input: (i: number) => ({ code: `print("stress-${i}")` })
           },
           {
-            name: 'node_run',
+            name: 'tools_local_command_node_run',
             executor: tools[2]!.executor,
             input: (i: number) => ({ code: `console.log("stress-${i}")` })
           },
           {
-            name: 'web_search',
+            name: 'tools_local_web_search',
             executor: search.executor,
             input: (i: number) => ({ query: `stress-${i}` })
           }
@@ -107,10 +107,10 @@ describe('explicit 100 calls per tool stress verification', () => {
           }
         }
         expect(Object.fromEntries(successes)).toEqual({
-          shell_run: 100,
-          python_run: 100,
-          node_run: 100,
-          web_search: 100
+          tools_local_command_shell_run: 100,
+          tools_local_command_python_run: 100,
+          tools_local_command_node_run: 100,
+          tools_local_web_search: 100
         })
         expect(requests).toHaveLength(100)
       } finally {

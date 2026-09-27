@@ -167,7 +167,7 @@ test('shows only elapsed time and streamed text until a tool is actually called'
     await expect(process.locator('.activity-group')).toHaveCount(0)
     await expect.poll(() => provider!.completions.length).toBe(1)
     expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).not.toContain(
-      'image_generate'
+      'tools_local_image_generation_generate'
     )
     provider!.releaseTextStart()
     await expect(page.getByTestId('e2e/tasks/detail/markdown#section').last()).toContainText(
@@ -447,7 +447,7 @@ test('runs local SearXNG without approval, records only normalized results, and 
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
   await expect.poll(() => provider!.completions.length).toBeGreaterThan(0)
   expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
-    'web_search'
+    'tools_local_web_search'
   )
   await expect(page.getByRole('heading', { name: '搜索完成' })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
@@ -517,13 +517,13 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
   )
   await expect.poll(() => provider!.completions.length).toBe(2)
   const [first, second] = provider!.completions
-  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('shell_run')
+  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('tools_local_command_shell_run')
   expect(first?.tool_choice).toBe('auto')
   expect(second?.messages).toContainEqual(
     expect.objectContaining({
       role: 'tool',
       tool_call_id: 'provider-tool-1',
-      name: 'shell_run'
+      name: 'tools_local_command_shell_run'
     })
   )
   expect(JSON.stringify(second?.messages)).toContain('E2E workspace')

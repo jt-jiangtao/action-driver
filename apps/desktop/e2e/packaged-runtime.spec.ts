@@ -164,7 +164,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(provider.completions).toHaveLength(4)
     const modelTools = provider.completions[0]?.tools?.map((tool) => tool.function?.name)
     expect(modelTools).toEqual(
-      expect.arrayContaining(['shell_run', 'python_run', 'node_run', 'ts_run'])
+      expect.arrayContaining(['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run'])
     )
     const messages = JSON.stringify(provider.completions.at(-1)?.messages)
     expect(messages).toContain(root)

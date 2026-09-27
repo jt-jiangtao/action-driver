@@ -237,4 +237,4 @@ If the app supports it, link the final deck once with `:codex-file-citation{path
 
 - Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
 - Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.
-- Resolve interpreters and packages through `load_workspace_dependencies` instead of installing anything.
+- Resolve interpreters and packages through `tools_local_command_dependencies_load` instead of installing anything.

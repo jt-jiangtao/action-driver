@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { useMemo, type ReactNode } from 'react'
 import type { MessageContentPart, ToolInvocationProjection } from '@actiondriver/contracts'
 import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
@@ -16,7 +17,7 @@ export function ImageGallery({
 }) {
   const calls = tools.filter(
     (tool) =>
-      tool.toolId === 'image.generate' &&
+      canonicalToolId(tool.toolId) === 'tools.local.image-generation.generate' &&
       tool.imageCount &&
       !['proposed', 'waiting_approval', 'queued'].includes(tool.status)
   )

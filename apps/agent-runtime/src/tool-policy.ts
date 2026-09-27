@@ -1,3 +1,4 @@
+import { canonicalToolId, canonicalModelName } from '@actiondriver/plugin-contracts'
 import type { ToolCall, ToolDecision, ToolDefinition } from '@actiondriver/runtime-contracts'
 
 export type ToolPolicyContext = {
@@ -6,14 +7,14 @@ export type ToolPolicyContext = {
 
 export class RuntimeToolPolicy {
   discover(definitions: readonly ToolDefinition[], context: ToolPolicyContext): ToolDefinition[] {
-    const grants = new Set(context.grants)
+    const grants = new Set(context.grants.map(canonicalToolId))
     return definitions
-      .filter((definition) => grants.has(toolGrantKey(definition)))
+      .filter((definition) => grants.has(canonicalToolId(toolGrantKey(definition))))
       .map((definition) => structuredClone(definition))
   }
 
   decide(definition: ToolDefinition, call: ToolCall, context: ToolPolicyContext): ToolDecision {
-    if (!context.grants.includes(toolGrantKey(definition))) {
+    if (!context.grants.map(canonicalToolId).includes(canonicalToolId(toolGrantKey(definition)))) {
       return {
         kind: 'deny',
         error: {
@@ -23,7 +24,7 @@ export class RuntimeToolPolicy {
         }
       }
     }
-    if (definition.modelName !== call.modelName) {
+    if (canonicalModelName(definition.modelName) !== canonicalModelName(call.modelName)) {
       return {
         kind: 'deny',
         error: {

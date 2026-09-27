@@ -7,7 +7,7 @@ function call(url: string) {
   return {
     callId: 'call-web-open',
     providerCallId: 'provider-web-open',
-    modelName: 'web_open',
+    modelName: 'tools_local_web_open',
     arguments: { url }
   }
 }
@@ -18,19 +18,19 @@ async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
   return events
 }
 
-describe('web_open tool', () => {
+describe('tools_local_web_open tool', () => {
   it('registers a separate network tool and grants it by default', () => {
     const runtime = { registry: new RuntimeToolRegistry(), grants: [] as string[] }
     registerWebOpenTool(runtime)
     expect(runtime.registry.list()).toMatchObject([
       {
-        id: 'web.open',
+        id: 'tools.local.web.open',
         version: 1,
-        modelName: 'web_open',
+        modelName: 'tools_local_web_open',
         sideEffects: { filesystem: 'none', network: true }
       }
     ])
-    expect(runtime.grants).toEqual(['web.open@1'])
+    expect(runtime.grants).toEqual(['tools.local.web.open@1'])
   })
 
   it('returns only bounded extracted text and final source URL', async () => {

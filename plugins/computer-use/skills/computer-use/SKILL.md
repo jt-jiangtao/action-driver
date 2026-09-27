@@ -3,6 +3,10 @@ name: computer-use
 description: Control local Mac apps through Computer Use for tasks that require reading or operating app UI. Prefer purpose-built connectors, APIs, or CLIs when available.
 ---
 
+## ActionDriver tool entry
+
+Use `tools_local_computer_use_js` to execute CUA code and `tools_local_computer_use_reset` to reset it. Read this Skill first with `tools_local_skills_read`. Upstream references to cua_repl are the underlying API, not an additional model tool.
+
 ## Computer Use
 
 Control native apps and browsers on the user’s computer by reading or operating UI. Prefer purpose-built connectors, APIs, or CLIs when available.

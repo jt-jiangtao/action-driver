@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isPublicAddress, parsePublicUrl, resolvePublicAddress } from '../src/web-open/address'
 
-describe('web_open public address policy', () => {
+describe('tools_local_web_open public address policy', () => {
   it('accepts only credential-free HTTP(S) URLs with public literal addresses', () => {
     expect(parsePublicUrl('https://example.com/article').href).toBe('https://example.com/article')
     expect(parsePublicUrl('http://8.8.8.8/').hostname).toBe('8.8.8.8')

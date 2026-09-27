@@ -220,13 +220,12 @@ export async function startAgentRuntimeProcess(
     local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
   }
   const workspaceDependenciesTool = createWorkspaceDependenciesTool(runtimeDist)
-  local.toolRuntime.registry.register(workspaceDependenciesTool.definition, workspaceDependenciesTool.executor)
   local.toolRuntime.grants.push(`${workspaceDependenciesTool.definition.id}@${workspaceDependenciesTool.definition.version}`)
   local.toolRuntime.grants.push(`${imageDefinition.id}@${imageDefinition.version}`)
   local.toolRuntime.isAvailable = async (definition) => {
     if (definition.id === imageDefinition.id)
       return (await service.getDefaultImageModel()) !== null
-    if (definition.id.startsWith('computer.')) {
+    if (definition.id.startsWith('tools.local.computer-use.')) {
       try { local.adapters.skillRegistry.resolve('computer-use', 1); return true }
       catch { return false }
     }
@@ -254,7 +253,7 @@ export async function startAgentRuntimeProcess(
     hostCapabilities: {
       ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
       ...(computer ? { 'host.computer.execute': {
-        plugins: ['computer-use'], grants: ['computer.js@1', 'computer.js_reset@1'],
+        plugins: ['computer-use'], grants: ['tools.local.computer-use.js@1', 'tools.local.computer-use.reset@1'],
         async start() {
           if (computerActivated) await computer!.restart()
           computerActivated = true
@@ -262,11 +261,11 @@ export async function startAgentRuntimeProcess(
         },
         stream: (input, context, signal) => createCommandExecutionPort(computer!.tools, executionContexts, ['computer-use']).stream(input, context, signal)
       } } : {}),
-      'host.image.model': { plugins: ['image-generation'], grants: ['image.generate@1'], async invoke() {
+      'host.image.model': { plugins: ['image-generation'], grants: ['tools.local.image-generation.generate@1'], async invoke() {
         const model = await service.getDefaultImageModel()
         return model ? { ...model } : null
       } },
-      'host.image.generate': { plugins: ['image-generation'], grants: ['image.generate@1'], async invoke(input, context, signal) {
+      'host.image.generate': { plugins: ['image-generation'], grants: ['tools.local.image-generation.generate@1'], async invoke(input, context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 4000 || !context.taskId) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid image request')
         const task = await repositories.tasks.get(context.taskId)
         if (!task || task.sessionId !== context.sessionId) throw new PluginError('IMAGE_SESSION_NOT_FOUND', 'Image task has no owned session')
@@ -278,8 +277,8 @@ export async function startAgentRuntimeProcess(
         signal.throwIfAborted()
         return { ...await assets.saveGenerated(task.sessionId, bytes) }
       } },
-      'host.command.execute': createCommandExecutionPort(scriptTools, executionContexts),
-      'host.web.extract': { plugins: ['web'], grants: ['web.open@1'], async invoke(input, _context, signal) {
+      'host.command.execute': createCommandExecutionPort([...scriptTools, workspaceDependenciesTool], executionContexts),
+      'host.web.extract': { plugins: ['web'], grants: ['tools.local.web.open@1'], async invoke(input, _context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.html !== 'string' || Buffer.byteLength(input.html) > 4 * 1024 * 1024 || typeof input.url !== 'string' || input.url.length > 2048) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid bounded HTML input')
         return { ...await extractPageTextIsolated(input.html, input.url, { signal }) }
       } }
@@ -289,11 +288,11 @@ export async function startAgentRuntimeProcess(
   })
   if (searchEndpoint) {
     // Existing configured-search policy is assembled here, never by the plugin or its catalog.
-    local.toolRuntime.grants.push('web.search@1')
+    local.toolRuntime.grants.push('tools.local.web.search@1')
   }
   await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => pluginPlatform.enable(id)))
-  local.toolRuntime.grants.push('web.open@1')
-  local.toolRuntime.grants.push('skill.read@1', 'skill.install@1')
+  local.toolRuntime.grants.push('tools.local.web.open@1')
+  local.toolRuntime.grants.push('tools.local.skills.read@1', 'tools.local.skills.install@1')
   const streamSessions = new StreamSessionService({
     ...(appApprovals ? { appApprovals } : {}),
     ...(computer ? { turnEnded: computer.endTurn } : {}),

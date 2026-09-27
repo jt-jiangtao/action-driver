@@ -30,8 +30,8 @@ test('copies the whole Skill with nested resources and removes stale destination
     assert.equal(readFileSync(join(destinationDirectory, 'codex-docs', 'tinysky-alt-confirmations.md'), 'utf8'), 'confirmation policy\n')
     assert.equal(existsSync(join(destinationDirectory, 'stale.md')), false)
     const skill = readFileSync(join(destinationDirectory, 'SKILL.md'), 'utf8')
-    const delimiter = '\n---\n\n'
-    assert.equal(skill.slice(skill.indexOf(delimiter, 4) + delimiter.length), '## Current CUA\n\nbody unchanged\n')
+    assert.ok(skill.includes('tools_local_computer_use_js'))
+    assert.ok(skill.endsWith('## Current CUA\n\nbody unchanged\n'))
     assert.equal(readFileSync(join(sourceDirectory, 'SKILL.md'), 'utf8'), 'old interface\n')
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

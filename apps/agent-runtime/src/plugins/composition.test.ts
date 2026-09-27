@@ -26,9 +26,9 @@ describe('runtime plugin composition', () => {
       expect(platform.catalogs()[0]?.catalog.tools[0]?.inputSchema.required).toEqual(['query'])
       expect(grants).toEqual([])
       await platform.enable('web')
-      expect(registry.resolve('web.search', 1).owner?.pluginId).toBe('web')
+      expect(registry.resolve('tools.local.web.search', 1).owner?.pluginId).toBe('web')
       const events = []
-      for await (const part of registry.resolve('web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'web_search', arguments: { query: 'test' } })) events.push(part)
+      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } })) events.push(part)
       expect(events).toEqual([{ kind: 'result', output: { results: [{ title: 'Title', url: 'https://example.test/', snippet: 'Snippet' }], truncated: false, totalResults: 1 } }])
       await platform.disable('web')
       expect(registry.list()).toEqual([])
@@ -131,7 +131,7 @@ it('ignores retired built-in packages on restart and preserves their private dat
     try {
       expect(platform.catalogs().map(value => value.manifest.id)).toEqual(['web'])
       await platform.enable('web')
-      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['web.open'])
+      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['tools.local.web.open'])
       for (const id of ['search', 'web-reader']) expect(await readFile(join(directory, 'data', id, 'saved.json'), 'utf8')).toBe('{"preserved":true}')
     } finally { await platform.dispose() }
   } finally { await rm(directory, { recursive: true, force: true }) }

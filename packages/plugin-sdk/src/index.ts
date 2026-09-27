@@ -43,3 +43,5 @@ export { EventQueue } from './event-queue.js'
 export { PluginError } from '@actiondriver/plugin-contracts'
 
 export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
+
+export { createToolIdentity, canonicalToolId, canonicalModelName, legacyToolAliases, legacyModelAliases, type ToolTarget } from '@actiondriver/plugin-contracts'

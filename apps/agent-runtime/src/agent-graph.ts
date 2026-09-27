@@ -1,3 +1,4 @@
+import { canonicalModelName } from '@actiondriver/plugin-contracts'
 import {
   Annotation,
   type BaseCheckpointSaver,
@@ -813,23 +814,23 @@ export function activityTitleForTool(
   modelName: string,
   status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running'
 ): string {
-  const normalized = modelName.toLowerCase()
+  const normalized = canonicalModelName(modelName.toLowerCase())
   const action =
-    normalized === 'web_open'
+    normalized === 'tools_local_web_open'
       ? '读取网页'
       : normalized.includes('web')
         ? '搜索网页'
-        : normalized.includes('shell') || normalized.includes('command')
+        : normalized.includes('shell') || normalized === 'command'
           ? '执行命令'
           : normalized.includes('python')
             ? '运行 Python'
-            : normalized.includes('ts_run') || normalized.includes('typescript')
+            : normalized.includes('tools_local_command_typescript_run') || normalized.includes('typescript')
               ? '运行 TypeScript'
-              : normalized.includes('node_run') || normalized.includes('node.run')
+              : normalized.includes('tools_local_command_node_run') || normalized.includes('node.run')
                 ? '运行 Node.js'
-                : normalized === 'js'
+                : normalized === 'tools_local_computer_use_js'
                   ? '操作桌面应用'
-                  : normalized === 'js_reset'
+                  : normalized === 'tools_local_computer_use_reset'
                     ? '重置 Computer Use'
                     : '调用工具'
   if (status === 'running') return `正在${action}`
@@ -887,9 +888,9 @@ export function activityTitleForTools(
   const subject =
     kinds.size === 1 && kinds.has('web')
       ? `${count} 项${
-          modelNames.every((name) => name.toLowerCase() === 'web_open')
+          modelNames.every((name) => canonicalModelName(name.toLowerCase()) === 'tools_local_web_open')
             ? '网页读取'
-            : modelNames.every((name) => name.toLowerCase() === 'web_search')
+            : modelNames.every((name) => canonicalModelName(name.toLowerCase()) === 'tools_local_web_search')
               ? '网页搜索'
               : '网页操作'
         }`
@@ -904,14 +905,14 @@ export function activityTitleForTools(
 }
 
 function activityToolKind(modelName: string): 'web' | 'shell' | 'script' | 'other' {
-  const normalized = modelName.toLowerCase()
+  const normalized = canonicalModelName(modelName.toLowerCase())
   if (normalized.includes('web')) return 'web'
-  if (normalized.includes('shell') || normalized.includes('command')) return 'shell'
+  if (normalized.includes('shell') || normalized === 'command') return 'shell'
   if (
     normalized.includes('python') ||
-    normalized.includes('ts_run') ||
+    normalized.includes('tools_local_command_typescript_run') ||
     normalized.includes('typescript') ||
-    normalized.includes('node_run') ||
+    normalized.includes('tools_local_command_node_run') ||
     normalized.includes('node.run')
   )
     return 'script'

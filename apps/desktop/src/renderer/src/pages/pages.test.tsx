@@ -75,7 +75,7 @@ describe('ActionDriver pages', () => {
         { id: 'user-gallery', role: 'user' as const, content: '生成两张' },
         { id: 'assistant-gallery', role: 'agent' as const, content: '' }
       ],
-      tools: [{ callId: 'call-gallery', toolId: 'image.generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 2 }]
+      tools: [{ callId: 'call-gallery', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: '生成图片', argumentsHash: '', status: 'running' as const, imageCount: 2 }]
     }
     const props = { mode: 'split' as const, task, modelSelection: mockModelSelection,
       onSelectModel: vi.fn(), onModeChange: vi.fn(), onPause: vi.fn(), onResume: vi.fn(),
@@ -147,7 +147,7 @@ describe('ActionDriver pages', () => {
         ] }
       ],
       activityTimeline: [{ id: 'text:process', kind: 'text' as const, content: '过程文字', phase: 'process' as const }],
-      tools: [{ callId: 'image-call', toolId: 'image.generate', modelName: 'image_generate',
+      tools: [{ callId: 'image-call', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
         summary: '生成图片', argumentsHash: '', status: status === 'failed' ? 'failed' as const : 'cancelled' as const,
         imageCount: 2 }]
     }
@@ -190,7 +190,7 @@ describe('ActionDriver pages', () => {
           ],
           tools: [
             {
-              callId: 'image-answer', toolId: 'image.generate', modelName: 'image_generate',
+              callId: 'image-answer', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
               summary: '生成图片', argumentsHash: '', status: 'completed', imageCount: 1
             }
           ],
@@ -239,7 +239,7 @@ describe('ActionDriver pages', () => {
           ],
           tools: [
             {
-              callId: 'image-live', toolId: 'image.generate', modelName: 'image_generate',
+              callId: 'image-live', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
               summary: '生成图片', argumentsHash: '', status: 'running', imageCount: 1
             }
           ],
@@ -447,8 +447,8 @@ describe('ActionDriver pages', () => {
             },
             {
               callId: 'call-2',
-              toolId: 'web.search@1',
-              modelName: 'web_search',
+              toolId: 'tools.local.web.search@1',
+              modelName: 'tools_local_web_search',
               summary: '搜索 “ActionDriver”',
               argumentsHash: '',
               status: 'completed',
@@ -537,8 +537,8 @@ describe('ActionDriver pages', () => {
               tools: [
                 {
                   callId: 'first',
-                  toolId: 'web.search@1',
-                  modelName: 'web_search',
+                  toolId: 'tools.local.web.search@1',
+                  modelName: 'tools_local_web_search',
                   summary: '搜索网页',
                   argumentsHash: '',
                   status: 'completed'
@@ -682,7 +682,7 @@ describe('ActionDriver pages', () => {
             {
               callId: 'shell',
               toolId: 'sanbox.shell.run',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               summary: '执行命令',
               title: '已执行命令',
               argumentsHash: '',
@@ -691,8 +691,8 @@ describe('ActionDriver pages', () => {
             },
             {
               callId: 'image-order',
-              toolId: 'image.generate',
-              modelName: 'image_generate',
+              toolId: 'tools.local.image-generation.generate',
+              modelName: 'tools_local_image_generation_generate',
               summary: '生成图片',
               argumentsHash: '',
               activityId: 'activity:tools',

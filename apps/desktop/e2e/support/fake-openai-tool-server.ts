@@ -173,7 +173,7 @@ export class FakeOpenAiToolServer {
                     id: 'provider-image-1',
                     type: 'function',
                     function: {
-                      name: 'image_generate',
+                      name: 'tools_local_image_generation_generate',
                       arguments: JSON.stringify({ images: prompts.map((prompt) => ({ prompt })) })
                     }
                   }
@@ -195,18 +195,18 @@ export class FakeOpenAiToolServer {
             : this.mode
         const toolName =
           toolMode === 'read' || toolMode === 'activity'
-            ? 'shell_run'
+            ? 'tools_local_command_shell_run'
             : toolMode === 'sandbox' || toolMode === 'sandbox-escape'
-              ? 'python_run'
+              ? 'tools_local_command_python_run'
             : toolMode === 'deliverable'
-              ? 'shell_run'
+              ? 'tools_local_command_shell_run'
               : toolMode === 'web'
-                ? 'web_search'
+                ? 'tools_local_web_search'
                 : toolMode === 'python' || toolMode === 'python-blocking'
-                  ? 'python_run'
+                  ? 'tools_local_command_python_run'
                   : toolMode === 'node'
-                    ? 'node_run'
-                    : 'shell_run'
+                    ? 'tools_local_command_node_run'
+                    : 'tools_local_command_shell_run'
         const argumentsJson =
           toolMode === 'read' || toolMode === 'activity'
             ? '{"script":"mkdir -p output && printf \'E2E workspace\\n\' > output/README.md && cat output/README.md"}'

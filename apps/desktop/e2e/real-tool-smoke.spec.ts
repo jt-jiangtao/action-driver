@@ -58,7 +58,7 @@ test('calls a saved real model and observes a real shell file read', async () =>
   // marker is written by the tool call itself inside the current session.
   writeFileSync(
     join(workspacePath, 'SMOKE_INSTRUCTIONS.md'),
-    'Use shell_run to create this marker inside the session working directory first:\n' +
+    'Use tools_local_command_shell_run to create this marker inside the session working directory first:\n' +
       'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923\n'
   )
   let application: ElectronApplication | undefined
@@ -83,7 +83,7 @@ test('calls a saved real model and observes a real shell file read', async () =>
     await page
       .getByLabel('任务描述')
       .fill(
-        '请调用 shell_run：先在当前工作目录写入 SMOKE.md，内容为 ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923，' +
+        '请调用 tools_local_command_shell_run：先在当前工作目录写入 SMOKE.md，内容为 ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923，' +
           '然后读回并准确返回这一行。不要猜测文件内容。'
       )
     await page.getByLabel('发送').click()

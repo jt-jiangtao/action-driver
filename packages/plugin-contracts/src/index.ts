@@ -129,3 +129,5 @@ export const panelDefinitionSchema = z.object({
   messages: z.record(z.string().regex(/^[a-z][a-z0-9.-]*$/), z.record(z.string(), z.json())).default({})
 }).strict().refine(value => Boolean(value.entry) !== Boolean(value.url), 'Declare one package entry or HTTPS URL')
 export type PanelDefinition = z.infer<typeof panelDefinitionSchema>
+
+export * from './tool-identity.js'

@@ -1,6 +1,6 @@
 {
   "id": "skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "sdk": "^1.0.0",
   "entry": "dist/extension.js",
   "catalog": "dist/catalog.js",
@@ -22,13 +22,13 @@
     },
     {
       "kind": "tool",
-      "id": "skill.read",
-      "modelName": "skill_read"
+      "id": "tools.local.skills.read",
+      "modelName": "tools_local_skills_read"
     },
     {
       "kind": "tool",
-      "id": "skill.install",
-      "modelName": "skill_install"
+      "id": "tools.local.skills.install",
+      "modelName": "tools_local_skills_install"
     }
   ],
   "dependencies": [],

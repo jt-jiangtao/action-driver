@@ -1,20 +1,22 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { PersistedToolInvocation } from './ports'
 
 type ToolErrorLike = { code?: unknown }
 
 export function toolActivitySummary(toolId: string, input: unknown): string {
-  if (toolId === 'web.open@1') return `读取 ${webOpenHostname(input)}`
-  if (toolId === 'web.search@1' && isRecord(input) && typeof input.query === 'string') {
+  toolId = canonicalToolId(toolId)
+  if (toolId === 'tools.local.web.open@1') return `读取 ${webOpenHostname(input)}`
+  if (toolId === 'tools.local.web.search@1' && isRecord(input) && typeof input.query === 'string') {
     return `搜索 “${truncate(input.query, 120)}”`
   }
   if (toolId === 'sandbox.shell.run') return '执行命令'
-  if (toolId === 'local.shell.run') return '执行命令'
-  if (toolId === 'local.python.run') return '运行 Python'
-  if (toolId === 'local.node.run') return '运行 Node.js'
-  if (toolId === 'local.typescript.run') return '运行 TypeScript'
-  if (toolId === 'image.generate@1' || toolId === 'image.generate') return '生成图片'
-  if (toolId === 'computer.js') return 'Computer Use'
-  if (toolId === 'computer.js_reset') return 'Computer Use 重置'
+  if (toolId === 'tools.local.command.shell.run') return '执行命令'
+  if (toolId === 'tools.local.command.python.run') return '运行 Python'
+  if (toolId === 'tools.local.command.node.run') return '运行 Node.js'
+  if (toolId === 'tools.local.command.typescript.run') return '运行 TypeScript'
+  if (toolId === 'tools.local.image-generation.generate@1' || toolId === 'tools.local.image-generation.generate') return '生成图片'
+  if (toolId === 'tools.local.computer-use.js') return 'Computer Use'
+  if (toolId === 'tools.local.computer-use.reset') return 'Computer Use 重置'
   return `运行 ${toolId}`
 }
 
@@ -23,47 +25,47 @@ export function toolActivityTitle(
   input: unknown,
   status: PersistedToolInvocation['status']
 ): string {
-  const type = toolId.split('@')[0] ?? toolId
+  const type = canonicalToolId(toolId).split('@')[0] ?? toolId
   const action =
-    type === 'web.open'
+    type === 'tools.local.web.open'
       ? `读取网页 ${webOpenHostname(input)}`
-      : type === 'web.search'
+      : type === 'tools.local.web.search'
         ? '搜索网页'
         : type === 'sandbox.shell.run'
           ? '执行命令'
-          : type === 'local.shell.run'
+          : type === 'tools.local.command.shell.run'
             ? '执行命令'
-            : type === 'local.python.run'
+            : type === 'tools.local.command.python.run'
               ? '运行 Python'
-              : type === 'local.node.run'
+              : type === 'tools.local.command.node.run'
                 ? '运行 Node.js'
-                : type === 'local.typescript.run'
+                : type === 'tools.local.command.typescript.run'
                   ? '运行 TypeScript'
-                  : type === 'image.generate'
+                  : type === 'tools.local.image-generation.generate'
                     ? '生成图片'
-                    : type === 'computer.js'
+                    : type === 'tools.local.computer-use.js'
                       ? '操作桌面应用'
-                      : type === 'computer.js_reset'
+                      : type === 'tools.local.computer-use.reset'
                         ? '重置 Computer Use'
                         : '调用工具'
   const target =
-    type === 'web.search' && isRecord(input) && typeof input.query === 'string'
+    type === 'tools.local.web.search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
       : ''
   const label = `${action}${target}`
   if (status === 'completed') return `已${label}`
   if (status === 'failed')
-    return type === 'web.open'
+    return type === 'tools.local.web.open'
       ? `${label} 失败`
-      : type === 'local.python.run'
+      : type === 'tools.local.command.python.run'
         ? 'Python 执行失败'
-        : type === 'local.node.run'
+        : type === 'tools.local.command.node.run'
           ? 'Node.js 执行失败'
-        : type === 'local.typescript.run'
+        : type === 'tools.local.command.typescript.run'
           ? 'TypeScript 执行失败'
-          : type === 'computer.js'
+          : type === 'tools.local.computer-use.js'
             ? '操作桌面应用失败'
-            : type === 'computer.js_reset'
+            : type === 'tools.local.computer-use.reset'
               ? '重置 Computer Use 失败'
               : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
@@ -73,11 +75,12 @@ export function toolActivityTitle(
 }
 
 export function toolActivityResultSummary(toolId: string, output: unknown): string {
+  toolId = canonicalToolId(toolId)
   const result = isRecord(output) && 'result' in output ? output.result : output
-  if (toolId === 'web.open@1' && isRecord(result) && typeof result.title === 'string') {
+  if (toolId === 'tools.local.web.open@1' && isRecord(result) && typeof result.title === 'string') {
     return truncate(result.title, 160)
   }
-  if (toolId === 'web.search@1' && isRecord(result) && Array.isArray(result.results)) {
+  if (toolId === 'tools.local.web.search@1' && isRecord(result) && Array.isArray(result.results)) {
     const first = result.results[0]
     if (isRecord(first) && typeof first.title === 'string') return truncate(first.title, 160)
     return `返回 ${result.results.length} 条结果`

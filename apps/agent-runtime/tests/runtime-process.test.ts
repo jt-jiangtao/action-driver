@@ -342,14 +342,14 @@ describe('Agent Runtime process entry', () => {
     for (const tool of tools) registry.register(tool.definition, tool.executor)
     const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
     expect(registry.list().map((tool) => tool.id)).toEqual([
-      'local.shell.run',
-      'local.python.run',
-      'local.node.run',
-      'local.typescript.run'
+      'tools.local.command.shell.run',
+      'tools.local.command.python.run',
+      'tools.local.command.node.run',
+      'tools.local.command.typescript.run'
     ])
     expect(() => registry.resolveModelName('sandbox_fs_read')).toThrow('TOOL_UNAVAILABLE')
     expect(() => registry.resolveModelName('sandbox_fs_list')).toThrow('TOOL_UNAVAILABLE')
-    const shell = registry.resolveModelName('shell_run').definition
+    const shell = registry.resolveModelName('tools_local_command_shell_run').definition
     expect(
       policy.decide(
         shell,

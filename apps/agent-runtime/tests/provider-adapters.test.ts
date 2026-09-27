@@ -301,12 +301,12 @@ describe('OpenAI compatible adapter', () => {
                 {
                   index: 1,
                   id: 'provider-2',
-                  function: { name: 'shell_run', arguments: '{"pa' }
+                  function: { name: 'tools_local_command_shell_run', arguments: '{"pa' }
                 },
                 {
                   index: 0,
                   id: 'provider-1',
-                  function: { name: 'shell_run', arguments: '{"pa' }
+                  function: { name: 'tools_local_command_shell_run', arguments: '{"pa' }
                 }
               ]
             },
@@ -341,9 +341,9 @@ describe('OpenAI compatible adapter', () => {
       messages: [{ role: 'user', content: 'read files' }],
       tools: [
         {
-          id: 'local.shell.run',
+          id: 'tools.local.command.shell.run',
           version: 1,
-          modelName: 'shell_run',
+          modelName: 'tools_local_command_shell_run',
           description: 'Read a workspace file',
           inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
           risk: 'low',
@@ -362,7 +362,7 @@ describe('OpenAI compatible adapter', () => {
           {
             type: 'function',
             function: {
-              name: 'shell_run',
+              name: 'tools_local_command_shell_run',
               description: 'Read a workspace file',
               parameters: { type: 'object', properties: { path: { type: 'string' } } }
             }
@@ -373,8 +373,8 @@ describe('OpenAI compatible adapter', () => {
       expect.anything()
     )
     expect(events).toEqual([
-      { kind: 'tool-call-preparing', index: 1, modelName: 'shell_run' },
-      { kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' },
+      { kind: 'tool-call-preparing', index: 1, modelName: 'tools_local_command_shell_run' },
+      { kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' },
       expect.objectContaining({
         kind: 'end',
         result: {
@@ -382,12 +382,12 @@ describe('OpenAI compatible adapter', () => {
           calls: [
             {
               providerCallId: 'provider-1',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { path: 'README.md' }
             },
             {
               providerCallId: 'provider-2',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { path: 'src' }
             }
           ]
@@ -407,7 +407,7 @@ describe('OpenAI compatible adapter', () => {
                 {
                   index: 0,
                   id: 'provider-1',
-                  function: { name: 'shell_run', arguments: '{invalid' }
+                  function: { name: 'tools_local_command_shell_run', arguments: '{invalid' }
                 }
               ]
             },
@@ -446,7 +446,7 @@ describe('OpenAI compatible adapter', () => {
                   index: 0,
                   id: 'provider-1',
                   function: {
-                    name: 'shell_run',
+                    name: 'tools_local_command_shell_run',
                     arguments: '{"command":"secret'
                   }
                 }
@@ -476,9 +476,9 @@ describe('OpenAI compatible adapter', () => {
       messages: [{ role: 'user', content: 'run a command' }],
       tools: [
         {
-          id: 'local.shell.run',
+          id: 'tools.local.command.shell.run',
           version: 1,
-          modelName: 'shell_run',
+          modelName: 'tools_local_command_shell_run',
           description: 'Run command',
           inputSchema: { type: 'object', properties: { command: { type: 'string' } } },
           risk: 'high',
@@ -490,7 +490,7 @@ describe('OpenAI compatible adapter', () => {
     })
     const stream = iterable[Symbol.asyncIterator]()
     const first = await stream.next()
-    expect(first.value).toEqual({ kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' })
+    expect(first.value).toEqual({ kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' })
     expect(JSON.stringify(first.value)).not.toContain('secret')
     const terminal = await stream.next()
     expect(terminal.value).toMatchObject({
@@ -500,7 +500,7 @@ describe('OpenAI compatible adapter', () => {
         calls: [
           {
             providerCallId: 'provider-1',
-            modelName: 'shell_run',
+            modelName: 'tools_local_command_shell_run',
             arguments: { command: 'secret' }
           }
         ]

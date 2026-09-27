@@ -320,14 +320,14 @@ describe('per-session macOS script sandbox', () => {
       ].join('\n')
     )
 
-    await execute('shell_run', '"$RUNTIME_PYTHON" output/build/create-docx.py')
+    await execute('tools_local_command_shell_run', '"$RUNTIME_PYTHON" output/build/create-docx.py')
     await execute(
-      'shell_run',
+      'tools_local_command_shell_run',
       'soffice --headless --convert-to pdf --outdir output output/sample.docx'
     )
-    await execute('shell_run', '"$RUNTIME_NODE" output/build/create-xlsx.mjs')
-    await execute('shell_run', '"$RUNTIME_NODE" output/build/create-pptx.mjs')
-    await execute('shell_run', '"$RUNTIME_PYTHON" output/build/create-pdf.py')
+    await execute('tools_local_command_shell_run', '"$RUNTIME_NODE" output/build/create-xlsx.mjs')
+    await execute('tools_local_command_shell_run', '"$RUNTIME_NODE" output/build/create-pptx.mjs')
+    await execute('tools_local_command_shell_run', '"$RUNTIME_PYTHON" output/build/create-pdf.py')
 
     expect(existsSync(join(workspace.output, 'sample.docx'))).toBe(true)
     expect(existsSync(join(workspace.output, 'sample.pdf'))).toBe(true)

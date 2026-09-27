@@ -12,7 +12,7 @@ export function createSkillStoragePorts(options: { store: Pick<AgentFileStore, '
     return execution
   }
   return {
-    'host.skills.read': { plugins: ['skills'], grants: ['skill.read@1'], async invoke(payload: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> {
+    'host.skills.read': { plugins: ['skills'], grants: ['tools.local.skills.read@1'], async invoke(payload: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> {
       const input = z.object({ skillId: z.string().min(1), path: z.string().min(1).optional() }).strict().parse(payload)
       const execution = await authority(context)
       signal.throwIfAborted()
@@ -20,7 +20,7 @@ export function createSkillStoragePorts(options: { store: Pick<AgentFileStore, '
       if (input.path === undefined || input.path === 'SKILL.md') options.record(execution.sessionId, input.skillId)
       return { path: file.path, content: file.content }
     } },
-    'host.skills.install': { plugins: ['skills'], grants: ['skill.install@1'], async invoke(payload: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> {
+    'host.skills.install': { plugins: ['skills'], grants: ['tools.local.skills.install@1'], async invoke(payload: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> {
       const input = z.discriminatedUnion('source', [z.object({ source: z.literal('local'), path: z.string().min(1) }).strict(), z.object({ source: z.literal('github'), url: z.string().min(1) }).strict()]).parse(payload)
       const execution = await authority(context)
       signal.throwIfAborted()

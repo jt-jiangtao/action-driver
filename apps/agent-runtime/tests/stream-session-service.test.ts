@@ -641,8 +641,8 @@ describe('StreamSessionService', () => {
           type: 'tool.asset',
           payload: {
             callId: 'a',
-            toolId: 'image.generate',
-            modelName: 'image_generate',
+            toolId: 'tools.local.image-generation.generate',
+            modelName: 'tools_local_image_generation_generate',
             summary: '生成图片',
             argumentsHash: '',
             activityId: null,
@@ -695,8 +695,8 @@ describe('StreamSessionService', () => {
           type: 'tool.running',
           payload: {
             callId: 'a',
-            toolId: 'image.generate',
-            modelName: 'image_generate',
+            toolId: 'tools.local.image-generation.generate',
+            modelName: 'tools_local_image_generation_generate',
             summary: '生成图片',
             argumentsHash: '',
             activityId: null,
@@ -743,7 +743,7 @@ describe('StreamSessionService', () => {
     )
     harness.repositories.close()
   })
-  it('persists batch positions before images and leaves final text after both batches', async () => {
+  it('preserves legacy image tool batch positions before images and leaves final text after both batches', async () => {
     const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
     const runningSnapshots: Array<Awaited<ReturnType<StreamSessionService['getTaskSnapshot']>>> = []
     const graphRunner: GraphRunner = {
@@ -852,7 +852,7 @@ describe('StreamSessionService', () => {
             payload: {
               callId,
               toolId: 'sandbox.shell.run',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               summary: '执行命令',
               argumentsHash: '',
               activityId
@@ -915,8 +915,8 @@ describe('StreamSessionService', () => {
           type: 'tool.running',
           payload: {
             callId: 'call-1',
-            toolId: 'image.generate',
-            modelName: 'image_generate',
+            toolId: 'tools.local.image-generation.generate',
+            modelName: 'tools_local_image_generation_generate',
             summary: '生成 2 张图片',
             argumentsHash: '',
             activityId: null,
@@ -938,8 +938,8 @@ describe('StreamSessionService', () => {
             type: 'tool.asset',
             payload: {
               callId: 'call-1',
-              toolId: 'image.generate',
-              modelName: 'image_generate',
+              toolId: 'tools.local.image-generation.generate',
+              modelName: 'tools_local_image_generation_generate',
               summary: '生成 2 张图片',
               argumentsHash: '',
               activityId: null,
@@ -1011,8 +1011,8 @@ describe('StreamSessionService', () => {
             type: 'tool.asset',
             payload: {
               callId: 'call-1',
-              toolId: 'image.generate',
-              modelName: 'image_generate',
+              toolId: 'tools.local.image-generation.generate',
+              modelName: 'tools_local_image_generation_generate',
               summary: '生成图片',
               argumentsHash: '',
               activityId: null,
@@ -1169,7 +1169,7 @@ describe('StreamSessionService', () => {
     })
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
-        await observer?.({ kind: 'tool-call-preparing', index: 0, modelName: 'shell_run' })
+        await observer?.({ kind: 'tool-call-preparing', index: 0, modelName: 'tools_local_command_shell_run' })
         await gate
         await observer?.({ kind: 'end', content: 'done', finishReason: 'stop', usage: null })
         return {
@@ -1209,10 +1209,11 @@ describe('StreamSessionService', () => {
     if (!accepted || !('taskId' in accepted)) throw new Error('missing task')
     expect(events.map((event) => event.type)).toContain('response.tool_preparing')
     const progress = events.find((event) => event.type === 'response.tool_preparing')
-    expect(progress).toMatchObject({ index: 0, modelName: 'shell_run' })
-    expect(JSON.stringify(progress)).not.toContain('command')
+    expect(progress).toMatchObject({ index: 0, modelName: 'tools_local_command_shell_run' })
+    expect(progress).not.toHaveProperty('command')
+    expect(progress).not.toHaveProperty('arguments')
     const runningSnapshot = await service.getTaskSnapshot(accepted.taskId)
-    expect(runningSnapshot).toMatchObject({ status: 'running', preparingToolName: 'shell_run' })
+    expect(runningSnapshot).toMatchObject({ status: 'running', preparingToolName: 'tools_local_command_shell_run' })
     release()
     await end
     const completedSnapshot = await service.getTaskSnapshot(accepted.taskId)
@@ -2033,7 +2034,7 @@ describe('StreamSessionService', () => {
       id: 'call-snapshot',
       providerCallId: 'provider-snapshot',
       taskId: accepted.taskId,
-      toolId: 'local.shell.run',
+      toolId: 'tools.local.command.shell.run',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -2048,7 +2049,7 @@ describe('StreamSessionService', () => {
       id: 'call-image-snapshot',
       providerCallId: 'provider-image-snapshot',
       taskId: accepted.taskId,
-      toolId: 'image.generate',
+      toolId: 'tools.local.image-generation.generate',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -2157,8 +2158,8 @@ describe('StreamSessionService', () => {
       type: 'tool.completed',
       payload: {
         callId: 'call-safe',
-        toolId: 'web.search@1',
-        modelName: 'web_search',
+        toolId: 'tools.local.web.search@1',
+        modelName: 'tools_local_web_search',
         summary: '搜索 “privacy news”',
         argumentsHash: '',
         output: {
@@ -2311,7 +2312,7 @@ describe('StreamSessionService', () => {
       type: 'tool.completed',
       payload: {
         callId: 'call-persisted',
-        toolId: 'computer.js',
+        toolId: 'tools.local.computer-use.js',
         modelName: 'js',
         summary: 'Computer Use',
         argumentsHash: '',

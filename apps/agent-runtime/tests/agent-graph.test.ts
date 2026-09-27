@@ -58,37 +58,37 @@ describe('minimal agent StateGraph', () => {
   })
 
   it('distinguishes shell commands from web search in group titles', () => {
-    expect(activityTitleForTool('shell_run')).toBe('正在执行命令')
-    expect(activityTitleForTool('web_search')).toBe('正在搜索网页')
-    expect(activityTitleForTool('web_open')).toBe('正在读取网页')
+    expect(activityTitleForTool('tools_local_command_shell_run')).toBe('正在执行命令')
+    expect(activityTitleForTool('tools_local_web_search')).toBe('正在搜索网页')
+    expect(activityTitleForTool('tools_local_web_open')).toBe('正在读取网页')
     expect(activityTitleForTool('js')).toBe('正在操作桌面应用')
     expect(activityTitleForTool('js', 'failed')).toBe('操作桌面应用失败')
-    expect(activityTitleForTools('read pages', ['web_open', 'web_open'])).toBe(
+    expect(activityTitleForTools('read pages', ['tools_local_web_open', 'tools_local_web_open'])).toBe(
       '正在执行 2 项网页读取'
     )
   })
   it('updates a mixed group summary as its tools and outcomes change', () => {
     const goal = '测试所有工具'
-    expect(activityTitleForTools(goal, ['shell_run', 'python_run'])).toBe(
+    expect(activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_python_run'])).toBe(
       '正在测试所有工具：命令、脚本'
     )
-    expect(activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'])).toBe(
+    expect(activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_web_search'])).toBe(
       '正在测试所有工具：命令、脚本、网页'
     )
     expect(
-      activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'], 'completed', 1)
+      activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_web_search'], 'completed', 1)
     ).toBe('测试所有工具：命令、脚本、网页')
     expect(
-      activityTitleForTools(goal, ['shell_run', 'python_run', 'web_search'], 'completed')
+      activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_web_search'], 'completed')
     ).toBe('已完成测试所有工具：命令、脚本、网页')
   })
   it('uses a concise task intent for a single tool and a homogeneous group', () => {
     const goal = '读取 README 的第一段'
-    expect(activityTitleForTools(goal, ['shell_run'])).toBe('正在读取 README 的第一段')
-    expect(activityTitleForTools(goal, ['shell_run', 'shell_run'])).toBe(
+    expect(activityTitleForTools(goal, ['tools_local_command_shell_run'])).toBe('正在读取 README 的第一段')
+    expect(activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_shell_run'])).toBe(
       '正在读取 README 的第一段 · 2 条命令'
     )
-    expect(activityTitleForTools(goal, ['shell_run', 'shell_run'], 'completed')).toBe(
+    expect(activityTitleForTools(goal, ['tools_local_command_shell_run', 'tools_local_command_shell_run'], 'completed')).toBe(
       '已完成读取 README 的第一段 · 2 条命令'
     )
     expect(
@@ -104,8 +104,8 @@ describe('minimal agent StateGraph', () => {
     }> = []
     const imageTool: ToolDefinition = {
       ...shellTool,
-      id: 'image.generate',
-      modelName: 'image_generate',
+      id: 'tools.local.image-generation.generate',
+      modelName: 'tools_local_image_generation_generate',
       description: 'Generate an image'
     }
     const registry = new RuntimeToolRegistry()
@@ -141,7 +141,7 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'prepare',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'true' }
                 }
               ]
@@ -153,8 +153,8 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy,
       invocations,
-      grants: ['local.shell.run@1', 'image.generate@1'],
-      isAvailable: async (definition) => definition.id !== 'image.generate' || imageConfigured,
+      grants: ['tools.local.command.shell.run@1', 'tools.local.image-generation.generate@1'],
+      isAvailable: async (definition) => definition.id !== 'tools.local.image-generation.generate' || imageConfigured,
       capabilityNotice: async () =>
         imageConfigured ? null : '生图功能未配置。请在设置 → 模型连接启用生图并设为默认模型。'
     })
@@ -162,13 +162,13 @@ describe('minimal agent StateGraph', () => {
     await runner.run({ taskId: 'task-image-capability', goal: '画一只猫', model: modelRef })
 
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['tools_local_command_shell_run'])
     expect(requests[0]?.messages.filter((message) => message.role === 'system')).toEqual([
       expect.objectContaining({ content: expect.stringContaining('设置 → 模型连接') })
     ])
     expect(requests[1]?.tools?.map((tool) => tool.modelName)).toEqual([
-      'shell_run',
-      'image_generate'
+      'tools_local_command_shell_run',
+      'tools_local_image_generation_generate'
     ])
     expect(
       requests[1]?.messages.some((message) => String(message.content).includes('生图功能未配置'))
@@ -184,18 +184,18 @@ describe('minimal agent StateGraph', () => {
       async complete(request) {
         round += 1
         if (round === 1) {
-          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
+          expect(request.tools?.map((tool) => tool.modelName)).toEqual(['tools_local_command_shell_run'])
           return {
             kind: 'tool-calls',
             calls: [
               {
                 providerCallId: 'provider-read-first',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat README.md' }
               },
               {
                 providerCallId: 'provider-read-second',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat package.json' }
               }
             ]
@@ -319,7 +319,7 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'provider-read',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'cat README.md' }
                 }
               ]
@@ -364,12 +364,12 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'first',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'cat first.txt' }
                 },
                 {
                   providerCallId: 'second',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'cat second.txt' }
                 }
               ]
@@ -415,12 +415,12 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-read-first',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat README.md' }
               },
               {
                 providerCallId: 'provider-read-second',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat package.json' }
               }
             ]
@@ -545,7 +545,7 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'read-a',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'cat README.md' }
                 }
               ]
@@ -681,7 +681,7 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: `provider-${round}`,
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: `cat file-${round}.txt` }
                 }
               ]
@@ -824,7 +824,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'computer.js',
+        id: 'tools.local.computer-use.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -854,7 +854,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['computer.js@1']
+      grants: ['tools.local.computer-use.js@1']
     })
     const result = await runner.run({
       taskId: 'private-source-task',
@@ -897,7 +897,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'computer.js',
+        id: 'tools.local.computer-use.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -926,7 +926,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['computer.js@1']
+      grants: ['tools.local.computer-use.js@1']
     })
     const result = await runner.run({
       taskId: 'gate-task',
@@ -964,7 +964,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'computer.js',
+        id: 'tools.local.computer-use.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -994,7 +994,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['computer.js@1']
+      grants: ['tools.local.computer-use.js@1']
     })
     const result = await runner.run({
       taskId: 'failed-cell-task',
@@ -1024,7 +1024,7 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-read-1',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat README.md' }
               }
             ]
@@ -1046,7 +1046,7 @@ describe('minimal agent StateGraph', () => {
 
     expect(result).toMatchObject({ status: 'completed', output: '**done**' })
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['shell_run'])
+    expect(requests[0]?.tools?.map((tool) => tool.modelName)).toEqual(['tools_local_command_shell_run'])
     expect(requests[1]?.messages.at(-2)).toMatchObject({
       role: 'assistant',
       toolCalls: [{ providerCallId: 'provider-read-1' }]
@@ -1076,7 +1076,7 @@ describe('minimal agent StateGraph', () => {
               calls: [
                 {
                   providerCallId: 'provider-stream-1',
-                  modelName: 'shell_run',
+                  modelName: 'tools_local_command_shell_run',
                   arguments: { command: 'cat README.md' }
                 }
               ]
@@ -1148,7 +1148,7 @@ describe('minimal agent StateGraph', () => {
             calls: [
               {
                 providerCallId: 'provider-denied',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'cat README.md' }
               }
             ]
@@ -1183,8 +1183,8 @@ describe('minimal agent StateGraph', () => {
           return {
             kind: 'tool-calls',
             calls: [
-              { providerCallId: 'first', modelName: 'shell_run', arguments: { command: 'cat a' } },
-              { providerCallId: 'second', modelName: 'shell_run', arguments: { command: 'cat b' } }
+              { providerCallId: 'first', modelName: 'tools_local_command_shell_run', arguments: { command: 'cat a' } },
+              { providerCallId: 'second', modelName: 'tools_local_command_shell_run', arguments: { command: 'cat b' } }
             ]
           }
         }
@@ -1210,7 +1210,7 @@ describe('minimal agent StateGraph', () => {
           calls: [
             {
               providerCallId: `provider-${++callCount}`,
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { command: 'cat README.md' }
             }
           ]
@@ -1241,7 +1241,7 @@ describe('minimal agent StateGraph', () => {
           kind: 'tool-calls',
           calls: Array.from({ length: 513 }, (_, index) => ({
             providerCallId: `provider-${index}`,
-            modelName: 'shell_run',
+            modelName: 'tools_local_command_shell_run',
             arguments: { command: 'cat README.md' }
           }))
         }
@@ -1254,7 +1254,7 @@ describe('minimal agent StateGraph', () => {
   })
 
   it('executes 100 calls of each current tool in one task before generating the final answer', async () => {
-    const names = ['shell_run', 'python_run', 'node_run', 'web_search'] as const
+    const names = ['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_web_search'] as const
     const executed: string[] = []
     let modelTurns = 0
     const model: ModelGateway = {
@@ -1323,7 +1323,7 @@ describe('minimal agent StateGraph', () => {
           calls: [
             {
               providerCallId: `round-${turns}`,
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { command: 'printf ok' }
             }
           ]
@@ -1346,7 +1346,7 @@ describe('minimal agent StateGraph', () => {
           kind: 'tool-calls',
           calls: Array.from({ length: 513 }, (_, index) => ({
             providerCallId: `excess-${index}`,
-            modelName: 'shell_run',
+            modelName: 'tools_local_command_shell_run',
             arguments: { command: 'printf no' }
           }))
         }
@@ -1382,7 +1382,7 @@ describe('minimal agent StateGraph', () => {
           calls: [
             {
               providerCallId: 'provider-cancel',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { command: 'cat README.md' }
             }
           ]
@@ -1678,9 +1678,9 @@ describe('minimal agent StateGraph', () => {
 })
 
 const shellTool: ToolDefinition = {
-  id: 'local.shell.run',
+  id: 'tools.local.command.shell.run',
   version: 1,
-  modelName: 'shell_run',
+  modelName: 'tools_local_command_shell_run',
   description: 'Run a shell command',
   inputSchema: {
     type: 'object',
@@ -1714,7 +1714,7 @@ function toolRunner(model: ModelGateway, executor: ToolExecutor) {
       registry,
       policy,
       invocations,
-      grants: ['local.shell.run@1']
+      grants: ['tools.local.command.shell.run@1']
     }),
     commits
   }
@@ -1724,7 +1724,7 @@ it('tells the model that crashed plugin side effects have an unknown outcome', a
   const { PluginError } = await import('@actiondriver/plugin-contracts')
   let round = 0, toolMessage: unknown
   const model: ModelGateway = { async complete(request) {
-    if (round++ === 0) return { kind: 'tool-calls', calls: [{ providerCallId: 'p', modelName: 'shell_run', arguments: { command: 'write' } }] }
+    if (round++ === 0) return { kind: 'tool-calls', calls: [{ providerCallId: 'p', modelName: 'tools_local_command_shell_run', arguments: { command: 'write' } }] }
     toolMessage = request.messages.find(message => message.role === 'tool')?.content
     return { kind: 'finish', content: 'Outcome uncertain; inspect before retrying.' }
   } }

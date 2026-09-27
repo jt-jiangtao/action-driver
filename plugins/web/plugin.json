@@ -1,6 +1,6 @@
 {
   "id": "web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "sdk": "^1.0.0",
   "entry": "dist/extension.js",
   "catalog": "dist/catalog.js",
@@ -13,19 +13,19 @@
     "win32-x64"
   ],
   "activation": [
-    "onTool:web.open",
-    "onTool:web.search"
+    "onTool:tools.local.web.open",
+    "onTool:tools.local.web.search"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "web.open",
-      "modelName": "web_open"
+      "id": "tools.local.web.open",
+      "modelName": "tools_local_web_open"
     },
     {
       "kind": "tool",
-      "id": "web.search",
-      "modelName": "web_search"
+      "id": "tools.local.web.search",
+      "modelName": "tools_local_web_search"
     }
   ],
   "dependencies": [],

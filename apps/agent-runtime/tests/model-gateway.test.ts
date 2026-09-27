@@ -278,7 +278,7 @@ describe('ModelGateway boundary', () => {
         throw new Error('unexpected complete')
       },
       async *stream() {
-        yield { kind: 'tool-call-preparing' as const, index: 0, modelName: 'shell_run' }
+        yield { kind: 'tool-call-preparing' as const, index: 0, modelName: 'tools_local_command_shell_run' }
         await gate
         yield {
           kind: 'end' as const,
@@ -287,7 +287,7 @@ describe('ModelGateway boundary', () => {
             calls: [
               {
                 providerCallId: 'call-1',
-                modelName: 'shell_run',
+                modelName: 'tools_local_command_shell_run',
                 arguments: { command: 'secret' }
               }
             ]
@@ -306,7 +306,7 @@ describe('ModelGateway boundary', () => {
     expect((await stream.next()).value).toEqual({
       kind: 'tool-call-preparing',
       index: 0,
-      modelName: 'shell_run'
+      modelName: 'tools_local_command_shell_run'
     })
     release()
     expect((await stream.next()).value).toMatchObject({ kind: 'end' })
@@ -322,7 +322,7 @@ describe('ModelGateway boundary', () => {
           calls: [
             {
               providerCallId: 'provider-call-1',
-              modelName: 'shell_run',
+              modelName: 'tools_local_command_shell_run',
               arguments: { path: 'README.md' }
             }
           ]

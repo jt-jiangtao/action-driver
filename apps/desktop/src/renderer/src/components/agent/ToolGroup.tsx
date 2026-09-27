@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { ReactNode } from 'react'
 import { memo, useRef } from 'react'
 import {
@@ -101,7 +102,7 @@ function ActivityIcon({
 }) {
   const toolKinds = new Set(
     (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
-      if (/^computer\./.test(toolId)) return 'computer'
+      if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(toolId)) return 'computer'
       if (/image/.test(toolId)) return 'image'
       if (/web/.test(toolId)) return 'web'
       if (/shell|command|python|node\.run|typescript/.test(toolId)) return 'shell'
@@ -126,6 +127,7 @@ function ActivityIcon({
 
 export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationProjection | undefined }) {
   if (!tool) return null
+  tool = { ...tool, toolId: canonicalToolId(tool.toolId) }
   const hasRawIO = tool.rawInput !== undefined || tool.rawOutput !== undefined
   const shellTranscript = shellToolTranscript(tool)
   const computerCell = computerUseCell(tool)
@@ -244,7 +246,7 @@ export const ToolRow = memo(function ToolRow({ tool }: { tool: ToolInvocationPro
 function imageToolSummary(
   tool: ToolInvocationProjection
 ): { prompts: string[]; succeeded: number; failed: number } | null {
-  if (tool.toolId !== 'image.generate') return null
+  if (canonicalToolId(tool.toolId) !== 'tools.local.image-generation.generate') return null
   const input = parseObject(tool.rawInput ?? '')
   const images = Array.isArray(input?.images) ? input.images : []
   const prompts = images
@@ -371,7 +373,7 @@ function shellToolTranscript(
 function computerUseCell(
   tool: ToolInvocationProjection
 ): { text: string; output?: string } | null {
-  if (tool.toolId !== 'computer.js') return null
+  if (tool.toolId !== 'tools.local.computer-use.js') return null
   const input = parseObject(tool.rawInput ?? '')
   if (typeof input?.code !== 'string' || input.code.length === 0) return null
   return {
@@ -397,7 +399,7 @@ function webOpenResult(tool: ToolInvocationProjection): {
   text: string
   truncated: boolean
 } | null {
-  if (!tool.toolId.startsWith('web.open') || !tool.rawOutput) return null
+  if (!tool.toolId.startsWith('tools.local.web.open') || !tool.rawOutput) return null
   const raw = parseObject(tool.rawOutput)
   const result = raw?.result
   if (!result || typeof result !== 'object' || Array.isArray(result)) return null
@@ -419,11 +421,11 @@ function webOpenResult(tool: ToolInvocationProjection): {
 }
 
 function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
-  if (/^computer\./.test(tool.toolId)) return <MousePointer2 aria-hidden="true" size={16} />
+  if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(tool.toolId)) return <MousePointer2 aria-hidden="true" size={16} />
   // Codex marks image generation with the imagegen Skill icon.
   if (/image/.test(tool.toolId)) return <ImageIcon aria-hidden="true" size={16} />
-  if (/skill\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />
-  if (/skill\.read/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
+  if (/skills?\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />
+  if (/skills?\.read/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
   if (/dependenc/.test(tool.toolId)) return <Package aria-hidden="true" size={16} />
   if (/web\.open/.test(tool.toolId)) return <FileText aria-hidden="true" size={16} />
   if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
@@ -443,12 +445,12 @@ function toolAction(tool: ToolInvocationProjection): string {
     if (tool.status === 'cancelled') return '已取消：'
     return tool.status === 'completed' ? '已生成图片：' : '正在生成图片 '
   }
-  if (/^computer\.js_reset/.test(tool.toolId)) {
+  if (/^(?:computer\.js_reset|tools\.local\.computer-use\.reset)/.test(tool.toolId)) {
     if (tool.status === 'failed') return '重置 Computer Use 失败：'
     if (tool.status === 'cancelled') return '已取消重置 Computer Use：'
     return tool.status === 'completed' ? '已重置 Computer Use：' : '正在重置 Computer Use '
   }
-  if (/^computer\.js/.test(tool.toolId)) {
+  if (/^(?:computer\.js|tools\.local\.computer-use\.js)/.test(tool.toolId)) {
     if (tool.status === 'failed') return '操作桌面应用失败：'
     if (tool.status === 'cancelled') return '已取消操作桌面应用：'
     return tool.status === 'completed' ? '已操作桌面应用：' : '正在操作桌面应用 '
@@ -459,7 +461,7 @@ function toolAction(tool: ToolInvocationProjection): string {
   if (tool.status === 'waiting_approval') return '旧审批记录：'
   if (tool.status === 'running' || tool.status === 'queued' || tool.status === 'proposed')
     return '正在运行 '
-  if (tool.toolId.startsWith('web.open')) return '已读取网页：'
+  if (tool.toolId.startsWith('tools.local.web.open')) return '已读取网页：'
   if (/web/.test(tool.toolId)) return '已搜索网页：'
   if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
   if (/shell|command|python|node\.run|typescript/.test(tool.toolId)) return '已运行 '
@@ -468,12 +470,12 @@ function toolAction(tool: ToolInvocationProjection): string {
 
 function toolTitle(tool: ToolInvocationProjection): string {
   if (/image/.test(tool.toolId)) return '图片生成'
-  if (/^computer\.js/.test(tool.toolId)) return 'Computer Use'
-  if (/shell|command/.test(tool.toolId)) return 'Shell'
+  if (/^(?:computer\.js|tools\.local\.computer-use\.js)/.test(tool.toolId)) return 'Computer Use'
+  if (/shell|^command/.test(tool.toolId)) return 'Shell'
   if (/python/.test(tool.toolId)) return 'Python'
   if (/node\.run/.test(tool.toolId)) return 'Node.js'
   if (/typescript/.test(tool.toolId)) return 'TypeScript'
-  if (tool.toolId.startsWith('web.open')) return '网页内容'
+  if (tool.toolId.startsWith('tools.local.web.open')) return '网页内容'
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   return '工具'

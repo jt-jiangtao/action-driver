@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { PluginError } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import {
@@ -61,7 +62,7 @@ export class ToolInvocationService {
     const definition = registered.definition
     const decision = this.options.policy.decide(definition, call, context)
     const imageCount =
-      definition.id === 'image.generate' && Array.isArray(call.arguments.images)
+      definition.id === 'tools.local.image-generation.generate' && Array.isArray(call.arguments.images)
         ? call.arguments.images.length
         : undefined
     const startedAt = this.options.clock.now()
@@ -214,9 +215,9 @@ export class ToolInvocationService {
         ? await this.options.executionContext(context.taskId)
         : undefined
       for await (const part of registered.executor.execute(
-        call,
+        { ...call, modelName: definition.modelName },
         controller.signal,
-        executionContext ? { ...executionContext, grants: [...context.grants] } : undefined
+        executionContext ? { ...executionContext, grants: context.grants.map(canonicalToolId) } : undefined
       )) {
         if (controller.signal.aborted) throw controller.signal.reason
         if (part.kind === 'asset') {

@@ -1,3 +1,4 @@
+import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import {
   STREAM_PROTOCOL,
   parseStreamServerEvent,
@@ -516,7 +517,7 @@ export class StreamSessionService {
                 imageCount?: unknown
               }
               if (
-                payload.toolId === 'image.generate' &&
+                typeof payload.toolId === 'string' && canonicalToolId(payload.toolId) === 'tools.local.image-generation.generate' &&
                 typeof payload.callId === 'string' &&
                 typeof payload.imageCount === 'number' &&
                 Number.isInteger(payload.imageCount) &&
@@ -895,7 +896,7 @@ export class StreamSessionService {
           modelName: invocation.toolId,
           ...persisted,
           argumentsHash: invocation.argumentsHash,
-          ...(invocation.toolId === 'image.generate' &&
+          ...(canonicalToolId(invocation.toolId) === 'tools.local.image-generation.generate' &&
           Array.isArray((invocation.input as { images?: unknown }).images) &&
           (invocation.input as { images: unknown[] }).images.length >= 1 &&
           (invocation.input as { images: unknown[] }).images.length <= 16

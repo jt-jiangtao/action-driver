@@ -20,9 +20,9 @@ describe('Computer Use screenshot graph boundary', () => {
     const registry = new RuntimeToolRegistry()
     registry.register(
       {
-        id: 'computer.js',
+        id: 'tools.local.computer-use.js',
         version: 1,
-        modelName: 'js',
+        modelName: 'tools_local_computer_use_js',
         description: 'Run JavaScript',
         inputSchema: {
           type: 'object',
@@ -80,7 +80,7 @@ describe('Computer Use screenshot graph boundary', () => {
             calls: [
               {
                 providerCallId: `js-${round}`,
-                modelName: 'js',
+                modelName: 'tools_local_computer_use_js',
                 arguments: { code: round === 1 ? 'await app.getScreenshot()' : '1' }
               }
             ]
@@ -92,7 +92,7 @@ describe('Computer Use screenshot graph boundary', () => {
       registry,
       policy,
       invocations,
-      grants: ['computer.js@1']
+      grants: ['tools.local.computer-use.js@1']
     })
     const result = await runner.run({
       taskId: 'capture-test',
