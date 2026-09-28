@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createServiceLogger } from '../src/service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from '../src/service/http-service'
+import { startLocalOtelCollector } from '../../../tests/otel-collector'
 
 let server: ServiceHttpServer | undefined
 
@@ -122,14 +123,20 @@ describe('service interaction logging', () => {
   it('does not create a local operational log next to the database', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('ACTIONDRIVER_LOG_PRETTY', '0')
+    const collector = await startLocalOtelCollector()
+    vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', collector.endpoint)
     const dataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-logs-'))
     const databasePath = join(dataDirectory, 'data', 'actiondriver.db')
 
-    const serviceLogger = createServiceLogger({ databasePath, pretty: false, level: 'info' })
-    serviceLogger.logger.info({ transport: 'http', path: '/model-connections' }, 'service response')
-    await serviceLogger.close()
+    try {
+      const serviceLogger = createServiceLogger({ databasePath, pretty: false, level: 'info' })
+      serviceLogger.logger.info({ transport: 'http', path: '/model-connections' }, 'service response')
+      await serviceLogger.close()
 
-    const logPath = join(dataDirectory, 'logs', 'service.log')
-    expect(existsSync(logPath)).toBe(false)
+      const logPath = join(dataDirectory, 'logs', 'service.log')
+      expect(existsSync(logPath)).toBe(false)
+    } finally {
+      await collector.close()
+    }
   })
 })

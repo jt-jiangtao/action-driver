@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs'
 import * as observability from '../src/index'
+import { startLocalOtelCollector } from '../../../tests/otel-collector'
+
+let collector: Awaited<ReturnType<typeof startLocalOtelCollector>>
+beforeAll(async () => { collector = await startLocalOtelCollector() })
+afterAll(async () => { await collector.close() })
 
 describe('OpenTelemetry process observability', () => {
   it('exports only allowed structured fields through the Logs SDK', async () => {
@@ -28,7 +33,7 @@ describe('OpenTelemetry process observability', () => {
     expect(factory).toBeTypeOf('function')
     const process = factory!({
       serviceName: 'actiondriver-test',
-      endpoint: 'http://127.0.0.1:4318',
+      endpoint: collector.endpoint,
       logExporter: exporter
     })
     let activeTraceId = ''
@@ -56,7 +61,7 @@ describe('OpenTelemetry process observability', () => {
     const factory = observability.createProcessObservability
     const process = factory({
       serviceName: 'actiondriver-failure-test',
-      endpoint: 'http://127.0.0.1:4318',
+      endpoint: collector.endpoint,
       logExporter: {
         export(_records, callback) {
           callback({ code: 1, error: new Error('collector unavailable') })
@@ -73,7 +78,7 @@ describe('OpenTelemetry process observability', () => {
   it('bounds shutdown when an exporter never completes', async () => {
     const process = observability.createProcessObservability({
       serviceName: 'actiondriver-timeout-test',
-      endpoint: 'http://127.0.0.1:4318',
+      endpoint: collector.endpoint,
       closeTimeoutMs: 25,
       logExporter: {
         export() {},
@@ -91,7 +96,7 @@ describe('OpenTelemetry process observability', () => {
   it('keeps business logging non-blocking when the batch queue is saturated', async () => {
     const process = observability.createProcessObservability({
       serviceName: 'actiondriver-pressure-test',
-      endpoint: 'http://127.0.0.1:4318',
+      endpoint: collector.endpoint,
       closeTimeoutMs: 25,
       logExporter: {
         export() {},

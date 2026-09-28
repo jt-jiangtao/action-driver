@@ -86,3 +86,13 @@
 - [ ] **Step 3: 更新 OpenSpec 并提交。** 勾选已完成任务，严格验证 `prune-unused-project-code`，只暂存本次任务文件并提交；重新检查 Git 状态，确认 `.env.local` 未被暂存。
 
 归档在实施验证后按 `openspec-archive-change` 单独执行。
+
+### Task 5: 统一 Node 并修复测试基线（追加裁决）
+
+**Files:** `openspec/changes/prune-unused-project-code/{proposal,design,tasks,audit}.md`；具体测试与实现文件由根因调查确定。
+
+**Interfaces:** 本次验证固定使用本机已安装的 Node v24.20.0；不改变 `package.json` 的 Node 支持范围、产品接口、持久化或安全约束。用户已裁决在同一清理分支修复既有测试失败，并接受跨模块复核成本。
+
+- [x] **Step 1: 建立可复现基线。** 对照未修改主工作区与清理分支，均通过明确的 Node v24.20.0 PATH 运行失败文件的定向测试；把失败测试、报错、是否两边一致及根因记录在 `audit.md`。不在迭代期重跑全量 `pnpm test`。
+- [x] **Step 2: 按根因逐项修复。** 每组先有失败用例，再做最小修复；运行该文件及直接关联测试。若修复触及新的产品边界，暂停并按 Agent Battle 协议裁决。
+- [x] **Step 3: 提交前统一验证。** 只有全部预期修复完成并准备下一次提交时，执行一次 `corepack pnpm typecheck`、`corepack pnpm lint`、`corepack pnpm test`；记录结果、只暂存本任务文件并提交。全量仍红则保留分支并继续定位，不宣称通过。
