@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 5.9、Electron、Swift Package、pnpm、Vitest、OpenSpec、Git。
 
-**Spec:** `docs/superpowers/specs/2026-09-28-prune-unused-project-code-design.md`；OpenSpec `openspec/changes/prune-unused-project-code/`。
+**Spec:** `docs/superpowers/specs/2026-09-28-prune-unused-project-code-design.md`；OpenSpec 已归档至 `openspec/changes/archive/2026-09-29-prune-unused-project-code/`。以下任务中的活跃路径保留执行时记录。
 
 ## Global Constraints
 

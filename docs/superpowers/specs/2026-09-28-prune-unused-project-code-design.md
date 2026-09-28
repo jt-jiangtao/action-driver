@@ -6,7 +6,7 @@
 
 ## 范围
 
-审查 `apps/`、`packages/`、`plugins/`、`scripts/`。保留 `packages/back`、Git 子模块、文档和设计资产、未跟踪的 `.env.local`、依赖安装与被忽略的构建缓存。仅清理源码区域内不承担占位用途的空目录。现有 OpenSpec 能力要求不变；详细范围与 Battle 裁决见 `openspec/changes/prune-unused-project-code/proposal.md`。
+审查 `apps/`、`packages/`、`plugins/`、`scripts/`。保留 `packages/back`、Git 子模块、文档和设计资产、未跟踪的 `.env.local`、依赖安装与被忽略的构建缓存。仅清理源码区域内不承担占位用途的空目录。现有 OpenSpec 能力要求不变；详细范围与 Battle 裁决见 `openspec/changes/archive/2026-09-29-prune-unused-project-code/proposal.md`。
 
 ## 方法
 
@@ -20,4 +20,4 @@
 
 ## 风险与裁决
 
-用户在了解动态入口误删风险后选择更激进的全域代码清理，并明确“只删代码”。相对保守方案，本方案覆盖文件内部无用符号与仅失效测试引用的旧链路，要求更严格的入口核查和验证。任何实际公共接口、产品行为或数据格式变化都超出此裁决，需暂停并重新 Battle。技术决策、替代方案和风险详见 `openspec/changes/prune-unused-project-code/design.md`。
+用户在了解动态入口误删风险后选择更激进的全域代码清理，并明确“只删代码”。相对保守方案，本方案覆盖文件内部无用符号与仅失效测试引用的旧链路，要求更严格的入口核查和验证。任何实际公共接口、产品行为或数据格式变化都超出此裁决，需暂停并重新 Battle。技术决策、替代方案和风险详见 `openspec/changes/archive/2026-09-29-prune-unused-project-code/design.md`。
