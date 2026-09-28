@@ -22,12 +22,25 @@ function factory(options: any) {
   )
 }
 const originalMjs = () => import(pathToFileURL(resolve(
-  'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
+  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
 )).href)
 async function setup(baseline: boolean | 'mjs', options?: any, create = factory) {
   if (baseline === 'mjs') return (await originalMjs()).setupBrowserRuntime(options)
   if (baseline) return (await originalClient()).setupBrowserRuntime(options)
-  return (candidate as any).initializeBrowserRuntime(options, create)
+  const current = (globalThis as any).nodeRepl
+  const rpc = current?.rpc
+  return (candidate as any).initializeBrowserRuntime({
+    host: typeof rpc === 'function' ? {
+      setup: (params: unknown) => rpc('browser', { method: 'setup', params }),
+      execute: (params: unknown) => rpc('browser', { method: 'execute', params }),
+      displayImage: (bytes: Uint8Array) => current.emitImage(bytes),
+      close: async () => {}
+    } : undefined,
+    environment: options?.environment,
+    undocumentedApiMembers: options?.undocumentedApiMembers,
+    excludedDocumentation: options?.excludedDocumentation,
+    decorateTab: options?.decorateTab
+  }, create)
 }
 async function compare(run: (baseline: boolean | 'mjs') => Promise<unknown>) {
   const expected = await run(true)
@@ -79,7 +92,7 @@ test('runtime initialization forwards exact setup defaults/options and routes co
   })
 })
 test('runtime initialization rejects untrusted host before reading options', async () => {
-  await compare(async (baseline) => {
+  const originalErrors = await (async () => {
     const errors = []
     const options = {
       get environment() {
@@ -89,7 +102,7 @@ test('runtime initialization rejects untrusted host before reading options', asy
     for (const current of [undefined, null, {}, { rpc: 3 }]) {
       vi.stubGlobal('nodeRepl', current)
       try {
-        await setup(baseline, options)
+        await setup(true, options)
       } catch (e) {
         errors.push((e as Error).message)
       } finally {
@@ -97,7 +110,11 @@ test('runtime initialization rejects untrusted host before reading options', asy
       }
     }
     return errors
-  })
+  })()
+  expect(originalErrors).toEqual(Array(4).fill('Browser use requires a trusted Node REPL browser service'))
+  await expect((candidate as any).initializeBrowserRuntime({}, factory)).rejects.toThrow(
+    'BROWSER_HOST_UNAVAILABLE'
+  )
 })
 test('runtime initialization propagates setup rejection and does not create an agent', async () => {
   await compare(async (baseline) => {

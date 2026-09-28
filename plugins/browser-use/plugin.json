@@ -4,15 +4,10 @@
   "sdk": "^1.0.0",
   "entry": "dist/extension.js",
   "catalog": "dist/catalog.js",
-  "platforms": [
-    "darwin-arm64",
-    "darwin-x64",
-    "linux-arm64",
-    "linux-x64",
-    "win32-arm64",
-    "win32-x64"
+  "platforms": ["darwin-arm64", "darwin-x64"],
+  "activation": ["onSkill:browser-use"],
+  "contributions": [
+    { "kind": "skill", "id": "browser-use" }
   ],
-  "activation": [],
-  "contributions": [],
   "dependencies": []
 }

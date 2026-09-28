@@ -237,6 +237,7 @@ export function TaskPage({
         >
           {task.browser ? (
             <BrowserPanel
+              taskId={task.id}
               mode={mode === 'browser-expanded' ? 'browser-expanded' : 'split'}
               sidebarCollapsed={sidebarCollapsed}
               onExpandSidebar={onExpandSidebar}

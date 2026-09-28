@@ -3,6 +3,11 @@ import { createDesktopApi } from './desktop-api'
 import { RUNTIME_CONNECTION_IPC_CHANNEL } from '../shared/runtime-connection-contract'
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
 import {
+  BROWSER_SESSION_COMMAND_CHANNEL,
+  BROWSER_SESSION_EVENT_CHANNEL,
+  BROWSER_SESSION_VIEWPORT_CHANNEL
+} from '../shared/browser-session-contract'
+import {
   COMPUTER_GUIDANCE_ENSURE_CHANNEL,
   COMPUTER_PERMISSIONS_CHECK_CHANNEL
 } from '../shared/computer-use-contract'
@@ -17,6 +22,7 @@ describe('preload Runtime bootstrap', () => {
     const invoke = vi.fn(async () => connection)
     const api = createDesktopApi('darwin', '0.1.0', { invoke })
     expect(Object.keys(api).sort()).toEqual([
+      'browserSession',
       'computerUse',
       'externalLinks',
       'getEnvironment',
@@ -51,5 +57,35 @@ describe('preload Runtime bootstrap', () => {
 
     await api.computerUse.ensureGuidance()
     expect(invoke).toHaveBeenLastCalledWith(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {})
+  })
+
+  it('exposes only the named browser command and event channels', async () => {
+    let onEvent: ((value: unknown) => void) | undefined
+    const invoke = vi.fn(async () => ({ sessionId: 's-1', surface: 'embedded', status: 'running',
+      activeTabId: null, tabs: [], error: null }))
+    const api = createDesktopApi('darwin', '0.1.0', {
+      invoke,
+      on(channel, listener) {
+        expect(channel).toBe(BROWSER_SESSION_EVENT_CHANNEL)
+        onEvent = listener
+        return () => { onEvent = undefined }
+      }
+    })
+    const request = { action: 'open' as const, taskId: 'task-1', surface: 'embedded' as const }
+    await expect(api.browserSession.command(request)).resolves.toMatchObject({ sessionId: 's-1' })
+    expect(invoke).toHaveBeenCalledWith(BROWSER_SESSION_COMMAND_CHANNEL, request)
+    await api.browserSession.setViewport({ taskId: 'task-1', sessionId: 's-1',
+      bounds: { x: 12, y: 40, width: 420, height: 320 }, visible: true })
+    expect(invoke).toHaveBeenCalledWith(BROWSER_SESSION_VIEWPORT_CHANNEL, {
+      taskId: 'task-1', sessionId: 's-1',
+      bounds: { x: 12, y: 40, width: 420, height: 320 }, visible: true
+    })
+
+    const listener = vi.fn()
+    const unsubscribe = api.browserSession.subscribe(listener)
+    onEvent?.({ taskId: 'task-1', snapshot: { sessionId: 's-1' } })
+    expect(listener).toHaveBeenCalledWith({ taskId: 'task-1', snapshot: { sessionId: 's-1' } })
+    unsubscribe()
+    expect(onEvent).toBeUndefined()
   })
 })

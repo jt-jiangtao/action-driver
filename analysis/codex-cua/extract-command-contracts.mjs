@@ -1,7 +1,7 @@
 // Analysis only. Records observable public schema contracts; never imported by candidates.
 import fs from 'node:fs'
 import crypto from 'node:crypto'
-const path='apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js'
+const path='packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js'
 const source=fs.readFileSync(path,'utf8')
 const {api}=await import('data:text/javascript;base64,'+Buffer.from(source+'\nexport {s as api};').toString('base64'))
 function describe(schema,path){

@@ -1,4 +1,4 @@
-// Candidate Browser API exports. Privileged service acceptance remains a separate gate.
+// Shared Browser API exports. Reconstruction-only service acceptance remains a separate gate.
 export { FunctionAgentTransport } from './transport.js'
 export type { AgentCommand, AgentTransport, TransportRequest } from './transport.js'
 export { displayValue, createDisplaySideEffect } from './display.js'
@@ -75,3 +75,6 @@ export {
 export { Commands } from './commands/index.js'
 export { setupBrowserRuntime } from './default-runtime.js'
 export type { RuntimeSetupOptions } from './runtime-initialization.js'
+export { createGuardedBrowserHost } from './host-port.js'
+export type { ActionDriverBrowserHost, BrowserHostSetup } from './host-port.js'
+export { readApiManifest, readBrowserDocument } from './service-resources.js'

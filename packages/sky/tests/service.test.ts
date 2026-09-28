@@ -171,7 +171,7 @@ test('Mac remote proxy matches baseline keys, RPC traces and decoded audio', asy
     else Reflect.set(globalThis, 'nodeRepl', saved)
   }
 })
-test('default sky entry initializes trusted RPC setup and exposes mac facade', async () => {
+test('default sky entry fails closed without an explicit ActionDriver host', async () => {
   const saved = Reflect.get(globalThis, 'nodeRepl')
   const rpc = vi.fn(async (_service: string, message: any) =>
     message.type === 'setup' ? { target: 'mac', methods: ['list_apps'] } : [{ id: 'app' }]
@@ -179,12 +179,8 @@ test('default sky entry initializes trusted RPC setup and exposes mac facade', a
   Reflect.set(globalThis, 'nodeRepl', { rpc })
   try {
     const module = await import('../src/sky')
-    expect(module.sky.target).toBe('mac')
-    expect(await module.sky.list_apps()).toEqual([{ id: 'app' }])
-    expect(rpc.mock.calls.map((c) => c[1])).toEqual([
-      { type: 'setup' },
-      { type: 'execute', method: 'list_apps', args: [] }
-    ])
+    expect(() => module.sky.target).toThrow('SKY_HOST_UNAVAILABLE')
+    expect(rpc).not.toHaveBeenCalled()
   } finally {
     if (saved === undefined) Reflect.deleteProperty(globalThis, 'nodeRepl')
     else Reflect.set(globalThis, 'nodeRepl', saved)

@@ -52,3 +52,9 @@ Original types/window declarations and Direction/MouseButton/Point map to src/ty
 ## Approved declaration-only implementation
 
 2026-09-28 user approved documented autonomous contracts because original runtime files are absent. CUA core tools map to src/core/declared-helpers.ts; Sky env/unimplemented map to src/core/env.ts. Unit/type tests validate the approved contracts, NOT original runtime parity. Debounce default0ms, latest receiver/arguments; lazy first-success result cache (sync throws retry, Promise identity cached); env normalization and first-success/default cache follow declarations, while help/errors are project-defined. Full original edge equivalence remains unknown.
+
+## ActionDriver macOS helper adapter (迁移中)
+
+`src/mac/actiondriver-host.ts` 将 Sky 形状的应用调用转为仓库 `@actiondriver/runtime-contracts` 的 version 1 `ComputerHelperRequest`，宿主由调用方显式提供；候选适配器不打开 Codex 私有 pipe。首次读取/动作先发 `session-start`，随后发送 `app-state`（包含截图）或 `act`，关闭发送一次 `session-end`。应用列表直接走 `list-apps`。截图由 helper 的 PNG base64 转成既有 `data:` URL；权限、取消和超时错误沿 helper 返回，关闭中或关闭后拒绝新动作。13 项 Sky 适配/旧连接定向测试及包类型检查通过。
+
+协议差异仍需实机验收：原 Sky native IPC 与 Swift helper JSON 消息并不兼容，适配器构造新请求而不转发旧帧。`scroll.pages` 暂按每页 600 像素换算，属于自有解释而非原包逐项等价；helper 不提供音频录制，两个音频方法明确报 `SKY_CAPABILITY_UNAVAILABLE`。旧 Sky native 连接和显式 RPC proxy 仍在候选源码中，尚未迁出，隔离扫描保持失败。默认 `sky` 入口已改为无宿主时直接报 `SKY_HOST_UNAVAILABLE`，导入包不再触发旧服务 setup；显式自有 helper 仍由 `createActionDriverSky` 注入。本适配器通过单测不代表整个 Sky 包已完成或可替换生产。

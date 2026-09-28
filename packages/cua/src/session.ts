@@ -41,7 +41,7 @@ export function createCUASession(
 export async function createCUASession({
   agent,
   computer,
-  getHost = () => (globalThis as typeof globalThis & { nodeRepl?: SessionHost }).nodeRepl
+  getHost = () => undefined
 }: CUASessionOptions = {}) {
   if (computer && computer.target !== 'mac')
     throw new Error('Computer sessions currently support macOS only.')

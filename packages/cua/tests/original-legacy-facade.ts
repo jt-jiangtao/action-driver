@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 const entry = resolve(
-  'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/cua.js'
+  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/cua.js'
 )
 let sequence = 0
 async function encode(path: string, key: string): Promise<string> {

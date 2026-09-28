@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { originalModule } from './original-module'
 import { parseTabMention, getMentionedBrowserId } from '../src/tab-reference'
 const entry = resolve(
-  'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.js'
+  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.js'
 )
 const url =
   'plugin://browser@openai-bundled/?mention=tab-v1&browserId=b&tabId=t&title=Title&url=https%3A%2F%2Fexample.com'

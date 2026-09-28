@@ -8,6 +8,7 @@ import type { RuntimeEvent, StreamServerEvent } from '@actiondriver/runtime-cont
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from './desktop-agent-adapter'
+import type { DesktopApi } from '../../../preload/desktop-api'
 
 const task = (status: TaskProjection['status'] = 'running'): TaskProjection => ({
   id: 'task-1',
@@ -23,7 +24,7 @@ const task = (status: TaskProjection['status'] = 'running'): TaskProjection => (
   browser: null
 })
 
-function harness() {
+function harness(browserSession?: DesktopApi['browserSession']) {
   let currentTask = task()
   let eventListener: ((event: RuntimeEvent) => void) | undefined
   let streamListener: ((event: StreamServerEvent) => void) | undefined
@@ -75,7 +76,7 @@ function harness() {
     })
   }
   return {
-    adapter: new DesktopAgentAdapter(api, streamClient),
+    adapter: new DesktopAgentAdapter(api, streamClient, undefined, browserSession),
     skillGateway: new DesktopSkillGateway(api),
     api,
     streamClient,
@@ -92,6 +93,34 @@ function harness() {
 }
 
 describe('DesktopAgentAdapter', () => {
+  it('projects an owned browser session onto the runtime task without changing mock tasks', async () => {
+    let emitBrowser: ((event: unknown) => void) | undefined
+    const browserSession: DesktopApi['browserSession'] = {
+      command: vi.fn(async () => null),
+      setViewport: vi.fn(async () => undefined),
+      subscribe(listener) {
+        emitBrowser = listener as (event: unknown) => void
+        return () => { emitBrowser = undefined }
+      }
+    }
+    const { adapter } = harness(browserSession)
+    await adapter.submitGoal({ goal: 'Book a hotel', model: task().model })
+    expect(adapter.getTask('task-1')?.browser).toBeNull()
+
+    emitBrowser?.({ taskId: 'task-1', snapshot: {
+      sessionId: 'browser-1', surface: 'embedded', status: 'running', error: null,
+      activeTabId: 'tab-1', tabs: [{ id: 'tab-1', title: 'Wikipedia',
+        url: 'https://www.wikipedia.org/', loading: false,
+        canGoBack: false, canGoForward: false }]
+    } })
+    expect(adapter.getTask('task-1')?.browser).toMatchObject({
+      title: 'Wikipedia', url: 'https://www.wikipedia.org/',
+      sessionId: 'browser-1', surface: 'embedded', activeTabId: 'tab-1'
+    })
+    expect(adapter.getTask('task-1')?.browser?.target).toBeNull()
+    emitBrowser?.({ taskId: 'task-1', snapshot: null })
+    expect(adapter.getTask('task-1')?.browser).toBeNull()
+  })
   it('reattaches a running task snapshot and applies the following live events', async () => {
     const { adapter, streamClient, emitStream } = harness()
     const restored: TaskProjection = {

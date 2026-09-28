@@ -41,7 +41,7 @@ test('pinned Markdown renderer matches the original bundled parser on rich clipb
 
 test('bundled linkify fingerprint distinguishes the pinned 14.1.1 fix from 14.1.0', async () => {
   const bundle = await readFile(resolve(
-    'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+    'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
   ), 'utf8')
   const start = bundle.indexOf('var Zj=/(?:^|[^a-z0-9.+-])')
   expect(start).toBeGreaterThan(0)

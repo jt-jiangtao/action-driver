@@ -61,6 +61,15 @@ try {
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
   run('ditto', [join(builtRuntimeDist, 'prompts'), join(runtimeDist, 'prompts')])
   run('ditto', [join(builtRuntimeDist, 'js-repl'), join(runtimeDist, 'js-repl')])
+  run('ditto', [join(builtRuntimeDist, 'resources'), join(runtimeDist, 'resources')])
+  if (existsSync(join(runtimeDist, 'vendor')) ||
+      existsSync(join(app, 'Contents', 'Resources', 'agent-runtime', 'vendor'))) {
+    throw new Error('PACKAGED_VENDOR_PRESENT')
+  }
+  if (!existsSync(join(runtimeDist, 'js-repl', 'owned-cua.mjs')) ||
+      !existsSync(join(runtimeDist, 'resources', 'docs', 'tinysky-alt-owned-macos.md'))) {
+    throw new Error('PACKAGED_OWNED_CUA_MISSING')
+  }
   if (!existsSync(join(runtimeDist, 'prompts', 'main.md'))) {
     throw new Error('PACKAGED_MAIN_PROMPT_MISSING')
   }

@@ -15,8 +15,11 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   if (toolId === 'tools.local.command.node.run') return '运行 Node.js'
   if (toolId === 'tools.local.command.typescript.run') return '运行 TypeScript'
   if (toolId === 'tools.local.image-generation.generate@1' || toolId === 'tools.local.image-generation.generate') return '生成图片'
-  if (toolId === 'tools.local.computer-use.js') return 'Computer Use'
-  if (toolId === 'tools.local.computer-use.reset') return 'Computer Use 重置'
+  if (toolId === 'tools.local.cua.js')
+    return isRecord(input) && typeof input.title === 'string' && input.title.trim()
+      ? truncate(input.title.trim(), 120)
+      : cuaAction(input) === '操作浏览器' ? 'Browser Use' : 'Computer Use'
+  if (toolId === 'tools.local.cua.reset') return 'Computer Use 重置'
   return `运行 ${toolId}`
 }
 
@@ -26,6 +29,16 @@ export function toolActivityTitle(
   status: PersistedToolInvocation['status']
 ): string {
   const type = canonicalToolId(toolId).split('@')[0] ?? toolId
+  if (type === 'tools.local.cua.js' && isRecord(input) &&
+      typeof input.title === 'string' && input.title.trim()) {
+    const action = `${cuaAction(input)}：${truncate(input.title.trim(), 120)}`
+    if (status === 'completed') return `已${action}`
+    if (status === 'failed') return `${action}失败`
+    if (status === 'cancelled') return `已取消${action}`
+    if (status === 'unknown') return `${action}结果未知`
+    if (status === 'waiting_approval') return `等待批准：${action}`
+    return `正在${action}`
+  }
   const action =
     type === 'tools.local.web.open'
       ? `读取网页 ${webOpenHostname(input)}`
@@ -43,9 +56,9 @@ export function toolActivityTitle(
                   ? '运行 TypeScript'
                   : type === 'tools.local.image-generation.generate'
                     ? '生成图片'
-                    : type === 'tools.local.computer-use.js'
-                      ? '操作桌面应用'
-                      : type === 'tools.local.computer-use.reset'
+                  : type === 'tools.local.cua.js'
+                      ? cuaAction(input)
+                      : type === 'tools.local.cua.reset'
                         ? '重置 Computer Use'
                         : '调用工具'
   const target =
@@ -63,9 +76,9 @@ export function toolActivityTitle(
           ? 'Node.js 执行失败'
         : type === 'tools.local.command.typescript.run'
           ? 'TypeScript 执行失败'
-          : type === 'tools.local.computer-use.js'
-            ? '操作桌面应用失败'
-            : type === 'tools.local.computer-use.reset'
+          : type === 'tools.local.cua.js'
+            ? `${cuaAction(input)}失败`
+            : type === 'tools.local.cua.reset'
               ? '重置 Computer Use 失败'
               : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
@@ -147,6 +160,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function truncate(value: string, maximum: number): string {
   return value.length <= maximum ? value : `${value.slice(0, maximum - 1)}…`
+}
+
+function cuaAction(input: unknown): string {
+  const code = isRecord(input) && typeof input.code === 'string' ? input.code : ''
+  const browser = /\bcua\.(?:getBrowser|getTab|createBrowserTab|listBrowsers|listTabs)\b|\bagent\.(?:browsers|documentation)\b/u.test(code)
+  const computer = /\bcua\.(?:getApp|listApps)\b/u.test(code)
+  if (browser && computer) return '操作浏览器和桌面应用'
+  return browser ? '操作浏览器' : '操作桌面应用'
 }
 
 function webOpenHostname(input: unknown): string {

@@ -7,7 +7,7 @@ import { browserResources } from '../src/service-resources'
 
 async function originalCheckpoint() {
   const source = await readFile(resolve(
-    'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+    'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
   ), 'utf8')
   const classic = pathToFileURL(resolve('packages/browser-runtime/node_modules/classic-level/index.js')).href
   const module = await import('data:text/javascript;base64,' + Buffer.from(

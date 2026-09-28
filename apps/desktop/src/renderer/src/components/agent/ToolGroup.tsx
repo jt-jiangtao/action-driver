@@ -57,11 +57,12 @@ export const ActivityGroup = memo(function ActivityGroup({
     <>
       <ActivityIcon
         title={activity.title}
-        toolIds={visibleToolItems.map((child) => tools.get(child.callId)?.toolId ?? '')}
-        currentToolId={
-          runningTool?.toolId ??
+        toolItems={visibleToolItems.map((child) => tools.get(child.callId)).filter(
+          (tool): tool is ToolInvocationProjection => tool !== undefined)}
+        currentTool={
+          runningTool ??
           (latestTool && ['proposed', 'queued', 'waiting_approval'].includes(latestTool.status)
-            ? latestTool.toolId
+            ? latestTool
             : null)
         }
       />
@@ -106,16 +107,20 @@ export function ActivityItems({ children }: { children: ReactNode }) {
 
 function ActivityIcon({
   title,
-  toolIds,
-  currentToolId
+  toolItems,
+  currentTool
 }: {
   title: string
-  toolIds: string[]
-  currentToolId: string | null
+  toolItems: ToolInvocationProjection[]
+  currentTool: ToolInvocationProjection | null
 }) {
   const toolKinds = new Set(
-    (currentToolId ? [currentToolId] : toolIds).filter(Boolean).map((toolId) => {
-      if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(toolId)) return 'computer'
+    (currentTool ? [currentTool] : toolItems)
+      .map((tool) => {
+      const toolId = tool.toolId
+      if (isBrowserCuaScript(tool, toolDetails(tool).input)) return 'browser'
+      if (/^(?:computer\.|tools\.local\.cua\.)/.test(toolId)) return 'computer'
+      if (/^tools\.local\.browser-use\./.test(toolId)) return 'browser'
       if (/image/.test(toolId)) return 'image'
       if (/web/.test(toolId)) return 'web'
       if (/shell|command|python|node\.run|typescript/.test(toolId)) return 'shell'
@@ -129,6 +134,7 @@ function ActivityIcon({
   // A mixed group reads as "several stacked tools".
   if (toolKinds.size > 1) return <Layers aria-hidden="true" size={16} />
   if (toolKinds.has('computer')) return <MousePointer2 aria-hidden="true" size={16} />
+  if (toolKinds.has('browser')) return <Globe2 aria-hidden="true" size={16} />
   if (toolKinds.has('web')) return <Globe2 aria-hidden="true" size={16} />
   if (toolKinds.has('shell')) return <SquareTerminal aria-hidden="true" size={16} />
   if (toolKinds.has('search')) return <Search aria-hidden="true" size={16} />
@@ -149,21 +155,23 @@ export const ToolRow = memo(function ToolRow({
   if (!tool) return null
   tool = { ...tool, toolId: canonicalToolId(tool.toolId) }
   const details = toolDetails(tool)
+  const browserCua = isBrowserCuaScript(tool, details.input)
   const hasDetails =
     details.input.length > 0 ||
     details.output.length > 0 ||
     tool.rawInput !== undefined ||
     tool.rawOutput !== undefined
   const terminal = (details.layout ?? toolPresentation(tool)?.layout) === 'terminal'
-  const preview = terminal ? commandPreview(details) : ''
+  const script = /^(?:tools\.local\.command\.|sandbox\.shell\.)/.test(tool.toolId)
+  const preview = terminal && script ? commandPreview(details) : ''
   const commandTitle =
-    terminal && preview.length > 0 && tool.durationMs !== undefined
+    script && terminal && preview.length > 0 && tool.durationMs !== undefined
       ? commandStatus(tool, expanded)
       : null
   const active = tool.status === 'running'
   const row = (
     <>
-      <ToolIcon tool={tool} />
+      <ToolIcon tool={tool} browserCua={browserCua} />
       <span className={`activity-tool-label${active ? ' activity-active-title' : ''}`}>
         {commandTitle ? (
           <>
@@ -179,7 +187,7 @@ export const ToolRow = memo(function ToolRow({
           </>
         ) : (
           <>
-            <span>{toolAction(tool)}</span>
+            <span>{toolAction(tool, browserCua)}</span>
             <span>{tool.summary}</span>
             {terminal && !expanded && preview ? (
               <span className="command-preview"> {preview}</span>
@@ -208,7 +216,7 @@ export const ToolRow = memo(function ToolRow({
         {row}
       </summary>
       <div className="activity-tool-io">
-        <div className="activity-tool-io-title">{toolTitle(tool)}</div>
+        <div className="activity-tool-io-title">{toolTitle(tool, browserCua)}</div>
         <ToolDetails
           details={terminal ? { ...details, layout: 'terminal' } : details}
           summary={tool.summary}
@@ -234,9 +242,12 @@ function commandStatus(tool: ToolInvocationProjection, expanded: boolean): strin
   return expanded ? '命令正在运行' : '正在运行'
 }
 
-function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
-  if (/^(?:computer\.|tools\.local\.computer-use\.)/.test(tool.toolId))
+function ToolIcon({ tool, browserCua = false }: { tool: ToolInvocationProjection; browserCua?: boolean }) {
+  if (browserCua) return <Globe2 aria-hidden="true" size={16} />
+  if (/^(?:computer\.|tools\.local\.cua\.)/.test(tool.toolId))
     return <MousePointer2 aria-hidden="true" size={16} />
+  if (/^tools\.local\.browser-use\./.test(tool.toolId))
+    return <Globe2 aria-hidden="true" size={16} />
   // Codex marks image generation with the imagegen Skill icon.
   if (/image/.test(tool.toolId)) return <ImageIcon aria-hidden="true" size={16} />
   if (/skills?\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />
@@ -254,21 +265,22 @@ function ToolIcon({ tool }: { tool: ToolInvocationProjection }) {
   return <Boxes aria-hidden="true" size={16} />
 }
 
-function toolAction(tool: ToolInvocationProjection): string {
+function toolAction(tool: ToolInvocationProjection, browserCua = false): string {
   if (/image/.test(tool.toolId)) {
     if (tool.status === 'failed') return '生成失败：'
     if (tool.status === 'cancelled') return '已取消：'
     return tool.status === 'completed' ? '已生成图片：' : '正在生成图片 '
   }
-  if (/^(?:computer\.js_reset|tools\.local\.computer-use\.reset)/.test(tool.toolId)) {
+  if (/^(?:computer\.js_reset|tools\.local\.cua\.reset)/.test(tool.toolId)) {
     if (tool.status === 'failed') return '重置 Computer Use 失败：'
     if (tool.status === 'cancelled') return '已取消重置 Computer Use：'
     return tool.status === 'completed' ? '已重置 Computer Use：' : '正在重置 Computer Use '
   }
-  if (/^(?:computer\.js|tools\.local\.computer-use\.js)/.test(tool.toolId)) {
-    if (tool.status === 'failed') return '操作桌面应用失败：'
-    if (tool.status === 'cancelled') return '已取消操作桌面应用：'
-    return tool.status === 'completed' ? '已操作桌面应用：' : '正在操作桌面应用 '
+  if (/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) {
+    const action = browserCua ? '操作浏览器' : '操作桌面应用'
+    if (tool.status === 'failed') return `${action}失败：`
+    if (tool.status === 'cancelled') return `已取消${action}：`
+    return tool.status === 'completed' ? `已${action}：` : `正在${action} `
   }
   if (tool.status === 'unknown') return '结果未知：'
   if (tool.status === 'failed') return '执行失败：'
@@ -283,9 +295,10 @@ function toolAction(tool: ToolInvocationProjection): string {
   return '已调用 '
 }
 
-function toolTitle(tool: ToolInvocationProjection): string {
+function toolTitle(tool: ToolInvocationProjection, browserCua = false): string {
   if (/image/.test(tool.toolId)) return '图片生成'
-  if (/^(?:computer\.js|tools\.local\.computer-use\.js)/.test(tool.toolId)) return 'Computer Use'
+  if (browserCua) return 'Browser Use'
+  if (/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) return 'Computer Use'
   if (/shell|^command/.test(tool.toolId)) return 'Shell'
   if (/python/.test(tool.toolId)) return 'Python'
   if (/node\.run/.test(tool.toolId)) return 'Node.js'
@@ -294,4 +307,12 @@ function toolTitle(tool: ToolInvocationProjection): string {
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   return '工具'
+}
+
+function isBrowserCuaScript(tool: ToolInvocationProjection,
+  input: ReturnType<typeof toolDetails>['input']): boolean {
+  if (!/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) return false
+  const code = input.find((field) => field.kind === 'code')?.value ?? ''
+  return /\bcua\.(?:getBrowser|getTab|createBrowserTab|listBrowsers|listTabs)\b|\bagent\.(?:browsers|documentation)\b/u.test(code) &&
+    !/\bcua\.(?:getApp|listApps)\b/u.test(code)
 }

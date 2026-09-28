@@ -20,12 +20,27 @@ describe('tool activity titles', () => {
   })
 
   it('names the Computer Use cell instead of a generic tool call', () => {
-    expect(toolActivityTitle('tools.local.computer-use.js', { codeLength: 20 }, 'running')).toBe('正在操作桌面应用')
-    expect(toolActivityTitle('tools.local.computer-use.js', { codeLength: 20 }, 'completed')).toBe('已操作桌面应用')
-    expect(toolActivityTitle('tools.local.computer-use.js', { codeLength: 20 }, 'failed')).toBe('操作桌面应用失败')
-    expect(toolActivityTitle('tools.local.computer-use.reset', {}, 'completed')).toBe('已重置 Computer Use')
-    expect(toolActivitySummary('tools.local.computer-use.js', { codeLength: 20 })).toBe('Computer Use')
-    expect(toolActivitySummary('tools.local.computer-use.reset', {})).toBe('Computer Use 重置')
+    expect(toolActivityTitle('tools.local.cua.js', { codeLength: 20 }, 'running')).toBe('正在操作桌面应用')
+    expect(toolActivityTitle('tools.local.cua.js', { codeLength: 20 }, 'completed')).toBe('已操作桌面应用')
+    expect(toolActivityTitle('tools.local.cua.js', { codeLength: 20 }, 'failed')).toBe('操作桌面应用失败')
+    expect(toolActivityTitle('tools.local.cua.reset', {}, 'completed')).toBe('已重置 Computer Use')
+    expect(toolActivitySummary('tools.local.cua.js', { codeLength: 20 })).toBe('Computer Use')
+    expect(toolActivitySummary('tools.local.cua.reset', {})).toBe('Computer Use 重置')
+  })
+
+  it('places Computer Use and Browser Use operation summaries in the title', () => {
+    expect(toolActivitySummary('tools.local.cua.js', { title: '获取系统状态', code: 'await cua.getState()' })).toBe('获取系统状态')
+    expect(toolActivityTitle('tools.local.cua.js', { title: '获取系统状态' }, 'completed')).toBe('已操作桌面应用：获取系统状态')
+  })
+
+  it('titles browser JS cells as Browser Use while retaining the submitted summary', () => {
+    const input = { title: '打开测试页面', code: 'await cua.createBrowserTab("iab", "https://example.org")' }
+    expect(toolActivitySummary('tools.local.cua.js', input)).toBe('打开测试页面')
+    expect(toolActivityTitle('tools.local.cua.js', input, 'completed'))
+      .toBe('已操作浏览器：打开测试页面')
+    expect(toolActivityTitle('tools.local.cua.js', {
+      title: '查看标签页', code: 'await agent.browsers.get("iab")'
+    }, 'completed')).toBe('已操作浏览器：查看标签页')
   })
 
   it('does not include shell arguments in titles', () => {

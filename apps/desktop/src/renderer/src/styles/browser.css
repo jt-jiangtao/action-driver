@@ -54,6 +54,30 @@
   background: white;
   border-radius: 8px;
 }
+.browser-tabs {
+  display: flex;
+  min-width: 0;
+  max-width: calc(100% - 130px);
+  overflow-x: auto;
+}
+.browser-tabs .browser-tab {
+  display: flex;
+  flex: 0 0 220px;
+  gap: 4px;
+  padding: 0 4px;
+  background: transparent;
+}
+.browser-tabs .browser-tab.is-active { background: white; }
+.browser-tabs .browser-tab button:first-child {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.browser-tabs .browser-tab button:last-child { flex: 0 0 28px; }
+.browser-tabs .browser-tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-tab svg {
   width: 16px;
   height: 16px;
@@ -108,6 +132,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.browser-address form { width: 100%; }
+.browser-address input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--ad-color-text-primary);
+  background: transparent;
+  font: inherit;
+}
+.browser-address-error { color: #c43636; font-size: 12px; }
 .browser-panel-browser-expanded .browser-address {
   justify-content: center;
 }
@@ -117,6 +151,20 @@
   min-height: 0;
   overflow: hidden;
   background: #fff;
+}
+.browser-panel-live .browser-content { background: #fff; }
+.browser-control-footer {
+  display: flex;
+  flex: 0 0 64px;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--ad-color-border-default);
+  background: #fff;
+}
+.browser-control-footer .browser-skill-controls {
+  position: static;
+  transform: none;
+  max-width: calc(100% - 16px);
 }
 .browser-raster {
   display: block;
@@ -258,4 +306,10 @@
   .browser-target {
     animation: none;
   }
+}
+.browser-session-error {
+  padding: 8px 12px;
+  color: #b42318;
+  background: #fff0ee;
+  font-size: 12px;
 }

@@ -72,6 +72,34 @@ test('configured runtime forwards browser environment, hidden AX member and docu
     return results
   })
 })
+
+test('configured browser tab sends observations only to the injected ActionDriver host', async () => {
+  const f = fixture()
+  const privateWrites: unknown[] = []
+  Reflect.set(globalThis, 'nodeRepl', { write: (...args: unknown[]) => privateWrites.push(args) })
+  try {
+    let observe: (() => Promise<string>) | undefined
+    await candidate.createConfiguredCUASession({ browser: true, computer: false }, {
+      loadBrowserSetup: async () => async (options) => {
+        observe = options.decorateTab({ ax: {
+          get: async () => 'state', paste: async () => undefined,
+          click: async () => undefined, drag: async () => undefined,
+          pressKey: async () => undefined, scroll: async () => undefined,
+          selectText: async () => undefined, setValue: async () => undefined,
+          typeText: async () => undefined, performSecondaryAction: async () => undefined
+        } }).getAXState
+        return f.agent
+      },
+      loadComputer: async () => f.computer,
+      getHost: () => f.host
+    })
+    expect(await observe?.()).toBe('state')
+    expect(f.output).toContainEqual({ text: 'state', id: 'cua.state' })
+    expect(privateWrites).toEqual([])
+  } finally {
+    clean()
+  }
+})
 test('core CUA documentation adds confirmation exclusions while disabled browser ignores invalid environment', async () => {
   await compare(async (make) => {
     const results = []

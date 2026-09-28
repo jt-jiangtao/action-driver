@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createDocumentationReader } from '../src/documentation'
-const vendor = resolve('apps/agent-runtime/vendor/codex-cua/@oai/cua')
+const vendor = resolve('packages/back/codex-cua/@oai/cua')
 const entry = resolve(vendor, 'dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.js')
 async function reference() {
   let source = await readFile(entry, 'utf8')
@@ -61,4 +61,18 @@ test('document sources cannot escape packaged resources', async () => {
   await expect(createDocumentationReader().readDocumentation('../package')).rejects.toThrow(
     'Unknown documentation source'
   )
+})
+
+test('default documentation reader ignores ambient private request metadata', async () => {
+  const previous = Reflect.get(globalThis, 'nodeRepl')
+  Reflect.set(globalThis, 'nodeRepl', {
+    requestMeta: { 'openai/confirmation_policies': { computer_use: 'private policy' } }
+  })
+  try {
+    expect(await createDocumentationReader().readComputerUseConfirmationPolicy())
+      .toBe(await createDocumentationReader().readDocumentation('confirmations'))
+  } finally {
+    if (previous === undefined) Reflect.deleteProperty(globalThis, 'nodeRepl')
+    else Reflect.set(globalThis, 'nodeRepl', previous)
+  }
 })

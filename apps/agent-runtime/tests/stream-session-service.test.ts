@@ -2329,7 +2329,7 @@ describe('StreamSessionService', () => {
       type: 'tool.completed',
       payload: {
         callId: 'call-persisted',
-        toolId: 'tools.local.computer-use.js',
+        toolId: 'tools.local.cua.js',
         modelName: 'js',
         summary: 'Computer Use',
         argumentsHash: '',

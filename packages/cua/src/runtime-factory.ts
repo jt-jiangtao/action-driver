@@ -27,9 +27,7 @@ export async function createConfiguredCUASession(
   if ((dependencies.platform ?? 'darwin') !== 'darwin') {
     throw new Error('CUA runtime currently supports macOS only.')
   }
-  const getHost =
-    dependencies.getHost ??
-    (() => (globalThis as typeof globalThis & { nodeRepl?: SessionHost }).nodeRepl)
+  const getHost = dependencies.getHost ?? (() => undefined)
   const initialHost = getHost()
   const [agent, computer] = await Promise.all([
     options.browser !== false
@@ -45,7 +43,7 @@ export async function createConfiguredCUASession(
           if ((getHost()?.env?.TINYSKY_ALT_INITIALIZE_DOCS ?? 'core-cua-repl') === 'core-cua-repl')
             excludedDocumentation.push('confirmations')
           return setup({
-            decorateTab: decorateBrowserTab,
+            decorateTab: (tab) => decorateBrowserTab(tab, getHost),
             environment,
             undocumentedApiMembers: ['Tab.ax'],
             excludedDocumentation

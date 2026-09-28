@@ -1,4 +1,4 @@
-// Candidate CUA exports. Production still loads the original package pending acceptance.
+// Reconstructed CUA API. Product hosts use the narrow session entry to avoid legacy defaults.
 export { mirrorMap } from './core/mirror-map.js'
 export { UnreachableCaseError } from './core/unreachable-case-error.js'
 export type * from './types/index.js'

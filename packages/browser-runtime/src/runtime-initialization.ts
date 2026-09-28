@@ -1,23 +1,13 @@
 import { createDisplaySideEffect } from './display.js'
 import type { ApiManifest } from './api-view.js'
+import type { ActionDriverBrowserHost } from './host-port.js'
 
 export interface RuntimeSetupOptions {
+  host?: ActionDriverBrowserHost | undefined
   environment?: string | null | undefined
   undocumentedApiMembers?: string[] | undefined
   excludedDocumentation?: string[] | undefined
   decorateTab?: ((tab: object) => void) | undefined
-}
-interface SetupResult {
-  apiManifest: ApiManifest
-  disabledMemberIds: string[]
-}
-interface BrowserServiceRequest {
-  method: 'setup' | 'execute'
-  params: unknown
-}
-interface TrustedBrowserHost {
-  rpc(service: 'browser', request: BrowserServiceRequest): Promise<unknown>
-  emitImage(bytes: Uint8Array): void | Promise<void>
 }
 export interface RuntimeFactoryOptions {
   apiManifest: ApiManifest
@@ -26,36 +16,30 @@ export interface RuntimeFactoryOptions {
   displaySideEffect: (value: unknown) => Promise<void>
   executeAgentCommand: (input: Record<string, unknown>) => Promise<unknown>
 }
-/** Initialize the composed Browser/Tab client through the trusted service. */
+/** Initialize the composed Browser/Tab client through an explicit owned host. */
 export async function initializeBrowserRuntime<T>(
   options: RuntimeSetupOptions = {},
   createAgent: (options: RuntimeFactoryOptions) => T
 ): Promise<Awaited<T>> {
-  const host = (globalThis as typeof globalThis & { nodeRepl?: TrustedBrowserHost }).nodeRepl
-  if (host == null || typeof host.rpc !== 'function') {
-    throw new Error('Browser use requires a trusted Node REPL browser service')
-  }
-  // The host supplies a standalone RPC function; retain it across later host changes.
-  const rpc = host.rpc
-  const { apiManifest, disabledMemberIds } = (await rpc('browser', {
-    method: 'setup',
-    params: {
-      environment: options.environment ?? 'codex-app',
-      undocumentedApiMembers: options.undocumentedApiMembers,
-      excludedDocumentation: options.excludedDocumentation
-    }
-  })) as SetupResult
+  const host = options.host
+  if (host == null || typeof host.setup !== 'function' || typeof host.execute !== 'function')
+    throw new Error('BROWSER_HOST_UNAVAILABLE')
+  const { apiManifest, disabledMemberIds } = await host.setup({
+    environment: options.environment ?? 'codex-app',
+    undocumentedApiMembers: options.undocumentedApiMembers,
+    excludedDocumentation: options.excludedDocumentation
+  })
   return await createAgent({
     apiManifest,
     decorateTab: options.decorateTab,
     disabledMemberIds: new Set(disabledMemberIds),
     displaySideEffect: createDisplaySideEffect(
       {
-        displayImage: (bytes) => host.emitImage(bytes),
+        displayImage: (bytes) => host.displayImage(bytes),
         displayValue: (value) => console.log(value)
       },
       100000
     ),
-    executeAgentCommand: (params) => rpc('browser', { method: 'execute', params })
+    executeAgentCommand: (params) => host.execute(params)
   })
 }

@@ -37,7 +37,7 @@ interface SelectOptions {
 /** Browser-only CUA facade over an injected agent; default/combined runtime assembly is pending. */
 export async function createBrowserSession({
   agent,
-  getHost = () => (globalThis as typeof globalThis & { nodeRepl?: SessionHost }).nodeRepl,
+  getHost = () => undefined,
   lifecycle = createSessionLifecycle(getHost)
 }: {
   agent: { browsers: SessionBrowsers }

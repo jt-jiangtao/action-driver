@@ -25,3 +25,22 @@ it('keeps version packages and plugin-private data separate and preserves data o
     expect(await storage.get('fixture', '../settings')).toBeNull()
   } finally { await rm(root, { recursive: true, force: true }) }
 })
+
+it('refreshes a bundled package when its contents change without a version bump', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'actiondriver-plugin-refresh-'))
+  const source = join(root, 'bundled')
+  await mkdir(source)
+  await writeFile(join(source, 'entry.mjs'), 'export const name = "old"')
+  const manifest = validateManifest({ id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'entry.mjs', platforms: ['darwin-arm64'] }, { sdk: '1.0.0', platform: 'darwin-arm64' })
+  let sequence = 0
+  const repository = new FilesystemPluginRepository(join(root, 'plugins'), () => source, () => String(++sequence))
+  const storage = new PluginPrivateStorage(join(root, 'plugins'), () => String(++sequence))
+  try {
+    await repository.publish(manifest)
+    await storage.set('fixture', 'settings', { configured: true })
+    await writeFile(join(source, 'entry.mjs'), 'export const name = "new"')
+    await repository.publish(manifest)
+    expect(await readFile(join(repository.packageRoot(manifest), 'entry.mjs'), 'utf8')).toBe('export const name = "new"')
+    expect(await storage.get('fixture', 'settings')).toEqual({ configured: true })
+  } finally { await rm(root, { recursive: true, force: true }) }
+})

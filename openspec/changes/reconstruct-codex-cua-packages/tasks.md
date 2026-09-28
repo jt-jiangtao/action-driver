@@ -586,9 +586,13 @@ Expanded original registry review revealed Opera/Vivaldi in addition to Chrome/E
 - [x] 55.1 将本机 `@oai/browser-desktop@0.1.1` 全部 106 个文件复制至 `packages/back/browser-desktop/@oai/browser-desktop`；记录源路径、版本、逐文件哈希/大小/权限和无符号链接事实，以来源变化和备份篡改的定向测试证明漂移明确失败，不覆盖现有 vendor/back。
 
 55.1 证据：独立基准共 106 个文件、124 个目录/文件条目，源与备份逐项漂移为零；版本为 0.1.1，原包无符号链接。`desktop-baseline.test.ts` 先因模块缺失失败，补实现后 3 项通过，覆盖字节、权限、删减与元数据漂移；`@actiondriver/cua-parity` 定向构建通过。只读复制与校验未启动或连接 App 服务。
-- [ ] 55.2 清点 desktop client/service、四套环境文档、两个 WASM 的自有/第三方/资源归属与接口；核对客户端与内嵌 browser 的字节重复、服务差异及第三方确切版本，交付单独来源映射和证据缺口。
+- [x] 55.2 清点 desktop client/service、四套环境文档、两个 WASM 的自有/第三方/资源归属与接口；核对客户端与内嵌 browser 的字节重复、服务差异及第三方确切版本，交付单独来源映射和证据缺口。
+
+55.2 证据：`analysis/codex-cua/desktop-inventory.json` 对 106 个文件逐项归属并核对 SHA-256；client 和两个 WASM 与内嵌版相同，service 哈希不同（1905434 vs 1372505 字节）；四套文档共 101 项，manifest 仅显式依赖 `classic-level@3.0.0`。`desktop-source-map.md` 写明共享/独立模块与未明的 bundle 内第三方归属，不能将不同服务等同，也未以清单宣称完整还原。
 - [ ] 55.3 建立 `@actiondriver/browser-desktop` 独立构建、显式 ActionDriver 宿主接口及非 Codex 默认入口；为客户端复用、服务差异、资源选择、失败与清理添加正常/边界/错误测试，不从 `packages/back` 或 vendor 导入产品代码。
 - [ ] 55.4 按 desktop 服务差异清单逐模块还原自有逻辑与资源，必要时复用已验证的 `browser-runtime` 自有模块；逐模块补离线原包差异和单元测试，未知行为保持未完成，不用候选调用 Codex 私有服务取证。
+
+55.3/55.4 增量证据：修正候选对 `codex-app` 的过早整体拒绝，普通浏览器发现与标签 UI 操作可经 ActionDriver 自有宿主执行；认证交接仍因该环境缺少安全预检文档，在客户端和服务入口下发命令前拒绝。客户端包装显式转发宿主方法，保留原型方法宿主兼容性。3 个 desktop 定向测试文件共 7 项通过，desktop typecheck 与构建通过。本机独立 Chrome/profile 加 127.0.0.1 离线页面验证候选 desktop 客户端创建标签、导航、截图、点击输入及按钮提交，页面标题变为 `ActionDriver desktop UI`，关闭后 profile 为空。完整 desktop 服务差异和其余 UI 路径未验收，55.3/55.4 仍未完成。
 
 ## 56. 全包 Codex 服务隔离与自有宿主
 
@@ -597,19 +601,50 @@ Expanded original registry review revealed Opera/Vivaldi in addition to Chrome/E
 - [ ] 56.3 为 `browser-runtime` 与 desktop 建立 ActionDriver 自有 macOS 浏览器宿主和明确的能力/生命周期接口，接入默认客户端与服务装配；拒绝缺失宿主能力，覆盖 CDP/页面/截图/关闭/重置和安全门的定向测试。
 - [ ] 56.4 将 `cua` 默认工厂和 `cua-repl` launcher 改为仅装配自有 browser/computer 宿主，验证 browser-only、computer-only、合并会话、重置、取消及故障恢复，不加载 Codex App 的 Rust/Node REPL 或原私有服务映射。
 
+56 阶段证据：Sky 默认导入已改为无宿主时显式拒绝，不再因导入触发旧 RPC setup；CUA 显式传入 browser/computer 自有 port 的 11 项相关定向测试通过。Chrome 本地宿主增加标签发现及 CUA 点击、双击、拖动、移动、滚动、单键和文本输入，3 项宿主定向测试及 browser-runtime 类型检查通过。旧 `sky-proxy`、native connection、CUA 其余默认入口及 REPL launcher 仍有私有宿主路径，隔离扫描未通过；56.1–56.4 不标完成。
+
+统一 JS 接线补充（2026-09-28）：生产 CUA 子进程与默认 `createTinyskyAlt` 的 Sky 加载已改用 `@actiondriver/sky/actiondriver` 窄入口，生产 bundle 无旧 native pipe、Codex App 路径或 `@oai/sky` 别名。独立 `cua-repl` launcher 现在要求宿主明确传入绝对路径的自有 browser/computer service module map，拒绝旧候选 service specifier 和 Codex App 路径；13 项 launcher 测试及类型检查通过。launcher 尚无可直接使用的 ActionDriver service module 适配，不能据此标记 56.4 完成。候选 Sky/browser-runtime 服务源码的 17 项私有宿主引用仍待迁移。
+
 ## 57. 自有宿主真实验收与统一替换门槛
 
 - [ ] 57.1 在可重置 macOS 本地夹具上用 ActionDriver 自有 helper 执行 computer 成功/拒绝/取消路径，记录状态、截图和释放；历史 Codex 服务结果不得计入。
 - [ ] 57.2 在可重置 macOS 本地网页上用 ActionDriver 自有 browser 宿主执行五包相关浏览器页面操作、截图、下载/上传、异常和清理；认证安全说明只按环境来源启用，未证实的认证条件继续拒绝。
 - [ ] 57.3 复核五包源码/接口/资源/第三方依赖、离线包安装与服务隔离测试，明确未覆盖路径；只有 1.x、3.x、4.1–4.4、55–57 全部通过且无阻断差异后才能更新 5.1 切换计划，未通过时不得替换生产 loader。
 
+57.2 增量证据：独立本机 Chrome/profile 与 127.0.0.1 离线页面真实执行点击、文本输入和按钮提交，CDP 读回 `Owned input`；在主仓库 `main` 最新运行生成 PNG 10465 字节、SHA-256 `7343ed508ac79ae421d7801857de9770c710c004558300aa73b731225ceb9a92`，profile 清理后为空。记录见 `analysis/codex-cua/owned-macos-acceptance.md`。上传/下载、异常恢复、desktop 差异及其余三包真实路径仍阻断 57.2。
+
 此前 54.2 的 Codex Rust/Node REPL 验证已经发生，作为历史研究保留，但不能充当 56.4 或 57.x 的完成证据。用户裁决禁止五个候选包及验收测试连接 Codex 私有服务；原始复制件原样保存，仅作静态或隔离离线对照。实施路径见 `docs/superpowers/plans/2026-09-28-cua-owned-hosts.md`。
 
 ## 58. 用户裁决：提前合并未完成候选
 
-- [ ] 58.1 审计当前工作树，只纳入本次还原文件，标记候选未完成；准备提交时按 AGENTS.md 一次性运行适用全量检查，记录通过/失败数量和既有无关失败；将当前候选提交并快进合并到**本地** `main`，不推送远端。
+- [x] 58.1 审计当前工作树，只纳入本次还原文件，标记候选未完成；准备提交时按 AGENTS.md 一次性运行适用全量检查，记录通过/失败数量和既有无关失败；将当前候选提交并快进合并到**本地** `main`，不推送远端。
 - [ ] 58.2 合并后继续 55–57 和原未完成任务；在独立自有 macOS 宿主验收和全包 Codex 服务隔离通过前，不执行 5.1–5.2 的生产依赖切换。
 
 Battle 记录：推荐先完成隔离再合并，避免主线暂存仍有私有宿主接线的候选代码；用户明确选择现在合并未完成候选，接受此暂时风险。合并不代表模块完成、整体验收或生产替换授权。
 
 58.1 提交前验证记录：`pnpm typecheck` 首次因隔离工作区缺 `@actiondriver/plugin-contracts/dist` 停止，定向构建该既有包后 26 个 workspace 项目全过；`pnpm lint` 首次误扫完整原件和迁移期候选规则而失败，原件/分析资料与候选目录分开处理后通过。`pnpm test` 仍失败（18 个文件、70/2329 项失败）；限 4 worker 复核 66/2329 项失败，包含旧应用/observability 测试，未归因的失败不宣称无关。五候选包定向 192 文件、1111/1111 项通过，生产接线边界定向 6/6 项通过。提前合并是用户选择的 WIP 集成，绝非完整测试/验收通过；本地 main 合并后继续追查全量失败、移除迁移期 lint 例外和完成自有宿主。
+
+58.1 实际集成：WIP 提交 `3f94f0bd240765bfc65aacb09d0e173ad5a0c78a`，本地 `main` 从 `e2755cc67c0af3fe6abb3ca5f0b786fdb158bd7c` 快进至该提交；未推送远端，生产 loader 未改。
+
+58.2 工作区修正：用户明确要求主仓库而非隔离 worktree 检出 `main`。现 `/Users/jiangtao/coding/action-driver` 位于 `main` 并承载后续 148 个本任务改动；原隔离 worktree 回到 `codex/cua-reconstruction`，改动另存为可恢复 stash。主仓库原有未跟踪 `.env.local` 未触碰。迁移后四个相关定向测试文件 14/14 项通过；完整验收与生产替换仍未完成。
+
+## 59. Browser Use 联合交付与 vendor 移除
+
+Battle 裁决：用户要求完全移除 `apps/agent-runtime/vendor`，同时保持 Computer Use 可用，并与 `integrate-browser-use-desktop` 一起交付；`packages/back` 不在删除范围，只用于离线对照。直接删除会破坏当前生产加载和构建；先自有宿主验收、再统一切换和删除。联合设计：`docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
+
+- [ ] 59.1 完成 55–57、自有 Computer Use helper、CUA/REPL 和 browser 宿主的生产必需路径与真实 macOS 验收，记录未覆盖路径；不以 mock 或原件备份代替。
+- [x] 59.2 将 `apps/agent-runtime` 生产 REPL、Sky 服务、CUA 会话及打包切到 `@actiondriver/*`，保留授权、取消、沙箱、截图、重置和清理；用定向集成测试和真实 Computer Use 夹具验证。
+- [ ] 59.3 将离线对照测试迁到 `packages/back`，清除生产、构建和脚本的 vendor 路径及同步入口；验证产品包不含原件后删除 `apps/agent-runtime/vendor` 全目录。
+- [ ] 59.4 与 `integrate-browser-use-desktop` 的内置/外部 Chrome 真实验收共同检查，准备提交时一次性运行仓库治理要求的全量检查；任何阻断失败均不得标记联合交付完成。
+
+59.2 证据：生产 `repl-server.mjs` 动态加载自有 `owned-cua.mjs`，Runtime 通过 `owned-sky-session.ts` 使用 ActionDriver helper 协议；审批与租约由 Runtime 校验。`cua-runtime.test.ts` 16/16、应用审批与自有宿主定向测试 37/37；真实 Electron + fake helper 的应用授权端到端用例通过，点击“仅本次”后产生 `app-state` 请求。原 `codex-service-host.mjs`、模块 loader 和 native-client 已删除。
+
+59.3 进展：`apps/agent-runtime/vendor` 已删除，离线对照测试改读 `packages/back/codex-cua`；Runtime 构建输出无 `dist/vendor`、原服务脚本或备份路径引用。相关候选包定向测试 1126/1129 项首轮通过，另 3 项打包测试因自有宿主与离线安装规则修正后 4/4 通过。macOS 正式打包产物检查和全量提交验证未完成，因此保持未勾选。
+
+59.1 隔离复核：生产 Computer Use 和 Browser Use 均通过 ActionDriver 宿主。候选包源码静态扫描仍报告 17 个原 `nodeRepl`/私有 pipe/turn metadata 形态的引用，见 `analysis/codex-cua/service-isolation-cutover.json`；这对应 55–57 尚未完成的完整源码服务层还原，不能据生产路径成功勾选 59.1、56.1 或 57.3。
+
+59.4 提交门槛首次运行记录（2026-09-28）：`pnpm typecheck` 各包完成；`pnpm lint` 首次报 3 个本次改动问题，定向 ESLint 修复后通过；`pnpm test` 首次 2366 项中 147 项失败，其中大量为工作树安装时跳过脚本导致的 `better-sqlite3` 绑定缺失，重建原生模块后数据库、仓储及应用授权定向测试通过。REPL 入口和文案测试已按自有宿主更新，定向 16/16 通过。剩余旧 UI mock、OTel、MCP 信号与超时等失败尚未消除。`pnpm test:e2e:local` 6/9 通过，Computer Use 授权通过；预加载 API 新增 `browserSession` 导致的断言已修复，另有设置和图片预览 2 项失败待查。`pnpm test:e2e:packaged:macos` 首次在 `classic-level` 构建策略处停止；加入 `allowBuilds` 后 Desktop 与 Runtime 两项生产依赖部署定向检查均通过。以上全量命令不在同一提交上重复运行，59.4 保持未完成。
+
+主仓库同步验收：`/Users/jiangtao/coding/action-driver` 已同步本轮源码，`apps/agent-runtime/vendor` 和旧 `dist/vendor` 均不存在，`packages/back` 保留。主仓库完成 Sky、CUA、Agent Runtime、Desktop 构建；`dist/js-repl/owned-cua.mjs` 存在；Computer Use/REPL/Renderer 投影定向 38/38 通过；浏览器与 Computer Use 真实 Electron 定向端到端 3/3 通过。全量门槛和候选源码服务隔离仍未通过，不据此声明联合交付完成。
+
+启动故障修复（2026-09-28）：用户现有 `command` 插件的 `installed/command/1.2.0` 仍是旧的点号工具名，而同版本内置清单已改为下划线工具名；仓库曾跳过已存在的同版本安装目录，却更新 `current.json`，导致 Runtime 报 `PROTOCOL_ERROR: Undeclared contribution tools.local.command.shell.run` 并退出。现从独立内置源重新暂存和替换同版本包，保留插件私有数据；RuntimeSupervisor 传递 `runtime.failed` 原因，Desktop 捕获启动异常并显示错误。使用真实数据库和插件目录的只读副本启动 Electron UtilityProcess，观察 `runtime.ready` 与正常退出；插件仓库和 Supervisor 定向测试 13/13、四包离线产物测试 4/4、Runtime/Desktop 定向 typecheck、相关 ESLint 和两个构建均通过。未直接修改用户数据；全量门槛和联合交付仍未完成。

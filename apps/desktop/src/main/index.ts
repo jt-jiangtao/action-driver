@@ -3,7 +3,8 @@ import { validateManifest, PluginError } from '@actiondriver/plugin-contracts'
 import { createPanelMessageClient } from './plugins/panel-message-client'
 import { createPluginPanelProvider } from './plugins/panel-provider'
 import { createElectronPluginPanelHost } from './plugins/electron-panel-host'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
+import { createLocalBrowserHost } from './browser-session/local-browser-host.js'
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,6 +36,17 @@ import { resolveModuleDirectory } from './module-directory'
 import { registerExternalLinkIpc } from './external-link-ipc'
 import { registerTaskOutputIpc } from './task-output-ipc'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
+import { createDesktopBrowserSessionManager } from './browser-session/manager'
+import type { BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import { createEmbeddedBrowserHost } from './browser-session/embedded-host'
+import { createExternalChromeHost } from './browser-session/external-chrome-host'
+import { createBrowserUseProvider } from './browser-session/provider'
+import type { createTaskBrowserBinding } from './browser-session/task-binding'
+import {
+  BROWSER_SESSION_COMMAND_CHANNEL,
+  BROWSER_SESSION_EVENT_CHANNEL,
+  BROWSER_SESSION_VIEWPORT_CHANNEL
+} from '../shared/browser-session-contract'
 import { PACKAGED_RENDERER_URL, resolveRendererAssetPath } from './renderer-protocol'
 import {
   SKILL_FOLDER_BROWSE_CHANNEL,
@@ -57,6 +69,8 @@ let services: MainServices
 let logging: MainLogging | undefined
 let quitting = false
 let computerUseClient: ComputerUseClient | null = null
+let browserBinding: ReturnType<typeof createTaskBrowserBinding> | null = null
+let browserEventSink: ((taskId: string, snapshot: BrowserSessionSnapshot | null) => void) | null = null
 
 applyApplicationName(app)
 
@@ -82,6 +96,34 @@ function createWindow(mainServices: MainServices): BrowserWindow {
   )
 
   installNavigationGuards(window.webContents, rendererEntryUrl)
+  if (compositionMode !== 'mock') {
+    const browserSessions = createDesktopBrowserSessionManager({
+      ipc: ipcMain,
+      isTrustedSender: (event) => (event as { sender?: unknown })?.sender === window.webContents,
+      emit: (taskId, snapshot) => {
+        if (!window.isDestroyed())
+          window.webContents.send(BROWSER_SESSION_EVENT_CHANNEL, { taskId, snapshot })
+      },
+      createEmbeddedHost: async (onChanged) => createEmbeddedBrowserHost(
+        window, (options) => new WebContentsView(options), onChanged
+      ),
+      createExternalHost: async () => createExternalChromeHost(await createLocalBrowserHost({
+        profileRoot: join(app.getPath('userData'), 'browser-profiles')
+      }))
+    })
+    browserBinding = browserSessions.binding
+    browserEventSink = (taskId, snapshot) => {
+      if (!window.isDestroyed())
+        window.webContents.send(BROWSER_SESSION_EVENT_CHANNEL, { taskId, snapshot })
+    }
+    window.once('closed', () => {
+      void browserSessions.dispose()
+      if (browserBinding === browserSessions.binding) browserBinding = null
+      browserEventSink = null
+      ipcMain.removeHandler(BROWSER_SESSION_COMMAND_CHANNEL)
+      ipcMain.removeHandler(BROWSER_SESSION_VIEWPORT_CHANNEL)
+    })
+  }
   window.once('ready-to-show', () => window.show())
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(rendererEntryUrl)
@@ -152,6 +194,8 @@ app.whenReady().then(async () => {
     services = createMainServices({ mode: 'mock' })
   } else {
     const skillProviderHost = createProductionSkillProviderHost()
+    skillProviderHost.register(createBrowserUseProvider(() => browserBinding,
+      (taskId, snapshot) => browserEventSink?.(taskId, snapshot)))
     const paths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
@@ -242,6 +286,11 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(services)
   })
+}).catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error('[desktop] startup failed:', error)
+  dialog.showErrorBox('ActionDriver 启动失败', message)
+  app.quit()
 })
 
 async function migrateLegacyModelConnections(

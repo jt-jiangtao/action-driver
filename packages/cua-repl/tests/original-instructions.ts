@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-const vendor = resolve('apps/agent-runtime/vendor/codex-cua/@oai/cua-repl')
+const vendor = resolve('packages/back/codex-cua/@oai/cua-repl')
 export async function originalInstructions() {
   const source = await readFile(
     resolve(vendor, 'dist/lib/js/oai_js_cua_repl/src/instructions.js'),

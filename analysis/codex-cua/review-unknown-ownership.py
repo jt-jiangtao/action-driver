@@ -10,7 +10,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VENDOR = ROOT / "apps/agent-runtime/vendor/codex-cua"
+VENDOR = ROOT / "packages/back/codex-cua"
 BACKUP = ROOT / "packages/back/codex-cua"
 OUTPUT = HERE / "ownership-review.json"
 

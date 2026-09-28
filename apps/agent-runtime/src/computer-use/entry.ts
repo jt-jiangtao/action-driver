@@ -11,8 +11,8 @@ import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
  */
 export async function createComputerUseEntry(options: {
   runtimeDist: string
-  vendorRoot: string
   invoke(input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>
+  invokeBrowser?(taskId: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>
   control: ComputerUseControlGate
   /** Interrupts the running turn when the user ends Computer Use with Esc (2.11). */
   stopTask?(taskId: string): void
@@ -33,14 +33,17 @@ export async function createComputerUseEntry(options: {
   })
   const create = () => createCuaEntryTools({
     runtimeDist: options.runtimeDist,
-    vendorRoot: options.vendorRoot,
     broker: approvals,
     invoke: options.invoke,
+    ...(options.invokeBrowser ? { invokeBrowser: options.invokeBrowser,
+      browserSkillLoaded: (sessionId: string) => options.skills.has(sessionId, 'browser-use') } : {}),
+    computerSkillLoaded: (sessionId: string) => options.skills.has(sessionId, 'computer-use'),
     assertRunning: (taskId) => options.control.assertRunning(taskId),
     ...(options.stopTask === undefined ? {} : { stopTask: options.stopTask }),
     clearSkill: (sessionId) => options.skills.clear(sessionId),
     clearImages: (sessionId) => options.images.clearSession(sessionId),
-    skillLoaded: (sessionId) => options.skills.has(sessionId, 'computer-use'),
+    skillLoaded: (sessionId) => options.skills.has(sessionId, 'computer-use') ||
+      (Boolean(options.invokeBrowser) && options.skills.has(sessionId, 'browser-use')),
     saveImage: async (sessionId, bytes, mimeType) => options.images.put(sessionId, bytes, mimeType)
   })
   let cua = await create()

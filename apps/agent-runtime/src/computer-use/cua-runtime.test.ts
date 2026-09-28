@@ -46,9 +46,7 @@ async function probe(source: string) {
         persistAlwaysAllowed:async()=>{},emit:event=>events.push(event),withSuspendedTimeout:async(task,fn)=>runtime.withSuspendedTimeout(task,fn)});
       const runtimeOptions={
         runtimeDist:${JSON.stringify(join(process.cwd(), 'apps/agent-runtime/dist'))},
-        vendorRoot:${JSON.stringify(join(process.cwd(), 'apps/agent-runtime/vendor/codex-cua'))},
-        entryPath:${JSON.stringify(join(process.cwd(), 'apps/agent-runtime/resources/js-repl/repl-server.mjs'))},
-        serviceModule:${JSON.stringify(pathToFileURL(join(process.cwd(), 'apps/agent-runtime/resources/js-repl/codex-service-host.mjs')).href)},
+        entryPath:${JSON.stringify(join(process.cwd(), 'apps/agent-runtime/dist/js-repl/repl-server.mjs'))},
         broker,now:()=>now,clearSkill:session=>cleared.push(session),assertRunning:()=>{},
         stopTask:taskId=>stopped.push(taskId),
         invoke:async(input)=>{requests.push(input);if(input.operation==='app-policy')return input.app==='Terminal'?{...policy,decision:'forbidden',allowPersistentApproval:false,target:{...policy.target,bundleId:'com.apple.Terminal',displayName:'Terminal',appPath:'/System/Applications/Utilities/Terminal.app'}}:policy;
@@ -70,7 +68,158 @@ async function probe(source: string) {
   }
 }
 
-describe('session CUA runtime with original JS and real sandboxed children', () => {
+describe('owned CUA runtime with sandboxed children', () => {
+  it('allows browser-only cells while denying computer RPC in the same persistent JS session', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      const browser=[];
+      runtime=createCuaRuntime({...runtimeOptions,
+        browserSkillLoaded:()=>true,computerSkillLoaded:()=>false,
+        invokeBrowser:async(task,command)=>{browser.push({task,type:command.type});
+          if(command.type==='list_browsers')return [{id:'iab',name:'ActionDriver',type:'iab'}];
+          throw new Error('unexpected browser command')}
+      });
+      const cell=[];
+      try {await runtime.run(context('browser-task'),
+        'var seen=await cua.listBrowsers({emit:false});nodeRepl.write(seen[0].id);try{await cua.getApp("Notes")}catch(error){nodeRepl.write(error.message)}',
+        {},{text:part=>cell.push(part),image:()=>{}})}
+      catch(error){cell.push('FAILED:'+error.message)}
+      process.stdout.write(JSON.stringify({cell,browser,computer:requests.filter(r=>r.operation==='app-state')}));
+    `)
+    expect(value.cell.join('')).toContain('iab')
+    expect(value.cell.join('')).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
+    expect(value.browser).toContainEqual({ task: 'browser-task', type: 'list_browsers' })
+    expect(value.computer).toEqual([])
+  }, 20_000)
+
+  it('uses the browser client to discover and observe a task-owned tab', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      const browser=[];
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
+        invokeBrowser:async(_task,command)=>{browser.push(command.type);
+          if(command.type==='get_browser')return {id:'iab',name:'ActionDriver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
+          if(command.type==='get_browser_documentation')return 'Browser documentation';
+          if(command.type==='list_tabs')return {tabs:[{id:'tab-1',title:'Fixture',url:'https://example.org'}]};
+          if(command.type==='get_tab')return {id:'tab-1',title:'Fixture',url:'https://example.org'};
+          if(command.type==='tab_ax_get_state')return {state:'- document "Fixture"'};
+          throw new Error('unexpected browser command:'+command.type)}
+      });
+      const cell=[];
+      try {await runtime.run(context('task-a'),
+        'const tab=await cua.getTab("tab-1",{browser:"iab"});nodeRepl.write(tab.id)',
+        {},{text:part=>cell.push(part),image:()=>{}})}
+      catch(error){cell.push('FAILED:'+error.message)}
+      process.stdout.write(JSON.stringify({cell,browser}));
+    `)
+    expect(value.cell.join('')).toContain('tab-1')
+    expect(value.cell.join('')).toContain('Fixture')
+    expect(value.browser).toContain('tab_ax_get_state')
+  }, 20_000)
+
+  it('reads bundled browser documentation through the owned client', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      const browser=[];
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
+        invokeBrowser:async(_task,command)=>{browser.push(command.type);
+          if(command.type==='get_documentation')return {};
+          throw new Error('unexpected host command:'+command.type)}
+      });
+      const cell=[];
+      await runtime.run(context('task-a'),
+        'nodeRepl.write((await agent.documentation.get("browser-troubleshooting")).length)',
+        {},{text:part=>cell.push(part),image:()=>{}});
+      process.stdout.write(JSON.stringify({cell,browser}));
+    `)
+    expect(Number(value.cell.at(-1))).toBeGreaterThan(100)
+    expect(value.browser).toEqual(['get_documentation'])
+  }, 20_000)
+
+  it('releases only its owned browser sessions on reset', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      const browser=[];
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
+        invokeBrowser:async(task,command)=>{browser.push({task,type:command.type});
+          if(command.type==='list_browsers')return [{id:'iab',name:'ActionDriver',type:'iab'}];
+          if(command.type==='close_task')return {closed:true};
+          throw new Error('unexpected browser command')}
+      });
+      await runtime.run(context('task-a'),'await cua.listBrowsers({emit:false})',{},output);
+      await runtime.reset('session');
+      process.stdout.write(JSON.stringify({browser}));
+    `)
+    expect(value.browser).toEqual([
+      { task: 'task-a', type: 'list_browsers' },
+      { task: 'task-a', type: 'close_task' }
+    ])
+  }, 20_000)
+
+  it('keeps computer authorization independent from browser authorization in one cell', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      const browser=[];
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>false,
+        computerSkillLoaded:()=>true,
+        invoke:async(input)=>input.operation==='list-apps'?{apps:[]}:runtimeOptions.invoke(input),
+        invokeBrowser:async(task,command)=>{browser.push({task,type:command.type});return []}
+      });
+      const cell=[];
+      await runtime.run(context('task-a'),
+        'try{await cua.listBrowsers({emit:false})}catch(error){nodeRepl.write(error.message)};try{await agent.documentation.get("browser-troubleshooting")}catch(error){nodeRepl.write(error.message)};const apps=await cua.listApps({emit:false});nodeRepl.write(apps.length)',
+        {},{text:part=>cell.push(part),image:()=>{}});
+      process.stdout.write(JSON.stringify({cell,browser}));
+    `)
+    expect(value.cell.join('')).toContain('BROWSER_SKILL_NOT_LOADED')
+    expect(value.cell.join('').match(/BROWSER_SKILL_NOT_LOADED/gu)).toHaveLength(2)
+    expect(value.cell.join('')).toContain('0')
+    expect(value.browser).toEqual([])
+  }, 20_000)
+
+  it('keeps browser discovery usable when the computer helper fails', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
+        computerSkillLoaded:()=>true,
+        invoke:async()=>{throw new Error('HELPER_UNAVAILABLE')},
+        invokeBrowser:async(_task,command)=>command.type==='list_browsers'
+          ? [{id:'iab',name:'ActionDriver',type:'iab'}]
+          : (()=>{throw new Error('unexpected browser command')})()
+      });
+      const cell=[];
+      await runtime.run(context('task-a'),
+        'try{await cua.listApps({emit:false})}catch(error){nodeRepl.write(error.message)};nodeRepl.write((await cua.listBrowsers({emit:false}))[0].id)',
+        {},{text:part=>cell.push(part),image:()=>{}});
+      process.stdout.write(JSON.stringify({cell}));
+    `)
+    expect(value.cell.join('')).toContain('HELPER_UNAVAILABLE')
+    expect(value.cell.join('')).toContain('iab')
+  }, 20_000)
+
+  it('emits browser screenshots as image assets without Base64 in text output', async () => {
+    const value = await probe(`
+      await runtime.dispose();
+      runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
+        invokeBrowser:async(_task,command)=>{
+          if(command.type==='get_browser')return {id:'iab',name:'ActionDriver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
+          if(command.type==='get_browser_documentation')return 'Browser documentation';
+          if(command.type==='list_tabs')return {tabs:[{id:'tab-1',title:'Fixture',url:'https://example.org'}]};
+          if(command.type==='get_tab')return {id:'tab-1',title:'Fixture',url:'https://example.org'};
+          if(command.type==='tab_ax_get_state')return {state:'- document "Fixture"'};
+          if(command.type==='tab_screenshot')return {data:'AQID'};
+          throw new Error('unexpected browser command:'+command.type)}
+      });
+      const emitted=[];const cell=[];
+      await runtime.run(context('task-a'),
+        'const tab=await cua.getTab("tab-1",{browser:"iab"});nodeRepl.emitImage({bytes:await tab.screenshot(),mimeType:"image/png"})',
+        {},{text:part=>cell.push(part),image:(bytes)=>emitted.push([...bytes])});
+      process.stdout.write(JSON.stringify({cell,emitted}));
+    `)
+    expect(value.emitted).toEqual([[1, 2, 3]])
+    expect(value.cell.join('')).not.toContain('AQID')
+  }, 20_000)
+
   it('preserves bindings, approval and instructions across turns and clears all on reset', async () => {
     const value = await probe(`
       const first=runtime.run(context('one'),'var app = await cua.getApp("Notes"); var count = 41;',{},output);
@@ -93,7 +242,7 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
       process.stdout.write(JSON.stringify({blocked,initial,second,requestedBeforeReset,fresh:texts.join(''),cleared,images,deleted,screenshotFiles}));
     `)
     expect(value.deleted).toBe(true)
-    expect(value.screenshotFiles.some((file: string) => file.endsWith('.png'))).toBe(true)
+    expect(value.screenshotFiles).toEqual([])
     expect(value.blocked).toBe(true)
     expect(value.initial).toContain('fixture guidance')
     expect(value.initial).toContain('cua.getApp')
@@ -231,7 +380,7 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
     const value = await probe(`
       const tools=await createCuaEntryTools({...runtimeOptions,skillLoaded:()=>false,
         saveImage:async(session,bytes,mimeType)=>({assetId:'volatile-computer:test',sessionId:session,source:'upload',mimeType,width:1,height:1,byteLength:bytes.length})});
-      const js=tools.tools.find(t=>t.definition.modelName==='js');const failures=[];
+      const js=tools.tools.find(t=>t.definition.modelName==='tools_local_cua_js');const failures=[];
       const call={callId:'test',providerCallId:'test',modelName:'js',arguments:{code:'await cua.getState()'}};
       try{for await(const event of js.executor.execute(call,undefined,context('tool-task')))failures.push(event.kind)}
       catch(error){failures.push(error.message)}
@@ -242,7 +391,7 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
     expect(JSON.stringify(value)).not.toContain('[redacted')
   }, 20_000)
 
-  it('lets a cell import the vendored sky package despite its missing telemetry dependency', async () => {
+  it('does not expose the original Sky package from the JS entry', async () => {
     const value = await probe(`
       let outcome='';
       try {await runtime.run(context('one'),
@@ -251,7 +400,8 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
       catch (error) {outcome=error.message}
       process.stdout.write(JSON.stringify({outcome}));
     `)
-    expect(value.outcome).toMatch(/keys:[1-9][0-9]*$/)
+    expect(value.outcome).not.toMatch(/keys:[1-9][0-9]*$/)
+    expect(value.outcome).toMatch(/Cannot find package '@oai\/sky'|Cannot find module '@oai\/sky'/)
   }, 20_000)
 
   it('exposes only js and reset and awaits image delivery before the tool finishes', async () => {
@@ -259,12 +409,12 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
       const saved=[];
       const tools=await createCuaEntryTools({...runtimeOptions,skillLoaded:session=>session==='session',
         saveImage:async(session,bytes,mimeType)=>{await new Promise(r=>setTimeout(r,10));saved.push({session,bytes:[...bytes],mimeType});return {assetId:'volatile-computer:test',sessionId:session,source:'upload',mimeType,width:1,height:1,byteLength:bytes.length}}});
-      const js=tools.tools.find(t=>t.definition.modelName==='js');const output=[];
+      const js=tools.tools.find(t=>t.definition.modelName==='tools_local_cua_js');const output=[];
       const call={callId:'test',providerCallId:'test',modelName:'js',arguments:{code:'await nodeRepl.emitImage({bytes:new Uint8Array([1,2,3]),mimeType:"image/png"});nodeRepl.write("done")'}};
       try{for await(const event of js.executor.execute(call,undefined,context('tool-task')))output.push(event)}finally{await tools.dispose()}
       process.stdout.write(JSON.stringify({names:tools.tools.map(t=>t.definition.modelName),saved,assets:output.filter(e=>e.kind==='asset'),result:output.at(-1)}));
     `)
-    expect(value.names).toEqual(['js', 'js_reset'])
+    expect(value.names).toEqual(['tools_local_cua_js', 'tools_local_cua_reset'])
     expect(value.saved).toEqual([{ session: 'session', bytes: [1, 2, 3], mimeType: 'image/png' }])
     expect(value.assets).toHaveLength(1)
     expect(value.result.kind).toBe('result')
@@ -285,10 +435,7 @@ describe('session CUA runtime with original JS and real sandboxed children', () 
       process.stdout.write(JSON.stringify({failures:JSON.parse(text.at(-1)),events:events.length,actions:requests.filter(r=>r.operation==='act').length}));
     `)
     expect(value.failures).toHaveLength(5)
-    expect(value.failures[0]).toContain('not allowed')
-    expect(value.failures[1]).toContain('INVALID_REQUEST')
-    expect(value.failures[2]).toContain('INVALID_REQUEST')
-    expect(value.failures[3]).toContain('unsupported RPC')
+    expect(value.failures.slice(0, 4)).toEqual(Array(4).fill('nodeRepl.rpc is not a function'))
     expect(value.failures[4]).toMatch(/denied|not allowed|unavailable|blocked/i)
     expect(value.events).toBe(0)
     expect(value.actions).toBe(0)

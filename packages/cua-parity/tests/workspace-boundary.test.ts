@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import { readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { captureBaseline } from '../src/baseline'
-test('candidate packages stay separate from production', async () => {
+test('production loads owned packages and does not reference the offline backup', async () => {
   for (const name of ['cua', 'sky', 'cua-repl', 'browser-runtime', 'cua-parity']) {
     const p = JSON.parse(await readFile(resolve('packages', name, 'package.json'), 'utf8'))
     expect(p.name).toBe('@actiondriver/' + name)
@@ -13,16 +13,15 @@ test('candidate packages stay separate from production', async () => {
     expect(JSON.stringify(p.dependencies ?? {})).not.toMatch(/@oai|vendor/)
   }
   const runtime = await readFile('apps/agent-runtime/package.json', 'utf8')
-  expect(runtime).not.toMatch(/@actiondriver\/(cua|sky|cua-repl|browser-runtime)(?:"|\/)/)
+  expect(runtime).toContain('@actiondriver/cua')
+  expect(runtime).toContain('@actiondriver/sky')
   const loader = await readFile('apps/agent-runtime/src/runtime-process.ts', 'utf8')
-  expect(loader).toContain("vendor/codex-cua")
-  expect(loader).not.toMatch(/packages\/back\/codex-cua|@actiondriver\/cua-repl/)
+  expect(loader).not.toMatch(/vendor\/codex-cua|packages\/back\/codex-cua/)
 })
 
-test('every copied original remains byte-identical in packages/back', async () => {
-  const vendor = await captureBaseline(resolve('apps/agent-runtime/vendor/codex-cua'))
+test('offline original backup is present and remains isolated', async () => {
   const backup = await captureBaseline(resolve('packages/back/codex-cua'))
-  expect(backup).toEqual(vendor)
+  expect(backup.files.length).toBeGreaterThan(100)
 })
 
 test('candidate source files and identifiers do not retain the original oai_ prefix', async () => {

@@ -46,6 +46,7 @@ export class RuntimeSupervisor {
   private resolveStop: (() => void) | null = null
   private shutdownTimer: ReturnType<typeof setTimeout> | null = null
   private readonly restartTimestamps: number[] = []
+  private lastFailureMessage: string | null = null
   private readonly maxRestarts: number
   private readonly restartWindowMs: number
   private readonly shutdownTimeoutMs: number
@@ -83,6 +84,7 @@ export class RuntimeSupervisor {
     if (this.state === 'stopping') return Promise.reject(new Error('Runtime is stopping'))
     if (this.state === 'failed')
       return Promise.reject(new Error('Runtime restart budget exhausted'))
+    this.lastFailureMessage = null
     return this.spawn()
   }
 
@@ -129,6 +131,11 @@ export class RuntimeSupervisor {
 
   private async handleMessage(process: RuntimeProcess, message: unknown): Promise<void> {
     if (this.currentProcess !== process) return
+    if (typeof message === 'object' && message !== null && 'type' in message &&
+        message.type === 'runtime.failed' && 'message' in message && typeof message.message === 'string') {
+      this.lastFailureMessage = message.message
+      return
+    }
     if (
       typeof message === 'object' &&
       message !== null &&
@@ -171,6 +178,7 @@ export class RuntimeSupervisor {
         if (this.currentProcess !== process) return
       }
       this.state = 'ready'
+      this.lastFailureMessage = null
       this.resolveReady?.()
       this.resolveReady = null
       this.rejectReady = null
@@ -198,7 +206,7 @@ export class RuntimeSupervisor {
     }
     if (this.restartTimestamps.length >= this.maxRestarts) {
       this.state = 'failed'
-      this.rejectReady?.(new Error(`Runtime exited with code ${String(code)}`))
+      this.rejectReady?.(new Error(this.lastFailureMessage ?? `Runtime exited with code ${String(code)}`))
       return
     }
 

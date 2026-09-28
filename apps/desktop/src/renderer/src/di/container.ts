@@ -80,7 +80,8 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
     const agentAdapter = new DesktopAgentAdapter(
       localAgentApi,
       streamClient,
-      async () => (await agentFiles.getMainPrompt()).content
+      async () => (await agentFiles.getMainPrompt()).content,
+      options.desktopApi!.browserSession
     )
     restoreTaskStream = (task) => agentAdapter.restoreTaskStream(task)
     agentCommandService = options.agentCommandService ?? agentAdapter

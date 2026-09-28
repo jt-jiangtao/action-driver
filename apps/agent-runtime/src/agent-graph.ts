@@ -828,9 +828,9 @@ export function activityTitleForTool(
               ? '运行 TypeScript'
               : normalized.includes('tools_local_command_node_run') || normalized.includes('node.run')
                 ? '运行 Node.js'
-                : normalized === 'tools_local_computer_use_js'
+                : normalized === 'tools_local_cua_js'
                   ? '操作桌面应用'
-                  : normalized === 'tools_local_computer_use_reset'
+                  : normalized === 'tools_local_cua_reset'
                     ? '重置 Computer Use'
                     : '调用工具'
   if (status === 'running') return `正在${action}`

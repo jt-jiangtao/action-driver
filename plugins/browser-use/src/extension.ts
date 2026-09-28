@@ -1,3 +1,6 @@
 import type { PluginContext } from '@actiondriver/plugin-sdk'
-/** Reserved composition boundary. Contributions require a real browser driver. */
-export function activate(_context: PluginContext): void {}
+import { catalog } from './catalog.js'
+
+export function activate(context: PluginContext): void {
+  context.api.skills.register(catalog.skills[0]!)
+}

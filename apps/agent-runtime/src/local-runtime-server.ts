@@ -359,6 +359,8 @@ function toToolProjection(
     ...(tool.rawOutput === undefined ? {} : { rawOutput: tool.rawOutput }),
     ...(tool.rawOutputTruncated === undefined
       ? {}
-      : { rawOutputTruncated: tool.rawOutputTruncated })
+      : { rawOutputTruncated: tool.rawOutputTruncated }),
+    ...(tool.details === undefined ? {} : { details: tool.details }),
+    ...(tool.presentation === undefined ? {} : { presentation: tool.presentation })
   }
 }

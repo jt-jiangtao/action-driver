@@ -1,0 +1,74 @@
+{
+  "status": "pending",
+  "productionRuntimeUsesOwnedHost": true,
+  "findings": [
+    {
+      "path": "packages/browser-runtime/src/service-auth-broker.ts",
+      "reason": "private-native-pipe"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-auth-handoff.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-discovery.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-host-initialization.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-misc-commands.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-native-context.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-native-pipe.ts",
+      "reason": "private-native-pipe"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-performance-spans.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-permission-state.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-profiles.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/browser-runtime/src/service-site-status.ts",
+      "reason": "private-turn-metadata"
+    },
+    {
+      "path": "packages/sky/src/mac/client.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/sky/src/mac/computer.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/sky/src/mac/native-connection.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/sky/src/mac/policy.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/sky/src/mac/telemetry.ts",
+      "reason": "private-node-repl-global"
+    },
+    {
+      "path": "packages/sky/src/sky-proxy.ts",
+      "reason": "private-node-repl-global"
+    }
+  ]
+}

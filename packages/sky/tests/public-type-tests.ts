@@ -1,8 +1,8 @@
 import type { Window, Direction, MouseButton, Point, SkyClient, Options } from '../src/index.js'
-import type * as Original from '../../../apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/window/index.js'
-import type { Direction as OriginalDirection } from '../../../apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/Direction.js'
-import type { MouseButton as OriginalMouse } from '../../../apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/MouseButton.js'
-import type { Point as OriginalPoint } from '../../../apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/Point.js'
+import type * as Original from '../../../packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/window/index.js'
+import type { Direction as OriginalDirection } from '../../../packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/Direction.js'
+import type { MouseButton as OriginalMouse } from '../../../packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/MouseButton.js'
+import type { Point as OriginalPoint } from '../../../packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/types/Point.js'
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Assert<T extends true> = T
 export type Checks = [

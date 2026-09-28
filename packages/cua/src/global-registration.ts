@@ -7,14 +7,10 @@ export interface GlobalCUARuntime {
 }
 /** Registration boundary only; the default macOS runtime factory is still separate. */
 export async function registerCUAGlobal<Runtime extends GlobalCUARuntime>(
-  createRuntime: (surfaces: EnabledSurfaces) => Runtime | Promise<Runtime>
+  createRuntime: (surfaces: EnabledSurfaces) => Runtime | Promise<Runtime>,
+  env: Record<string, string | undefined>
 ): Promise<void> {
-  const host = (
-    globalThis as typeof globalThis & {
-      nodeRepl?: { env?: { CUA_REPL_ENABLED_SURFACES?: string } }
-    }
-  ).nodeRepl
-  const value = host?.env?.CUA_REPL_ENABLED_SURFACES
+  const value = env.CUA_REPL_ENABLED_SURFACES
   if (value === undefined) throw new Error('CUA_REPL_ENABLED_SURFACES is required')
   const enabled = new Set(
     value

@@ -1,27 +1,26 @@
 import { presentations } from './presentation.js'
 import type { PluginCatalog } from '@actiondriver/plugin-sdk'
 import { instructions, skillContent } from './instructions.js'
-const { description, disabledBrowser, computer, output, reset, codeDescription } = instructions
+const { description, computer, output, reset, codeDescription } = instructions
 /** Project-level prerequisite the vendored Codex instructions do not carry. */
 const skillPrerequisite =
-  'Prerequisite: before the first `tools_local_computer_use_js` call in a conversation, read the `computer-use` Skill with `tools_local_skills_read` (`skillId: "computer-use"`). Calls that skip it fail with `SKILL_NOT_LOADED`.'
+  'Prerequisite: read the `browser-use` Skill before browser actions and the `computer-use` Skill before desktop actions with `tools_local_skills_read`. Each surface checks its own Skill at every RPC. Calls that skip it fail with `SKILL_NOT_LOADED`.'
 
-/** Keeps the model on the host-provided entry instead of importing the vendored package itself. */
+/** Keeps the model on the host-provided entry. */
 const entryPointNote =
-  'Entry point: the host provides the global `cua` object — call `cua.getState()`, `cua.getApp("...")` and the application methods. Do not `import("@oai/sky")` and do not reference a `sky` global; the vendored package is only loadable through the host.'
+  'Entry point: the host provides one persistent global `cua` object. For browsers use `cua.getBrowser({ id: "iab" })`, `cua.getTab(...)` or `cua.createBrowserTab("chrome", url)`; for desktop apps use `cua.getState()` and `cua.getApp("...")`. Browser actions use ActionDriver-owned tabs only. App actions use ActionDriver approval and the local macOS helper.'
 
 
 export const catalog: PluginCatalog = { tools: [
 {
-        id: 'tools.local.computer-use.js',
-        presentation: presentations['tools.local.computer-use.js'],
+        id: 'tools.local.cua.js',
+        presentation: presentations['tools.local.cua.js'],
         version: 1,
-        modelName: 'tools_local_computer_use_js',
+        modelName: 'tools_local_cua_js',
         description: [
           description,
           skillPrerequisite,
           entryPointNote,
-          disabledBrowser,
           computer,
           output
         ].join('\n\n'),
@@ -45,11 +44,11 @@ export const catalog: PluginCatalog = { tools: [
         timeoutMs: 320_000
       },
 {
-        id: 'tools.local.computer-use.reset',
-        presentation: presentations['tools.local.computer-use.reset'],
+        id: 'tools.local.cua.reset',
+        presentation: presentations['tools.local.cua.reset'],
         version: 1,
-        modelName: 'tools_local_computer_use_reset',
-        description: reset.replaceAll('cua_repl.js', 'tools_local_computer_use_js'),
+        modelName: 'tools_local_cua_reset',
+        description: reset.replaceAll('cua_repl.js', 'tools_local_cua_js'),
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         risk: 'low',
         sideEffects: { filesystem: 'none', network: false },

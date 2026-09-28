@@ -100,3 +100,11 @@ test('emit false suppresses images/state and missing combined screenshot emits s
   expect(await tab.getAXStateAndScreenshot()).toEqual({ state: 'state' })
   expect(f.output).toEqual([{ text: 'state', id: 'cua.state' }])
 })
+
+test('default tab decorator does not use an ambient private output host', async () => {
+  const f = fixture()
+  Reflect.set(globalThis, 'nodeRepl', f.host)
+  const tab = decorateBrowserTab(f.tab)
+  expect(await tab.getAXState()).toBe('state')
+  expect(f.output).toEqual([])
+})

@@ -62,5 +62,5 @@ it('constructs public target-qualified identities and rejects ambiguous targets'
   expect(canonicalToolId('web.open@1')).toBe('tools.local.web.open@1')
   expect(canonicalToolId('tools.cloud.web.open@1')).toBe('tools.cloud.web.open@1')
   expect(canonicalToolId('external.read@7')).toBe('external.read@7')
-  expect(canonicalModelName('js')).toBe('tools_local_computer_use_js')
+  expect(canonicalModelName('js')).toBe('tools_local_cua_js')
 })

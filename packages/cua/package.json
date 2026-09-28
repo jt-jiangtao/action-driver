@@ -11,6 +11,10 @@
     "./tinysky-alt": {
       "types": "./dist/tinysky-alt.d.ts",
       "import": "./dist/tinysky-alt.js"
+    },
+    "./computer": {
+      "types": "./dist/computer-entry.d.ts",
+      "import": "./dist/computer-entry.js"
     }
   },
   "scripts": {

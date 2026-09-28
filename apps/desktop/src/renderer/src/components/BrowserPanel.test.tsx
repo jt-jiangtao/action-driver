@@ -57,6 +57,28 @@ describe('BrowserPanel', () => {
     expect(screen.getByText('人工接管')).toBeVisible()
   })
 
+  it('uses the managed page and sends address-bar navigation to its active tab', async () => {
+    const user = userEvent.setup()
+    const command = vi.fn(async () => null)
+    Object.defineProperty(window, 'actionDriverDesktop', { configurable: true,
+      value: { browserSession: { command, setViewport: vi.fn(async () => undefined) } } })
+    render(<BrowserPanel taskId="task-1" mode="split"
+      projection={{ ...mockTaskFixture.browser!, title: 'Example', url: 'https://example.test/',
+        sessionId: 'session-1', surface: 'embedded', activeTabId: 'tab-1', tabs: [
+          { id: 'tab-1', title: 'Example', url: 'https://example.test/', loading: false,
+            canGoBack: true, canGoForward: false }
+        ] }}
+      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()} onTakeOver={vi.fn()} />)
+    expect(screen.queryByAltText('杭州酒店搜索结果')).not.toBeInTheDocument()
+    await user.clear(screen.getByRole('textbox', { name: '地址' }))
+    await user.type(screen.getByRole('textbox', { name: '地址' }), 'https://wikipedia.org/{Enter}')
+    expect(command).toHaveBeenCalledWith({ action: 'execute', taskId: 'task-1',
+      sessionId: 'session-1', tabId: 'tab-1', command: {
+        type: 'navigate', url: 'https://wikipedia.org/'
+      } })
+    Object.defineProperty(window, 'actionDriverDesktop', { configurable: true, value: undefined })
+  })
+
   it('switches to continue Agent after takeover', async () => {
     const user = userEvent.setup()
     const onResume = vi.fn()

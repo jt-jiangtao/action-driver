@@ -10,7 +10,6 @@
 // the previous cell's top-level bindings forward.
 import { createInterface } from 'node:readline'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import { buildCell } from './bindings.mjs'
 
@@ -22,7 +21,6 @@ const SKY_METHODS = [
 const pending = new Map()
 let nextCallId = 1
 let cellCounter = 1
-const vendorRoot = process.env.CUA_VENDOR_ROOT
 let requestMeta = Object.freeze({})
 let cua = null
 
@@ -45,13 +43,7 @@ function stringify(value) {
 }
 
 const nodeRepl = Object.freeze({
-  ...(vendorRoot ? {
-    env: Object.freeze({ CUA_REPL_ENABLED_SURFACES: 'computer' }),
-    rpc: (service, input) => {
-      if (service !== 'sky') throw new Error('INVALID_REQUEST: unsupported RPC service')
-      return callHost('sky_rpc', input)
-    }
-  } : {}),
+  env: Object.freeze({ CUA_REPL_ENABLED_SURFACES: 'browser,computer', TINYSKY_ALT_INITIALIZE_DOCS: 'owned-macos' }),
   get requestMeta() { return requestMeta },
   cwd: process.env.NODE_REPL_CWD || process.cwd(),
   homeDir: process.env.HOME || process.cwd(),
@@ -93,7 +85,7 @@ function createContext() {
   return vm.createContext({
     console: captureConsole(),
     nodeRepl,
-    ...(vendorRoot ? {} : { sky }),
+    sky,
     Buffer,
     URL,
     URLSearchParams,
@@ -140,11 +132,6 @@ async function carriedModule() {
 }
 
 async function importModule(specifier) {
-  if (specifier === '@oai/sky') {
-    if (vendorRoot) return await import(pathToFileURL(join(vendorRoot,
-      '@oai/sky/dist/project/cua/sky_js/src/index.js')).href)
-    return syntheticModule({ sky }, '@oai/sky')
-  }
   if (specifier === '@prev') {
     const module = await carriedModule()
     if (!module) throw new Error('@prev is unavailable before the first js call')
@@ -160,13 +147,16 @@ async function importModule(specifier) {
 
 async function evaluate(id, code) {
   requestMeta = Object.freeze({ call_id: String(id) })
-  if (vendorRoot && !cua) {
-    globalThis.nodeRepl = nodeRepl
-    const { create_tinysky_alt } = await import(pathToFileURL(join(vendorRoot,
-      '@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js')).href)
-    cua = await create_tinysky_alt({ browser: false, computer: true })
+  if (!cua) {
+    const { createOwnedCua } = await import('./owned-cua.mjs')
+    cua = await createOwnedCua(
+      (input) => callHost('computer_rpc', input),
+      (input) => callHost('browser_rpc', input),
+      nodeRepl
+    )
     Object.assign(cua, { initialize: cua.getState })
     context.cua = cua
+    context.agent = globalThis.agent
   }
   const identifier = join(nodeRepl.cwd, `.js_repl_cell_${cellCounter++}.mjs`)
   const compile = (source) => new vm.SourceTextModule(source, { context, identifier })

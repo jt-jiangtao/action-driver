@@ -8,7 +8,7 @@ async function originalRegistration(create: (options: any) => Promise<any>) {
   vi.stubGlobal('__testCreateCUA', create)
   const source = await readFile(
     resolve(
-      'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js'
+      'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js'
     ),
     'utf8'
   )
@@ -24,7 +24,8 @@ async function originalRegistration(create: (options: any) => Promise<any>) {
 }
 async function compare(run: (register: any) => Promise<unknown>) {
   const expected = await run(originalRegistration)
-  expect(await run((create: any) => (candidate as any).registerCUAGlobal(create))).toEqual(expected)
+  expect(await run((create: any) => (candidate as any).registerCUAGlobal(create,
+    Reflect.get(globalThis, 'nodeRepl')?.env ?? {}))).toEqual(expected)
 }
 test('global registration parses enabled surfaces, trims duplicates and preserves runtime identity', async () => {
   await compare(async (register) => {
@@ -140,4 +141,18 @@ test('global registration waits for runtime creation and snapshots surface selec
       vi.unstubAllGlobals()
     }
   })
+})
+
+test('registration uses explicit ActionDriver surface settings and ignores ambient private host', async () => {
+  vi.stubGlobal('nodeRepl', { env: { CUA_REPL_ENABLED_SURFACES: 'computer' } })
+  const seen: unknown[] = []
+  try {
+    await candidate.registerCUAGlobal(async (enabled) => {
+      seen.push(enabled)
+      return { getState: () => null }
+    }, { CUA_REPL_ENABLED_SURFACES: 'browser' })
+    expect(seen).toEqual([{ browser: true, computer: false }])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

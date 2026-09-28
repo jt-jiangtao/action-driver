@@ -1,0 +1,662 @@
+{
+  "sourcePackage": "@oai/browser-desktop",
+  "sourceVersion": "0.1.1",
+  "source": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop",
+  "dependencyEvidence": {
+    "classic-level": "3.0.0"
+  },
+  "files": [
+    {
+      "path": "environment-docs/cloud/api-use-behavior.md",
+      "owner": "environment-resource",
+      "sha256": "cbdeb4d51517fbc8f59a995123c17ebadac7097f45ecf6514eb97352fafb8f25",
+      "bytes": 3800
+    },
+    {
+      "path": "environment-docs/cloud/api.json",
+      "owner": "environment-resource",
+      "sha256": "4ed76a13a94e7249fefca7e4af382f8f7cb9207bb3663df5722be96e6a918e44",
+      "bytes": 60344
+    },
+    {
+      "path": "environment-docs/cloud/bootstrap-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "bbf69be0ecff6b45e70a71d96487a6932426b3377df389ec7376107e8c1e0416",
+      "bytes": 680
+    },
+    {
+      "path": "environment-docs/cloud/browser-safety.md",
+      "owner": "environment-resource",
+      "sha256": "9ae8500b67fed7bfd5b13a4ed0a3e340b12a8a7b7b9d83f9666068227424ae0b",
+      "bytes": 3636
+    },
+    {
+      "path": "environment-docs/cloud/browser-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "76ca57503fc2b11c602ad090326b6f0fec2d037826ec828607945f4c333b206b",
+      "bytes": 928
+    },
+    {
+      "path": "environment-docs/cloud/browserAuthSafetyPrecheck.md",
+      "owner": "environment-resource",
+      "sha256": "a0002fc9b9bcda1f6db4f759431e625321e45d68e02bacfb4f226d4542a94ee8",
+      "bytes": 1466
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/browser/management.md",
+      "owner": "environment-resource",
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e",
+      "bytes": 5843
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/browser/viewport.md",
+      "owner": "environment-resource",
+      "sha256": "c9857bf5aae8bfc73630751363ce27204792b88b1cd95d4da19c03833501921a",
+      "bytes": 1014
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/browser/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08",
+      "bytes": 888
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/botDetection.md",
+      "owner": "environment-resource",
+      "sha256": "d877fab6b7b7cd78c06553dba44a3790361afc85c9e2bb7566e476a3ee0d081e",
+      "bytes": 2675
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/browserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "c72a4e0fbee48c6219b93391b6bb0a375f22b4197d3f0a4a196f8efe648ad1ca",
+      "bytes": 19551
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/cdp.md",
+      "owner": "environment-resource",
+      "sha256": "8e4d8cc937b7213d9c946f082762e31ece226b05ff42e49e535841c7209ac9a6",
+      "bytes": 2232
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/orbitBrowserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "c484914883002d1ffe204e263e311325237ff3bb6a13fc03833108cb8adec4fd",
+      "bytes": 18616
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/pageAssets.md",
+      "owner": "environment-resource",
+      "sha256": "aab1c766aa79202adcb79bb5539820b13f2f5ef5487a304fcf11ad74bbed06bc",
+      "bytes": 1870
+    },
+    {
+      "path": "environment-docs/cloud/capabilities/tab/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "02326ba566c5446c8e642fc98ac7aae3044c46d48432272d81b7c7e164d42beb",
+      "bytes": 341
+    },
+    {
+      "path": "environment-docs/cloud/cloud-auth.md",
+      "owner": "environment-resource",
+      "sha256": "ceebc2f538e428d2600b2ec0facd6d340e3a70778fd2e6daad9c5ea1604ee1a7",
+      "bytes": 11301
+    },
+    {
+      "path": "environment-docs/cloud/cloud-no-auth.md",
+      "owner": "environment-resource",
+      "sha256": "2d62cfc556c335ef1d605f97b2616dc141cea860a294181e20488193ff0ef3a9",
+      "bytes": 13767
+    },
+    {
+      "path": "environment-docs/cloud/cloud-shared-files.md",
+      "owner": "environment-resource",
+      "sha256": "409f04bb73715d4bf27631b3a913273a64d6d323b93d105593564b3c5aff46ac",
+      "bytes": 3351
+    },
+    {
+      "path": "environment-docs/cloud/confirmations.md",
+      "owner": "environment-resource",
+      "sha256": "5897041e3b121ac9193d69eac9d46e74c4eb3a77a5aa5f0e2dd06c0d5d22a458",
+      "bytes": 5812
+    },
+    {
+      "path": "environment-docs/cloud/documents.json",
+      "owner": "environment-resource",
+      "sha256": "13e3a3478712710df3de8b60812cf447d537a62e8d6e294758d280dab256997c",
+      "bytes": 3024
+    },
+    {
+      "path": "environment-docs/cloud/file-uploads.md",
+      "owner": "environment-resource",
+      "sha256": "be58df64881903636d16bb11f65e98c8e77f34b82a2d27566df320284c9d37f6",
+      "bytes": 960
+    },
+    {
+      "path": "environment-docs/cloud/orbit-cloud-auth.md",
+      "owner": "environment-resource",
+      "sha256": "6cd5e483ef01318bdb16e9503eb02e438e32785be37edfe0a62bcf88a89fb030",
+      "bytes": 10978
+    },
+    {
+      "path": "environment-docs/cloud/screenshots.md",
+      "owner": "environment-resource",
+      "sha256": "94cb633f79c309fdd84f14dac790d4ffa1b4bf20a2b6643e4e6111ba1c676cc4",
+      "bytes": 515
+    },
+    {
+      "path": "environment-docs/cloud/tab-claiming-cdp.md",
+      "owner": "environment-resource",
+      "sha256": "d6ed229df46068ef8989432f52cb52eef887e3f77f37db55098fb6f146ebcff6",
+      "bytes": 697
+    },
+    {
+      "path": "environment-docs/cloud/tab-cleanup-chrome.md",
+      "owner": "environment-resource",
+      "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8",
+      "bytes": 1104
+    },
+    {
+      "path": "environment-docs/cloud/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "7cb1870c425f6b80521722fe5091a76328d53c41bca69705277231e815610ed0",
+      "bytes": 601
+    },
+    {
+      "path": "environment-docs/cloud/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "58222da9e228ef36bed3c293daee5cb62e9c3040fe8e017a7608e462c1c44dfc",
+      "bytes": 527
+    },
+    {
+      "path": "environment-docs/codex-app/accessibility.md",
+      "owner": "environment-resource",
+      "sha256": "c0722e52ccd697b5622c1cd145ffde97ba1f096eeaf0b0f09a9e2be76e03e3f3",
+      "bytes": 4939
+    },
+    {
+      "path": "environment-docs/codex-app/api-use-behavior.md",
+      "owner": "environment-resource",
+      "sha256": "cbdeb4d51517fbc8f59a995123c17ebadac7097f45ecf6514eb97352fafb8f25",
+      "bytes": 3800
+    },
+    {
+      "path": "environment-docs/codex-app/api.json",
+      "owner": "environment-resource",
+      "sha256": "4ed76a13a94e7249fefca7e4af382f8f7cb9207bb3663df5722be96e6a918e44",
+      "bytes": 60344
+    },
+    {
+      "path": "environment-docs/codex-app/bootstrap-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "bbf69be0ecff6b45e70a71d96487a6932426b3377df389ec7376107e8c1e0416",
+      "bytes": 680
+    },
+    {
+      "path": "environment-docs/codex-app/browser-control-interruption.md",
+      "owner": "environment-resource",
+      "sha256": "2fd73066304bc822ce3fba35eeba6456a0505f32f2f1364424639a08e49d1d5a",
+      "bytes": 345
+    },
+    {
+      "path": "environment-docs/codex-app/browser-safety.md",
+      "owner": "environment-resource",
+      "sha256": "1d34bbfd82e75deaeaac667eed6c4df211568a358d9e99d94f4d444614964da8",
+      "bytes": 3319
+    },
+    {
+      "path": "environment-docs/codex-app/browser-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "76ca57503fc2b11c602ad090326b6f0fec2d037826ec828607945f4c333b206b",
+      "bytes": 928
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/browser/management.md",
+      "owner": "environment-resource",
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e",
+      "bytes": 5843
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/browser/viewport.md",
+      "owner": "environment-resource",
+      "sha256": "c9857bf5aae8bfc73630751363ce27204792b88b1cd95d4da19c03833501921a",
+      "bytes": 1014
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/browser/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08",
+      "bytes": 888
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/tab/botDetection.md",
+      "owner": "environment-resource",
+      "sha256": "d877fab6b7b7cd78c06553dba44a3790361afc85c9e2bb7566e476a3ee0d081e",
+      "bytes": 2675
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/tab/browserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "c72a4e0fbee48c6219b93391b6bb0a375f22b4197d3f0a4a196f8efe648ad1ca",
+      "bytes": 19551
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/tab/cdp.md",
+      "owner": "environment-resource",
+      "sha256": "8e4d8cc937b7213d9c946f082762e31ece226b05ff42e49e535841c7209ac9a6",
+      "bytes": 2232
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/tab/pageAssets.md",
+      "owner": "environment-resource",
+      "sha256": "aab1c766aa79202adcb79bb5539820b13f2f5ef5487a304fcf11ad74bbed06bc",
+      "bytes": 1870
+    },
+    {
+      "path": "environment-docs/codex-app/capabilities/tab/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "02326ba566c5446c8e642fc98ac7aae3044c46d48432272d81b7c7e164d42beb",
+      "bytes": 341
+    },
+    {
+      "path": "environment-docs/codex-app/chrome-file-upload-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "fe75442ac53d6a0fe5e45712e86d2ab0d40318b113d0c74121f4bb84e9460182",
+      "bytes": 696
+    },
+    {
+      "path": "environment-docs/codex-app/chrome-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "70b27f1b1331e81653b0bcb0c84b91ee7e884304bb7a2c6d5df60133df482580",
+      "bytes": 5015
+    },
+    {
+      "path": "environment-docs/codex-app/confirmations.md",
+      "owner": "environment-resource",
+      "sha256": "5897041e3b121ac9193d69eac9d46e74c4eb3a77a5aa5f0e2dd06c0d5d22a458",
+      "bytes": 5812
+    },
+    {
+      "path": "environment-docs/codex-app/documents.json",
+      "owner": "environment-resource",
+      "sha256": "070519b3106dcdb9c226c8fa261c3ee055d15ebea2f8af592cfe4c3e276e2678",
+      "bytes": 3772
+    },
+    {
+      "path": "environment-docs/codex-app/file-uploads.md",
+      "owner": "environment-resource",
+      "sha256": "be58df64881903636d16bb11f65e98c8e77f34b82a2d27566df320284c9d37f6",
+      "bytes": 960
+    },
+    {
+      "path": "environment-docs/codex-app/local-web-development.md",
+      "owner": "environment-resource",
+      "sha256": "0bc8a4455b4469e17bd4cfd5192d90d079fcaa9894fbd763552281117535a32c",
+      "bytes": 346
+    },
+    {
+      "path": "environment-docs/codex-app/screenshots.md",
+      "owner": "environment-resource",
+      "sha256": "94cb633f79c309fdd84f14dac790d4ffa1b4bf20a2b6643e4e6111ba1c676cc4",
+      "bytes": 515
+    },
+    {
+      "path": "environment-docs/codex-app/session-naming.md",
+      "owner": "environment-resource",
+      "sha256": "385cfcc20ff5778b81c59f218152381f65c9fd4ad0970bb59c847a009726a003",
+      "bytes": 274
+    },
+    {
+      "path": "environment-docs/codex-app/tab-claiming-chrome.md",
+      "owner": "environment-resource",
+      "sha256": "9cd2b24253ff7376e317f39cac4dd8ba276ea2a98385d9d3f7f12349ba5706aa",
+      "bytes": 2170
+    },
+    {
+      "path": "environment-docs/codex-app/tab-cleanup-chrome.md",
+      "owner": "environment-resource",
+      "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8",
+      "bytes": 1104
+    },
+    {
+      "path": "environment-docs/codex-app/tab-cleanup-iab.md",
+      "owner": "environment-resource",
+      "sha256": "23593b4f6d3828ffbbd88bb8322c8c135957d5d01c219b7e431478c565772b74",
+      "bytes": 505
+    },
+    {
+      "path": "environment-docs/codex-app/tab-mentions-iab.md",
+      "owner": "environment-resource",
+      "sha256": "10a36c2bd1b856c1b594fc36b5280f2cad5391be971ba8a5b834924fa76763cb",
+      "bytes": 1319
+    },
+    {
+      "path": "environment-docs/codex-app/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "7cb1870c425f6b80521722fe5091a76328d53c41bca69705277231e815610ed0",
+      "bytes": 601
+    },
+    {
+      "path": "environment-docs/codex-app/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "58222da9e228ef36bed3c293daee5cb62e9c3040fe8e017a7608e462c1c44dfc",
+      "bytes": 527
+    },
+    {
+      "path": "environment-docs/orbit/api-use-behavior.md",
+      "owner": "environment-resource",
+      "sha256": "cbdeb4d51517fbc8f59a995123c17ebadac7097f45ecf6514eb97352fafb8f25",
+      "bytes": 3800
+    },
+    {
+      "path": "environment-docs/orbit/api.json",
+      "owner": "environment-resource",
+      "sha256": "4ed76a13a94e7249fefca7e4af382f8f7cb9207bb3663df5722be96e6a918e44",
+      "bytes": 60344
+    },
+    {
+      "path": "environment-docs/orbit/bootstrap-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "bbf69be0ecff6b45e70a71d96487a6932426b3377df389ec7376107e8c1e0416",
+      "bytes": 680
+    },
+    {
+      "path": "environment-docs/orbit/browser-auth-orbit-intro.md",
+      "owner": "environment-resource",
+      "sha256": "3d9799be0c31725937df1192e0e0172dc6f361ab2b9f85f41a16c60c5ad89815",
+      "bytes": 297
+    },
+    {
+      "path": "environment-docs/orbit/browser-safety.md",
+      "owner": "environment-resource",
+      "sha256": "9ae8500b67fed7bfd5b13a4ed0a3e340b12a8a7b7b9d83f9666068227424ae0b",
+      "bytes": 3636
+    },
+    {
+      "path": "environment-docs/orbit/browser-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "76ca57503fc2b11c602ad090326b6f0fec2d037826ec828607945f4c333b206b",
+      "bytes": 928
+    },
+    {
+      "path": "environment-docs/orbit/browserAuthSafetyPrecheck.md",
+      "owner": "environment-resource",
+      "sha256": "a0002fc9b9bcda1f6db4f759431e625321e45d68e02bacfb4f226d4542a94ee8",
+      "bytes": 1466
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/browser/management.md",
+      "owner": "environment-resource",
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e",
+      "bytes": 5843
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/browser/viewport.md",
+      "owner": "environment-resource",
+      "sha256": "c9857bf5aae8bfc73630751363ce27204792b88b1cd95d4da19c03833501921a",
+      "bytes": 1014
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/browser/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08",
+      "bytes": 888
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/botDetection.md",
+      "owner": "environment-resource",
+      "sha256": "d877fab6b7b7cd78c06553dba44a3790361afc85c9e2bb7566e476a3ee0d081e",
+      "bytes": 2675
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/browserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "32f9542c14123ae670c3111ab4f116d11d2bab4477abba553925c4e532629634",
+      "bytes": 18127
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/cdp.md",
+      "owner": "environment-resource",
+      "sha256": "8e4d8cc937b7213d9c946f082762e31ece226b05ff42e49e535841c7209ac9a6",
+      "bytes": 2232
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/orbitBrowserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "32f9542c14123ae670c3111ab4f116d11d2bab4477abba553925c4e532629634",
+      "bytes": 18127
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/pageAssets.md",
+      "owner": "environment-resource",
+      "sha256": "aab1c766aa79202adcb79bb5539820b13f2f5ef5487a304fcf11ad74bbed06bc",
+      "bytes": 1870
+    },
+    {
+      "path": "environment-docs/orbit/capabilities/tab/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "02326ba566c5446c8e642fc98ac7aae3044c46d48432272d81b7c7e164d42beb",
+      "bytes": 341
+    },
+    {
+      "path": "environment-docs/orbit/cloud-no-auth.md",
+      "owner": "environment-resource",
+      "sha256": "cf54776e7674ac9cabf0fe37f52001d92d7009fa71dc82ac0e800b2577124378",
+      "bytes": 13174
+    },
+    {
+      "path": "environment-docs/orbit/cloud-shared-files.md",
+      "owner": "environment-resource",
+      "sha256": "409f04bb73715d4bf27631b3a913273a64d6d323b93d105593564b3c5aff46ac",
+      "bytes": 3351
+    },
+    {
+      "path": "environment-docs/orbit/confirmations.md",
+      "owner": "environment-resource",
+      "sha256": "5897041e3b121ac9193d69eac9d46e74c4eb3a77a5aa5f0e2dd06c0d5d22a458",
+      "bytes": 5812
+    },
+    {
+      "path": "environment-docs/orbit/documents.json",
+      "owner": "environment-resource",
+      "sha256": "0ba8e7f0965785f9462fb3caeb80b71cd109245dc5e37c625ee8ccc292627599",
+      "bytes": 3182
+    },
+    {
+      "path": "environment-docs/orbit/file-uploads.md",
+      "owner": "environment-resource",
+      "sha256": "be58df64881903636d16bb11f65e98c8e77f34b82a2d27566df320284c9d37f6",
+      "bytes": 960
+    },
+    {
+      "path": "environment-docs/orbit/orbit-auth.md",
+      "owner": "environment-resource",
+      "sha256": "67702405eb69cf1d2f7471765e6f308eabd53dc6c8bc312855d2e7f9bab6ce7e",
+      "bytes": 10708
+    },
+    {
+      "path": "environment-docs/orbit/orbit-cloud-auth.md",
+      "owner": "environment-resource",
+      "sha256": "67702405eb69cf1d2f7471765e6f308eabd53dc6c8bc312855d2e7f9bab6ce7e",
+      "bytes": 10708
+    },
+    {
+      "path": "environment-docs/orbit/screenshots.md",
+      "owner": "environment-resource",
+      "sha256": "94cb633f79c309fdd84f14dac790d4ffa1b4bf20a2b6643e4e6111ba1c676cc4",
+      "bytes": 515
+    },
+    {
+      "path": "environment-docs/orbit/tab-claiming-cdp.md",
+      "owner": "environment-resource",
+      "sha256": "d6ed229df46068ef8989432f52cb52eef887e3f77f37db55098fb6f146ebcff6",
+      "bytes": 697
+    },
+    {
+      "path": "environment-docs/orbit/tab-cleanup-chrome.md",
+      "owner": "environment-resource",
+      "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8",
+      "bytes": 1104
+    },
+    {
+      "path": "environment-docs/orbit/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "7cb1870c425f6b80521722fe5091a76328d53c41bca69705277231e815610ed0",
+      "bytes": 601
+    },
+    {
+      "path": "environment-docs/orbit/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "58222da9e228ef36bed3c293daee5cb62e9c3040fe8e017a7608e462c1c44dfc",
+      "bytes": 527
+    },
+    {
+      "path": "environment-docs/training/api.json",
+      "owner": "environment-resource",
+      "sha256": "4ed76a13a94e7249fefca7e4af382f8f7cb9207bb3663df5722be96e6a918e44",
+      "bytes": 60344
+    },
+    {
+      "path": "environment-docs/training/bootstrap-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "bbf69be0ecff6b45e70a71d96487a6932426b3377df389ec7376107e8c1e0416",
+      "bytes": 680
+    },
+    {
+      "path": "environment-docs/training/browser-safety-training.md",
+      "owner": "environment-resource",
+      "sha256": "734079c58cdd938673c73a84fe6bd9f1ed131d411f7e4cce9cf6b11819c79e41",
+      "bytes": 824
+    },
+    {
+      "path": "environment-docs/training/browser-troubleshooting.md",
+      "owner": "environment-resource",
+      "sha256": "76ca57503fc2b11c602ad090326b6f0fec2d037826ec828607945f4c333b206b",
+      "bytes": 928
+    },
+    {
+      "path": "environment-docs/training/capabilities/browser/management.md",
+      "owner": "environment-resource",
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e",
+      "bytes": 5843
+    },
+    {
+      "path": "environment-docs/training/capabilities/browser/viewport.md",
+      "owner": "environment-resource",
+      "sha256": "c9857bf5aae8bfc73630751363ce27204792b88b1cd95d4da19c03833501921a",
+      "bytes": 1014
+    },
+    {
+      "path": "environment-docs/training/capabilities/browser/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08",
+      "bytes": 888
+    },
+    {
+      "path": "environment-docs/training/capabilities/tab/botDetection.md",
+      "owner": "environment-resource",
+      "sha256": "d877fab6b7b7cd78c06553dba44a3790361afc85c9e2bb7566e476a3ee0d081e",
+      "bytes": 2675
+    },
+    {
+      "path": "environment-docs/training/capabilities/tab/browserAuth.md",
+      "owner": "environment-resource",
+      "sha256": "c72a4e0fbee48c6219b93391b6bb0a375f22b4197d3f0a4a196f8efe648ad1ca",
+      "bytes": 19551
+    },
+    {
+      "path": "environment-docs/training/capabilities/tab/cdp.md",
+      "owner": "environment-resource",
+      "sha256": "8e4d8cc937b7213d9c946f082762e31ece226b05ff42e49e535841c7209ac9a6",
+      "bytes": 2232
+    },
+    {
+      "path": "environment-docs/training/capabilities/tab/pageAssets.md",
+      "owner": "environment-resource",
+      "sha256": "aab1c766aa79202adcb79bb5539820b13f2f5ef5487a304fcf11ad74bbed06bc",
+      "bytes": 1870
+    },
+    {
+      "path": "environment-docs/training/capabilities/tab/webmcp.md",
+      "owner": "environment-resource",
+      "sha256": "02326ba566c5446c8e642fc98ac7aae3044c46d48432272d81b7c7e164d42beb",
+      "bytes": 341
+    },
+    {
+      "path": "environment-docs/training/documents.json",
+      "owner": "environment-resource",
+      "sha256": "361fe0b19d7dc370db19638afd1347df48643e2d79cc92e9b2b849f8db2923a6",
+      "bytes": 1930
+    },
+    {
+      "path": "environment-docs/training/file-uploads.md",
+      "owner": "environment-resource",
+      "sha256": "be58df64881903636d16bb11f65e98c8e77f34b82a2d27566df320284c9d37f6",
+      "bytes": 960
+    },
+    {
+      "path": "environment-docs/training/tab-claiming-cdp.md",
+      "owner": "environment-resource",
+      "sha256": "d6ed229df46068ef8989432f52cb52eef887e3f77f37db55098fb6f146ebcff6",
+      "bytes": 697
+    },
+    {
+      "path": "environment-docs/training/tab-cleanup-chrome.md",
+      "owner": "environment-resource",
+      "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8",
+      "bytes": 1104
+    },
+    {
+      "path": "environment-docs/training/visibility.md",
+      "owner": "environment-resource",
+      "sha256": "7cb1870c425f6b80521722fe5091a76328d53c41bca69705277231e815610ed0",
+      "bytes": 601
+    },
+    {
+      "path": "package.json",
+      "owner": "package-metadata",
+      "sha256": "a7bfc13a4f9a8a22fd4a275adedf352e5f10ea57f8259301b905c3e997bc3b63",
+      "bytes": 308
+    },
+    {
+      "path": "scripts/browser-accessibility.wasm.br",
+      "owner": "third-party-or-generated-wasm",
+      "sha256": "97d2773f1f0d3f890e2dc8bbf7da5745cfb9c2686d893579ffc35bb9608185ee",
+      "bytes": 4084148,
+      "embedded": {
+        "sha256": "97d2773f1f0d3f890e2dc8bbf7da5745cfb9c2686d893579ffc35bb9608185ee",
+        "identical": true
+      }
+    },
+    {
+      "path": "scripts/browser-client.mjs",
+      "owner": "browser-client-bundle",
+      "sha256": "d9d0143a6f250151e5fcb87957d21d171178c2aada6019ab72fb7056ac1e1324",
+      "bytes": 151506,
+      "embedded": {
+        "sha256": "d9d0143a6f250151e5fcb87957d21d171178c2aada6019ab72fb7056ac1e1324",
+        "identical": true
+      }
+    },
+    {
+      "path": "scripts/browser-service.mjs",
+      "owner": "browser-service-bundle",
+      "sha256": "fc0660ba45e6c10b532d8faa0c1bac704d987dad3d4b74478f49fdd82bf90086",
+      "bytes": 1905434,
+      "embedded": {
+        "sha256": "658332836ffa0d1730337eacf58c323c7175c7ff26fe062be3f728760e1f855e",
+        "identical": false
+      }
+    },
+    {
+      "path": "scripts/zxing_reader.wasm",
+      "owner": "third-party-or-generated-wasm",
+      "sha256": "0e8d688d71932ebb6b8b33f700d43d3cb997f59ed9cab3c05102d7f10288a392",
+      "bytes": 1065866,
+      "embedded": {
+        "sha256": "0e8d688d71932ebb6b8b33f700d43d3cb997f59ed9cab3c05102d7f10288a392",
+        "identical": true
+      }
+    }
+  ]
+}

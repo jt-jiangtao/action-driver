@@ -10,20 +10,32 @@ export class FilesystemPluginRepository implements PluginRepository {
     await mkdir(parent, { recursive: true })
     const source = this.source(manifest)
     const temporary = join(parent, `.install-${this.ids()}`)
+    const previous = join(parent, `.previous-${this.ids()}`)
     try {
       const canonicalRoot = await realpath(source)
       const canonicalEntry = await realpath(resolve(source, manifest.entry))
       if (relative(canonicalRoot, canonicalEntry).startsWith('..') || !(await stat(canonicalEntry)).isFile()) throw new PluginError('INVALID_MANIFEST', 'Entry is outside package or not a file')
-      try { await stat(destination) } catch (error) {
+      let destinationExists = false
+      try { await stat(destination); destinationExists = true } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+      if (!destinationExists || canonicalRoot !== await realpath(destination)) {
         await cp(source, temporary, { recursive: true, filter: path => !path.split('/').some(part => part === 'node_modules' || part === '.git') })
         await writeFile(join(temporary, 'plugin.json'), JSON.stringify(manifest))
-        await rename(temporary, destination)
+        if (destinationExists) await rename(destination, previous)
+        try { await rename(temporary, destination) }
+        catch (error) {
+          if (destinationExists) await rename(previous, destination)
+          throw error
+        }
       }
       const pointer = join(parent, `.current-${this.ids()}.json`)
       await writeFile(pointer, JSON.stringify(manifest))
       await rename(pointer, join(parent, 'current.json'))
-    } finally { await rm(temporary, { recursive: true, force: true }) }
+      await rm(previous, { recursive: true, force: true })
+    } finally {
+      await rm(temporary, { recursive: true, force: true })
+    }
   }
   async list(): Promise<PluginManifest[]> {
     const installed = join(this.root, 'installed')

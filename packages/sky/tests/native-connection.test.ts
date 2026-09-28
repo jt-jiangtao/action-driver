@@ -146,7 +146,7 @@ test('startup ensure request and reconnect call sequence matches original', asyn
   const { resolve } = await import('node:path')
   const ref = await originalModule(
     resolve(
-      'apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js'
+      'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js'
     )
   )
   vi.useFakeTimers()

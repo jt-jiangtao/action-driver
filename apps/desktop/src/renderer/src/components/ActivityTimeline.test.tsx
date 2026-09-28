@@ -110,7 +110,7 @@ describe('ActivityTimeline', () => {
 
   it('shows the Computer Use cell source and falls back to its length summary', () => {
     const live = task('running')
-    live.tools![0]!.toolId = 'tools.local.computer-use.js'
+    live.tools![0]!.toolId = 'tools.local.cua.js'
     live.tools![0]!.modelName = 'js'
     live.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getState()' })
     const liveView = render(<ActivityTimeline task={live} />)
@@ -123,12 +123,12 @@ describe('ActivityTimeline', () => {
       'Computer Use'
     )
     expect(liveView.container.querySelector('.activity-tool-io pre')?.textContent).toBe(
-      'await cua.getState()'
+      'await cua.getState()\n\n内容'
     )
     liveView.unmount()
 
     const failed = task('running')
-    failed.tools![0]!.toolId = 'tools.local.computer-use.js'
+    failed.tools![0]!.toolId = 'tools.local.cua.js'
     failed.tools![0]!.modelName = 'js'
     failed.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getApp("Calculator")' })
     failed.tools![0]!.rawOutput = 'printed before failing'
@@ -141,7 +141,7 @@ describe('ActivityTimeline', () => {
     failedView.unmount()
 
     const persisted = task('running')
-    persisted.tools![0]!.toolId = 'tools.local.computer-use.js'
+    persisted.tools![0]!.toolId = 'tools.local.cua.js'
     persisted.tools![0]!.modelName = 'js'
     persisted.tools![0]!.rawInput = JSON.stringify({ codeLength: 20, executedTextLengths: [] })
     const persistedView = render(<ActivityTimeline task={persisted} />)

@@ -1,5 +1,5 @@
 {
-  "sourcePath": "apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs",
+  "sourcePath": "packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs",
   "sourceSha256": "658332836ffa0d1730337eacf58c323c7175c7ff26fe062be3f728760e1f855e",
   "output": "packages/browser-runtime/resources/browser-keyboard.json",
   "outputSha256": "5a8f9d88d8f44ece55d7ac458b6df9c9e7054e3750117ee6d3852dfb995b5852",

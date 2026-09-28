@@ -32,7 +32,7 @@ afterEach(() => vi.useRealTimers())
 test('request envelope, metadata bytes, response fragmentation and serialization match original', async () => {
   const ref = await originalModule(
     resolve(
-      'apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js'
+      'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js'
     )
   )
   vi.useFakeTimers()

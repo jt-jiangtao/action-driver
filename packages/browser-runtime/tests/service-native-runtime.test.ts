@@ -8,7 +8,7 @@ import { JSDOM } from 'jsdom'
 
 async function originalRuntimeSetupProbe(calls: string[], audit?: Record<string, unknown>) {
   const source = await readFile(resolve(
-    'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+    'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
   ), 'utf8')
   const dependency = pathToFileURL(resolve('packages/browser-runtime/node_modules/classic-level/index.js')).href
   const module = await import('data:text/javascript;base64,' + Buffer.from(

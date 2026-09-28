@@ -16,7 +16,9 @@ const instructions = {
 }
 const base = {
   CUA_REPL_NODE_REPL_PATH: '/node-repl',
-  CUA_REPL_ENABLED_SURFACES: ' computer, browser,computer, '
+  CUA_REPL_ENABLED_SURFACES: ' computer, browser,computer, ',
+  NODE_REPL_TRUSTED_SERVICES: JSON.stringify({ browser: '/actiondriver/browser-service.mjs',
+    sky: '/actiondriver/computer-service.mjs' })
 }
 test('launch plan normalizes surfaces and composes descriptions, services and allowlist', () => {
   const result = createLaunchPlan(
@@ -30,8 +32,8 @@ test('launch plan normalizes surfaces and composes descriptions, services and al
     'CUSTOM,CUA_REPL_ENABLED_SURFACES,CUA_REPL_BROWSER_ENV'
   )
   expect(JSON.parse(result.env.NODE_REPL_TRUSTED_SERVICES!)).toEqual({
-    browser: '@actiondriver/browser-runtime/service',
-    sky: '@actiondriver/sky/service'
+    browser: '/actiondriver/browser-service.mjs',
+    sky: '/actiondriver/computer-service.mjs'
   })
   expect(JSON.parse(result.env.NODE_REPL_TOOL_OVERRIDES!).tools.js.description).toBe(
     'description\n\nbrowser\n\ncomputer\n\noutput'
@@ -54,16 +56,23 @@ test.each(['browser', 'computer'])(
     ])
   }
 )
-test('explicit empty service/banner overrides are preserved and banner not read', () => {
+test('empty service map and private service module paths are rejected', () => {
+  for (const value of ['', JSON.stringify({browser:'@actiondriver/browser-runtime/service',
+    sky:'@actiondriver/sky/service'}), JSON.stringify({browser:'/Applications/Codex.app/service.mjs',
+    sky:'/actiondriver/computer-service.mjs'})])
+    expect(() => createLaunchPlan({ ...base, NODE_REPL_TRUSTED_SERVICES: value },
+      instructions, () => 'banner')).toThrow()
+})
+test('explicit banner override is preserved and banner is not read', () => {
   const read = vi.fn(() => {
     throw new Error('should not read')
   })
   const result = createLaunchPlan(
-    { ...base, NODE_REPL_TRUSTED_SERVICES: '', NODE_REPL_JS_BANNER: '' },
+    { ...base, NODE_REPL_JS_BANNER: '' },
     instructions,
     read
   )
-  expect(result.env.NODE_REPL_TRUSTED_SERVICES).toBe('')
+  expect(result.env.NODE_REPL_TRUSTED_SERVICES).toBe(base.NODE_REPL_TRUSTED_SERVICES)
   expect(result.env.NODE_REPL_JS_BANNER).toBe('')
   expect(read).not.toHaveBeenCalled()
 })

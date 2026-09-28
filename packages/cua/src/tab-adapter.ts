@@ -32,8 +32,7 @@ const captureOptions = (options?: StateOptions) =>
 /** Adds the CUA facade to a browser runtime tab without replacing the tab identity. */
 export function decorateBrowserTab<T extends { ax: BrowserAX }>(
   tab: T,
-  getHost: () => SessionHost | undefined = () =>
-    (globalThis as typeof globalThis & { nodeRepl?: SessionHost }).nodeRepl
+  getHost: () => SessionHost | undefined = () => undefined
 ) {
   async function emitState(state: string, options?: EmitOptions) {
     if (options?.emit !== false) await getHost()?.write?.(state, 'cua.state')

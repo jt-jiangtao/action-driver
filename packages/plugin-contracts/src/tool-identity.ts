@@ -18,8 +18,8 @@ const legacy = [
   ['skill.install', 'skill_install', 'skills', 'install'],
   ['image.generate', 'image_generate', 'image-generation', 'generate'],
   ['workspace.dependencies.load', 'load_workspace_dependencies', 'command', 'dependencies.load'],
-  ['computer.js', 'js', 'computer-use', 'js'],
-  ['computer.js_reset', 'js_reset', 'computer-use', 'reset']
+  ['computer.js', 'js', 'cua', 'js'],
+  ['computer.js_reset', 'js_reset', 'cua', 'reset']
 ] as const
 const identities = legacy.map(([id, modelName, plugin, operation]) => ({ legacyId: id, legacyModelName: modelName, ...createToolIdentity('local', plugin, operation) }))
 export function canonicalToolId(value: string): string {

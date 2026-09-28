@@ -1,26 +1,25 @@
 import { spawn } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import type { SessionWorkspacePaths } from '@actiondriver/runtime-contracts'
 import { SessionSandbox, type SandboxPrepared } from '../execution/session-sandbox'
 import { resolveExecutionRuntimePaths } from '../execution/runtime-paths'
 import type { AppApprovalBroker } from './app-approval-broker'
 import { ApplicationLeases } from './application-leases'
-import { createCodexSkySession } from './codex-sky-session'
-import type { CodexCallContext } from './codex-native-client'
+import { createOwnedSkySession } from './owned-sky-session'
+import type { ComputerCallContext } from './call-context'
 import { JsReplHost, type JsReplChild, type JsReplEvents } from './js-repl'
 import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 
 type Context = { taskId: string; sessionId: string; workspace: SessionWorkspacePaths }
-type Sky = Awaited<ReturnType<typeof createCodexSkySession>>
+type Sky = ReturnType<typeof createOwnedSkySession>
 type Session = {
   id: string
   workspace: SessionWorkspacePaths
   turns: Set<string>
+  browserTasks: Set<string>
   lastUsed: number
   queue: Promise<unknown>
-  active: CodexCallContext | undefined
+  active: ComputerCallContext | undefined
   executedText: ((length: number) => void) | undefined
   /** Writes host notices into the running cell's output. */
   notice: ((text: string) => void) | undefined
@@ -34,11 +33,12 @@ const MAX_SESSIONS = 4
 /** Trusted per-conversation owner; model code sees only the child JSON RPC transport. */
 export function createCuaRuntime(options: {
   runtimeDist: string
-  vendorRoot: string
   entryPath?: string
-  serviceModule?: string
   broker: AppApprovalBroker
   invoke(input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>
+  invokeBrowser?(taskId: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>
+  browserSkillLoaded?(sessionId: string): boolean
+  computerSkillLoaded?(sessionId: string): boolean
   assertRunning(taskId: string): void
   /** Interrupts the running turn, e.g. after the user ended Computer Use with Esc. */
   stopTask?(taskId: string): void
@@ -56,7 +56,7 @@ export function createCuaRuntime(options: {
   const supervised = new Map<string, string>()
   const entryPath = options.entryPath ?? join(options.runtimeDist, 'js-repl/repl-server.mjs')
   const sandbox = new SessionSandbox({
-    runtimeRoots: [options.runtimeDist, options.vendorRoot, dirname(entryPath)]
+    runtimeRoots: [options.runtimeDist, dirname(entryPath)]
   })
   let disposed = false
 
@@ -99,6 +99,7 @@ export function createCuaRuntime(options: {
     if (sessions.get(session.id) !== session) return Promise.resolve()
     sessions.delete(session.id)
     const supervisedTurns = [...session.turns]
+    const browserTasks = [...session.browserTasks]
     for (const task of session.turns) if (tasks.get(task) === session) tasks.delete(task)
     session.turns.clear()
     leases.releaseSession(session.id)
@@ -106,7 +107,11 @@ export function createCuaRuntime(options: {
     options.clearImages?.(session.id)
     host.dispose(session.id)
     return track(
-      Promise.all([endSupervision(supervisedTurns), options.broker.endSession(session.id)]).then(
+      Promise.all([endSupervision(supervisedTurns), options.broker.endSession(session.id),
+        ...browserTasks.map(async (taskId) => {
+          try { await options.invokeBrowser?.(taskId, { type: 'close_task' }) }
+          catch { /* The desktop may already be closing. */ }
+        })]).then(
         () => undefined
       )
     )
@@ -129,20 +134,10 @@ export function createCuaRuntime(options: {
         })
         try {
           signal.throwIfAborted()
-          const sky = await createCodexSkySession({
-            vendorRoot: options.vendorRoot,
-            serviceModule:
-              options.serviceModule ??
-              pathToFileURL(join(options.runtimeDist, 'js-repl/codex-service-host.mjs')).href,
+          const sky = createOwnedSkySession({
             broker: options.broker,
             leases,
             assertRunning,
-            withSuspendedTimeout: (taskId, operation) => {
-              const current = tasks.get(taskId)
-              if (!current || current.active?.taskId !== taskId)
-                throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
-              return host.withSuspendedTimeout(current.id, operation)
-            },
             invoke: options.invoke,
             onExecutedText: (context, text) => {
               const current = sessions.get(context.sessionId)
@@ -151,30 +146,17 @@ export function createCuaRuntime(options: {
             onNotice: (context, text) => {
               const current = sessions.get(context.sessionId)
               if (current?.active?.taskId === context.taskId) current.notice?.(text)
-            },
-            writeScreenshot: async (id, bytes, mimeType) => {
-              const resource = resources.get(id)
-              if (!resource || resource.sky !== sky)
-                throw new Error('ENGINE_UNAVAILABLE: session closed')
-              const path = join(
-                prepared.tempDirectory,
-                `computer-use-${resource.screenshots++}.${mimeType === 'image/png' ? 'png' : 'jpg'}`
-              )
-              await writeFile(path, bytes)
-              return pathToFileURL(path).href
             }
           })
           signal.throwIfAborted()
           const wrapped = prepared.wrap(paths.node, [
             '--experimental-vm-modules',
             '--no-warnings',
-            '--experimental-loader',
-            join(dirname(entryPath), 'codex-module-loader.mjs'),
             entryPath
           ])
           const child = spawn(wrapped.executable, wrapped.args, {
             cwd: session.workspace.root,
-            env: { ...prepared.environment, CUA_VENDOR_ROOT: options.vendorRoot },
+            env: prepared.environment,
             stdio: ['pipe', 'pipe', 'pipe']
           }) as unknown as JsReplChild
           resources.set(sessionId, { child, sandbox: prepared, sky, screenshots: 0 })
@@ -202,9 +184,23 @@ export function createCuaRuntime(options: {
       const resource = resources.get(id)
       if (!session?.active || !resource)
         throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.contextRequired)
-      if (method !== 'sky_rpc') throw new Error('INVALID_REQUEST: only sky RPC is supported')
       const context = { ...session.active, ...(signal === undefined ? {} : { signal }) }
       assertRunning(context.taskId)
+      if (method === 'browser_rpc') {
+        if (!options.browserSkillLoaded?.(context.sessionId))
+          throw new Error('BROWSER_SKILL_NOT_LOADED: read the browser-use Skill first')
+        if (!options.invokeBrowser) throw new Error('BROWSER_SESSION_UNAVAILABLE')
+        if (!input || typeof input !== 'object' || Array.isArray(input))
+          throw new Error('BROWSER_RPC_INVALID')
+        session.browserTasks.add(context.taskId)
+        const result = await options.invokeBrowser(context.taskId,
+          input as Record<string, unknown>, signal)
+        assertRunning(context.taskId)
+        return result
+      }
+      if (method !== 'computer_rpc') throw new Error('INVALID_REQUEST: unsupported CUA RPC')
+      if (options.computerSkillLoaded && !options.computerSkillLoaded(context.sessionId))
+        throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
       try {
         return await resource.sky.invoke(input, context)
       } catch (error) {
@@ -258,6 +254,7 @@ export function createCuaRuntime(options: {
           id: context.sessionId,
           workspace: context.workspace,
           turns: new Set(),
+          browserTasks: new Set(),
           lastUsed: now(),
           queue: Promise.resolve(),
           active: undefined,

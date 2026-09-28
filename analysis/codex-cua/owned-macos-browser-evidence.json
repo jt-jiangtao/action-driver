@@ -1,0 +1,26 @@
+{
+  "platform": "darwin",
+  "browserExecutable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "fixture": "127.0.0.1 offline HTTP",
+  "checks": [
+    "list_browsers",
+    "create_tab",
+    "navigate_tab_url",
+    "get_tab",
+    "tab_cdp_call",
+    "cua_click",
+    "cua_type",
+    "cua_keypress",
+    "cua_move",
+    "cua_double_click",
+    "cua_drag",
+    "tab_screenshot",
+    "profile-cleanup"
+  ],
+  "title": "ActionDriver fixture",
+  "cdpValue": "Ready",
+  "inputResult": "Owned input",
+  "screenshotBytes": 10468,
+  "screenshotSha256": "cb91861925bc9b5e90e49165de9b7e17550c0f99c34a67739807edd545baa4fa",
+  "remainingProfileEntries": []
+}

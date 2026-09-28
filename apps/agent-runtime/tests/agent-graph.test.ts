@@ -824,7 +824,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.computer-use.js',
+        id: 'tools.local.cua.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -854,7 +854,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.computer-use.js@1']
+      grants: ['tools.local.cua.js@1']
     })
     const result = await runner.run({
       taskId: 'private-source-task',
@@ -897,7 +897,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.computer-use.js',
+        id: 'tools.local.cua.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -926,7 +926,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.computer-use.js@1']
+      grants: ['tools.local.cua.js@1']
     })
     const result = await runner.run({
       taskId: 'gate-task',
@@ -964,7 +964,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.computer-use.js',
+        id: 'tools.local.cua.js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -994,7 +994,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.computer-use.js@1']
+      grants: ['tools.local.cua.js@1']
     })
     const result = await runner.run({
       taskId: 'failed-cell-task',

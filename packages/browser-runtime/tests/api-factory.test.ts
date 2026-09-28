@@ -214,7 +214,12 @@ test('trusted bootstrap assembles candidate factory, agent and browser controls 
       }
     })
     const agent = candidate
-      ? await initializeBrowserRuntime({}, (options) =>
+      ? await initializeBrowserRuntime({ host: {
+        setup: (params) => (globalThis as any).nodeRepl.rpc('browser', { method: 'setup', params }),
+        execute: (params) => (globalThis as any).nodeRepl.rpc('browser', { method: 'execute', params }),
+        displayImage: (bytes) => (globalThis as any).nodeRepl.emitImage(bytes),
+        close: async () => {}
+      } }, (options) =>
           new BrowserApiFactory({
             ...options,
             runtimeTypes: { Agent, Browsers, Browser: BrowserControls, Documentation },

@@ -834,6 +834,28 @@
     "coverage": "visual-only"
   },
   {
+    "target": "e2e/tasks/detail/browser/address#input",
+    "route": "tasks",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/browser-session.spec.ts",
+    "testName": "shows the page opened and navigated by the task agent in the right browser panel"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/tab#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/e2e/browser-session.spec.ts",
+    "testName": "shows the page opened and navigated by the task agent in the right browser panel"
+  },
+  {
+    "target": "e2e/tasks/detail/browser/close-tab#button",
+    "route": "tasks",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
     "target": "e2e/tasks/detail/browser/collapse#button",
     "route": "tasks",
     "type": "button",

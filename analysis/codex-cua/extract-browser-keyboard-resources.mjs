@@ -2,7 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 const sourcePath =
-  'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
 const source = await readFile(sourcePath, 'utf8')
 const baseline = await import(
   'data:text/javascript;base64,' +

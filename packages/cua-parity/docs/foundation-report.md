@@ -14,7 +14,7 @@
 pnpm --filter @actiondriver/cua-parity build
 pnpm vitest run --config packages/cua-parity/vitest.config.ts packages/cua-parity/tests packages/cua/tests/core.test.ts packages/cua/tests/discovery.test.ts packages/cua/tests/tab-reference.test.ts packages/sky/tests/bytes.test.ts
 pnpm exec tsc --noEmit -p packages/cua/tsconfig.type-tests.json
-node packages/cua-parity/dist/cli.js verify apps/agent-runtime/vendor/codex-cua analysis/codex-cua/baseline.json
+node packages/cua-parity/dist/cli.js verify packages/back/codex-cua analysis/codex-cua/baseline.json
 ```
 
 生成的分析入口为 analysis/codex-cua/library-guide.md、baseline.json、inventory.json 与 readable/source-index.json。未知捆绑边界保留，不静默排除。

@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createServer } from 'node:http'
 import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
 import { FakeComputerHelper } from './support/fake-computer-helper'
 
@@ -37,13 +38,15 @@ test.afterEach(async () => {
  * this run's directory is what keeps the real (permission-granted) development helper out of the
  * test and lets the fake one serve the app policy that precedes every approval card.
  */
-async function launch(): Promise<Page> {
-  runDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-computer-e2e-'))
+async function launch(mode: 'computer-approval' | 'browser-computer' = 'computer-approval',
+  browserTargetUrl = ''): Promise<Page> {
+  runDirectory = mkdtempSync(join(tmpdir(), 'ad-cu-'))
   const home = join(runDirectory, 'home')
   mkdirSync(home, { recursive: true })
   helper = new FakeComputerHelper(runDirectory, 'e2e-helper-token')
   await helper.start()
-  provider = new FakeOpenAiToolServer('computer-approval')
+  provider = new FakeOpenAiToolServer(mode)
+  provider.browserTargetUrl = browserTargetUrl
   await provider.start()
   application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${join(runDirectory, 'data')}`],
@@ -118,9 +121,8 @@ async function sendGoal(page: Page, goal: string): Promise<string> {
   return taskId!
 }
 
-// Temporarily disabled: the approval card never appeared in the local e2e run (see tasks.md 4.3).
-// Fix the cause first, then re-enable — the spec must not be deleted.
-test.fixme('asks for per-application approval and continues after 仅本次', async () => {
+test('asks for per-application approval and continues after 仅本次', async () => {
+  test.setTimeout(90_000)
   const page = await launch()
   await sendGoal(page, '打开备忘录并告诉我它的状态')
 
@@ -141,4 +143,44 @@ test.fixme('asks for per-application approval and continues after 仅本次', as
       timeout: 60_000
     })
     .toBeGreaterThan(0)
+})
+
+test('runs browser and computer calls in one CUA JS cell with separate authorization', async () => {
+  test.setTimeout(90_000)
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { 'content-type': 'text/html' })
+    response.end('<title>Mixed CUA Target</title><h1>Mixed page</h1>')
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('HTTP server address missing')
+  try {
+    const page = await launch('browser-computer', `http://127.0.0.1:${address.port}/mixed`)
+    await sendGoal(page, '查看页面并检查备忘录')
+    await expect(page.getByRole('tab', { name: 'Mixed CUA Target' })).toBeVisible()
+    const card = page.getByRole('region', { name: 'Notes 应用授权' })
+    await expect(card).toBeVisible({ timeout: 60_000 })
+    expect(helper?.requests.some((request) => request.operation === 'app-state')).toBe(false)
+    await page.getByTestId('e2e/tasks/detail/computer/app-approval-once#button').click()
+    await expect(card).toHaveCount(0, { timeout: 60_000 })
+    await expect.poll(() => helper?.requests.filter((request) => request.operation === 'app-state').length ?? 0,
+      { timeout: 60_000 }).toBeGreaterThan(0)
+    await page.locator('.activity-archive > summary').click()
+    await page.locator('.activity-group > summary').click()
+    const tool = page.locator('.activity-tool').filter({ hasText: '查看网页并操作备忘录' }).first()
+    await tool.locator('summary').click()
+    await expect(tool.locator('.activity-tool-code')).toContainText('cua.createBrowserTab("iab"')
+    await expect(tool.locator('.activity-tool-code')).toContainText('cua.getApp("Notes")')
+    await expect(tool.locator('.activity-tool-io')).toContainText('Mixed CUA Target')
+    await page.reload()
+    await page.locator('.activity-archive > summary').click()
+    await page.locator('.activity-group > summary').click()
+    const restored = page.locator('.activity-tool')
+      .filter({ hasText: '查看网页并操作备忘录' }).first()
+    await restored.locator('summary').click()
+    await expect(restored.locator('.activity-tool-code')).toContainText('cua.createBrowserTab("iab"')
+    await expect(restored.locator('.activity-tool-io')).toContainText('Mixed CUA Target')
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
 })

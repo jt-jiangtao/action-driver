@@ -1,5 +1,9 @@
 # 来源与实现状态
 
+## 自有 macOS 浏览器宿主进度（2026-09-28）
+
+`src/local-browser-host.ts` 使用独立 Chrome profile 和 Playwright CDP，已接入浏览器/标签发现、创建、关闭、HTTP(S) 导航、截图、CDP 命令与事件，以及 CUA 点击、双击、拖动、移动、滚动、单键和文本输入。命令边界明确拒绝未支持的修饰键、无效坐标、未知标签及未实现命令。`analysis/codex-cua/verify-owned-macos-browser.mjs` 在本机独立 Chrome 与离线 127.0.0.1 页面验证点击、输入、状态变更、截图及 profile 清理；这仍不是全部浏览器命令和 desktop 差异验收。
+
 原始 vendor 只用于测试和说明，不作为候选实现依赖。
 
 本文件按实施批次保留当时的“待完成”记录；后文的具体映射和最新状态优先。当前候选客户端/服务入口及 75 个命令注册均已接线，富文本输入已恢复；自动认证安全审查和候选服务的特权浏览器实机验收仍未完成，生产仍使用原包。
@@ -156,3 +160,5 @@ Native service foundations have own `service-context`, `service-rpc`, `service-n
 原版服务内的 Markdown 渲染器配置为 `breaks: true`、`html: false`、`linkify: false`、`typographer: false`。差异样本排除 13.0.2 与 14.2.0 及以后，只余 14.1.0/14.1.1。复制版 bundle 内联 `linkify` 规则的尾星号处理为逐字符 `charCodeAt(...)=42` 回退；[14.1.0 原源码](https://raw.githubusercontent.com/markdown-it/markdown-it/14.1.0/lib/rules_inline/linkify.mjs) 仍用 `/\*+$/` 正则，[14.1.1 原源码](https://raw.githubusercontent.com/markdown-it/markdown-it/14.1.1/lib/rules_inline/linkify.mjs) 改为逐字符回退。结合版本边界，固定 `markdown-it@14.1.1`；测试直接检查内联代码指纹，并对 14 个代表输入及 96 个固定种子的混合标记输入比较原包富文本 HTML。原 14.1.1 仅在 `typographer: true` 下触发的 [smartquotes 性能公告](https://github.com/markdown-it/markdown-it/security/advisories/GHSA-6v5v-wf23-fmfq) 不覆盖本路径的 `false` 配置。
 
 `service-rich-text.ts` 还原 `qq/$q/Gb/jq/Lq`：纯文本/HTML 剪贴板条目、HTML 首尾空白与单段落展开、Google Sheets 排除规则及固定 Markdown 渲染。`cua_type`/`dom_cua_type` 均复用该模块；原包差异用例比较剪贴板条目、`richTextFallback` 与真实 DOM 可编辑元素插入的 HTML。打包后离线安装/冻结锁重装再次验证 14.1.1 与实际渲染。
+
+独立 `@oai/browser-desktop@0.1.1` 的 106 文件来源、共享 client 和不同 service 的哈希及未知项见 `analysis/codex-cua/desktop-source-map.md`。它尚未有候选服务实现，不能把本包内嵌 service 的对照结果算作 desktop service 验收。

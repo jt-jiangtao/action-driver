@@ -3,6 +3,7 @@ import type {
   AgentCommandService,
   AgentGoalRequest,
   AgentSessionRepository,
+  BrowserSkillProjection,
   SkillCapability,
   SkillControlCommand,
   SkillExecutionEvent,
@@ -15,12 +16,15 @@ import { AgentServiceError, isSerializableContract } from '@actiondriver/contrac
 import type { AgentControlApi } from './runtime-agent-http-api'
 import { StreamTaskProjection } from './stream-task-projection'
 import type { RendererStreamClient, RuntimeStreamListener } from './renderer-stream-client'
+import type { DesktopApi } from '../../../preload/desktop-api'
+import type { BrowserSessionEvent } from '../../../shared/browser-session-contract'
 
 export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
   private readonly tasks = new Map<string, TaskProjection>()
   private readonly listeners = new Set<(task: TaskProjection) => void>()
   private readonly streamProjections = new Map<string, StreamTaskProjection>()
   private readonly pendingStreamEvents = new Map<string, Parameters<RuntimeStreamListener>[0][]>()
+  private readonly browserSnapshots = new Map<string, BrowserSessionEvent['snapshot']>()
 
   constructor(
     private readonly api: AgentControlApi,
@@ -28,9 +32,33 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       RendererStreamClient,
       'create' | 'cancel' | 'subscribe' | 'watchExisting'
     >,
-    private readonly getSystemPrompt?: () => Promise<string>
+    private readonly getSystemPrompt?: () => Promise<string>,
+    browserSession?: DesktopApi['browserSession']
   ) {
     this.streamClient.subscribe((event) => this.handleStreamEvent(event))
+    browserSession?.subscribe((event) => {
+      if (event.snapshot) this.browserSnapshots.set(event.taskId, structuredClone(event.snapshot))
+      else this.browserSnapshots.delete(event.taskId)
+      const task = this.tasks.get(event.taskId)
+      if (task) {
+        const base = event.snapshot ? task : this.streamProjections.get(event.taskId)?.snapshot() ?? task
+        const updated = event.snapshot ? this.withBrowser(base) : { ...base, browser: null }
+        this.tasks.set(event.taskId, updated)
+        this.emit(updated)
+      }
+    })
+  }
+
+  private withBrowser(task: TaskProjection): TaskProjection {
+    const snapshot = this.browserSnapshots.get(task.id)
+    if (!snapshot) return task
+    const tab = snapshot.tabs.find((item) => item.id === snapshot.activeTabId)
+    const browser: BrowserSkillProjection = {
+      title: tab?.title ?? '', url: tab?.url ?? '', status: snapshot.status,
+      target: null, sessionId: snapshot.sessionId, surface: snapshot.surface,
+      activeTabId: snapshot.activeTabId, tabs: snapshot.tabs, error: snapshot.error
+    }
+    return { ...task, browser }
   }
 
   async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
@@ -42,8 +70,9 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       })
       const projection = new StreamTaskProjection({
         onChange: (task) => {
-          this.tasks.set(task.id, task)
-          this.emit(task)
+          const updated = this.withBrowser(task)
+          this.tasks.set(task.id, updated)
+          this.emit(updated)
         }
       })
       this.streamProjections.set(accepted.taskId, projection)
@@ -61,7 +90,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       }
       const mapped = mapTaskProjection(task)
       projection.attach(mapped)
-      const snapshot = projection.snapshot() ?? mapped
+      const snapshot = this.withBrowser(projection.snapshot() ?? mapped)
       this.tasks.set(accepted.taskId, snapshot)
       this.emit(snapshot)
       return structuredClone(snapshot)
@@ -122,13 +151,14 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       return
     const projection = new StreamTaskProjection({
       onChange: (updated) => {
-        this.tasks.set(updated.id, updated)
-        this.emit(updated)
+        const projected = this.withBrowser(updated)
+        this.tasks.set(updated.id, projected)
+        this.emit(projected)
       }
     })
     projection.attach(task)
     this.streamProjections.set(task.id, projection)
-    this.tasks.set(task.id, structuredClone(task))
+    this.tasks.set(task.id, this.withBrowser(structuredClone(task)))
     try {
       await this.streamClient.watchExisting({
         requestId: task.streamRequestId,

@@ -36,6 +36,12 @@ export interface BrowserSkillProjection {
   url: string
   status: SkillExecutionState
   target: BrowserTargetProjection | null
+  sessionId?: string
+  surface?: 'embedded' | 'external-chrome'
+  activeTabId?: string | null
+  tabs?: Array<{ id: string; title: string; url: string; loading: boolean;
+    canGoBack: boolean; canGoForward: boolean }>
+  error?: string | null
 }
 
 export interface AgentMessageProjection {

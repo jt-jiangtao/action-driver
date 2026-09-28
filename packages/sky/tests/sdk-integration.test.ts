@@ -17,7 +17,7 @@ test('declared Statsig SDK and transitive core resolve at the pinned version', (
 })
 test('installed SDK offline client operations match the copied SDK without network traffic', async () => {
   const reference = await import(
-    pathToFileURL(resolve('apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/_virtual/index.js'))
+    pathToFileURL(resolve('packages/back/codex-cua/@oai/cua/dist/_virtual/index.js'))
       .href
   )
   const installed = require('@statsig/js-client')

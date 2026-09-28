@@ -32,6 +32,11 @@ function createDesktopApi(): DesktopApi {
         accessToken: 'launch-token'
       })
     },
+    browserSession: {
+      command: async () => null,
+      subscribe: () => () => undefined,
+      setViewport: async () => undefined
+    },
     skillFolders: {
       choose: async () => null,
       browse: async () => undefined,

@@ -10,6 +10,8 @@ type ToolMode =
   | 'python-blocking'
   | 'node'
   | 'computer-approval'
+  | 'browser-computer'
+  | 'browser-embedded'
   | 'triple'
   | 'text'
   | 'tool-preparing'
@@ -43,6 +45,8 @@ export class FakeOpenAiToolServer {
   readonly imageGenerations: Array<{ model: string; prompt: string; n: number }> = []
   readonly imageCompletions: string[] = []
   baseUrl = ''
+  browserTargetUrl = ''
+  browserTargetBrowserId: 'iab' | 'chrome' = 'iab'
 
   constructor(private mode: ToolMode) {}
 
@@ -152,7 +156,10 @@ export class FakeOpenAiToolServer {
       if (
         turn === 1 ||
         (this.mode === 'activity' && turn === 2) ||
-        (this.mode === 'triple' && turn <= 3)
+        (this.mode === 'triple' && turn <= 3) ||
+        (this.mode === 'computer-approval' && turn === 2) ||
+        (this.mode === 'browser-embedded' && turn === 2) ||
+        (this.mode === 'browser-computer' && turn <= 3)
       ) {
         if (
           this.mode === 'image' ||
@@ -231,11 +238,27 @@ export class FakeOpenAiToolServer {
                           : toolMode === 'shell-timeout'
                             ? '{"script":"sleep 12"}'
                             : '{"script":"mkdir -p output && printf \'needle is present\\n\' > output/README.md && rg needle output/README.md"}'
-        // The Computer Use entry reaches the model as `js`; the runtime then asks the helper for the
-        // app policy, which is what makes the approval card appear in the local e2e run.
-        const resolvedToolName = toolMode === 'computer-approval' ? 'js' : toolName
-        const resolvedArguments = toolMode === 'computer-approval'
-          ? '{"code":"await cua.getApp(\\"Notes\\")"}'
+        // Read the skill before the Computer Use call, matching the production skill gate.
+        const resolvedToolName = toolMode === 'browser-computer'
+          ? turn <= 2 ? 'tools_local_skills_read' : 'tools_local_cua_js'
+          : toolMode === 'computer-approval'
+          ? turn === 1 ? 'tools_local_skills_read' : 'tools_local_cua_js'
+          : toolMode === 'browser-embedded'
+            ? turn === 1 ? 'tools_local_skills_read' : 'tools_local_cua_js'
+            : toolName
+        const resolvedArguments = toolMode === 'browser-computer'
+          ? turn === 1 ? '{"skillId":"browser-use"}'
+            : turn === 2 ? '{"skillId":"computer-use"}'
+              : JSON.stringify({ title: '查看网页并操作备忘录',
+                code: `const tab=await cua.createBrowserTab("iab", ${JSON.stringify(this.browserTargetUrl)}); await cua.getApp("Notes")` })
+          : toolMode === 'computer-approval'
+          ? turn === 1 ? '{"skillId":"computer-use"}'
+            : '{"code":"await cua.getApp(\\"Notes\\")"}'
+          : toolMode === 'browser-embedded'
+            ? turn === 1 ? '{"skillId":"browser-use"}'
+              : JSON.stringify({ title: this.browserTargetBrowserId === 'iab'
+                ? '打开内置浏览器' : '打开独立 Chrome',
+                code: `await cua.createBrowserTab(${JSON.stringify(this.browserTargetBrowserId)}, ${JSON.stringify(this.browserTargetUrl)})` })
           : argumentsJson
         const midpoint = Math.ceil(resolvedArguments.length / 2)
         if (this.mode === 'activity') {

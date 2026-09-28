@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { originalModule } from '../../cua/tests/original-module'
 import { encodeMessageFrame, decodeMessageFrames } from '../src/mac/rpc-codec'
 import { ServerErrorCode, ComputerUseError, ComputerUseTransportError } from '../src/mac/errors'
-const root = 'apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
+const root = 'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
 test('framing matches original for UTF8, empty and coalesced/partial messages', async () => {
   const ref = await originalModule(resolve(root, 'native-pipe.js'))
   for (const value of ['', '中文😀', JSON.stringify({ id: 1 })])

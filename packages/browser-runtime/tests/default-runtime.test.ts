@@ -48,6 +48,14 @@ for (const disabled of [[], ['Tab.ax', 'Tab.cua']])
       })
       try {
         const agent = await setup({
+          ...(setup === setupBrowserRuntime ? {
+            host: {
+              setup: (params: unknown) => (globalThis as any).nodeRepl.rpc('browser', { method: 'setup', params }),
+              execute: (params: unknown) => (globalThis as any).nodeRepl.rpc('browser', { method: 'execute', params }),
+              displayImage: (bytes: Uint8Array) => (globalThis as any).nodeRepl.emitImage(bytes),
+              close: async () => {}
+            }
+          } : {}),
           decorateTab: (tab: any) => decorated.push({ id: tab.id, ax: typeof tab.ax })
         })
         const browser = await agent.browsers.get('b')
@@ -66,21 +74,21 @@ for (const disabled of [[], ['Tab.ax', 'Tab.cua']])
       }
     }
     const originalModule = await import(pathToFileURL(resolve(
-      'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
+      'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
     )).href)
     const candidate = await exercise(setupBrowserRuntime)
     expect(candidate).toEqual(await exercise(original))
     expect(candidate).toEqual(await exercise(originalModule.setupBrowserRuntime))
   })
-test('default runtime requires trusted host and preserves setup rejection identity', async () => {
+test('default runtime requires an explicit host and preserves setup rejection identity', async () => {
   vi.stubGlobal('nodeRepl', undefined)
-  await expect(setupBrowserRuntime()).rejects.toThrow('requires a trusted Node REPL')
+  await expect(setupBrowserRuntime()).rejects.toThrow('BROWSER_HOST_UNAVAILABLE')
   const error = new Error('setup')
-  vi.stubGlobal('nodeRepl', {
-    rpc: async () => {
-      throw error
-    }
-  })
-  await expect(setupBrowserRuntime()).rejects.toBe(error)
+  await expect(setupBrowserRuntime({ host: {
+    setup: async () => { throw error },
+    execute: async () => ({}),
+    displayImage: async () => {},
+    close: async () => {}
+  } })).rejects.toBe(error)
   vi.unstubAllGlobals()
 })

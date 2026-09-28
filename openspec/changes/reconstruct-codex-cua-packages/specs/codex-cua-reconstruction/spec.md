@@ -100,3 +100,14 @@ This explicit user-approved exception supersedes the exact original-version requ
 ## 2026-09-28 declaration-only helper ruling
 
 Battle complete: user explicitly approved autonomous implementation of missing-runtime helpers under documented contracts. Existing declarations do not prove debounce/caching/error/help details. Alternatives were waiting for missing source (unavailable, leaves modules incomplete) and implementing explicit contracts; recommended latter, user chose it. createDelayedAction uses last-call debounce; createLazyEvaluator caches first successful return, retries synchronous throws, caches Promise identity. sleep/enumerate/invariant follow declarations; env follows documented normalization/cache/missing/invalid behavior. These MUST be labeled autonomous implementations without original runtime parity evidence. Semantic risk remains unknown original edge behavior. Default debounce delay is 0ms, latest receiver forwarded, lazy evaluation forwards first receiver; env errors are retryable and successful/default values cached. Error/help text is project-defined, not asserted original.
+
+### Requirement: 生产切换后完全移除 agent-runtime vendor
+系统 SHALL 在自有 macOS 宿主真实验收通过后，将生产 Computer Use REPL、CUA、Sky、构建和打包统一切换到 ActionDriver 自有实现，并删除 `apps/agent-runtime/vendor`。切换后的 Computer Use MUST 保持现有授权、取消、截图、重置和资源清理能力。`packages/back` MAY 作为离线对照输入，但 MUST NOT 被产品运行时、构建产物或生产依赖图读取。最终交付还 SHALL 满足 `integrate-browser-use-desktop` 的内置与外部 Chrome 真实验收。
+
+#### Scenario: 完成联合切换
+- **WHEN** Browser Use 与 Computer Use 自有宿主真实验收均通过
+- **THEN** 生产运行和打包不读取原件，仓库不存在 `apps/agent-runtime/vendor`，Computer Use 仍可执行并清理会话
+
+#### Scenario: 自有路径尚有阻断差异
+- **WHEN** 浏览器或计算机宿主的生产必需操作未通过真实验收
+- **THEN** 不删除当前生产原件，也不宣称联合交付完成

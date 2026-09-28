@@ -59,7 +59,7 @@ async function originalTelemetry(sdk: unknown, variant: 'sky' | 'cua' = 'sky') {
   Reflect.set(globalThis, Symbol.for('cua-reference-statsig'), sdk)
   let source = await readFile(
     resolve(
-      `apps/agent-runtime/vendor/codex-cua/@oai/${variant}/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js`
+      `packages/back/codex-cua/@oai/${variant}/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js`
     ),
     'utf8'
   )
@@ -81,7 +81,7 @@ async function originalTelemetry(sdk: unknown, variant: 'sky' | 'cua' = 'sky') {
   )
   const tslib = await readFile(
     resolve(
-      'apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js'
+      'packages/back/codex-cua/@oai/sky/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js'
     ),
     'utf8'
   )

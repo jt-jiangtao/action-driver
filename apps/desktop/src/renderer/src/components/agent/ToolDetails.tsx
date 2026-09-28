@@ -126,7 +126,7 @@ function terminalTranscript(
     .map((field) => (/\s/.test(field.value) ? JSON.stringify(field.value) : field.value))
   const text = source
     ? `${source.language === 'shell' ? '$ ' : ''}${source.value}${source.label === '命令' && args.length ? ` ${args.join(' ')}` : ''}`
-    : input.map((field) => field.value).join(' ')
+    : input.map((field) => `${field.label}：${field.value}`).join('\n')
   const extraInputs =
     source && source.label !== '命令'
       ? input

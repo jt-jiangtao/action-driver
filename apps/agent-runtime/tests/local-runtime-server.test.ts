@@ -270,7 +270,7 @@ describe('local Runtime server composition', () => {
     harness.repositories.close()
   })
 
-  it('restores activity order, tool I/O and duration through task.get', async () => {
+  it('restores activity order, tool I/O, presentation and duration through task.get', async () => {
     const snapshots = {
       async getTaskSnapshot(taskId: string) {
         return {
@@ -303,7 +303,17 @@ describe('local Runtime server composition', () => {
               durationMs: 3,
               activityId: 'activity',
               rawInput: '{"path":"README.md"}',
-              rawOutput: 'ok'
+              rawOutput: 'ok',
+              details: {
+                layout: 'terminal',
+                input: [{ label: '操作', kind: 'text', value: 'open' }],
+                output: [{ label: '状态', kind: 'text', value: 'running' }]
+              },
+              presentation: {
+                layout: 'terminal',
+                input: [{ label: '操作', path: 'action', kind: 'text' }],
+                output: [{ label: '状态', path: 'status', kind: 'text' }]
+              }
             }
           ]
         } as Extract<StreamServerEvent, { type: 'response.snapshot' }>
@@ -331,7 +341,16 @@ describe('local Runtime server composition', () => {
         streamSequence: 3,
         activityDurationMs: 2800,
         activities: [{ items: [{ content: '正文 A' }, { callId: 'call' }] }],
-        tools: [{ callId: 'call', rawOutput: 'ok' }]
+        tools: [{
+          callId: 'call',
+          rawOutput: 'ok',
+          details: {
+            layout: 'terminal',
+            input: [{ value: 'open' }],
+            output: [{ value: 'running' }]
+          },
+          presentation: { layout: 'terminal' }
+        }]
       })
     })
     await harness.server.close()

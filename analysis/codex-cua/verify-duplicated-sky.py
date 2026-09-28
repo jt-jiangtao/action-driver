@@ -4,7 +4,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-VENDOR = ROOT / "apps/agent-runtime/vendor/codex-cua/@oai"
+VENDOR = ROOT / "packages/back/codex-cua/@oai"
 CUA = VENDOR / "cua/dist/project/cua/sky_js/src"
 SKY = VENDOR / "sky/dist/project/cua/sky_js/src"
 

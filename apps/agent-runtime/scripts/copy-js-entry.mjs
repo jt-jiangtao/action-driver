@@ -1,22 +1,34 @@
 import { cp, rm } from 'node:fs/promises'
 import { fileURLToPath, URL } from 'node:url'
 import { join, resolve } from 'node:path'
+import { build } from 'esbuild'
 
 /**
  * The JavaScript entry runs as its own Node process inside the session sandbox, so the child script
- * and the vendored Codex Computer Use tree have to live next to the bundled runtimes rather than
- * inside the bundled runtime file. The vendor tree is copied verbatim: behaviour differences live in
- * the runtime loader hooks, not in patched copies.
+ * and the owned CUA bundle must live next to the bundled runtimes.
  */
 export async function stageComputerUse(appRoot) {
+  await rm(join(appRoot, 'dist', 'vendor'), { recursive: true, force: true })
+  await rm(join(appRoot, 'dist', 'js-repl'), { recursive: true, force: true })
   await cp(join(appRoot, 'resources', 'js-repl'), join(appRoot, 'dist', 'js-repl'), {
     recursive: true,
     force: true
   })
-  const vendorTarget = join(appRoot, 'dist', 'vendor', 'codex-cua')
-  // Mirror instead of merge so files dropped from the vendored tree cannot linger in dist.
-  await rm(vendorTarget, { recursive: true, force: true })
-  await cp(join(appRoot, 'vendor', 'codex-cua'), vendorTarget, { recursive: true })
+  await cp(join(appRoot, '..', '..', 'packages', 'cua', 'resources', 'docs'),
+    join(appRoot, 'dist', 'resources', 'docs'), { recursive: true, force: true })
+  await cp(join(appRoot, '..', '..', 'packages', 'browser-runtime', 'resources'),
+    join(appRoot, 'dist', 'resources'), { recursive: true, force: true })
+  await cp(join(appRoot, '..', '..', 'packages', 'browser-desktop', 'resources'),
+    join(appRoot, 'dist', 'resources'), { recursive: true, force: true })
+  await build({
+    entryPoints: [join(appRoot, 'resources', 'js-repl', 'owned-cua.ts')],
+    outfile: join(appRoot, 'dist', 'js-repl', 'owned-cua.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    conditions: ['development'],
+    external: ['playwright-core', 'chromium-bidi/*']
+  })
 }
 
 const entryPath = process.argv[1] ? resolve(process.argv[1]) : ''

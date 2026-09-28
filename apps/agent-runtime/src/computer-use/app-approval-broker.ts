@@ -72,9 +72,18 @@ export class AppApprovalBroker {
       if (signal?.aborted) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.approvalCancelled)
     }
     checkCancelled()
-    const policy = await this.options.queryPolicy(snapshot.app)
+    const target = await this.authorizeApp(context, snapshot.app, signal)
+    return Object.freeze({ ...snapshot, app: target.appPath })
+  }
+
+  /** Trusted callers need the canonical bundle ID for a lease without re-querying policy. */
+  async authorizeApp(context: { taskId: string; sessionId: string }, app: string,
+    signal?: AbortSignal): Promise<Readonly<{ appPath: string; bundleId: string }>> {
+    if (!app.trim()) throw new Error('INVALID_REQUEST: a non-empty app is required')
+    if (signal?.aborted) throw new Error(COMPUTER_USE_GUIDANCE_ERRORS.approvalCancelled)
+    const policy = appPolicySchema.parse(await this.options.queryPolicy(app))
     await this.requestApproval(context, policy, signal)
-    return Object.freeze({ ...snapshot, app: policy.target.appPath })
+    return Object.freeze({ appPath: policy.target.appPath, bundleId: policy.target.bundleId })
   }
 
   /** Trusted sky/service policy port; the model must never supply this policy. */

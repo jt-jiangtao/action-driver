@@ -11,6 +11,10 @@
     "./service": {
       "types": "./dist/service.d.ts",
       "import": "./dist/service.js"
+    },
+    "./actiondriver": {
+      "types": "./dist/mac/actiondriver-host.d.ts",
+      "import": "./dist/mac/actiondriver-host.js"
     }
   },
   "scripts": {
@@ -24,5 +28,8 @@
     "dist",
     "resources",
     "docs"
-  ]
+  ],
+  "devDependencies": {
+    "@actiondriver/runtime-contracts": "workspace:*"
+  }
 }

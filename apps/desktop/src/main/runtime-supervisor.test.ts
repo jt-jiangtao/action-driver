@@ -225,6 +225,14 @@ describe('RuntimeSupervisor', () => {
     expect(supervisor.state).toBe('ready')
   })
 
+  it('reports the runtime failure message when startup exhausts its restart budget', async () => {
+    const { processes, supervisor } = harness({ maxRestarts: 0 })
+    const starting = supervisor.start()
+    processes[0]?.emitMessage({ type: 'runtime.failed', message: 'PROTOCOL_ERROR: Undeclared contribution tools.local.command.shell.run' })
+    processes[0]?.emitExit(1)
+    await expect(starting).rejects.toThrow('Undeclared contribution tools.local.command.shell.run')
+  })
+
   it('sends shutdown and kills the process only after the timeout', async () => {
     vi.useFakeTimers()
     const { processes, supervisor } = harness()

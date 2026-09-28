@@ -165,6 +165,25 @@ it('uses the same scroll height for a task group', () => {
     overflow: 'auto'
   })
 })
+it.each([
+  ['tools.local.cua.js', '已操作桌面应用：获取系统状态', 'Computer Use', 'await cua.getState()', 'Notes is open'],
+  ['tools.local.cua.js', '已操作浏览器：打开测试页面', 'Browser Use', 'await cua.createBrowserTab("iab", "https://example.org")', 'Fixture is open'],
+  ['tools.local.cua.js', '已操作浏览器：查看标签页', 'Browser Use', 'await agent.browsers.get("iab")', 'Fixture is open']
+] as const)('shows %s summary in the title and script input/output in the details',
+  (toolId, title, panelTitle, source, output) => {
+    const { container } = render(<ToolRow tool={tool({
+      toolId, title, summary: title, durationMs: 1200,
+      details: { layout: 'terminal', input: [{ label: '代码', kind: 'code', value: source }],
+        output: [{ label: '输出', kind: 'text', value: output }] }
+    })} />)
+    const row = container.querySelector('.activity-tool-line')!
+    expect(row).toHaveTextContent(title)
+    fireEvent.click(row)
+    expect(container.querySelector('.activity-tool-io-title')).toHaveTextContent(panelTitle)
+    expect(container.querySelector('.activity-tool-io pre')).toHaveTextContent(source)
+    expect(container.querySelector('.activity-tool-io pre')).toHaveTextContent(output)
+    expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('结果摘要')
+  })
 it('keeps images and links in a third-party terminal layout', () => {
   const asset = {
     assetId: 'a',

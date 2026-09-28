@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest'
 import { resolve } from 'node:path'
 import { originalModule } from './original-module'
 import { getApps, getBrowserTabs, getState } from '../src/discovery'
-const root = resolve('apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src')
+const root = resolve('packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src')
 test('application normalization matches Linux and preserves Mac results', async () => {
   const ref = await originalModule(resolve(root, 'get_apps.js'))
   for (const target of ['linux', 'mac', 'windows'] as const) {

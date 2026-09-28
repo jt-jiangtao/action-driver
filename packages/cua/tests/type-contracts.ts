@@ -34,7 +34,7 @@ async function browserSessionContracts() {
 }
 const registered: Promise<void> = registerCUAGlobal(async ({ browser, computer }) => ({
   getState: async () => ({ browser, computer })
-}))
+}), { CUA_REPL_ENABLED_SURFACES: 'browser' })
 void [browserSessionContracts, registered]
 
 import { createCUASession } from '../src/session'

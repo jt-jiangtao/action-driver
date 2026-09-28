@@ -3,7 +3,8 @@ export const documentationSources = [
   'confirmations',
   'core-cua-repl',
   'core-node-repl',
-  'other-browser-apis'
+  'other-browser-apis',
+  'owned-macos'
 ] as const
 export type DocumentationSource = (typeof documentationSources)[number]
 export interface DocumentationReader {
@@ -21,12 +22,7 @@ export function createDocumentationReader(options: DocumentationOptions = {}): D
       throw new Error(`Unknown documentation source: ${source}`)
     return readFile(new URL(`tinysky-alt-${source}.md`, root), 'utf8')
   }
-  const getMeta =
-    options.getRequestMeta ??
-    (() => {
-      const host = globalThis as typeof globalThis & { nodeRepl?: { requestMeta?: unknown } }
-      return host.nodeRepl?.requestMeta
-    })
+  const getMeta = options.getRequestMeta ?? (() => undefined)
   async function readComputerUseConfirmationPolicy(): Promise<string> {
     const requestMeta = getMeta()
     const policies =

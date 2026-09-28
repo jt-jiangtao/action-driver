@@ -3,11 +3,32 @@ import type { EventEmitter} from 'node:events';
 import { once } from 'node:events'
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { loadInstructions, instructionsRoot } from './instructions.js'
 import type { InstructionSet } from './instructions.js'
 export interface LaunchPlan {
   executable: string
   env: NodeJS.ProcessEnv
+}
+function ownedServices(value: string | undefined, surfaces: Set<string>): Record<string, string> {
+  if (!value) throw new Error('NODE_REPL_TRUSTED_SERVICES must name ActionDriver-owned service modules')
+  let configured: unknown
+  try { configured = JSON.parse(value) } catch { throw new Error('NODE_REPL_TRUSTED_SERVICES is invalid JSON') }
+  if (!configured || typeof configured !== 'object' || Array.isArray(configured))
+    throw new Error('NODE_REPL_TRUSTED_SERVICES must be a service map')
+  const services: Record<string, string> = {}
+  for (const [surface, key] of [['browser', 'browser'], ['computer', 'sky']] as const) {
+    if (!surfaces.has(surface)) continue
+    const module = (configured as Record<string, unknown>)[key]
+    if (typeof module !== 'string') throw new Error(`Missing ActionDriver ${surface} service`)
+    let path: string
+    try { path = module.startsWith('file:') ? fileURLToPath(module) : module }
+    catch { throw new Error(`Invalid ActionDriver ${surface} service path`) }
+    if (!isAbsolute(path) || /(?:^|\/)Codex\.app\/|(?:^|\/)ChatGPT\.app\/|(?:^|\/)(?:back|vendor)\//u.test(path))
+      throw new Error(`ActionDriver ${surface} service must use an owned absolute path`)
+    services[key] = module
+  }
+  return services
 }
 export function createLaunchPlan(
   env: NodeJS.ProcessEnv,
@@ -29,14 +50,12 @@ export function createLaunchPlan(
     if (surface !== 'browser' && surface !== 'computer')
       throw new Error(`unknown CUA_REPL_ENABLED_SURFACES surface=${surface}`)
   if (!surfaces.size) throw new Error('CUA_REPL_ENABLED_SURFACES must enable at least one surface')
-  const services: Record<string, string> = {}
+  const services = ownedServices(env.NODE_REPL_TRUSTED_SERVICES, surfaces)
   const descriptions = [instructions.description]
   if (surfaces.has('browser')) {
-    services.browser = '@actiondriver/browser-runtime/service'
     descriptions.push(instructions.browser)
   } else descriptions.push(instructions.browserDisabled)
   if (surfaces.has('computer')) {
-    services.sky = '@actiondriver/sky/service'
     descriptions.push(instructions.computer)
   } else descriptions.push(instructions.computerDisabled)
   descriptions.push(instructions.output)
@@ -62,7 +81,7 @@ export function createLaunchPlan(
       ]
         .filter(Boolean)
         .join(','),
-      NODE_REPL_TRUSTED_SERVICES: env.NODE_REPL_TRUSTED_SERVICES ?? JSON.stringify(services),
+      NODE_REPL_TRUSTED_SERVICES: JSON.stringify(services),
       NODE_REPL_JS_BANNER: env.NODE_REPL_JS_BANNER ?? readBanner(),
       NODE_REPL_TOOL_OVERRIDES: JSON.stringify(overrides)
     }

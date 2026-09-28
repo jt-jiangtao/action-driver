@@ -28,6 +28,15 @@ import {
   type RuntimeConnectionInfo
 } from '../shared/runtime-connection-contract'
 import {
+  BROWSER_SESSION_COMMAND_CHANNEL,
+  BROWSER_SESSION_EVENT_CHANNEL,
+  BROWSER_SESSION_VIEWPORT_CHANNEL,
+  type BrowserSessionEvent,
+  type BrowserSessionRequest,
+  type BrowserViewportRequest
+} from '../shared/browser-session-contract'
+import type { BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import {
   SKILL_FOLDER_BROWSE_CHANNEL,
   SKILL_FOLDER_CHOOSE_CHANNEL,
   SKILL_FOLDER_REVEAL_CHANNEL
@@ -45,6 +54,7 @@ import {
 
 export interface DesktopIpcBridge {
   invoke(channel: string, input: unknown): Promise<unknown>
+  on?(channel: string, listener: (value: unknown) => void): () => void
 }
 
 /** Business ports used by Renderer adapters; production implementations call Runtime HTTP/WS. */
@@ -95,6 +105,11 @@ export interface AgentFilesDesktopApi {
 export interface DesktopApi {
   getEnvironment(): { platform: NodeJS.Platform; version: string }
   runtimeConnection: RuntimeConnectionDesktopApi
+  browserSession: {
+    command(request: BrowserSessionRequest): Promise<BrowserSessionSnapshot | null>
+    subscribe(listener: (event: BrowserSessionEvent) => void): () => void
+    setViewport(request: BrowserViewportRequest): Promise<void>
+  }
   skillFolders: {
     choose(): Promise<string | null>
     browse(): Promise<void>
@@ -124,6 +139,18 @@ export function createDesktopApi(
     runtimeConnection: {
       get: async () =>
         (await ipc.invoke(RUNTIME_CONNECTION_IPC_CHANNEL, {})) as RuntimeConnectionInfo
+    },
+    browserSession: {
+      setViewport: async (request) => {
+        await ipc.invoke(BROWSER_SESSION_VIEWPORT_CHANNEL, request)
+      },
+      command: async (request) =>
+        (await ipc.invoke(BROWSER_SESSION_COMMAND_CHANNEL, request)) as BrowserSessionSnapshot | null,
+      subscribe(listener) {
+        if (!ipc.on) throw new Error('BROWSER_SESSION_EVENTS_UNAVAILABLE')
+        return ipc.on(BROWSER_SESSION_EVENT_CHANNEL, (value) =>
+          listener(structuredClone(value) as BrowserSessionEvent))
+      }
     },
     skillFolders: {
       choose: async () => (await ipc.invoke(SKILL_FOLDER_CHOOSE_CHANNEL, {})) as string | null,

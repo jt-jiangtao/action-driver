@@ -39,8 +39,8 @@ it('extracts real builtin result fields and keeps command streams and validated 
   expect(detail.input[0]?.value).toBe('A landscape')
   expect(detail.output.map(field => field.kind)).toEqual(['text', 'text', 'image'])
   expect(detail.output[2]?.asset).toEqual(asset)
-  expect(project(computer['tools.local.computer-use.js'], { codeLength: 20 }, { result: { output: 'Done' } }).output[0]?.value).toBe('Done')
-  expect(project(computer['tools.local.computer-use.reset'], {}, { result: { reset: true } }).output[0]?.value).toBe('true')
+  expect(project(computer['tools.local.cua.js'], { codeLength: 20 }, { result: { output: 'Done' } }).output[0]?.value).toBe('Done')
+  expect(project(computer['tools.local.cua.reset'], {}, { result: { reset: true } }).output[0]?.value).toBe('true')
 })
 
 it('places each command exit code in the generic details footer', async () => {

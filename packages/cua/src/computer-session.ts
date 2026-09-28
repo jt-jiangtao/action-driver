@@ -39,7 +39,7 @@ async function screenshotBytes(url: string): Promise<Uint8Array> {
 
 export async function createComputerSession({
   computer,
-  getHost = () => (globalThis as typeof globalThis & { nodeRepl?: SessionHost }).nodeRepl,
+  getHost = () => undefined,
   lifecycle = createSessionLifecycle(getHost)
 }: {
   computer: MacComputer

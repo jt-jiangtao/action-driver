@@ -1,7 +1,7 @@
 /** Resource data extraction only; production never executes the legacy service. */
 import {readFile,writeFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
-const sourcePath='apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+const sourcePath='packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
 const source=await readFile(sourcePath,'utf8')
 const module=await import('data:text/javascript;base64,'+Buffer.from(source+'\nexport {xy as resources};').toString('base64'))
 const data=JSON.stringify(module.resources,null,2)+'\n',output='packages/browser-runtime/resources/browser-documentation.json'

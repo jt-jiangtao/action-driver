@@ -182,6 +182,13 @@ export async function startAgentRuntimeProcess(
       const result = await provider.execute({ invocationId: randomUUID(), input }, signal)
       return result.input
     }
+    const invokeBrowser = async (taskId: string, command: Record<string, unknown>,
+      signal?: AbortSignal) => {
+      const provider = local.adapters.skillRegistry.resolve('browser-use', 1)
+      const result = await provider.execute({ invocationId: randomUUID(),
+        input: { action: 'rpc', taskId, command } }, signal)
+      return result.input
+    }
     approvalStore = new AppApprovalStore(database)
     // The model reaches the desktop only through the Codex js / js_reset entry; each app is
     // approved inside the call, and the turn's approvals and app leases end with the turn.
@@ -189,8 +196,8 @@ export async function startAgentRuntimeProcess(
     // Use; the rest of the runtime must still start.
     computer = await createComputerUseEntry({
       runtimeDist,
-      vendorRoot: join(runtimeDist, 'vendor/codex-cua'),
       invoke: invokeComputer,
+      invokeBrowser,
       control: computerControl,
       // Esc must stop the turn, not only the Computer Use session (2.11). The stream service owns
       // the per-request AbortController and is assigned below; this closure runs much later.
@@ -226,9 +233,13 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.isAvailable = async (definition) => {
     if (definition.id === imageDefinition.id)
       return (await service.getDefaultImageModel()) !== null
-    if (definition.id.startsWith('tools.local.computer-use.')) {
-      try { local.adapters.skillRegistry.resolve('computer-use', 1); return true }
-      catch { return false }
+    if (definition.id === 'tools.local.cua.js' ||
+        definition.id === 'tools.local.cua.reset') {
+      for (const skillId of ['browser-use', 'computer-use']) {
+        try { local.adapters.skillRegistry.resolve(skillId, 1); return true }
+        catch { /* try the other owned surface */ }
+      }
+      return false
     }
     return true
   }
@@ -241,7 +252,7 @@ export async function startAgentRuntimeProcess(
   const runtimePaths = await resolveExecutionRuntimePaths(runtimeDist, process.arch, ['node'])
   const pluginPlatform = await createRuntimePluginPlatform({
     node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
-    packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
+    packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
     dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
     retiredPluginIds: ['search', 'web-reader'],
     configuration: searchEndpoint ? { web: { endpoint: parseSearxngEndpoint(searchEndpoint) } } : {},
@@ -254,7 +265,7 @@ export async function startAgentRuntimeProcess(
     hostCapabilities: {
       ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
       ...(computer ? { 'host.computer.execute': {
-        plugins: ['computer-use'], grants: ['tools.local.computer-use.js@1', 'tools.local.computer-use.reset@1'],
+        plugins: ['computer-use'], grants: ['tools.local.cua.js@1', 'tools.local.cua.reset@1'],
         async start() {
           if (computerActivated) await computer!.restart()
           computerActivated = true
@@ -291,7 +302,7 @@ export async function startAgentRuntimeProcess(
     // Existing configured-search policy is assembled here, never by the plugin or its catalog.
     local.toolRuntime.grants.push('tools.local.web.search@1')
   }
-  await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : [])].map(id => pluginPlatform.enable(id)))
+  await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => pluginPlatform.enable(id)))
   local.toolRuntime.grants.push('tools.local.web.open@1')
   local.toolRuntime.grants.push('tools.local.skills.read@1', 'tools.local.skills.install@1')
   const streamSessions = new StreamSessionService({
