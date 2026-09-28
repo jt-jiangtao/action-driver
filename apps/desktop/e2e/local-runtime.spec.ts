@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -51,7 +52,7 @@ async function launch(
     userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-data-'))
     homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
   }
-  application = await electron.launch({
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {

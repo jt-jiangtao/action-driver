@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "platform": "darwin",
+  "arch": "arm64",
+  "version": "38.8.6",
+  "chromiumVersion": "140.0.7339.249",
+  "repo": "https://github.com/jt-jiangtao/electron.git",
+  "sourceCommit": "593df43ccabaf6ae642534c249cce0423ccb21c2",
+  "sourceTree": "61606ac82cc17d2048aeb4c7787c0310ab277e61",
+  "chromiumCommit": "31c3b2fb7d154bd181fdf73ec6e9a6c36e38312f",
+  "chromiumTree": "1385f19d7607eefc8525432eb8d3c134d0c141dd",
+  "chromiumBaseCommit": "51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2",
+  "patchQueueSha256": "f940b9dd10dd85e824877bf267c464ce5ae9a6fcc43b0c305008c29f3e4493f5",
+  "appPath": "thridparty/build/electron/Electron.app",
+  "executableRelativePath": "Contents/MacOS/Electron",
+  "executableSha256": "f83848c17bb5766f868fb5aac66a3d831babd81296e873c8bc85eafe2b32fab4",
+  "appSha256": "97cd26fe1f97ddc0fa72f738abd9f6bf4e0d5af4f64a736014d6735bcf06c87e",
+  "buildArgs": "import(\"//electron/build/args/testing.gn\")\ntarget_cpu = \"arm64\"\nmac_sdk_path = \"/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk\"\nenable_precompiled_headers = false\naction_driver = true\n",
+  "buildArgsSha256": "9c2a87019cc7019b87e11488d83ba329abfa2787a8329e0090ebfceeef7da00b",
+  "watermark": {
+    "enabled": true,
+    "developmentDefault": true,
+    "text": "action-driver-dev",
+    "opacity": 0.05
+  }
+}

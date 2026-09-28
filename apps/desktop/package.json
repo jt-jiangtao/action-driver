@@ -6,11 +6,11 @@
   "main": "out/main/index.js",
   "scripts": {
     "predev": "corepack pnpm --filter @actiondriver/agent-runtime build && corepack pnpm --dir ../.. build:native:computer-use",
-    "dev": "electron-vite dev",
+    "dev": "node ../../scripts/run-desktop-electron.mjs dev",
     "prebuild": "corepack pnpm --dir ../.. validate:e2e-interactions",
     "build": "electron-vite build",
     "build:visual": "electron-vite build --mode visual",
-    "preview": "electron-vite preview",
+    "preview": "node ../../scripts/run-desktop-electron.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

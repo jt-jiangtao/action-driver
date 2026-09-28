@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -44,7 +45,7 @@ async function launch(): Promise<Page> {
   await helper.start()
   provider = new FakeOpenAiToolServer('computer-approval')
   await provider.start()
-  application = await electron.launch({
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${join(runDirectory, 'data')}`],
     cwd: desktopRoot,
     env: {

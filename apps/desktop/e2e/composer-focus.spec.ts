@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
@@ -11,7 +12,7 @@ test.afterEach(async () => {
 })
 
 test('hovering or focusing the composer removes the visible border', async () => {
-  application = await electron.launch({ args: [mainEntry] })
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
   const page = await application.firstWindow()
   const composer = page.getByTestId('e2e/shared/composer/root#section')
 
@@ -24,7 +25,7 @@ test('hovering or focusing the composer removes the visible border', async () =>
 })
 
 test('conversation list exposes a visible scrollbar when content overflows', async () => {
-  application = await electron.launch({ args: [mainEntry] })
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
   const page = await application.firstWindow()
   await page.getByRole('button', { name: '整理产品研究资料' }).click()
   const recentTasks = page.locator('.recent-task-list')
@@ -63,7 +64,7 @@ test('conversation list exposes a visible scrollbar when content overflows', asy
 })
 
 test('mock mode has no in-app observability navigation or model logs', async () => {
-  application = await electron.launch({ args: [mainEntry] })
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
   const page = await application.firstWindow()
   await page.getByRole('button', { name: '设置' }).click()
   await expect(page.getByTestId('e2e/settings/sidebar/logs#button')).toHaveCount(0)

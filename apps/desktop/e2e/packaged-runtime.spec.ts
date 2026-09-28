@@ -59,9 +59,21 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       isPackaged: app.isPackaged,
       appPath: app.getAppPath(),
       resourcesPath: process.resourcesPath,
-      defaultApp: process.defaultApp
+      defaultApp: process.defaultApp,
+      executablePath: process.execPath,
+      electron: process.versions.electron,
+      chromium: process.versions.chrome,
+      arch: process.arch
     }))
     expect(runtime.isPackaged, JSON.stringify(runtime)).toBe(true)
+    const provenance = JSON.parse(
+      readFileSync(join(appPath!, 'Contents', 'Resources', 'actiondriver-electron-provenance.json'), 'utf8')
+    )
+    expect(runtime.executablePath).toBe(realpathSync(join(appPath!, 'Contents', 'MacOS', 'ActionDriver')))
+    expect(runtime.electron).toBe(provenance.version)
+    expect(runtime.chromium).toBe(provenance.chromiumVersion)
+    expect(runtime.arch).toBe(provenance.arch)
+    expect(provenance.repo).toBe('https://github.com/jt-jiangtao/electron.git')
     const page = await application.firstWindow()
     await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
     expect(page.url()).toBe('actiondriver://renderer/index.html')

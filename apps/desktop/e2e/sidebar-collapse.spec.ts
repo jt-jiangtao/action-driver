@@ -1,10 +1,11 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import { expect, test, _electron as electron } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
 const mainEntry = fileURLToPath(new URL('../out/main/index.js', import.meta.url))
 
 test('collapses fully and restores from Home and browser-only task view', async () => {
-  const application = await electron.launch({ args: [mainEntry] })
+  const application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
   try {
     const page = await application.firstWindow()
     await page.setViewportSize({ width: 1440, height: 900 })

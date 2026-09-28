@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -36,7 +37,7 @@ const artifact = (name: string) =>
 let application: ElectronApplication | undefined
 
 async function launch(viewport = { width: 1440, height: 900 }) {
-  application = await electron.launch({ args: [mainEntry] })
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
   const page = await application.firstWindow()
   await page.setViewportSize(viewport)
   return page

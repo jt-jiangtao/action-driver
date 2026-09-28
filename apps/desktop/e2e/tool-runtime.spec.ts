@@ -1,3 +1,4 @@
+import { getElectronForkExecutable } from './support/electron-fork'
 import {
   expect,
   test,
@@ -80,7 +81,7 @@ async function launch(
   mkdirSync(workspace, { recursive: true })
   writeFileSync(join(workspace, 'README.md'), '# E2E workspace\n\nneedle is present.\n')
   if (mode === 'shell-timeout') execFileSync('mkfifo', [join(workspace, 'BLOCKING_FIFO')])
-  application = await electron.launch({
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {

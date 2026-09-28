@@ -1,7 +1,7 @@
+import { stageVerifiedElectronHost } from './lib/packaged-electron-host.mjs'
 import { existsSync, mkdtempSync, renameSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
-import { createRequire } from 'node:module'
+import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 if (process.platform !== 'darwin') throw new Error('macOS packaged smoke requires macOS')
@@ -40,13 +40,7 @@ try {
     runtimeDeployment
   ])
 
-  const require = createRequire(import.meta.url)
-  const electronExecutable = require('electron')
-  const electronApp = dirname(dirname(dirname(electronExecutable)))
-  if (!existsSync(join(electronApp, 'Contents', 'Info.plist'))) {
-    throw new Error('Electron macOS application bundle was not found')
-  }
-  run('ditto', [electronApp, app])
+  await stageVerifiedElectronHost(app)
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
