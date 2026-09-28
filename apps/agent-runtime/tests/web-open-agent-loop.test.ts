@@ -4,7 +4,7 @@ import { RuntimeToolPolicy } from '../src/tool-policy'
 import { RuntimeToolRegistry } from '../src/tool-registry'
 import { ToolInvocationService } from '../src/tool-invocation-service'
 import { createSearxngSearchTool } from '../src/searxng/search-tool'
-import { createWebOpenTool } from '../src/web-open/tool'
+import { createWebOpenTool } from '@actiondriver/web-plugin/reader'
 import { extractPageText } from '../src/web-open/extract'
 import type { ModelGateway } from '../src/ports'
 

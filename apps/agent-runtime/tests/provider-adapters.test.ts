@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
 import { createServer } from 'node:http'
 import {
   APIConnectionTimeoutError,

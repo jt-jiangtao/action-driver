@@ -7,7 +7,7 @@ import {
   requestOptionsForAddress,
   requestPage,
   type PageResponse
-} from '../src/web-open/http'
+} from '@actiondriver/web-plugin/http'
 
 function page(
   statusCode: number,

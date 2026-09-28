@@ -3,10 +3,11 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
 import { startAgentRuntimeProcess } from '../src/runtime-process'
 import { createScriptTools } from '../src/execution/tools'
+import { startLocalOtelCollector } from '../../../tests/otel-collector'
 import {
   RuntimeToolPolicy,
   RuntimeToolRegistry,
@@ -17,6 +18,15 @@ import {
 vi.setConfig({ testTimeout: 20_000 })
 
 const phoenixConstruction = vi.hoisted(() => vi.fn())
+let collector: Awaited<ReturnType<typeof startLocalOtelCollector>>
+beforeAll(async () => {
+  collector = await startLocalOtelCollector()
+  vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', collector.endpoint)
+})
+afterAll(async () => {
+  vi.unstubAllEnvs()
+  await collector.close()
+})
 vi.mock('../src/phoenix-model-observability', () => ({
   PhoenixModelObservability: class {
     constructor(tracer: unknown) {
