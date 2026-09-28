@@ -1,4 +1,4 @@
-import { toolPresentationSchema } from '@actiondriver/plugin-contracts'
+import { toolIdSchema, toolPresentationSchema } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
 import type { ImageAssetRef } from '@actiondriver/contracts'
 
@@ -17,7 +17,7 @@ const imageAssetRefSchema: z.ZodType<ImageAssetRef> = z
   .strict()
 export const toolDefinitionSchema = z
   .object({
-    id: idSchema,
+    id: toolIdSchema,
     version: z.number().int().positive(),
     modelName: z.string().regex(/^[A-Za-z0-9_-]+$/),
     description: idSchema,

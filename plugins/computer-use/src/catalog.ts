@@ -13,8 +13,8 @@ const entryPointNote =
 
 export const catalog: PluginCatalog = { tools: [
 {
-        id: 'tools.local.cua.js',
-        presentation: presentations['tools.local.cua.js'],
+        id: 'tools/local/cua/js',
+        presentation: presentations['tools/local/cua/js'],
         version: 1,
         modelName: 'tools_local_cua_js',
         description: [
@@ -44,8 +44,8 @@ export const catalog: PluginCatalog = { tools: [
         timeoutMs: 320_000
       },
 {
-        id: 'tools.local.cua.reset',
-        presentation: presentations['tools.local.cua.reset'],
+        id: 'tools/local/cua/reset',
+        presentation: presentations['tools/local/cua/reset'],
         version: 1,
         modelName: 'tools_local_cua_reset',
         description: reset.replaceAll('cua_repl.js', 'tools_local_cua_js'),

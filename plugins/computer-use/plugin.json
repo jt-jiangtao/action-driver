@@ -9,17 +9,17 @@
     "darwin-x64"
   ],
   "activation": [
-    "onTool:tools.local.cua.js"
+    "onTool:tools/local/cua/js"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "tools.local.cua.js",
+      "id": "tools/local/cua/js",
       "modelName": "tools_local_cua_js"
     },
     {
       "kind": "tool",
-      "id": "tools.local.cua.reset",
+      "id": "tools/local/cua/reset",
       "modelName": "tools_local_cua_reset"
     },
     {

@@ -2,7 +2,7 @@ import type { ToolPresentation } from '@actiondriver/plugin-sdk'
 
 /** Pure semantic metadata; importing it never activates the plugin. */
 export const presentations: Record<string, ToolPresentation> = {
-  'tools.local.web.search': {
+  'tools/local/web/search': {
     input: [
       { label: '搜索词', path: 'query', kind: 'text' },
       { label: '分类', path: 'categories', kind: 'text' },
@@ -19,7 +19,7 @@ export const presentations: Record<string, ToolPresentation> = {
       { label: '内容已截断', path: 'result.truncated', kind: 'text', hideFalse: true }
     ]
   },
-  'tools.local.web.open': {
+  'tools/local/web/open': {
     input: [
       { label: '网页地址', path: 'url', kind: 'link' }
     ],

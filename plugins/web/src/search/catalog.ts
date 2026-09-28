@@ -3,8 +3,8 @@ import type { PluginCatalog, ToolDefinition } from '@actiondriver/plugin-sdk'
 
 export function createSearchDefinition(timeoutMs = 10_000): ToolDefinition {
   return {
-    id: 'tools.local.web.search',
-        presentation: presentations['tools.local.web.search'],
+    id: 'tools/local/web/search',
+        presentation: presentations['tools/local/web/search'],
     version: 1,
     modelName: 'tools_local_web_search',
     description: 'Search the public web through a local SearXNG service',

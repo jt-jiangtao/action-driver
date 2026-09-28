@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseToolCall, parseToolDefinition, parseToolEvent, type ToolDefinition } from '../src'
 
 const definition: ToolDefinition = {
-  id: 'tools.local.command.shell.run',
+  id: 'tools/local/command/shell/run',
   version: 1,
   modelName: 'tools_local_command_shell_run',
   description: 'Read a UTF-8 file in the workspace',
@@ -37,6 +37,8 @@ describe('tool protocol', () => {
 
   it('rejects unknown fields and non-JSON values', () => {
     expect(() => parseToolDefinition({ ...definition, executable: '/bin/sh' })).toThrow()
+    expect(() => parseToolDefinition({ ...definition, id: 'tools.local.command.shell.run' })).toThrow()
+    expect(() => parseToolDefinition({ ...definition, id: 'tools//command' })).toThrow()
     expect(() =>
       parseToolCall({
         callId: 'call-1',

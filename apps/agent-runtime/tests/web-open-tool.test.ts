@@ -24,13 +24,13 @@ describe('tools_local_web_open tool', () => {
     registerWebOpenTool(runtime)
     expect(runtime.registry.list()).toMatchObject([
       {
-        id: 'tools.local.web.open',
+        id: 'tools/local/web/open',
         version: 1,
         modelName: 'tools_local_web_open',
         sideEffects: { filesystem: 'none', network: true }
       }
     ])
-    expect(runtime.grants).toEqual(['tools.local.web.open@1'])
+    expect(runtime.grants).toEqual(['tools/local/web/open@1'])
   })
 
   it('returns only bounded extracted text and final source URL', async () => {

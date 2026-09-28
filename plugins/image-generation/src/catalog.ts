@@ -2,8 +2,8 @@ import { presentations } from './presentation.js'
 import { skill } from './skill.js'
 import type { ToolDefinition, PluginCatalog } from '@actiondriver/plugin-sdk'
 export const definition: ToolDefinition = {
-  id: 'tools.local.image-generation.generate',
-        presentation: presentations['tools.local.image-generation.generate'],
+  id: 'tools/local/image-generation/generate',
+        presentation: presentations['tools/local/image-generation/generate'],
   version: 1,
   modelName: 'tools_local_image_generation_generate',
   description:

@@ -1,25 +1,22 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { PersistedToolInvocation } from './ports'
 
 type ToolErrorLike = { code?: unknown }
 
 export function toolActivitySummary(toolId: string, input: unknown): string {
-  toolId = canonicalToolId(toolId)
-  if (toolId === 'tools.local.web.open@1') return `读取 ${webOpenHostname(input)}`
-  if (toolId === 'tools.local.web.search@1' && isRecord(input) && typeof input.query === 'string') {
+  if (toolId === 'tools/local/web/open@1') return `读取 ${webOpenHostname(input)}`
+  if (toolId === 'tools/local/web/search@1' && isRecord(input) && typeof input.query === 'string') {
     return `搜索 “${truncate(input.query, 120)}”`
   }
-  if (toolId === 'sandbox.shell.run') return '执行命令'
-  if (toolId === 'tools.local.command.shell.run') return '执行命令'
-  if (toolId === 'tools.local.command.python.run') return '运行 Python'
-  if (toolId === 'tools.local.command.node.run') return '运行 Node.js'
-  if (toolId === 'tools.local.command.typescript.run') return '运行 TypeScript'
-  if (toolId === 'tools.local.image-generation.generate@1' || toolId === 'tools.local.image-generation.generate') return '生成图片'
-  if (toolId === 'tools.local.cua.js')
+  if (toolId === 'tools/local/command/shell/run') return '执行命令'
+  if (toolId === 'tools/local/command/python/run') return '运行 Python'
+  if (toolId === 'tools/local/command/node/run') return '运行 Node.js'
+  if (toolId === 'tools/local/command/typescript/run') return '运行 TypeScript'
+  if (toolId === 'tools/local/image-generation/generate@1' || toolId === 'tools/local/image-generation/generate') return '生成图片'
+  if (toolId === 'tools/local/cua/js')
     return isRecord(input) && typeof input.title === 'string' && input.title.trim()
       ? truncate(input.title.trim(), 120)
       : cuaAction(input) === '操作浏览器' ? 'Browser Use' : 'Computer Use'
-  if (toolId === 'tools.local.cua.reset') return 'Computer Use 重置'
+  if (toolId === 'tools/local/cua/reset') return 'Computer Use 重置'
   return `运行 ${toolId}`
 }
 
@@ -28,8 +25,8 @@ export function toolActivityTitle(
   input: unknown,
   status: PersistedToolInvocation['status']
 ): string {
-  const type = canonicalToolId(toolId).split('@')[0] ?? toolId
-  if (type === 'tools.local.cua.js' && isRecord(input) &&
+  const type = toolId.split('@')[0] ?? toolId
+  if (type === 'tools/local/cua/js' && isRecord(input) &&
       typeof input.title === 'string' && input.title.trim()) {
     const action = `${cuaAction(input)}：${truncate(input.title.trim(), 120)}`
     if (status === 'completed') return `已${action}`
@@ -40,45 +37,43 @@ export function toolActivityTitle(
     return `正在${action}`
   }
   const action =
-    type === 'tools.local.web.open'
+    type === 'tools/local/web/open'
       ? `读取网页 ${webOpenHostname(input)}`
-      : type === 'tools.local.web.search'
+      : type === 'tools/local/web/search'
         ? '搜索网页'
-        : type === 'sandbox.shell.run'
-          ? '执行命令'
-          : type === 'tools.local.command.shell.run'
+        : type === 'tools/local/command/shell/run'
             ? '执行命令'
-            : type === 'tools.local.command.python.run'
+            : type === 'tools/local/command/python/run'
               ? '运行 Python'
-              : type === 'tools.local.command.node.run'
+              : type === 'tools/local/command/node/run'
                 ? '运行 Node.js'
-                : type === 'tools.local.command.typescript.run'
+                : type === 'tools/local/command/typescript/run'
                   ? '运行 TypeScript'
-                  : type === 'tools.local.image-generation.generate'
+                  : type === 'tools/local/image-generation/generate'
                     ? '生成图片'
-                  : type === 'tools.local.cua.js'
+                  : type === 'tools/local/cua/js'
                       ? cuaAction(input)
-                      : type === 'tools.local.cua.reset'
+                      : type === 'tools/local/cua/reset'
                         ? '重置 Computer Use'
                         : '调用工具'
   const target =
-    type === 'tools.local.web.search' && isRecord(input) && typeof input.query === 'string'
+    type === 'tools/local/web/search' && isRecord(input) && typeof input.query === 'string'
       ? `“${truncate(input.query, 80)}”`
       : ''
   const label = `${action}${target}`
   if (status === 'completed') return `已${label}`
   if (status === 'failed')
-    return type === 'tools.local.web.open'
+    return type === 'tools/local/web/open'
       ? `${label} 失败`
-      : type === 'tools.local.command.python.run'
+      : type === 'tools/local/command/python/run'
         ? 'Python 执行失败'
-        : type === 'tools.local.command.node.run'
+        : type === 'tools/local/command/node/run'
           ? 'Node.js 执行失败'
-        : type === 'tools.local.command.typescript.run'
+        : type === 'tools/local/command/typescript/run'
           ? 'TypeScript 执行失败'
-          : type === 'tools.local.cua.js'
+          : type === 'tools/local/cua/js'
             ? `${cuaAction(input)}失败`
-            : type === 'tools.local.cua.reset'
+            : type === 'tools/local/cua/reset'
               ? '重置 Computer Use 失败'
               : `${label}失败`
   if (status === 'cancelled') return `已取消${label}`
@@ -88,12 +83,11 @@ export function toolActivityTitle(
 }
 
 export function toolActivityResultSummary(toolId: string, output: unknown): string {
-  toolId = canonicalToolId(toolId)
   const result = isRecord(output) && 'result' in output ? output.result : output
-  if (toolId === 'tools.local.web.open@1' && isRecord(result) && typeof result.title === 'string') {
+  if (toolId === 'tools/local/web/open@1' && isRecord(result) && typeof result.title === 'string') {
     return truncate(result.title, 160)
   }
-  if (toolId === 'tools.local.web.search@1' && isRecord(result) && Array.isArray(result.results)) {
+  if (toolId === 'tools/local/web/search@1' && isRecord(result) && Array.isArray(result.results)) {
     const first = result.results[0]
     if (isRecord(first) && typeof first.title === 'string') return truncate(first.title, 160)
     return `返回 ${result.results.length} 条结果`

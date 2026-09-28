@@ -386,7 +386,7 @@ describe('RendererStreamClient', () => {
             occurredAt: '2026-09-23T00:00:04.000Z',
             callId: 'call-order',
             callSequence: 3,
-            toolId: 'tools.local.command.shell.run',
+            toolId: 'tools/local/command/shell/run',
             modelName: 'tools_local_command_shell_run',
             summary: '读取文件',
             argumentsHash: '',

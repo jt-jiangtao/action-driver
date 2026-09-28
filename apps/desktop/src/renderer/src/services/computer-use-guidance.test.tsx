@@ -15,22 +15,23 @@ function taskWith(id: string, toolId: string | null): TaskProjection {
     messages: [],
     steps: [],
     browser: null,
-    ...(toolId ? { tools: [{ callId: `${id}-call`, toolId, modelName: toolId.replace('.', '_'),
+    ...(toolId ? { tools: [{ callId: `${id}-call`, toolId, modelName: toolId.replaceAll('/', '_'),
       summary: '桌面操作', argumentsHash: 'hash', status: 'running' as const }] } : {})
   }
 }
 
 describe('Computer Use guidance trigger', () => {
   it('only counts tasks that actually invoke Computer Use', () => {
-    expect(taskUsesComputerUse(taskWith('t1', 'computer.observe'))).toBe(true)
-    expect(taskUsesComputerUse(taskWith('t2', 'tools.local.web.open'))).toBe(false)
+    expect(taskUsesComputerUse(taskWith('t1', 'tools/local/cua/js'))).toBe(true)
+    expect(taskUsesComputerUse(taskWith('old', 'computer.observe'))).toBe(false)
+    expect(taskUsesComputerUse(taskWith('t2', 'tools/local/web/open'))).toBe(false)
     expect(taskUsesComputerUse(null)).toBe(false)
   })
 
   it('asks Main for the guidance once per task when Computer Use starts', async () => {
     const ensureGuidance = vi.fn(async () => true)
     vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
-    const task = taskWith('task-1', 'computer.observe')
+    const task = taskWith('task-1', 'tools/local/cua/js')
     const view = renderHook(({ value }) => useComputerUseGuidance(value.id, taskUsesComputerUse(value)), {
       initialProps: { value: task }
     })

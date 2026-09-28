@@ -23,7 +23,7 @@ import {
 import { createWorkspaceDependenciesTool } from '../src/execution/workspace-dependencies-tool'
 
 const readDefinition: ToolDefinition = {
-  id: 'tools.local.command.shell.run',
+  id: 'tools/local/command/shell/run',
   version: 1,
   modelName: 'tools_local_command_shell_run',
   description: 'Read one workspace file',
@@ -35,7 +35,7 @@ const readDefinition: ToolDefinition = {
 
 const shellDefinition: ToolDefinition = {
   ...readDefinition,
-  id: 'sandbox.shell.run',
+  id: 'sandbox/shell/run',
   modelName: 'sandbox_shell_run',
   risk: 'medium',
   inputSchema: {
@@ -120,7 +120,7 @@ describe('ToolInvocationService', () => {
   it('publishes a safe image count when image generation begins', async () => {
     const definition: ToolDefinition = {
       ...readDefinition,
-      id: 'tools.local.image-generation.generate',
+      id: 'tools/local/image-generation/generate',
       modelName: 'tools_local_image_generation_generate',
       inputSchema: {
         type: 'object',
@@ -151,7 +151,7 @@ describe('ToolInvocationService', () => {
             images: Array.from({ length: 16 }, (_, index) => ({ prompt: `image ${index}` }))
           }
         },
-        context(['tools.local.image-generation.generate@1'])
+        context(['tools/local/image-generation/generate@1'])
       )
     )
     const running = fixture.commits.find(({ event }) => event.type === 'tool.running')?.event
@@ -175,7 +175,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(readDefinition, executor)
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
     expect(events.find((event) => event.type === 'tool.asset')).toMatchObject({
       type: 'tool.asset',
@@ -195,7 +195,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(readDefinition, executor)
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
 
     expect(events.map((event) => event.type)).toEqual([
@@ -223,7 +223,7 @@ describe('ToolInvocationService', () => {
     const logs = await fixture.interactionStore.list({ limit: 20 })
     expect(logs.records).toHaveLength(1)
     expect(logs.records[0]).toMatchObject({
-      operation: 'tools.local.command.shell.run',
+      operation: 'tools/local/command/shell/run',
       outcome: 'ok',
       taskId: 'task-1'
     })
@@ -238,7 +238,7 @@ describe('ToolInvocationService', () => {
     })
     const fixture = createFixture(shellDefinition, { execute })
     const events = await collect(
-      fixture.service.execute(shellCall(), context(['sandbox.shell.run@1']))
+      fixture.service.execute(shellCall(), context(['sandbox/shell/run@1']))
     )
     expect(events.map((event) => event.type)).toEqual([
       'tool.proposed',
@@ -279,7 +279,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(definition, { execute })
     const invalid = { ...readCall(), arguments: { unexpected: true } }
-    const events = await collect(fixture.service.execute(invalid, context(['tools.local.command.shell.run@1'])))
+    const events = await collect(fixture.service.execute(invalid, context(['tools/local/command/shell/run@1'])))
     expect(execute).not.toHaveBeenCalled()
     expect(events.at(-1)).toMatchObject({
       type: 'tool.failed',
@@ -298,18 +298,18 @@ describe('ToolInvocationService', () => {
       { maxOutputBytes: 5 }
     )
     expect(
-      (await collect(oversized.service.execute(readCall(), context(['tools.local.command.shell.run@1'])))).at(-1)
+      (await collect(oversized.service.execute(readCall(), context(['tools/local/command/shell/run@1'])))).at(-1)
     ).toMatchObject({ type: 'tool.failed', error: { code: 'SANDBOX_OUTPUT_LIMIT' } })
 
     const timed = createFixture({ ...readDefinition, timeoutMs: 5 }, blockingExecutor())
     expect(
-      (await collect(timed.service.execute(readCall(), context(['tools.local.command.shell.run@1'])))).at(-1)
+      (await collect(timed.service.execute(readCall(), context(['tools/local/command/shell/run@1'])))).at(-1)
     ).toMatchObject({ type: 'tool.failed', error: { code: 'TOOL_TIMEOUT' } })
 
     const controller = new AbortController()
     const cancelled = createFixture(readDefinition, blockingExecutor())
     const pending = collect(
-      cancelled.service.execute(readCall(), context(['tools.local.command.shell.run@1']), controller.signal)
+      cancelled.service.execute(readCall(), context(['tools/local/command/shell/run@1']), controller.signal)
     )
     await waitFor(() => cancelled.commits.some(({ invocation }) => invocation.status === 'running'))
     controller.abort()
@@ -338,7 +338,7 @@ describe('ToolInvocationService', () => {
       clock: { now: () => '2026-01-01T00:00:00.000Z' }
     })
     await expect(
-      collect(service.execute(readCall(), context(['tools.local.command.shell.run@1'])))
+      collect(service.execute(readCall(), context(['tools/local/command/shell/run@1'])))
     ).rejects.toThrow('PERSISTENCE_PAYLOAD_REJECTED: toolInvocation.output')
   })
 
@@ -353,7 +353,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(readDefinition, executor)
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
     expect(JSON.stringify(events)).toContain(secret)
     expect(JSON.stringify(fixture.commits)).not.toContain(secret)
@@ -368,7 +368,7 @@ describe('ToolInvocationService', () => {
       redactForPersistence: () => ({ length: 0 })
     })
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
     expect(JSON.stringify(events)).toContain('private-error-654')
     expect(JSON.stringify(fixture.commits)).not.toContain('private-error-654')
@@ -385,7 +385,7 @@ describe('ToolInvocationService', () => {
       redactForPersistence: () => ({ length: 0 })
     })
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
     expect(JSON.stringify(events)).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
     expect(JSON.stringify(fixture.commits)).toContain(COMPUTER_USE_GUIDANCE_ERRORS.skillNotLoaded)
@@ -407,7 +407,7 @@ describe('ToolInvocationService', () => {
           ? { codeLength: 20, executedTextLengths: [...lengths] }
           : { outputLength: 4 }
     })
-    await collect(fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1'])))
+    await collect(fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1'])))
     expect(fixture.commits[0]?.invocation.input).toEqual({
       codeLength: 20,
       executedTextLengths: []
@@ -433,7 +433,7 @@ describe('ToolInvocationService', () => {
     }
     const fixture = createFixture(readDefinition, executor)
     const events = await collect(
-      fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']))
+      fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']))
     )
     expect(events.at(-1)).toMatchObject({
       type: 'tool.completed',
@@ -546,20 +546,18 @@ it('persists a crashed plugin side effect as unknown even after cancellation, wi
   const fixture = createFixture({ ...readDefinition, sideEffects: { filesystem: 'write', network: false } }, {
     async *execute() { yield* []; executions++; controller.abort(); throw new PluginError('RESULT_UNKNOWN', 'host exited') }
   })
-  const events = await collect(fixture.service.execute(readCall(), context(['tools.local.command.shell.run@1']), controller.signal))
+  const events = await collect(fixture.service.execute(readCall(), context(['tools/local/command/shell/run@1']), controller.signal))
   expect(events.at(-1)).toMatchObject({ type: 'tool.unknown', error: { code: 'TOOL_OUTCOME_UNKNOWN', retryable: false } })
   expect(fixture.commits.at(-1)?.invocation.status).toBe('unknown')
   expect(executions).toBe(1)
 })
 
-it('normalizes old local model names before executing and persists the new identity', async () => {
-  const execute = vi.fn(async function* (call: ToolCall) {
-    expect(call.modelName).toBe('tools_local_command_shell_run')
+it('rejects old local model names even when an old grant exists', async () => {
+  const execute = vi.fn(async function* (_call: ToolCall) {
     yield { kind: 'result' as const, output: { oldCallSucceeded: true } }
   })
   const fixture = createFixture(readDefinition, { execute })
-  const events = await collect(fixture.service.execute({ ...readCall(), modelName: 'shell_run' }, context(['local.shell.run@1'])))
-  expect(events.at(-1)).toMatchObject({ type: 'tool.completed' })
-  expect(execute).toHaveBeenCalledOnce()
-  expect(fixture.commits.at(-1)?.invocation.toolId).toBe('tools.local.command.shell.run')
+  await expect(collect(fixture.service.execute({ ...readCall(), modelName: 'shell_run' }, context(['local.shell.run@1']))))
+    .rejects.toMatchObject({ code: 'TOOL_UNAVAILABLE' })
+  expect(execute).not.toHaveBeenCalled()
 })

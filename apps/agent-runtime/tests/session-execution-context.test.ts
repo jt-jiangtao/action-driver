@@ -161,7 +161,7 @@ describe('trusted session execution context', () => {
 })
 
 const definition: ToolDefinition = {
-  id: 'tools.local.command.shell.run',
+  id: 'tools/local/command/shell/run',
   version: 1,
   modelName: 'tools_local_command_shell_run',
   description: 'Run a script',

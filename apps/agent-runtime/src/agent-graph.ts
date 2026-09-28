@@ -1,4 +1,3 @@
-import { canonicalModelName } from '@actiondriver/plugin-contracts'
 import {
   Annotation,
   type BaseCheckpointSaver,
@@ -814,7 +813,7 @@ export function activityTitleForTool(
   modelName: string,
   status: 'running' | 'completed' | 'failed' | 'cancelled' = 'running'
 ): string {
-  const normalized = canonicalModelName(modelName.toLowerCase())
+  const normalized = modelName.toLowerCase()
   const action =
     normalized === 'tools_local_web_open'
       ? '读取网页'
@@ -888,9 +887,9 @@ export function activityTitleForTools(
   const subject =
     kinds.size === 1 && kinds.has('web')
       ? `${count} 项${
-          modelNames.every((name) => canonicalModelName(name.toLowerCase()) === 'tools_local_web_open')
+          modelNames.every((name) => name.toLowerCase() === 'tools_local_web_open')
             ? '网页读取'
-            : modelNames.every((name) => canonicalModelName(name.toLowerCase()) === 'tools_local_web_search')
+            : modelNames.every((name) => name.toLowerCase() === 'tools_local_web_search')
               ? '网页搜索'
               : '网页操作'
         }`
@@ -905,7 +904,7 @@ export function activityTitleForTools(
 }
 
 function activityToolKind(modelName: string): 'web' | 'shell' | 'script' | 'other' {
-  const normalized = canonicalModelName(modelName.toLowerCase())
+  const normalized = modelName.toLowerCase()
   if (normalized.includes('web')) return 'web'
   if (normalized.includes('shell') || normalized === 'command') return 'shell'
   if (

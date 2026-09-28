@@ -9,12 +9,12 @@ describe('SearXNG plugin registration', () => {
     const owner = { pluginId: 'search', version: '1.0.0', hostEpoch: 'test' }
     let configuration: { endpoint: string } | null = null
     const context = createPluginContext(owner, { tools: { register: (definition, executor) => registry.register(definition, executor, owner) }, registrations: { register() { throw new Error('Unexpected contribution') } }, transport: { async request() { return configuration } } })
-    expect(catalog.tools[0]?.id).toBe('tools.local.web.search')
+    expect(catalog.tools[0]?.id).toBe('tools/local/web/search')
     await activate(context)
     expect(registry.list()).toEqual([])
     configuration = { endpoint: 'http://127.0.0.1:8080' }
     await activate(context)
-    expect(registry.resolve('tools.local.web.search', 1).owner).toEqual(owner)
+    expect(registry.resolve('tools/local/web/search', 1).owner).toEqual(owner)
     expect(grants).toEqual([])
     await context.subscriptions.dispose()
     expect(registry.list()).toEqual([])

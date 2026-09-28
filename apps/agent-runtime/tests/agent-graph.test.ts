@@ -61,8 +61,8 @@ describe('minimal agent StateGraph', () => {
     expect(activityTitleForTool('tools_local_command_shell_run')).toBe('正在执行命令')
     expect(activityTitleForTool('tools_local_web_search')).toBe('正在搜索网页')
     expect(activityTitleForTool('tools_local_web_open')).toBe('正在读取网页')
-    expect(activityTitleForTool('js')).toBe('正在操作桌面应用')
-    expect(activityTitleForTool('js', 'failed')).toBe('操作桌面应用失败')
+    expect(activityTitleForTool('js')).toBe('正在调用工具')
+    expect(activityTitleForTool('js', 'failed')).toBe('调用工具失败')
     expect(activityTitleForTools('read pages', ['tools_local_web_open', 'tools_local_web_open'])).toBe(
       '正在执行 2 项网页读取'
     )
@@ -104,7 +104,7 @@ describe('minimal agent StateGraph', () => {
     }> = []
     const imageTool: ToolDefinition = {
       ...shellTool,
-      id: 'tools.local.image-generation.generate',
+      id: 'tools/local/image-generation/generate',
       modelName: 'tools_local_image_generation_generate',
       description: 'Generate an image'
     }
@@ -153,8 +153,8 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy,
       invocations,
-      grants: ['tools.local.command.shell.run@1', 'tools.local.image-generation.generate@1'],
-      isAvailable: async (definition) => definition.id !== 'tools.local.image-generation.generate' || imageConfigured,
+      grants: ['tools/local/command/shell/run@1', 'tools/local/image-generation/generate@1'],
+      isAvailable: async (definition) => definition.id !== 'tools/local/image-generation/generate' || imageConfigured,
       capabilityNotice: async () =>
         imageConfigured ? null : '生图功能未配置。请在设置 → 模型连接启用生图并设为默认模型。'
     })
@@ -824,7 +824,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.cua.js',
+        id: 'tools/local/cua/js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -854,7 +854,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.cua.js@1']
+      grants: ['tools/local/cua/js@1']
     })
     const result = await runner.run({
       taskId: 'private-source-task',
@@ -897,7 +897,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.cua.js',
+        id: 'tools/local/cua/js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -926,7 +926,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.cua.js@1']
+      grants: ['tools/local/cua/js@1']
     })
     const result = await runner.run({
       taskId: 'gate-task',
@@ -964,7 +964,7 @@ describe('minimal agent StateGraph', () => {
     registry.register(
       {
         ...shellTool,
-        id: 'tools.local.cua.js',
+        id: 'tools/local/cua/js',
         modelName: 'js',
         inputSchema: {
           type: 'object',
@@ -994,7 +994,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy: new RuntimeToolPolicy(),
       invocations,
-      grants: ['tools.local.cua.js@1']
+      grants: ['tools/local/cua/js@1']
     })
     const result = await runner.run({
       taskId: 'failed-cell-task',
@@ -1278,7 +1278,7 @@ describe('minimal agent StateGraph', () => {
     const policy = new RuntimeToolPolicy()
     for (const name of names) {
       registry.register(
-        { ...shellTool, id: `test.${name}`, modelName: name },
+        { ...shellTool, id: `test/${name}`, modelName: name },
         {
           async *execute(call) {
             executed.push(call.modelName)
@@ -1302,7 +1302,7 @@ describe('minimal agent StateGraph', () => {
       registry,
       policy,
       invocations,
-      grants: names.map((name) => `test.${name}@1`)
+      grants: names.map((name) => `test/${name}@1`)
     })
     const result = await runner.run({ taskId: 'task-400', goal: 'test all tools', model: modelRef })
     expect(result).toMatchObject({ status: 'completed', output: '400 complete' })
@@ -1678,7 +1678,7 @@ describe('minimal agent StateGraph', () => {
 })
 
 const shellTool: ToolDefinition = {
-  id: 'tools.local.command.shell.run',
+  id: 'tools/local/command/shell/run',
   version: 1,
   modelName: 'tools_local_command_shell_run',
   description: 'Run a shell command',
@@ -1714,7 +1714,7 @@ function toolRunner(model: ModelGateway, executor: ToolExecutor) {
       registry,
       policy,
       invocations,
-      grants: ['tools.local.command.shell.run@1']
+      grants: ['tools/local/command/shell/run@1']
     }),
     commits
   }

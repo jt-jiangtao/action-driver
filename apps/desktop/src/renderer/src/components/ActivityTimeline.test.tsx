@@ -26,7 +26,7 @@ const task = (status: TaskProjection['status']): TaskProjection => ({
   tools: [
     {
       callId: 'read',
-      toolId: 'tools.local.command.shell.run',
+      toolId: 'tools/local/command/shell/run',
       modelName: 'tools_local_command_shell_run',
       summary: '读取 README',
       argumentsHash: '',
@@ -87,10 +87,10 @@ describe('ActivityTimeline', () => {
 
   it('shows inline scripts without an interpreter prefix and keeps output', () => {
     for (const [toolId, modelName, source] of [
-      ['tools.local.command.shell.run', 'tools_local_command_shell_run', 'echo hello'],
-      ['tools.local.command.python.run', 'tools_local_command_python_run', 'print("hello")'],
-      ['tools.local.command.node.run', 'tools_local_command_node_run', 'console.log("hello")'],
-      ['tools.local.command.typescript.run', 'tools_local_command_typescript_run', 'const value: string = "hello"']
+      ['tools/local/command/shell/run', 'tools_local_command_shell_run', 'echo hello'],
+      ['tools/local/command/python/run', 'tools_local_command_python_run', 'print("hello")'],
+      ['tools/local/command/node/run', 'tools_local_command_node_run', 'console.log("hello")'],
+      ['tools/local/command/typescript/run', 'tools_local_command_typescript_run', 'const value: string = "hello"']
     ] as const) {
       const scripted = task('running')
       scripted.tools![0]!.toolId = toolId
@@ -110,7 +110,7 @@ describe('ActivityTimeline', () => {
 
   it('shows the Computer Use cell source and falls back to its length summary', () => {
     const live = task('running')
-    live.tools![0]!.toolId = 'tools.local.cua.js'
+    live.tools![0]!.toolId = 'tools/local/cua/js'
     live.tools![0]!.modelName = 'js'
     live.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getState()' })
     const liveView = render(<ActivityTimeline task={live} />)
@@ -128,7 +128,7 @@ describe('ActivityTimeline', () => {
     liveView.unmount()
 
     const failed = task('running')
-    failed.tools![0]!.toolId = 'tools.local.cua.js'
+    failed.tools![0]!.toolId = 'tools/local/cua/js'
     failed.tools![0]!.modelName = 'js'
     failed.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getApp("Calculator")' })
     failed.tools![0]!.rawOutput = 'printed before failing'
@@ -141,7 +141,7 @@ describe('ActivityTimeline', () => {
     failedView.unmount()
 
     const persisted = task('running')
-    persisted.tools![0]!.toolId = 'tools.local.cua.js'
+    persisted.tools![0]!.toolId = 'tools/local/cua/js'
     persisted.tools![0]!.modelName = 'js'
     persisted.tools![0]!.rawInput = JSON.stringify({ codeLength: 20, executedTextLengths: [] })
     const persistedView = render(<ActivityTimeline task={persisted} />)
@@ -156,7 +156,7 @@ describe('ActivityTimeline', () => {
     image.tools = [
       {
         callId: 'image',
-        toolId: 'image.generate',
+        toolId: 'tools/local/image-generation/generate',
         modelName: 'tools_local_image_generation_generate',
         summary: '生成 2 张图片',
         argumentsHash: '',
@@ -198,7 +198,7 @@ describe('ActivityTimeline', () => {
 
   it('keeps blank script lines in the labeled input section', () => {
     const scripted = task('running')
-    scripted.tools![0]!.toolId = 'tools.local.command.python.run'
+    scripted.tools![0]!.toolId = 'tools/local/command/python/run'
     scripted.tools![0]!.rawInput = JSON.stringify({ script: 'print("a")\n\nprint("b")', args: [] })
     scripted.tools![0]!.rawOutput = JSON.stringify({ stdout: 'a\nb\n', result: { exitCode: 0 } })
     const { container } = render(<ActivityTimeline task={scripted} />)
@@ -215,7 +215,7 @@ describe('ActivityTimeline', () => {
     generating.tools = [
       {
         callId: 'image',
-        toolId: 'tools.local.image-generation.generate',
+        toolId: 'tools/local/image-generation/generate',
         modelName: 'tools_local_image_generation_generate',
         summary: '生成 4 张图片',
         argumentsHash: '',
@@ -247,7 +247,7 @@ describe('ActivityTimeline', () => {
     image.tools = [
       {
         callId: 'image',
-        toolId: 'tools.local.image-generation.generate',
+        toolId: 'tools/local/image-generation/generate',
         modelName: 'tools_local_image_generation_generate',
         summary: '生成图片',
         argumentsHash: '',
@@ -280,8 +280,8 @@ describe('ActivityTimeline', () => {
     })
     mixed.tools!.push({
       callId: 'shell',
-      toolId: 'local.shell.run',
-      modelName: 'shell_run',
+      toolId: 'tools/local/command/shell/run',
+      modelName: 'tools_local_command_shell_run',
       summary: '执行命令',
       title: '已执行命令',
       argumentsHash: '',
@@ -492,7 +492,7 @@ describe('ActivityTimeline', () => {
     })
     mixed.tools!.push({
       callId: 'search',
-      toolId: 'tools.local.web.search',
+      toolId: 'tools/local/web/search',
       modelName: 'tools_local_web_search',
       summary: '查找 agent-graph.ts',
       argumentsHash: '',
@@ -508,13 +508,13 @@ describe('ActivityTimeline', () => {
   it('marks Computer Use tool rows and groups with the pointer icon', () => {
     const computer = task('succeeded')
     computer.activities![0]!.title = '已操作电脑'
-    computer.activities![0]!.items = ['observe', 'capture', 'act', 'permissions'].map((name) => ({
+    computer.activities![0]!.items = ['js', 'reset'].map((name) => ({
       id: `tool:${name}`, kind: 'tool' as const, callId: name
     }))
-    computer.tools = ['observe', 'capture', 'act', 'permissions'].map((name) => ({
+    computer.tools = ['js', 'reset'].map((name) => ({
       callId: name,
-      toolId: `computer.${name}`,
-      modelName: `computer_${name}`,
+      toolId: `tools/local/cua/${name}`,
+      modelName: `tools_local_cua_${name}`,
       summary: name,
       argumentsHash: '',
       activityId: 'research',
@@ -522,7 +522,7 @@ describe('ActivityTimeline', () => {
     }))
     const { container } = render(<ActivityTimeline task={computer} />)
     expect(container.querySelector('.activity-group > summary .lucide-mouse-pointer-2')).not.toBeNull()
-    expect(container.querySelectorAll('.activity-tool .lucide-mouse-pointer-2')).toHaveLength(4)
+    expect(container.querySelectorAll('.activity-tool .lucide-mouse-pointer-2')).toHaveLength(2)
     expect(container.querySelector('.activity-tool .lucide-boxes')).toBeNull()
   })
 
@@ -532,8 +532,8 @@ describe('ActivityTimeline', () => {
     mixed.activities![0]!.items.push({ id: 'tool:shell', kind: 'tool', callId: 'shell' })
     mixed.tools!.push({
       callId: 'shell',
-      toolId: 'local.shell.run',
-      modelName: 'shell_run',
+      toolId: 'tools/local/command/shell/run',
+      modelName: 'tools_local_command_shell_run',
       summary: '执行命令',
       title: '正在执行命令',
       argumentsHash: '',
@@ -567,13 +567,13 @@ describe('ActivityTimeline', () => {
     expect(screen.getByText('已执行命令')).not.toHaveClass('activity-active-title')
   })
 
-  it('renders legacy shell input and output as labeled fields without JSON wrappers', () => {
+  it('renders current shell input and output as labeled fields without JSON wrappers', () => {
     const shell = task('running')
     shell.tools = [
       {
         callId: 'shell',
-        toolId: 'local.shell.run',
-        modelName: 'shell_run',
+        toolId: 'tools/local/command/shell/run',
+        modelName: 'tools_local_command_shell_run',
         summary: 'rg needle README.md',
         argumentsHash: '',
         activityId: 'research',
@@ -600,7 +600,7 @@ describe('ActivityTimeline', () => {
     reading.activities![0]!.title = '已读取网页'
     reading.tools![0] = {
       callId: 'read',
-      toolId: 'tools.local.web.open',
+      toolId: 'tools/local/web/open',
       modelName: 'tools_local_web_open',
       title: '已读取网页 example.com',
       summary: '读取 example.com',
@@ -645,14 +645,14 @@ describe('ActivityTimeline', () => {
   it('renders Python and Node inputs as expandable semantic details', () => {
     for (const [toolId, modelName, title, input, command] of [
       [
-        'tools.local.command.python.run',
+        'tools/local/command/python/run',
         'tools_local_command_python_run',
         '已运行 Python',
         '{"code":"print(1)"}',
         'print(1)'
       ],
       [
-        'tools.local.command.node.run',
+        'tools/local/command/node/run',
         'tools_local_command_node_run',
         '已运行 Node.js',
         '{"file":"script.js","args":["hi"]}',
@@ -732,7 +732,7 @@ describe('ActivityTimeline', () => {
     standalone.tools = [
       {
         callId: 'list',
-        toolId: 'tools.local.command.shell.run',
+        toolId: 'tools/local/command/shell/run',
         modelName: 'tools_local_command_shell_run',
         summary: '访问文件 /',
         argumentsHash: '',

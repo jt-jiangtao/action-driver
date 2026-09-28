@@ -87,7 +87,7 @@ describe('search-to-tools_local_web_open agent loop', () => {
       registry,
       policy,
       invocations,
-      grants: ['tools.local.web.search@1', 'tools.local.web.open@1']
+      grants: ['tools/local/web/search@1', 'tools/local/web/open@1']
     })
     const result = await runner.run({
       taskId: 'task-search-open',

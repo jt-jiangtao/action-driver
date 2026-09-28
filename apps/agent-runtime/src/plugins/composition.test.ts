@@ -26,9 +26,9 @@ describe('runtime plugin composition', () => {
       expect(platform.catalogs()[0]?.catalog.tools[0]?.inputSchema.required).toEqual(['query'])
       expect(grants).toEqual([])
       await platform.enable('web')
-      expect(registry.resolve('tools.local.web.search', 1).owner?.pluginId).toBe('web')
+      expect(registry.resolve('tools/local/web/search', 1).owner?.pluginId).toBe('web')
       const events = []
-      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } })) events.push(part)
+      for await (const part of registry.resolve('tools/local/web/search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } })) events.push(part)
       expect(events).toEqual([{ kind: 'result', output: { results: [{ title: 'Title', url: 'https://example.test/', snippet: 'Snippet' }], truncated: false, totalResults: 1 } }])
       await platform.disable('web')
       expect(registry.list()).toEqual([])
@@ -41,22 +41,22 @@ it('streams a declared host capability with runtime grants and authoritative tas
   const directory = await mkdtemp(join(tmpdir(), 'actiondriver-forward-plugin-'))
   const packageRoot = join(directory, 'package')
   await mkdir(packageRoot)
-  const definition = { id: 'fixture.echo', version: 1, modelName: 'fixture_echo', description: 'Echo', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
+  const definition = { id: 'fixture/echo', version: 1, modelName: 'fixture_echo', description: 'Echo', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
   const { writeFile } = await import('node:fs/promises')
   await writeFile(join(packageRoot, 'package.json'), JSON.stringify({ type: 'module' }))
   await writeFile(join(packageRoot, 'catalog.json'), JSON.stringify({ tools: [definition], skills: [] }))
-  await writeFile(join(packageRoot, 'plugin.json'), JSON.stringify({ id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', catalog: 'catalog.json', platforms: [`${process.platform}-${process.arch}`], requires: ['host.echo'], contributions: [{ kind: 'tool', id: 'fixture.echo', modelName: 'fixture_echo' }] }))
+  await writeFile(join(packageRoot, 'plugin.json'), JSON.stringify({ id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', catalog: 'catalog.json', platforms: [`${process.platform}-${process.arch}`], requires: ['host.echo'], contributions: [{ kind: 'tool', id: 'fixture/echo', modelName: 'fixture_echo' }] }))
   await writeFile(join(packageRoot, 'extension.mjs'), `export function activate(context) { context.api.tools.register(${JSON.stringify(definition)}, { async *execute(call, signal, _execution, invocation) { yield* context.api.capabilities.stream('host.echo', call.arguments, invocation, signal) } }) }`)
   const registry = new RuntimeToolRegistry()
   let finish!: () => void
   const gate = new Promise<void>(resolve => { finish = resolve })
-  const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [packageRoot], registry, configuration: {}, dataRoot: join(directory, 'data'), now: Date.now, ids: () => String(Math.random()), hostCapabilities: { 'host.echo': { plugins: ['fixture'], grants: ['fixture.echo@1'], async *stream(_input, context) { yield { kind: 'content', stream: 'stdout', delta: context.taskId! }; await gate; yield { kind: 'result', output: 'done' } } } } })
+  const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [packageRoot], registry, configuration: {}, dataRoot: join(directory, 'data'), now: Date.now, ids: () => String(Math.random()), hostCapabilities: { 'host.echo': { plugins: ['fixture'], grants: ['fixture/echo@1'], async *stream(_input, context) { yield { kind: 'content', stream: 'stdout', delta: context.taskId! }; await gate; yield { kind: 'result', output: 'done' } } } } })
   try {
     await platform.enable('fixture')
-    const executor = registry.resolve('fixture.echo', 1).executor
+    const executor = registry.resolve('fixture/echo', 1).executor
     const call = { callId: 'c', providerCallId: 'p', modelName: 'fixture_echo', arguments: { taskId: 'forged', grants: ['*'] } }
     await expect(executor.execute(call)[Symbol.asyncIterator]().next()).rejects.toThrow('AUTHORIZATION_DENIED')
-    const output = executor.execute({ ...call, callId: 'allowed' }, new AbortController().signal, { taskId: 'persisted', sessionId: 's', grants: ['fixture.echo@1'], workspace: { root: directory, input: directory, output: directory } })[Symbol.asyncIterator]()
+    const output = executor.execute({ ...call, callId: 'allowed' }, new AbortController().signal, { taskId: 'persisted', sessionId: 's', grants: ['fixture/echo@1'], workspace: { root: directory, input: directory, output: directory } })[Symbol.asyncIterator]()
     expect(await output.next()).toEqual({ value: { kind: 'content', stream: 'stdout', delta: 'persisted' }, done: false })
     finish()
     expect(await output.next()).toEqual({ value: { kind: 'result', output: 'done' }, done: false })
@@ -66,7 +66,7 @@ it('streams a declared host capability with runtime grants and authoritative tas
 it('installs, pins an in-flight version, upgrades its real package and uninstalls registrations', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'actiondriver-upgrade-plugin-'))
   const { writeFile } = await import('node:fs/promises')
-  const definition = { id: 'fixture.version', version: 1, modelName: 'fixture_version', description: 'Version', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
+  const definition = { id: 'fixture/version', version: 1, modelName: 'fixture_version', description: 'Version', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
   async function packageVersion(version: string) {
     const root = join(directory, version); await mkdir(root)
     await writeFile(join(root, 'catalog.json'), JSON.stringify({ tools: [definition], skills: [] }))
@@ -121,18 +121,68 @@ it('ignores retired built-in packages on restart and preserves their private dat
   const { writeFile, readFile } = await import('node:fs/promises')
   const directory = await mkdtemp(join(tmpdir(), 'actiondriver-retired-plugins-'))
   try {
+    const webRoot = join(directory, 'web')
+    await mkdir(join(webRoot, 'dist'), { recursive: true })
+    await cp(resolve('plugins/web/plugin.json'), join(webRoot, 'plugin.json'))
+    await cp(resolve('plugins/web/package.json'), join(webRoot, 'package.json'))
+    await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(webRoot, 'dist'), '--bundle', '--platform=node', '--format=esm'])
     for (const id of ['search', 'web-reader']) {
       const root = join(directory, 'installed', id)
       await mkdir(root, { recursive: true })
       await writeFile(join(root, 'current.json'), JSON.stringify({ id, version: '1.0.0', entry: 'missing.mjs', catalog: 'missing.mjs', sdk: '^1.0.0', platforms: [`${process.platform}-${process.arch}`], contributions: [] }))
       const data = join(directory, 'data', id); await mkdir(data, { recursive: true }); await writeFile(join(data, 'saved.json'), '{"preserved":true}')
     }
-    const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [resolve('apps/agent-runtime/dist/plugins/web')], retiredPluginIds: ['search', 'web-reader'], registry: new RuntimeToolRegistry(), configuration: {}, dataRoot: directory, now: Date.now, ids: () => String(Math.random()) })
+    const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [webRoot], retiredPluginIds: ['search', 'web-reader'], registry: new RuntimeToolRegistry(), configuration: {}, dataRoot: directory, now: Date.now, ids: () => String(Math.random()) })
     try {
       expect(platform.catalogs().map(value => value.manifest.id)).toEqual(['web'])
       await platform.enable('web')
-      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['tools.local.web.open'])
+      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['tools/local/web/open'])
       for (const id of ['search', 'web-reader']) expect(await readFile(join(directory, 'data', id, 'saved.json'), 'utf8')).toBe('{"preserved":true}')
     } finally { await platform.dispose() }
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
+
+it('rejects a persisted third-party plugin with a dotted tool identity before activation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-old-tool-plugin-'))
+  const { writeFile } = await import('node:fs/promises')
+  const root = join(directory, 'installed', 'fixture', '1.0.0')
+  await mkdir(root, { recursive: true })
+  const manifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', platforms: [`${process.platform}-${process.arch}`], contributions: [{ kind: 'tool', id: 'fixture.read', modelName: 'fixture_read' }] }
+  try {
+    await writeFile(join(directory, 'installed', 'fixture', 'current.json'), JSON.stringify(manifest))
+    await writeFile(join(root, 'plugin.json'), JSON.stringify(manifest))
+    await writeFile(join(root, 'extension.mjs'), 'export function activate() {}')
+    await expect(createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [], registry: new RuntimeToolRegistry(), configuration: {}, dataRoot: directory, now: Date.now, ids: () => String(Math.random()) })).rejects.toMatchObject({ code: 'INVALID_MANIFEST' })
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+it('replaces a same-version built-in copy with slash identities and preserves private data', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-builtin-cutover-'))
+  const { writeFile, readFile } = await import('node:fs/promises')
+  const source = join(directory, 'source')
+  const installed = join(directory, 'installed', 'fixture', '1.0.0')
+  const definition = { id: 'fixture/read', version: 1, modelName: 'fixture_read', description: 'Read fixture', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
+  const manifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', catalog: 'catalog.json', platforms: [`${process.platform}-${process.arch}`], contributions: [{ kind: 'tool', id: definition.id, modelName: definition.modelName }] }
+  const oldManifest = { ...manifest, contributions: [{ kind: 'tool', id: 'fixture.read', modelName: 'fixture_read' }] }
+  await mkdir(source, { recursive: true })
+  await mkdir(installed, { recursive: true })
+  await writeFile(join(source, 'plugin.json'), JSON.stringify(manifest))
+  await writeFile(join(source, 'catalog.json'), JSON.stringify({ tools: [definition], skills: [] }))
+  await writeFile(join(source, 'extension.mjs'), `export function activate(context) { context.api.tools.register(${JSON.stringify(definition)}, { async *execute() { yield { kind: 'result', output: 'current' } } }) }`)
+  await writeFile(join(directory, 'installed', 'fixture', 'current.json'), JSON.stringify(oldManifest))
+  await writeFile(join(installed, 'plugin.json'), JSON.stringify(oldManifest))
+  await writeFile(join(installed, 'extension.mjs'), 'export function activate() {}')
+  const { PluginPrivateStorage } = await import('./filesystem-repository')
+  const storage = new PluginPrivateStorage(directory, () => String(Math.random()))
+  await storage.set('fixture', 'settings', { saved: true })
+  const registry = new RuntimeToolRegistry()
+  let platform: Awaited<ReturnType<typeof createRuntimePluginPlatform>> | undefined
+  try {
+    platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [source], registry, configuration: {}, dataRoot: directory, now: Date.now, ids: () => String(Math.random()) })
+    expect(JSON.parse(await readFile(join(installed, 'plugin.json'), 'utf8'))).toMatchObject({ contributions: manifest.contributions })
+    expect(await storage.get('fixture', 'settings')).toEqual({ saved: true })
+    await platform.enable('fixture')
+    expect(registry.resolve('fixture/read', 1).definition.modelName).toBe('fixture_read')
+    expect(() => registry.resolve('fixture.read', 1)).toThrow('TOOL_UNAVAILABLE')
+  } finally { await platform?.dispose(); await rm(directory, { recursive: true, force: true }) }
+}, 10_000)

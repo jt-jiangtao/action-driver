@@ -14,6 +14,7 @@ if (typeof window !== 'undefined') {
       addListener: () => undefined,
       removeListener: () => undefined,
       addEventListener: () => undefined,
+      removeEventListener: () => undefined,
       dispatchEvent: () => false
     })
   })
