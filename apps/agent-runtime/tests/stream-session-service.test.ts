@@ -634,7 +634,7 @@ describe('StreamSessionService', () => {
   it('does not place an uncommitted image in the terminal snapshot after asset write failure', async () => {
     const png = readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures/tiny.png'))
     const graphRunner: GraphRunner = {
-      async run(request, _signal, observer, onToolEvent) {
+      async run(request, _signal, _observer, onToolEvent) {
         const asset = await harness.assets.saveGenerated(request.sessionId!, png)
         const record = await harness.repositories.events.append({
           taskId: request.taskId,

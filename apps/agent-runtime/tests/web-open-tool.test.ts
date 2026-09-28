@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWebOpenTool, registerWebOpenTool } from '../src/web-open/tool'
-import { RuntimeToolRegistry } from '../src/tool-registry'
+import { createWebOpenTool } from '@actiondriver/web-plugin/reader'
 import { extractPageText } from '../src/web-open/extract'
 
 function call(url: string) {
@@ -19,20 +18,6 @@ async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
 }
 
 describe('tools_local_web_open tool', () => {
-  it('registers a separate network tool and grants it by default', () => {
-    const runtime = { registry: new RuntimeToolRegistry(), grants: [] as string[] }
-    registerWebOpenTool(runtime)
-    expect(runtime.registry.list()).toMatchObject([
-      {
-        id: 'tools.local.web.open',
-        version: 1,
-        modelName: 'tools_local_web_open',
-        sideEffects: { filesystem: 'none', network: true }
-      }
-    ])
-    expect(runtime.grants).toEqual(['tools.local.web.open@1'])
-  })
-
   it('returns only bounded extracted text and final source URL', async () => {
     const read = vi.fn(async () => ({
       html: '<html><head><title>最终页面</title></head><body><main>正文内容</main></body></html>',
@@ -63,7 +48,10 @@ describe('tools_local_web_open tool', () => {
 
   it('never calls the network reader for a private URL', async () => {
     const read = vi.fn()
-    const tool = createWebOpenTool({ read })
+    const tool = createWebOpenTool({
+      read,
+      extract: async () => ({ title: '', url: '', text: '', truncated: false })
+    })
     await expect(collect(tool.executor.execute(call('http://127.0.0.1/')))).rejects.toThrow(
       'WEB_OPEN_URL_DENIED'
     )

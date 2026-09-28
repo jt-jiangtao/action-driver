@@ -65,18 +65,15 @@ export class AgentFileStore {
   private readonly pluginSkills: { owns(id: string): boolean; list(): AgentSkillSummaryDto[]; read(id: string, path: string): Promise<AgentTextFileDto>; tree(id: string): Promise<AgentFileNodeDto[]> } | undefined
   private defaultPrompt = ''
   private managedRootRealPath: string | null = null
-  private readonly isExecutorRegistered: (executorId: string) => boolean
 
   constructor({
     homeDirectory,
     pluginSkills,
-    isExecutorRegistered = () => false,
     systemSkillsSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/system-skills'),
     promptSourceRoot = join(process.cwd(), 'apps/agent-runtime/resources/prompts')
   }: {
     homeDirectory: string
     pluginSkills?: { owns(id: string): boolean; list(): AgentSkillSummaryDto[]; read(id: string, path: string): Promise<AgentTextFileDto>; tree(id: string): Promise<AgentFileNodeDto[]> }
-    isExecutorRegistered?: (executorId: string) => boolean
     systemSkillsSourceRoot?: string
     promptSourceRoot?: string
   }) {
@@ -86,7 +83,6 @@ export class AgentFileStore {
     this.systemRoot = join(this.skillsRoot, '.system')
     this.systemSkillsSourceRoot = systemSkillsSourceRoot
     this.promptSourceRoot = promptSourceRoot
-    this.isExecutorRegistered = isExecutorRegistered
   }
 
   async initialize(): Promise<void> {
