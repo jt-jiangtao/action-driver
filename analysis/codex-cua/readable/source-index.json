@@ -1,0 +1,2520 @@
+{
+  "prettier": "3.7.4",
+  "files": [
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/index.d.ts",
+      "sha256": "74b2593aa98025e60e32eae0997f2c670d7ce06db82dc014ee555cb4b498105b",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/index.d.ts"
+    },
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/index.js",
+      "sha256": "bbc0c68a1520d72d1431233bf1c4fd9e3520776cde48542b20332f8ba9da3760",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/index.js"
+    },
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/instructions.d.ts",
+      "sha256": "2daac63529f4c7873a72bba28019b4541a9160f69a6d6b25d754e8ae7f3f784d",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/instructions.d.ts"
+    },
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/instructions.js",
+      "sha256": "e3387bc2f43dd5dbbbb8b216393a930ef6f8e749e8b73c3c9d8016669a996740",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/instructions.js"
+    },
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.d.ts",
+      "sha256": "511b72b94b6ae8e0c18a01bda63476583fa8d3e4ce253178b13bbce93210778c",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.d.ts"
+    },
+    {
+      "source": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.js",
+      "sha256": "39e0fd44affaa7b8faeb7788410e1ecda5091d7f7d61a9641633f02b62182f69",
+      "output": "@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.js"
+    },
+    {
+      "source": "@oai/cua-repl/instructions/banner.js",
+      "sha256": "db4a56c4a1cb6f9ec2ca663694fbe8941846aaa83d0bf12d3a5699f92126105a",
+      "output": "@oai/cua-repl/instructions/banner.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/BatchedEventsQueue.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/BatchedEventsQueue.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/CacheKey.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/CacheKey.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/ClientInterfaces.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/ClientInterfaces.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/DataAdapterCore.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/DataAdapterCore.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/Diagnostics.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/Diagnostics.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/DnsTxtQuery.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/DnsTxtQuery.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/DownloadConfigSpecsResponse.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/DownloadConfigSpecsResponse.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/ErrorBoundary.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/ErrorBoundary.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EvaluationOptions.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EvaluationOptions.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EvaluationResponseDeltas.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EvaluationResponseDeltas.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EvaluationStore.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EvaluationStore.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EvaluationTypes.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EvaluationTypes.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EventBatch.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EventBatch.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EventLogger.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EventLogger.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EventRetryConstants.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EventRetryConstants.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/EventSender.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/EventSender.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/FlushCoordinator.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/FlushCoordinator.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/FlushInterval.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/FlushInterval.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/FlushTypes.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/FlushTypes.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/Hashing.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/Hashing.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/InitializeResponse.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/InitializeResponse.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/Log.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/Log.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/MemoKey.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/MemoKey.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/Network.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/Network.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/NetworkConfig.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/NetworkConfig.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/NetworkCore.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/NetworkCore.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/NetworkFallbackResolver.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/NetworkFallbackResolver.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/OverrideAdapter.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/OverrideAdapter.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/ParamStoreGetterFactory.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/ParamStoreGetterFactory.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/ParamStoreTypes.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/ParamStoreTypes.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/PendingEvents.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/PendingEvents.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/SDKFlags.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/SDKFlags.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/SDKType.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/SDKType.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/SafeJs.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/SafeJs.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/SessionID.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/SessionID.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/SizeOf.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/SizeOf.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StableID.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StableID.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigClient.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigClient.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigClientBase.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigClientBase.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigClientEventEmitter.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigClientEventEmitter.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigDataAdapter.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigDataAdapter.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigEvaluationsDataAdapter.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigEvaluationsDataAdapter.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigEvent.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigEvent.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigMetadata.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigMetadata.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigOptionsCommon.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigOptionsCommon.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigPlugin.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigPlugin.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigTypeFactories.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigTypeFactories.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigTypes.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigTypes.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigUpdateDetails.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigUpdateDetails.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StatsigUser.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StatsigUser.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/StorageProvider.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/StorageProvider.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/TypedJsonParse.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/TypedJsonParse.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/TypingUtils.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/TypingUtils.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/UUID.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/UUID.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/UrlConfiguration.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/UrlConfiguration.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/V1InitializeContainer.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/V1InitializeContainer.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/V2InitializeContainer.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/V2InitializeContainer.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/VisibilityObserving.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/VisibilityObserving.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/__StatsigGlobal.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/__StatsigGlobal.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/_commonjsHelpers.js",
+      "sha256": "1cde29f09d86243102e18119ca0050402741593191cb95a738ded74e2c99ea65",
+      "output": "@oai/cua/dist/_virtual/_commonjsHelpers.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/index.js",
+      "sha256": "fb8b7d1f18f80ff4051a502f0f3408e71697193d739eef4a7469ce39af401dd1",
+      "output": "@oai/cua/dist/_virtual/index.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/index2.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/index2.js"
+    },
+    {
+      "source": "@oai/cua/dist/_virtual/index3.js",
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "output": "@oai/cua/dist/_virtual/index3.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
+      "sha256": "b1875cb071efd73995652a1edacc778c86c422cbc593565986a3bafb9c3a11ff",
+      "output": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs",
+      "sha256": "d9d0143a6f250151e5fcb87957d21d171178c2aada6019ab72fb7056ac1e1324",
+      "output": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs",
+      "sha256": "658332836ffa0d1730337eacf58c323c7175c7ff26fe062be3f728760e1f855e",
+      "output": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/UnreachableCaseError.d.ts",
+      "sha256": "276b8af5ab99167e0a217186a39ffa44473beecd9a937057bcad2eb3e21c53b4",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/UnreachableCaseError.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/UnreachableCaseError.js",
+      "sha256": "0b4ce635bb19896c7dde334d0bba2c5f45194d347ada950b4302c585d7514390",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/UnreachableCaseError.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/createDelayedAction.d.ts",
+      "sha256": "787416230e593571cd1049eb22417f1330b1e3ee546592533acc26fda9769d86",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/createDelayedAction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/createLazyEvaluator.d.ts",
+      "sha256": "6d33edf1a91ab796685ecea32c308d7624ea8edf7177980b49af997c902c89b2",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/createLazyEvaluator.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/enumerate.d.ts",
+      "sha256": "1882fde2f026ba5c40bf6369616d14a7efe40d32478a1f40f82e857452a50812",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/enumerate.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/index.d.ts",
+      "sha256": "fe42080f26e2211d8de73d966ed7acb066eadf1fbbf5a5fddd8cd15b726be4f6",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/invariant.d.ts",
+      "sha256": "bf5d6dd5a634f4b912c8111e549654c85158a7f1cf2e9de04e6b15a528d92977",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/invariant.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/mirror_map.d.ts",
+      "sha256": "19e83345abcf55f67f1e20292feaa3132ee9819697b79bb9c22fefe25492c16e",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/mirror_map.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/mirror_map.js",
+      "sha256": "9c9dd571ddb233c08c10459a5dd3c98d4b8dc41030bac20f37da06b3fec00725",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/mirror_map.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_core/src/sleep.d.ts",
+      "sha256": "adefa308b0adcf20fa0a84e2c0fb2ba94d549b1c7e6e689fa89af3bf705ddbfe",
+      "output": "@oai/cua/dist/lib/js/oai_js_core/src/sleep.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/cua.d.ts",
+      "sha256": "119d2c0c5a3f7efeb31f331722cfe9094aa36a3c77a7bebfba9a631db1bdb070",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/cua.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/cua.js",
+      "sha256": "4723fddd6ab6ebea521b5bd9b1e1635ef57845fd26cd84140a5b16a26c1e7529",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/cua.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_apps.d.ts",
+      "sha256": "eaa920f72c581e384ae90ba49e183e43014cf76d4ed5fca2ed6d3917ce238bfe",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_apps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_apps.js",
+      "sha256": "ac7c30ec20ad018fdd962ec88b9ba53d71565a622654e32a5701d6ce032199d9",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_apps.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_browser_tabs.d.ts",
+      "sha256": "843367742d1809f4e9c1b530c782a012a972c8501e81fd7de8f83883a8e2209f",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_browser_tabs.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_browser_tabs.js",
+      "sha256": "cb299a0313fbe8e049b4f25b70237d3d154b170fb297bf6ac57fdb20dc3ce657",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_browser_tabs.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_state.d.ts",
+      "sha256": "bd92879c795bb24b4325941e4f41097edcbf52ef11d7d6e49cd935efcc962887",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_state.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/get_state.js",
+      "sha256": "313dba2ed35486b1cd3f5e74a5ef213805f30916b9c1070509bd35affaa050b7",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/get_state.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/index.d.ts",
+      "sha256": "e77ace69fe0dadde9694f0bc4ca8ba793f5c7a354d719e4c198bc6d41de1a9f8",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/index.js",
+      "sha256": "2a24424f33d4d049f4d96d73616ae5ca86fd9c4347887977b0804851d52b1957",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/index.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.d.ts",
+      "sha256": "44246ba01f19bf122e6c8d383b4b2ff1348cb1056264eac747656e13a2203c41",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js",
+      "sha256": "75b1fdf61d51ff9778a33cb02a75ab9e26cabc13fbdd53ed52131dd5f16cb8a7",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.d.ts",
+      "sha256": "5375bec0f8b2364b5a2d38ab8cbb4f8168d56d0d7cff9118a6d768b9fb6b26b0",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.js",
+      "sha256": "7ed3f6ab40a42af789773db6400974997d3fdabc33e1bac1d2df794d56542081",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.d.ts",
+      "sha256": "8c0b309eb137be87759827e1fd5bd339bfcde029eb6ff5f1aa91aea43a2b32db",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js",
+      "sha256": "3e2a88b85007a0124cb1852bac7d217d9ff67d534824f5d4fec96a26a02e408f",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.d.ts",
+      "sha256": "860399d46de990f421560e98307780ca807d28b5c42462e5036a8108deb7fc9c",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.js",
+      "sha256": "95636e32d4be3fc82c4f973ce7d833d8595c8265e25ca4034ab58f97205f6b9e",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/tab_reference.js"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/types.d.ts",
+      "sha256": "d8230c9927d201283abef9098eca8ee1a06bf8c3b5c4e8cb756fd06d4f8960f7",
+      "output": "@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/types.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/AnyFunction.d.ts",
+      "sha256": "45d7b3215a84fda846aa5cc298f7792499a061cca8e18aaacc7484f2cea0d1a3",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/AnyFunction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/Array.d.ts",
+      "sha256": "373a81f7a7f9016c754fc86f6559bb3fac94dca63ad7393ec424b82533c8d026",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/Array.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/Merge.d.ts",
+      "sha256": "423ca13f3935cc3953a664219f6264c429eed1e917d74d3e6e1086c31cd1aa98",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/Merge.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/Param/Param.d.ts",
+      "sha256": "d618fa88c96a9b8b41e13772c6bfd07496d1d84482ee415cedef032914fef811",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/Param/Param.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/Param/index.d.ts",
+      "sha256": "6a27b3e2029e9ae8a7d87ba4c8b30c63623018a02de0353da33f49c63f884257",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/Param/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/Pretty.d.ts",
+      "sha256": "494a7cd529b4d3e37682ecdb17b90d0790fc0e025c6fb3f48f6ab08bdcac542b",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/Pretty.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/lib/js/oai_js_types/src/index.d.ts",
+      "sha256": "321c6e26418b9b30e138f4b45ea8fcc09615d4de2f05ff1aaa0f4a092439b6be",
+      "output": "@oai/cua/dist/lib/js/oai_js_types/src/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/cli.d.ts",
+      "sha256": "75f0df743957c633ca9e9f6186522bc425edecb66dc96c3635c0649150dce7b9",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/cli.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/cli.js",
+      "sha256": "2c93f5b2abde4dbfb0e2ceb9fa724c883d30f61eb937cb9b51ba65f708e9c094",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/cli.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/package_bin.d.ts",
+      "sha256": "e322035db59df8d1d7c5c08d975efba0dfa65bb0b25ed5bfa58e5862676509b3",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/package_bin.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/package_bin.js",
+      "sha256": "fdfb9aebfb8ffb496c8ddc673ed1b2e6eed536888ad52147d7d91b5486e24b34",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/package_bin.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/uint8.d.ts",
+      "sha256": "ea3b51c726d2c532e1a82630b47fd02cff9a0a6d15b6b0f2b5aec0b757f9d49b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/uint8.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/core/uint8.js",
+      "sha256": "866164e4a4f919cf6af4921a0670372358f0d92d8f0bcd3e0534297c70b34b6a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/core/uint8.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/create_client.d.ts",
+      "sha256": "a2d5462b30047576f4542b62816c7746a7434f03c9f7c6817867059a44f6d399",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/create_client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/create_client.js",
+      "sha256": "5dc4a74434f382e318b596764054bf647fd13d3c9dea9ce5e8464a5c13fa2d81",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/create_client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/index.d.ts",
+      "sha256": "f918fe1ee3f7fff0cb88fa0243ae7b58b1f7bf2f5ea9edb6bea69fd58c83e93f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/index.js",
+      "sha256": "895d7be648bef5b11b3e562fb1838161a162892b74792469488637665252bdfc",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/index.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/load_options.d.ts",
+      "sha256": "55ae5d7912d284cbeb095d3ac5e449f320cfbf21706d5097a281c503a9fd8655",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/load_options.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/load_options.js",
+      "sha256": "0ddd5df4674ae2696550cd2ac41583caef9dad9b58bd363559fda716c2ed8341",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/load_options.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/service.d.ts",
+      "sha256": "b3c2b8ed4ea69bba29ef563c7409530d7adf5c6428938836ad91f9c27bb9f084",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/service.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/sky.d.ts",
+      "sha256": "055fb57ead0562e49935152dade680c035d988a7a554266c5f46da2f4ac295e5",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/sky.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/sky.js",
+      "sha256": "0123da875a2eef5648fac407fcfedad5147ef9a1616b623ad615f4c337aee285",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/sky.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.d.ts",
+      "sha256": "1e4c497864fc9109c01e8f7dcd19c76af3558f425b976f8c81794594f21b27a2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.js",
+      "sha256": "fdd977fbaafdc973d126350e469a402ed6e86d6121a5d5a94ceba7bf28c2ae4e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/action_settler.d.ts",
+      "sha256": "f6e23a433f85a494de5ffc39d4ec5f35fa374767cdfbad651bf38a55906d19d7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/action_settler.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/action_settler.js",
+      "sha256": "1341a4cc821347b9323800e597c0c754e2e6aa4e8d7c036b47163b6d43a57591",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/action_settler.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/activate_window.d.ts",
+      "sha256": "71c30134a8e91fef538e3b883d10428d29128719d45328d468e2b802513c99b5",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/activate_window.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/activate_window.js",
+      "sha256": "8fc14053190f5bbb4b7d628d591330392c4833984c75fc4776c88f192b39e803",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/activate_window.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/audio_recording.d.ts",
+      "sha256": "27a1cfc6d12a2da1ce58f2476ce82b407c5675e5e2ba11cc96a08d113c36f69a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/audio_recording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/audio_recording.js",
+      "sha256": "2765d8b304ec21d1c76c8a43a56e169ab888160420f6a5fe14c577ca946cf544",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/audio_recording.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/click.d.ts",
+      "sha256": "da98de7647ae2746d54cf07343da38c4b45de78e76594261c4449f50f2f60b94",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/click.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/click.js",
+      "sha256": "d4e4d2b4bf6048173f6752b0a1caf1c01a9abd2a93fa1aef61c1c273d2cc6ccf",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/click.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/create_client.d.ts",
+      "sha256": "a3a7fc2002173852ff5c789b8d8c2c2e639566745a12e17336bd927a62e74c5a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/create_client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/create_client.js",
+      "sha256": "5ab891e6e2500e3033d50ceaf3f70a105e3eda096e4207faa797d038219e175e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/create_client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag.d.ts",
+      "sha256": "ea0aaf2cc665c3732ae1d338ba49288d2f6a3a4cf06b526022ef032661c0d9c8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag.js",
+      "sha256": "3133bb9c6a287271da0c23d3fc2126e14ad8b793df4ed413bd779d7864f01944",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag_handle.d.ts",
+      "sha256": "308b7d9cf81ee2906d41b84a7616e6744f4ca4c81f77ebd689a662e01e24eb91",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag_handle.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag_handle.js",
+      "sha256": "7c3034cb0a963d45420ef7a853a48d8bbe3ed0096732f18023e684757a5bb1e5",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/drag_handle.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/element_ids.d.ts",
+      "sha256": "3a3c36f21e8009edc5a5eb70ce6aa366a76eb033377fbd686b47d2220d049911",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/element_ids.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/element_ids.js",
+      "sha256": "cb69a5924a3655a56722d071d4224f79aec5aa37360fc87da031293c5fd51f35",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/element_ids.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_screenshot.d.ts",
+      "sha256": "44d0301bb2c8aab375fa095c379d278c4c45119303d40e499e519aa799ec4591",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_screenshot.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_screenshot.js",
+      "sha256": "3ad2d0174951908697a11962f0dbf95e01214d5bd922a44fdf93082a967a1c1c",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_screenshot.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_window_state.d.ts",
+      "sha256": "fe2a3e4466f82766d0c76c5be91263ee7636d05e0d8e4c1ac4747c7df56380b7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_window_state.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_window_state.js",
+      "sha256": "c851ab56d0f91a59a22a340ef619e7125388250911c86e7acfac06e864a4dd8b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/get_window_state.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/launch_app.d.ts",
+      "sha256": "e252fe06b5c9450bb9e76fd2c4a3b0eeffa7160bf3cc8776704e97df50d0ca3b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/launch_app.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/launch_app.js",
+      "sha256": "166b2309b8a2d5f3f5ef7691bd285d200a0ebce3831c7b491a8ba2090fb0ffc9",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/launch_app.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_apps.d.ts",
+      "sha256": "6402401a480afda793e44eee3c1e8e575126f084c938af2be82edd8978c35c2c",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_apps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_apps.js",
+      "sha256": "d4f7125e517b3355424b6ea8aca72191168f4c0094edd235dcd2fb9e500e34d0",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_apps.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_windows.d.ts",
+      "sha256": "381190602645c76b376bb314066998dcf6faa131cbf7b700764ff78092e36531",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_windows.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_windows.js",
+      "sha256": "3d286c26f81d704fb09fe280e9b00bb2947c5a9d1c3bfe01b86fdc738d52bd71",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/list_windows.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move.d.ts",
+      "sha256": "70bd3b894226cc4bb72ff4718724348042f2f497283f21a073e6ac01ee1c618b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move.js",
+      "sha256": "d30f63a3cbd8daba08b7767b5d3be88cbbc3ba10e679ede293b83fc7d717e018",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move_relative.d.ts",
+      "sha256": "11332b072ff66961b9928d13a1b1699cc1b0ca30938af8d00af26487e65c5485",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move_relative.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move_relative.js",
+      "sha256": "dad1a2e8033492cec7ed1e3f3aa6b16e3755b5875048fd31ccb4970c93440af8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/move_relative.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.d.ts",
+      "sha256": "d0a38cb31665821c549f156f9a5865a92467b6542876e7429d2806615ab6fd0b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.js",
+      "sha256": "ca6e63c0d6c38a03bac6d3349373f2c27bceb8b78a3ebeaef7f655d15d3260a5",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/press_key.d.ts",
+      "sha256": "8a29aea49df2c5cbd547177407ae2bacc667853c31b5c9f56618ce84fb72a867",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/press_key.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/press_key.js",
+      "sha256": "08300a0ae53210dd7716adaaf3c2ae6a2ad685e6295506c6c05a51ebfc6cb752",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/press_key.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/scroll.d.ts",
+      "sha256": "3c4783ca546b6fdfe8cbf3413be58c9fd9e48da3a286703c364b625191fafb69",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/scroll.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/scroll.js",
+      "sha256": "0a33b51a927f68eef125a4c92252acacc2fce7a15bf00d4faaafef613e6e38b8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/scroll.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux.d.ts",
+      "sha256": "0a56925cb0f753b93e8d79fc6332b4fb03813a7e8624db1343b782c0b171146d",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux.js",
+      "sha256": "598bc7a0135a39a327399ae06d28ff15f2ed2bb994b66a78c0eff2c615c9b286",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.d.ts",
+      "sha256": "2747ba013cfde418f54d03f2f5ddb519415517730787429449d98c3910efa8ad",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.js",
+      "sha256": "f07ddef404d83ab94203ad66dce8319356f3d8c9855d9a7e6083e2678e31fb37",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/type_text.d.ts",
+      "sha256": "85bb3aa50709a6ad6b13b5c53854b902459e8711dac92a6cfe8f68b82180ed0f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/type_text.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/type_text.js",
+      "sha256": "6738ceef7366fd36fee26b5e5bed66b30c54836035a12702201758b880225100",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/linux/type_text.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/audio_recording.d.ts",
+      "sha256": "4743816275a4cb95e322794c02ef8633392418df2f4444c57847eecd7d135f39",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/audio_recording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/audio_recording.js",
+      "sha256": "439d5adfb320845fab760caa449019fc9c48115b07593fb6f160be7d0ed328be",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/audio_recording.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/click.d.ts",
+      "sha256": "503618b0c9f19f9e94162fcd2f3cffc1a285fc5ea3a4a4ca6c915c0e63b7d9e7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/click.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/click.js",
+      "sha256": "020901282209d67583ba6316f0a09bc00a694fd394d705105821d047b22da0a4",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/click.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/client.d.ts",
+      "sha256": "c65e579728e9d68c4f8aa980e3af62bba71a1e0d54fec61b321a91b497b5513b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "sha256": "b5addc3c85ff0124095042832bca0fe1a271d119925459df7bd284dcab1931ab",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.d.ts",
+      "sha256": "3fecdea3868778b7c50fc8f67c3aab9b01b71a9daddaf61ac12fad3a2fef29c8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js",
+      "sha256": "8cd1272d7aa836479be6c3f4cc5b0b80526339eedd4852cbb6558f893f6721f8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.d.ts",
+      "sha256": "c690cc9e4435ed9e2c4829b5b0e62e4907f0e77553654765235c1cabc38b3242",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js",
+      "sha256": "49535e7fb3977d9a24ba32b84d37e63112b860c364a8b27f127280f195bac805",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/create_client.d.ts",
+      "sha256": "12b4535983455e30a62a45ba6a77131c108094b5b57906cef9b3e2de6df60589",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/create_client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/create_client.js",
+      "sha256": "901b7f850b7b4ceaecefe7727a7a4aecd3c22a05fb807ffed5cfcca000906217",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/create_client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/drag.d.ts",
+      "sha256": "72b12c06aa0a3964197c37949461bd168ae401f93289bf833ca3a90d6847aa40",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/drag.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/drag.js",
+      "sha256": "01df9da83423d1b600b162b71d382d0991fcb62779a969facfbb0b649ffe135e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/drag.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/errors.d.ts",
+      "sha256": "276b1c1cdb9a92c6308065f3e4ae86e37cb5c6d5269f3e66b76f430e47cec491",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/errors.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/errors.js",
+      "sha256": "9dd27e4cf0ea4456b3ad472fab8cbbe093ad1184d0cb25a8c05e738ee00cfd43",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/errors.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/get_app_state.d.ts",
+      "sha256": "861f35ea2b0054efcb73f3ada3a6654c61ce2e233093a3835c9916f660644be0",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/get_app_state.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/get_app_state.js",
+      "sha256": "7b7fe2af461c7cd348c07535b1deae9ea14837dbdac9985ba479eb2e53e5248d",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/get_app_state.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/lazy-client.d.ts",
+      "sha256": "a38220e12ac273def96d380f53f526425adec618d3846a0071f1201b14461253",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/lazy-client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/lazy-client.js",
+      "sha256": "e222ec4e31b96c06c79819ea23a4d69a7f564c9a11f640c9d4b48c11bc75365b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/lazy-client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/list_apps.d.ts",
+      "sha256": "9c4b5ad1dbb793cb6affd1245177e730ed84b5143601b44fe672ace83e72395d",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/list_apps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/list_apps.js",
+      "sha256": "77ec31ff376b5065b08ca1116484b3e69878c2a4a7ad6dac7f29170b965d91df",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/list_apps.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/native-pipe.d.ts",
+      "sha256": "b16066cca3302389ab00a50d33587b9aabbc4a4523136357fe3f4701fedfd44c",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/native-pipe.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+      "sha256": "2f1bcc0b4cd013ef3d267f6d93bd2aa29770712687c8db087d55ec9d173380e8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/native-pipe.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/paste.d.ts",
+      "sha256": "2a292a32f8aa9fa0a2565a21df186bf8b5d59ec9cb338ac1dab3ef1f643ecc9f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/paste.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/paste.js",
+      "sha256": "7f829aab4e27038f5eba94262cc0a4dd0e874ece1d8a55dcbf8ecfb5101c9c40",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/paste.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.d.ts",
+      "sha256": "eb217bed1938135dbfd5a74323b3c6750df6c1ed057066fefa586962b4f627e8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.js",
+      "sha256": "63e4509b86697a3db15c9f38d87715c27d7ba7ba027909ca7618c9341e3ec2ff",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/press_key.d.ts",
+      "sha256": "32aaf2ec6450cc16aa158e56f2ad7618b7c0cdd0d20b9bf2d314d55f3281b278",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/press_key.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/press_key.js",
+      "sha256": "9f409857fe5b6a8858e47d5da0b0865d45ee15d8b760d2d3f8cca7f4e2105990",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/press_key.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/scroll.d.ts",
+      "sha256": "483bdc5e2080d3fdf2b7df43ef077bf943847f6389cf7fea7bcc2dc900412720",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/scroll.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/scroll.js",
+      "sha256": "f026bbeaca656bddb8212c535690d6acbb1a969b392657368ef964a0f015fe95",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/scroll.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/select_text.d.ts",
+      "sha256": "8293532b5040e9bc501524e092dd4557ee1b22748db5cd8a9f9ec14ac32ca523",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/select_text.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/select_text.js",
+      "sha256": "44fa3fcd8e1366ebfa5237bc20d570b1e08d38bb99f27a48bf3ee6eaac225ac5",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/select_text.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/set_value.d.ts",
+      "sha256": "6c9cd027a3c3e6179df9572038527e13d5a33b1ca701e31b1a78a778144550e3",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/set_value.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/set_value.js",
+      "sha256": "e4ac86f5b4d5ba8bd17ed7281148cd4f1ae1d4a493997fbfc10a3a8f328ed06a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/set_value.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/type_text.d.ts",
+      "sha256": "ff4a4d3ccb6ceabe4578396e295128de029bde19aa1864ce841e7fd73adf3820",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/type_text.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/type_text.js",
+      "sha256": "29289fd08c109ff7f913ef92aea8f4df7d87f8ce59fb05172ee8c99d20b7e568",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/type_text.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/window_result.d.ts",
+      "sha256": "41920c377dc26959b2949536277cda7b8829541e28fb26e8c14c043bf9a36ec2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/window_result.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/window_result.js",
+      "sha256": "9169daf53e7516eecd2ba8680e990bc6570d16d955f0ffed183572202c5d5448",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/mac/window_result.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/create_client.d.ts",
+      "sha256": "aed4edd65c6e0cd92b949298d21b59ad978c07c48238c10dc7fb37d57e230069",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/create_client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/create_client.js",
+      "sha256": "43935a185c83827ea87e23295c7a44327f43e933da97da7cd1b8b7eb23aa6fab",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/create_client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.d.ts",
+      "sha256": "98274ab227d6b53ee8add571b221c2660c077fc99970db7ca64444ebb83d9fe8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.js",
+      "sha256": "284ca7197ed514ca272c728d6ab0eda116f4fc44b3485435c004adcf2d95f3fb",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.d.ts",
+      "sha256": "e057add5e0b0d1043a40b4655570a1b4467d0e765a8c44d913e5deb8c4dd4774",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.js",
+      "sha256": "f72d64c30dfad7f8894cf31bc92a982df46c7ef4ece82cf03a41aab514e80365",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.d.ts",
+      "sha256": "6afb8fbcd3f554e715f1b2d7d80b7237dcc6dfe48725deda730903da35e302eb",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js",
+      "sha256": "617d8e6e18fdde25f06d4cba2c84c994e076e05f30a8c55d09e918401c48b171",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.d.ts",
+      "sha256": "f3e75b0fbf6f16f0d8a422394c70b0b207032e8130f8fd847d475a8b930b474e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.js",
+      "sha256": "993249ea69056fa0e725c295d7e9fca0a3e608ffd3e3f8d1e7bc20bc1fef5ddf",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.js"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/Direction.d.ts",
+      "sha256": "c1422b0e694b052fddb2ac0cb6ffeae7109c108012b22aa129e6c361afd9db4f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/Direction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/MouseButton.d.ts",
+      "sha256": "dbb548c19b958c48b07114ae6e6c691aab83c648a9849ab60c990eb050880dad",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/MouseButton.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/Point.d.ts",
+      "sha256": "452ee6fb49dda75266fe4679c31dc4f323b80125666fd6f5c1ec3668aa4a6908",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/Point.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/SkyClient.d.ts",
+      "sha256": "dbe3d8669f2abb294e9c6ab19cb346b66722cd44279f8d002a32edcbb607baf2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/SkyClient.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ActivateWindow.d.ts",
+      "sha256": "8b2b2ee8503a0d4f339746b02599559c09ae529efab8fe7433885aaf654d2223",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ActivateWindow.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Audio.d.ts",
+      "sha256": "d3a5c44212d1be1e643b2a3989272f91c1f111ed83bbef7c5d5abb2967671ff8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Audio.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Click.d.ts",
+      "sha256": "ef39e9a2dfea266765274e46c570ca3cce46446687a75aeab0b92d4fb9ee631b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Click.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Drag.d.ts",
+      "sha256": "20b5cfe44c3799706ace5cda8ba3aab34f3b4381d2825f6977edd562603c6af4",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Drag.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/DragHandle.d.ts",
+      "sha256": "f8ce88c408d59f956be85cf85e3c4e48dd284a1438588b9038284da92de4b0f3",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/DragHandle.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/FullDesktopComputerUseClient.d.ts",
+      "sha256": "05020cb7dd38159d0aecbd457845f473afefe904ec2e47ca8fda97cdc94a16de",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/FullDesktopComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/GetScreenshot.d.ts",
+      "sha256": "08ea22ad5e5eabcc275f9ffc46343fd24d38f426f578cc185a234c941f14745a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/GetScreenshot.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/GetWindowState.d.ts",
+      "sha256": "7862d7e421213527c9520b5c51ad6235f5bdb1577c3845a950c3e8eca89a6ed9",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/GetWindowState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/LaunchApp.d.ts",
+      "sha256": "44b065de5a1951757408185b2ab61e02fcba1b140af907084db73f89464b97f4",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/LaunchApp.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ListApps.d.ts",
+      "sha256": "bab3b8f15b532d01e25fe8cddf302cf04d09584cfa31988885c1e1e826ff86da",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ListWindows.d.ts",
+      "sha256": "1330bdb44cfd834ab17975eafd085a9ecb3936e8c03cec1fdc0f0bc1c5f79737",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/ListWindows.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Move.d.ts",
+      "sha256": "7cd646a6f0a74b078b9d9cda064d26ea43884b5cf3651bea7b4b8b863d02bc6e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Move.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/MoveRelative.d.ts",
+      "sha256": "c222bef6bdd845cf0aef13e4cdf684c99c999f1e20d42797ad58dcf25f6336ce",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/MoveRelative.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Options.d.ts",
+      "sha256": "2f988c2f4d8b0c3a32a9cc197cbd3ffbe83749de5fb288ede6a31b782aa29abe",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Options.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/PerformSecondaryAction.d.ts",
+      "sha256": "f84b1ba8e020f48787feb3f52e86b9d36052286b27061f4b50f85a423a7333a0",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/PressKey.d.ts",
+      "sha256": "c96547c2ac078280ce21030e6b1369174eb146f1c15b87f953f3f8bf7903e773",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Screenshot.d.ts",
+      "sha256": "39229aa7a8543e7437871b8f6dc79ccfdcce3f4368139a10f60e1955e0876647",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Scroll.d.ts",
+      "sha256": "bc062204d078718ded990d123fadc7aad9be76cc4bbf54515e3b34b6c67de9e6",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/StartAudioRecording.d.ts",
+      "sha256": "c771576fd04f6d4d0a0cc15f816663d73cc26a2297f79365687ea56510c427ee",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/TypeText.d.ts",
+      "sha256": "dcf32711d7e5ac671f699d32940c669becdec3b2886a947500d7a1dfc31e7cca",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Window.d.ts",
+      "sha256": "97972830741a96cad1bbe9452b5dec70fe343dc4dad4feb16a35ee0bf42f59c2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/Window.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/WindowState.d.ts",
+      "sha256": "1b667949910642015ff3fad0ad9b8b935e3fb53c607fded7f947f5af1aa25b7e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/WindowState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/index.d.ts",
+      "sha256": "9d61f56bab0479424591c367194cfaad7ea536e0e7c5a714de4ab47237855b5d",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/full-desktop/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/index.d.ts",
+      "sha256": "0983ad7650dc6d5472e65fa9c4fdc1b23db08c739c362d00ea6b32b6e597ec0f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/AppIdentifier.d.ts",
+      "sha256": "d686d5c341aac7e0c06dabc58230cef7677bd907f48b7583bc30495d9e61750f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/AppIdentifier.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/AppState.d.ts",
+      "sha256": "8923aeeb7f60715493de2c29e19067b1e24211f77f63c6c64a96543fa4dfb78f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/AppState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Audio.d.ts",
+      "sha256": "d2909971b4798effc9271aff29bbafe8cc475542ef0296ba9434802ac2c6c71b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Audio.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Click.d.ts",
+      "sha256": "89ca15e99d87a8587b42d2d94ef69ef098e96006876ec38fb41fcd6e0b4bfdc4",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Click.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Drag.d.ts",
+      "sha256": "10aeba9607f10a62924f7dced3c77aab5314fb85d178499bac6c0a5f805441b3",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Drag.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/GetAppState.d.ts",
+      "sha256": "996dd4e45f7b2e119dfa074cf5b4b5893248ae79323596da0dcfc3bc3c8c8b55",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/GetAppState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/ListApps.d.ts",
+      "sha256": "8298eb3a109963fdc0a07a6a30349025dd19c745a241b8ee502bc0779f5617a0",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Options.d.ts",
+      "sha256": "d239ee4c8c1e248e46b056a5452a7ba4761ab84c55773d4907f0cc77ddf7abb7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Options.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Paste.d.ts",
+      "sha256": "3d3ac35d0a85332d85ef07d0aebea837321ce5c3d17b5d60f33cba974f18ca4b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Paste.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/PerformSecondaryAction.d.ts",
+      "sha256": "9420653e6f1531094a893bde59cf229a5982976263655cbbee97fbe29e20ec44",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/PressKey.d.ts",
+      "sha256": "864006d8d42c5377b9aa06e215991408943bd14659b97c769a42182ef05573a8",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Screenshot.d.ts",
+      "sha256": "e30ea72625d59780f1f8b4aad00f52dfaea59703f94eb49ea04d784429cdb228",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/Scroll.d.ts",
+      "sha256": "800ac84854c3c64fee6678fb36d7a47ccaa823953cedc5543ef092cd78bf88a7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/SelectText.d.ts",
+      "sha256": "dfdc885f128699dc4b7721b161c40a8fdc62185cc3f305bc446d896e7e822619",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/SelectText.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/SetValue.d.ts",
+      "sha256": "1c55428ade82bf7a37db01aece1faaeae7acf8b22301fbd318abd585c52f93e1",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/SetValue.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/StartAudioRecording.d.ts",
+      "sha256": "223888166843db29924aaa18d1955682a7614681135145a61b9dfef067a29d15",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/TypeText.d.ts",
+      "sha256": "a6891c01a84202e00f7d2a156d6222281afe853fa5109f3053fa6e8623f15c0a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/WindowComputerUseClient.d.ts",
+      "sha256": "4978f3303c28acd2306e7012614b49f24522122b4c2f254fd4b71cb93373dcb0",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/WindowComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window/index.d.ts",
+      "sha256": "ae5d3c33ded6056204304ae6b2a98c93651519b8bc1645c7e5a8d28d56ec42d6",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window/index.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ActivateWindow.d.ts",
+      "sha256": "f0e9b316f2bfd4eac22d66c100af40533cd537d8996b0cfd27a23b3120436ddc",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ActivateWindow.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Audio.d.ts",
+      "sha256": "d2909971b4798effc9271aff29bbafe8cc475542ef0296ba9434802ac2c6c71b",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Audio.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Click.d.ts",
+      "sha256": "3820ce4debf5d5f731ea5259f731b5bd74d9999fd59b95b3a1e24922d0e9d57c",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Click.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Drag.d.ts",
+      "sha256": "994cc79a582b94f2fe060c1b621690017bfa62fe67366dfdd7cd2d80e06bf565",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Drag.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/GetWindow.d.ts",
+      "sha256": "cddb10da21916fb903f7efd60f6acd2aaef6a58f2abbbb075c4af083c6e7408f",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/GetWindow.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/GetWindowState.d.ts",
+      "sha256": "68bfc1e35dddaaeb2d89d259373aff50965340b32b7d922abef2741f863f3322",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/GetWindowState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/LaunchApp.d.ts",
+      "sha256": "16306b8f623eeeb41461b46733b587afd2340ff43e6080e57b2bbacf38dce847",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/LaunchApp.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ListApps.d.ts",
+      "sha256": "b3d5135bb2ba9df98fca022e46aefcaaa873a329e88e5503e102d9800b2ec0dd",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ListWindows.d.ts",
+      "sha256": "c2e3c794d75924e5b751d5b7c62ef676c9e721d87fec1f457d93267a3633c67c",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/ListWindows.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Options.d.ts",
+      "sha256": "f4d7927600da6f29840b3f59eab7c20ef903fdf155674457f714a8e652a156e9",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Options.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/PerformSecondaryAction.d.ts",
+      "sha256": "c9ed5eacae59d99a752bf4ce11c3d1ecc4c187f53ed48879d1378f540c01dd26",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/PressKey.d.ts",
+      "sha256": "67632d226030d8740267e4b12a8806e3997f43c290c68758c4487fd189cb270e",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Screenshot.d.ts",
+      "sha256": "2734de416038a1ba93229996eb7020c98dd0faacd6566dcdc62dc8c417331b50",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Scroll.d.ts",
+      "sha256": "f618d4c72097a0a3a69454ee240f8401f664d5fcfe72976bf5ddb6c12b0615d2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/SetValue.d.ts",
+      "sha256": "0cd338e16395b9416f4f58204fe9f8e29afae1591f2213daf1759b666f8e7bb2",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/SetValue.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/StartAudioRecording.d.ts",
+      "sha256": "223888166843db29924aaa18d1955682a7614681135145a61b9dfef067a29d15",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/TypeText.d.ts",
+      "sha256": "93e489baaac67ec8ab7272452071b7a8724fa301a3219786f2a3b8cd42962235",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Window.d.ts",
+      "sha256": "e870fdd3389a8050d90a2c4d637f90ce008b6fef6b877f73e5084f07c772377a",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Window.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Window2ComputerUseClient.d.ts",
+      "sha256": "e721a9cad11263d56e8dc296bc22afe35ea6cb7c058487000944babbde138ad7",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/Window2ComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/WindowState.d.ts",
+      "sha256": "19a04c5477425816c395ec039049912243207c8e0e0c8c657928ebd5b8e80daa",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/WindowState.d.ts"
+    },
+    {
+      "source": "@oai/cua/dist/project/cua/sky_js/src/types/window2/index.d.ts",
+      "sha256": "18b84d14f9d7d1cb41cca598df6bee0668eb1f8284a9881bffc611ec1e3c4366",
+      "output": "@oai/cua/dist/project/cua/sky_js/src/types/window2/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/UnreachableCaseError.d.ts",
+      "sha256": "276b8af5ab99167e0a217186a39ffa44473beecd9a937057bcad2eb3e21c53b4",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/UnreachableCaseError.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/UnreachableCaseError.js",
+      "sha256": "0b4ce635bb19896c7dde334d0bba2c5f45194d347ada950b4302c585d7514390",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/UnreachableCaseError.js"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/createDelayedAction.d.ts",
+      "sha256": "787416230e593571cd1049eb22417f1330b1e3ee546592533acc26fda9769d86",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/createDelayedAction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/createLazyEvaluator.d.ts",
+      "sha256": "6d33edf1a91ab796685ecea32c308d7624ea8edf7177980b49af997c902c89b2",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/createLazyEvaluator.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/enumerate.d.ts",
+      "sha256": "1882fde2f026ba5c40bf6369616d14a7efe40d32478a1f40f82e857452a50812",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/enumerate.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/index.d.ts",
+      "sha256": "fe42080f26e2211d8de73d966ed7acb066eadf1fbbf5a5fddd8cd15b726be4f6",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/invariant.d.ts",
+      "sha256": "bf5d6dd5a634f4b912c8111e549654c85158a7f1cf2e9de04e6b15a528d92977",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/invariant.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/mirror_map.d.ts",
+      "sha256": "19e83345abcf55f67f1e20292feaa3132ee9819697b79bb9c22fefe25492c16e",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/mirror_map.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/mirror_map.js",
+      "sha256": "9c9dd571ddb233c08c10459a5dd3c98d4b8dc41030bac20f37da06b3fec00725",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/mirror_map.js"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_core/src/sleep.d.ts",
+      "sha256": "adefa308b0adcf20fa0a84e2c0fb2ba94d549b1c7e6e689fa89af3bf705ddbfe",
+      "output": "@oai/sky/dist/lib/js/oai_js_core/src/sleep.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/AnyFunction.d.ts",
+      "sha256": "45d7b3215a84fda846aa5cc298f7792499a061cca8e18aaacc7484f2cea0d1a3",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/AnyFunction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/Array.d.ts",
+      "sha256": "373a81f7a7f9016c754fc86f6559bb3fac94dca63ad7393ec424b82533c8d026",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/Array.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/Merge.d.ts",
+      "sha256": "423ca13f3935cc3953a664219f6264c429eed1e917d74d3e6e1086c31cd1aa98",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/Merge.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/Param/Param.d.ts",
+      "sha256": "d618fa88c96a9b8b41e13772c6bfd07496d1d84482ee415cedef032914fef811",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/Param/Param.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/Param/index.d.ts",
+      "sha256": "6a27b3e2029e9ae8a7d87ba4c8b30c63623018a02de0353da33f49c63f884257",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/Param/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/Pretty.d.ts",
+      "sha256": "494a7cd529b4d3e37682ecdb17b90d0790fc0e025c6fb3f48f6ab08bdcac542b",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/Pretty.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/lib/js/oai_js_types/src/index.d.ts",
+      "sha256": "321c6e26418b9b30e138f4b45ea8fcc09615d4de2f05ff1aaa0f4a092439b6be",
+      "output": "@oai/sky/dist/lib/js/oai_js_types/src/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/scripts/generate-docs.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "output": "@oai/sky/dist/project/cua/sky_js/scripts/generate-docs.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/scripts/install-computer-use-package.d.ts",
+      "sha256": "5be9c54282fe59e4dbde1a086bdba8f3138837c666bc3937faaaf973bbcea056",
+      "output": "@oai/sky/dist/project/cua/sky_js/scripts/install-computer-use-package.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/scripts/test-build.d.ts",
+      "sha256": "f3b2989724efbf7b154b10283b87780d53ee348055b20c76f86634ee512a2f93",
+      "output": "@oai/sky/dist/project/cua/sky_js/scripts/test-build.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/scripts/windows-wgc-e2e.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "output": "@oai/sky/dist/project/cua/sky_js/scripts/windows-wgc-e2e.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/cli.d.ts",
+      "sha256": "75f0df743957c633ca9e9f6186522bc425edecb66dc96c3635c0649150dce7b9",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/cli.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/cli.js",
+      "sha256": "2c93f5b2abde4dbfb0e2ceb9fa724c883d30f61eb937cb9b51ba65f708e9c094",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/cli.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/env.d.ts",
+      "sha256": "9a8d0d5d94a0873e7ec06bea03e05920e37d5b73cfb0cd304ddd5917c73df4bf",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/env.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/package_bin.d.ts",
+      "sha256": "e322035db59df8d1d7c5c08d975efba0dfa65bb0b25ed5bfa58e5862676509b3",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/package_bin.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/package_bin.js",
+      "sha256": "fdfb9aebfb8ffb496c8ddc673ed1b2e6eed536888ad52147d7d91b5486e24b34",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/package_bin.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/uint8.d.ts",
+      "sha256": "ea3b51c726d2c532e1a82630b47fd02cff9a0a6d15b6b0f2b5aec0b757f9d49b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/uint8.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/uint8.js",
+      "sha256": "866164e4a4f919cf6af4921a0670372358f0d92d8f0bcd3e0534297c70b34b6a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/uint8.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/core/unimplemented.d.ts",
+      "sha256": "8dd2fc5a702e8e5c25722753945a817b8ab8b2dc1a1d0e42aa79f106064e0d37",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/core/unimplemented.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/create_client.d.ts",
+      "sha256": "a2d5462b30047576f4542b62816c7746a7434f03c9f7c6817867059a44f6d399",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/create_client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/create_client.js",
+      "sha256": "5dc4a74434f382e318b596764054bf647fd13d3c9dea9ce5e8464a5c13fa2d81",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/create_client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/index.d.ts",
+      "sha256": "f918fe1ee3f7fff0cb88fa0243ae7b58b1f7bf2f5ea9edb6bea69fd58c83e93f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/index.js",
+      "sha256": "895d7be648bef5b11b3e562fb1838161a162892b74792469488637665252bdfc",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/index.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/load_options.d.ts",
+      "sha256": "55ae5d7912d284cbeb095d3ac5e449f320cfbf21706d5097a281c503a9fd8655",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/load_options.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/load_options.js",
+      "sha256": "0ddd5df4674ae2696550cd2ac41583caef9dad9b58bd363559fda716c2ed8341",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/load_options.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/service.d.ts",
+      "sha256": "b3c2b8ed4ea69bba29ef563c7409530d7adf5c6428938836ad91f9c27bb9f084",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/service.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/service.js",
+      "sha256": "5b2fa2f0e19c8401a9be8c71be17008d88049ab107972c1e4a5cb615f4ef5993",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/service.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/sky.d.ts",
+      "sha256": "055fb57ead0562e49935152dade680c035d988a7a554266c5f46da2f4ac295e5",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/sky.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/sky.js",
+      "sha256": "0123da875a2eef5648fac407fcfedad5147ef9a1616b623ad615f4c337aee285",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/sky.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.d.ts",
+      "sha256": "1e4c497864fc9109c01e8f7dcd19c76af3558f425b976f8c81794594f21b27a2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.js",
+      "sha256": "fdd977fbaafdc973d126350e469a402ed6e86d6121a5d5a94ceba7bf28c2ae4e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/accessibility_tree.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/action_settler.d.ts",
+      "sha256": "f6e23a433f85a494de5ffc39d4ec5f35fa374767cdfbad651bf38a55906d19d7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/action_settler.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/action_settler.js",
+      "sha256": "1341a4cc821347b9323800e597c0c754e2e6aa4e8d7c036b47163b6d43a57591",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/action_settler.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/activate_window.d.ts",
+      "sha256": "71c30134a8e91fef538e3b883d10428d29128719d45328d468e2b802513c99b5",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/activate_window.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/activate_window.js",
+      "sha256": "8fc14053190f5bbb4b7d628d591330392c4833984c75fc4776c88f192b39e803",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/activate_window.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/audio_recording.d.ts",
+      "sha256": "27a1cfc6d12a2da1ce58f2476ce82b407c5675e5e2ba11cc96a08d113c36f69a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/audio_recording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/audio_recording.js",
+      "sha256": "2765d8b304ec21d1c76c8a43a56e169ab888160420f6a5fe14c577ca946cf544",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/audio_recording.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/click.d.ts",
+      "sha256": "da98de7647ae2746d54cf07343da38c4b45de78e76594261c4449f50f2f60b94",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/click.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/click.js",
+      "sha256": "d4e4d2b4bf6048173f6752b0a1caf1c01a9abd2a93fa1aef61c1c273d2cc6ccf",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/click.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/create_client.d.ts",
+      "sha256": "a3a7fc2002173852ff5c789b8d8c2c2e639566745a12e17336bd927a62e74c5a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/create_client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/create_client.js",
+      "sha256": "5ab891e6e2500e3033d50ceaf3f70a105e3eda096e4207faa797d038219e175e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/create_client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag.d.ts",
+      "sha256": "ea0aaf2cc665c3732ae1d338ba49288d2f6a3a4cf06b526022ef032661c0d9c8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag.js",
+      "sha256": "3133bb9c6a287271da0c23d3fc2126e14ad8b793df4ed413bd779d7864f01944",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag_handle.d.ts",
+      "sha256": "308b7d9cf81ee2906d41b84a7616e6744f4ca4c81f77ebd689a662e01e24eb91",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag_handle.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag_handle.js",
+      "sha256": "7c3034cb0a963d45420ef7a853a48d8bbe3ed0096732f18023e684757a5bb1e5",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/drag_handle.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/element_ids.d.ts",
+      "sha256": "3a3c36f21e8009edc5a5eb70ce6aa366a76eb033377fbd686b47d2220d049911",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/element_ids.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/element_ids.js",
+      "sha256": "cb69a5924a3655a56722d071d4224f79aec5aa37360fc87da031293c5fd51f35",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/element_ids.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/echo_sky_linux.d.ts",
+      "sha256": "f3b2989724efbf7b154b10283b87780d53ee348055b20c76f86634ee512a2f93",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/echo_sky_linux.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/failing_sky_linux.d.ts",
+      "sha256": "1af9f724d86a6268aa72c8a187248c1d06937501784da400b5a3199270bc3c41",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/failing_sky_linux.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/run_sky_linux.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/run_sky_linux.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/run_sky_service.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/fixtures/run_sky_service.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_screenshot.d.ts",
+      "sha256": "44d0301bb2c8aab375fa095c379d278c4c45119303d40e499e519aa799ec4591",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_screenshot.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_screenshot.js",
+      "sha256": "3ad2d0174951908697a11962f0dbf95e01214d5bd922a44fdf93082a967a1c1c",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_screenshot.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_window_state.d.ts",
+      "sha256": "fe2a3e4466f82766d0c76c5be91263ee7636d05e0d8e4c1ac4747c7df56380b7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_window_state.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_window_state.js",
+      "sha256": "c851ab56d0f91a59a22a340ef619e7125388250911c86e7acfac06e864a4dd8b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/get_window_state.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/launch_app.d.ts",
+      "sha256": "e252fe06b5c9450bb9e76fd2c4a3b0eeffa7160bf3cc8776704e97df50d0ca3b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/launch_app.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/launch_app.js",
+      "sha256": "166b2309b8a2d5f3f5ef7691bd285d200a0ebce3831c7b491a8ba2090fb0ffc9",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/launch_app.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_apps.d.ts",
+      "sha256": "6402401a480afda793e44eee3c1e8e575126f084c938af2be82edd8978c35c2c",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_apps.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_apps.js",
+      "sha256": "d4f7125e517b3355424b6ea8aca72191168f4c0094edd235dcd2fb9e500e34d0",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_apps.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_windows.d.ts",
+      "sha256": "381190602645c76b376bb314066998dcf6faa131cbf7b700764ff78092e36531",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_windows.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_windows.js",
+      "sha256": "3d286c26f81d704fb09fe280e9b00bb2947c5a9d1c3bfe01b86fdc738d52bd71",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/list_windows.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move.d.ts",
+      "sha256": "70bd3b894226cc4bb72ff4718724348042f2f497283f21a073e6ac01ee1c618b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move.js",
+      "sha256": "d30f63a3cbd8daba08b7767b5d3be88cbbc3ba10e679ede293b83fc7d717e018",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move_relative.d.ts",
+      "sha256": "11332b072ff66961b9928d13a1b1699cc1b0ca30938af8d00af26487e65c5485",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move_relative.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move_relative.js",
+      "sha256": "dad1a2e8033492cec7ed1e3f3aa6b16e3755b5875048fd31ccb4970c93440af8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/move_relative.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.d.ts",
+      "sha256": "d0a38cb31665821c549f156f9a5865a92467b6542876e7429d2806615ab6fd0b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.js",
+      "sha256": "ca6e63c0d6c38a03bac6d3349373f2c27bceb8b78a3ebeaef7f655d15d3260a5",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/perform_secondary_action.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/press_key.d.ts",
+      "sha256": "8a29aea49df2c5cbd547177407ae2bacc667853c31b5c9f56618ce84fb72a867",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/press_key.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/press_key.js",
+      "sha256": "08300a0ae53210dd7716adaaf3c2ae6a2ad685e6295506c6c05a51ebfc6cb752",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/press_key.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/scroll.d.ts",
+      "sha256": "3c4783ca546b6fdfe8cbf3413be58c9fd9e48da3a286703c364b625191fafb69",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/scroll.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/scroll.js",
+      "sha256": "0a33b51a927f68eef125a4c92252acacc2fce7a15bf00d4faaafef613e6e38b8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/scroll.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux.d.ts",
+      "sha256": "0a56925cb0f753b93e8d79fc6332b4fb03813a7e8624db1343b782c0b171146d",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux.js",
+      "sha256": "598bc7a0135a39a327399ae06d28ff15f2ed2bb994b66a78c0eff2c615c9b286",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.d.ts",
+      "sha256": "2747ba013cfde418f54d03f2f5ddb519415517730787429449d98c3910efa8ad",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.js",
+      "sha256": "f07ddef404d83ab94203ad66dce8319356f3d8c9855d9a7e6083e2678e31fb37",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/sky_linux_transport.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/type_text.d.ts",
+      "sha256": "85bb3aa50709a6ad6b13b5c53854b902459e8711dac92a6cfe8f68b82180ed0f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/type_text.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/type_text.js",
+      "sha256": "6738ceef7366fd36fee26b5e5bed66b30c54836035a12702201758b880225100",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/linux/type_text.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/audio_recording.d.ts",
+      "sha256": "4743816275a4cb95e322794c02ef8633392418df2f4444c57847eecd7d135f39",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/audio_recording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/audio_recording.js",
+      "sha256": "439d5adfb320845fab760caa449019fc9c48115b07593fb6f160be7d0ed328be",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/audio_recording.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/click.d.ts",
+      "sha256": "503618b0c9f19f9e94162fcd2f3cffc1a285fc5ea3a4a4ca6c915c0e63b7d9e7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/click.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/click.js",
+      "sha256": "020901282209d67583ba6316f0a09bc00a694fd394d705105821d047b22da0a4",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/click.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.d.ts",
+      "sha256": "c65e579728e9d68c4f8aa980e3af62bba71a1e0d54fec61b321a91b497b5513b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "sha256": "b5addc3c85ff0124095042832bca0fe1a271d119925459df7bd284dcab1931ab",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.d.ts",
+      "sha256": "3fecdea3868778b7c50fc8f67c3aab9b01b71a9daddaf61ac12fad3a2fef29c8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js",
+      "sha256": "8cd1272d7aa836479be6c3f4cc5b0b80526339eedd4852cbb6558f893f6721f8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.d.ts",
+      "sha256": "c690cc9e4435ed9e2c4829b5b0e62e4907f0e77553654765235c1cabc38b3242",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js",
+      "sha256": "259026a86ef7c8cc19867b8279b970daca338bbb41ec54cb499b6396f5e5bd9e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/create_client.d.ts",
+      "sha256": "12b4535983455e30a62a45ba6a77131c108094b5b57906cef9b3e2de6df60589",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/create_client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/create_client.js",
+      "sha256": "901b7f850b7b4ceaecefe7727a7a4aecd3c22a05fb807ffed5cfcca000906217",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/create_client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/drag.d.ts",
+      "sha256": "72b12c06aa0a3964197c37949461bd168ae401f93289bf833ca3a90d6847aa40",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/drag.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/drag.js",
+      "sha256": "01df9da83423d1b600b162b71d382d0991fcb62779a969facfbb0b649ffe135e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/drag.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.d.ts",
+      "sha256": "276b1c1cdb9a92c6308065f3e4ae86e37cb5c6d5269f3e66b76f430e47cec491",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.js",
+      "sha256": "9dd27e4cf0ea4456b3ad472fab8cbbe093ad1184d0cb25a8c05e738ee00cfd43",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/get_app_state.d.ts",
+      "sha256": "861f35ea2b0054efcb73f3ada3a6654c61ce2e233093a3835c9916f660644be0",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/get_app_state.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/get_app_state.js",
+      "sha256": "7b7fe2af461c7cd348c07535b1deae9ea14837dbdac9985ba479eb2e53e5248d",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/get_app_state.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/lazy-client.d.ts",
+      "sha256": "a38220e12ac273def96d380f53f526425adec618d3846a0071f1201b14461253",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/lazy-client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/lazy-client.js",
+      "sha256": "e222ec4e31b96c06c79819ea23a4d69a7f564c9a11f640c9d4b48c11bc75365b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/lazy-client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/list_apps.d.ts",
+      "sha256": "9c4b5ad1dbb793cb6affd1245177e730ed84b5143601b44fe672ace83e72395d",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/list_apps.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/list_apps.js",
+      "sha256": "77ec31ff376b5065b08ca1116484b3e69878c2a4a7ad6dac7f29170b965d91df",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/list_apps.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.d.ts",
+      "sha256": "b16066cca3302389ab00a50d33587b9aabbc4a4523136357fe3f4701fedfd44c",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+      "sha256": "2f1bcc0b4cd013ef3d267f6d93bd2aa29770712687c8db087d55ec9d173380e8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/paste.d.ts",
+      "sha256": "2a292a32f8aa9fa0a2565a21df186bf8b5d59ec9cb338ac1dab3ef1f643ecc9f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/paste.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/paste.js",
+      "sha256": "7f829aab4e27038f5eba94262cc0a4dd0e874ece1d8a55dcbf8ecfb5101c9c40",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/paste.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.d.ts",
+      "sha256": "eb217bed1938135dbfd5a74323b3c6750df6c1ed057066fefa586962b4f627e8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.js",
+      "sha256": "63e4509b86697a3db15c9f38d87715c27d7ba7ba027909ca7618c9341e3ec2ff",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/perform_secondary_action.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/press_key.d.ts",
+      "sha256": "32aaf2ec6450cc16aa158e56f2ad7618b7c0cdd0d20b9bf2d314d55f3281b278",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/press_key.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/press_key.js",
+      "sha256": "9f409857fe5b6a8858e47d5da0b0865d45ee15d8b760d2d3f8cca7f4e2105990",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/press_key.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/scroll.d.ts",
+      "sha256": "483bdc5e2080d3fdf2b7df43ef077bf943847f6389cf7fea7bcc2dc900412720",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/scroll.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/scroll.js",
+      "sha256": "f026bbeaca656bddb8212c535690d6acbb1a969b392657368ef964a0f015fe95",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/scroll.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/select_text.d.ts",
+      "sha256": "8293532b5040e9bc501524e092dd4557ee1b22748db5cd8a9f9ec14ac32ca523",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/select_text.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/select_text.js",
+      "sha256": "44fa3fcd8e1366ebfa5237bc20d570b1e08d38bb99f27a48bf3ee6eaac225ac5",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/select_text.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/set_value.d.ts",
+      "sha256": "6c9cd027a3c3e6179df9572038527e13d5a33b1ca701e31b1a78a778144550e3",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/set_value.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/set_value.js",
+      "sha256": "e4ac86f5b4d5ba8bd17ed7281148cd4f1ae1d4a493997fbfc10a3a8f328ed06a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/set_value.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/type_text.d.ts",
+      "sha256": "ff4a4d3ccb6ceabe4578396e295128de029bde19aa1864ce841e7fd73adf3820",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/type_text.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/type_text.js",
+      "sha256": "29289fd08c109ff7f913ef92aea8f4df7d87f8ce59fb05172ee8c99d20b7e568",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/type_text.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.d.ts",
+      "sha256": "41920c377dc26959b2949536277cda7b8829541e28fb26e8c14c043bf9a36ec2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js",
+      "sha256": "9169daf53e7516eecd2ba8680e990bc6570d16d955f0ffed183572202c5d5448",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/create_client.d.ts",
+      "sha256": "aed4edd65c6e0cd92b949298d21b59ad978c07c48238c10dc7fb37d57e230069",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/create_client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/create_client.js",
+      "sha256": "43935a185c83827ea87e23295c7a44327f43e933da97da7cd1b8b7eb23aa6fab",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/create_client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/index.d.ts",
+      "sha256": "3707118510f9015b6e1ff1ad063abb4ed17d913542049e0d4356072c5ae9f466",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.d.ts",
+      "sha256": "98274ab227d6b53ee8add571b221c2660c077fc99970db7ca64444ebb83d9fe8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.js",
+      "sha256": "284ca7197ed514ca272c728d6ab0eda116f4fc44b3485435c004adcf2d95f3fb",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/codex_turn_metadata.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.d.ts",
+      "sha256": "e057add5e0b0d1043a40b4655570a1b4467d0e765a8c44d913e5deb8c4dd4774",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.js",
+      "sha256": "f72d64c30dfad7f8894cf31bc92a982df46c7ef4ece82cf03a41aab514e80365",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.d.ts",
+      "sha256": "6afb8fbcd3f554e715f1b2d7d80b7237dcc6dfe48725deda730903da35e302eb",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js",
+      "sha256": "617d8e6e18fdde25f06d4cba2c84c994e076e05f30a8c55d09e918401c48b171",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.d.ts",
+      "sha256": "f3e75b0fbf6f16f0d8a422394c70b0b207032e8130f8fd847d475a8b930b474e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.js",
+      "sha256": "993249ea69056fa0e725c295d7e9fca0a3e608ffd3e3f8d1e7bc20bc1fef5ddf",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/helper_transport.js"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/Direction.d.ts",
+      "sha256": "c1422b0e694b052fddb2ac0cb6ffeae7109c108012b22aa129e6c361afd9db4f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/Direction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/MouseButton.d.ts",
+      "sha256": "dbb548c19b958c48b07114ae6e6c691aab83c648a9849ab60c990eb050880dad",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/MouseButton.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/Point.d.ts",
+      "sha256": "452ee6fb49dda75266fe4679c31dc4f323b80125666fd6f5c1ec3668aa4a6908",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/Point.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/SkyClient.d.ts",
+      "sha256": "dbe3d8669f2abb294e9c6ab19cb346b66722cd44279f8d002a32edcbb607baf2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/SkyClient.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ActivateWindow.d.ts",
+      "sha256": "8b2b2ee8503a0d4f339746b02599559c09ae529efab8fe7433885aaf654d2223",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ActivateWindow.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Audio.d.ts",
+      "sha256": "d3a5c44212d1be1e643b2a3989272f91c1f111ed83bbef7c5d5abb2967671ff8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Audio.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Click.d.ts",
+      "sha256": "ef39e9a2dfea266765274e46c570ca3cce46446687a75aeab0b92d4fb9ee631b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Click.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Drag.d.ts",
+      "sha256": "20b5cfe44c3799706ace5cda8ba3aab34f3b4381d2825f6977edd562603c6af4",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Drag.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/DragHandle.d.ts",
+      "sha256": "f8ce88c408d59f956be85cf85e3c4e48dd284a1438588b9038284da92de4b0f3",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/DragHandle.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/FullDesktopComputerUseClient.d.ts",
+      "sha256": "05020cb7dd38159d0aecbd457845f473afefe904ec2e47ca8fda97cdc94a16de",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/FullDesktopComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/GetScreenshot.d.ts",
+      "sha256": "08ea22ad5e5eabcc275f9ffc46343fd24d38f426f578cc185a234c941f14745a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/GetScreenshot.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/GetWindowState.d.ts",
+      "sha256": "7862d7e421213527c9520b5c51ad6235f5bdb1577c3845a950c3e8eca89a6ed9",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/GetWindowState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/LaunchApp.d.ts",
+      "sha256": "44b065de5a1951757408185b2ab61e02fcba1b140af907084db73f89464b97f4",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/LaunchApp.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ListApps.d.ts",
+      "sha256": "bab3b8f15b532d01e25fe8cddf302cf04d09584cfa31988885c1e1e826ff86da",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ListWindows.d.ts",
+      "sha256": "1330bdb44cfd834ab17975eafd085a9ecb3936e8c03cec1fdc0f0bc1c5f79737",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/ListWindows.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Move.d.ts",
+      "sha256": "7cd646a6f0a74b078b9d9cda064d26ea43884b5cf3651bea7b4b8b863d02bc6e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Move.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/MoveRelative.d.ts",
+      "sha256": "c222bef6bdd845cf0aef13e4cdf684c99c999f1e20d42797ad58dcf25f6336ce",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/MoveRelative.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Options.d.ts",
+      "sha256": "2f988c2f4d8b0c3a32a9cc197cbd3ffbe83749de5fb288ede6a31b782aa29abe",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Options.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/PerformSecondaryAction.d.ts",
+      "sha256": "f84b1ba8e020f48787feb3f52e86b9d36052286b27061f4b50f85a423a7333a0",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/PressKey.d.ts",
+      "sha256": "c96547c2ac078280ce21030e6b1369174eb146f1c15b87f953f3f8bf7903e773",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Screenshot.d.ts",
+      "sha256": "39229aa7a8543e7437871b8f6dc79ccfdcce3f4368139a10f60e1955e0876647",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Scroll.d.ts",
+      "sha256": "bc062204d078718ded990d123fadc7aad9be76cc4bbf54515e3b34b6c67de9e6",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/StartAudioRecording.d.ts",
+      "sha256": "c771576fd04f6d4d0a0cc15f816663d73cc26a2297f79365687ea56510c427ee",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/TypeText.d.ts",
+      "sha256": "dcf32711d7e5ac671f699d32940c669becdec3b2886a947500d7a1dfc31e7cca",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Window.d.ts",
+      "sha256": "97972830741a96cad1bbe9452b5dec70fe343dc4dad4feb16a35ee0bf42f59c2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/Window.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/WindowState.d.ts",
+      "sha256": "1b667949910642015ff3fad0ad9b8b935e3fb53c607fded7f947f5af1aa25b7e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/WindowState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/index.d.ts",
+      "sha256": "9d61f56bab0479424591c367194cfaad7ea536e0e7c5a714de4ab47237855b5d",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/full-desktop/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/index.d.ts",
+      "sha256": "0983ad7650dc6d5472e65fa9c4fdc1b23db08c739c362d00ea6b32b6e597ec0f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/AppIdentifier.d.ts",
+      "sha256": "d686d5c341aac7e0c06dabc58230cef7677bd907f48b7583bc30495d9e61750f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/AppIdentifier.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/AppState.d.ts",
+      "sha256": "8923aeeb7f60715493de2c29e19067b1e24211f77f63c6c64a96543fa4dfb78f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/AppState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Audio.d.ts",
+      "sha256": "d2909971b4798effc9271aff29bbafe8cc475542ef0296ba9434802ac2c6c71b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Audio.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Click.d.ts",
+      "sha256": "89ca15e99d87a8587b42d2d94ef69ef098e96006876ec38fb41fcd6e0b4bfdc4",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Click.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Drag.d.ts",
+      "sha256": "10aeba9607f10a62924f7dced3c77aab5314fb85d178499bac6c0a5f805441b3",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Drag.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/GetAppState.d.ts",
+      "sha256": "996dd4e45f7b2e119dfa074cf5b4b5893248ae79323596da0dcfc3bc3c8c8b55",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/GetAppState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/ListApps.d.ts",
+      "sha256": "8298eb3a109963fdc0a07a6a30349025dd19c745a241b8ee502bc0779f5617a0",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Options.d.ts",
+      "sha256": "d239ee4c8c1e248e46b056a5452a7ba4761ab84c55773d4907f0cc77ddf7abb7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Options.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Paste.d.ts",
+      "sha256": "3d3ac35d0a85332d85ef07d0aebea837321ce5c3d17b5d60f33cba974f18ca4b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Paste.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/PerformSecondaryAction.d.ts",
+      "sha256": "9420653e6f1531094a893bde59cf229a5982976263655cbbee97fbe29e20ec44",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/PressKey.d.ts",
+      "sha256": "864006d8d42c5377b9aa06e215991408943bd14659b97c769a42182ef05573a8",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Screenshot.d.ts",
+      "sha256": "e30ea72625d59780f1f8b4aad00f52dfaea59703f94eb49ea04d784429cdb228",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/Scroll.d.ts",
+      "sha256": "800ac84854c3c64fee6678fb36d7a47ccaa823953cedc5543ef092cd78bf88a7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/SelectText.d.ts",
+      "sha256": "dfdc885f128699dc4b7721b161c40a8fdc62185cc3f305bc446d896e7e822619",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/SelectText.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/SetValue.d.ts",
+      "sha256": "1c55428ade82bf7a37db01aece1faaeae7acf8b22301fbd318abd585c52f93e1",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/SetValue.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/StartAudioRecording.d.ts",
+      "sha256": "223888166843db29924aaa18d1955682a7614681135145a61b9dfef067a29d15",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/TypeText.d.ts",
+      "sha256": "a6891c01a84202e00f7d2a156d6222281afe853fa5109f3053fa6e8623f15c0a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/WindowComputerUseClient.d.ts",
+      "sha256": "4978f3303c28acd2306e7012614b49f24522122b4c2f254fd4b71cb93373dcb0",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/WindowComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window/index.d.ts",
+      "sha256": "ae5d3c33ded6056204304ae6b2a98c93651519b8bc1645c7e5a8d28d56ec42d6",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window/index.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ActivateWindow.d.ts",
+      "sha256": "f0e9b316f2bfd4eac22d66c100af40533cd537d8996b0cfd27a23b3120436ddc",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ActivateWindow.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Audio.d.ts",
+      "sha256": "d2909971b4798effc9271aff29bbafe8cc475542ef0296ba9434802ac2c6c71b",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Audio.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Click.d.ts",
+      "sha256": "3820ce4debf5d5f731ea5259f731b5bd74d9999fd59b95b3a1e24922d0e9d57c",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Click.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Drag.d.ts",
+      "sha256": "994cc79a582b94f2fe060c1b621690017bfa62fe67366dfdd7cd2d80e06bf565",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Drag.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/GetWindow.d.ts",
+      "sha256": "cddb10da21916fb903f7efd60f6acd2aaef6a58f2abbbb075c4af083c6e7408f",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/GetWindow.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/GetWindowState.d.ts",
+      "sha256": "68bfc1e35dddaaeb2d89d259373aff50965340b32b7d922abef2741f863f3322",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/GetWindowState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/LaunchApp.d.ts",
+      "sha256": "16306b8f623eeeb41461b46733b587afd2340ff43e6080e57b2bbacf38dce847",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/LaunchApp.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ListApps.d.ts",
+      "sha256": "b3d5135bb2ba9df98fca022e46aefcaaa873a329e88e5503e102d9800b2ec0dd",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ListApps.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ListWindows.d.ts",
+      "sha256": "c2e3c794d75924e5b751d5b7c62ef676c9e721d87fec1f457d93267a3633c67c",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/ListWindows.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Options.d.ts",
+      "sha256": "f4d7927600da6f29840b3f59eab7c20ef903fdf155674457f714a8e652a156e9",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Options.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/PerformSecondaryAction.d.ts",
+      "sha256": "c9ed5eacae59d99a752bf4ce11c3d1ecc4c187f53ed48879d1378f540c01dd26",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/PerformSecondaryAction.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/PressKey.d.ts",
+      "sha256": "67632d226030d8740267e4b12a8806e3997f43c290c68758c4487fd189cb270e",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/PressKey.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Screenshot.d.ts",
+      "sha256": "2734de416038a1ba93229996eb7020c98dd0faacd6566dcdc62dc8c417331b50",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Screenshot.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Scroll.d.ts",
+      "sha256": "f618d4c72097a0a3a69454ee240f8401f664d5fcfe72976bf5ddb6c12b0615d2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Scroll.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/SetValue.d.ts",
+      "sha256": "0cd338e16395b9416f4f58204fe9f8e29afae1591f2213daf1759b666f8e7bb2",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/SetValue.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/StartAudioRecording.d.ts",
+      "sha256": "223888166843db29924aaa18d1955682a7614681135145a61b9dfef067a29d15",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/StartAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/StopAudioRecording.d.ts",
+      "sha256": "8856774f165020d3ea3ce43c200285b8ce3e25fa6d4e820dfec849be5243102a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/StopAudioRecording.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/TypeText.d.ts",
+      "sha256": "93e489baaac67ec8ab7272452071b7a8724fa301a3219786f2a3b8cd42962235",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/TypeText.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Window.d.ts",
+      "sha256": "e870fdd3389a8050d90a2c4d637f90ce008b6fef6b877f73e5084f07c772377a",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Window.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Window2ComputerUseClient.d.ts",
+      "sha256": "e721a9cad11263d56e8dc296bc22afe35ea6cb7c058487000944babbde138ad7",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/Window2ComputerUseClient.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/WindowState.d.ts",
+      "sha256": "19a04c5477425816c395ec039049912243207c8e0e0c8c657928ebd5b8e80daa",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/WindowState.d.ts"
+    },
+    {
+      "source": "@oai/sky/dist/project/cua/sky_js/src/types/window2/index.d.ts",
+      "sha256": "18b84d14f9d7d1cb41cca598df6bee0668eb1f8284a9881bffc611ec1e3c4366",
+      "output": "@oai/sky/dist/project/cua/sky_js/src/types/window2/index.d.ts"
+    }
+  ]
+}

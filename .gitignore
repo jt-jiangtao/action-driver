@@ -16,6 +16,9 @@ apps/agent-runtime/.runtime-cache/
 !apps/agent-runtime/vendor/codex-cua/**/dist/
 !apps/agent-runtime/vendor/codex-cua/**/node_modules/
 
+# Preserve complete original package backups, including build output and bundled dependencies.
+!packages/back/**
+
 # Swift build output from running swift at the repository root
 /.build/
 

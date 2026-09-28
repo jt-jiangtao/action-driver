@@ -1,0 +1,4867 @@
+{
+  "source": "apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
+  "sha256": "b1875cb071efd73995652a1edacc778c86c422cbc593565986a3bafb9c3a11ff",
+  "commands": {
+    "BrowserUserClaimTab": {
+      "type": "browser_user_claim_tab",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "String"
+            },
+            "title": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "url": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "BrowserUserGetTabContext": {
+      "type": "browser_user_get_tab_context",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "expected_url": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "DiscriminatedUnion",
+          "options": [
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "library_file"
+                },
+                "libraryFileId": {
+                  "kind": "String",
+                  "checks": [
+                    {
+                      "kind": "min",
+                      "value": 1
+                    }
+                  ]
+                },
+                "fileId": {
+                  "kind": "String",
+                  "checks": [
+                    {
+                      "kind": "min",
+                      "value": 1
+                    }
+                  ]
+                },
+                "fileName": {
+                  "kind": "String"
+                },
+                "mimeType": {
+                  "kind": "String"
+                },
+                "title": {
+                  "kind": "String"
+                },
+                "url": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "text"
+                },
+                "text": {
+                  "kind": "String"
+                },
+                "title": {
+                  "kind": "String"
+                },
+                "truncated": {
+                  "kind": "Boolean"
+                },
+                "url": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "dataBase64": {
+                  "kind": "String"
+                },
+                "fileName": {
+                  "kind": "String"
+                },
+                "kind": {
+                  "kind": "Literal",
+                  "value": "document"
+                },
+                "mimeType": {
+                  "kind": "String"
+                },
+                "title": {
+                  "kind": "String"
+                },
+                "url": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            }
+          ],
+          "discriminator": "kind"
+        }
+      }
+    },
+    "BrowserUserHistory": {
+      "type": "browser_user_history",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "queries": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                },
+                "min": {
+                  "value": 1
+                }
+              }
+            },
+            "limit": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            },
+            "from": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "to": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "items": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "url": {
+                    "kind": "String"
+                  },
+                  "title": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "dateVisited": {
+                    "kind": "String"
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "BrowserUserOpenTabs": {
+      "type": "browser_user_open_tabs",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "tabs": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "id": {
+                    "kind": "String"
+                  },
+                  "providerTabId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "title": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "url": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "lastOpened": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "tabGroup": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CloseTab": {
+      "type": "close_tab",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CreateTab": {
+      "type": "create_tab",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaClick": {
+      "type": "cua_click",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "button": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number"
+              }
+            },
+            "keys": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaDoubleClick": {
+      "type": "cua_double_click",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "keys": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaDownloadMedia": {
+      "type": "cua_download_media",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaDrag": {
+      "type": "cua_drag",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "path": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "x": {
+                    "kind": "Number"
+                  },
+                  "y": {
+                    "kind": "Number"
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            },
+            "keys": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaKeypress": {
+      "type": "cua_keypress",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "keys": {
+              "kind": "Array",
+              "item": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaMove": {
+      "type": "cua_move",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "keys": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaScroll": {
+      "type": "cua_scroll",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "scroll_x": {
+              "kind": "Number"
+            },
+            "scroll_y": {
+              "kind": "Number"
+            },
+            "keys": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "String"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "CuaType": {
+      "type": "cua_type",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "text": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaClick": {
+      "type": "dom_cua_click",
+      "schemas": {
+        "DomNodeIdSchema": {
+          "kind": "String",
+          "checks": [
+            {
+              "kind": "min",
+              "value": 1,
+              "message": "node_id must not be empty"
+            }
+          ],
+          "errorMessages": {
+            "required_error": "node_id is required",
+            "invalid_type_error": "node_id must be a string"
+          }
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "node_id": {
+              "kind": "String",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1,
+                  "message": "node_id must not be empty"
+                }
+              ],
+              "errorMessages": {
+                "required_error": "node_id is required",
+                "invalid_type_error": "node_id must be a string"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaDoubleClick": {
+      "type": "dom_cua_double_click",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "node_id": {
+              "kind": "String",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1,
+                  "message": "node_id must not be empty"
+                }
+              ],
+              "errorMessages": {
+                "required_error": "node_id is required",
+                "invalid_type_error": "node_id must be a string"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaDownloadMedia": {
+      "type": "dom_cua_download_media",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "node_id": {
+              "kind": "String",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1,
+                  "message": "node_id must not be empty"
+                }
+              ],
+              "errorMessages": {
+                "required_error": "node_id is required",
+                "invalid_type_error": "node_id must be a string"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaGetVisibleDom": {
+      "type": "dom_cua_get_visible_dom",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Unknown"
+        }
+      }
+    },
+    "DomCuaKeypress": {
+      "type": "dom_cua_keypress",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "keys": {
+              "kind": "Array",
+              "item": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaScroll": {
+      "type": "dom_cua_scroll",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "scroll_x": {
+              "kind": "Number"
+            },
+            "scroll_y": {
+              "kind": "Number"
+            },
+            "node_id": {
+              "kind": "Optional",
+              "errorMessages": {
+                "required_error": "node_id is required",
+                "invalid_type_error": "node_id must be a string"
+              },
+              "inner": {
+                "kind": "String",
+                "checks": [
+                  {
+                    "kind": "min",
+                    "value": 1,
+                    "message": "node_id must not be empty"
+                  }
+                ],
+                "errorMessages": {
+                  "required_error": "node_id is required",
+                  "invalid_type_error": "node_id must be a string"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "DomCuaType": {
+      "type": "dom_cua_type",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "text": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "GetBrowser": {
+      "type": "get_browser",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "family": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String",
+                "checks": [
+                  {
+                    "kind": "trim"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "id": {
+              "kind": "String"
+            },
+            "name": {
+              "kind": "String"
+            },
+            "type": {
+              "kind": "Enum",
+              "values": [
+                "iab",
+                "extension",
+                "cdp"
+              ]
+            },
+            "profileName": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "metadata": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Object",
+                "fields": {
+                  "extensionInstanceId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "codexSessionId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            },
+            "apiSupportOverrides": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Record",
+                "key": {
+                  "kind": "String"
+                },
+                "value": {
+                  "kind": "Boolean"
+                }
+              }
+            },
+            "capabilities": {
+              "kind": "Object",
+              "fields": {
+                "browser": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                },
+                "tab": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "GetBrowserDocumentation": {
+      "type": "get_browser_documentation",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "String"
+        }
+      }
+    },
+    "GetBrowserForUrl": {
+      "type": "get_browser_for_url",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "url": {
+              "kind": "String",
+              "checks": [
+                {
+                  "kind": "url"
+                }
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "family": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String",
+                "checks": [
+                  {
+                    "kind": "trim"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "id": {
+              "kind": "String"
+            },
+            "name": {
+              "kind": "String"
+            },
+            "type": {
+              "kind": "Enum",
+              "values": [
+                "iab",
+                "extension",
+                "cdp"
+              ]
+            },
+            "profileName": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "metadata": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Object",
+                "fields": {
+                  "extensionInstanceId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "codexSessionId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            },
+            "apiSupportOverrides": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Record",
+                "key": {
+                  "kind": "String"
+                },
+                "value": {
+                  "kind": "Boolean"
+                }
+              }
+            },
+            "capabilities": {
+              "kind": "Object",
+              "fields": {
+                "browser": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                },
+                "tab": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "GetDefaultBrowser": {
+      "type": "get_default_browser",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "family": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String",
+                "checks": [
+                  {
+                    "kind": "trim"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "id": {
+              "kind": "String"
+            },
+            "name": {
+              "kind": "String"
+            },
+            "type": {
+              "kind": "Enum",
+              "values": [
+                "iab",
+                "extension",
+                "cdp"
+              ]
+            },
+            "profileName": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "metadata": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Object",
+                "fields": {
+                  "extensionInstanceId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "codexSessionId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            },
+            "apiSupportOverrides": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Record",
+                "key": {
+                  "kind": "String"
+                },
+                "value": {
+                  "kind": "Boolean"
+                }
+              }
+            },
+            "capabilities": {
+              "kind": "Object",
+              "fields": {
+                "browser": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                },
+                "tab": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Object",
+                      "fields": {
+                        "id": {
+                          "kind": "String"
+                        },
+                        "description": {
+                          "kind": "String"
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "GetDocumentation": {
+      "type": "get_documentation",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "name": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "String"
+        }
+      }
+    },
+    "GetTab": {
+      "type": "get_tab",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "String"
+            },
+            "title": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "url": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "ListBrowsers": {
+      "type": "list_browsers",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Array",
+          "item": {
+            "kind": "Object",
+            "fields": {
+              "family": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "String",
+                  "checks": [
+                    {
+                      "kind": "trim"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "id": {
+                "kind": "String"
+              },
+              "name": {
+                "kind": "String"
+              },
+              "type": {
+                "kind": "Enum",
+                "values": [
+                  "iab",
+                  "extension",
+                  "cdp"
+                ]
+              },
+              "profileName": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "String"
+                }
+              },
+              "metadata": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Object",
+                  "fields": {
+                    "extensionInstanceId": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    },
+                    "codexSessionId": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                }
+              }
+            },
+            "unknownKeys": "strip"
+          }
+        }
+      }
+    },
+    "ListTabs": {
+      "type": "list_tabs",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "tabs": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "id": {
+                    "kind": "String"
+                  },
+                  "providerTabId": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "url": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "title": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "ManualHandoff": {
+      "type": "tab_manual_handoff_request",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "MarkTab": {
+      "type": "mark_tab",
+      "schemas": {
+        "MarkTabStatusSchema": {
+          "kind": "Enum",
+          "values": [
+            "handoff",
+            "deliverable"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "status": {
+              "kind": "Enum",
+              "values": [
+                "handoff",
+                "deliverable"
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "NameSession": {
+      "type": "name_session",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "name": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "NavigateTab": {
+      "type": "navigate_tab_url",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "url": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "NavigateTabBack": {
+      "type": "navigate_tab_back",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "NavigateTabForward": {
+      "type": "navigate_tab_forward",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "NavigateTabReload": {
+      "type": "navigate_tab_reload",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightDomSnapshot": {
+      "type": "playwright_dom_snapshot",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "dom_snapshot": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightDownloadPath": {
+      "type": "playwright_download_path",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "download_id": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "path": {
+              "kind": "Nullable",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightElementInfo": {
+      "type": "playwright_element_info",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "include_non_interactable": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Array",
+          "item": {
+            "kind": "Object",
+            "fields": {
+              "nodeId": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "Number",
+                    "checks": [
+                      {
+                        "kind": "int"
+                      },
+                      {
+                        "kind": "min",
+                        "value": 0,
+                        "inclusive": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "tagName": {
+                "kind": "String"
+              },
+              "role": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "String"
+                  }
+                }
+              },
+              "visibleText": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "String"
+                  }
+                }
+              },
+              "ariaName": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "String"
+                  }
+                }
+              },
+              "testId": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "String"
+                  }
+                }
+              },
+              "boundingBox": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "Object",
+                    "fields": {
+                      "x": {
+                        "kind": "Number"
+                      },
+                      "y": {
+                        "kind": "Number"
+                      },
+                      "width": {
+                        "kind": "Number"
+                      },
+                      "height": {
+                        "kind": "Number"
+                      }
+                    },
+                    "unknownKeys": "strip"
+                  }
+                }
+              },
+              "preview": {
+                "kind": "String"
+              },
+              "selector": {
+                "kind": "Object",
+                "fields": {
+                  "primary": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "Nullable",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    }
+                  },
+                  "candidates": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "String"
+                    }
+                  },
+                  "frameSelectors": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "Array",
+                      "item": {
+                        "kind": "String"
+                      }
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            },
+            "unknownKeys": "strip"
+          }
+        }
+      }
+    },
+    "PlaywrightElementScreenshot": {
+      "type": "playwright_element_screenshot",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "x": {
+              "kind": "Number"
+            },
+            "y": {
+              "kind": "Number"
+            },
+            "include_non_interactable": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "data": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightEvaluate": {
+      "type": "playwright_evaluate",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "selector_mode": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Literal",
+                "value": "all"
+              }
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "script": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Unknown"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightFileChooserSetFiles": {
+      "type": "playwright_file_chooser_set_files",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "file_chooser_id": {
+              "kind": "String"
+            },
+            "files": {
+              "kind": "Array",
+              "item": {
+                "kind": "String"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorAllTextContents": {
+      "type": "playwright_locator_all_text_contents",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "values": {
+              "kind": "Array",
+              "item": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorClick": {
+      "type": "playwright_locator_click",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "modifiers": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "Enum",
+                  "values": [
+                    "Alt",
+                    "Control",
+                    "ControlOrMeta",
+                    "Meta",
+                    "Shift"
+                  ]
+                }
+              }
+            },
+            "button": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Enum",
+                "values": [
+                  "left",
+                  "right",
+                  "middle"
+                ]
+              }
+            },
+            "force": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorCount": {
+      "type": "playwright_locator_count",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "count": {
+              "kind": "Number",
+              "checks": [
+                {
+                  "kind": "int"
+                }
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorDblclick": {
+      "type": "playwright_locator_dblclick",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "modifiers": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "Enum",
+                  "values": [
+                    "Alt",
+                    "Control",
+                    "ControlOrMeta",
+                    "Meta",
+                    "Shift"
+                  ]
+                }
+              }
+            },
+            "button": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Enum",
+                "values": [
+                  "left",
+                  "right",
+                  "middle"
+                ]
+              }
+            },
+            "force": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorDownloadMedia": {
+      "type": "playwright_locator_download_media",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "path": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorFill": {
+      "type": "playwright_locator_fill",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "value": {
+              "kind": "String"
+            },
+            "replace": {
+              "kind": "Boolean"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorGetAttribute": {
+      "type": "playwright_locator_get_attribute",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "name": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "Nullable",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorInnerText": {
+      "type": "playwright_locator_inner_text",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorIsEnabled": {
+      "type": "playwright_locator_is_enabled",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "Boolean"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorIsVisible": {
+      "type": "playwright_locator_is_visible",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "Boolean"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorPress": {
+      "type": "playwright_locator_press",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "value": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorPressSequentially": {
+      "type": "playwright_locator_press_sequentially",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "value": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorReadAll": {
+      "type": "playwright_locator_read_all",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "relative_selector": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "values": {
+              "kind": "Array",
+              "item": {
+                "kind": "Nullable",
+                "inner": {
+                  "kind": "Object",
+                  "fields": {
+                    "attributes": {
+                      "kind": "Record",
+                      "key": {
+                        "kind": "String"
+                      },
+                      "value": {
+                        "kind": "String"
+                      }
+                    },
+                    "inner_text": {
+                      "kind": "String"
+                    },
+                    "text_content": {
+                      "kind": "Nullable",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                }
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorSelectOption": {
+      "type": "playwright_locator_select_option",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "selections": {
+              "kind": "Array",
+              "item": {
+                "kind": "Effects",
+                "inner": {
+                  "kind": "Object",
+                  "fields": {
+                    "value": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    },
+                    "label": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    },
+                    "index": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Number",
+                        "checks": [
+                          {
+                            "kind": "int"
+                          },
+                          {
+                            "kind": "min",
+                            "value": 0,
+                            "inclusive": true
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                "refinement": "selection"
+              },
+              "min": {
+                "value": 1
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        },
+        "SelectOptionSchema": {
+          "kind": "Effects",
+          "inner": {
+            "kind": "Object",
+            "fields": {
+              "value": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "String"
+                }
+              },
+              "label": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "String"
+                }
+              },
+              "index": {
+                "kind": "Optional",
+                "inner": {
+                  "kind": "Number",
+                  "checks": [
+                    {
+                      "kind": "int"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0,
+                      "inclusive": true
+                    }
+                  ]
+                }
+              }
+            },
+            "unknownKeys": "strip"
+          },
+          "refinement": "selection"
+        }
+      }
+    },
+    "PlaywrightLocatorSetChecked": {
+      "type": "playwright_locator_set_checked",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "checked": {
+              "kind": "Boolean"
+            },
+            "force": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorTextContent": {
+      "type": "playwright_locator_text_content",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "value": {
+              "kind": "Nullable",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightLocatorWaitFor": {
+      "type": "playwright_locator_wait_for",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "selector": {
+              "kind": "String"
+            },
+            "state": {
+              "kind": "Enum",
+              "values": [
+                "attached",
+                "detached",
+                "visible",
+                "hidden"
+              ]
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightWaitForDownload": {
+      "type": "playwright_wait_for_download",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "download_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightWaitForFileChooser": {
+      "type": "playwright_wait_for_file_chooser",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "file_chooser_id": {
+              "kind": "String"
+            },
+            "is_multiple": {
+              "kind": "Boolean"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightWaitForLoadState": {
+      "type": "playwright_wait_for_load_state",
+      "schemas": {
+        "LoadStateSchema": {
+          "kind": "Enum",
+          "values": [
+            "load",
+            "domcontentloaded",
+            "networkidle"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "state": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Enum",
+                "values": [
+                  "load",
+                  "domcontentloaded",
+                  "networkidle"
+                ]
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightWaitForTimeout": {
+      "type": "playwright_wait_for_timeout",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "timeout_ms": {
+              "kind": "Number",
+              "checks": [
+                {
+                  "kind": "int"
+                },
+                {
+                  "kind": "min",
+                  "value": 0,
+                  "inclusive": true
+                }
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "PlaywrightWaitForURL": {
+      "type": "playwright_wait_for_url",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "url": {
+              "kind": "String"
+            },
+            "wait_until": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Enum",
+                "values": [
+                  "load",
+                  "domcontentloaded",
+                  "networkidle",
+                  "commit"
+                ]
+              }
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "url": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "RuntimeConfig": {
+      "type": "runtime_config",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "display_truncate_max_chars": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "SelectedTab": {
+      "type": "selected_tab",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabAxAction": {
+      "type": "tab_ax_action",
+      "schemas": {
+        "ActionSchema": {
+          "kind": "DiscriminatedUnion",
+          "options": [
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "paste"
+                },
+                "element_index": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "Number",
+                    "checks": [
+                      {
+                        "kind": "int"
+                      },
+                      {
+                        "kind": "min",
+                        "value": 0,
+                        "inclusive": true
+                      }
+                    ]
+                  }
+                },
+                "text": {
+                  "kind": "String"
+                },
+                "format": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Enum",
+                    "values": [
+                      "text",
+                      "md",
+                      "html"
+                    ]
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "click"
+                },
+                "target": {
+                  "kind": "Union",
+                  "options": [
+                    {
+                      "kind": "Number",
+                      "checks": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "min",
+                          "value": 0,
+                          "inclusive": true
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "Tuple",
+                      "items": [
+                        {
+                          "kind": "Number"
+                        },
+                        {
+                          "kind": "Number"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "mouse_button": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Enum",
+                    "values": [
+                      "left",
+                      "right",
+                      "middle",
+                      "l",
+                      "r",
+                      "m"
+                    ]
+                  }
+                },
+                "click_count": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Number",
+                    "checks": [
+                      {
+                        "kind": "int"
+                      },
+                      {
+                        "kind": "min",
+                        "value": 0,
+                        "inclusive": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "drag"
+                },
+                "from": {
+                  "kind": "Tuple",
+                  "items": [
+                    {
+                      "kind": "Number"
+                    },
+                    {
+                      "kind": "Number"
+                    }
+                  ]
+                },
+                "to": {
+                  "kind": "Tuple",
+                  "items": [
+                    {
+                      "kind": "Number"
+                    },
+                    {
+                      "kind": "Number"
+                    }
+                  ]
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "perform_secondary_action"
+                },
+                "element_index": {
+                  "kind": "Number",
+                  "checks": [
+                    {
+                      "kind": "int"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0,
+                      "inclusive": true
+                    }
+                  ]
+                },
+                "action": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "press_key"
+                },
+                "element_index": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "Number",
+                    "checks": [
+                      {
+                        "kind": "int"
+                      },
+                      {
+                        "kind": "min",
+                        "value": 0,
+                        "inclusive": true
+                      }
+                    ]
+                  }
+                },
+                "key": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "scroll"
+                },
+                "target": {
+                  "kind": "Union",
+                  "options": [
+                    {
+                      "kind": "Number",
+                      "checks": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "min",
+                          "value": 0,
+                          "inclusive": true
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "Tuple",
+                      "items": [
+                        {
+                          "kind": "Number"
+                        },
+                        {
+                          "kind": "Number"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "direction": {
+                  "kind": "Enum",
+                  "values": [
+                    "up",
+                    "down",
+                    "left",
+                    "right",
+                    "u",
+                    "d",
+                    "l",
+                    "r"
+                  ]
+                },
+                "pages": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Number"
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "select_text"
+                },
+                "element_index": {
+                  "kind": "Number",
+                  "checks": [
+                    {
+                      "kind": "int"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0,
+                      "inclusive": true
+                    }
+                  ]
+                },
+                "text": {
+                  "kind": "String"
+                },
+                "prefix": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "String"
+                  }
+                },
+                "suffix": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "String"
+                  }
+                },
+                "selection_type": {
+                  "kind": "Optional",
+                  "inner": {
+                    "kind": "Enum",
+                    "values": [
+                      "text",
+                      "cursor_before",
+                      "cursor_after"
+                    ]
+                  }
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "set_value"
+                },
+                "element_index": {
+                  "kind": "Number",
+                  "checks": [
+                    {
+                      "kind": "int"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0,
+                      "inclusive": true
+                    }
+                  ]
+                },
+                "value": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            },
+            {
+              "kind": "Object",
+              "fields": {
+                "kind": {
+                  "kind": "Literal",
+                  "value": "type_text"
+                },
+                "element_index": {
+                  "kind": "Nullable",
+                  "inner": {
+                    "kind": "Number",
+                    "checks": [
+                      {
+                        "kind": "int"
+                      },
+                      {
+                        "kind": "min",
+                        "value": 0,
+                        "inclusive": true
+                      }
+                    ]
+                  }
+                },
+                "text": {
+                  "kind": "String"
+                }
+              },
+              "unknownKeys": "strip"
+            }
+          ],
+          "discriminator": "kind"
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "action": {
+              "kind": "DiscriminatedUnion",
+              "options": [
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "paste"
+                    },
+                    "element_index": {
+                      "kind": "Nullable",
+                      "inner": {
+                        "kind": "Number",
+                        "checks": [
+                          {
+                            "kind": "int"
+                          },
+                          {
+                            "kind": "min",
+                            "value": 0,
+                            "inclusive": true
+                          }
+                        ]
+                      }
+                    },
+                    "text": {
+                      "kind": "String"
+                    },
+                    "format": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Enum",
+                        "values": [
+                          "text",
+                          "md",
+                          "html"
+                        ]
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "click"
+                    },
+                    "target": {
+                      "kind": "Union",
+                      "options": [
+                        {
+                          "kind": "Number",
+                          "checks": [
+                            {
+                              "kind": "int"
+                            },
+                            {
+                              "kind": "min",
+                              "value": 0,
+                              "inclusive": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "Tuple",
+                          "items": [
+                            {
+                              "kind": "Number"
+                            },
+                            {
+                              "kind": "Number"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "mouse_button": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Enum",
+                        "values": [
+                          "left",
+                          "right",
+                          "middle",
+                          "l",
+                          "r",
+                          "m"
+                        ]
+                      }
+                    },
+                    "click_count": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Number",
+                        "checks": [
+                          {
+                            "kind": "int"
+                          },
+                          {
+                            "kind": "min",
+                            "value": 0,
+                            "inclusive": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "drag"
+                    },
+                    "from": {
+                      "kind": "Tuple",
+                      "items": [
+                        {
+                          "kind": "Number"
+                        },
+                        {
+                          "kind": "Number"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "kind": "Tuple",
+                      "items": [
+                        {
+                          "kind": "Number"
+                        },
+                        {
+                          "kind": "Number"
+                        }
+                      ]
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "perform_secondary_action"
+                    },
+                    "element_index": {
+                      "kind": "Number",
+                      "checks": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "min",
+                          "value": 0,
+                          "inclusive": true
+                        }
+                      ]
+                    },
+                    "action": {
+                      "kind": "String"
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "press_key"
+                    },
+                    "element_index": {
+                      "kind": "Nullable",
+                      "inner": {
+                        "kind": "Number",
+                        "checks": [
+                          {
+                            "kind": "int"
+                          },
+                          {
+                            "kind": "min",
+                            "value": 0,
+                            "inclusive": true
+                          }
+                        ]
+                      }
+                    },
+                    "key": {
+                      "kind": "String"
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "scroll"
+                    },
+                    "target": {
+                      "kind": "Union",
+                      "options": [
+                        {
+                          "kind": "Number",
+                          "checks": [
+                            {
+                              "kind": "int"
+                            },
+                            {
+                              "kind": "min",
+                              "value": 0,
+                              "inclusive": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "Tuple",
+                          "items": [
+                            {
+                              "kind": "Number"
+                            },
+                            {
+                              "kind": "Number"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "direction": {
+                      "kind": "Enum",
+                      "values": [
+                        "up",
+                        "down",
+                        "left",
+                        "right",
+                        "u",
+                        "d",
+                        "l",
+                        "r"
+                      ]
+                    },
+                    "pages": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Number"
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "select_text"
+                    },
+                    "element_index": {
+                      "kind": "Number",
+                      "checks": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "min",
+                          "value": 0,
+                          "inclusive": true
+                        }
+                      ]
+                    },
+                    "text": {
+                      "kind": "String"
+                    },
+                    "prefix": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    },
+                    "suffix": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "String"
+                      }
+                    },
+                    "selection_type": {
+                      "kind": "Optional",
+                      "inner": {
+                        "kind": "Enum",
+                        "values": [
+                          "text",
+                          "cursor_before",
+                          "cursor_after"
+                        ]
+                      }
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "set_value"
+                    },
+                    "element_index": {
+                      "kind": "Number",
+                      "checks": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "min",
+                          "value": 0,
+                          "inclusive": true
+                        }
+                      ]
+                    },
+                    "value": {
+                      "kind": "String"
+                    }
+                  },
+                  "unknownKeys": "strip"
+                },
+                {
+                  "kind": "Object",
+                  "fields": {
+                    "kind": {
+                      "kind": "Literal",
+                      "value": "type_text"
+                    },
+                    "element_index": {
+                      "kind": "Nullable",
+                      "inner": {
+                        "kind": "Number",
+                        "checks": [
+                          {
+                            "kind": "int"
+                          },
+                          {
+                            "kind": "min",
+                            "value": 0,
+                            "inclusive": true
+                          }
+                        ]
+                      }
+                    },
+                    "text": {
+                      "kind": "String"
+                    }
+                  },
+                  "unknownKeys": "strip"
+                }
+              ],
+              "discriminator": "kind"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabAxGetState": {
+      "type": "tab_ax_get_state",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "content": {
+              "kind": "Enum",
+              "values": [
+                "axState",
+                "screenshot",
+                "axStateAndScreenshot"
+              ]
+            },
+            "disable_diffing": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "state": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "data": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "screenshot_unavailable": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabClipboardRead": {
+      "type": "tab_clipboard_read",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "items": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "entries": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Effects",
+                      "inner": {
+                        "kind": "Object",
+                        "fields": {
+                          "mime_type": {
+                            "kind": "String"
+                          },
+                          "text": {
+                            "kind": "Optional",
+                            "inner": {
+                              "kind": "String"
+                            }
+                          },
+                          "base64": {
+                            "kind": "Optional",
+                            "inner": {
+                              "kind": "String"
+                            }
+                          }
+                        },
+                        "unknownKeys": "strip"
+                      },
+                      "refinement": "clipboard"
+                    }
+                  },
+                  "presentation_style": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "Enum",
+                      "values": [
+                        "unspecified",
+                        "inline",
+                        "attachment"
+                      ]
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabClipboardReadText": {
+      "type": "tab_clipboard_read_text",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "text": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabClipboardWrite": {
+      "type": "tab_clipboard_write",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "items": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "entries": {
+                    "kind": "Array",
+                    "item": {
+                      "kind": "Effects",
+                      "inner": {
+                        "kind": "Object",
+                        "fields": {
+                          "mime_type": {
+                            "kind": "String"
+                          },
+                          "text": {
+                            "kind": "Optional",
+                            "inner": {
+                              "kind": "String"
+                            }
+                          },
+                          "base64": {
+                            "kind": "Optional",
+                            "inner": {
+                              "kind": "String"
+                            }
+                          }
+                        },
+                        "unknownKeys": "strip"
+                      },
+                      "refinement": "clipboard"
+                    }
+                  },
+                  "presentation_style": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "Enum",
+                      "values": [
+                        "unspecified",
+                        "inline",
+                        "attachment"
+                      ]
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabClipboardWriteText": {
+      "type": "tab_clipboard_write_text",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "text": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabContentExport": {
+      "type": "tab_content_export",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "path": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabContentExportGSuite": {
+      "type": "tab_content_export_gsuite",
+      "schemas": {
+        "GSuiteExportTypeSchema": {
+          "kind": "Enum",
+          "values": [
+            "pdf",
+            "md",
+            "xlsx",
+            "csv",
+            "docx",
+            "pptx"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "format": {
+              "kind": "Enum",
+              "values": [
+                "pdf",
+                "md",
+                "xlsx",
+                "csv",
+                "docx",
+                "pptx"
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "path": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabContentExportYouTubeTranscript": {
+      "type": "tab_content_export_youtube_transcript",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "path": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabDevLogs": {
+      "type": "tab_dev_logs",
+      "schemas": {
+        "LogLevelSchema": {
+          "kind": "Enum",
+          "values": [
+            "debug",
+            "info",
+            "log",
+            "warn",
+            "error"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "filter": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "levels": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Array",
+                "item": {
+                  "kind": "Enum",
+                  "values": [
+                    "debug",
+                    "info",
+                    "log",
+                    "warn",
+                    "error"
+                  ]
+                }
+              }
+            },
+            "limit": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "logs": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "level": {
+                    "kind": "Enum",
+                    "values": [
+                      "debug",
+                      "info",
+                      "log",
+                      "warn",
+                      "error"
+                    ]
+                  },
+                  "message": {
+                    "kind": "String"
+                  },
+                  "timestamp": {
+                    "kind": "String"
+                  },
+                  "url": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabGetJsDialog": {
+      "type": "tab_get_js_dialog",
+      "schemas": {
+        "JsDialogTypeSchema": {
+          "kind": "Enum",
+          "values": [
+            "alert",
+            "beforeunload",
+            "confirm",
+            "prompt"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultDialogSchema": {
+          "kind": "Object",
+          "fields": {
+            "id": {
+              "kind": "String"
+            },
+            "type": {
+              "kind": "Enum",
+              "values": [
+                "alert",
+                "beforeunload",
+                "confirm",
+                "prompt"
+              ]
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "dialog": {
+              "kind": "Nullable",
+              "inner": {
+                "kind": "Object",
+                "fields": {
+                  "id": {
+                    "kind": "String"
+                  },
+                  "type": {
+                    "kind": "Enum",
+                    "values": [
+                      "alert",
+                      "beforeunload",
+                      "confirm",
+                      "prompt"
+                    ]
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabHandleJsDialog": {
+      "type": "tab_handle_js_dialog",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "action": {
+              "kind": "Enum",
+              "values": [
+                "accept",
+                "dismiss"
+              ]
+            },
+            "browser_id": {
+              "kind": "String"
+            },
+            "dialog_id": {
+              "kind": "String"
+            },
+            "prompt_text": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {},
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabScreenshot": {
+      "type": "tab_screenshot",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "fullPage": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Boolean"
+              }
+            },
+            "cropX": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number"
+              }
+            },
+            "cropY": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number"
+              }
+            },
+            "cropWidth": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number"
+              }
+            },
+            "cropHeight": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "data": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "TabsContent": {
+      "type": "tabs_content",
+      "schemas": {
+        "ContentTypeSchema": {
+          "kind": "Enum",
+          "values": [
+            "html",
+            "text",
+            "domSnapshot"
+          ]
+        },
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "urls": {
+              "kind": "Array",
+              "item": {
+                "kind": "String"
+              }
+            },
+            "content_type": {
+              "kind": "Enum",
+              "values": [
+                "html",
+                "text",
+                "domSnapshot"
+              ]
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "results": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "url": {
+                    "kind": "String"
+                  },
+                  "title": {
+                    "kind": "Nullable",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "content": {
+                    "kind": "Nullable",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "WebMcpInvokeTool": {
+      "type": "webmcp_invoke_tool",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            },
+            "tool_name": {
+              "kind": "String"
+            },
+            "tool_description": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "tool_origin": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "tool_title": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "String"
+              }
+            },
+            "registration_id": {
+              "kind": "String"
+            },
+            "input": {
+              "kind": "Unknown"
+            },
+            "timeout_ms": {
+              "kind": "Optional",
+              "inner": {
+                "kind": "Number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  },
+                  {
+                    "kind": "min",
+                    "value": 0,
+                    "inclusive": false
+                  }
+                ]
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "result": {
+              "kind": "Unknown"
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    },
+    "WebMcpListTools": {
+      "type": "webmcp_list_tools",
+      "schemas": {
+        "PayloadSchema": {
+          "kind": "Object",
+          "fields": {
+            "browser_id": {
+              "kind": "String"
+            },
+            "tab_id": {
+              "kind": "String"
+            }
+          },
+          "unknownKeys": "strip"
+        },
+        "ResultSchema": {
+          "kind": "Object",
+          "fields": {
+            "tools": {
+              "kind": "Array",
+              "item": {
+                "kind": "Object",
+                "fields": {
+                  "name": {
+                    "kind": "String"
+                  },
+                  "call_name": {
+                    "kind": "String"
+                  },
+                  "registration_id": {
+                    "kind": "String"
+                  },
+                  "title": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "description": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "input_schema": {
+                    "kind": "Unknown"
+                  },
+                  "annotations": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "Object",
+                      "fields": {
+                        "readOnlyHint": {
+                          "kind": "Optional",
+                          "inner": {
+                            "kind": "Boolean"
+                          }
+                        },
+                        "untrustedContentHint": {
+                          "kind": "Optional",
+                          "inner": {
+                            "kind": "Boolean"
+                          }
+                        },
+                        "consequentialHint": {
+                          "kind": "Optional",
+                          "inner": {
+                            "kind": "Boolean"
+                          }
+                        }
+                      },
+                      "unknownKeys": "strip"
+                    }
+                  },
+                  "origin": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  },
+                  "pageUrl": {
+                    "kind": "Optional",
+                    "inner": {
+                      "kind": "String"
+                    }
+                  }
+                },
+                "unknownKeys": "strip"
+              }
+            }
+          },
+          "unknownKeys": "strip"
+        }
+      }
+    }
+  }
+}

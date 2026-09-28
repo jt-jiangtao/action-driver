@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ActionDriver browser acceptance</title></head>
+<body>
+  <h1>Browser acceptance fixture</h1>
+  <label for="name">Name</label>
+  <input id="name" type="text" autocomplete="off">
+  <button id="apply" type="button">Apply</button>
+  <output id="result" aria-live="polite">Waiting</output>
+  <script>
+    document.querySelector('#apply').addEventListener('click', () => {
+      document.querySelector('#result').textContent =
+        `Hello, ${document.querySelector('#name').value}`
+    })
+  </script>
+</body>
+</html>

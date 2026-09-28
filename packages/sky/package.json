@@ -1,0 +1,28 @@
+{
+  "name": "@actiondriver/sky",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./service": {
+      "types": "./dist/service.d.ts",
+      "import": "./dist/service.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@statsig/js-client": "3.32.6"
+  },
+  "files": [
+    "dist",
+    "resources",
+    "docs"
+  ]
+}

@@ -1,0 +1,1622 @@
+{
+  "schemaVersion": 1,
+  "source": "inventory.json unknown + baseline.json + fixed vendor/backup bytes",
+  "counts": {
+    "browser-mixed-bundle": 3,
+    "classic-level-entry": 1,
+    "cua-banner": 1,
+    "statsig-build-glue": 63,
+    "statsig-client-core": 52,
+    "statsig-js-client": 9,
+    "tslib-helpers": 3
+  },
+  "groupManifestSha256": {
+    "browser-mixed-bundle": "d0ed2f9c1de9858854a6c6480d9c483b4c15a97a45ef2d76b54168cb10404e8c",
+    "classic-level-entry": "f730df00d6a85456d0c55f791ee41b176e3a2c88ecfc7b5b3d1c7d5f5d7c86a5",
+    "cua-banner": "e50d15510137718b3e997781b04adf74c6e7a1c5120ccede24a359337c4f05d9",
+    "statsig-build-glue": "a03b933f2e2c951855c8e206967ed56bdfdb26c46d4ec943366fc97fb93b6d96",
+    "statsig-client-core": "bc6c4a55e89e6516c3a97b7a3ffeae4432df68ecd166defbf63d6107573cd62f",
+    "statsig-js-client": "07340465eb4677363148554cee988286fd24caede0141c49d4ff4be89cec3ce3",
+    "tslib-helpers": "e9a700d049bc6098abaf68e8daf7a59c4c4fc5a58c51a58b51469764ebe480b0"
+  },
+  "unreviewedFiles": [],
+  "unresolved": {
+    "mixedBundleInternalBoundaries": [
+      "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
+      "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs",
+      "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs"
+    ],
+    "tslibExactVersions": [
+      "@oai/cua-repl/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js",
+      "@oai/cua/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js",
+      "@oai/sky/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js"
+    ]
+  },
+  "entries": [
+    {
+      "path": "@oai/cua-repl/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js",
+      "group": "tslib-helpers",
+      "ownership": "third-party-generated-helper",
+      "versionEvidence": null,
+      "bytes": 369,
+      "sha256": "97adafd19f12bc603ae9539ef8136c95ae2236e46d461a11009a4e47d92afa59",
+      "evidence": [
+        "固定 node_modules/tslib 路径",
+        "内容为压缩后的 TypeScript tslib 辅助函数；原包未附 package.json，确切版本未证实"
+      ]
+    },
+    {
+      "path": "@oai/cua-repl/instructions/banner.js",
+      "group": "cua-banner",
+      "ownership": "first-party",
+      "versionEvidence": "@oai/cua-repl@0.1.0",
+      "bytes": 37,
+      "sha256": "db4a56c4a1cb6f9ec2ca663694fbe8941846aaa83d0bf12d3a5699f92126105a",
+      "evidence": [
+        "内容仅动态导入自有 @oai/cua/tinyskyAlt 入口",
+        "cua-repl 包版本来自 baseline.json；非第三方模块"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/BatchedEventsQueue.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/BatchedEventsQueue.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/CacheKey.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/CacheKey.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/ClientInterfaces.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ClientInterfaces.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/DataAdapterCore.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DataAdapterCore.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/Diagnostics.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Diagnostics.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/DnsTxtQuery.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DnsTxtQuery.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/DownloadConfigSpecsResponse.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DownloadConfigSpecsResponse.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/ErrorBoundary.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ErrorBoundary.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EvaluationOptions.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EvaluationOptions.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EvaluationResponseDeltas.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/EvaluationResponseDeltas.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EvaluationStore.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/EvaluationStore.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EvaluationTypes.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EvaluationTypes.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EventBatch.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventBatch.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EventLogger.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventLogger.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EventRetryConstants.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventRetryConstants.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/EventSender.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventSender.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/FlushCoordinator.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushCoordinator.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/FlushInterval.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushInterval.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/FlushTypes.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushTypes.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/Hashing.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Hashing.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/InitializeResponse.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/InitializeResponse.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/Log.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Log.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/MemoKey.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/MemoKey.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/Network.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/Network.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/NetworkConfig.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkConfig.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/NetworkCore.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkCore.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/NetworkFallbackResolver.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkFallbackResolver.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/OverrideAdapter.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/OverrideAdapter.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/ParamStoreGetterFactory.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/ParamStoreGetterFactory.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/ParamStoreTypes.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ParamStoreTypes.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/PendingEvents.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/PendingEvents.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/SDKFlags.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SDKFlags.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/SDKType.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SDKType.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/SafeJs.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SafeJs.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/SessionID.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SessionID.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/SizeOf.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SizeOf.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StableID.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StableID.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigClient.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/StatsigClient.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigClientBase.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigClientBase.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigClientEventEmitter.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigClientEventEmitter.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigDataAdapter.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigDataAdapter.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigEvaluationsDataAdapter.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/StatsigEvaluationsDataAdapter.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigEvent.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigEvent.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigMetadata.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigMetadata.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigOptionsCommon.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigOptionsCommon.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigPlugin.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigPlugin.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigTypeFactories.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigTypeFactories.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigTypes.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigTypes.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigUpdateDetails.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigUpdateDetails.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StatsigUser.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigUser.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/StorageProvider.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StorageProvider.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/TypedJsonParse.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/TypedJsonParse.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/TypingUtils.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/TypingUtils.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/UUID.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/UUID.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/UrlConfiguration.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/UrlConfiguration.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/V1InitializeContainer.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/V1InitializeContainer.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/V2InitializeContainer.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/V2InitializeContainer.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/VisibilityObserving.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/VisibilityObserving.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/__StatsigGlobal.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/__StatsigGlobal.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/_commonjsHelpers.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 178,
+      "sha256": "1cde29f09d86243102e18119ca0050402741593191cb95a738ded74e2c99ea65",
+      "evidence": [
+        "CommonJS 构建 helper；被 Statsig __StatsigGlobal.js 导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/__StatsigGlobal.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/index.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 147,
+      "sha256": "fb8b7d1f18f80ff4051a502f0f3408e71697193d739eef4a7469ce39af401dd1",
+      "evidence": [
+        "内容直接导入 @statsig/js-client@3.32.6 并调用 __require",
+        "反向 import: @oai/cua/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/index2.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/index.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/_virtual/index3.js",
+      "group": "statsig-build-glue",
+      "ownership": "generated-third-party-glue",
+      "versionEvidence": "Statsig 3.32.6 构建输出；Rollup helper 无独立版本",
+      "bytes": 33,
+      "sha256": "453d12d37d2617c4ed20d1c79e13f4c80dd1948255fb2d463eb52f0a684f75ac",
+      "evidence": [
+        "CommonJS 构建 __exports 容器；被 Statsig 包源导入",
+        "反向 import: @oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/index.js"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js",
+      "group": "tslib-helpers",
+      "ownership": "third-party-generated-helper",
+      "versionEvidence": null,
+      "bytes": 1426,
+      "sha256": "072e9fea747565a13de5f48e08678fc4d30ca858c601238e839fc3749ab4e15f",
+      "evidence": [
+        "固定 node_modules/tslib 路径",
+        "内容为压缩后的 TypeScript tslib 辅助函数；原包未附 package.json，确切版本未证实"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/node_modules/classic-level.mjs",
+      "group": "classic-level-entry",
+      "ownership": "third-party",
+      "versionEvidence": "classic-level@3.0.0",
+      "bytes": 182,
+      "sha256": "cac42e9e833f9f7638aea9c5396108b15f247932b332f5792c90e84015d5d33c",
+      "evidence": [
+        "内容仅经 createRequire 重导出 ./classic-level/index.js",
+        "同目录 classic-level/package.json 指明版本 3.0.0"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
+      "group": "browser-mixed-bundle",
+      "ownership": "mixed-first-and-third-party",
+      "versionEvidence": null,
+      "bytes": 151086,
+      "sha256": "b1875cb071efd73995652a1edacc778c86c422cbc593565986a3bafb9c3a11ff",
+      "evidence": [
+        "字节内同时包含自有 tab_screenshot/navigate_tab_url 命令与 Playwright 代码；须继续拆分归属",
+        "浏览器 bundle 无独立 package.json 版本证据"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs",
+      "group": "browser-mixed-bundle",
+      "ownership": "mixed-first-and-third-party",
+      "versionEvidence": null,
+      "bytes": 151506,
+      "sha256": "d9d0143a6f250151e5fcb87957d21d171178c2aada6019ab72fb7056ac1e1324",
+      "evidence": [
+        "字节内同时包含自有 tab_screenshot/navigate_tab_url 命令与 Playwright 代码；须继续拆分归属",
+        "浏览器 bundle 无独立 package.json 版本证据"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs",
+      "group": "browser-mixed-bundle",
+      "ownership": "mixed-first-and-third-party",
+      "versionEvidence": null,
+      "bytes": 1372505,
+      "sha256": "658332836ffa0d1730337eacf58c323c7175c7ff26fe062be3f728760e1f855e",
+      "evidence": [
+        "字节内同时包含自有 tab_screenshot/navigate_tab_url 命令与 Playwright 代码；须继续拆分归属",
+        "浏览器 bundle 无独立 package.json 版本证据",
+        "service bundle 同时包含 Statsig、Sentry、classic-level 标记"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/BatchedEventsQueue.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1051,
+      "sha256": "0bee4c904712c8c8dd8eb92521cad7e2fb4a04520f8e1097fbbd4f0921e92a38",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/CacheKey.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 664,
+      "sha256": "ee89b32acdc93b44af5074eed431e8b5cd520db65e6d77ad649c96e927a2b201",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ClientInterfaces.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1292,
+      "sha256": "79fbe0a928417cb948b49adcc86027d8a54d633529f1749071baed5587832a85",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DataAdapterCore.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 4800,
+      "sha256": "5a093510dcd94de748b09a6881568f00f723403caa768dd84b8036b097943dec",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Diagnostics.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1822,
+      "sha256": "0e624b9f00132341afc3ecef34cf54bc4c9c37246d5e3e5bb12c70a8ac08f456",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DnsTxtQuery.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1383,
+      "sha256": "bbf672d4d869915a3136a98c675cb60c379aa005cc584d9ecd025205930595d9",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/DownloadConfigSpecsResponse.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 199,
+      "sha256": "0bdb59957a4d590d19a8270370dacd374446778066d8a9667dd61be035c617de",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ErrorBoundary.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 4119,
+      "sha256": "18eadf71178eff160c66bdc9fa0960d616c937aba97403f2ee1063cefcf4524e",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EvaluationOptions.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 189,
+      "sha256": "ac61f8aedb64e3b0c24450721e4c46f46da6baf28b2a8d681337f990db65edf0",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EvaluationTypes.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 187,
+      "sha256": "f3cd346495a9eb1128093835287be6f8aa2f78329a6d3d856306da5f852e71c7",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventBatch.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 339,
+      "sha256": "c7535a962dc19f21018231834a1e141056afafb8754848419432d1c5ab4085a8",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventLogger.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 6884,
+      "sha256": "265d2fa8359157980b47a3f3a679fcebb214a1ca48fdeb50e4d61efc778a712f",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventRetryConstants.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 461,
+      "sha256": "641e8e48e72fda6aad91ead85218dc8d1794f557fe2d237dabee34b70b0dd8d2",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/EventSender.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 3910,
+      "sha256": "17c81b5ce3ec1bfa64d4598ccdba104d35836bb6f4d0642cf2e7079b9c0f7e3e",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushCoordinator.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 9609,
+      "sha256": "2386a04b924665e9098c11f80b27e94f4cd6b069ba9293f997aa2cf2a2a67c97",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushInterval.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1012,
+      "sha256": "24de955919d45d9723b2cd9fdb6c44ce9c65bd8fb10bfe19f353be4229f014a6",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/FlushTypes.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 383,
+      "sha256": "0857621edcae40996346954a72c5dce20d3efa091ad5d35506f43069b24b52f8",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Hashing.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 693,
+      "sha256": "ff9d2236b7d4e6c3109d9cce8eb0d40e0cff92e6ebfb1a2c1f4aec15e4c09629",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/InitializeResponse.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 190,
+      "sha256": "7363b15c79b8e425dd190b365233d4c2294eed587ca4200a0f0c44e952af5165",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/Log.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 662,
+      "sha256": "8a7f10681cfe1c2b33e6198fcbe0ca1d4b724e7e3a3e461f91319aa13d960c50",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/MemoKey.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 552,
+      "sha256": "9553fec9e8758d3bbf09256368f099dc7100a026e64770516ed5e5b7974c2e66",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkConfig.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 673,
+      "sha256": "ae03ced9b99ad6ec883a0d4acb79609c542dd367210555cdb93b9713a9235191",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkCore.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 10340,
+      "sha256": "d6f9b8a7eb72dc6af7ce48a35bbdbaf7d10276d4a4f693e8f4cd495fcc142c88",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/NetworkFallbackResolver.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 4059,
+      "sha256": "fd92f75fdb783169b7e8e922776941b2304d126b0da2881671453bf782a88e55",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/OverrideAdapter.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 187,
+      "sha256": "b7a621378116f279a1b72135557b18061713aa2fe35fb1b44034050f777489b1",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/ParamStoreTypes.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 187,
+      "sha256": "8a62ba8ee6453875e10c09e56baa3328208f3db5508153c63df0ebc899654dbf",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/PendingEvents.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 627,
+      "sha256": "429e52fe4dd5cd1480d379fff304ffafa303c8002e558ff599a39ba25d3ce902",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SDKFlags.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 350,
+      "sha256": "54b88f246894c2828bb40f81c88322a8c2beafd1e6d2b8fb2328166dd48f96a9",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SDKType.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 388,
+      "sha256": "e3c6b9803c4c85c2cf5cae0707390e15362f18f759e2c5dd2fd7749fabfdc371",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SafeJs.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1512,
+      "sha256": "1e82ee65a04af633a87987172f07268bd51898ac2385e49e953d61e29a26b966",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SessionID.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1962,
+      "sha256": "da218d03c28d978b37473139c02d35202111d14eaba2b4192bb892807f9005f3",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/SizeOf.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 449,
+      "sha256": "962f7cdb3ed1a69cea2037fdd6f9e25ee27cbf6997c6116e52aa8030073246fb",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StableID.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1558,
+      "sha256": "6c28c8b991d50e5eba3290308c04ad70eceb56377f17a11298793a9e4bd1ea8f",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigClientBase.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 4798,
+      "sha256": "e5a4ed96a86834b06b4e37d89b0e792fb83094f1a422ba6ece86ad21f9fb2705",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigClientEventEmitter.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 256,
+      "sha256": "8134d5df93d24f0bec0d9556af808d65d26ba1491e25b9fd0556b41af3a20fd9",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigDataAdapter.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 264,
+      "sha256": "ae1e9b9252a140bb5de7c57432d327ac036d806a9c3815f05b43e3de2b234947",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigEvent.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 2358,
+      "sha256": "10e70712e4d9084a96fddc1cbc83c17829f712501bd46eedc9494c7b4afb4733",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigMetadata.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 410,
+      "sha256": "f19f14526d6be30ccc70f1cab0e9726c998a7494c6d79913d95397942945667d",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigOptionsCommon.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 400,
+      "sha256": "fc86427a3a19b53a2d5af7032a00344d50b01c4a49fd0681a8363ba4fecf4b14",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigPlugin.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 185,
+      "sha256": "bd8b933d5e7dc5d24f1c88305f0cfe245477dcea67fd345f9f9bef1df6166e1e",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigTypeFactories.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1938,
+      "sha256": "2559d4226cc04774ef6217ec18be1203333c5e321788bf29b4c3643d824b5384",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigTypes.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 184,
+      "sha256": "be4456177716b946b16f4eaeb15cfe0abcfd1542670ca711919a270ff83ee6cf",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigUpdateDetails.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 559,
+      "sha256": "91bebb6912cbf3610a2263271670ef460e2aee04e9caf5085393f0788d945db6",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StatsigUser.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 988,
+      "sha256": "c8635c1437b53e90a81cf41fa640c100b85eb3eb2d06dd9b8ac850b71c1a8dc0",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/StorageProvider.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1676,
+      "sha256": "bab0367c5bd4dee0da28713ade128b55f91730569c62ca66abb0bb746cc864dc",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/TypedJsonParse.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 430,
+      "sha256": "5e5ceee69d84248ce330172c74a951a351499a704b8557739b42db1a5dce396c",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/TypingUtils.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 398,
+      "sha256": "952a779d724edaf729b422c7b4d855fed53747ad9c1009b026161be9972ade04",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/UUID.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 662,
+      "sha256": "4086abc388db437f64827b462724dc7bacd7f9e051f6366d258e56d1a2b25726",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/UrlConfiguration.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 931,
+      "sha256": "8d6edb4fdc0d58d0575ff73e89cfaaf214c153b04f19b1030e972a3b6bda0f33",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/VisibilityObserving.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 992,
+      "sha256": "b3badb3a695f0e2593c97edffcde868c561efdaceb5355cc3fe5ff3824d1c5ca",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/__StatsigGlobal.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 1167,
+      "sha256": "ecb7f617a3831e02a0bb77750d8aa39cf557e02fd54f8ad9327e6c2893a42193",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_client-core@3.32.6/node_modules/@statsig/client-core/src/index.js",
+      "group": "statsig-client-core",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/client-core@3.32.6",
+      "bytes": 3453,
+      "sha256": "2930ab69843bf1b50916fe8a0207b67a842b44d74337ff4c7c44ae47a59eb3b4",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/EvaluationResponseDeltas.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 1375,
+      "sha256": "60fdd0152ca9a9e52850a66594613d58f12d9ef79db68322585bbe137d260db9",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/EvaluationStore.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 4009,
+      "sha256": "452a4acef9c71c3ad4d0d7fd42c2906e4095f94b12b947156811e0e2df8bb523",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/Network.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 2548,
+      "sha256": "98271383ca70f29e605bd49a54ef50142454e95d62d338fa7fe3322986c46923",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/ParamStoreGetterFactory.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 1291,
+      "sha256": "1a7aa331c01faba8a3c89e563467207e5c4321b1ad444447a3dc4fe231b8da9a",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/StatsigClient.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 10504,
+      "sha256": "1d4acda576f7acc8e9d5bdc953a66b6b69907e7c3fcd709f3a1fc2361eae23d6",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/StatsigEvaluationsDataAdapter.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 1988,
+      "sha256": "c87175fbc4bf1bb68f2094444535fa9d7269a53428a6a56d864cd28cff320418",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/V1InitializeContainer.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 969,
+      "sha256": "44183cbb82d1de92a7300ca5743a6e8b2ebe285544e456f8f3f5790a7dff7c2f",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/V2InitializeContainer.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 2044,
+      "sha256": "8d67282719a4f68a03650cad15568a97ffe9cf1ca2416c3944b160bfb147d839",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/cua/dist/node_modules/.pnpm/@statsig_js-client@3.32.6/node_modules/@statsig/js-client/src/index.js",
+      "group": "statsig-js-client",
+      "ownership": "third-party",
+      "versionEvidence": "@statsig/js-client@3.32.6",
+      "bytes": 946,
+      "sha256": "79ef9f27cced33d25b489d90fed5e78e43f6a0e4b8da180ab02decd65ff54933",
+      "evidence": [
+        "固定 .pnpm 包路径及版本",
+        "文件包含 CommonJS 转换后的 __require/__exports 与 import"
+      ]
+    },
+    {
+      "path": "@oai/sky/dist/lib/js/oai_js/node_modules/tslib/tslib.es6.js",
+      "group": "tslib-helpers",
+      "ownership": "third-party-generated-helper",
+      "versionEvidence": null,
+      "bytes": 1426,
+      "sha256": "072e9fea747565a13de5f48e08678fc4d30ca858c601238e839fc3749ab4e15f",
+      "evidence": [
+        "固定 node_modules/tslib 路径",
+        "内容为压缩后的 TypeScript tslib 辅助函数；原包未附 package.json，确切版本未证实"
+      ]
+    }
+  ]
+}

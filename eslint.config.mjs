@@ -10,6 +10,9 @@ export default tseslint.config(
       '**/coverage/**',
       '**/.superpowers/**',
       'thridparty/**',
+      // Immutable original-package snapshots and generated analysis evidence.
+      'packages/back/**',
+      'analysis/codex-cua/**',
       'apps/agent-runtime/resources/system-skills/**',
       'plugins/*/skills/**',
       'apps/agent-runtime/vendor/**',
@@ -22,7 +25,8 @@ export default tseslint.config(
     // Node-side helper scripts that ship with the runtime or the packaging flow.
     files: ['scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
       'apps/agent-runtime/resources/js-repl/**/*.mjs',
-      'apps/agent-runtime/src/plugins/**/*.mjs', 'packages/create-actiondriver-plugin/src/**/*.mjs'],
+      'apps/agent-runtime/src/plugins/**/*.mjs', 'packages/create-actiondriver-plugin/src/**/*.mjs',
+      'packages/{cua,sky,cua-repl,browser-runtime,cua-parity}/**/*.mjs'],
     languageOptions: {
       globals: {
         Buffer: 'readonly',
@@ -61,6 +65,18 @@ export default tseslint.config(
         caughtErrorsIgnorePattern: '^_',
         ignoreRestSiblings: true
       }]
+    }
+  },
+  {
+    // The reconstructed candidates retain original declaration shapes and explicit empty guards.
+    // Keep this exception local until the owned-host migration and final cleanup are complete.
+    files: ['packages/{cua,sky,cua-repl,browser-runtime,cua-parity}/**/*.{ts,tsx,mjs}'],
+    rules: {
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/consistent-type-imports': 'off',
+      'prefer-const': 'off',
+      'no-empty': 'off'
     }
   }
 )

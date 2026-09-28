@@ -1,0 +1,26 @@
+{
+  "originalPath": "apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs",
+  "originalFileSha256": "658332836ffa0d1730337eacf58c323c7175c7ff26fe062be3f728760e1f855e",
+  "originalInjectedSha256": "7970824c76e6bb9f77ad7617e2f3f86d9704bdcd4c2218c7a7bdf5f6a9499d23",
+  "upstream": {
+    "package": "playwright-core",
+    "version": "1.59.0",
+    "registry": "https://registry.npmjs.org/playwright-core/1.59.0",
+    "generatedFileSha256": "53aac4133e2d1bfa605c7c33590d95e4edb57078412f895d21b5a08663296975",
+    "serializedSourceSha256": "ee122c6b89a54de5510a2399f525548b16418570a8959ae4068d7f311511707d"
+  },
+  "normalization": {
+    "tool": "esbuild",
+    "version": "0.28.2",
+    "minify": true,
+    "target": "esnext"
+  },
+  "patch": {
+    "offset": 65621,
+    "length": 521,
+    "sha256": "0bc4c1931fdea8be6af9baa28c2b0db152f7061b31d0ecf4a360d8c63c03cbc3",
+    "purpose": "redact sensitive input/textarea ARIA values"
+  },
+  "normalizedUpstreamSha256": "54ae13d94dbe040d063945886a6bd893bbf42d96992fa376d2fe99566b63a22e",
+  "wholeSourceEqualsAfterRemovingOnlyPatch": true
+}
