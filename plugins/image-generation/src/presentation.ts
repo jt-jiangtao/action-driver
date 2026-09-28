@@ -2,7 +2,7 @@ import type { ToolPresentation } from '@actiondriver/plugin-sdk'
 
 /** Pure semantic metadata; importing it never activates the plugin. */
 export const presentations: Record<string, ToolPresentation> = {
-  'tools.local.image-generation.generate': {
+  'tools/local/image-generation/generate': {
     input: [
       { label: '图片描述', path: 'images.*.prompt', kind: 'text' }
     ],

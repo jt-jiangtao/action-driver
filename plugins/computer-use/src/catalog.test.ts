@@ -3,6 +3,7 @@ import { catalog } from './catalog'
 import { projectToolDetails } from '@actiondriver/plugin-sdk'
 it('exports original js schemas and computer-use Skill without starting the native runtime', () => {
   expect(catalog.tools.map(tool => tool.modelName)).toEqual(['tools_local_cua_js', 'tools_local_cua_reset'])
+  expect(catalog.tools.map(tool => tool.id)).toEqual(['tools/local/cua/js', 'tools/local/cua/reset'])
   expect(catalog.tools[0]?.description).toContain('SKILL_NOT_LOADED')
   expect(catalog.skills[0]).toMatchObject({ id: 'computer-use', name: 'computer-use' })
 })

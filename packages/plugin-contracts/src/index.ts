@@ -1,4 +1,4 @@
-import { pluginToolDefinitionSchema as toolDefinitionSchema, type ToolDefinition } from './tool.js'
+import { pluginToolDefinitionSchema as toolDefinitionSchema, toolIdSchema, type ToolDefinition } from './tool.js'
 export * from './tool.js'
 import { z } from 'zod'
 import { satisfies, valid, validRange } from 'semver'
@@ -12,9 +12,12 @@ const range = z.string().refine(value => validRange(value) !== null, 'Invalid ve
 const entry = z.string().min(1).refine(value => !value.startsWith('/') && !value.includes('\\') && !value.split('/').some(part => part === '..' || part === '.' || part === ''), 'Entry must be package-relative')
 export const contributionSchema = z.object({
   kind: z.enum(['tool', 'command', 'skill', 'capability', 'service', 'panel']),
-  id: contributionId,
+  id: z.string().min(1),
   modelName: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional()
-}).strict()
+}).strict().superRefine((item, context) => {
+  const schema = item.kind === 'tool' ? toolIdSchema : contributionId
+  if (!schema.safeParse(item.id).success) context.addIssue({ code: 'custom', path: ['id'], message: `Invalid ${item.kind} contribution ID` })
+})
 export const manifestSchema = z.object({
   id: identity, version, sdk: range, entry, catalog: entry.optional(),
   platforms: z.array(z.string().regex(/^(darwin|linux|win32)-(arm64|x64)$/)).min(1),

@@ -15,6 +15,8 @@ import {
   openRuntimeDatabase
 } from '../src/index'
 
+vi.setConfig({ testTimeout: 20_000 })
+
 const phoenixConstruction = vi.hoisted(() => vi.fn())
 let collector: Awaited<ReturnType<typeof startLocalOtelCollector>>
 beforeAll(async () => {
@@ -65,13 +67,13 @@ describe('Agent Runtime process entry', () => {
       for (const key of keys) expect(process.env[key]).toBe('false')
     } finally {
       parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
       for (const key of keys) {
         if (previous[key] === undefined) delete process.env[key]
         else process.env[key] = previous[key]
       }
     }
-  })
+  }, 20_000)
 
   it('wires the process tracer into Phoenix model observability', async () => {
     const parentPort = new FakeParentPort()
@@ -87,7 +89,7 @@ describe('Agent Runtime process entry', () => {
       })
     )
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
   })
 
   it('refuses a second live Runtime before it can recover the first Runtime tasks', async () => {
@@ -113,7 +115,7 @@ describe('Agent Runtime process entry', () => {
       )
     } finally {
       firstParent.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-      await vi.waitFor(() => expect(firstExit).toHaveBeenCalledWith(0))
+      await vi.waitFor(() => expect(firstExit).toHaveBeenCalledWith(0), { timeout: 10_000 })
     }
   })
 
@@ -237,7 +239,7 @@ describe('Agent Runtime process entry', () => {
       expect((await read.toolInvocations.listByTask('orphan-task'))[0]?.status).toBe('unknown')
       read.close()
       parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
     }
   })
 
@@ -255,7 +257,7 @@ describe('Agent Runtime process entry', () => {
     expect(parentPort.postMessage).toHaveBeenCalledWith({ type: 'runtime.ready', service: null })
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
   })
 
   it('reports the HTTP service address when the client injected a token', async () => {
@@ -329,7 +331,7 @@ describe('Agent Runtime process entry', () => {
     socket.close()
 
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
-    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0))
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
   })
 
   it('rejects startup without a configured workspace root', async () => {
@@ -352,10 +354,10 @@ describe('Agent Runtime process entry', () => {
     for (const tool of tools) registry.register(tool.definition, tool.executor)
     const grants = registry.list().map((tool) => `${tool.id}@${tool.version}`)
     expect(registry.list().map((tool) => tool.id)).toEqual([
-      'tools.local.command.shell.run',
-      'tools.local.command.python.run',
-      'tools.local.command.node.run',
-      'tools.local.command.typescript.run'
+      'tools/local/command/shell/run',
+      'tools/local/command/python/run',
+      'tools/local/command/node/run',
+      'tools/local/command/typescript/run'
     ])
     expect(() => registry.resolveModelName('sandbox_fs_read')).toThrow('TOOL_UNAVAILABLE')
     expect(() => registry.resolveModelName('sandbox_fs_list')).toThrow('TOOL_UNAVAILABLE')

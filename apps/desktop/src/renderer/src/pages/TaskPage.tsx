@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type {
   AppApprovalDecision,
   AppApprovalRequest,
@@ -59,7 +58,7 @@ export function TaskPage({
   onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
-  const hasComputer = (task.tools ?? []).some((tool) => (canonicalToolId(tool.toolId).startsWith('tools.local.computer-use.') || tool.toolId.startsWith('computer.')))
+  const hasComputer = (task.tools ?? []).some((tool) => tool.toolId === 'tools/local/cua/js')
   const pageMode = hasBrowser ? mode : 'agent-only'
   const agentWidth = !hasBrowser
     ? 1192
@@ -114,7 +113,7 @@ export function TaskPage({
   // their message stays out of the activity area's way while running.
   const orderedTurn = isOrderedTranscript(task)
   const hasImageGallery = (task.tools ?? []).some(
-    (tool) => canonicalToolId(tool.toolId) === 'tools.local.image-generation.generate' && tool.imageCount
+    (tool) => tool.toolId === 'tools/local/image-generation/generate' && tool.imageCount
   )
   const legacyHidden =
     !orderedTurn &&

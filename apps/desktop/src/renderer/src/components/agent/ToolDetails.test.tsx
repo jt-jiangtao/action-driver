@@ -4,7 +4,7 @@ import type { ToolInvocationProjection } from '@actiondriver/contracts'
 import { ActivityItems, ToolRow } from './ToolGroup'
 const tool = (extra: Record<string, unknown>): ToolInvocationProjection => ({
   callId: 'c',
-  toolId: 'tools.cloud.example.lookup',
+  toolId: 'tools/cloud/example/lookup',
   modelName: 'example',
   summary: '已查询目标',
   argumentsHash: '',
@@ -109,7 +109,7 @@ it.each([
     const { container } = render(
       <ToolRow
         tool={tool({
-          toolId: 'tools.local.command.shell.run',
+          toolId: 'tools/local/command/shell/run',
           durationMs,
           details: {
             layout: 'terminal',
@@ -166,9 +166,9 @@ it('uses the same scroll height for a task group', () => {
   })
 })
 it.each([
-  ['tools.local.cua.js', '已操作桌面应用：获取系统状态', 'Computer Use', 'await cua.getState()', 'Notes is open'],
-  ['tools.local.cua.js', '已操作浏览器：打开测试页面', 'Browser Use', 'await cua.createBrowserTab("iab", "https://example.org")', 'Fixture is open'],
-  ['tools.local.cua.js', '已操作浏览器：查看标签页', 'Browser Use', 'await agent.browsers.get("iab")', 'Fixture is open']
+  ['tools/local/cua/js', '已操作桌面应用：获取系统状态', 'Computer Use', 'await cua.getState()', 'Notes is open'],
+  ['tools/local/cua/js', '已操作浏览器：打开测试页面', 'Browser Use', 'await cua.createBrowserTab("iab", "https://example.org")', 'Fixture is open'],
+  ['tools/local/cua/js', '已操作浏览器：查看标签页', 'Browser Use', 'await agent.browsers.get("iab")', 'Fixture is open']
 ] as const)('shows %s summary in the title and script input/output in the details',
   (toolId, title, panelTitle, source, output) => {
     const { container } = render(<ToolRow tool={tool({

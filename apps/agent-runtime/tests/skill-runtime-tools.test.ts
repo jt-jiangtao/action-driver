@@ -162,7 +162,7 @@ describe('Skill Runtime tools', () => {
     })
     const shell = scriptTools.find((tool) => tool.definition.modelName === 'tools_local_command_shell_run')!
     const policy = new RuntimeToolPolicy()
-    const grants = ['tools.local.skills.install@1', 'tools.local.skills.read@1']
+    const grants = ['tools/local/skills/install@1', 'tools/local/skills/read@1']
     expect((await store.listEnabledSkillDescriptions()).some((skill) => skill.skillId === 'shell-guide'))
       .toBe(true)
     expect(policy.discover([...tools.map((tool) => tool.definition), shell.definition], { grants })

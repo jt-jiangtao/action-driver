@@ -644,7 +644,7 @@ describe('StreamSessionService', () => {
           type: 'tool.asset',
           payload: {
             callId: 'a',
-            toolId: 'tools.local.image-generation.generate',
+            toolId: 'tools/local/image-generation/generate',
             modelName: 'tools_local_image_generation_generate',
             summary: '生成图片',
             argumentsHash: '',
@@ -698,7 +698,7 @@ describe('StreamSessionService', () => {
           type: 'tool.running',
           payload: {
             callId: 'a',
-            toolId: 'tools.local.image-generation.generate',
+            toolId: 'tools/local/image-generation/generate',
             modelName: 'tools_local_image_generation_generate',
             summary: '生成图片',
             argumentsHash: '',
@@ -764,7 +764,7 @@ describe('StreamSessionService', () => {
             type,
             payload: {
               callId,
-              toolId: 'image.generate',
+              toolId: 'tools/local/image-generation/generate',
               modelName: 'image_generate',
               summary: '生成图片',
               argumentsHash: '',
@@ -918,7 +918,7 @@ describe('StreamSessionService', () => {
           type: 'tool.running',
           payload: {
             callId: 'call-1',
-            toolId: 'tools.local.image-generation.generate',
+            toolId: 'tools/local/image-generation/generate',
             modelName: 'tools_local_image_generation_generate',
             summary: '生成 2 张图片',
             argumentsHash: '',
@@ -941,7 +941,7 @@ describe('StreamSessionService', () => {
             type: 'tool.asset',
             payload: {
               callId: 'call-1',
-              toolId: 'tools.local.image-generation.generate',
+              toolId: 'tools/local/image-generation/generate',
               modelName: 'tools_local_image_generation_generate',
               summary: '生成 2 张图片',
               argumentsHash: '',
@@ -1014,7 +1014,7 @@ describe('StreamSessionService', () => {
             type: 'tool.asset',
             payload: {
               callId: 'call-1',
-              toolId: 'tools.local.image-generation.generate',
+              toolId: 'tools/local/image-generation/generate',
               modelName: 'tools_local_image_generation_generate',
               summary: '生成图片',
               argumentsHash: '',
@@ -2045,7 +2045,7 @@ describe('StreamSessionService', () => {
       id: 'call-snapshot',
       providerCallId: 'provider-snapshot',
       taskId: accepted.taskId,
-      toolId: 'tools.local.command.shell.run',
+      toolId: 'tools/local/command/shell/run',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -2060,7 +2060,7 @@ describe('StreamSessionService', () => {
       id: 'call-image-snapshot',
       providerCallId: 'provider-image-snapshot',
       taskId: accepted.taskId,
-      toolId: 'tools.local.image-generation.generate',
+      toolId: 'tools/local/image-generation/generate',
       toolVersion: 1,
       argumentsHash: '',
       decision: 'allow',
@@ -2169,7 +2169,7 @@ describe('StreamSessionService', () => {
       type: 'tool.completed',
       payload: {
         callId: 'call-safe',
-        toolId: 'tools.local.web.search@1',
+        toolId: 'tools/local/web/search@1',
         modelName: 'tools_local_web_search',
         summary: '搜索 “privacy news”',
         argumentsHash: '',
@@ -2329,7 +2329,7 @@ describe('StreamSessionService', () => {
       type: 'tool.completed',
       payload: {
         callId: 'call-persisted',
-        toolId: 'tools.local.cua.js',
+        toolId: 'tools/local/cua/js',
         modelName: 'js',
         summary: 'Computer Use',
         argumentsHash: '',
@@ -2511,7 +2511,7 @@ describe('semantic snapshot privacy and declaration ownership', () => {
         id: 'semantic-call',
         providerCallId: 'provider-call',
         taskId: accepted.taskId,
-        toolId: 'tools.local.example.run',
+        toolId: 'tools/local/example/run',
         toolVersion: 1,
         argumentsHash: '',
         decision: 'allow' as const,

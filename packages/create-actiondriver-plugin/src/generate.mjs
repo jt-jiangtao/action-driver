@@ -12,7 +12,7 @@ export async function generatePlugin({ id, directory, sdkVersion = '^1.0.0' }) {
   const parent = dirname(target)
   await mkdir(parent, { recursive: true })
   const staging = await mkdtemp(join(parent, `.${basename(target)}-`))
-  const toolId = `tools.local.${id}.echo`
+  const toolId = `tools/local/${id}/echo`
   const modelName = `tools_local_${id.replace(/[.-]/g, '_')}_echo`
   const skill = `---\nname: ${id}-hello\ndescription: Use the ${id} echo tool when the user wants a message echoed.\n---\n\nCall ${modelName} with a message. This instruction does not grant tool authorization.\n`
   const files = {

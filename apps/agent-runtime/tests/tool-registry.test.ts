@@ -9,7 +9,7 @@ const executor: ToolExecutor = {
 }
 
 const readTool: ToolDefinition = {
-  id: 'tools.local.command.shell.run',
+  id: 'tools/local/command/shell/run',
   version: 1,
   modelName: 'tools_local_command_shell_run',
   description: 'Read a workspace file',
@@ -30,7 +30,9 @@ describe('RuntimeToolRegistry', () => {
     registry.register(readTool, executor)
 
     expect(registry.resolveModelName('tools_local_command_shell_run')).toEqual({ definition: readTool, executor })
-    expect(registry.resolve('tools.local.command.shell.run', 1)).toEqual({ definition: readTool, executor })
+    expect(registry.resolve('tools/local/command/shell/run', 1)).toEqual({ definition: readTool, executor })
+    expect(() => registry.resolve('tools.local.command.shell.run', 1)).toThrow('TOOL_UNAVAILABLE')
+    expect(() => registry.resolveModelName('shell_run')).toThrow('TOOL_UNAVAILABLE')
   })
 
   it('rejects duplicate model names without replacing the first registration', () => {
@@ -39,7 +41,7 @@ describe('RuntimeToolRegistry', () => {
 
     expect(() =>
       registry.register(
-        { ...readTool, id: 'tools.local.command.node.run', modelName: readTool.modelName },
+        { ...readTool, id: 'tools/local/command/node/run', modelName: readTool.modelName },
         executor
       )
     ).toThrow('TOOL_MODEL_NAME_CONFLICT')

@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import type { ReactNode } from 'react'
 import { memo, useRef, useState } from 'react'
 import {
@@ -118,12 +117,13 @@ function ActivityIcon({
     (currentTool ? [currentTool] : toolItems)
       .map((tool) => {
       const toolId = tool.toolId
+      if (toolId.includes('.')) return 'other'
       if (isBrowserCuaScript(tool, toolDetails(tool).input)) return 'browser'
-      if (/^(?:computer\.|tools\.local\.cua\.)/.test(toolId)) return 'computer'
-      if (/^tools\.local\.browser-use\./.test(toolId)) return 'browser'
+      if (toolId.startsWith('tools/local/cua/')) return 'computer'
+      if (toolId.startsWith('tools/local/browser-use/')) return 'browser'
       if (/image/.test(toolId)) return 'image'
       if (/web/.test(toolId)) return 'web'
-      if (/shell|command|python|node\.run|typescript/.test(toolId)) return 'shell'
+      if (/shell|command|python|node\/run|typescript/.test(toolId)) return 'shell'
       if (/search|find|grep|rg/.test(toolId)) return 'search'
       return 'other'
     })
@@ -153,7 +153,6 @@ export const ToolRow = memo(function ToolRow({
 }) {
   const [expanded, setExpanded] = useState(false)
   if (!tool) return null
-  tool = { ...tool, toolId: canonicalToolId(tool.toolId) }
   const details = toolDetails(tool)
   const browserCua = isBrowserCuaScript(tool, details.input)
   const hasDetails =
@@ -162,7 +161,7 @@ export const ToolRow = memo(function ToolRow({
     tool.rawInput !== undefined ||
     tool.rawOutput !== undefined
   const terminal = (details.layout ?? toolPresentation(tool)?.layout) === 'terminal'
-  const script = /^(?:tools\.local\.command\.|sandbox\.shell\.)/.test(tool.toolId)
+  const script = tool.toolId.startsWith('tools/local/command/')
   const preview = terminal && script ? commandPreview(details) : ''
   const commandTitle =
     script && terminal && preview.length > 0 && tool.durationMs !== undefined
@@ -243,20 +242,21 @@ function commandStatus(tool: ToolInvocationProjection, expanded: boolean): strin
 }
 
 function ToolIcon({ tool, browserCua = false }: { tool: ToolInvocationProjection; browserCua?: boolean }) {
+  if (tool.toolId.includes('.')) return <Boxes aria-hidden="true" size={16} />
   if (browserCua) return <Globe2 aria-hidden="true" size={16} />
-  if (/^(?:computer\.|tools\.local\.cua\.)/.test(tool.toolId))
+  if (tool.toolId.startsWith('tools/local/cua/'))
     return <MousePointer2 aria-hidden="true" size={16} />
-  if (/^tools\.local\.browser-use\./.test(tool.toolId))
+  if (tool.toolId.startsWith('tools/local/browser-use/'))
     return <Globe2 aria-hidden="true" size={16} />
   // Codex marks image generation with the imagegen Skill icon.
   if (/image/.test(tool.toolId)) return <ImageIcon aria-hidden="true" size={16} />
-  if (/skills?\.install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />
-  if (/skills?\.read/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
+  if (/skills?\/install/.test(tool.toolId)) return <PackagePlus aria-hidden="true" size={16} />
+  if (/skills?\/read/.test(tool.toolId)) return <BookOpen aria-hidden="true" size={16} />
   if (/dependenc/.test(tool.toolId)) return <Package aria-hidden="true" size={16} />
-  if (/web\.open/.test(tool.toolId)) return <FileText aria-hidden="true" size={16} />
+  if (/web\/open/.test(tool.toolId)) return <FileText aria-hidden="true" size={16} />
   if (/web/.test(tool.toolId)) return <Globe2 aria-hidden="true" size={16} />
   if (/python/.test(tool.toolId)) return <Braces aria-hidden="true" size={16} />
-  if (/node\.run|typescript|ts\.run/.test(tool.toolId))
+  if (/node\/run|typescript|ts\/run/.test(tool.toolId))
     return <FileCode2 aria-hidden="true" size={16} />
   if (/shell|command/.test(tool.toolId)) return <SquareTerminal aria-hidden="true" size={16} />
   if (/write|edit|patch|save/.test(tool.toolId)) return <FilePenLine aria-hidden="true" size={16} />
@@ -266,17 +266,24 @@ function ToolIcon({ tool, browserCua = false }: { tool: ToolInvocationProjection
 }
 
 function toolAction(tool: ToolInvocationProjection, browserCua = false): string {
+  if (tool.toolId.includes('.')) {
+    if (tool.status === 'unknown') return '结果未知：'
+    if (tool.status === 'failed') return '执行失败：'
+    if (tool.status === 'cancelled') return '已取消：'
+    if (tool.status === 'waiting_approval') return '旧审批记录：'
+    return tool.status === 'completed' ? '已调用 ' : '正在运行 '
+  }
   if (/image/.test(tool.toolId)) {
     if (tool.status === 'failed') return '生成失败：'
     if (tool.status === 'cancelled') return '已取消：'
     return tool.status === 'completed' ? '已生成图片：' : '正在生成图片 '
   }
-  if (/^(?:computer\.js_reset|tools\.local\.cua\.reset)/.test(tool.toolId)) {
+  if (tool.toolId === 'tools/local/cua/reset') {
     if (tool.status === 'failed') return '重置 Computer Use 失败：'
     if (tool.status === 'cancelled') return '已取消重置 Computer Use：'
     return tool.status === 'completed' ? '已重置 Computer Use：' : '正在重置 Computer Use '
   }
-  if (/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) {
+  if (tool.toolId === 'tools/local/cua/js') {
     const action = browserCua ? '操作浏览器' : '操作桌面应用'
     if (tool.status === 'failed') return `${action}失败：`
     if (tool.status === 'cancelled') return `已取消${action}：`
@@ -288,22 +295,23 @@ function toolAction(tool: ToolInvocationProjection, browserCua = false): string 
   if (tool.status === 'waiting_approval') return '旧审批记录：'
   if (tool.status === 'running' || tool.status === 'queued' || tool.status === 'proposed')
     return '正在运行 '
-  if (tool.toolId.startsWith('tools.local.web.open')) return '已读取网页：'
+  if (tool.toolId.startsWith('tools/local/web/open')) return '已读取网页：'
   if (/web/.test(tool.toolId)) return '已搜索网页：'
   if (/search|find|grep|rg/.test(tool.toolId)) return '已搜索 '
-  if (/shell|command|python|node\.run|typescript/.test(tool.toolId)) return '已运行 '
+  if (/shell|command|python|node\/run|typescript/.test(tool.toolId)) return '已运行 '
   return '已调用 '
 }
 
 function toolTitle(tool: ToolInvocationProjection, browserCua = false): string {
+  if (tool.toolId.includes('.')) return '工具'
   if (/image/.test(tool.toolId)) return '图片生成'
   if (browserCua) return 'Browser Use'
-  if (/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) return 'Computer Use'
+  if (tool.toolId === 'tools/local/cua/js') return 'Computer Use'
   if (/shell|^command/.test(tool.toolId)) return 'Shell'
   if (/python/.test(tool.toolId)) return 'Python'
-  if (/node\.run/.test(tool.toolId)) return 'Node.js'
+  if (/node\/run/.test(tool.toolId)) return 'Node.js'
   if (/typescript/.test(tool.toolId)) return 'TypeScript'
-  if (tool.toolId.startsWith('tools.local.web.open')) return '网页内容'
+  if (tool.toolId.startsWith('tools/local/web/open')) return '网页内容'
   if (/web/.test(tool.toolId)) return 'Web Search'
   if (/search|find|grep|rg/.test(tool.toolId)) return '搜索'
   return '工具'
@@ -311,7 +319,7 @@ function toolTitle(tool: ToolInvocationProjection, browserCua = false): string {
 
 function isBrowserCuaScript(tool: ToolInvocationProjection,
   input: ReturnType<typeof toolDetails>['input']): boolean {
-  if (!/^(?:computer\.js|tools\.local\.cua\.js)/.test(tool.toolId)) return false
+  if (tool.toolId !== 'tools/local/cua/js') return false
   const code = input.find((field) => field.kind === 'code')?.value ?? ''
   return /\bcua\.(?:getBrowser|getTab|createBrowserTab|listBrowsers|listTabs)\b|\bagent\.(?:browsers|documentation)\b/u.test(code) &&
     !/\bcua\.(?:getApp|listApps)\b/u.test(code)

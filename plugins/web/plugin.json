@@ -13,18 +13,18 @@
     "win32-x64"
   ],
   "activation": [
-    "onTool:tools.local.web.open",
-    "onTool:tools.local.web.search"
+    "onTool:tools/local/web/open",
+    "onTool:tools/local/web/search"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "tools.local.web.open",
+      "id": "tools/local/web/open",
       "modelName": "tools_local_web_open"
     },
     {
       "kind": "tool",
-      "id": "tools.local.web.search",
+      "id": "tools/local/web/search",
       "modelName": "tools_local_web_search"
     }
   ],

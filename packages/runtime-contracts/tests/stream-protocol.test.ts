@@ -59,7 +59,7 @@ describe('agent stream protocol', () => {
       type: 'tool.running',
       callId: 'call-1',
       callSequence: 1,
-      toolId: 'tools.local.image-generation.generate',
+      toolId: 'tools/local/image-generation/generate',
       modelName: 'tools_local_image_generation_generate',
       summary: '生成图片',
       argumentsHash: '',
@@ -73,7 +73,7 @@ describe('agent stream protocol', () => {
       type: 'response.snapshot',
       status: 'running',
       messages: [],
-      tools: [{ callId: 'call-1', toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate', summary: '生成图片', argumentsHash: '', imageCount: 16, status: 'running', durationMs: 0 }],
+      tools: [{ callId: 'call-1', toolId: 'tools/local/image-generation/generate', modelName: 'tools_local_image_generation_generate', summary: '生成图片', argumentsHash: '', imageCount: 16, status: 'running', durationMs: 0 }],
       error: null
     }
     expect(parseStreamServerEvent(snapshot)).toMatchObject({ tools: [{ imageCount: 16 }] })

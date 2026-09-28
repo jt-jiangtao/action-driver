@@ -1,8 +1,8 @@
 import { presentations } from './presentation.js'
 import type { ToolDefinition } from '@actiondriver/plugin-sdk'
 export const readDefinition: ToolDefinition = {
-        id: 'tools.local.skills.read',
-        presentation: presentations['tools.local.skills.read'], version: 1, modelName: 'tools_local_skills_read',
+        id: 'tools/local/skills/read',
+        presentation: presentations['tools/local/skills/read'], version: 1, modelName: 'tools_local_skills_read',
         description: 'Read SKILL.md or another text file in an enabled Skill.',
         inputSchema: {
           type: 'object',
@@ -16,8 +16,8 @@ export const readDefinition: ToolDefinition = {
       }
 
 export const installDefinition: ToolDefinition = {
-        id: 'tools.local.skills.install',
-        presentation: presentations['tools.local.skills.install'], version: 1, modelName: 'tools_local_skills_install',
+        id: 'tools/local/skills/install',
+        presentation: presentations['tools/local/skills/install'], version: 1, modelName: 'tools_local_skills_install',
         description: 'Install an instruction Skill from a local folder or GitHub repository path.',
         inputSchema: {
           type: 'object',

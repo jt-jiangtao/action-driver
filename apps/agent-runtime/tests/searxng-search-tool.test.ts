@@ -60,7 +60,7 @@ describe('SearXNG search tool', () => {
     )
 
     expect(tool.definition).toMatchObject({
-      id: 'tools.local.web.search',
+      id: 'tools/local/web/search',
       modelName: 'tools_local_web_search',
       sideEffects: { network: true }
     })

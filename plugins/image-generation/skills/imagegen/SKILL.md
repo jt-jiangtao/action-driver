@@ -11,7 +11,7 @@ This is the ActionDriver adaptation of Codex's Imagegen Skill. The complete orig
 
 1. Understand the requested subject, style, composition, text, aspect ratio, and constraints. Preserve exact requested text and important visual invariants.
 2. Use `references/prompting.md` and `references/sample-prompts.md` to shape the prompt. Add detail only when it helps the stated goal; do not invent unrelated objects, brands, or people.
-3. If the `tools_local_image_generation_generate` tool is available, call it with `{ "images": [{ "prompt": "..." }] }`. The tool is backed by ActionDriver's `tools.local.image-generation.generate` runtime tool and the configured default image model. For 1–16 requested images or variants, pass independent prompt objects in the same `images` array. The runtime runs up to four requests at once, queues the rest, and displays every image in its own stable card.
+3. If the `tools_local_image_generation_generate` tool is available, call it with `{ "images": [{ "prompt": "..." }] }`. The tool is backed by ActionDriver's `tools/local/image-generation/generate` runtime tool and the configured default image model. For 1–16 requested images or variants, pass independent prompt objects in the same `images` array. The runtime runs up to four requests at once, queues the rest, and displays every image in its own stable card.
 4. Inspect the returned results. Keep successful images when another image fails. If a change is needed, make a focused follow-up call rather than claiming that the image already changed.
 5. Explain what was generated and show the resulting conversation images. The runtime stores generated files in the current session's asset directory.
 

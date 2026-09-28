@@ -53,17 +53,17 @@ describe('packaged SDK and generated plugin', () => {
     // A separate Node process imports only generated dist and installed tarballs.
     const { stdout } = await run(process.execPath, ['--input-type=module', '-e', "import { catalog } from './dist/catalog.js'; console.log(JSON.stringify(catalog))"], { cwd: project })
     const catalog = validateCatalog(JSON.parse(stdout), manifest)
-    expect(catalog.tools[0]?.id).toBe('tools.local.generated.echo')
+    expect(catalog.tools[0]?.id).toBe('tools/local/generated/echo')
     expect(catalog.tools[0]?.presentation).toEqual({ input: [{ label: '消息', path: 'message', kind: 'text' }], output: [{ label: '回显消息', path: 'result.message', kind: 'text' }] })
     const metadata = await run(process.execPath, ['--input-type=module', '-e', "import { presentations } from 'generated/presentation'; console.log(JSON.stringify(presentations))"], { cwd: project })
-    expect(JSON.parse(metadata.stdout)['tools.local.generated.echo']).toEqual(catalog.tools[0]?.presentation)
+    expect(JSON.parse(metadata.stdout)['tools/local/generated/echo']).toEqual(catalog.tools[0]?.presentation)
     expect(catalog.skills[0]?.resources).toEqual(['skills/hello/SKILL.md'])
     const factory = new NodePluginHostFactory({ executable: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoot: () => project, token: () => 'test-token', request: async () => { throw new Error('Unexpected host request') } })
     const manager = new PluginManager({ sdk: '1.0.0', platform: 'darwin-arm64', epoch: () => 'test', factory, repository: { async publish() {}, async list() { return [] }, async remove() {} } })
     await manager.install(manifest); await manager.enable('generated'); await manager.activate('generated')
     try {
-      expect(manager.contributions().map(value => value.contribution.id)).toEqual(['tools.local.generated.echo', 'generated.hello'])
-      expect(await manager.invoke('tools.local.generated.echo', { call: { callId: 'c', providerCallId: 'p', modelName: 'tools_local_generated_echo', arguments: { message: 'hello' } } }, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toEqual([{ kind: 'result', output: { message: 'hello' } }])
+      expect(manager.contributions().map(value => value.contribution.id)).toEqual(['tools/local/generated/echo', 'generated.hello'])
+      expect(await manager.invoke('tools/local/generated/echo', { call: { callId: 'c', providerCallId: 'p', modelName: 'tools_local_generated_echo', arguments: { message: 'hello' } } }, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toEqual([{ kind: 'result', output: { message: 'hello' } }])
     } finally { await manager.disable('generated') }
     expect(manager.contributions()).toEqual([])
     // Installed package intentionally has no project node_modules: built entries must be portable.
@@ -76,7 +76,7 @@ describe('packaged SDK and generated plugin', () => {
       expect((await files.listSkills()).find(skill => skill.id === 'generated.hello')).toMatchObject({ source: 'plugin', enabled: true })
       expect((await files.readEnabledSkillFile('generated.hello')).content).toContain('tools_local_generated_echo')
       const events = []
-      for await (const event of registry.resolve('tools.local.generated.echo', 1).executor.execute({ callId: 'installed', providerCallId: 'p', modelName: 'tools_local_generated_echo', arguments: { message: 'portable' } })) events.push(event)
+      for await (const event of registry.resolve('tools/local/generated/echo', 1).executor.execute({ callId: 'installed', providerCallId: 'p', modelName: 'tools_local_generated_echo', arguments: { message: 'portable' } })) events.push(event)
       expect(events).toEqual([{ kind: 'result', output: { message: 'portable' } }])
     } finally { await platform.dispose() }
     await expect(files.readEnabledSkillFile('generated.hello')).rejects.toThrow('Skill 未启用')

@@ -25,8 +25,8 @@ describe('Computer Use entry', () => {
   it('offers the model only the Codex js and js_reset tools', async () => {
     const computer = await entry()
     expect(computer.tools.map((tool) => [tool.definition.id, tool.definition.modelName])).toEqual([
-      ['tools.local.cua.js', 'tools_local_cua_js'],
-      ['tools.local.cua.reset', 'tools_local_cua_reset']
+      ['tools/local/cua/js', 'tools_local_cua_js'],
+      ['tools/local/cua/reset', 'tools_local_cua_reset']
     ])
     await computer.dispose()
   })
