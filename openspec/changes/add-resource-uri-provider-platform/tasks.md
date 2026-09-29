@@ -23,3 +23,7 @@
   - 注册表：`apps/agent-runtime/src/resources/registry.ts` 按 scheme 注册 provider，重复 scheme 报 `RESOURCE_VERSION_CONFLICT` 并给出双方归属，协议版本不受支持报 `RESOURCE_UNSUPPORTED`，从未服务的 scheme 报 `RESOURCE_SCHEME_UNKNOWN`，已停用 provider 报 `RESOURCE_UNAVAILABLE`（无文件系统回退），并在分发前完成作用域、取消与截止时间校验。
   - 语义：`apps/agent-runtime/src/resources/store.ts` 提供 `boundedStream` 与 `VersionedResourceStore`：有界分块读取、写入中断不产生已提交版本、预期版本写入冲突不覆盖、`createOnly` 创建条件、交付后不可变（`RESOURCE_IMMUTABLE`）、按 `version` 选择符读取历史版本、watch 携带版本与序号、`reportGap` 产生 `resync-required`、权限撤销后停止投递。
   - 定向测试：`pnpm vitest run packages/runtime-contracts/tests/unit/resource-uri.test.ts apps/agent-runtime/tests/unit/resources/` → 3 文件 17 项全部通过；`pnpm --filter @actiondriver/agent-runtime typecheck` 与 `pnpm --filter @actiondriver/runtime-contracts typecheck` 通过；改动文件 ESLint 通过。
+- 3.1 进行中（未勾选）：只读 provider 与旧 ID 兼容映射已实现并有定向测试，但**尚未接入真实存储与 Runtime 装配**。
+  - 已实现：`apps/agent-runtime/src/resources/media-providers.ts` 提供 `createInputFileProvider`/`createOutputFileProvider`，输入按 `sessionId` 授权读取、产物按 `taskId + sessionId` 校验后读取登记副本，列表以虚拟集合 id `all` 暴露且条目标记 `immutable`；`legacyResourceUri(scheme, fileId, scope)` 把旧文件 ID 直接映射为 URI（id 即 fileId，不改写历史指向）。
+  - 定向测试（fake 端口）：`apps/agent-runtime/tests/unit/resources/media-providers.test.ts` 4 项通过——旧 ID 可解析并读到原字节、跨会话读取与监听在 provider 之前被拒绝且未触碰存储、存储归属不符转成结构化 `RESOURCE_NOT_FOUND`、产物列表带任务归属与不可变标记。
+  - 仍缺：`SessionInputFileStore` 需要补 `listBound(sessionId)` 查询；`runtime-process.ts` 未实例化 `ResourceProviderRegistry`，也未把两个 provider 与既有输入/产物存储接线；尚无 HTTP 路由暴露资源操作。
