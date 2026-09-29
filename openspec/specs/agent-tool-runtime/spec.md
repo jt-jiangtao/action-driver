@@ -52,7 +52,7 @@
 - **THEN** Runtime 在未遇到提供方或工具错误时执行全部 400 次调用，按顺序记录各自终态，并允许模型继续生成最终回答
 
 ### Requirement: 统一工具调用生命周期
-系统 SHALL 对本轮已授予且通过工具定义、名称与参数校验的调用自动执行，并以 `proposed`、`queued`、`running`、`completed`、`failed`、`cancelled` 表达新工具调用，为每次状态变化发布可序列化事件。系统 MUST NOT 为新调用产生 `waiting_approval` 或等待人工批准；未授予、未注册、名称不匹配或输入无效的调用 MUST 在执行器运行前失败。旧 `waiting_approval` 历史事件 SHALL 可只读解析，且不得因升级自动执行仍悬挂的旧调用。
+系统 SHALL 对本轮已授予且通过工具定义、名称与参数校验的调用自动执行，并以 `proposed`、`queued`、`running`、`completed`、`failed`、`cancelled` 表达新工具调用，为每次状态变化发布可序列化事件。系统 MUST NOT 为新调用产生 `waiting_approval` 或等待人工批准；未授予、未注册、名称不匹配或输入无效的调用 MUST 在执行器运行前失败。旧 `waiting_approval` 历史事件 SHALL 可只读解析。
 
 #### Scenario: 已授权 Shell 与 Web Search 自动运行
 - **WHEN** 模型请求本轮已授予的 `shell_run`、`python_run`、`node_run` 或 Web Search，且参数通过校验
@@ -75,8 +75,8 @@
 - **THEN** Runtime 记录失败且不得运行执行器
 
 #### Scenario: 旧审批记录恢复
-- **WHEN** Runtime 读取历史 `waiting_approval` 事件或升级时发现仍悬挂的旧审批
-- **THEN** 历史顺序仍可读取，悬挂调用安全结束且执行器不得运行
+- **WHEN** Runtime 读取历史 `waiting_approval` 事件
+- **THEN** 历史顺序仍可读取，且执行器与审批都不会被重新触发
 
 ### Requirement: 传播取消和超时
 系统 MUST 将任务取消、用户取消和工具超时传播给当前执行器，且不得把“已请求取消”记录成“已取消完成”。
