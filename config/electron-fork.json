@@ -11,7 +11,7 @@
   "chromiumTree": "1385f19d7607eefc8525432eb8d3c134d0c141dd",
   "chromiumBaseCommit": "51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2",
   "patchQueueSha256": "f940b9dd10dd85e824877bf267c464ce5ae9a6fcc43b0c305008c29f3e4493f5",
-  "appPath": "thridparty/build/electron/Electron.app",
+  "appPath": "thirdparty/build/electron/Electron.app",
   "executableRelativePath": "Contents/MacOS/Electron",
   "executableSha256": "f83848c17bb5766f868fb5aac66a3d831babd81296e873c8bc85eafe2b32fab4",
   "appSha256": "97cd26fe1f97ddc0fa72f738abd9f6bf4e0d5af4f64a736014d6735bcf06c87e",

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 const sourceRoot = resolve(
-  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js'
+  'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js'
 )
 async function moduleUrl(path: string): Promise<string> {
   let source = await readFile(path, 'utf8')

@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { originalModule } from '../../../cua/tests/original-module'
 import { MacComputerUseClient } from '../../src/mac/client'
 import type { NativeRequest, RequestTransport } from '../../src/mac/native-pipe'
-const root = 'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
+const root = 'thirdparty/backup/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
 function fixture() {
   const calls: NativeRequest[] = []
   const transport: RequestTransport = {

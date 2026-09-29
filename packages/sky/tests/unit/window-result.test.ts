@@ -5,7 +5,7 @@ import { originalModule } from '../../../cua/tests/original-module'
 import { windowResult } from '../../src/mac/window-result'
 import type { WindowAppState } from '../../src/mac/types'
 const path = resolve(
-  'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js'
+  'thirdparty/backup/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js'
 )
 test('screenshot and once-per-app instructions match original including Numbers exclusion', async () => {
   const ref = await originalModule(path)

@@ -18,7 +18,7 @@ export interface IsolationFinding {
 
 const sourceExtensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.py'])
 const omitted = [
-  `${sep}packages${sep}back${sep}`,
+  `${sep}thirdparty${sep}backup${sep}`,
   `${sep}analysis${sep}codex-cua${sep}readable${sep}`,
   `${sep}vendor${sep}codex-cua${sep}`,
   `${sep}node_modules${sep}`
@@ -32,7 +32,7 @@ const signatures: ReadonlyArray<[IsolationReason, RegExp]> = [
   ['private-auth-broker', /\b(?:connectAuthBroker|authBrokerPipePath|CODEX_AUTH_BROKER)\b/u],
   ['codex-app-path', /(?:\/Applications\/Codex\.app\b|\/Contents\/Resources\/cua_node\b)/u],
   ['codex-home-path', /\b(?:process\.env\.|env\.|env\?\.|\[\s*['"])CODEX_HOME\b/u],
-  ['original-bundle-import', /(?:packages\/back\/|vendor\/codex-cua\/|@oai\/(?:browser-desktop|cua-repl|cua|sky)\b)/u]
+  ['original-bundle-import', /(?:thirdparty\/backup\/|vendor\/codex-cua\/|@oai\/(?:browser-desktop|cua-repl|cua|sky)\b)/u]
 ]
 
 function omittedPath(path: string): boolean {

@@ -17,7 +17,7 @@
 
 条目 1117；原始分类仍为 `resource: 167`、`unknown: 132`、`first-party: 436`、`third-party: 382`。132 个 `unknown` 已逐文件复核，结果记录在 [`ownership-review.json`](ownership-review.json)，可用 `python3 analysis/codex-cua/review-unknown-ownership.py --check` 重算并核对 vendor、备份与 baseline 的文件字节和 SHA-256。分组为 Statsig 3.32.6 包源 61 个（client-core 52、js-client 9）、相应 CommonJS 构建虚拟模块 63 个、tslib 辅助文件 3 个、classic-level 3.0.0 入口 1 个、CUA 自有 banner 1 个、混合 browser bundle 3 个。清单逐项给出哈希、大小、版本依据和 import 反向关系，并给出每组清单哈希。
 
-文件级未复核项为 0；仍未解决的是 3 个混合 browser bundle 内部自有代码与三方代码的精确边界，以及 3 个 tslib 文件的确切上游版本。混合 bundle 内有自有 `tab_screenshot` / `navigate_tab_url` 命令与 Playwright 等代码，不能整包作为三方依赖排除。`inventory.json` 保留原始 `unknown` 标记以免将文件级审查误写成 bundle 内部还原完成。原包全集已备份在 `packages/back/codex-cua/`，生产仍使用原 vendor。
+文件级未复核项为 0；仍未解决的是 3 个混合 browser bundle 内部自有代码与三方代码的精确边界，以及 3 个 tslib 文件的确切上游版本。混合 bundle 内有自有 `tab_screenshot` / `navigate_tab_url` 命令与 Playwright 等代码，不能整包作为三方依赖排除。`inventory.json` 保留原始 `unknown` 标记以免将文件级审查误写成 bundle 内部还原完成。原包全集已备份在 `thirdparty/backup/codex-cua/`，生产仍使用原 vendor。
 
 本机 `/Applications/ChatGPT.app/Contents/Resources/cua_node` 中的三份已裁剪 `tslib.es6.js` 与复制包对应文件 SHA-256 相同：CUA/Sky 为 `072e9fea747565a13de5f48e08678fc4d30ca858c601238e839fc3749ab4e15f`，REPL 为 `97adafd19f12bc603ae9539ef8136c95ae2236e46d461a11009a4e47d92afa59`。该安装的 `.pnpm/lock.yaml` 记录 `tslib@2.8.1`，但依赖边来自 `@emnapi/runtime`，并非这三个 `@oai` 内嵌路径；不能据此认定辅助文件的确切上游版本，候选仍不直接引入或重写它们。
 

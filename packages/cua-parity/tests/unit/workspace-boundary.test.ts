@@ -16,11 +16,11 @@ test('production loads owned packages and does not reference the offline backup'
   expect(runtime).toContain('@actiondriver/cua')
   expect(runtime).toContain('@actiondriver/sky')
   const loader = await readFile('apps/agent-runtime/src/runtime-process.ts', 'utf8')
-  expect(loader).not.toMatch(/vendor\/codex-cua|packages\/back\/codex-cua/)
+  expect(loader).not.toMatch(/vendor\/codex-cua|thirdparty\/backup\/codex-cua/)
 })
 
 test('offline original backup is present and remains isolated', async () => {
-  const backup = await captureBaseline(resolve('packages/back/codex-cua'))
+  const backup = await captureBaseline(resolve('thirdparty/backup/codex-cua'))
   expect(backup.files.length).toBeGreaterThan(100)
 })
 

@@ -9,7 +9,7 @@ const api = await import('../../../../scripts/lib/electron-fork.mjs').catch(() =
 async function fixture(t) {
   const root = await mkdtemp(path.join(tmpdir(), 'fork test '))
   t.after(() => rm(root, { recursive: true, force: true }))
-  const app = path.join(root, 'thridparty/build/electron/Electron.app')
+  const app = path.join(root, 'thirdparty/build/electron/Electron.app')
   await mkdir(path.join(app, 'Contents/MacOS'), { recursive: true })
   await mkdir(path.join(root, 'config'))
   await mkdir(path.join(root, 'apps/desktop'), { recursive: true })
@@ -36,7 +36,7 @@ async function fixture(t) {
     repo: 'https://github.com/jt-jiangtao/electron.git',
     sourceCommit: 'fbc489c43be82f0fc331560ae678a39aeaea38c8',
     chromiumCommit: '31c3b2fb7d154bd181fdf73ec6e9a6c36e38312f',
-    appPath: 'thridparty/build/electron/Electron.app',
+    appPath: 'thirdparty/build/electron/Electron.app',
     executableRelativePath: 'Contents/MacOS/Electron',
     executableSha256: await api.sha256(exe),
     appSha256: await api.sha256Tree(app)
@@ -106,7 +106,7 @@ for (const [name, change, message] of [
 test('rejects a present checkout that does not contain the recorded build commit', async (t) => {
   const f = await fixture(t)
   const { execFileSync } = await import('node:child_process')
-  const source = path.join(f.root, 'thridparty/electron')
+  const source = path.join(f.root, 'thirdparty/electron')
   await mkdir(source, { recursive: true })
   execFileSync('git', ['init', '-q', source])
   execFileSync('git', ['-C', source, 'remote', 'add', 'origin', f.m.repo])

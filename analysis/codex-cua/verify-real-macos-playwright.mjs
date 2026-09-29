@@ -11,7 +11,7 @@ const task = globalThis.EGO_TASK_SPACE_ID
 try {
   const page = task.page('p1')
   const source = await readFile(
-    `${root}/packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs`,
+    `${root}/thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs`,
     'utf8'
   )
   const dependency = '../node_modules/classic-level.mjs'

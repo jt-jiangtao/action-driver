@@ -24,7 +24,7 @@ async function fixture(t) {
     git(root,'config','-f','.gitmodules',`submodule.${name}.path`,source.path)
     git(root,'config','-f','.gitmodules',`submodule.${name}.url`,source.repo)
   }
-  await writeFile(path.join(root,'thridparty/electron/DEPS'),`vars = { 'chromium_version': '${lock.chromium.version}' }`)
+  await writeFile(path.join(root,'thirdparty/electron/DEPS'),`vars = { 'chromium_version': '${lock.chromium.version}' }`)
   await writeFile(path.join(root,'config/browser-forks.lock.json'),JSON.stringify(lock))
   return {root,lock,save:()=>writeFile(path.join(root,'config/browser-forks.lock.json'),JSON.stringify(lock))}
 }

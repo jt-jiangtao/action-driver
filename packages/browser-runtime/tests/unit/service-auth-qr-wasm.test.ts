@@ -53,7 +53,7 @@ test('WASM QR reader distinguishes no result from fallback-needed results', asyn
 test('pinned reader decodes a real QR image using the original WASM bytes', async () => {
   const png = await readFile(resolve('packages/browser-runtime/tests/fixtures/auth-qr.png'))
   const originalWasm = await readFile(resolve(
-    'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/zxing_reader.wasm'
+    'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/zxing_reader.wasm'
   ))
   const dependencyWasm = await readFile(createRequire(import.meta.url).resolve(
     'zxing-wasm/reader/zxing_reader.wasm'

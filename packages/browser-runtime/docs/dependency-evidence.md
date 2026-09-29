@@ -2,7 +2,7 @@
 
 ## Schema 库
 
-基准来源：`packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js`。
+基准来源：`thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js`。
 
 静态证据包含 `ZodFirstPartyTypeKind`、`ZodPipeline`、`ZodReadonly`，字符串 schema 的 `jwt`、`cidr`、`base64url` 等方法。这些可识别 Zod v3 系列实现，但不能唯一确定确切发布版本，也不能排除定制修改。
 

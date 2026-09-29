@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createDocumentationReader } from '../../src/documentation'
-const vendor = resolve('packages/back/codex-cua/@oai/cua')
+const vendor = resolve('thirdparty/backup/codex-cua/@oai/cua')
 const entry = resolve(vendor, 'dist/lib/js/oai_js_cua/src/tinysky_alt/documentation.js')
 async function reference() {
   let source = await readFile(entry, 'utf8')

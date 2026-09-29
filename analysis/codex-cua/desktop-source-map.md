@@ -1,6 +1,6 @@
 # 独立 browser-desktop 来源与实现边界
 
-本清单只读取 `packages/back/browser-desktop/@oai/browser-desktop@0.1.1` 原件，不启动其服务。逐文件哈希、大小与分类在 [`desktop-inventory.json`](desktop-inventory.json)，由 `node analysis/codex-cua/inventory-browser-desktop.mjs` 生成并与只读备份基准核对。106 个文件全有分类：环境资源 101、package 元数据 1、client bundle 1、service bundle 1、WASM 2。
+本清单只读取 `thirdparty/backup/browser-desktop/@oai/browser-desktop@0.1.1` 原件，不启动其服务。逐文件哈希、大小与分类在 [`desktop-inventory.json`](desktop-inventory.json)，由 `node analysis/codex-cua/inventory-browser-desktop.mjs` 生成并与只读备份基准核对。106 个文件全有分类：环境资源 101、package 元数据 1、client bundle 1、service bundle 1、WASM 2。
 
 | 原件 | 证据 | 候选归属与限制 |
 | --- | --- | --- |

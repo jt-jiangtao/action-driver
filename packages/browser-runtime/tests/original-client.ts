@@ -5,7 +5,7 @@ export function originalClient() {
   return (loaded ??= (async () => {
     const source = await readFile(
       resolve(
-        'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js'
+        'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js'
       ),
       'utf8'
     )

@@ -10,7 +10,7 @@ export async function originalService(
   const module = await (loaded ??= (async () => {
     const source = await readFile(
       resolve(
-        'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
+        'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs'
       ),
       'utf8'
     )

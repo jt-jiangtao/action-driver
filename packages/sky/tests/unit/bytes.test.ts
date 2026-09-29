@@ -8,7 +8,7 @@ import { fromFilePath, toBase64, toDataUrl } from '../../src/core/bytes'
 test('encoding preserves subarray offsets and empty arrays', async () => {
   const ref = await originalModule(
     resolve(
-      'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/core/uint8.js'
+      'thirdparty/backup/codex-cua/@oai/sky/dist/project/cua/sky_js/src/core/uint8.js'
     )
   )
   for (const bytes of [

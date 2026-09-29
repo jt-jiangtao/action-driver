@@ -11,16 +11,16 @@ test-results/
 *.log
 apps/agent-runtime/.runtime-cache/
 
-# Preserve complete original package backups, including build output and bundled dependencies.
-!packages/back/**
-
 # Swift build output from running swift at the repository root
 /.build/
 
-# Track the two Fork sources; keep toolchains and build artifacts local.
-/thridparty/*
-!/thridparty/playwright/
-!/thridparty/electron/
+# Track the two Fork sources and the immutable original-package backup; keep toolchains and build artifacts local.
+/thirdparty/*
+!/thirdparty/playwright/
+!/thirdparty/electron/
+# Preserve the complete original package backup, including build output and bundled dependencies.
+!/thirdparty/backup/
+!/thirdparty/backup/**
 
 # Native sources and platform artifacts belong to the Computer Use plugin
 plugins/computer-use/native/.build/

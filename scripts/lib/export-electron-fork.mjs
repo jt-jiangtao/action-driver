@@ -18,7 +18,7 @@ async function exists(file) {
 }
 
 export async function activateElectronArtifact({ root, bundlePath, record, validate }) {
-  const parent = path.join(root, 'thridparty/build/electron')
+  const parent = path.join(root, 'thirdparty/build/electron')
   await mkdir(parent, { recursive: true })
   const lockPath = path.join(parent, '.export.lock')
   let handle
@@ -81,8 +81,8 @@ async function activateUnlocked({ root, bundlePath, record, validate, parent }) 
 }
 
 export async function exportElectronFork(root) {
-  const source = path.join(root, 'thridparty/electron')
-  const src = path.join(root, 'thridparty/build/electron-workspace/src')
+  const source = path.join(root, 'thirdparty/electron')
+  const src = path.join(root, 'thirdparty/build/electron-workspace/src')
   const buildSource = path.join(src, 'electron')
   const out = path.join(src, 'out/ActionDriver')
   const lock = JSON.parse(await readFile(path.join(root, 'config/browser-forks.lock.json'), 'utf8'))
@@ -102,7 +102,7 @@ export async function exportElectronFork(root) {
     PATH: [
       path.join(src, 'buildtools/mac'),
       path.join(src, 'third_party/ninja'),
-      path.join(root, `thridparty/tools/node-v${lock.tools.node.version}-darwin-arm64/bin`),
+      path.join(root, `thirdparty/tools/node-v${lock.tools.node.version}-darwin-arm64/bin`),
       process.env.PATH
     ].join(path.delimiter)
   }
@@ -159,7 +159,7 @@ export async function exportElectronFork(root) {
     chromiumTree: await git(src, 'rev-parse', 'HEAD^{tree}'),
     chromiumBaseCommit: lock.chromium.commit,
     patchQueueSha256: await sha256Tree(path.join(source, 'patches')),
-    appPath: 'thridparty/build/electron/Electron.app',
+    appPath: 'thirdparty/build/electron/Electron.app',
     executableRelativePath: 'Contents/MacOS/Electron',
     executableSha256: await sha256(executable),
     appSha256: await sha256Tree(bundlePath),

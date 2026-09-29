@@ -22,7 +22,7 @@ function factory(options: any) {
   )
 }
 const originalMjs = () => import(pathToFileURL(resolve(
-  'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
+  'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
 )).href)
 async function setup(baseline: boolean | 'mjs', options?: any, create = factory) {
   if (baseline === 'mjs') return (await originalMjs()).setupBrowserRuntime(options)

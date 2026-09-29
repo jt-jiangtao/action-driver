@@ -74,7 +74,7 @@ for (const disabled of [[], ['Tab.ax', 'Tab.cua']])
       }
     }
     const originalModule = await import(pathToFileURL(resolve(
-      'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
+      'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.mjs'
     )).href)
     const candidate = await exercise(setupBrowserRuntime)
     expect(candidate).toEqual(await exercise(original))

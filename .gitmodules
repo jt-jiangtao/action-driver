@@ -1,6 +1,6 @@
 [submodule "playwright"]
-	path = thridparty/playwright
+	path = thirdparty/playwright
 	url = https://github.com/jt-jiangtao/playwright.git
 [submodule "electron"]
-	path = thridparty/electron
+	path = thirdparty/electron
 	url = https://github.com/jt-jiangtao/electron.git

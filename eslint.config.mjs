@@ -9,9 +9,9 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/.superpowers/**',
-      'thridparty/**',
+      'thirdparty/**',
       // Immutable original-package snapshots and generated analysis evidence.
-      'packages/back/**',
+      'thirdparty/backup/**',
       'analysis/codex-cua/**',
       'apps/agent-runtime/resources/system-skills/**',
       'plugins/*/skills/**',

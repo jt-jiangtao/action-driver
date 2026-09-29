@@ -8,7 +8,7 @@ import { originalModule } from '../../../cua/tests/original-module'
 import { runCommand } from '../../src/core/command'
 import { resolvePackageBin } from '../../src/core/package-bin'
 const root = resolve(
-  'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/core'
+  'thirdparty/backup/codex-cua/@oai/sky/dist/project/cua/sky_js/src/core'
 )
 test('command stdout/stderr/stdin/env and exit result match original', async () => {
   const ref = await originalModule(join(root, 'cli.js'))

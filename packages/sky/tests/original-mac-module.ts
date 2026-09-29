@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve, basename } from 'node:path'
 const root = resolve(
-  'packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
+  'thirdparty/backup/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/mac'
 )
 // Test-only replacements at dependency boundaries; the baseline module body is unchanged.
 async function moduleUrl(path: string): Promise<string> {

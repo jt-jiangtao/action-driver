@@ -10,7 +10,7 @@ test('cloud and orbit auth safety resources match preserved originals', async ()
     const text = await readDesktopResource(environment, 'browserAuthSafetyPrecheck.md')
     expect(text.length).toBeGreaterThan(0)
     const original = await readFile(resolve(
-      `packages/back/browser-desktop/@oai/browser-desktop/environment-docs/${environment}/browserAuthSafetyPrecheck.md`
+      `thirdparty/backup/browser-desktop/@oai/browser-desktop/environment-docs/${environment}/browserAuthSafetyPrecheck.md`
     ))
     expect(createHash('sha256').update(text).digest('hex'))
       .toBe(createHash('sha256').update(original).digest('hex'))

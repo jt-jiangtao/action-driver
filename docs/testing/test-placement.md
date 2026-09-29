@@ -21,4 +21,4 @@
 
 ## 相关配置
 
-Vitest 以仓库根为工作目录，收集 `**/*.test.{ts,tsx}`，但排除 `**/node_modules/**`、`**/out/**`、`**/e2e/**` 与 `thridparty/**`。各包的包内测试通过包自己的 `tests/` 目录被同一份配置收集；不在根 `tests/` 复制包内逻辑测试。
+Vitest 以仓库根为工作目录，收集 `**/*.test.{ts,tsx}`，但排除 `**/node_modules/**`、`**/out/**`、`**/e2e/**` 与 `thirdparty/**`。各包的包内测试通过包自己的 `tests/` 目录被同一份配置收集；不在根 `tests/` 复制包内逻辑测试。

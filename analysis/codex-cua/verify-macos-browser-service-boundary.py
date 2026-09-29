@@ -20,7 +20,7 @@ from mcp_host_stdio import request
 
 ROOT = Path(__file__).resolve().parents[2]
 APP_MODULES = Path("/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules")
-COPIED = ROOT / "packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs"
+COPIED = ROOT / "thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs"
 APP_COPY = APP_MODULES / "@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs"
 
 

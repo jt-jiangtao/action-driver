@@ -7,7 +7,7 @@ import { activateElectronArtifact } from '../../../../scripts/lib/export-electro
 async function fixture(t) {
   const root = await mkdtemp(path.join(tmpdir(), 'export fork '))
   t.after(() => rm(root, { recursive: true, force: true }))
-  const old = path.join(root, 'thridparty/build/electron/Electron.app')
+  const old = path.join(root, 'thirdparty/build/electron/Electron.app')
   const next = path.join(root, 'compiled/Electron.app')
   await mkdir(old, { recursive: true })
   await mkdir(next, { recursive: true })

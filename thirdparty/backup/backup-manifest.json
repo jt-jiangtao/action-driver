@@ -1,7 +1,7 @@
 {
   "date": "2026-09-28",
   "source": "apps/agent-runtime/vendor",
-  "destination": "packages/back",
+  "destination": "thirdparty/backup",
   "topLevelPackages": [
     "codex-cua"
   ],

@@ -8,7 +8,7 @@ async function originalRegistration(create: (options: any) => Promise<any>) {
   vi.stubGlobal('__testCreateCUA', create)
   const source = await readFile(
     resolve(
-      'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js'
+      'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_cua/src/tinysky_alt/globals.js'
     ),
     'utf8'
   )

@@ -17,7 +17,7 @@ export async function ensureConfig(file, expected) {
   }
 }
 export async function runSync(context) {
-  const workspace = path.join(context.root, 'thridparty/build/electron-workspace')
+  const workspace = path.join(context.root, 'thirdparty/build/electron-workspace')
   const chromium = path.join(workspace, 'src')
   const electron = path.join(chromium, 'electron')
   // All existing source conflicts must be found before fetching or installing.
@@ -52,13 +52,13 @@ export async function runSync(context) {
   const sourceGit = await git(path.join(context.root, context.lock.sources.electron.path), 'rev-parse', '--absolute-git-dir')
   const buildGit = await git(electron, 'rev-parse', '--absolute-git-dir')
   if (sourceGit === buildGit) throw new Error('SHARED_GIT_METADATA: Electron')
-  await command(path.join(context.root, 'thridparty/tools/depot_tools/gclient'), ['sync', '--no-history'], workspace, 'gclient-sync')
-  const node = path.join(context.root, `thridparty/tools/node-v${context.lock.tools.node.version}-darwin-arm64/bin/node`)
+  await command(path.join(context.root, 'thirdparty/tools/depot_tools/gclient'), ['sync', '--no-history'], workspace, 'gclient-sync')
+  const node = path.join(context.root, `thirdparty/tools/node-v${context.lock.tools.node.version}-darwin-arm64/bin/node`)
   const playwright = path.join(context.root, context.lock.sources.playwright.path)
   await command(path.join(path.dirname(node), 'npm'), ['ci'], playwright, 'playwright-install')
   await command(node, ['.yarn/releases/yarn-4.12.0.cjs', 'install', '--immutable'], electron, 'electron-install')
   await assertCleanCheckout(electron, context.lock.sources.electron)
-  const report = path.join(context.root, 'thridparty/build/browser-forks/sources.json')
+  const report = path.join(context.root, 'thirdparty/build/browser-forks/sources.json')
   await writeFile(report, JSON.stringify({ electronCommit: await git(electron, 'rev-parse', 'HEAD'), chromiumCommit: await git(chromium, 'rev-parse', 'HEAD'), chromiumTree: await git(chromium, 'rev-parse', 'HEAD^{tree}'), playwrightCommit: await git(playwright, 'rev-parse', 'HEAD') }, null, 2) + '\n')
   return stageResult(context, [report, path.join(workspace, '.gclient'), path.join(electron, 'yarn.lock'), path.join(playwright, 'package-lock.json')])
 }

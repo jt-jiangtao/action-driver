@@ -18,7 +18,7 @@ export async function ensureBoundary(file) {
     await writeFile(file, '{"private":true}\n', { flag: 'wx' })
   }
 }
-export const logPath = (context, name) => path.join(context.root, 'thridparty/logs/browser-forks', name + '.log')
+export const logPath = (context, name) => path.join(context.root, 'thirdparty/logs/browser-forks', name + '.log')
 export async function capture(context, file, args, name, cwd = context.root) {
   const output = logPath(context, name)
   // Capture commands get distinct logs so an old run cannot contaminate the answer.
@@ -27,7 +27,7 @@ export async function capture(context, file, args, name, cwd = context.root) {
   return (await readFile(output, 'utf8')).split('\n').slice(1).join('\n').trim()
 }
 export function toolsEnvironment(context) {
-  const tools = path.join(context.root, 'thridparty/tools')
+  const tools = path.join(context.root, 'thirdparty/tools')
   return { ...process.env,
     PATH: [path.join(tools, `node-v${context.lock.tools.node.version}-darwin-arm64/bin`), path.join(tools, 'depot_tools'), process.env.PATH].join(path.delimiter),
     DEPOT_TOOLS_UPDATE: '0', COREPACK_HOME: path.join(tools, 'corepack'),
@@ -35,7 +35,7 @@ export function toolsEnvironment(context) {
 }
 export async function installNode(context, options = {}) {
   const { version, sha256, url } = context.lock.tools.node
-  const tools = path.join(context.root, 'thridparty/tools')
+  const tools = path.join(context.root, 'thirdparty/tools')
   await mkdir(tools, { recursive: true })
   const temporary = await mkdtemp(path.join(tools, '.node-install-'))
   try {
@@ -69,11 +69,11 @@ export async function runPrepare(context) {
   const disk = await statfs(context.root)
   validatePrerequisites({ platform: process.platform, arch: process.arch, sdkVersion: settings.Version, metalAvailable: Boolean(metalPath), freeBytes: disk.bavail * disk.bsize })
   const metalVersion = await capture(context, metalPath, ['--version'], 'metal-version')
-  await ensureBoundary(path.join(context.root, 'thridparty/package.json'))
+  await ensureBoundary(path.join(context.root, 'thirdparty/package.json'))
   const node = await installNode(context)
   const nodeVersion = await capture(context, node, ['--version'], 'node-version')
   if (nodeVersion !== `v${context.lock.tools.node.version}`) throw new Error('TOOL_INVALID: Node version')
-  const depot = path.join(context.root, 'thridparty/tools/depot_tools')
+  const depot = path.join(context.root, 'thirdparty/tools/depot_tools')
   if (await exists(depot)) {
     if (await git(depot, 'remote', 'get-url', 'origin') !== context.lock.tools.depotTools.repo || await git(depot, 'rev-parse', 'HEAD') !== context.lock.tools.depotTools.commit || await git(depot, 'status', '--porcelain', '--untracked-files=no')) throw new Error(`TOOL_CONFLICT: ${depot}`)
   } else {
@@ -85,8 +85,8 @@ export async function runPrepare(context) {
       await rename(clone, depot)
     } finally { await rm(temporary, { recursive: true, force: true }) }
   }
-  const report = path.join(context.root, 'thridparty/build/browser-forks/environment.json')
+  const report = path.join(context.root, 'thirdparty/build/browser-forks/environment.json')
   await mkdir(path.dirname(report), { recursive: true })
   await writeFile(report, JSON.stringify({ sdkPath, sdkVersion: settings.Version, developer, metalPath, metalVersion, nodeVersion, depotCommit: context.lock.tools.depotTools.commit }, null, 2) + '\n')
-  return stageResult(context, [report, node, path.join(depot, '.git/HEAD'), path.join(context.root, 'thridparty/package.json')])
+  return stageResult(context, [report, node, path.join(depot, '.git/HEAD'), path.join(context.root, 'thirdparty/package.json')])
 }

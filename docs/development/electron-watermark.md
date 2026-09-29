@@ -6,19 +6,19 @@
 
 GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构建同时启用 `ACTION_DRIVER_DEVELOPMENT`，默认显示水印。自有官方构建仅传 `--action-driver-watermark` 时显示。`action_driver = false` 默认关闭，不编译自有覆盖层，即使传参数也不显示。其他平台未实现水印。
 
-修改位置为 `thridparty/electron/shell/browser/ui/cocoa/action_driver`、受宏保护的 `electron_ns_window.h/mm` 和 GN 接线。测试夹具在 `thridparty/electron/action_driver/watermark`。
+修改位置为 `thirdparty/electron/shell/browser/ui/cocoa/action_driver`、受宏保护的 `electron_ns_window.h/mm` 和 GN 接线。测试夹具在 `thirdparty/electron/action_driver/watermark`。
 
 ## 修改与重建
 
-先在直属源码 `thridparty/electron` 定向验证并提交；独立构建检出 `thridparty/build/electron-workspace/src/electron` 必须保持干净。依赖准备和源码同步参见 [browser-forks.md](browser-forks.md)。同步已提交源码：
+先在直属源码 `thirdparty/electron` 定向验证并提交；独立构建检出 `thirdparty/build/electron-workspace/src/electron` 必须保持干净。依赖准备和源码同步参见 [browser-forks.md](browser-forks.md)。同步已提交源码：
 
 ```sh
 (
   set -e
-  test -z "$(git -C thridparty/electron status --porcelain)"
-  test -z "$(git -C thridparty/build/electron-workspace/src/electron status --porcelain)"
-  git -C thridparty/build/electron-workspace/src/electron fetch "$PWD/thridparty/electron" HEAD
-  git -C thridparty/build/electron-workspace/src/electron checkout --detach FETCH_HEAD
+  test -z "$(git -C thirdparty/electron status --porcelain)"
+  test -z "$(git -C thirdparty/build/electron-workspace/src/electron status --porcelain)"
+  git -C thirdparty/build/electron-workspace/src/electron fetch "$PWD/thirdparty/electron" HEAD
+  git -C thirdparty/build/electron-workspace/src/electron checkout --detach FETCH_HEAD
 )
 ```
 
@@ -30,8 +30,8 @@ GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构
 (
   set -e
   ulimit -n 65536
-  export PATH="$PWD/thridparty/build/electron-workspace/src/buildtools/mac:$PWD/thridparty/build/electron-workspace/src/third_party/ninja:$PWD/thridparty/tools/node-v22.23.3-darwin-arm64/bin:$PATH"
-  cd thridparty/build/electron-workspace/src
+  export PATH="$PWD/thirdparty/build/electron-workspace/src/buildtools/mac:$PWD/thirdparty/build/electron-workspace/src/third_party/ninja:$PWD/thirdparty/tools/node-v22.23.3-darwin-arm64/bin:$PATH"
+  cd thirdparty/build/electron-workspace/src
   gn gen out/ActionDriver
   ninja -C out/ActionDriver -j8 electron
 )
@@ -50,7 +50,7 @@ pnpm --filter @actiondriver/desktop dev
 
 导出工具要求两个 Electron 检出均干净、提交和远端与锁文件匹配，Chromium 基线有效且 `ninja -n electron` 无待构建工作。它核对实际版本、平台、架构和 `action_driver=true`，生成提交、源码树、补丁、GN 参数及 bundle 哈希记录。
 
-工具同时替换 `thridparty/build/electron/Electron.app` 和 `config/electron-fork.json`；失败回滚匹配的旧包与记录，成功后将旧匹配对保留在日志显示的 `backup-*` 目录。并发导出会被拒绝。导出后必须重启应用，已经运行的进程不会自动切换内核。
+工具同时替换 `thirdparty/build/electron/Electron.app` 和 `config/electron-fork.json`；失败回滚匹配的旧包与记录，成功后将旧匹配对保留在日志显示的 `backup-*` 目录。并发导出会被拒绝。导出后必须重启应用，已经运行的进程不会自动切换内核。
 
 共享解析器用于开发启动、桌面 E2E 和打包入口；缺失、版本或哈希不匹配时失败，不回退官方 Electron。
 
@@ -59,13 +59,13 @@ pnpm --filter @actiondriver/desktop dev
 定向验证：
 
 ```sh
-node --test thridparty/electron/action_driver/watermark/native.test.mjs
+node --test thirdparty/electron/action_driver/watermark/native.test.mjs
 node --test tests/unit/scripts/lib/export-electron-fork.test.mjs
-node thridparty/electron/action_driver/watermark/verify-electron.mjs "$PWD/thridparty/build/electron/Electron.app/Contents/MacOS/Electron"
+node thirdparty/electron/action_driver/watermark/verify-electron.mjs "$PWD/thirdparty/build/electron/Electron.app/Contents/MacOS/Electron"
 pnpm exec playwright test apps/desktop/tests/e2e/electron-fork-runtime.spec.ts
 ```
 
-原生交互夹具覆盖点击、输入、滚动、导航、内容视图替换、缩放及全屏；AppKit 测试覆盖资源释放与不拦截事件。原生窗口截图位于忽略目录 `thridparty/build/verification/watermark`。Playwright 的页面截图不会包含原生覆盖层，不能单独判断水印有无；使用 macOS 窗口截图并核对实际 `process.execPath`。
+原生交互夹具覆盖点击、输入、滚动、导航、内容视图替换、缩放及全屏；AppKit 测试覆盖资源释放与不拦截事件。原生窗口截图位于忽略目录 `thirdparty/build/verification/watermark`。Playwright 的页面截图不会包含原生覆盖层，不能单独判断水印有无；使用 macOS 窗口截图并核对实际 `process.execPath`。
 
 准备提交时运行仓库要求的 typecheck、lint、test，以及必要的本地与打包 E2E。打包验证命令为：
 

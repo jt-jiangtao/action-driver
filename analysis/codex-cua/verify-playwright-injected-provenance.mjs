@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url),
   root = resolve(import.meta.dirname, '../..'),
   sha = (value) => createHash('sha256').update(value).digest('hex')
 const originalPath =
-    'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs',
+    'thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-service.mjs',
   readable = await readFile(
     resolve(
       root,

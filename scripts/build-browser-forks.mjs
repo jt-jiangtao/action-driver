@@ -6,7 +6,7 @@ import { parseBuildArgs, runPipeline, stageNames } from './lib/browser-forks/pip
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 if (process.argv.slice(2).includes('--help')) {
-  console.log('Usage: node scripts/build-browser-forks.mjs <prepare|sync|build|export|verify|package|all> [--jobs 8] [--from stage]\n--from is only valid with all. Prerequisite state and outputs are revalidated. Logs: thridparty/logs/browser-forks/.')
+  console.log('Usage: node scripts/build-browser-forks.mjs <prepare|sync|build|export|verify|package|all> [--jobs 8] [--from stage]\n--from is only valid with all. Prerequisite state and outputs are revalidated. Logs: thirdparty/logs/browser-forks/.')
 } else {
   try {
     const options = parseBuildArgs(process.argv.slice(2))
@@ -15,7 +15,7 @@ if (process.argv.slice(2).includes('--help')) {
     const stages = Object.fromEntries(stageNames.map(name => [name, async context => {
       const current = await loadBuildInputs(root)
       if (current.digest !== context.inputDigest) throw new Error('INPUT_CHANGED: restart with current locked inputs')
-      console.log(`Starting ${name}; logs: ${root}/thridparty/logs/browser-forks/`)
+      console.log(`Starting ${name}; logs: ${root}/thirdparty/logs/browser-forks/`)
       const [file, exported] = modules[name]
       const module = await import(`./lib/browser-forks/${file}.mjs`)
       const result = await module[exported](context)

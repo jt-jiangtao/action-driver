@@ -6,8 +6,9 @@
 - `analysis/codex-cua/inventory-browser-desktop.mjs` 是 `desktop-inventory.json` 与 `desktop-source-map.md` 的生成器，被 `packages/browser-desktop/docs/source-mapping.md` 与 `reconstruct-codex-cua-packages` 的 55.2 证据引用。
 - `packages/runtime-protocol/` 无 `package.json`、无 `src`、无受版本控制的文件（`git ls-files packages/runtime-protocol` 为空），只剩空 `node_modules`；`pnpm-lock.yaml`、根 `node_modules` 与全仓源码都没有对它的引用。
 - `packages/runtime-contracts/src` 现有 `stream-protocol.ts`、`tool-protocol.ts`、`computer-use-protocol.ts` 等，不含 RPC/MessagePort 符号，`serve-runtime-over-http` 11.2 提到的"私有 RPC 协议"在本轮无需额外删除。
-- `packages/back/` 体积 24 MB、1071 个受跟踪文件；它位于 `pnpm-workspace.yaml` 的 `packages/*` glob 之下，但没有 `package.json`；其 `dist/`、`node_modules/` 依赖 `.gitignore` 的 `!packages/back/**` 反排除才能入库。
-- `thridparty/` 承载两个 Git submodule（`thridparty/playwright`、`thridparty/electron`）、`thridparty/package.json` 包边界，以及被忽略的本地产物（`build/`、`tools/`、`downloads/`、`logs/`）。两个 submodule 的工作树内部也写死了 `thridparty/...` 路径。仓库内没有 CI 配置文件（无 `.github/workflows` 等）。
+- `packages/back/` 体积 24 MB、1071 个受跟踪文件；它位于 `pnpm-workspace.yaml` 的 `packages/*` glob 之下，但没有 `package.json`；其 `dist/`、`node_modules/` 依赖 `.gitignore` 的 `!packages/back/**` 反排除才能入库。（2026-09-30 已裁决并移至 `thirdparty/backup/`。）
+- `thridparty/` 承载两个 Git submodule（`thridparty/playwright`、`thridparty/electron`）、`thridparty/package.json` 包边界，以及被忽略的本地产物（`build/`、`tools/`、`downloads/`、`logs/`）。两个 submodule 的工作树内部也写死了 `thridparty/...` 路径。仓库内没有 CI 配置文件（无 `.github/workflows` 等）。（2026-09-30 已裁决并改名为 `thirdparty/`。）
+- 两个 submodule 的 gitdir 记录在 `.git/modules/{playwright,electron}`（按 submodule 名而非路径命名），因此改名后只需 `git submodule sync --recursive`，无需迁移 `.git/modules` 目录。
 
 ## Goals / Non-Goals
 
@@ -63,8 +64,10 @@
   4. **移到 `docs/reference/backup/`**：读者最接近证据；但 24 MB 的 `dist/`、`node_modules/`、WASM 二进制放进 `docs/` 会被 Markdown/文档工具扫描，且与"文档正文"的语义同样错位。
 - **比较**：方案 2 的配置改动最少且语义最清晰（一个顶层备份目录，名字直接表达"第三方原件备份"）；方案 3 引入两级例外且与本地构建产物混放；方案 4 会把二进制塞进文档树；方案 1 不解决问题。四个方案对 `packages/cua-parity` 离线对照测试的影响都只是改路径常量，不影响断言语义。
 - **Agent 推荐**：**方案 2（顶层 `vendor-backup/`）**，并以一次提交完成路径、配置、测试常量、文档与 `backup-manifest.json` 的同步。
-- **风险**：历史 OpenSpec 与 `docs/superpowers/**` 中的旧路径不再指向现存文件（这些属于历史记录，不改写）；`packages/back/README.md` 与 `docs/codex-cua-platform-gaps.md` 等现行文档必须在本轮同步，否则会重新产生"无法核对的证据路径"。
-- **裁决**：**待用户裁决**。
+- **风险**：历史 OpenSpec 与 `docs/superpowers/**` 中的旧路径不再指向现存文件（这些属于历史记录，不改写）；`thirdparty/backup/README.md` 与 `docs/codex-cua-platform-gaps.md` 等现行文档必须在本轮同步，否则会重新产生"无法核对的证据路径"。
+- **裁决（2026-09-30，用户）**：**方案 3 —— 移到 `thirdparty/backup/`**（覆盖 Agent 推荐的方案 2）。
+- **已知代价（用户覆盖项）**：备份位于 `thirdparty/` 之下，该目录的既有语义是"Fork submodule + 本机构建产物"。为让受跟踪备份与忽略的本地产物共存，`.gitignore` 需要 `/thirdparty/*` 加 `!/thirdparty/playwright/`、`!/thirdparty/electron/`、`!/thirdparty/backup/`、`!/thirdparty/backup/**` 四条规则；同时 `thirdparty/**` 已被 ESLint 与 Vitest 覆盖，无需再为备份单列规则。迁移影响：`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`config/**`、`scripts/**`、`packages/cua-parity` 等 55 个现行文件的离线对照路径，以及 `backup-manifest.json` 的 `destination`。
+- **实施结果**：目录已迁移；`thirdparty/backup/` 下 1071 个受跟踪文件全部保留，其它本地产物（`build/`、`tools/`、`downloads/`、`logs/`、`package.json`）仍按 `.gitignore` 忽略。
 
 ### B2 `thridparty/` → `thirdparty` 改名（决策型，待裁决）
 
@@ -77,21 +80,26 @@
   3. **分两步：先改引用与目录并保留兼容软链**：step 1 完成改名与全部仓库内引用更新，同时放置 `thridparty -> thirdparty` 软链（不追踪），让 Fork 工作树内部的旧引用和尚未迁移的本地脚本继续可用；step 2 在浏览器 Fork 构建与 Electron 启动流程于真实工作区验证通过、且 Fork 仓库内部引用被修正后删除软链。
 - **比较**：方案 1 保留已知错误；方案 3 在过渡期仍保留"两个名字"，且软链与 submodule 路径解析叠加会引入新的排障成本；方案 2 一次到位、状态唯一，代价是需要一份明确的本机迁移步骤。由于受跟踪内容只有两个 submodule 引用，回滚只需反向改名与 `git submodule sync`。
 - **Agent 推荐**：**方案 2（一次性改名）**，并交付本机迁移步骤与回滚步骤；若用户希望避免任何 submodule 状态迁移，则退化为方案 1（明确接受拼写错误长期保留）。
-- **风险 / 回滚**：Fork 仓库内部的 `thridparty` 字符串无法在本仓库修复，改名后会指向不存在路径，需在这两个 Fork 仓库中另行修正（或按方案 3 保留软链）；本地产物（`thridparty/build`、`tools`、`downloads`、`logs`）会失去原路径，需要手工移动或重新准备。回滚方案：把 `.gitmodules` 的 `path` 与目录名改回 `thridparty`，执行 `git submodule sync --recursive`，本地产物目录同步移回。
-- **裁决**：**待用户裁决**。
+- **风险 / 回滚**：Fork 仓库内部的 `thridparty` 字符串无法在本仓库修复，改名后会指向不存在路径，需在这两个 Fork 仓库中另行修正；本地产物（`build`、`tools`、`downloads`、`logs`）整体随目录改名移动，脚本已同步指向新路径。回滚方案：把 `.gitmodules` 的 `path` 与目录名改回 `thridparty`，执行 `git submodule sync --recursive`。
+- **裁决（2026-09-30，用户）**：**方案 2 —— 一次性改名**，不保留兼容软链。
+- **已知代价（用户覆盖项）**：两个 Fork 仓库工作树内部的 `thridparty/...` 引用（`thirdparty/electron/action_driver/watermark/verify-electron.mjs`、`thirdparty/playwright/action_driver/baseline/README.md`）在本仓库不可修改，改名后会指向不存在的路径，需在 `jt-jiangtao/playwright`、`jt-jiangtao/electron` 中另行修正；`docs/superpowers/**` 与已归档 OpenSpec 记录保留历史路径原文。
+- **实施结果**：目录改名完成，`.gitmodules`、`.gitignore`、ESLint/Vitest 忽略、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts` 全部指向 `thirdparty`；`git submodule sync --recursive` 后两个 submodule 在 `thirdparty/{playwright,electron}` 正常解析，`.git/modules` 无需迁移。
 
 ## Risks / Trade-offs
 
 - [删除 `packages/runtime-protocol/` 的 `node_modules` 与其它 `node_modules` 共享软链] → 删除前确认根 `node_modules` 无指向该目录的链接；核实结果显示无引用，删除后重跑定向测试。
 - [改 `embeddedRoot` 后生成物与已提交清单漂移] → 改路径后立即重跑脚本，确认 `analysis/codex-cua/desktop-inventory.json` 无 diff；有 diff 则说明备份与基准不一致，改为报告而不是覆盖。
 - [补 `description` 时照抄包名或原 `@oai/*` 定位，产生新的误导] → 先读各包 `src/index.ts` 与 `docs/`，按实际导出能力描述。
-- [B1/B2 未裁决期间文档已指向 `packages/back`，若最终迁移会造成二次改动] → 本轮只做 A 类事实更正；B 裁决后按裁决结果一并更新路径，避免重复修改。
-- [用户覆盖 Agent 建议] → 若用户选择方案 1（不迁移 / 不改名），须把"语义错位与拼写错误长期保留"作为已知代价记录在 design 与提交说明中。
+- [B1 把受跟踪备份放进 `thirdparty/`，与该目录"本地产物保持忽略"的既有语义部分重叠] → 用显式的四条 `.gitignore` 规则区分 Fork submodule、备份与忽略产物，并在 `thirdparty/backup/README.md` 说明位置裁决；已用 `git status` 确认无误纳入本地产物。
+- [B2 一次性改名后 Fork 仓库内部引用失效] → 该代价已公开并由用户接受；本仓库不改写历史记录，修正需在对应 Fork 仓库进行。
+- [用户覆盖 Agent 推荐] → B1 采用方案 3 而非推荐的方案 2，接受的已知代价见上；不再重复争论，除非出现新证据（例如备份与本地构建产物在同一忽略父目录下产生实际冲突）。
 
 ## Migration Plan
 
 - 本变更（A）不涉及部署迁移，只需同步删除本地残留目录并确认配置文件不再引用已删除路径。
-- B1、B2 的迁移与回滚步骤已写入各自决策条目；在获得用户明确裁决前不执行。
+- B1、B2 已按用户裁决执行：`git mv` 完成改名与移动，`git submodule sync --recursive` 恢复 submodule 解析，全仓现行路径引用同步更新。
+- 其它开发者同步步骤：拉取本提交后执行 `git submodule sync --recursive`（`.git/modules/{playwright,electron}` 无需迁移）；本地产物目录随 `thirdparty` 改名整体移动，无需重新准备。
+- 回滚：把 `.gitmodules` 的 `path` 与目录名改回 `thridparty`、`packages/back`，执行 `git submodule sync --recursive`，并还原路径引用。
 
 ## Open Questions
 

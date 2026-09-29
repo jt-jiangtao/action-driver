@@ -12,7 +12,7 @@
   - 删除被 `replace-agentd-with-local-langgraph-runtime` 取代的 `packages/runtime-protocol/` 残留目录，并确认全仓没有脚本、配置或文档依赖它。
   - 为 `packages/cua`、`packages/cua-parity`、`packages/cua-repl`、`packages/sky` 补写准确的 `description`：先读源码确认职责，再按实际能力描述，不复述包名。
   - 把根 `tests/` 的归属规则写入仓库文档，并在 `AGENTS.md` 的测试章节登记该规则。
-- **待裁决决策（B，本变更不实施）**：记录 `packages/back/` 备选位置与 `thridparty/` 拼写改名的 Battle 分析、替代方案、风险与回滚方案；在用户明确裁决前不改动目录布局、`.gitmodules` 或任何相关配置。
+- **已裁决并实施（B）**：`packages/back/` 移到 `thirdparty/backup/`（B1，用户裁决为方案 3）；`thridparty/` 一次性改名为 `thirdparty/`（B2，用户裁决为方案 2）。两次改动同步更新 `.gitmodules`、`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、构建脚本、配置、测试与现行文档中的路径引用。
 
 ## Capabilities
 
@@ -28,12 +28,13 @@
 
 - 类型：混合。A 为执行型（低风险、可逆、机械，且完全处于既有已批准范围内）；B1、B2 为架构型决策（仓库布局与 Git submodule 路径边界）。
 - A：无需 Battle，已按协议公开分类依据并直接推进。
-- B1、B2：**Battle 分析已完成，等待用户裁决**。目标与成功标准、关键假设、至少一个真实可执行的替代方案、主要风险与回滚方案均已公开，Agent 推荐见 `design.md`；尚未取得用户明确选择，因此不构成已裁决范围。
-- 未解决的关键分歧：`packages/back/` 的最终位置；`thridparty` 是否改名、是否需要兼容软链与分两步迁移。
-- 重开条件：用户作出裁决，或出现新证据（例如 workspace 工具链改变对无 `package.json` 目录的处理、submodule 迁移在真实工作区失败、或 Fork 仓库内部引用被同步修正）。
+- B1、B2：**Battle 已完成并已由用户裁决（2026-09-30）**。Agent 推荐的 B1 方案 2（顶层 `vendor-backup/`）与 B2 方案 2（一次性改名）中，用户选择 **B1 方案 3（`thirdparty/backup/`）**、**B2 方案 2（一次性改名）**；覆盖 Agent 推荐项的已知代价记录在 `design.md` 的 Risks / Trade-offs。
+- 未解决的关键分歧：无。B2 遗留的 Fork 仓库内部 `thridparty` 引用属于外部仓库，需在对应 Fork 中另行修正，已作为已知代价记录。
+- 重开条件：出现新证据（例如 workspace 工具链改变对无 `package.json` 目录的处理、submodule 迁移在真实工作区失败，或 Fork 仓库内部引用被同步修正）。
 
 ## Impact
 
-- 修改文件：`analysis/codex-cua/inventory-browser-desktop.mjs`、`eslint.config.mjs`、`vitest.config.ts`、`.gitignore`、`.prettierignore`、`docs/codex-cua-platform-gaps.md`、`packages/back/README.md`、四个包的 `package.json`、`AGENTS.md`，以及新增的测试归属文档。
+- 修改文件：`analysis/codex-cua/inventory-browser-desktop.mjs`、`analysis/codex-cua/**` 证据与校验脚本、`eslint.config.mjs`、`vitest.config.ts`、`.gitignore`、`.prettierignore`、`.gitmodules`、`docs/codex-cua-platform-gaps.md`、`thirdparty/backup/README.md`、四个包的 `package.json`、`AGENTS.md`、`README.md`、`config/**`、`scripts/**`、`packages/{cua,sky,cua-repl,cua-parity,browser-runtime,browser-desktop}/**` 中的离线对照引用、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`，以及新增的测试归属文档。
 - 删除：`packages/runtime-protocol/`（未被版本控制跟踪，仅含空 `node_modules`）。
-- 不改变产品行为、公共接口、依赖版本、构建工具链或持久化数据；B 项未裁决前不动 `.gitmodules`、workspace glob 与目录布局。
+- 目录改名/移动：`thridparty/` → `thirdparty/`（含两个 Git submodule 路径）、`packages/back/` → `thirdparty/backup/`。
+- 不改变产品行为、公共接口、依赖版本、构建工具链或持久化数据；`pnpm-workspace.yaml` 的 `packages/*` glob 不再包含非包备份目录。

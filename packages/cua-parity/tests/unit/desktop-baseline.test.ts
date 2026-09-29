@@ -52,5 +52,5 @@ test('rejects metadata drift and never imports source from backup into candidate
     { path: '@metadata/version', reason: 'changed' }
   ])
   const candidate = await readFile(resolve('packages/browser-runtime/src/runtime-initialization.ts'), 'utf8')
-  expect(candidate).not.toMatch(/packages\/back|vendor\/codex-cua/)
+  expect(candidate).not.toMatch(/thirdparty\/backup|vendor\/codex-cua/)
 })

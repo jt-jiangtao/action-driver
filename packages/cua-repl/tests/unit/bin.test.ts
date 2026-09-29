@@ -21,9 +21,9 @@ test('REPL plugin template is preserved byte-for-byte and included in the packag
   const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'))
   expect(manifest.files).toContain('plugin')
   expect(await readFile(resolve(root, 'plugin/.mcp.template.json'))).toEqual(
-    await readFile(resolve('packages/back/codex-cua/@oai/cua-repl/plugin/.mcp.template.json'))
+    await readFile(resolve('thirdparty/backup/codex-cua/@oai/cua-repl/plugin/.mcp.template.json'))
   )
   expect(await readFile(resolve(root, 'plugin/.codex-plugin/plugin.json'))).toEqual(
-    await readFile(resolve('packages/back/codex-cua/@oai/cua-repl/plugin/.codex-plugin/plugin.json'))
+    await readFile(resolve('thirdparty/backup/codex-cua/@oai/cua-repl/plugin/.codex-plugin/plugin.json'))
   )
 })

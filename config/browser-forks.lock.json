@@ -4,13 +4,13 @@
   "arch": "arm64",
   "sources": {
     "playwright": {
-      "path": "thridparty/playwright",
+      "path": "thirdparty/playwright",
       "repo": "https://github.com/jt-jiangtao/playwright.git",
       "commit": "10591bdc1e05692ba829287bf300f81abb2d9001",
       "version": "1.63.0"
     },
     "electron": {
-      "path": "thridparty/electron",
+      "path": "thirdparty/electron",
       "repo": "https://github.com/jt-jiangtao/electron.git",
       "commit": "593df43ccabaf6ae642534c249cce0423ccb21c2",
       "version": "38.8.6"

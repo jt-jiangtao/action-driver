@@ -4,8 +4,8 @@
 
 | 路径 | 来源 | 当前提交 |
 | --- | --- | --- |
-| `thridparty/playwright` | jt-jiangtao/playwright | `10591bdc1e05692ba829287bf300f81abb2d9001` |
-| `thridparty/electron` | jt-jiangtao/electron | `593df43ccabaf6ae642534c249cce0423ccb21c2` |
+| `thirdparty/playwright` | jt-jiangtao/playwright | `10591bdc1e05692ba829287bf300f81abb2d9001` |
+| `thirdparty/electron` | jt-jiangtao/electron | `593df43ccabaf6ae642534c249cce0423ccb21c2` |
 
 新机器拉取（将占位地址替换为主仓库地址）：
 
@@ -26,29 +26,29 @@ git submodule status
 
 ```sh
 git status --short
-git -C thridparty/playwright status --short
-git -C thridparty/playwright diff
-git -C thridparty/electron status --short
-git -C thridparty/electron diff
+git -C thirdparty/playwright status --short
+git -C thirdparty/playwright diff
+git -C thirdparty/electron status --short
+git -C thirdparty/electron diff
 ```
 
 主仓库显示子仓库的脏状态与提交指针，具体代码差异属于对应子仓库。新文件在子仓库 `status` 中显示，尚未加入索引时不会出现在普通 `diff` 中。
 
 先在相应 Fork 审查、验证、提交代码，并将该提交发布到对应 Fork 远端；再在主仓库更新源码指针。只提交主仓库指针不会上传子仓库文件。当前是本地交付检查点：两个自有提交尚未确认可从远端获取，递归拉取暂不可复现；发布前必须先推送 Fork 提交。
 
-注册后源码目录的 `.git` 是文本文件，分别指向主仓库 `.git/modules/playwright` 和 `.git/modules/electron`；Git 元数据仍存在。`thridparty/electron` 是直属源码 submodule；gclient 工作区位于 `thridparty/build/electron-workspace`，Chromium 位于其 `src`，其中 `src/electron` 是同提交的独立构建检出。
+注册后源码目录的 `.git` 是文本文件，分别指向主仓库 `.git/modules/playwright` 和 `.git/modules/electron`；Git 元数据仍存在。`thirdparty/electron` 是直属源码 submodule；gclient 工作区位于 `thirdparty/build/electron-workspace`，Chromium 位于其 `src`，其中 `src/electron` 是同提交的独立构建检出。
 
 ## Chromium 与构建依赖
 
-递归 clone 只获取上述两个 Fork，不下载 Chromium、工具链或二进制。工具放 `thridparty/tools`，导出产物放 `thridparty/build`，下载放 `thridparty/downloads`，日志放 `thridparty/logs`；这些目录保持忽略。
+递归 clone 只获取上述两个 Fork，不下载 Chromium、工具链或二进制。工具放 `thirdparty/tools`，导出产物放 `thirdparty/build`，下载放 `thirdparty/downloads`，日志放 `thirdparty/logs`；这些目录保持忽略。
 
 直属源码是修改和提交的位置，构建工作区只消费已提交源码。准备构建前从项目根执行下列步骤；工作树有改动时停止，不执行强制覆盖：
 
 ```sh
 (
   set -e
-  source_dir="$PWD/thridparty/electron"
-  build_dir="$PWD/thridparty/build/electron-workspace/src/electron"
+  source_dir="$PWD/thirdparty/electron"
+  build_dir="$PWD/thirdparty/build/electron-workspace/src/electron"
   test -z "$(git -C "$source_dir" status --porcelain)"
   source_commit="$(git -C "$source_dir" rev-parse HEAD)"
   if [ ! -e "$build_dir" ]; then
@@ -65,7 +65,7 @@ git -C thridparty/electron diff
 
 独立检出不共享 .git 元数据，不自动跟随 main。首次准备依照锁定版本的 CONTRIBUTING 安装 Electron 构建依赖；当前迁移已复制忽略的依赖和生成文件。目录移动可能使绝对路径缓存失效，不能承诺零重编。
 
-准备 depot_tools 后，将下列配置保存为 `thridparty/build/electron-workspace/.gclient`。如果已有工作区，先检查现有配置，不覆盖用户修改。
+准备 depot_tools 后，将下列配置保存为 `thirdparty/build/electron-workspace/.gclient`。如果已有工作区，先检查现有配置，不覆盖用户修改。
 
 ```python
 solutions = [
@@ -87,9 +87,9 @@ solutions = [
 ```sh
 (
   set -e
-  export PATH="$PWD/thridparty/tools/depot_tools:$PATH"
+  export PATH="$PWD/thirdparty/tools/depot_tools:$PATH"
   export DEPOT_TOOLS_UPDATE=0
-  cd thridparty/build/electron-workspace
+  cd thirdparty/build/electron-workspace
   if [ ! -e src/.git ]; then
     git -C src init
     git -C src remote add origin https://github.com/chromium/chromium.git

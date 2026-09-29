@@ -22,7 +22,7 @@ test('checksum failure never extracts or activates a tool',async t=>{
 })
 test('unpack failure preserves an existing installation',async t=>{
   const root=await fixture(t);const archive=path.join(root,'archive');await writeFile(archive,'good')
-  const previous=path.join(root,'thridparty/tools/node-previous/bin/node');await mkdir(path.dirname(previous),{recursive:true});await writeFile(previous,'existing-tool')
+  const previous=path.join(root,'thirdparty/tools/node-previous/bin/node');await mkdir(path.dirname(previous),{recursive:true});await writeFile(previous,'existing-tool')
   await assert.rejects(installNode({root,lock:{tools:{node:{version:'22.23.3',sha256:digest('good')}}}}, {archive,extract:async()=>{throw new Error('unpack-failed')}}),/unpack-failed/)
   assert.equal(await readFile(previous,'utf8'),'existing-tool')
 })

@@ -37,7 +37,7 @@ test('desktop starts from the verified watermarked Electron Fork', async () => {
       if (!window) throw new Error('No native window for watermark capture')
       return window.getMediaSourceId().split(':')[1]
     })
-    const screenshots = join(root, 'thridparty/build/verification/watermark')
+    const screenshots = join(root, 'thirdparty/build/verification/watermark')
     mkdirSync(screenshots, { recursive: true })
     execFileSync('/usr/sbin/screencapture', [
       '-x', '-o', `-l${windowId}`, join(screenshots, 'development-actiondriver.png')

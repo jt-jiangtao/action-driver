@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { mirrorMap } from '../../src/core/mirror-map'
 import { UnreachableCaseError } from '../../src/core/unreachable-case-error'
-const base = resolve('packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_core/src')
+const base = resolve('thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_core/src')
 async function original(file: string) {
   return import(
     'data:text/javascript;base64,' +

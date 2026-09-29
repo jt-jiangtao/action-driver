@@ -73,16 +73,16 @@ export async function resolveElectronFork(options = {}) {
     if (m.arch !== (options.arch ?? process.arch)) fail('ARCH_MISMATCH', m.arch)
     const pkg = JSON.parse(await readFile(path.join(root, 'apps/desktop/package.json'), 'utf8'))
     if (m.version !== pkg.devDependencies.electron) fail('VERSION_MISMATCH', m.version)
-    await verifyCheckout(root, 'thridparty/electron', m.repo, m.sourceCommit)
+    await verifyCheckout(root, 'thirdparty/electron', m.repo, m.sourceCommit)
     await verifyCheckout(
       root,
-      'thridparty/build/electron-workspace/src',
+      'thirdparty/build/electron-workspace/src',
       'https://github.com/chromium/chromium.git',
       m.chromiumCommit
     )
     await verifyCheckout(
       root,
-      'thridparty/build/electron-workspace/src',
+      'thirdparty/build/electron-workspace/src',
       'https://github.com/chromium/chromium.git',
       m.chromiumBaseCommit
     )

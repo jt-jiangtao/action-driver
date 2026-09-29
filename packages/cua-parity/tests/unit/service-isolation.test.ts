@@ -26,7 +26,7 @@ test('finds private RPC, native pipe, App path and original bundle imports', asy
     'src/rpc.ts': `await nodeRepl.rpc('browser', {command})`,
     'src/pipe.ts': `await host.nativePipe.createConnection(host.env.CODEX_HOME + '/computer-use/pipe')`,
     'dist/path.js': `const app = '/Applications/Codex.app/Contents/Resources/cua_node'`,
-    'src/load.ts': `await import('../../packages/back/codex-cua/@oai/cua/index.js')`,
+    'src/load.ts': `await import('../../thirdparty/backup/codex-cua/@oai/cua/index.js')`,
     'src/metadata.ts': `const turn = nodeRepl.requestMeta.turnId`,
     'src/global.ts': `const host = globalThis.nodeRepl`,
     'src/broker.ts': `await connectAuthBroker(request.authBrokerPipePath)`
@@ -59,9 +59,9 @@ test('rejects dynamic loading and an injected path disguised as a local socket',
 test('allows explicit ActionDriver helper and own socket; skips read-only originals', async () => {
   const root = await fixture({
     'packages/sky/src/host.ts': `await actionDriverHelper.request({kind: 'getState'})\nawait connect('/tmp/actiondriver/browser.sock')`,
-    'packages/back/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`,
+    'thirdparty/backup/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`,
     'analysis/codex-cua/readable/original.mjs': `await nodeRepl.rpc('browser', {})`,
-    'packages/back/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`
+    'thirdparty/backup/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`
   })
   expect(await auditServiceIsolation([root])).toEqual([])
 })

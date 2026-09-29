@@ -1,5 +1,5 @@
 {
-  "source": "packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
+  "source": "thirdparty/backup/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill/scripts/browser-client.js",
   "sha256": "b1875cb071efd73995652a1edacc778c86c422cbc593565986a3bafb9c3a11ff",
   "commands": {
     "BrowserUserClaimTab": {

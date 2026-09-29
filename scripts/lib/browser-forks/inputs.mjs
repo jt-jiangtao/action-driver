@@ -16,7 +16,7 @@ export function validateLock(lock) {
   if (lock.schemaVersion !== 1 || lock.platform !== 'darwin' || lock.arch !== 'arm64') invalid('platform')
   for (const name of ['playwright','electron']) {
     const source = lock.sources?.[name]
-    if (source?.path !== `thridparty/${name}` || source.repo !== `https://github.com/jt-jiangtao/${name}.git` || !commit(source.commit) || !version(source.version)) invalid(name)
+    if (source?.path !== `thirdparty/${name}` || source.repo !== `https://github.com/jt-jiangtao/${name}.git` || !commit(source.commit) || !version(source.version)) invalid(name)
   }
   if(lock.chromium?.repo !== 'https://github.com/chromium/chromium.git' || !commit(lock.chromium.commit) || !/^\d+\.\d+\.\d+\.\d+$/.test(lock.chromium.version)) invalid('Chromium')
   const tools=lock.tools

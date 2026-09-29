@@ -1,9 +1,9 @@
 ## 1. vendor 陈旧引用清理（执行型）
 
-- [x] 1.1 把 `analysis/codex-cua/inventory-browser-desktop.mjs` 的 `embeddedRoot` 改指向 `packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill`，运行 `node analysis/codex-cua/inventory-browser-desktop.mjs` 并确认 `analysis/codex-cua/desktop-inventory.json` 无 diff。（已执行脚本，`desktop-inventory.json` 无 diff，4 个内嵌条目与备份逐字节对照）
+- [x] 1.1 把 `analysis/codex-cua/inventory-browser-desktop.mjs` 的 `embeddedRoot` 改指向 `packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill`，运行 `node analysis/codex-cua/inventory-browser-desktop.mjs` 并确认 `analysis/codex-cua/desktop-inventory.json` 无 diff。（已执行脚本，`desktop-inventory.json` 无 diff，4 个内嵌条目与备份逐字节对照；该路径在 7.4 迁移后为 `thirdparty/backup/codex-cua/...`）
 - [x] 1.2 删除 `eslint.config.mjs` 的 `'apps/agent-runtime/vendor/**'` 忽略项，运行 `corepack pnpm lint` 确认无新增告警。（已在提交前门禁运行）
 - [x] 1.3 删除 `vitest.config.ts` 的 `test.exclude` 中 `'apps/agent-runtime/vendor/**'`，运行相关定向测试确认收集结果不变。
-- [x] 1.4 删除 `.gitignore` 中 `apps/agent-runtime/vendor/codex-cua/**` 的两条 `!` 反排除规则及注释，保留 `!packages/back/**`；用 `git check-ignore --no-index --quiet` 确认 `packages/back` 内的 `dist/` 与 `node_modules/` 未被忽略，`git ls-files packages/back` 仍为 1071。
+- [x] 1.4 删除 `.gitignore` 中 `apps/agent-runtime/vendor/codex-cua/**` 的两条 `!` 反排除规则及注释，保留 `!packages/back/**`；用 `git check-ignore --no-index --quiet` 确认 `packages/back` 内的 `dist/` 与 `node_modules/` 未被忽略，`git ls-files packages/back` 仍为 1071。（该反排除规则在 7.2/7.4 中改为 `!/thirdparty/backup/**`，受跟踪文件数不变）
 - [x] 1.5 删除 `.prettierignore` 中已失效的 `apps/agent-runtime/vendor/`，运行 `corepack pnpm lint` 确认格式检查不受影响。（已在提交前门禁运行）
 - [x] 1.6 把 `docs/codex-cua-platform-gaps.md` 中三处 `apps/agent-runtime/vendor/...` 证据根改指向 `packages/back/...` 对应路径，并注明该目录是历史原件备份、原 vendor 已删除；逐条确认新路径真实存在。
 - [x] 1.7 更正 `packages/back/README.md` 中"当前生产运行路径仍使用 vendor""不删除原 vendor""生产接线不变"等与事实相反的表述，说明原 vendor 已删除、生产已切换为 `@actiondriver/*` 自有实现、备份仅用于离线对照。
@@ -27,11 +27,21 @@
 - [x] 4.1 新增 `docs/testing/test-placement.md`，写入规则：根 `tests/` 只放根级脚本测试与包与包之间的边界测试，任何单包内部逻辑测试必须放在该包自己的 `tests/` 目录。
 - [x] 4.2 在 `AGENTS.md` 的"测试与提交"章节增加一条指向 `docs/testing/test-placement.md` 的规则句，确认不改变既有测试与提交约束。
 
-## 5. B 类 Battle 记录（决策型，待裁决，本变更不实施）
+## 5. B 类 Battle 记录（决策型）
 
 - [x] 5.1 在 `design.md` 记录 B1（`packages/back/` 位置）的当前方案、四个替代方案、比较、推荐与风险，核实 `.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`packages/cua-parity` 离线对照测试与 `backup-manifest.json` 的迁移影响。
 - [x] 5.2 在 `design.md` 记录 B2（`thridparty` 拼写）的当前方案、三个替代方案、比较、推荐、submodule 内部引用约束与回滚方案。
-- [x] 5.3 向用户提交 B1、B2 的明确裁决请求；未获裁决前不执行任何目录移动、`.gitmodules` 修改或兼容软链创建。（已提交请求，等待裁决）
+- [x] 5.3 向用户提交 B1、B2 的明确裁决请求；未获裁决前不执行任何目录移动、`.gitmodules` 修改或兼容软链创建。（已取得裁决：B1=方案 3 `thirdparty/backup/`，B2=方案 2 一次性改名）
+
+## 7. B 类实施（已裁决）
+
+- [x] 7.1 `git mv thridparty thirdparty` 改名目录；`git mv` 同步更新 `.gitmodules` 的两个 submodule `path`；执行 `git submodule sync --recursive` 并用 `git submodule status`、`git -C thirdparty/{playwright,electron} status` 验证两个 submodule 在新路径正常解析。
+- [x] 7.2 更新 `.gitignore` 的 `/thridparty/*` 与两条 submodule 反排除为 `/thirdparty/*`，并新增 `!/thirdparty/backup/`、`!/thirdparty/backup/**`；用 `git status` 确认 `thirdparty/{README.md,package.json,build,downloads,tools}` 仍被忽略、备份文件仍受跟踪。
+- [x] 7.3 更新仓库内全部现行 `thridparty` 引用（`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`docs/testing/test-placement.md`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`），并确认剩余命中仅为历史记录与 Fork 仓库内部内容。
+- [x] 7.4 `git mv packages/back thirdparty/backup`，更新 `backup-manifest.json` 的 `destination`、`thirdparty/backup/README.md` 与全部现行 `packages/back` 引用（`analysis/codex-cua/**`、`packages/{cua,sky,cua-repl,cua-parity,browser-runtime,browser-desktop}` 的离线对照测试与文档、`eslint.config.mjs`、`docs/codex-cua-platform-gaps.md`），共 55 个现行文件。
+- [x] 7.5 运行离线对照与证据校验：`node analysis/codex-cua/inventory-browser-desktop.mjs` 后 `analysis/codex-cua/desktop-inventory.json` 无 diff；运行 `analysis/codex-cua` 下可离线执行的来源校验脚本确认基准未漂移。
+- [x] 7.6 运行 CUA 系列包定向测试与脚本测试，确认迁移后的 `thirdparty/backup` 路径可用（Node v24.20.0）。
+- [x] 7.7 准备提交时一次性运行 `corepack pnpm typecheck && corepack pnpm lint && corepack pnpm test`，并记录结果与已知无关失败。
 
 ## 6. 验证与交付
 

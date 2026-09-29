@@ -41,7 +41,7 @@
 - `src/tab-controls.ts`：原 mh 的导航、状态读取、截图裁剪、交接、JS dialog 核心行为。此内部基类供完整 Tab 后续装配使用，不作为已完成 Tab 导出；playwright、AX 等组合与 capability 注册仍由 13.6 跟踪。
 - `src/dialogs.ts`：原 ch/dh/lh/uh/hh，保持公开属性和 dismiss/confirm/prompt 行为，alert/beforeunload 不添加原包没有的 accept。
 - 新构造函数只读取声明的 scope 字段；额外 enumerable getter 的原包回归测试用于验证不执行无关 accessor。修复同时覆盖此前 Locator/FrameLocator/Download/PlaywrightAPI/FileChooser 构造函数。
-- `packages/back/` 原样备份 vendor 全部包、三方代码及平台资源；原 vendor 不删除、不切换生产入口。完整备份清单独立于候选实现源码。
+- `thirdparty/backup/` 原样备份 vendor 全部包、三方代码及平台资源；原 vendor 不删除、不切换生产入口。完整备份清单独立于候选实现源码。
 
 ## 第九批：Browser 选择与集合核心
 

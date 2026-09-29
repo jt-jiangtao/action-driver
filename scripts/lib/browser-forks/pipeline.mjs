@@ -45,7 +45,7 @@ export async function stageResult(context, outputs) {
   return { outputs, inputDigest: inputDigest(context), outputDigest: await outputDigest(context.root, outputs) }
 }
 export async function runPipeline(context, options, stages) {
-  const directory = path.join(context.root, 'thridparty/build/browser-forks')
+  const directory = path.join(context.root, 'thirdparty/build/browser-forks')
   await mkdir(directory, { recursive: true })
   const lockPath = path.join(directory, 'active.lock')
   let handle

@@ -1,6 +1,6 @@
 # browser-desktop 候选来源与状态
 
-独立原件保留在 `packages/back/browser-desktop/@oai/browser-desktop@0.1.1`，106 个文件的逐项归属与哈希见 `analysis/codex-cua/desktop-inventory.json` 和 `analysis/codex-cua/desktop-source-map.md`。候选包不在运行时导入备份或 vendor。原 client bundle 与内嵌 browser client 字节相同，故 `setupBrowserDesktop` 复用 `@actiondriver/browser-runtime` 的显式 host 客户端接口；原 desktop service bundle 的哈希和大小不同，不能复用内嵌服务来声称相同。
+独立原件保留在 `thirdparty/backup/browser-desktop/@oai/browser-desktop@0.1.1`，106 个文件的逐项归属与哈希见 `analysis/codex-cua/desktop-inventory.json` 和 `analysis/codex-cua/desktop-source-map.md`。候选包不在运行时导入备份或 vendor。原 client bundle 与内嵌 browser client 字节相同，故 `setupBrowserDesktop` 复用 `@actiondriver/browser-runtime` 的显式 host 客户端接口；原 desktop service bundle 的哈希和大小不同，不能复用内嵌服务来声称相同。
 
 `createBrowserDesktopService` 是独立的候选生命周期边界：显式 host，setup 前拒绝命令，关闭后拒绝命令且一次性关闭宿主。`codex-app` 原资源缺少 `browserAuthSafetyPrecheck.md`，setup 保持拒绝。cloud/orbit 的该资源已复制到候选包，测试按 SHA-256 对照只读原件。四套 101 个原资源完整复制在 `resources/environment-docs`，仅用于来源保全和受控资源读取；不能把文档中可能提及的 Codex 专有行为当作已实现能力。
 
