@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { createLocalRuntimeServer } from './local-runtime-server'
 import { createLocalRuntimeAdapters } from './local-adapters'
 import type { ParentPortLike } from './runtime-parent-port'
@@ -232,12 +231,12 @@ export async function startAgentRuntimeProcess(
   local.toolRuntime.grants.push(`${imageDefinition.id}@${imageDefinition.version}`)
   const webCredentials = createWebCredentialPort(environment)
   local.toolRuntime.isAvailable = async (definition) => {
-    if (definition.id === 'tools.local.web.search') return webCredentials.configuration.searchConfigured
-    if (definition.id === 'tools.local.web.open') return webCredentials.configuration.readerConfigured
+    if (definition.id === 'tools/local/web/search') return webCredentials.configuration.searchConfigured
+    if (definition.id === 'tools/local/web/open') return webCredentials.configuration.readerConfigured
     if (definition.id === imageDefinition.id)
       return (await service.getDefaultImageModel()) !== null
-    if (definition.id === 'tools.local.cua.js' ||
-        definition.id === 'tools.local.cua.reset') {
+    if (definition.id === 'tools/local/cua/js' ||
+        definition.id === 'tools/local/cua/reset') {
       for (const skillId of ['browser-use', 'computer-use']) {
         try { local.adapters.skillRegistry.resolve(skillId, 1); return true }
         catch { /* try the other owned surface */ }
@@ -268,7 +267,7 @@ export async function startAgentRuntimeProcess(
     hostCapabilities: {
       ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
       ...(computer ? { 'host.computer.execute': {
-        plugins: ['computer-use'], grants: ['tools.local.cua.js@1', 'tools.local.cua.reset@1'],
+        plugins: ['computer-use'], grants: ['tools/local/cua/js@1', 'tools/local/cua/reset@1'],
         async start() {
           if (computerActivated) await computer!.restart()
           computerActivated = true
@@ -276,11 +275,11 @@ export async function startAgentRuntimeProcess(
         },
         stream: (input, context, signal) => createCommandExecutionPort(computer!.tools, executionContexts, ['computer-use']).stream(input, context, signal)
       } } : {}),
-      'host.image.model': { plugins: ['image-generation'], grants: ['tools.local.image-generation.generate@1'], async invoke() {
+      'host.image.model': { plugins: ['image-generation'], grants: ['tools/local/image-generation/generate@1'], async invoke() {
         const model = await service.getDefaultImageModel()
         return model ? { ...model } : null
       } },
-      'host.image.generate': { plugins: ['image-generation'], grants: ['tools.local.image-generation.generate@1'], async invoke(input, context, signal) {
+      'host.image.generate': { plugins: ['image-generation'], grants: ['tools/local/image-generation/generate@1'], async invoke(input, context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 4000 || !context.taskId) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid image request')
         const task = await repositories.tasks.get(context.taskId)
         if (!task || task.sessionId !== context.sessionId) throw new PluginError('IMAGE_SESSION_NOT_FOUND', 'Image task has no owned session')
@@ -293,7 +292,7 @@ export async function startAgentRuntimeProcess(
         return { ...await assets.saveGenerated(task.sessionId, bytes) }
       } },
       'host.command.execute': createCommandExecutionPort([...scriptTools, workspaceDependenciesTool], executionContexts),
-      'host.web.extract': { plugins: ['web'], grants: ['tools.local.web.open@1'], async invoke(input, _context, signal) {
+      'host.web.extract': { plugins: ['web'], grants: ['tools/local/web/open@1'], async invoke(input, _context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.html !== 'string' || Buffer.byteLength(input.html) > 4 * 1024 * 1024 || typeof input.url !== 'string' || input.url.length > 2048) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid bounded HTML input')
         return { ...await extractPageTextIsolated(input.html, input.url, { signal }) }
       } }
@@ -303,11 +302,11 @@ export async function startAgentRuntimeProcess(
   })
   if (webCredentials.configuration.searchConfigured) {
     // Tool grants remain host-owned; a plugin never authorizes itself.
-    local.toolRuntime.grants.push('tools.local.web.search@1')
+    local.toolRuntime.grants.push('tools/local/web/search@1')
   }
   await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => pluginPlatform.enable(id)))
-  if (webCredentials.configuration.readerConfigured) local.toolRuntime.grants.push('tools.local.web.open@1')
-  local.toolRuntime.grants.push('tools.local.skills.read@1', 'tools.local.skills.install@1')
+  if (webCredentials.configuration.readerConfigured) local.toolRuntime.grants.push('tools/local/web/open@1')
+  local.toolRuntime.grants.push('tools/local/skills/read@1', 'tools/local/skills/install@1')
   const streamSessions = new StreamSessionService({
     ...(appApprovals ? { appApprovals } : {}),
     ...(computer ? { turnEnded: computer.endTurn } : {}),
@@ -335,7 +334,7 @@ export async function startAgentRuntimeProcess(
     now: () => local.adapters.clock.now(),
     listEnabledSkills: () => agentFiles.listEnabledSkillDescriptions(),
     rawToolIO: { enabled: true },
-    toolPresentation: toolId => pluginPlatform.catalogs().flatMap(({ catalog }) => catalog.tools).find(tool => canonicalToolId(tool.id) === canonicalToolId(toolId))?.presentation
+    toolPresentation: toolId => pluginPlatform.catalogs().flatMap(({ catalog }) => catalog.tools).find(tool => tool.id === toolId)?.presentation
   })
   const server = createLocalRuntimeServer({
     ...(appApprovals ? { appApprovals } : {}),

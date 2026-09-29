@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 // @vitest-environment node
 import { createServer } from 'node:http'
@@ -342,7 +343,7 @@ describe('OpenAI compatible adapter', () => {
       messages: [{ role: 'user', content: 'read files' }],
       tools: [
         {
-          id: 'tools.local.command.shell.run',
+          id: 'tools/local/command/shell/run',
           version: 1,
           modelName: 'tools_local_command_shell_run',
           description: 'Read a workspace file',
@@ -477,7 +478,7 @@ describe('OpenAI compatible adapter', () => {
       messages: [{ role: 'user', content: 'run a command' }],
       tools: [
         {
-          id: 'tools.local.command.shell.run',
+          id: 'tools/local/command/shell/run',
           version: 1,
           modelName: 'tools_local_command_shell_run',
           description: 'Run command',

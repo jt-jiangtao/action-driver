@@ -20,7 +20,7 @@ describe('Computer Use screenshot graph boundary', () => {
     const registry = new RuntimeToolRegistry()
     registry.register(
       {
-        id: 'tools.local.cua.js',
+        id: 'tools/local/cua/js',
         version: 1,
         modelName: 'tools_local_cua_js',
         description: 'Run JavaScript',
@@ -92,7 +92,7 @@ describe('Computer Use screenshot graph boundary', () => {
       registry,
       policy,
       invocations,
-      grants: ['tools.local.cua.js@1']
+      grants: ['tools/local/cua/js@1']
     })
     const result = await runner.run({
       taskId: 'capture-test',

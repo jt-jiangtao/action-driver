@@ -25,7 +25,7 @@ describe('Tavily-to-Jina agent loop', () => {
     })
     for (const [grants, args, code] of [
       [[], { query: 'q' }, 'TOOL_DENIED'],
-      [['tools.local.web.search@1'], { query: 'q', pageno: 1 }, 'TOOL_INPUT_INVALID']
+      [['tools/local/web/search@1'], { query: 'q', pageno: 1 }, 'TOOL_INPUT_INVALID']
     ] as const) {
       const events = []
       for await (const event of service.execute(
@@ -124,7 +124,7 @@ describe('Tavily-to-Jina agent loop', () => {
       registry,
       policy,
       invocations,
-      grants: ['tools.local.web.search@1', 'tools.local.web.open@1']
+      grants: ['tools/local/web/search@1', 'tools/local/web/open@1']
     })
     const result = await runner.run({
       taskId: 'task-search-open',

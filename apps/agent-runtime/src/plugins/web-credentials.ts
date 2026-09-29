@@ -6,7 +6,7 @@ export function createWebCredentialPort(environment: NodeJS.ProcessEnv) {
     tavily: environment.TAVILY_API_KEY?.trim(),
     jina: environment.JINA_API_KEY?.trim()
   }
-  const tools = { tavily: 'tools.local.web.search', jina: 'tools.local.web.open' }
+  const tools = { tavily: 'tools/local/web/search', jina: 'tools/local/web/open' }
   const credentials: NonNullable<PluginHostAPIPorts['credentials']> = {
     async request(owner, input, context) {
       const id = input.id as keyof typeof tools,

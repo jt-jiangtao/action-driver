@@ -1,8 +1,8 @@
 import { presentations } from '../presentation.js'
 import type { ToolDefinition, PluginCatalog } from '@actiondriver/plugin-sdk'
 export const definition: ToolDefinition = {
-    id: 'tools.local.web.open',
-        presentation: presentations['tools.local.web.open'],
+    id: 'tools/local/web/open',
+        presentation: presentations['tools/local/web/open'],
     version: 1,
     modelName: 'tools_local_web_open',
     description:

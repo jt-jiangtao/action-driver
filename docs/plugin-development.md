@@ -26,7 +26,7 @@ Runtime composition root 的 `createRuntimePluginPlatform` 接受明确的 Node 
 
 SDK 注册及打开的资源自动进入 `context.subscriptions`。插件可导出异步 `deactivate(reason)` 刷新状态，宿主先给它有界退出时间，再回收残留资源。不要在插件里创建全局服务定位器或另建生命周期管理器。崩溃或取消后无法确认副作用的调用报告 `RESULT_UNKNOWN`，不会自动重放；模型收到核查当前状态后再重试的提示。
 
-实例身份包含 pluginId/version/hostEpoch，迟到响应不能写入新实例。私有存储按插件 ID 隔离且跨升级保留。不可逆数据迁移必须同时提供 backup/restore。包版本应随代码变化递增；相同版本不会覆盖已安装内容。
+实例身份包含 pluginId/version/hostEpoch，迟到响应不能写入新实例。私有存储按插件 ID 隔离且跨升级保留。不可逆数据迁移必须同时提供 backup/restore。包版本应随代码变化递增；内置包的相同版本内容会在启动时刷新已安装副本，外部包升级仍需递增版本。
 
 ## 权限与资源边界
 
@@ -44,7 +44,7 @@ Skill 由统一指令宿主发布，资源来自同一包，停用后立即不�
 
 提交前按 AGENTS.md 验证；迭代时只运行相关定向测试。脚手架回归会在仓库外实际安装 npm tarball、构建、加载 catalog、运行宿主并验证 Skill 回收。
 
-能力按职责归属：web 同时暴露 `tools.local.web.search`（Tavily）与 `tools.local.web.open`（Jina Reader），按各自凭据独立可用，配置见 [网络工具说明](web-tools.md)；skills 暴露 `tools.local.skills.read`、`tools.local.skills.install` 与 skill-creator 指令；四类文档分别独立发布完整 Skill、脚本和资源；image-generation 包含 imagegen 指令和图片 provider 实现。任务、凭据、沙箱与持久化权限校验仍由宿主拥有。旧 search/web-reader 安装记录保留，启动时不再自动发现。
+能力按职责归属：web 同时暴露 `tools/local/web/search`（Tavily）与 `tools/local/web/open`（Jina Reader），按各自凭据独立可用，配置见 [网络工具说明](web-tools.md)；skills 暴露 `tools/local/skills/read`、`tools/local/skills/install` 与 skill-creator 指令；四类文档分别独立发布完整 Skill、脚本和资源；image-generation 包含 imagegen 指令和图片 provider 实现。任务、凭据、沙箱与持久化权限校验仍由宿主拥有。旧 search/web-reader 安装记录保留，启动时不再自动发现。
 
 Skill 内容直接导入包内文件，例如 `import content from '../skills/pdf/SKILL.md?raw'`，其他 Markdown 指令同样导入。脚手架默认采用相同的文件导入方式。TypeScript 通过 `raw-assets.d.ts` 声明文本模块，Vite 测试和 esbuild 的 `.md: text` loader 读取原文件；构建后的 catalog 不需要源码路径。`scripts/sync-plugin-skills.mjs` 只更新元数据与资源清单，不再内嵌 Skill 正文。
 
@@ -52,13 +52,13 @@ Skill 内容直接导入包内文件，例如 `import content from '../skills/pd
 
 ## 工具命名
 
-内置工具统一 `tools.<target>.<plugin>.<operation>`。target 为 local 或 cloud，表示执行上下文和资源归属；本地工具调用远程图片/搜索 API 仍属于 local。插件 ID 使用小写 kebab-case，操作使用点号分层，版本独立存储。
+内置工具统一 `tools/<target>/<plugin>/<operation>`。target 为 local 或 cloud，表示执行上下文和资源归属；本地工具调用远程图片/搜索 API 仍属于 local。插件 ID 使用小写 kebab-case，操作使用斜杠分层，版本独立存储。
 
-公共 SDK 的 `createToolIdentity('local', 'command', 'node.run')` 返回 id `tools.local.command.node.run`、modelName `tools_local_command_node_run` 和位置无关 capabilityId `command.node.run`。构造 ToolDefinition 时选择 id/modelName 字段；capabilityId 是身份元数据，不属于工具 schema。宿主选择实际绑定，声明 cloud 名称不产生云端执行器或授权。
+公共 SDK 的 `createToolIdentity('local', 'command', 'node.run')` 返回 id `tools/local/command/node/run`、modelName `tools_local_command_node_run` 和位置无关 capabilityId `command/node/run`。构造 ToolDefinition 时选择 id/modelName 字段；capabilityId 是身份元数据，不属于工具 schema。宿主选择实际绑定，声明 cloud 名称不产生云端执行器或授权。
 
-当前模型发现只提供新名称。registry/policy 兼容原十二项内置 ID/模型名称/版本化 grants，只映射 local，不改写历史数据、不猜测第三方名称、不回退 cloud 到 local。旧别名占用与新定义发生冲突时拒绝注册，停用后一并撤销。CUA 上游文档及内部 js/js_reset 保留，项目 Skill 导读说明新的模型入口。
+当前模型发现只提供新名称。registry/policy 不接受旧点号 ID、旧 grants 或旧模型别名；历史记录保留原文并使用通用展示。旧点号第三方工具声明校验失败。CUA 上游文档及内部 js/js_reset 保留，项目 Skill 导读说明新的模型入口。
 
-依赖路径工具归入 `tools.local.command.dependencies.load`，随 command 生命周期注册；路径与执行环境仍由原宿主安全端口提供。脚手架默认生成 `tools.local.<plugin>.echo`。
+依赖路径工具归入 `tools/local/command/dependencies/load`，随 command 生命周期注册；路径与执行环境仍由原宿主安全端口提供。脚手架默认生成 `tools/local/<plugin>/echo`。
 
 ## 工具详情字段
 
@@ -68,7 +68,7 @@ Skill 内容直接导入包内文件，例如 `import content from '../skills/pd
 import type { ToolPresentation } from '@actiondriver/plugin-sdk'
 
 export const presentations: Record<string, ToolPresentation> = {
-  'tools.local.example.echo': {
+  'tools/local/example/echo': {
     input: [{ label: '消息', path: 'message', kind: 'text' }],
     output: [{ label: '回显消息', path: 'result.message', kind: 'text' }]
   }

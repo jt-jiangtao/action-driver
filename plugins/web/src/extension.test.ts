@@ -11,11 +11,11 @@ afterEach(() => vi.unstubAllGlobals())
 describe('web plugin configured providers', () => {
   it.each([
     [{}, []],
-    [{ searchConfigured: true }, ['tools.local.web.search']],
-    [{ readerConfigured: true }, ['tools.local.web.open']],
+    [{ searchConfigured: true }, ['tools/local/web/search']],
+    [{ readerConfigured: true }, ['tools/local/web/open']],
     [
       { searchConfigured: true, readerConfigured: true },
-      ['tools.local.web.open', 'tools.local.web.search']
+      ['tools/local/web/open', 'tools/local/web/search']
     ]
   ] as const)(
     'registers only individually configured tools %j',
@@ -77,7 +77,7 @@ describe('web plugin configured providers', () => {
         })
     )
     await activate(context)
-    const executor = registry.resolve('tools.local.web.search', 1).executor as ToolExecutor
+    const executor = registry.resolve('tools/local/web/search', 1).executor as ToolExecutor
     const call = {
       callId: 'call',
       providerCallId: 'provider',
@@ -92,8 +92,8 @@ describe('web plugin configured providers', () => {
       requestId: 'req',
       deadline: Date.now() + 1000,
       source: { kind: 'runtime' },
-      chain: ['tools.local.web.search'],
-      grants: ['tools.local.web.search@1']
+      chain: ['tools/local/web/search'],
+      grants: ['tools/local/web/search@1']
     }
     const events = []
     for await (const event of executor.execute(

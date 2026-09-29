@@ -13,36 +13,36 @@
     "win32-x64"
   ],
   "activation": [
-    "onTool:tools.local.command.shell.run",
-    "onTool:tools.local.command.python.run",
-    "onTool:tools.local.command.node.run",
-    "onTool:tools.local.command.typescript.run",
-    "onTool:tools.local.command.dependencies.load"
+    "onTool:tools/local/command/shell/run",
+    "onTool:tools/local/command/python/run",
+    "onTool:tools/local/command/node/run",
+    "onTool:tools/local/command/typescript/run",
+    "onTool:tools/local/command/dependencies/load"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "tools.local.command.shell.run",
+      "id": "tools/local/command/shell/run",
       "modelName": "tools_local_command_shell_run"
     },
     {
       "kind": "tool",
-      "id": "tools.local.command.python.run",
+      "id": "tools/local/command/python/run",
       "modelName": "tools_local_command_python_run"
     },
     {
       "kind": "tool",
-      "id": "tools.local.command.node.run",
+      "id": "tools/local/command/node/run",
       "modelName": "tools_local_command_node_run"
     },
     {
       "kind": "tool",
-      "id": "tools.local.command.typescript.run",
+      "id": "tools/local/command/typescript/run",
       "modelName": "tools_local_command_typescript_run"
     },
     {
       "kind": "tool",
-      "id": "tools.local.command.dependencies.load",
+      "id": "tools/local/command/dependencies/load",
       "modelName": "tools_local_command_dependencies_load"
     }
   ],

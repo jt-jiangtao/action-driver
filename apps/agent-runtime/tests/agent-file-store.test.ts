@@ -61,7 +61,7 @@ describe('Runtime Agent file ownership', () => {
       'scripts/image_gen.py', 'scripts/remove_chroma_key.py'
     ]) expect((await readFile(join(root, path))).length).toBeGreaterThan(0)
     const installedSkill = await readFile(join(root, 'SKILL.md'), 'utf8')
-    expect(installedSkill).toContain('tools.local.image-generation.generate')
+    expect(installedSkill).toContain('tools/local/image-generation/generate')
     expect(installedSkill).toContain('1–16')
     expect(installedSkill).toContain('more than 16')
     expect((await store.listSkills()).find((skill) => skill.id === 'imagegen')).toMatchObject({ protected: true, source: 'builtin' })

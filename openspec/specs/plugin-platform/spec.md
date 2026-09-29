@@ -18,10 +18,10 @@
 - **THEN** 业务模块通过这些接口运行，无需启动真实 Desktop 或改变业务实现
 
 ### Requirement: Unified trusted plugin contract
-系统 SHALL 对内置和第三方使用相同版本化公共 API，校验插件身份、版本、平台与契约兼容范围；首版 SHALL 将插件代码作为可信代码运行，明确该模式不提供 OS 沙箱。
+系统 SHALL 对内置和第三方使用相同版本化公共 API，校验插件身份、版本、平台与契约兼容范围；首版 SHALL 将插件代码作为可信代码运行，明确该模式不提供 OS 沙箱。工具贡献的 ID SHALL 使用 `/` 分隔层级且不得包含点号；非工具贡献继续使用各自现有身份规则。
 
 #### Scenario: Incompatible plugin
-- **WHEN** 插件契约或平台与宿主不兼容
+- **WHEN** 插件契约或平台与宿主不兼容，或工具贡献仍使用点号 ID
 - **THEN** 系统拒绝激活并显示原因，不发布其工具或启动服务
 
 #### Scenario: Built-in plugin registration
@@ -98,11 +98,15 @@
 - **THEN** 宿主拒绝请求且不执行本机动作
 
 ### Requirement: Preserve capability compatibility during migration
-能力插件化 SHALL 保持已有工具标识、任务事件与授权行为；同一能力 SHALL 不同时由手工装配和插件路径注册。浏览器插件 SHALL 不把占位界面视作真实驱动可用。
+能力插件化 SHALL 保持任务事件与授权检查的安全边界；同一能力 SHALL 不同时由手工装配和插件路径注册。浏览器插件 SHALL 不把占位界面视作真实驱动可用。工具 ID 切换后，旧点号工具 ID 与旧 grants SHALL 不自动授权或调用斜杠工具。
 
 #### Scenario: Browser driver not yet integrated
 - **WHEN** Browser Use 只有面板声明且尚无真实驱动
 - **THEN** 系统不向 Agent 发布可执行浏览器操作工具
+
+#### Scenario: Old tool grant
+- **WHEN** 任务仅持有旧点号工具授权
+- **THEN** 插件的对应斜杠工具不进入可调用集合，直接调用被拒绝
 
 ### Requirement: Independently exposed skill and tool catalogs
 Skill 与工具插件 SHALL 独立暴露可序列化的 Skill 内容/资源引用与完整工具 schema，供外部装配层继续拼接；贡献目录 SHALL 与执行生命周期保持单一职责。
@@ -138,8 +142,8 @@ Skill 与工具插件 SHALL 独立暴露可序列化的 Skill 内容/资源引�
 - **THEN** 对应 Skill 和工具退出发现集合，其他能力保持可用，已加载状态被撤销
 
 #### Scenario: Upgrade old built-in ownership
-- **WHEN** 已有安装目录保留 search 或 web-reader 包且启动新版内置 web 插件
-- **THEN** 旧归属不会自动重复注册，私有数据保留，工具 ID 和授权规则不变
+- **WHEN** 已有安装目录保留旧包且启动新版内置插件
+- **THEN** 旧归属不会自动重复注册，私有数据保留；新版本工具只使用斜杠 ID，旧工具授权不沿用
 
 ### Requirement: Plugin owned semantic tool presentation
 插件工具 SHALL 可通过公共 npm API 声明输入输出的语义标签、字段路径与文本、代码、链接或图片类型，catalog SHALL 独立暴露这些声明。内置工具与脚手架 SHALL 提供声明。展示声明 SHALL 不改变模型 schema、执行结果、授权或原始日志。

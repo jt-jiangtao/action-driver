@@ -1,4 +1,4 @@
-import { legacyToolAliases, legacyModelAliases, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { type PluginOwner } from '@actiondriver/plugin-contracts'
 import type { Disposable } from '@actiondriver/plugin-sdk'
 import {
   parseToolDefinition,
@@ -34,16 +34,6 @@ export class RuntimeToolRegistry {
       )
     }
 
-    const versionKeys = [parsed.id, ...legacyToolAliases(parsed.id)]
-    const modelNames = [parsed.modelName, ...legacyModelAliases(parsed.modelName)]
-    for (const alias of versionKeys) {
-      const existing = this.byVersion.get(`${alias}@${parsed.version}`)
-      if (existing && existing.definition.id !== parsed.id) throw new ToolRegistryError('TOOL_OWNER_CONFLICT', alias)
-    }
-    for (const alias of modelNames) {
-      const existing = this.byModelName.get(alias)
-      if (existing && this.key(existing.definition) !== this.key(parsed)) throw new ToolRegistryError('TOOL_MODEL_NAME_CONFLICT', alias)
-    }
     const existingVersion = this.byVersion.get(this.key(parsed))
     if (existingVersion && (owner || existingVersion.owner)) throw new ToolRegistryError('TOOL_OWNER_CONFLICT', `${parsed.id}: ${existingVersion.owner?.pluginId ?? 'runtime'} conflicts with ${owner?.pluginId ?? 'runtime'}`)
     const existingName = this.byModelName.get(parsed.modelName)
@@ -55,11 +45,11 @@ export class RuntimeToolRegistry {
     }
 
     const registered: RegisteredTool = { definition: parsed, executor, ...(owner ? { owner: structuredClone(owner) } : {}) }
-    for (const id of versionKeys) this.byVersion.set(`${id}@${parsed.version}`, registered)
-    for (const name of modelNames) this.byModelName.set(name, registered)
+    this.byVersion.set(this.key(parsed), registered)
+    this.byModelName.set(parsed.modelName, registered)
     return { dispose: () => {
-      for (const id of versionKeys) if (this.byVersion.get(`${id}@${parsed.version}`) === registered) this.byVersion.delete(`${id}@${parsed.version}`)
-      for (const name of modelNames) if (this.byModelName.get(name) === registered) this.byModelName.delete(name)
+      if (this.byVersion.get(this.key(parsed)) === registered) this.byVersion.delete(this.key(parsed))
+      if (this.byModelName.get(parsed.modelName) === registered) this.byModelName.delete(parsed.modelName)
     } }
   }
 

@@ -2,7 +2,7 @@ import type { ToolPresentation } from '@actiondriver/plugin-sdk'
 
 /** Pure semantic metadata; importing it never activates the plugin. */
 export const presentations: Record<string, ToolPresentation> = {
-  'tools.local.cua.js': {
+  'tools/local/cua/js': {
     layout: 'terminal',
     input: [
       { label: '执行代码', path: 'code', kind: 'code', language: 'javascript' },
@@ -18,7 +18,7 @@ export const presentations: Record<string, ToolPresentation> = {
       { label: '截图', path: 'assets.*', kind: 'image' }
     ]
   },
-  'tools.local.cua.reset': {
+  'tools/local/cua/reset': {
     input: [],
     output: [
       { label: '已重置', path: 'result.reset', kind: 'text' }

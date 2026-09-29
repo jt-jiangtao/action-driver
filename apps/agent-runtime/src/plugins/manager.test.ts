@@ -3,7 +3,7 @@ import { PluginManager } from './manager'
 import type { PluginHostFactory, PluginRepository, HostInstance, ContributionRegistrar } from './ports'
 import type { PluginManifest } from '@actiondriver/plugin-contracts'
 
-const manifest: PluginManifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'index.js', platforms: ['darwin-arm64'], activation: [], contributions: [{ kind: 'tool', id: 'fixture.read', modelName: 'fixture_read' }], dependencies: [] }
+const manifest: PluginManifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'index.js', platforms: ['darwin-arm64'], activation: [], contributions: [{ kind: 'tool', id: 'fixture/read', modelName: 'fixture_read' }], dependencies: [] }
 function fixture(options: { fail?: boolean; wait?: Promise<void> } = {}) {
   let starts = 0, stops = 0
   const records = new Map<string, PluginManifest>()
@@ -86,11 +86,11 @@ describe('pinned invocation and upgrades', () => {
       }
     } })
     await manager.install(manifest); await manager.enable('fixture'); await manager.activate('fixture')
-    const call = manager.invoke('fixture.read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)
+    const call = manager.invoke('fixture/read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)
     expect(invoked).toBe(true)
     const upgrade = manager.upgrade('fixture', { ...manifest, version: '1.1.0' })
     expect(manager.status('fixture')).toBe('stopping')
-    await expect(manager.invoke('fixture.read', null, { requestId: 'r2', callId: 'c2', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).rejects.toThrow('UNAVAILABLE')
+    await expect(manager.invoke('fixture/read', null, { requestId: 'r2', callId: 'c2', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).rejects.toThrow('UNAVAILABLE')
     finish('old-result')
     expect(await call).toBe('old-result')
     await upgrade
@@ -114,7 +114,7 @@ describe('bounded stop and crash cleanup', () => {
       }
     } })
     await manager.install(manifest); await manager.enable('fixture'); await manager.activate('fixture')
-    const call = manager.invoke('fixture.read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)
+    const call = manager.invoke('fixture/read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)
     const outcome = expect(call).rejects.toThrow('RESULT_UNKNOWN')
     await manager.disable('fixture'); await outcome
     expect(cancelled).toBe(true); expect(closed).toBe(true)
@@ -143,7 +143,7 @@ it('publishes late declared contributions and withdraws them when their resource
   await manager.install(manifest); await manager.enable(manifest.id); await manager.activate(manifest.id)
   registrar.register(manifest.contributions[0]!)
   expect(manager.contributions()).toHaveLength(1)
-  expect([...live]).toEqual(['fixture.read'])
+  expect([...live]).toEqual(['fixture/read'])
   registrar.unregister!(manifest.contributions[0]!)
   expect(manager.contributions()).toEqual([])
   expect(live.size).toBe(0)
@@ -161,6 +161,6 @@ it('waits for crashed epoch cleanup before allowing a replacement activation', a
   expect(enabled).toBe(false)
   stopped(); await restarting
   expect(manager.status(manifest.id)).toBe('ready')
-  expect(await manager.invoke('fixture.read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toBe('2')
+  expect(await manager.invoke('fixture/read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toBe('2')
   await manager.disable(manifest.id)
 })

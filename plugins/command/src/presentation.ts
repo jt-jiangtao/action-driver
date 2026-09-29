@@ -9,7 +9,7 @@ const commandOutput: ToolPresentation['output'] = [
 
 /** Pure semantic metadata; importing it never activates the plugin. */
 export const presentations: Record<string, ToolPresentation> = {
-  'tools.local.command.shell.run': {
+  'tools/local/command/shell/run': {
     layout: 'terminal',
     input: [
       { label: '脚本', path: 'script', kind: 'code', language: 'shell' },
@@ -20,7 +20,7 @@ export const presentations: Record<string, ToolPresentation> = {
     ],
     output: commandOutput
   },
-  'tools.local.command.python.run': {
+  'tools/local/command/python/run': {
     layout: 'terminal',
     input: [
       { label: '脚本', path: 'script', kind: 'code', language: 'python' },
@@ -31,7 +31,7 @@ export const presentations: Record<string, ToolPresentation> = {
     ],
     output: commandOutput
   },
-  'tools.local.command.node.run': {
+  'tools/local/command/node/run': {
     layout: 'terminal',
     input: [
       { label: '脚本', path: 'script', kind: 'code', language: 'javascript' },
@@ -42,7 +42,7 @@ export const presentations: Record<string, ToolPresentation> = {
     ],
     output: commandOutput
   },
-  'tools.local.command.typescript.run': {
+  'tools/local/command/typescript/run': {
     layout: 'terminal',
     input: [
       { label: '脚本', path: 'script', kind: 'code', language: 'typescript' },
@@ -53,7 +53,7 @@ export const presentations: Record<string, ToolPresentation> = {
     ],
     output: commandOutput
   },
-  'tools.local.command.dependencies.load': {
+  'tools/local/command/dependencies/load': {
     input: [],
     output: [
       { label: 'Node.js 路径', path: 'result.RUNTIME_NODE', kind: 'text' },

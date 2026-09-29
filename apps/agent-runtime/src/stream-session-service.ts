@@ -1,8 +1,7 @@
 import {
   projectToolDetails,
   toolPresentationSchema,
-  type ToolPresentation,
-  canonicalToolId
+  type ToolPresentation
 } from '@actiondriver/plugin-contracts'
 import {
   STREAM_PROTOCOL,
@@ -524,7 +523,7 @@ export class StreamSessionService {
               }
               if (
                 typeof payload.toolId === 'string' &&
-                canonicalToolId(payload.toolId) === 'tools.local.image-generation.generate' &&
+                payload.toolId === 'tools/local/image-generation/generate' &&
                 typeof payload.callId === 'string' &&
                 typeof payload.imageCount === 'number' &&
                 Number.isInteger(payload.imageCount) &&
@@ -904,7 +903,7 @@ export class StreamSessionService {
           )?.payload as { presentation?: unknown } | undefined
         const presentation = metadata
           ? toolPresentationSchema.safeParse(metadata.presentation).data
-          : this.options.toolPresentation?.(canonicalToolId(invocation.toolId))
+          : this.options.toolPresentation?.(invocation.toolId)
         const assets = events
           .filter(
             (event) =>
@@ -921,7 +920,7 @@ export class StreamSessionService {
           modelName: invocation.toolId,
           ...persisted,
           argumentsHash: invocation.argumentsHash,
-          ...(canonicalToolId(invocation.toolId) === 'tools.local.image-generation.generate' &&
+          ...(invocation.toolId === 'tools/local/image-generation/generate' &&
           Array.isArray((invocation.input as { images?: unknown }).images) &&
           (invocation.input as { images: unknown[] }).images.length >= 1 &&
           (invocation.input as { images: unknown[] }).images.length <= 16
@@ -1159,7 +1158,7 @@ export class StreamSessionService {
       const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
       const presentation = Object.hasOwn(tool, 'presentation')
         ? toolPresentationSchema.safeParse(tool.presentation).data
-        : this.options.toolPresentation?.(canonicalToolId(tool.toolId))
+        : this.options.toolPresentation?.(tool.toolId)
       const details = projectToolDetails(
         presentation,
         tool.input,

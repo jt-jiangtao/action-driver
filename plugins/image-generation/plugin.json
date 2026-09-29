@@ -13,12 +13,12 @@
     "win32-x64"
   ],
   "activation": [
-    "onTool:tools.local.image-generation.generate"
+    "onTool:tools/local/image-generation/generate"
   ],
   "contributions": [
     {
       "kind": "tool",
-      "id": "tools.local.image-generation.generate",
+      "id": "tools/local/image-generation/generate",
       "modelName": "tools_local_image_generation_generate"
     },
     {

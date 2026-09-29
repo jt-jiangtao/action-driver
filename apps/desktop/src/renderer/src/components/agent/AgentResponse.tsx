@@ -1,4 +1,3 @@
-import { canonicalToolId } from '@actiondriver/plugin-contracts'
 import { memo, type ReactNode } from 'react'
 import type {
   AgentMessageProjection,
@@ -24,7 +23,7 @@ export const AgentResponse = memo(function AgentResponse({
 }) {
   const parts = message.parts
   const images = parts?.filter((part): part is ImagePart => part.kind === 'image') ?? []
-  const activeTools = tools.filter((tool) => canonicalToolId(tool.toolId) === 'tools.local.image-generation.generate' && tool.imageCount && !['proposed', 'waiting_approval', 'queued'].includes(tool.status))
+  const activeTools = tools.filter((tool) => tool.toolId === 'tools/local/image-generation/generate' && tool.imageCount && !['proposed', 'waiting_approval', 'queued'].includes(tool.status))
   const hasBlocks =
     images.length > 0 ||
     activeTools.length > 0 ||
@@ -58,7 +57,7 @@ export const AgentResponse = memo(function AgentResponse({
       if (shownCalls.has(part.callId)) return
       shownCalls.add(part.callId)
       const tool = activeTools.find((candidate) => candidate.callId === part.callId) ?? {
-        callId: part.callId, toolId: 'tools.local.image-generation.generate', modelName: 'tools_local_image_generation_generate',
+        callId: part.callId, toolId: 'tools/local/image-generation/generate', modelName: 'tools_local_image_generation_generate',
         summary: '生成图片', argumentsHash: '', imageCount: part.imageCount,
         status: 'completed' as const
       }

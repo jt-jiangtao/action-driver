@@ -18,14 +18,14 @@ describe('web credentials', () => {
       await port.credentials.request(
         owner,
         { id: 'tavily', purpose: 'search' },
-        context('tools.local.web.search')
+        context('tools/local/web/search')
       )
     ).toBe('search')
     expect(
       await port.credentials.request(
         owner,
         { id: 'jina', purpose: 'read' },
-        context('tools.local.web.open')
+        context('tools/local/web/open')
       )
     ).toBe('reader')
     expect(JSON.stringify(port.configuration)).not.toContain('reader"')
@@ -33,10 +33,10 @@ describe('web credentials', () => {
   it('denies other plugins, mismatched calls, missing grants and arbitrary credential ids', async () => {
     const port = createWebCredentialPort({ TAVILY_API_KEY: 'search', JINA_API_KEY: 'reader' })
     const attempts: [PluginOwner, string, InvocationContext][] = [
-      [{ ...owner, pluginId: 'other' }, 'tavily', context('tools.local.web.search')],
-      [owner, 'jina', context('tools.local.web.search')],
-      [owner, 'tavily', { ...context('tools.local.web.search'), grants: [] }],
-      [owner, 'unknown', context('tools.local.web.search')]
+      [{ ...owner, pluginId: 'other' }, 'tavily', context('tools/local/web/search')],
+      [owner, 'jina', context('tools/local/web/search')],
+      [owner, 'tavily', { ...context('tools/local/web/search'), grants: [] }],
+      [owner, 'unknown', context('tools/local/web/search')]
     ]
     for (const [plugin, id, invocation] of attempts)
       await expect(
@@ -50,7 +50,7 @@ describe('web credentials', () => {
       port.credentials.request(
         owner,
         { id: 'tavily', purpose: 'search' },
-        context('tools.local.web.search')
+        context('tools/local/web/search')
       )
     ).rejects.toThrow('UNAVAILABLE')
   })
