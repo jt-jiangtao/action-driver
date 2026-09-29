@@ -35,15 +35,16 @@
 拟使用独立根 `/Users/jiangtao/coding/action-driver/thridparty`。创建前核验目标不存在，若存在先读治理和 Git 状态，不覆盖。已有 `/Users/jiangtao/coding/chromium` 不作本期 checkout，不修改或重置它。
 
 - `playwright/`：用户 Fork，分支 `codex/fork-baseline`。
-- `electron-build/src/electron/`：用户 Electron Fork，分支 `codex/fork-baseline`；其余 `src/` 由 gclient 管理。
-- `depot_tools/`：构建工具，记录其 commit。
+- `electron/src/electron/`：用户 Electron Fork，分支 `codex/fork-baseline`；其余 `src/` 由 gclient 管理。
+- `package.json`：独立 独立包边界，隔离 ActionDriver 根 type=module。
+- `tools/depot_tools/`：构建工具，记录其 commit。
 - `playwright/action_driver/baseline/manifest.json`：来源、上游与 Fork commit、Chromium revision、架构、配置、模块路径、二进制路径、校验值。
 - `playwright/action_driver/baseline/electron-app/package.json` 和 `main.cjs`：独立 Electron 页面宿主。
 - `playwright/action_driver/baseline/fixture.html`：本地点击与输入夹具。
-- `playwright/action_driver/baseline/verify.mjs`：来源校验和兼容脚本入口。
+- `playwright/action_driver/baseline/verify.mjs`：来源校验；`smoke.mjs`：兼容脚本与 CLI 入口。
 - `playwright/action_driver/baseline/verify.test.mjs`：校验失败定向测试。
 - `playwright/action_driver/baseline/README.md`：复现步骤及两套差异清单。
-- 运行日志和截图放独立根的 `artifacts/`，不提交构建输出或大型源码。
+- 工具放 `tools/`；导出的构建产物和截图放 `build/`；下载包放 `downloads/`，日志放 `logs/`。上游要求原位生成的编译中间文件保留其原生布局，交付产物另行导出到 `build/`，不修改上游构建系统。
 
 ## Task 1: 获取并锁定独立源码
 
@@ -53,7 +54,7 @@
 
 - [ ] 核验目标目录和治理文件；确认不会改写已有工作。使用项目内 thridparty 的独立 checkout，不增加 submodule；以本地 Git exclude 排除大型源码和产物。
 - [ ] 获取 Playwright Fork，增加官方 upstream；基线 `v1.63.0` 已核验指向 `1b025d7e20a026371cd5f98ba0cdce48892737c8`，checkout 后用 `git rev-parse HEAD` 再核验，创建 `codex/fork-baseline`。
-- [ ] 准备独立 depot_tools，记录 commit；在 electron-build 根使用 `gclient config --name src/electron --unmanaged https://github.com/jt-jiangtao/electron`，同步时显式指定 Electron 基线 revision，禁止先同步浮动 main。
+- [ ] 准备独立 depot_tools，记录 commit；在 electron 根使用 `gclient config --name src/electron --unmanaged https://github.com/jt-jiangtao/electron`，同步时显式指定 Electron 基线 revision，禁止先同步浮动 main。
 - [ ] Electron 基线 `v38.8.6` 已核验 peeled commit 为 `fbc489c43be82f0fc331560ae678a39aeaea38c8`；用 `gclient sync --revision src/electron@fbc489c43be82f0fc331560ae678a39aeaea38c8 --with_branch_heads --with_tags` 获取依赖，随后核验 HEAD、DEPS 的 Chromium revision 与实际 Chromium checkout。
 - [ ] 给 Electron checkout 增加 upstream，创建本期分支；分别记录 `git remote -v`、HEAD 和完整状态，确认无基线外行为差异。
 
@@ -80,14 +81,14 @@
 - [ ] 执行 `node --test action_driver/baseline/verify.test.mjs` 确认待实现校验失败，再实现 manifest 读取与 `verifyManifest`；重复该定向命令确认通过。不扫描任意全局安装寻找替代。
 - [ ] manifest 写入 Task 1、2 的实际结果；版本组合以该文件的准确来源和运行版本共同核验，路径用绝对路径，不把版本字符串等同于自有构建证明。
 - [ ] HTML 提供一个按钮、一个文本输入和结果区：按钮点击后结果为 `clicked`；输入 `ActionDriver baseline` 后页面值完全一致。server 监听动态 loopback 端口。
-- [ ] 独立 Electron main 创建 BrowserWindow，使用 session 传入夹具 URL，关闭最后一个测试窗口后退出。app 仅测试用途，不加载 ActionDriver。
+- [ ] 独立 Electron main 创建 BrowserWindow，先加载 about:blank，由 Playwright session 显式导航到夹具 URL，关闭最后一个测试窗口后退出。app 仅测试用途，不加载 ActionDriver。
 - [ ] `runSmoke` 通过绝对本地模块路径加载 `_electron`，显式 `executablePath` 指向 Task 2 自编译二进制，启动独立 app；断言导航 URL、按钮结果和输入值，保存 PNG 并核验可解码且非零尺寸。
 - [ ] 关闭页面并断言再次操作失败，验证测试进程退出；在 finally 中关闭 Electron 与 HTTP server。故意引入一个不存在的定位目标验证失败路径也清理资源。
-- [ ] 执行 `node action_driver/baseline/verify.mjs`；只有来源校验、全部操作断言、截图和清理均成功才输出成功与运行证据。
+- [ ] 执行 `node action_driver/baseline/smoke.mjs`；只有来源校验、全部操作断言、截图和清理均成功才输出成功与运行证据。
 
 ## Task 4: 差异审查与交付
 
-**Files:** Fork 内 README、manifest 与独立根 artifacts；产品仓库只同步本期规划状态。
+**Files:** Fork 内 README、manifest 与独立根 build/logs；产品仓库只同步本期规划状态。
 
 **Interfaces:** Consumes: Task 1–3 输出。Produces: 可复现构建步骤、准确差异清单、实际兼容验收报告。
 
