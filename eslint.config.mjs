@@ -23,7 +23,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     // Node-side helper scripts that ship with the runtime or the packaging flow.
-    files: ['scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
+    files: ['scripts/**/*.mjs', 'tests/unit/scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
       'apps/agent-runtime/resources/js-repl/**/*.mjs',
       'apps/agent-runtime/src/plugins/**/*.mjs', 'packages/create-actiondriver-plugin/src/**/*.mjs',
       'packages/{cua,sky,cua-repl,browser-runtime,cua-parity}/**/*.mjs'],

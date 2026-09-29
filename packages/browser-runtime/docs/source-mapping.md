@@ -137,7 +137,7 @@ Native service foundations have own `service-context`, `service-rpc`, `service-n
 
 ### 服务命令与候选入口（2026-09-28）
 
-- 权限状态 `src/service-permission-state.ts` / `src/service-preferences.ts` 对照原服务 `c0` / `jM` / `ra.maybeAutoAnswerBrowserUseRequest` 与 `Zo`：未知资源类型没有配置表或审批模式，不能借用 upload 表的持久授权，也不建立会话存储；非字符串的 `approvals_reviewer` 不能因字符串转换而成为自动审查结果。原包差异回归见 `tests/service-permissions.test.ts`；权限门及命令安全定向测试仍通过。完整服务接线和真实宿主验收另行跟踪。
+- 权限状态 `src/service-permission-state.ts` / `src/service-preferences.ts` 对照原服务 `c0` / `jM` / `ra.maybeAutoAnswerBrowserUseRequest` 与 `Zo`：未知资源类型没有配置表或审批模式，不能借用 upload 表的持久授权，也不建立会话存储；非字符串的 `approvals_reviewer` 不能因字符串转换而成为自动审查结果。原包差异回归见 `tests/unit/service-permissions.test.ts`；权限门及命令安全定向测试仍通过。完整服务接线和真实宿主验收另行跟踪。
 
 - `service-playwright-commands.ts` 现注册 jB/qB/HB、NB/xB 和 jO：页面等待、文件选择器、只读求值经原包对照，失败的节点绑定会删除临时全局并释放 CDP 句柄。
 - `service-extra-commands.ts` 对应 id/Za/NT/FT/SO/GO/KO；`service-misc-commands.ts` 对应 Fp/Xs/jm/EO；`service-cdp-commands.ts` 对应 yO/wO；`service-content-export.ts` 与 `service-content-export-page.ts` 对应 vO/xO 及页面脚本；`service-webmcp.ts`/`service-webmcp-page.ts` 对应 $D/il/b_ 与注册代际。每组有原包差异测试；页面测试与受控 CDP fixture 不等于真实 macOS 验收。

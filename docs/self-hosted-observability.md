@@ -38,7 +38,7 @@ Alloy、Phoenix 或其他采集服务不可用时，模型任务继续按模型�
 ## 验证
 
 ```bash
-ACTIONDRIVER_LIVE_OBSERVABILITY=1 corepack pnpm exec vitest run packages/observability/tests/otel-live.test.ts
+ACTIONDRIVER_LIVE_OBSERVABILITY=1 corepack pnpm exec vitest run packages/observability/tests/unit/otel-live.test.ts
 corepack pnpm test:e2e:local
 ```
 

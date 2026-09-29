@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { E2E_TEST_ID_PATTERN } from './config.mjs'
 
 const error = (code, message) => ({
-  file: 'apps/desktop/e2e/interaction-contracts.json',
+  file: 'apps/desktop/tests/e2e/interaction-contracts.json',
   line: 1,
   column: 1,
   code,

@@ -19,7 +19,7 @@ function rendererSources(directory) {
 
 function options(argv) {
   const files = []
-  let contractsFile = resolve(projectRoot, 'apps/desktop/e2e/interaction-contracts.json')
+  let contractsFile = resolve(projectRoot, 'apps/desktop/tests/e2e/interaction-contracts.json')
   let skipContracts = false
 
   for (let index = 0; index < argv.length; index += 1) {

@@ -167,7 +167,7 @@ try {
   ])
   run(
     'corepack',
-    ['pnpm', 'exec', 'playwright', 'test', 'apps/desktop/e2e/packaged-runtime.spec.ts'],
+    ['pnpm', 'exec', 'playwright', 'test', 'apps/desktop/tests/e2e/packaged-runtime.spec.ts'],
     { ...process.env, ACTIONDRIVER_PACKAGED_APP: app }
   )
 } finally {

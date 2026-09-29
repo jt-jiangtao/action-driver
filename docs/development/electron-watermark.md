@@ -60,9 +60,9 @@ pnpm --filter @actiondriver/desktop dev
 
 ```sh
 node --test thridparty/electron/action_driver/watermark/native.test.mjs
-node --test scripts/lib/export-electron-fork.test.mjs
+node --test tests/unit/scripts/lib/export-electron-fork.test.mjs
 node thridparty/electron/action_driver/watermark/verify-electron.mjs "$PWD/thridparty/build/electron/Electron.app/Contents/MacOS/Electron"
-pnpm exec playwright test apps/desktop/e2e/electron-fork-runtime.spec.ts
+pnpm exec playwright test apps/desktop/tests/e2e/electron-fork-runtime.spec.ts
 ```
 
 原生交互夹具覆盖点击、输入、滚动、导航、内容视图替换、缩放及全屏；AppKit 测试覆盖资源释放与不拦截事件。原生窗口截图位于忽略目录 `thridparty/build/verification/watermark`。Playwright 的页面截图不会包含原生覆盖层，不能单独判断水印有无；使用 macOS 窗口截图并核对实际 `process.execPath`。

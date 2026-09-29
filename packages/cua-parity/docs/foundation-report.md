@@ -12,7 +12,7 @@
 
 ```sh
 pnpm --filter @actiondriver/cua-parity build
-pnpm vitest run --config packages/cua-parity/vitest.config.ts packages/cua-parity/tests packages/cua/tests/core.test.ts packages/cua/tests/discovery.test.ts packages/cua/tests/tab-reference.test.ts packages/sky/tests/bytes.test.ts
+pnpm vitest run --config packages/cua-parity/vitest.config.ts packages/cua-parity/tests packages/cua/tests/unit/core.test.ts packages/cua/tests/unit/discovery.test.ts packages/cua/tests/unit/tab-reference.test.ts packages/sky/tests/unit/bytes.test.ts
 pnpm exec tsc --noEmit -p packages/cua/tsconfig.type-tests.json
 node packages/cua-parity/dist/cli.js verify packages/back/codex-cua analysis/codex-cua/baseline.json
 ```

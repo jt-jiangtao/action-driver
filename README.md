@@ -14,4 +14,4 @@
 
 重建、导出和原生水印验证命令见 [Electron 水印文档](docs/development/electron-watermark.md)。导出必须同时更新 bundle 与来源记录，不能只复制文件。
 
-开发前运行 `pnpm build:native:electron` 准备 SQLite Electron ABI binding。定向产品验证：`pnpm exec playwright test apps/desktop/e2e/electron-fork-runtime.spec.ts`（先完成 Runtime 与 desktop build）。本地与打包集成命令仍为 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`，按仓库规则在提交前执行。包内保留 `actiondriver-electron-provenance.json`；其中哈希描述复制前的来源 bundle，重命名或签名后的包不能使用该哈希冒充包校验值。
+开发前运行 `pnpm build:native:electron` 准备 SQLite Electron ABI binding。定向产品验证：`pnpm exec playwright test apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`（先完成 Runtime 与 desktop build）。本地与打包集成命令仍为 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`，按仓库规则在提交前执行。包内保留 `actiondriver-electron-provenance.json`；其中哈希描述复制前的来源 bundle，重命名或签名后的包不能使用该哈希冒充包校验值。
