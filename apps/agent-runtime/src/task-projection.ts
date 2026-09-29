@@ -9,6 +9,7 @@ import {
   type TaskProjection
 } from '@actiondriver/contracts'
 import type { PersistedMessage, RuntimeTaskRecord } from './ports'
+import { legacyResourceUri } from './resources/media-providers'
 
 export function buildTaskProjection(
   task: RuntimeTaskRecord,
@@ -61,6 +62,9 @@ export function toOutputFileProjection(file: {
     fileId: file.fileId,
     sessionId: file.sessionId,
     taskId: file.taskId,
+    // The card carries the unified reference so a client can open it without the legacy triple,
+    // while `fileId` keeps older cards working unchanged.
+    uri: legacyResourceUri('generated-output', file.fileId, { sessionId: file.sessionId, taskId: file.taskId }),
     name: file.name,
     mimeType: file.mimeType,
     byteLength: file.byteLength,

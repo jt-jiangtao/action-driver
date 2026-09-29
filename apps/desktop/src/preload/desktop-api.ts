@@ -124,7 +124,7 @@ export interface DesktopApi {
   }
   externalLinks: { open(url: string): Promise<void> }
   taskOutput: {
-    open(input: { fileId: string; taskId: string; sessionId: string }): Promise<void>
+    open(input: { uri?: string; fileId?: string; taskId: string; sessionId: string }): Promise<void>
   }
   computerUse: {
     permissions(): Promise<ComputerPermissionStatus>

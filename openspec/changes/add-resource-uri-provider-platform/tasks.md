@@ -13,7 +13,7 @@
 
 - [x] 3.1 将会话输入及登记产物接入只读 provider，并保留旧文件 ID 解析；用历史任务和跨会话定向测试验证原版本与隔离。
 - [x] 3.2 接入可写工作资源、插件资源及远程 provider；用定向测试覆盖读写列举监听、远程断线和取消。
-- [ ] 3.3 将 Desktop 打开资源及插件 Host API 接入 URI 路由并保留兼容适配；用定向测试验证任意路径/URI 无法绕过桌面白名单。
+- [x] 3.3 将 Desktop 打开资源及插件 Host API 接入 URI 路由并保留兼容适配；用定向测试验证任意路径/URI 无法绕过桌面白名单。
 - [ ] 3.4 用端到端样例验证旧任务卡片、同会话输入、远程资源与并发写入在重启后仍符合 spec；记录兼容与回滚结果。
 
 ## 进度记录（进行中，未提交归档）
@@ -37,3 +37,8 @@
   - 资源 HTTP 面补齐 `POST /resources/write`（内联上限 8 MiB，支持 `expectedVersion`/`createOnly`/`contentType`），有界读写经 `RESOURCE_INLINE_MAX_BYTES` 校验。
   - 定向测试：`apps/agent-runtime/tests/unit/resources/provider-platform.test.ts` 13 项（工作资源读写列举监听、跨会话拒绝、并发冲突不覆盖、取消/期限、插件跨 plugin 与跨会话拒绝、远程断连、写入结果未知不重放、watch 缺口、取消传播、HTTP 传输代理与结构化拒绝翻译）；`runtime-resources.test.ts` 新增远程宿主注册/非法声明拒绝 2 项。
   - 本轮验证：`pnpm vitest run apps/agent-runtime/tests/unit/resources/` → 6 文件 36 项全部通过；`pnpm vitest run apps/agent-runtime/tests/unit/plugins apps/agent-runtime/tests/unit/composition-root.test.ts apps/agent-runtime/tests/unit/runtime-process.test.ts apps/agent-runtime/tests/unit/service-http.test.ts` → 20 文件 95 项通过；`pnpm --filter @actiondriver/agent-runtime typecheck`、`pnpm --filter @actiondriver/runtime-contracts typecheck`、`pnpm vitest run packages/runtime-contracts/tests`（51 项）与改动文件 ESLint 均通过。
+- 3.3 已完成并勾选：
+  - Desktop 打开资源：`apps/desktop/src/main/task-output-ipc.ts` 同时接受 `uri` 与旧 `{fileId,taskId,sessionId}`（恰好一个），URI 必须通过共享契约的 `parseResourceUri` 规范化校验（拒绝路径、`file://`/`https://`、非 `adr://v1`、路径穿越与 fragment），随后经 `POST /resources/read` 由运行时解析并返回受控字节，只有该字节会写入临时文件交给系统打开；`apps/desktop/src/shared/task-output-contract.ts`、`preload/desktop-api.ts` 与渲染层 `services/task-output-open.ts` 保留旧三元组兼容。
+  - 插件 Host API：`artifacts.create/read` 已在 3.2 接入统一 URI（含裸 id 兼容），本轮补齐协作契约：`packages/runtime-contracts/src/stream-protocol.ts` 的 `response.end`/`response.snapshot` `outputFiles` 增加可选 `uri`，`packages/contracts` 的 `TaskOutputFileProjection` 增加可选 `uri`；`task-projection.ts`、`stream/stream-snapshot.ts`、`stream-session-service.ts` 在任务卡片与快照中投影该 URI，渲染层优先用它打开、无 URI 时回退旧标识。
+  - 定向测试：`apps/desktop/tests/unit/main/task-output-ipc.test.ts` 4 项（URI 经 `/resources/read` 打开并保留扩展名；`/etc/passwd`、`../../secrets.pdf`、`file://`、`https://`、`adr://v1/...#fragment`、`adr://v2/...` 与同时给出 uri+fileId 全部在 fetch/openPath 之前拒绝）。
+  - 本轮验证：`pnpm vitest run apps/desktop/tests/unit/main apps/agent-runtime/tests/unit/service-websocket.test.ts apps/agent-runtime/tests/unit/resources` → 37 文件 138 项通过；`apps/agent-runtime/tests/unit/stream-session-service.test.ts`+`task-projection`+`local-runtime-server`+契约测试 → 8 文件 101 项通过；`runtime-contracts`/`contracts`/`agent-runtime`/`desktop` typecheck 与改动文件 ESLint 通过。

@@ -20,6 +20,7 @@ import type {
   StreamSessionRepository
 } from '../ports'
 import { persistedToolActivity } from '../tool-activity'
+import { legacyResourceUri } from '../resources/media-providers'
 import { boundedJson, messageParts, messageText, toStreamError, withAssets } from './stream-values'
 
 export type SnapshotEvent = Extract<StreamServerEvent, { type: 'response.snapshot' }>
@@ -193,6 +194,7 @@ async function outputFilesFor(
       fileId: file.fileId,
       sessionId: file.sessionId,
       taskId: file.taskId,
+      uri: legacyResourceUri('generated-output', file.fileId, { sessionId: file.sessionId, taskId: file.taskId }),
       name: file.name,
       mimeType: file.mimeType,
       byteLength: file.byteLength

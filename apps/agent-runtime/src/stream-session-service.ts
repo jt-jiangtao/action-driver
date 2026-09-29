@@ -35,6 +35,7 @@ import type {
   RuntimeTaskRecord
 } from './ports'
 import { toolActivityErrorSummary, toolActivityResultSummary } from './tool-activity'
+import { legacyResourceUri } from './resources/media-providers'
 import { StreamEventDelivery, type Emit } from './stream/event-delivery'
 import { buildStreamSnapshot, type SnapshotEvent } from './stream/stream-snapshot'
 import {
@@ -747,6 +748,7 @@ export class StreamSessionService {
                 fileId: file.fileId,
                 sessionId: file.sessionId,
                 taskId: file.taskId,
+                uri: legacyResourceUri('generated-output', file.fileId, { sessionId: file.sessionId, taskId: file.taskId }),
                 name: file.name,
                 mimeType: file.mimeType,
                 byteLength: file.byteLength

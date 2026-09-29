@@ -92,4 +92,71 @@ describe('task output open bridge', () => {
       failing.cleanup()
     }
   })
+
+  it('opens a resource URI through the runtime resource endpoint instead of a local path', async () => {
+    const openPath = vi.fn<(path: string) => Promise<string>>(async () => '')
+    const harness = fixture(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          value: {
+            uri: 'adr://v1/generated-output/file-1?task=task-1&session=session-1',
+            version: '1',
+            contentType: 'application/pdf',
+            base64: Buffer.from('%PDF-1.7 resource bytes').toString('base64')
+          }
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      ),
+      openPath
+    )
+    try {
+      await expect(
+        harness.open({
+          uri: 'adr://v1/generated-output/file-1?task=task-1&session=session-1',
+          taskId: 'task-1',
+          sessionId: 'session-1'
+        })
+      ).resolves.toEqual({ opened: true })
+      expect(harness.fetched[0]).toContain('http://127.0.0.1:45123/resources/read')
+      expect(harness.fetched[0]).toContain('Bearer service-token')
+      const opened = String(openPath.mock.calls[0]?.[0])
+      expect(opened.endsWith('.pdf')).toBe(true)
+      expect(readFileSync(opened, 'utf8')).toBe('%PDF-1.7 resource bytes')
+    } finally {
+      harness.cleanup()
+    }
+  })
+
+  it('refuses a raw path, a foreign URL or a malformed resource URI before any fetch', async () => {
+    const openPath = vi.fn<(path: string) => Promise<string>>(async () => '')
+    const harness = fixture(new Response('nope', { status: 500 }), openPath)
+    try {
+      for (const uri of [
+        '/etc/passwd',
+        '../../secrets.pdf',
+        'file:///etc/passwd',
+        'https://example.com/x.pdf',
+        'adr://v1/generated-output/../../etc/passwd',
+        'adr://v2/generated-output/file-1',
+        'adr://v1/generated-output/file-1#fragment'
+      ]) {
+        await expect(harness.open({ uri, taskId: 'task-1', sessionId: 'session-1' })).rejects.toThrow(
+          'TASK_OUTPUT_REQUEST_INVALID'
+        )
+      }
+      await expect(
+        harness.open({
+          uri: 'adr://v1/generated-output/file-1',
+          fileId: 'file-1',
+          taskId: 'task-1',
+          sessionId: 'session-1'
+        })
+      ).rejects.toThrow('TASK_OUTPUT_REQUEST_INVALID')
+      expect(harness.fetched).toHaveLength(0)
+      expect(openPath).not.toHaveBeenCalled()
+    } finally {
+      harness.cleanup()
+    }
+  })
 })

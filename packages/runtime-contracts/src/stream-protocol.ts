@@ -309,6 +309,7 @@ const responseEndEventSchema = z
             fileId: idSchema,
             sessionId: idSchema,
             taskId: idSchema,
+            uri: z.string().min(1).max(512).optional(),
             name: z.string().trim().min(1).max(255),
             mimeType: z.string().trim().min(1),
             byteLength: z.number().int().nonnegative()
@@ -387,6 +388,7 @@ const responseSnapshotEventSchema = z
             fileId: idSchema,
             sessionId: idSchema,
             taskId: idSchema,
+            uri: z.string().min(1).max(512).optional(),
             name: z.string().trim().min(1).max(255),
             mimeType: z.string().trim().min(1),
             byteLength: z.number().int().nonnegative()

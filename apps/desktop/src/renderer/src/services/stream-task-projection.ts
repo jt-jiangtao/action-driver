@@ -110,7 +110,13 @@ export class StreamTaskProjection {
         ...(event.outputFiles
           ? {
               outputFiles: event.outputFiles.map((file) => ({
-                ...file,
+                fileId: file.fileId,
+                sessionId: file.sessionId,
+                taskId: file.taskId,
+                ...(file.uri ? { uri: file.uri } : {}),
+                name: file.name,
+                mimeType: file.mimeType,
+                byteLength: file.byteLength,
                 kind: file.mimeType.startsWith('image/')
                   ? ('image' as const)
                   : ('document' as const)
@@ -439,7 +445,13 @@ export class StreamTaskProjection {
       ...(event.type === 'response.end' && event.outputFiles
         ? {
             outputFiles: event.outputFiles.map((file) => ({
-              ...file,
+              fileId: file.fileId,
+              sessionId: file.sessionId,
+              taskId: file.taskId,
+              ...(file.uri ? { uri: file.uri } : {}),
+              name: file.name,
+              mimeType: file.mimeType,
+              byteLength: file.byteLength,
               kind: file.mimeType.startsWith('image/') ? ('image' as const) : ('document' as const)
             }))
           }

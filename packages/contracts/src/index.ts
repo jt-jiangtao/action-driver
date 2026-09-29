@@ -413,6 +413,8 @@ export type TaskOutputFileProjection = {
   fileId: string
   sessionId: string
   taskId: string
+  /** Unified resource reference; the legacy identifier still resolves for old clients. */
+  uri?: string
   name: string
   mimeType: string
   byteLength: number
