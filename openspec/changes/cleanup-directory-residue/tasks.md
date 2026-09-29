@@ -30,14 +30,14 @@
 ## 5. B 类 Battle 记录（决策型）
 
 - [x] 5.1 在 `design.md` 记录 B1（`packages/back/` 位置）的当前方案、四个替代方案、比较、推荐与风险，核实 `.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`packages/cua-parity` 离线对照测试与 `backup-manifest.json` 的迁移影响。
-- [x] 5.2 在 `design.md` 记录 B2（`thridparty` 拼写）的当前方案、三个替代方案、比较、推荐、submodule 内部引用约束与回滚方案。
+- [x] 5.2 在 `design.md` 记录 B2（目录名拼写错误）的当前方案、三个替代方案、比较、推荐、submodule 内部引用约束与回滚方案。
 - [x] 5.3 向用户提交 B1、B2 的明确裁决请求；未获裁决前不执行任何目录移动、`.gitmodules` 修改或兼容软链创建。（已取得裁决：B1=方案 3 `thirdparty/backup/`，B2=方案 2 一次性改名）
 
 ## 7. B 类实施（已裁决）
 
-- [x] 7.1 `git mv thridparty thirdparty` 改名目录；`git mv` 同步更新 `.gitmodules` 的两个 submodule `path`；执行 `git submodule sync --recursive` 并用 `git submodule status`、`git -C thirdparty/{playwright,electron} status` 验证两个 submodule 在新路径正常解析。
-- [x] 7.2 更新 `.gitignore` 的 `/thridparty/*` 与两条 submodule 反排除为 `/thirdparty/*`，并新增 `!/thirdparty/backup/`、`!/thirdparty/backup/**`；用 `git status` 确认 `thirdparty/{README.md,package.json,build,downloads,tools}` 仍被忽略、备份文件仍受跟踪。
-- [x] 7.3 更新仓库内全部现行 `thridparty` 引用（`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`docs/testing/test-placement.md`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`），并确认剩余命中仅为历史记录与 Fork 仓库内部内容。
+- [x] 7.1 把错拼的目录名改名为 `thirdparty`；`git mv` 同步更新 `.gitmodules` 的两个 submodule `path`；执行 `git submodule sync --recursive` 并用 `git submodule status`、`git -C thirdparty/{playwright,electron} status` 验证两个 submodule 在新路径正常解析。
+- [x] 7.2 更新 `.gitignore` 中旧目录名的 `/*` 忽略与两条 submodule 反排除为 `/thirdparty/*`，并新增 `!/thirdparty/backup/`、`!/thirdparty/backup/**`；用 `git status` 确认 `thirdparty/{README.md,package.json,build,downloads,tools}` 仍被忽略、备份文件仍受跟踪。
+- [x] 7.3 更新仓库内全部现行旧目录名引用（`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`docs/testing/test-placement.md`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`），并确认剩余命中仅为历史记录与 Fork 仓库内部内容。
 - [x] 7.4 `git mv packages/back thirdparty/backup`，更新 `backup-manifest.json` 的 `destination`、`thirdparty/backup/README.md` 与全部现行 `packages/back` 引用（`analysis/codex-cua/**`、`packages/{cua,sky,cua-repl,cua-parity,browser-runtime,browser-desktop}` 的离线对照测试与文档、`eslint.config.mjs`、`docs/codex-cua-platform-gaps.md`），共 55 个现行文件。
 - [x] 7.5 运行离线对照与证据校验：`node analysis/codex-cua/inventory-browser-desktop.mjs` 后 `analysis/codex-cua/desktop-inventory.json` 无 diff；`node analysis/codex-cua/verify-browser-resource-provenance.mjs`、`python3 analysis/codex-cua/verify-macos-module-mapping.py`、`python3 analysis/codex-cua/verify-duplicated-sky.py` 全部通过，基准未漂移。
 - [x] 7.6 运行 CUA 系列包定向测试与脚本测试，确认迁移后的 `thirdparty/backup` 路径可用（Node v24.20.0）：`vitest run packages/{cua-parity,cua,sky,cua-repl,browser-runtime,browser-desktop}/tests` 185 文件 / 1105 用例全通过；`node --test tests/unit/scripts/**/*.test.mjs` 60 用例全通过。
@@ -58,8 +58,9 @@
 
 ## 8. 追加清理：统一残留的旧路径与拼写（用户 2026-09-30 追加要求）
 
-- [x] 8.1 把 `docs/superpowers/**`、其它未归档与已归档 OpenSpec 记录中剩余的 `thridparty` 拼写统一替换为 `thirdparty`，`packages/back` 统一替换为 `thirdparty/backup`（共 30 个文件）；仅替换路径标识，不改写叙事与历史结论。
+- [x] 8.1 把 `docs/superpowers/**`、其它未归档与已归档 OpenSpec 记录中剩余的错误拼写统一替换为 `thirdparty`，`packages/back` 统一替换为 `thirdparty/backup`（共 30 个文件）；仅替换路径标识，不改写叙事与历史结论。
 - [x] 8.2 修正把包版本写成路径的错误：`packages/browser-desktop/docs/source-mapping.md` 与 `analysis/codex-cua/desktop-source-map.md` 的 `@oai/browser-desktop@0.1.1` 改为实际目录 `@oai/browser-desktop/`。
 - [x] 8.3 补齐 `.prettierignore` 的 `thirdparty/` 忽略（与 ESLint、Vitest 的 `thirdparty/**` 保持一致），并把 `packages/cua-parity/tests/unit/package-artifact.test.ts` 的产物路径守卫补上 `backup`。
-- [x] 8.4 复核剩余命中：只剩 Fork 仓库工作树内部内容（外部仓库，需另行修正）、本次改名记录中刻意保留的旧名称（如 "`thridparty/` → `thirdparty/`" 与回滚步骤）与 `thirdparty/backup/README.md` 的位置变更说明。
+- [x] 8.4 复核剩余命中：除两个 Fork 仓库工作树内部内容外，仓库内已无错拼串（`thirdparty/backup/README.md` 仅保留迁移前的旧路径名，不属于拼写错误）。
 - [x] 8.5 运行 `openspec validate` 与相关定向测试，确认文档与守卫改动未破坏变更合法性或测试。
+- [x] 8.6 按用户追加要求，把本变更记录中剩余的 28 处错拼串全部改写为「旧目录名」指代（design/proposal/tasks），使主仓库内不再能搜到该拼写错误；仅两个 Fork 仓库工作树内部的 14 处仍待外部仓库修正。
