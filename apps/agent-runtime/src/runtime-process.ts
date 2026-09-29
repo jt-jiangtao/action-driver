@@ -40,7 +40,7 @@ import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
-import { createResourceHttpPort, createRuntimeResourceRegistry } from './resources/runtime-resources'
+import { createResourceHttpPort, createRuntimeResourceRegistryFromStores } from './resources/runtime-resources'
 import { definition as imageDefinition } from '@actiondriver/image-generation-plugin/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
@@ -110,23 +110,10 @@ export async function startAgentRuntimeProcess(
   })
   // Unified resource entry point: session inputs and registered deliverables are served only
   // through their owning provider, which re-checks the persisted ownership records.
-  const resourceRegistry = createRuntimeResourceRegistry({
-    inputFiles: {
-      read: (fileId, sessionId) => inputFiles.read(fileId, sessionId),
-      listBound: async (sessionId) =>
-        (await repositories.inputFiles.listBySession(sessionId))
-          .filter((file) => file.status === 'bound')
-          .map((file) => ({
-            fileId: file.fileId,
-            name: file.name,
-            mimeType: file.mimeType,
-            byteLength: file.byteLength
-          }))
-    },
-    outputs: {
-      readSnapshot: (input) => outputs.readSnapshot(input),
-      listByTask: (taskId) => outputs.listByTask(taskId)
-    }
+  const resourceRegistry = createRuntimeResourceRegistryFromStores({
+    inputFiles,
+    inputFileRecords: repositories.inputFiles,
+    outputs
   })
   await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
   await assets.cleanOrphanFiles()

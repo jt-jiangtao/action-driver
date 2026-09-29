@@ -22,13 +22,17 @@ function scopeOf(context: ResourceOperationContext): { sessionId: string; taskId
 
 export interface InputFilePort {
   read(fileId: string, sessionId: string): Promise<{ bytes: Uint8Array; name: string; mimeType: string }>
-  listBound(sessionId: string): { fileId: string; name: string; mimeType: string; byteLength: number }[]
+  listBound(sessionId: string): Promise<BoundInputFileEntry[]>
 }
+
+export type BoundInputFileEntry = { fileId: string; name: string; mimeType: string; byteLength: number }
 
 export interface OutputFilePort {
   readSnapshot(input: { fileId: string; taskId: string; sessionId: string }): Promise<{ bytes: Uint8Array; name: string; mimeType: string }>
-  listByTask(taskId: string): { fileId: string; sessionId: string; taskId: string; name: string; mimeType: string; byteLength: number }[]
+  listByTask(taskId: string): Promise<RegisteredOutputEntry[]>
 }
+
+export type RegisteredOutputEntry = { fileId: string; sessionId: string; taskId: string; name: string; mimeType: string; byteLength: number }
 
 function reasonOf(error: unknown): string {
   return (error as { code?: string })?.code ?? 'RESOURCE_UNAVAILABLE'
@@ -62,7 +66,7 @@ export function createInputFileProvider(ports: InputFilePort): ResourceProvider 
       const { id } = parseResourceUri(uri)
       if (id !== RESOURCE_COLLECTION_ID) throw new ResourceError('RESOURCE_NOT_FOUND', `${id}: inputs are addressed by file id`)
       const { sessionId } = scopeOf(context)
-      return ports.listBound(sessionId).map(file => ({ uri: legacyResourceUri('session-input', file.fileId, { sessionId }), version: '1', contentType: file.mimeType, size: file.byteLength, immutable: true }))
+      return (await ports.listBound(sessionId)).map(file => ({ uri: legacyResourceUri('session-input', file.fileId, { sessionId }), version: '1', contentType: file.mimeType, size: file.byteLength, immutable: true }))
     },
     async watch(uri, context) {
       authority(uri, context)
@@ -95,7 +99,7 @@ export function createOutputFileProvider(ports: OutputFilePort): ResourceProvide
       if (id !== RESOURCE_COLLECTION_ID) throw new ResourceError('RESOURCE_NOT_FOUND', `${id}: outputs are addressed by file id`)
       const scope = scopeOf(context)
       if (!scope.taskId) throw new ResourceError('RESOURCE_UNAUTHORIZED', 'A task scope is required for registered outputs')
-      return ports.listByTask(scope.taskId)
+      return (await ports.listByTask(scope.taskId))
         .filter(output => output.sessionId === scope.sessionId)
         .map(output => ({ uri: legacyResourceUri('generated-output', output.fileId, { sessionId: scope.sessionId, ...(scope.taskId ? { taskId: scope.taskId } : {}) }), version: '1', contentType: output.mimeType, size: output.byteLength, immutable: true }))
     },

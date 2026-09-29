@@ -25,6 +25,7 @@ import { registerMediaRoutes } from './http/http-routes-media'
 import { registerModelConnectionRoutes } from './http/http-routes-models'
 import { registerAgentFileRoutes } from './http/http-routes-agent-files'
 import { registerPluginRoutes, type PluginInterfaceRoutes } from './http/http-routes-plugin'
+import { registerResourceRoutes, type ResourceRoutesPort } from './http/http-routes-resources'
 import { registerServiceMetadataRoutes } from './http/http-routes-service'
 import { registerTaskRoutes } from './http/http-routes-tasks'
 import { createRequestPolicyMiddleware } from './http/http-request-policy'
@@ -55,6 +56,7 @@ export type ServiceHttpOptions = {
   assets?: SessionAssetStore
   inputFiles?: SessionInputFileStore
   outputs?: SessionOutputStore
+  resourceRoutes?: ResourceRoutesPort
   rendererOrigin?: string
   streamMaxPayloadBytes?: number
   streamMaxBufferedBytes?: number
@@ -101,6 +103,7 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
     })
   }
   if (options.taskControl) registerTaskRoutes(app, { taskControl: options.taskControl })
+  if (options.resourceRoutes) registerResourceRoutes(app, options.resourceRoutes)
   app.notFound((context) =>
     context.json(
       failure('not-found', 'Unknown route: ' + context.req.method + ' ' + context.req.path),
