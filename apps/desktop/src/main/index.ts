@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises'
-import { validateManifest, PluginError } from '@actiondriver/plugin-contracts'
+import { validateManifest, PluginError, PLUGIN_UI_PROTOCOL_VERSION, type Json } from '@actiondriver/plugin-contracts'
 import { createPanelMessageClient } from './plugins/panel-message-client'
 import { createPluginPanelProvider } from './plugins/panel-provider'
+import { createPluginContributionClient } from './plugins/contribution-client'
+import { PLUGIN_COMMAND_EXECUTE_CHANNEL, PLUGIN_CONTRIBUTIONS_LIST_CHANNEL, PLUGIN_VIEW_OPEN_CHANNEL } from '../shared/plugin-contributions-contract'
 import { createElectronPluginPanelHost } from './plugins/electron-panel-host'
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { createLocalBrowserHost } from './browser-session/local-browser-host.js'
@@ -156,6 +158,18 @@ async function readComputerUsePermissions() {
 }
 
 let pluginPanels: ReturnType<typeof createPluginPanelProvider> | undefined
+/** Renderer input is validated here; availability and grants stay with the runtime. */
+function parsePluginViewOpen(value: unknown): { pluginId: string; viewId: string } {
+  const input = value as { pluginId?: unknown; viewId?: unknown } | null
+  if (!input || typeof input.pluginId !== 'string' || !input.pluginId || typeof input.viewId !== 'string' || !input.viewId) throw new Error('Plugin view request is invalid')
+  return { pluginId: input.pluginId, viewId: input.viewId }
+}
+function parsePluginCommandExecute(value: unknown): { pluginId: string; commandId: string; input: Json; taskId?: string } {
+  const request = value as { pluginId?: unknown; commandId?: unknown; taskId?: unknown; input?: unknown } | null
+  if (!request || typeof request.pluginId !== 'string' || !request.pluginId || typeof request.commandId !== 'string' || !request.commandId) throw new Error('Plugin command request is invalid')
+  if (request.taskId !== undefined && (typeof request.taskId !== 'string' || !request.taskId)) throw new Error('Plugin command request is invalid')
+  return { pluginId: request.pluginId, commandId: request.commandId, input: (request.input ?? null) as Json, ...(request.taskId === undefined ? {} : { taskId: request.taskId as string }) }
+}
 app.whenReady().then(async () => {
   registerExternalLinkIpc(ipcMain, (url) => shell.openExternal(url))
   protocol.handle('actiondriver', (request) => {
@@ -205,8 +219,18 @@ app.whenReady().then(async () => {
       arch: process.arch
     })
     const pluginPackageRoot = (owner: { pluginId: string; version: string }) => join(dirname(paths.databasePath), 'plugins/installed', owner.pluginId, owner.version)
+    const pluginContributions = createPluginContributionClient({ fetch: globalThis.fetch, connection: () => { const url = runtime.runtimeSupervisor.serviceUrl; if (!url) throw new PluginError('UNAVAILABLE', 'Runtime is not ready'); return { url, token: serviceToken } } })
+    ipcMain.handle(PLUGIN_CONTRIBUTIONS_LIST_CHANNEL, async () => pluginContributions.list())
+    ipcMain.handle(PLUGIN_VIEW_OPEN_CHANNEL, async (_event, input: unknown) => {
+      const parsed = parsePluginViewOpen(input)
+      await pluginContributions.openView(parsed.pluginId, parsed.viewId)
+    })
+    ipcMain.handle(PLUGIN_COMMAND_EXECUTE_CHANNEL, async (_event, input: unknown) => {
+      const parsed = parsePluginCommandExecute(input)
+      return pluginContributions.executeCommand(parsed.pluginId, parsed.commandId, parsed.input, parsed.taskId)
+    })
     pluginPanels = createPluginPanelProvider({
-      loadManifest: async owner => validateManifest(JSON.parse(await readFile(join(pluginPackageRoot(owner), 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: `${process.platform}-${process.arch}` }),
+      loadManifest: async owner => validateManifest(JSON.parse(await readFile(join(pluginPackageRoot(owner), 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: `${process.platform}-${process.arch}`, uiProtocol: PLUGIN_UI_PROTOCOL_VERSION }),
       createHost: ports => createElectronPluginPanelHost({ ...ports, ids: () => randomBytes(16).toString('hex'), packageRoot: pluginPackageRoot, preload: join(moduleDirectory, '../preload/pluginPanel.cjs'), message: createPanelMessageClient({ fetch: globalThis.fetch, connection: () => { const url = runtime.runtimeSupervisor.serviceUrl; if (!url) throw new PluginError('UNAVAILABLE', 'Runtime is not ready'); return { url, token: serviceToken } } }) })
     })
     skillProviderHost.register(pluginPanels.provider)

@@ -35,6 +35,11 @@ export function useAppServices(): AppServices {
   return services
 }
 
+/** For optional surfaces that simply render nothing when the shell has no services wired. */
+export function useOptionalAppServices(): AppServices | null {
+  return useContext(AppServicesContext)
+}
+
 /** The task store itself, for callbacks that read the current task when they run. */
 export function useTaskStoreApi(): TaskStore {
   const store = useContext(TaskStoreContext)

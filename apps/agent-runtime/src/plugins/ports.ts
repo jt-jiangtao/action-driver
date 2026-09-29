@@ -22,7 +22,7 @@ export interface PluginHostFactory {
 export interface PluginManagerPorts {
   repository: PluginRepository; factory: PluginHostFactory
   contextKeys?: { evaluate(source?: string): boolean }
-  sdk: string; platform: string; epoch(): string; stopTimeoutMs?: number
+  sdk: string; platform: string; uiProtocol?: number; epoch(): string; stopTimeoutMs?: number
   withdraw?(owner: PluginOwner, contribution: Contribution): void
   publish?(owner: PluginOwner, contributions: Contribution[]): Disposable[]
 }

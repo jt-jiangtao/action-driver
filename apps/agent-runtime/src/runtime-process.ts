@@ -263,6 +263,13 @@ export async function startAgentRuntimeProcess(
       publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }
     },
     desktopResources: createDesktopResourcePort(local.adapters.skillRegistry, randomUUID),
+    // Desktop-initiated menu commands resolve their grants from the persisted task, never from
+    // the request body.
+    commandAuthority: async request => {
+      if (!request.taskId) return { grants: [], taskId: '', sessionId: '' }
+      const context = await executionContexts.resolve(request.taskId)
+      return { grants: context.grants ?? [], taskId: context.taskId, sessionId: context.sessionId }
+    },
     toolTimeouts: Object.fromEntries(scriptTools.map(tool => [tool.definition.id, tool.definition.timeoutMs])),
     hostCapabilities: {
       ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
@@ -350,7 +357,7 @@ export async function startAgentRuntimeProcess(
 
   if (serviceToken) {
     httpServer = await startServiceHttpServer({
-      pluginPanels: { message: pluginPlatform.panelMessage },
+      pluginInterface: { message: pluginPlatform.panelMessage, contributions: pluginPlatform.uiContributions, openView: pluginPlatform.openView, executeCommand: pluginPlatform.executeCommand },
       service,
       assets,
       inputFiles,

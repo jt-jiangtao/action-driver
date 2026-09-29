@@ -43,6 +43,8 @@ export function createPluginContext(owner: PluginOwner, ports: { transport: Host
       skills: { register: skill => subscriptions.add(ports.registrations.register({ kind: 'skill', id: skill.id })) },
       services: { start: id => lease('services.start', 'services.stop', id), stop: async value => { await request('services.stop', { resourceId: value.resourceId }) } },
       panels: { register: (id, handler) => subscriptions.add(ports.registrations.register({ kind: 'panel', id }, handler)), open: id => lease('panels.open', 'panels.close', id), close: async value => { await request('panels.close', { resourceId: value.resourceId }) } },
+      views: { register: (id, handler) => subscriptions.add(ports.registrations.register({ kind: 'view', id }, handler)) },
+      menus: { register: id => subscriptions.add(ports.registrations.register({ kind: 'menu', id })) },
       sessions: { getContext: context => request('sessions.getContext', {}, context) },
       artifacts: { create: (input, context) => request('artifacts.create', input, context), read: (id, context) => request('artifacts.read', { id }, context) },
       credentials: { request: (input, context) => request('credentials.request', input, context) },

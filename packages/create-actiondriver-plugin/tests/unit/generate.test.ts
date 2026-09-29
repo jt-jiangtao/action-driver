@@ -10,7 +10,7 @@ import { PluginInstructionHost } from '../../../../apps/agent-runtime/src/plugin
 import { RuntimeToolRegistry } from '../../../../apps/agent-runtime/src/tool-registry'
 import { NodePluginHostFactory } from '../../../../apps/agent-runtime/src/plugins/process-host'
 import { PluginManager } from '../../../../apps/agent-runtime/src/plugins/manager'
-import { validateManifest, validateCatalog } from '@actiondriver/plugin-contracts'
+import { PLUGIN_UI_PROTOCOL_VERSION, validateManifest, validateCatalog } from '@actiondriver/plugin-contracts'
 const run = promisify(execFile)
 import { generatePlugin } from '../../src/generate.mjs'
 const temporary: string[] = []
@@ -26,11 +26,14 @@ describe('plugin generator', () => {
     expect(pkg.exports).toEqual({ '.': './dist/extension.js', './catalog': './dist/catalog.js', './presentation': './dist/presentation.js' })
     expect(manifest.entry).toBe('dist/extension.js')
     expect(manifest.catalog).toBe('dist/catalog.js')
-    expect(await readdir(join(target, 'src'))).toEqual(['catalog.ts', 'execution.ts', 'extension.ts', 'presentation.ts', 'raw-assets.d.ts'])
+    expect(manifest.views?.[0]).toMatchObject({ id: 'example-tools.dashboard', title: 'example-tools 面板', container: 'sidebar', entry: 'dist/view.html' })
+    expect(manifest.menus).toEqual([{ id: 'example-tools.echo-menu', title: '回显消息', command: 'example-tools.echo-command', location: 'plugins-menu' }])
+    expect(await readdir(join(target, 'src'))).toEqual(['catalog.ts', 'execution.ts', 'extension.ts', 'presentation.ts', 'raw-assets.d.ts', 'view.html'])
     expect(await readFile(join(target, 'skills/hello/SKILL.md'), 'utf8')).toContain('tools_local_example_tools_echo')
     const readme = await readFile(join(target, 'README.md'), 'utf8')
     expect(readme).toContain('plugin.example-tools.ready')
     expect(readme).toContain('context.api.context.set')
+    expect(readme).toContain('views.register')
   })
   it('refuses existing files and invalid plugin IDs without changing destinations', async () => {
     const root = await directory()
@@ -52,7 +55,7 @@ describe('packaged SDK and generated plugin', () => {
     await generatePlugin({ id: 'generated', directory: project })
     await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(root, 'actiondriver-plugin-contracts-1.0.0.tgz'), join(root, 'actiondriver-plugin-sdk-1.0.0.tgz')], { cwd: project })
     await run('npm', ['test'], { cwd: project })
-    const manifest = validateManifest(JSON.parse(await readFile(join(project, 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: 'darwin-arm64' })
+    const manifest = validateManifest(JSON.parse(await readFile(join(project, 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: 'darwin-arm64', uiProtocol: PLUGIN_UI_PROTOCOL_VERSION })
     // A separate Node process imports only generated dist and installed tarballs.
     const { stdout } = await run(process.execPath, ['--input-type=module', '-e', "import { catalog } from './dist/catalog.js'; console.log(JSON.stringify(catalog))"], { cwd: project })
     const catalog = validateCatalog(JSON.parse(stdout), manifest)
@@ -62,10 +65,10 @@ describe('packaged SDK and generated plugin', () => {
     expect(JSON.parse(metadata.stdout)['tools/local/generated/echo']).toEqual(catalog.tools[0]?.presentation)
     expect(catalog.skills[0]?.resources).toEqual(['skills/hello/SKILL.md'])
     const factory = new NodePluginHostFactory({ executable: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoot: () => project, token: () => 'test-token', request: async () => { throw new Error('Unexpected host request') } })
-    const manager = new PluginManager({ sdk: '1.0.0', platform: 'darwin-arm64', epoch: () => 'test', factory, repository: { async publish() {}, async list() { return [] }, async remove() {} } })
+    const manager = new PluginManager({ sdk: '1.0.0', platform: 'darwin-arm64', uiProtocol: PLUGIN_UI_PROTOCOL_VERSION, epoch: () => 'test', factory, repository: { async publish() {}, async list() { return [] }, async remove() {} } })
     await manager.install(manifest); await manager.enable('generated'); await manager.activate('generated')
     try {
-      expect(manager.contributions().map(value => value.contribution.id)).toEqual(['tools/local/generated/echo', 'generated.hello'])
+      expect(manager.contributions().map(value => value.contribution.id).sort()).toEqual(['generated.dashboard', 'generated.echo-command', 'generated.echo-menu', 'generated.hello', 'tools/local/generated/echo'])
       expect(await manager.invoke('tools/local/generated/echo', { call: { callId: 'c', providerCallId: 'p', modelName: 'tools_local_generated_echo', arguments: { message: 'hello' } } }, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toEqual([{ kind: 'result', output: { message: 'hello' } }])
     } finally { await manager.disable('generated') }
     expect(manager.contributions()).toEqual([])

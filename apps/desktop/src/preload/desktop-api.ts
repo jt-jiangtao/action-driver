@@ -44,6 +44,13 @@ import {
 import { EXTERNAL_LINK_OPEN_CHANNEL } from '../shared/external-link-contract'
 import { TASK_OUTPUT_OPEN_CHANNEL } from '../shared/task-output-contract'
 import {
+  PLUGIN_COMMAND_EXECUTE_CHANNEL,
+  PLUGIN_CONTRIBUTIONS_LIST_CHANNEL,
+  PLUGIN_VIEW_OPEN_CHANNEL,
+  type PluginContributionsDesktopApi
+} from '../shared/plugin-contributions-contract'
+import type { PluginUiContributions } from '@actiondriver/plugin-contracts'
+import {
   COMPUTER_APP_ICON_CHANNEL,
   COMPUTER_GUIDANCE_ENSURE_CHANNEL,
   COMPUTER_PERMISSIONS_CHECK_CHANNEL,
@@ -127,6 +134,7 @@ export interface DesktopApi {
     /** Data URL of the application icon, or null when macOS cannot provide one. */
     getAppIcon(appPath: string): Promise<string | null>
   }
+  pluginContributions: PluginContributionsDesktopApi
 }
 
 export function createDesktopApi(
@@ -185,6 +193,14 @@ export function createDesktopApi(
       ensureGuidance: async () => ipc.invoke(COMPUTER_GUIDANCE_ENSURE_CHANNEL, {}),
       getAppIcon: async (appPath) =>
         (await ipc.invoke(COMPUTER_APP_ICON_CHANNEL, { appPath })) as string | null
+    },
+    pluginContributions: {
+      list: async () =>
+        (await ipc.invoke(PLUGIN_CONTRIBUTIONS_LIST_CHANNEL, {})) as PluginUiContributions,
+      openView: async (pluginId, viewId) => {
+        await ipc.invoke(PLUGIN_VIEW_OPEN_CHANNEL, { pluginId, viewId })
+      },
+      executeCommand: async (input) => ipc.invoke(PLUGIN_COMMAND_EXECUTE_CHANNEL, input)
     }
   }
 }

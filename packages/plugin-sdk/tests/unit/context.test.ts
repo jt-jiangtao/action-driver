@@ -49,3 +49,21 @@ it('streams capability progress through an explicit transport without collecting
   expect(await stream.next()).toEqual({ value: { kind: 'content', delta: 'first' }, done: false })
   expect(await stream.next()).toEqual({ value: { kind: 'result', output: 'last' }, done: false })
 })
+
+it('registers declarative views and menus through the same ownership ledger', async () => {
+  const declarations: string[] = []
+  const context = createPluginContext(owner, {
+    tools: { register() { return { dispose() {} } } },
+    registrations: { register(contribution) {
+      const key = `${contribution.kind}:${contribution.id}`
+      declarations.push(key)
+      return { dispose() { declarations.splice(declarations.indexOf(key), 1) } }
+    } },
+    transport: { async request() { throw new Error('unexpected') } }
+  })
+  context.api.views.register('fixture.dashboard', async input => input)
+  context.api.menus.register('fixture.refresh-menu')
+  expect(declarations).toEqual(['view:fixture.dashboard', 'menu:fixture.refresh-menu'])
+  await context.subscriptions.dispose()
+  expect(declarations).toEqual([])
+})

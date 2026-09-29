@@ -23,6 +23,8 @@ export interface ActionDriverAPI {
   skills: { register(skill: SkillContribution): Disposable }
   services: { start(id: string): Promise<ResourceHandle>; stop(handle: ResourceHandle): Promise<void> }
   panels: { register(id: string, handler?: ContributionHandler): Disposable; open(id: string): Promise<ResourceHandle>; close(handle: ResourceHandle): Promise<void> }
+  views: { register(id: string, handler?: ContributionHandler): Disposable }
+  menus: { register(id: string): Disposable }
   sessions: { getContext(context: InvocationContext): Promise<Json> }
   artifacts: { create(input: Json, context: InvocationContext): Promise<Json>; read(id: string, context: InvocationContext): Promise<Json> }
   credentials: { request(input: { id: string; purpose: string }, context: InvocationContext): Promise<Json> }
@@ -35,6 +37,8 @@ export interface PluginContext { readonly plugin: PluginOwner; readonly subscrip
 export interface PluginModule { activate(context: PluginContext): void | Promise<void>; deactivate?(reason: StopReason): void | Promise<void> }
 
 export type { PluginCatalog, SkillContribution, PanelDefinition } from '@actiondriver/plugin-contracts'
+export type { MenuDefinition, ViewDefinition, PluginContributionCatalog } from '@actiondriver/plugin-contracts'
+export { VIEW_CONTAINERS, MENU_LOCATIONS, buildContributionCatalog, PLUGIN_UI_PROTOCOL_VERSION } from '@actiondriver/plugin-contracts'
 export type { ToolDefinition, ToolExecutor, ToolCall, ToolExecutorEvent, ImageAssetRef } from '@actiondriver/plugin-contracts'
 
 export { createPluginContext, ResourceLedger } from './context.js'

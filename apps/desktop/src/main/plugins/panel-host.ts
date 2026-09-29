@@ -1,16 +1,20 @@
 import { z } from 'zod'
-import { PluginError, panelDefinitionSchema, type PanelDefinition, type PluginOwner, type Json } from '@actiondriver/plugin-contracts'
+import { PluginError, panelDefinitionSchema, viewDefinitionSchema, type PanelDefinition, type PluginOwner, type Json, type ViewDefinition } from '@actiondriver/plugin-contracts'
 import type { Disposable } from '@actiondriver/plugin-sdk'
 export const PANEL_PREFERENCES = { sandbox: true, nodeIntegration: false, contextIsolation: true, webSecurity: true } as const
+type SurfaceDefinition = PanelDefinition | ViewDefinition
 export interface PanelHostPorts {
   assertInstance(owner: PluginOwner): void
   ids(): string
   declarations(owner: PluginOwner): PanelDefinition[]
-  create(input: { owner: PluginOwner; resourceId: string; definition: PanelDefinition; preferences: typeof PANEL_PREFERENCES }): Promise<Disposable>
+  /** Containers this host can actually render; a declared but unsupported one fails diagnosably. */
+  viewDeclarations?(owner: PluginOwner): ViewDefinition[]
+  supportedViewContainers?(): readonly string[]
+  create(input: { owner: PluginOwner; resourceId: string; definition: SurfaceDefinition; preferences: typeof PANEL_PREFERENCES }): Promise<Disposable>
   message(owner: PluginOwner, panelId: string, type: string, payload: Json): Promise<Json>
 }
 export class PluginPanelHost implements Disposable {
-  private readonly panels = new Map<string, { owner: PluginOwner; definition: PanelDefinition; surface?: Disposable }>()
+  private readonly panels = new Map<string, { owner: PluginOwner; definition: SurfaceDefinition; surface?: Disposable }>()
   constructor(private readonly ports: PanelHostPorts) {}
   async open(owner: PluginOwner, id: string): Promise<{ resourceId: string }> {
     this.ports.assertInstance(owner)
@@ -19,7 +23,31 @@ export class PluginPanelHost implements Disposable {
     const definition = panelDefinitionSchema.parse(declaration), resourceId = this.ports.ids()
     for (const schema of Object.values(definition.messages)) z.fromJSONSchema(schema as Parameters<typeof z.fromJSONSchema>[0])
     if (this.panels.has(resourceId)) throw new PluginError('CONTRIBUTION_CONFLICT', resourceId)
-    const record: { owner: PluginOwner; definition: PanelDefinition; surface?: Disposable } = { owner: { ...owner }, definition }
+    const record: { owner: PluginOwner; definition: SurfaceDefinition; surface?: Disposable } = { owner: { ...owner }, definition }
+    this.panels.set(resourceId, record)
+    try {
+      const surface = await this.ports.create({ owner, resourceId, definition, preferences: PANEL_PREFERENCES })
+      if (this.panels.get(resourceId) !== record) { await surface.dispose(); throw new PluginError('STALE_INSTANCE', resourceId) }
+      record.surface = surface
+      this.ports.assertInstance(owner)
+      return { resourceId }
+    } catch (error) { this.panels.delete(resourceId); await record.surface?.dispose(); throw error }
+  }
+  /**
+   * A view is declared by the manifest and placed by the host. Content still runs in the
+   * controlled surface, never in the app renderer, so the typed bridge above stays the only
+   * channel between the page and its plugin.
+   */
+  async openView(owner: PluginOwner, id: string): Promise<{ resourceId: string }> {
+    this.ports.assertInstance(owner)
+    const declaration = (this.ports.viewDeclarations?.(owner) ?? []).find(value => value.id === id)
+    if (!declaration) throw new PluginError('PROTOCOL_ERROR', `Undeclared view ${id}`)
+    const definition = viewDefinitionSchema.parse(declaration)
+    if (!(this.ports.supportedViewContainers?.() ?? []).includes(definition.container)) throw new PluginError('UNAVAILABLE', `View container ${definition.container} is not supported by this host`)
+    const resourceId = this.ports.ids()
+    for (const schema of Object.values(definition.messages)) z.fromJSONSchema(schema as Parameters<typeof z.fromJSONSchema>[0])
+    if (this.panels.has(resourceId)) throw new PluginError('CONTRIBUTION_CONFLICT', resourceId)
+    const record: { owner: PluginOwner; definition: SurfaceDefinition; surface?: Disposable } = { owner: { ...owner }, definition }
     this.panels.set(resourceId, record)
     try {
       const surface = await this.ports.create({ owner, resourceId, definition, preferences: PANEL_PREFERENCES })

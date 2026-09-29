@@ -164,3 +164,64 @@ it('waits for crashed epoch cleanup before allowing a replacement activation', a
   expect(await manager.invoke('fixture/read', null, { requestId: 'r', callId: 'c', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [] }, new AbortController().signal)).toBe('2')
   await manager.disable(manifest.id)
 })
+
+const uiManifest: PluginManifest = {
+  id: 'ui-fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'index.js', platforms: ['darwin-arm64'], activation: [],
+  contributions: [
+    { kind: 'tool', id: 'ui-fixture/read', modelName: 'ui_fixture_read' },
+    { kind: 'command', id: 'ui-fixture.refresh', when: 'plugin.ui-fixture.ready' },
+    { kind: 'skill', id: 'ui-fixture.hello' },
+    { kind: 'panel', id: 'ui-fixture.panel' },
+    { kind: 'view', id: 'ui-fixture.dashboard', when: 'host.online' },
+    { kind: 'menu', id: 'ui-fixture.refresh-menu' }
+  ],
+  views: [{ id: 'ui-fixture.dashboard', title: 'Dashboard', container: 'sidebar', entry: 'view.html', messages: {} }],
+  menus: [{ id: 'ui-fixture.refresh-menu', title: '刷新', command: 'ui-fixture.refresh', location: 'plugins-menu' }],
+  dependencies: []
+}
+function uiFixture(keys: Record<string, boolean> = {}) {
+  const factory: PluginHostFactory = {
+    async start(owner, manifest, registrar) {
+      for (const contribution of manifest.contributions) registrar.register(contribution)
+      return { owner, async stop() {}, async invoke(id) { return id } }
+    }
+  }
+  const manager = new PluginManager({
+    repository: { async publish() {}, async list() { return [] }, async remove() {} }, factory,
+    sdk: '1.0.0', platform: 'darwin-arm64', uiProtocol: 2, epoch: () => 'epoch-1',
+    contextKeys: { evaluate: source => source === undefined ? true : keys[source] ?? false }
+  })
+  return manager
+}
+describe('declarative view and menu ownership', () => {
+  it('publishes all six contribution kinds from one activation and projects the same condition result', async () => {
+    const manager = uiFixture({ 'host.online': true, 'plugin.ui-fixture.ready': false })
+    await manager.install(uiManifest); await manager.enable('ui-fixture'); await manager.activate('ui-fixture')
+    expect(manager.contributions().map(value => value.contribution.kind).sort()).toEqual(['command', 'menu', 'panel', 'skill', 'tool', 'view'])
+    expect(manager.availableContributions().map(value => `${value.contribution.kind}:${value.contribution.id}`))
+      .toEqual(['tool:ui-fixture/read', 'skill:ui-fixture.hello', 'panel:ui-fixture.panel', 'view:ui-fixture.dashboard'])
+    expect(manager.isContributionAvailable('view', 'ui-fixture.dashboard', manager.contributions().find(value => value.contribution.kind === 'view')!.owner)).toBe(true)
+    expect(manager.isContributionAvailable('menu', 'ui-fixture.refresh-menu', manager.contributions().find(value => value.contribution.kind === 'menu')!.owner)).toBe(false)
+    await manager.disable('ui-fixture')
+    expect(manager.contributions()).toEqual([])
+  })
+  it('rejects a view ID owned by another plugin, names both owners and keeps the published entry', async () => {
+    const manager = uiFixture()
+    await manager.install(uiManifest); await manager.enable('ui-fixture'); await manager.activate('ui-fixture')
+    const other = { ...uiManifest, id: 'ui-other', contributions: [{ kind: 'view', id: 'ui-fixture.dashboard' }], views: uiManifest.views, menus: undefined, panels: undefined }
+    await manager.install(other); await manager.enable('ui-other')
+    await expect(manager.activate('ui-other')).rejects.toThrow(/ui-fixture.*ui-other|ui-other.*ui-fixture/)
+    expect(manager.contributions().filter(value => value.contribution.kind === 'view')).toHaveLength(1)
+    expect(manager.contributions().find(value => value.contribution.kind === 'view')!.owner.pluginId).toBe('ui-fixture')
+    await manager.disable('ui-fixture')
+  })
+  it('rejects duplicate view contributions inside one manifest', async () => {
+    const manager = uiFixture()
+    await expect(manager.install({ ...uiManifest, views: [...uiManifest.views!, ...uiManifest.views!] })).rejects.toThrow('CONTRIBUTION_CONFLICT')
+  })
+  it('requires the UI protocol before installing a manifest that declares views or menus', async () => {
+    const legacy = new PluginManager({ repository: { async publish() {}, async list() { return [] }, async remove() {} }, factory: { async start(owner) { return { owner, async stop() {}, async invoke() { return null } } } }, sdk: '1.0.0', platform: 'darwin-arm64', epoch: () => 'epoch-1' })
+    await expect(legacy.install(uiManifest)).rejects.toThrow('INCOMPATIBLE')
+    await expect(legacy.install(manifest)).resolves.toBeUndefined()
+  })
+})

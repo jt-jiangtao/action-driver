@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { PluginError, validateManifest, type Json, type PluginCatalog, type PluginManifest, type InvocationContext, type PluginOwner, type SkillContribution } from '@actiondriver/plugin-contracts'
+import { PLUGIN_UI_PROTOCOL_VERSION, PluginError, validateManifest, type Json, type PluginManifest, type PluginUiContributions, type PluginUiMenu, type PluginUiView, type InvocationContext, type PluginOwner, type SkillContribution, type ValidatedPluginCatalog } from '@actiondriver/plugin-contracts'
 import { EventQueue, type Disposable, type ToolExecutorEvent } from '@actiondriver/plugin-sdk'
 import type { RuntimeToolRegistry } from '../tool-registry'
 import { FilesystemPluginRepository, PluginPrivateStorage } from './filesystem-repository'
@@ -24,21 +24,28 @@ export interface RuntimePluginCompositionOptions {
   contextKeys?: PluginContextKeys
   skills?: { stage(owner: PluginOwner, skill: SkillContribution, packageRoot: string): Promise<Disposable>; publish(owner: PluginOwner, id: string): Disposable }
   desktopResources?: { begin(owner: PluginOwner): Promise<void>; request(owner: PluginOwner, method: string, input: Json): Promise<Json>; end(owner: PluginOwner): Promise<void> }
+  /**
+   * Resolves the authoritative task context for a Desktop-initiated command. Grants are always
+   * recomputed here; caller-supplied grants are never trusted.
+   */
+  commandAuthority?(request: { taskId?: string }): Promise<{ grants: string[]; taskId: string; sessionId: string }>
   authorizeCapability?(context: InvocationContext, id: string, target: PluginOwner): Promise<boolean>
   hostCapabilities?: Record<string, { plugins: string[]; grants: string[]; start?(owner: PluginOwner): Promise<Disposable>; invoke?(input: Json, context: InvocationContext, signal: AbortSignal): Promise<Json>; stream?(input: Json, context: InvocationContext, signal: AbortSignal): AsyncIterable<Json> }>
   log?(entry: { pluginId: string; version: string; hostEpoch: string; payload: Json }): void
 }
 export async function createRuntimePluginPlatform(options: RuntimePluginCompositionOptions) {
   const contextKeys = options.contextKeys ?? new PluginContextKeys()
-  const roots = new Map<string, string>(), descriptors = new Map<string, { manifest: PluginManifest; catalog: PluginCatalog }>()
-  const versions = new Map<string, { manifest: PluginManifest; catalog: PluginCatalog }>()
+  const roots = new Map<string, string>(), descriptors = new Map<string, { manifest: PluginManifest; catalog: ValidatedPluginCatalog }>()
+  const versions = new Map<string, { manifest: PluginManifest; catalog: ValidatedPluginCatalog }>()
   const key = (owner: { pluginId: string; version: string }) => `${owner.pluginId}@${owner.version}`
   const descriptor = (owner: PluginOwner) => {
     const value = versions.get(key(owner))
     if (!value) throw new PluginError('UNAVAILABLE', key(owner))
     return value
   }
-  const host = { sdk: '1.0.0', platform: `${process.platform}-${process.arch}` }
+  // Advertise the UI protocol so manifests declaring views or menus are accepted here and
+  // explicitly rejected by any older host that only speaks protocol 1.
+  const host = { sdk: '1.0.0', platform: `${process.platform}-${process.arch}`, uiProtocol: PLUGIN_UI_PROTOCOL_VERSION }
   const persisted = new FilesystemPluginRepository(options.dataRoot, () => { throw new Error('Read-only repository') }, options.ids)
   const suppliedIds = new Set(await Promise.all(options.packageRoots.map(async root => (JSON.parse(await readFile(join(root, 'plugin.json'), 'utf8')) as PluginManifest).id)))
   const persistedRoots = (await persisted.list()).filter(manifest => !suppliedIds.has(manifest.id) && !options.retiredPluginIds?.includes(manifest.id)).map(manifest => persisted.packageRoot(validateManifest(manifest, host)))
@@ -100,6 +107,10 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
     }
   })
   const registered = new Map<string, Disposable>()
+  // Installed packages are listed as dormant interface contributions until the user disables them.
+  const withdrawn = new Set<string>()
+  // Desktop bindings opened lazily for the first view of an instance.
+  const viewBindings = new Set<string>()
   const registrationKey = (owner: PluginOwner, id: string) => `${key(owner)}@${owner.hostEpoch}:${id}`
   const manager: PluginManager = new PluginManager({ repository, factory, ...host, epoch: options.ids, contextKeys,
     withdraw: (owner, contribution) => {
@@ -221,8 +232,60 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
       return manager.invoke(panelId, { type, payload }, { requestId: options.ids(), callId: options.ids(), deadline: options.now() + 5000, source: owner, chain: [], grants: [] }, new AbortController().signal)
     },
     catalogs: () => structuredClone([...descriptors.values()]),
-    enable: async (id: string) => { await manager.enable(id); await manager.activate(id) },
-    disable: (id: string) => manager.disable(id),
+    /**
+     * Interface contributions of every installed package that is not disabled, with the same
+     * authoritative availability the direct call path uses. Declared-but-dormant entries stay
+     * visible so the desktop can activate their owner on demand.
+     */
+    uiContributions: (): PluginUiContributions => {
+      const views: PluginUiView[] = []
+      const menus: PluginUiMenu[] = []
+      const published = manager.contributions()
+      for (const { manifest, catalog } of descriptors.values()) {
+        if (withdrawn.has(manifest.id) || manager.status(manifest.id) === 'stopping') continue
+        const owner = published.find(value => value.owner.pluginId === manifest.id)?.owner
+        for (const definition of catalog.views) views.push({ pluginId: manifest.id, version: manifest.version, definition: structuredClone(definition), available: manager.isContributionAvailable('view', definition.id, owner) })
+        for (const definition of catalog.menus) menus.push({ pluginId: manifest.id, version: manifest.version, definition: structuredClone(definition), available: manager.isContributionAvailable('menu', definition.id, owner) })
+      }
+      return { views, menus }
+    },
+    /** Activates the owner of a declarative surface, then hands the container to the desktop host. */
+    openView: async (pluginId: string, viewId: string): Promise<{ resourceId: string }> => {
+      const descriptor = [...descriptors.values()].find(value => value.manifest.id === pluginId)
+      if (!descriptor?.catalog.views.some(value => value.id === viewId)) throw new PluginError('INVALID_MANIFEST', `Undeclared view ${viewId}`)
+      if (manager.status(pluginId) !== 'ready') { withdrawn.delete(pluginId); await manager.enable(pluginId); await manager.activate(pluginId) }
+      const owner = manager.contributions().find(value => value.contribution.kind === 'view' && value.contribution.id === viewId && value.owner.pluginId === pluginId)?.owner
+      if (!owner) throw new PluginError('UNAVAILABLE', `${viewId}: view is not published`)
+      if (!manager.isContributionAvailable('view', viewId, owner)) throw new PluginError('UNAVAILABLE', `${viewId}: context condition is false`)
+      if (!options.desktopResources) throw new PluginError('UNAVAILABLE', 'Desktop view host is not configured')
+      // The desktop binding is established lazily, so a host without a container for this view
+      // keeps the plugin active until someone actually opens it.
+      const binding = `${owner.pluginId}@${owner.hostEpoch}`
+      if (!viewBindings.has(binding)) {
+        await options.desktopResources.begin(owner)
+        viewBindings.add(binding)
+        manager.track(owner, { dispose: () => { viewBindings.delete(binding); return options.desktopResources!.end(owner) } })
+      }
+      return await options.desktopResources.request(owner, 'views.open', { id: viewId }) as { resourceId: string }
+    },
+    /**
+     * Executes a declared command for a user-initiated entry point. The owner must be published,
+     * the shared condition is re-evaluated here, and grants come from the authoritative task.
+     */
+    executeCommand: async (pluginId: string, commandId: string, input: Json, request: { taskId?: string }): Promise<Json> => {
+      const descriptor = [...descriptors.values()].find(value => value.manifest.id === pluginId)
+      if (!descriptor?.manifest.contributions.some(item => item.kind === 'command' && item.id === commandId)) throw new PluginError('INVALID_MANIFEST', `Undeclared command ${commandId}`)
+      const owner = manager.contributions().find(value => value.contribution.kind === 'command' && value.contribution.id === commandId && value.owner.pluginId === pluginId)?.owner
+      if (!owner) throw new PluginError('UNAVAILABLE', `${commandId}: command is not published`)
+      if (!manager.isContributionAvailable('command', commandId, owner)) throw new PluginError('UNAVAILABLE', `${commandId}: context condition is false`)
+      const authority = options.commandAuthority ? await options.commandAuthority(request) : { grants: [], taskId: request.taskId ?? '', sessionId: '' }
+      return manager.invoke(commandId, input, {
+        requestId: options.ids(), callId: options.ids(), deadline: options.now() + 30_000, source: { kind: 'runtime' }, chain: [], grants: authority.grants,
+        ...(authority.taskId ? { taskId: authority.taskId } : {}), ...(authority.sessionId ? { sessionId: authority.sessionId } : {})
+      }, new AbortController().signal)
+    },
+    enable: async (id: string) => { withdrawn.delete(id); await manager.enable(id); await manager.activate(id) },
+    disable: async (id: string) => { withdrawn.add(id); await manager.disable(id) },
     dispose: async () => { await Promise.all([...descriptors.keys()].map(id => manager.disable(id))) }
   }
 }

@@ -43,6 +43,11 @@ function createDesktopApi(): DesktopApi {
       reveal: async () => undefined
     },
     externalLinks: { open: async () => undefined },
+    pluginContributions: {
+      list: async () => ({ views: [], menus: [] }),
+      openView: async () => undefined,
+      executeCommand: async () => null
+    },
     taskOutput: { open: async () => undefined },
     computerUse: {
       permissions: async () => ({ accessibility: false, screenRecording: false,
@@ -77,6 +82,7 @@ describe('renderer composition root', () => {
       'agentFilesService',
       'agentSessionRepository',
       'modelConnectionsService',
+      'pluginContributions',
       'skillGateway',
       'taskCatalog'
     ])
@@ -97,7 +103,8 @@ describe('renderer composition root', () => {
       'skillGateway',
       'modelConnectionsService',
       'agentFilesService',
-      'taskCatalog'
+      'taskCatalog',
+      'pluginContributions'
     ])
   })
 

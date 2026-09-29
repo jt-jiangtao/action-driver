@@ -7,13 +7,19 @@ export * from './context-condition.js'
 
 export const PLUGIN_PROTOCOL_VERSION = 1
 export const PLUGIN_SDK_VERSION = '1.0.0'
+/**
+ * Host UI protocol that carries view and menu contributions. A manifest declaring them must be
+ * installed on a host that advertises at least this protocol, so an older host fails explicitly
+ * instead of silently dropping interface entries.
+ */
+export const PLUGIN_UI_PROTOCOL_VERSION = 2
 const identity = z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/)
 const contributionId = z.string().regex(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/)
 const version = z.string().refine(value => valid(value) !== null, 'Invalid semantic version')
 const range = z.string().refine(value => validRange(value) !== null, 'Invalid version range')
 const entry = z.string().min(1).refine(value => !value.startsWith('/') && !value.includes('\\') && !value.split('/').some(part => part === '..' || part === '.' || part === ''), 'Entry must be package-relative')
 export const contributionSchema = z.object({
-  kind: z.enum(['tool', 'command', 'skill', 'capability', 'service', 'panel']),
+  kind: z.enum(['tool', 'command', 'skill', 'capability', 'service', 'panel', 'view', 'menu']),
   id: z.string().min(1),
   modelName: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional(),
   when: z.string().optional()
@@ -27,6 +33,8 @@ export const manifestSchema = z.object({
   requires: z.array(z.string().min(1)).optional(),
   services: z.array(z.lazy(() => serviceDefinitionSchema)).optional(),
   panels: z.array(z.lazy(() => panelDefinitionSchema)).optional(),
+  views: z.array(z.lazy(() => viewDefinitionSchema)).optional(),
+  menus: z.array(z.lazy(() => menuDefinitionSchema)).optional(),
   activation: z.array(z.string().min(1)).default([]),
   contributions: z.array(contributionSchema).default([]),
   dependencies: z.array(z.object({ id: identity, version: range, optional: z.boolean().default(false) }).strict()).default([])
@@ -58,16 +66,18 @@ export interface PluginHandshake extends PluginOwner {
 export interface PluginRPCEnvelope extends PluginOwner {
   protocol: number; token: string; requestId: string; method: string; payload: Json
 }
-export function validateManifest(value: unknown, host: { sdk: string; platform: string }): PluginManifest {
+export function validateManifest(value: unknown, host: { sdk: string; platform: string; uiProtocol?: number }): PluginManifest {
   const result = manifestSchema.safeParse(value)
   if (!result.success) throw new PluginError('INVALID_MANIFEST', result.error.message)
   const manifest = result.data
   if (!satisfies(host.sdk, manifest.sdk)) throw new PluginError('INCOMPATIBLE', `${manifest.id} requires SDK ${manifest.sdk}; host ${host.sdk}`)
   if (!manifest.platforms.includes(host.platform)) throw new PluginError('PLATFORM_UNAVAILABLE', `${manifest.id}: ${host.platform}`)
+  const declaresUi = Boolean(manifest.views?.length || manifest.menus?.length || manifest.contributions.some(item => item.kind === 'view' || item.kind === 'menu'))
+  if (declaresUi && (host.uiProtocol ?? 1) < PLUGIN_UI_PROTOCOL_VERSION) throw new PluginError('INCOMPATIBLE', `${manifest.id} requires UI protocol ${PLUGIN_UI_PROTOCOL_VERSION}; host provides ${host.uiProtocol ?? 1}`)
   const ids = new Set<string>(), names = new Set<string>()
   for (const item of manifest.contributions) {
     if (item.when !== undefined) {
-      if (item.kind !== 'command' && item.kind !== 'tool') throw new PluginError('INVALID_MANIFEST', `${manifest.id} ${item.id}: when is unsupported for ${item.kind}`)
+      if (!['command', 'tool', 'view'].includes(item.kind)) throw new PluginError('INVALID_MANIFEST', `${manifest.id} ${item.id}: when is unsupported for ${item.kind}; a menu entry follows the condition of its bound command`)
       try { parseContextCondition(item.when) } catch (error) { throw new PluginError('INVALID_MANIFEST', `${manifest.id} ${item.id} when: ${error instanceof Error ? error.message : String(error)}`) }
     }
     const key = `${item.kind}:${item.id}`
@@ -75,7 +85,29 @@ export function validateManifest(value: unknown, host: { sdk: string; platform: 
     ids.add(key)
     if (item.modelName) names.add(item.modelName)
   }
+  validateUiContributions(manifest, ids)
   return manifest
+}
+
+/**
+ * Views and menus share one condition source: the `when` on their contribution declaration. The
+ * host evaluates the same declaration for direct calls and for the projected interface state.
+ */
+function validateUiContributions(manifest: PluginManifest, declared: Set<string>): void {
+  const views = manifest.views ?? [], menus = manifest.menus ?? []
+  const seenViews = new Set<string>()
+  for (const view of views) {
+    if (seenViews.has(view.id)) throw new PluginError('CONTRIBUTION_CONFLICT', `${manifest.id}: view:${view.id}`)
+    seenViews.add(view.id)
+    if (!declared.has(`view:${view.id}`)) throw new PluginError('INVALID_MANIFEST', `${manifest.id}: undeclared view ${view.id}`)
+  }
+  const seenMenus = new Set<string>()
+  for (const menu of menus) {
+    if (seenMenus.has(menu.id)) throw new PluginError('CONTRIBUTION_CONFLICT', `${manifest.id}: menu:${menu.id}`)
+    seenMenus.add(menu.id)
+    if (!declared.has(`menu:${menu.id}`)) throw new PluginError('INVALID_MANIFEST', `${manifest.id}: undeclared menu ${menu.id}`)
+    if (!declared.has(`command:${menu.command}`)) throw new PluginError('INVALID_MANIFEST', `${manifest.id}: menu ${menu.id} references undeclared command ${menu.command}`)
+  }
 }
 export function resolveDependencies(manifests: PluginManifest[]): PluginManifest[] {
   const byId = new Map<string, PluginManifest>()
@@ -106,7 +138,16 @@ export function resolveDependencies(manifests: PluginManifest[]): PluginManifest
 export const skillContributionSchema = z.object({ id: identity, name: z.string().min(1), description: z.string().min(1), content: z.string().min(1), resources: z.array(entry).default([]) }).strict()
 export type SkillContribution = z.infer<typeof skillContributionSchema>
 export interface PluginCatalog { tools: ToolDefinition[]; skills: SkillContribution[] }
-export function validateCatalog(value: unknown, manifest: PluginManifest): PluginCatalog {
+/**
+ * Catalog owned by the host after validation: it keeps the author-declared tools and skills and
+ * adds the interface contributions, which live in the manifest so a host can read every kind
+ * without starting plugin code.
+ */
+export interface ValidatedPluginCatalog extends PluginCatalog {
+  views: ViewDefinition[]
+  menus: MenuDefinition[]
+}
+export function validateCatalog(value: unknown, manifest: PluginManifest): ValidatedPluginCatalog {
   const catalog = z.object({ tools: z.array(toolDefinitionSchema), skills: z.array(skillContributionSchema) }).strict().parse(value)
   const seen = new Set<string>(), names = new Set<string>()
   for (const [kind, items] of [['tool', catalog.tools], ['skill', catalog.skills]] as const) {
@@ -120,7 +161,7 @@ export function validateCatalog(value: unknown, manifest: PluginManifest): Plugi
       }
     }
   }
-  return catalog
+  return { ...catalog, views: manifest.views ?? [], menus: manifest.menus ?? [] }
 }
 export const serviceDefinitionSchema = z.object({
   id: identity, kind: z.enum(['node', 'native', 'mcp-stdio', 'mcp-http']),
@@ -139,6 +180,65 @@ export const panelDefinitionSchema = z.object({
   messages: z.record(z.string().regex(/^[a-z][a-z0-9.-]*$/), z.record(z.string(), z.json())).default({})
 }).strict().refine(value => Boolean(value.entry) !== Boolean(value.url), 'Declare one package entry or HTTPS URL')
 export type PanelDefinition = z.infer<typeof panelDefinitionSchema>
+
+/** Host-owned layout slots a plugin view may target. A host rejects containers it cannot render. */
+export const VIEW_CONTAINERS = ['sidebar', 'task-panel', 'window'] as const
+/** Host-owned menu surfaces a menu entry may attach to. */
+export const MENU_LOCATIONS = ['plugins-menu', 'task-toolbar', 'settings-nav'] as const
+
+/** Declarative view: the host owns placement, isolation and the typed message bridge. */
+export const viewDefinitionSchema = z.object({
+  id: identity,
+  title: z.string().min(1).max(200),
+  container: z.enum(VIEW_CONTAINERS),
+  entry: entry.optional(),
+  url: z.string().url().refine(value => new URL(value).protocol === 'https:', 'Remote views require HTTPS').optional(),
+  messages: z.record(z.string().regex(/^[a-z][a-z0-9.-]*$/), z.record(z.string(), z.json())).default({})
+}).strict().refine(value => Boolean(value.entry) !== Boolean(value.url), 'Declare one package entry or HTTPS URL')
+export type ViewDefinition = z.infer<typeof viewDefinitionSchema>
+
+/** Menu entry is only a binding to a declared command; it never grants tool or desktop access. */
+export const menuDefinitionSchema = z.object({
+  id: contributionId,
+  title: z.string().min(1).max(200),
+  command: contributionId,
+  location: z.enum(MENU_LOCATIONS),
+  order: z.number().int().min(-1000).max(1000).optional()
+}).strict()
+export type MenuDefinition = z.infer<typeof menuDefinitionSchema>
+
+export interface PluginContributionCatalog {
+  tools: ToolDefinition[]
+  skills: SkillContribution[]
+  commands: Contribution[]
+  panels: PanelDefinition[]
+  views: ViewDefinition[]
+  menus: MenuDefinition[]
+}
+
+/**
+ * Host projection of one declarative interface contribution. `available` is the same
+ * authoritative condition result the direct call path re-checks, so the desktop never has to
+ * re-implement availability.
+ */
+export interface PluginUiView { pluginId: string; version: string; definition: ViewDefinition; available: boolean }
+export interface PluginUiMenu { pluginId: string; version: string; definition: MenuDefinition; available: boolean }
+export interface PluginUiContributions { views: PluginUiView[]; menus: PluginUiMenu[] }
+
+/**
+ * Serializable projection of every contribution kind. Reading it never starts plugin code, so a
+ * host can discover, conflict-check and show availability before the plugin activates.
+ */
+export function buildContributionCatalog(manifest: PluginManifest, catalog: ValidatedPluginCatalog): PluginContributionCatalog {
+  return {
+    tools: catalog.tools,
+    skills: catalog.skills,
+    commands: manifest.contributions.filter(item => item.kind === 'command'),
+    panels: manifest.panels ?? [],
+    views: manifest.views ?? [],
+    menus: manifest.menus ?? []
+  }
+}
 
 export * from './tool-identity.js'
 

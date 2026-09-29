@@ -26,6 +26,7 @@ describe('preload Runtime bootstrap', () => {
       'computerUse',
       'externalLinks',
       'getEnvironment',
+      'pluginContributions',
       'runtimeConnection',
       'skillFolders',
       'taskOutput'

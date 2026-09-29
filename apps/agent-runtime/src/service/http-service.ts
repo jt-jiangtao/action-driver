@@ -1,7 +1,6 @@
 import { getRequestListener } from '@hono/node-server'
 import { Hono } from 'hono'
 import { createServer, type Server } from 'node:http'
-import type { PluginOwner, Json } from '@actiondriver/plugin-contracts'
 import {
   withRemoteTraceparent,
   type InteractionLogRecorder,
@@ -25,7 +24,7 @@ import type { ModelConnectionRoutes } from './http/http-routes-models'
 import { registerMediaRoutes } from './http/http-routes-media'
 import { registerModelConnectionRoutes } from './http/http-routes-models'
 import { registerAgentFileRoutes } from './http/http-routes-agent-files'
-import { registerPluginRoutes } from './http/http-routes-plugin'
+import { registerPluginRoutes, type PluginInterfaceRoutes } from './http/http-routes-plugin'
 import { registerServiceMetadataRoutes } from './http/http-routes-service'
 import { registerTaskRoutes } from './http/http-routes-tasks'
 import { createRequestPolicyMiddleware } from './http/http-request-policy'
@@ -39,9 +38,7 @@ export type ServiceModelConnectionPort = ModelConnectionRoutes['service']
 
 export type ServiceHttpOptions = {
   service: ServiceModelConnectionPort
-  pluginPanels?: {
-    message(owner: PluginOwner, panelId: string, type: string, payload: Json): Promise<Json>
-  }
+  pluginInterface?: PluginInterfaceRoutes
   agentFiles?: AgentFileStore
   skillInstaller?: SkillInstaller
   taskControl?: { execute(command: string, input: unknown): Promise<unknown> }
@@ -89,7 +86,7 @@ export function createServiceHttpApp(options: ServiceHttpOptions): Hono {
     })
   )
 
-  if (options.pluginPanels) registerPluginRoutes(app, options.pluginPanels)
+  if (options.pluginInterface) registerPluginRoutes(app, options.pluginInterface)
   registerServiceMetadataRoutes(app, { runtimeVersion: options.runtimeVersion })
   registerMediaRoutes(app, {
     ...(options.assets ? { assets: options.assets } : {}),

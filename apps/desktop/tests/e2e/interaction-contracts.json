@@ -1124,5 +1124,27 @@
     "coverage": "functional",
     "testFile": "apps/desktop/tests/unit/renderer/src/components/agent/TaskOutputFiles.test.tsx",
     "testName": "previews the image deliverables as one group and skips the documents"
+  },
+  {
+    "target": "e2e/shared/sidebar/plugin-contributions#nav",
+    "route": "shared",
+    "type": "nav",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/shared/sidebar/plugin-view/:contribution#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/components/PluginContributionsMenu.test.tsx",
+    "testName": "renders the runtime availability, opens a view and runs the bound command with the task"
+  },
+  {
+    "target": "e2e/shared/sidebar/plugin-menu/:contribution#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/components/PluginContributionsMenu.test.tsx",
+    "testName": "renders the runtime availability, opens a view and runs the bound command with the task"
   }
 ]

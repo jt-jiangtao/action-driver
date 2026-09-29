@@ -5,7 +5,11 @@ import type { PluginPanelHost } from './panel-host'
 const ownerSchema = z.object({ pluginId: z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/), version: z.string().min(1), hostEpoch: z.string().min(1).max(200) }).strict()
 export function createPluginPanelProvider(options: {
   loadManifest(owner: PluginOwner): Promise<PluginManifest>
-  createHost(ports: { assertInstance(owner: PluginOwner): void; declarations(owner: PluginOwner): NonNullable<PluginManifest['panels']> }): { host: PluginPanelHost; dispose(): Promise<void> }
+  createHost(ports: {
+    assertInstance(owner: PluginOwner): void
+    declarations(owner: PluginOwner): NonNullable<PluginManifest['panels']>
+    viewDeclarations(owner: PluginOwner): NonNullable<PluginManifest['views']>
+  }): { host: PluginPanelHost; dispose(): Promise<void> }
 }) {
   const bindings = new Map<string, { owner: PluginOwner; manifest: PluginManifest }>()
   const binding = (owner: PluginOwner) => {
@@ -13,7 +17,8 @@ export function createPluginPanelProvider(options: {
     if (!current || current.owner.hostEpoch !== owner.hostEpoch || current.owner.version !== owner.version) throw new PluginError('STALE_INSTANCE', owner.pluginId)
     return current
   }
-  const panels = options.createHost({ assertInstance: owner => { binding(owner) }, declarations: owner => binding(owner).manifest.panels ?? [] })
+  // Only containers the desktop actually renders are announced; anything else fails per view.
+  const panels = options.createHost({ assertInstance: owner => { binding(owner) }, declarations: owner => binding(owner).manifest.panels ?? [], viewDeclarations: owner => binding(owner).manifest.views ?? [] })
   const provider: HostedSkillProvider = {
     providerId: 'desktop.plugin-panels', providerVersion: '1.0.0', skillId: 'plugin-panels',
     async execute(raw: unknown, signal): Promise<Json> {
@@ -39,6 +44,14 @@ export function createPluginPanelProvider(options: {
         return panels.host.open(input.owner, id)
       }
       if (input.method === 'panels.close') {
+        const { resourceId } = z.object({ resourceId: z.string() }).strict().parse(input.payload)
+        await panels.host.close(input.owner, resourceId); return null
+      }
+      if (input.method === 'views.open') {
+        const { id } = z.object({ id: z.string() }).strict().parse(input.payload)
+        return panels.host.openView(input.owner, id)
+      }
+      if (input.method === 'views.close') {
         const { resourceId } = z.object({ resourceId: z.string() }).strict().parse(input.payload)
         await panels.host.close(input.owner, resourceId); return null
       }

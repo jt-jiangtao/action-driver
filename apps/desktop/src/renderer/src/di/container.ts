@@ -27,6 +27,11 @@ import { RuntimeHttpClient } from '../services/runtime-http-client'
 import { RuntimeAgentHttpApi } from '../services/runtime-agent-http-api'
 import { RuntimeModelHttpApi } from '../services/runtime-model-http-api'
 import { RendererStreamClient } from '../services/renderer-stream-client'
+import {
+  DesktopPluginContributionsService,
+  MockPluginContributionsService,
+  type PluginContributionsService
+} from '../services/plugin-contributions'
 
 export interface AppServices {
   agentCommandService: AgentCommandService
@@ -35,6 +40,7 @@ export interface AppServices {
   modelConnectionsService: ModelConnectionsService
   agentFilesService: AgentFilesService
   taskCatalog: TaskCatalog
+  pluginContributions: PluginContributionsService
   restoreTaskStream?: (task: TaskProjection) => Promise<void>
   imageAssets?: Pick<RuntimeHttpClient, 'uploadImage' | 'readImage'>
   inputFiles?: Pick<RuntimeHttpClient, 'uploadInputFile'>
@@ -120,6 +126,11 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
       (options.mode === 'local' && options.desktopApi
         ? new DesktopTaskCatalog(localAgentApi!)
         : new MockTaskCatalog()),
+    pluginContributions:
+      options.pluginContributions ??
+      (options.mode === 'local' && options.desktopApi
+        ? new DesktopPluginContributionsService(options.desktopApi)
+        : new MockPluginContributionsService()),
     ...(restoreTaskStream ? { restoreTaskStream } : {}),
     ...(imageAssets ? { imageAssets } : {}),
     ...(inputFiles ? { inputFiles } : {}),

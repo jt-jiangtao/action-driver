@@ -4,6 +4,7 @@ import { IconButton } from './ui/IconButton'
 import { RecentTaskItem } from './navigation/RecentTaskItem'
 import { SettingsNavEntry } from './navigation/SettingsNavEntry'
 import { SidebarEntry } from './navigation/SidebarEntry'
+import { PluginContributionsMenu } from './plugins/PluginContributionsMenu'
 
 export function Sidebar({
   active,
@@ -64,6 +65,7 @@ export function Sidebar({
         />
         <SidebarEntry icon="skill" label="Skills" testId="e2e/shared/sidebar/skills#button" />
         <SidebarEntry icon="mcp" label="MCP" testId="e2e/shared/sidebar/mcp#button" />
+        <PluginContributionsMenu {...(activeTaskId ? { taskId: activeTaskId } : {})} />
       </nav>
 
       <section className="sidebar-recents" aria-labelledby="recent-tasks-title">

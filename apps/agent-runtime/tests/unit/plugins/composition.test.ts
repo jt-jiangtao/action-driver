@@ -107,7 +107,7 @@ it('routes an authenticated declared panel message to a live plugin without gran
     await platform.enable('fixture')
     const owner = platform.manager.contributions()[0]!.owner
     const { createServiceHttpApp } = await import('../../../src/service/http-service')
-    const app = createServiceHttpApp({ service: {} as ServiceHttpOptions['service'], token: 'token', runtimeVersion: 'test', pluginPanels: { message: platform.panelMessage } })
+    const app = createServiceHttpApp({ service: {} as ServiceHttpOptions['service'], token: 'token', runtimeVersion: 'test', pluginInterface: { message: platform.panelMessage, contributions: platform.uiContributions, openView: platform.openView, executeCommand: platform.executeCommand } })
     const body = JSON.stringify({ owner, panelId: 'fixture.view', type: 'inspect', payload: {} })
     const denied = await app.request('/plugins/panels/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
     expect(denied.status).toBe(401)
@@ -208,4 +208,72 @@ it('replaces a same-version built-in copy with slash identities and preserves pr
     expect(registry.resolve('fixture/read', 1).definition.modelName).toBe('fixture_read')
     expect(() => registry.resolve('fixture.read', 1)).toThrow('TOOL_UNAVAILABLE')
   } finally { await platform?.dispose(); await rm(directory, { recursive: true, force: true }) }
+}, 10_000)
+
+it('discovers declared views and menus without activation, activates on demand and re-checks conditions and grants', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-ui-plugin-'))
+  const { writeFile } = await import('node:fs/promises')
+  const packageRoot = join(directory, 'package')
+  await mkdir(packageRoot)
+  const manifest = {
+    id: 'ui', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', catalog: 'catalog.json',
+    platforms: [`${process.platform}-${process.arch}`],
+    contributions: [
+      { kind: 'command', id: 'ui.refresh', when: 'plugin.ui.ready' },
+      { kind: 'view', id: 'ui.dashboard', when: 'plugin.ui.ready' },
+      { kind: 'menu', id: 'ui.refresh-menu' }
+    ],
+    views: [{ id: 'ui.dashboard', title: 'Dashboard', container: 'sidebar', entry: 'view.html' }],
+    menus: [{ id: 'ui.refresh-menu', title: '刷新', command: 'ui.refresh', location: 'plugins-menu' }]
+  }
+  await writeFile(join(packageRoot, 'package.json'), JSON.stringify({ type: 'module' }))
+  await writeFile(join(packageRoot, 'catalog.json'), JSON.stringify({ tools: [], skills: [] }))
+  await writeFile(join(packageRoot, 'plugin.json'), JSON.stringify(manifest))
+  await writeFile(join(packageRoot, 'extension.mjs'), `export async function activate(context) {
+  context.api.commands.register('ui.refresh', async input => ({ refreshed: input.count }))
+  context.api.views.register('ui.dashboard', async input => ({ ok: true, input }))
+  context.api.menus.register('ui.refresh-menu')
+  await context.api.context.set('plugin.ui.ready', true)
+}\n`)
+  const surfaces: string[] = []
+  const platform = await createRuntimePluginPlatform({
+    node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'),
+    packageRoots: [packageRoot], registry: new RuntimeToolRegistry(), configuration: {}, dataRoot: join(directory, 'data'),
+    now: Date.now, ids: () => 'instance',
+    desktopResources: {
+      async begin(owner) { surfaces.push(`begin:${owner.pluginId}`) },
+      async request(owner, method, input) { surfaces.push(`${method}:${(input as { id: string }).id}`); return { resourceId: 'surface-1' } },
+      async end(owner) { surfaces.push(`end:${owner.pluginId}`) }
+    },
+    commandAuthority: async request => ({ grants: request.taskId === 'granted' ? ['ui/refresh@1'] : [], taskId: request.taskId ?? 'task', sessionId: 'session' })
+  })
+  try {
+    // Catalog and UI projection are readable while the plugin is still dormant.
+    expect(platform.catalogs()[0]?.catalog.views?.map(view => view.id)).toEqual(['ui.dashboard'])
+    const dormant = platform.uiContributions()
+    expect(dormant.views).toEqual([{ pluginId: 'ui', version: '1.0.0', definition: platform.catalogs()[0]!.catalog.views[0], available: false }])
+    expect(dormant.menus[0]).toMatchObject({ pluginId: 'ui', definition: { command: 'ui.refresh' }, available: false })
+    await expect(platform.executeCommand('ui', 'ui.refresh', { count: 1 }, { taskId: 'granted' })).rejects.toThrow('UNAVAILABLE')
+
+    // Opening a view activates its owner on demand and hands the surface to the desktop host.
+    expect(await platform.openView('ui', 'ui.dashboard')).toEqual({ resourceId: 'surface-1' })
+    expect(surfaces).toEqual(['begin:ui', 'views.open:ui.dashboard'])
+    expect(platform.manager.status('ui')).toBe('ready')
+    expect(platform.uiContributions().views[0]?.available).toBe(true)
+    expect(platform.uiContributions().menus[0]?.available).toBe(true)
+    expect(await platform.executeCommand('ui', 'ui.refresh', { count: 2 }, { taskId: 'granted' })).toEqual({ refreshed: 2 })
+
+    // The same authoritative condition drives the projection and the direct call.
+    const owner = platform.manager.contributions().find(value => value.contribution.kind === 'view')!.owner
+    platform.contextKeys.setPlugin(owner, 'plugin.ui.ready', false)
+    expect(platform.uiContributions().views[0]?.available).toBe(false)
+    await expect(platform.executeCommand('ui', 'ui.refresh', { count: 3 }, { taskId: 'granted' })).rejects.toThrow('UNAVAILABLE')
+    platform.contextKeys.setPlugin(owner, 'plugin.ui.ready', true)
+
+    await expect(platform.openView('ui', 'ui.unknown')).rejects.toThrow('INVALID_MANIFEST')
+    await expect(platform.openView('other', 'ui.dashboard')).rejects.toThrow('INVALID_MANIFEST')
+    await expect(platform.executeCommand('other', 'ui.refresh', { count: 1 }, { taskId: 'granted' })).rejects.toThrow('INVALID_MANIFEST')
+    await platform.disable('ui')
+    expect(platform.uiContributions()).toEqual({ views: [], menus: [] })
+  } finally { await platform.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 10_000)

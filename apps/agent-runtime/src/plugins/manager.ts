@@ -88,8 +88,15 @@ export class PluginManager {
     if (!published || (owner && (published.owner.pluginId !== owner.pluginId || published.owner.version !== owner.version || published.owner.hostEpoch !== owner.hostEpoch))) return false
     const record = this.records.get(published.owner.pluginId)
     if (record?.state !== 'ready') return false
+    // A menu entry is only a binding: it follows the condition of the command it invokes, which is
+    // also what the direct command call re-evaluates.
+    if (kind === 'menu') return this.ports.contextKeys?.evaluate(this.boundCommandCondition(record.manifest, id)) ?? true
     const declaration = record.manifest.contributions.find(item => item.kind === kind && item.id === id)
     return this.ports.contextKeys?.evaluate(declaration?.when) ?? true
+  }
+  private boundCommandCondition(manifest: PluginManifest, menuId: string): string | undefined {
+    const command = manifest.menus?.find(item => item.id === menuId)?.command
+    return manifest.contributions.find(item => item.kind === 'command' && item.id === command)?.when
   }
   assertInstance(owner: PluginOwner): void {
     const record = this.records.get(owner.pluginId)

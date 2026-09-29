@@ -5,9 +5,11 @@ import { z } from 'zod'
 import { PluginError, type PluginOwner } from '@actiondriver/plugin-contracts'
 import { PluginPanelHost, type PanelHostPorts } from './panel-host'
 const CHANNEL = 'actiondriver:plugin-panel:message'
+/** Containers this desktop host actually renders; any other declared container fails per view. */
+export const SUPPORTED_VIEW_CONTAINERS = ['sidebar', 'window'] as const
 export function createElectronPluginPanelHost(options: Omit<PanelHostPorts, 'create'> & { preload: string; packageRoot(owner: PluginOwner): string }) {
   const windows = new Map<number, { resourceId: string; owner: PluginOwner }>()
-  const host = new PluginPanelHost({ ...options, create: async ({ owner, definition, resourceId, preferences }) => {
+  const host = new PluginPanelHost({ ...options, supportedViewContainers: () => SUPPORTED_VIEW_CONTAINERS, create: async ({ owner, definition, resourceId, preferences }) => {
     let file: string | undefined
     if (definition.entry) {
       const root = await realpath(options.packageRoot(owner))
