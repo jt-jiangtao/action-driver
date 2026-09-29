@@ -550,6 +550,52 @@ describe('service HTTP surface', () => {
     expect(wrong.status).toBe(401)
   })
 
+  it('applies origin, credential, and body rejections in that order', async () => {
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      bodyLimitBytes: 64,
+      rendererOrigin: 'http://localhost:5173'
+    })
+    const oversized = JSON.stringify({ name: 'x'.repeat(200) })
+    const post = (origin: string | undefined, init: RequestInit = {}) =>
+      fetch(`${server!.url}/model-connections/test`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(origin ? { origin } : {}),
+          ...(init.headers ?? {})
+        },
+        body: oversized
+      })
+
+    // An untrusted origin outranks both the missing credential and the oversized body.
+    await expect(post('http://localhost:5174').then((r) => r.status)).resolves.toBe(403)
+    // With a trusted origin, the credential check still runs before the body limit.
+    await expect(post('http://localhost:5173').then((r) => r.status)).resolves.toBe(401)
+    // The body limit is the last gate and keeps the service untouched.
+    const rejected = await post('http://localhost:5173', {
+      headers: { authorization: 'Bearer service-token' }
+    })
+    expect(rejected.status).toBe(400)
+    await expect(rejected.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid-request' }
+    })
+    // Preflight is answered before any credential or body handling.
+    const preflight = await fetch(`${server!.url}/model-connections/test`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'authorization,content-type'
+      }
+    })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
+  })
+
   it('serves configuration over the authorized HTTP surface', async () => {
     const { service } = await startService()
 
