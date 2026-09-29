@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import {
   ResourceError,
@@ -35,6 +36,8 @@ export class VersionedResourceStore implements ResourceProvider {
   private readonly watchers = new Map<string, Map<WatchListener, Scope>>()
   private readonly revokedScopes: Scope[] = []
   private readonly pending: (() => void)[] = []
+  /** Serializes writes per resource so the version check and the commit stay atomic. */
+  private readonly writeTails = new Map<string, Promise<unknown>>()
   constructor(private readonly options: VersionedResourceStoreOptions) {}
 
   private now(): number { return this.options.now?.() ?? Date.now() }
@@ -83,6 +86,10 @@ export class VersionedResourceStore implements ResourceProvider {
     const id = this.resourceId(uri)
     const { key, version: selector } = this.split(id)
     if (selector !== undefined) throw new ResourceError('RESOURCE_IMMUTABLE', `${id}: pinned versions are read-only`)
+    return await this.serialize(key, () => this.commitWrite(id, key, request, context))
+  }
+
+  private async commitWrite(id: string, key: string, request: ResourceWriteRequest, context: ResourceOperationContext): Promise<ResourceEntry> {
     const record = await this.load(key)
     const current = record.versions.at(-1)?.version
     if (record.immutable) throw new ResourceError('RESOURCE_IMMUTABLE', `${id}: delivered resources are immutable`)
@@ -101,6 +108,17 @@ export class VersionedResourceStore implements ResourceProvider {
     await this.persist(key, record)
     this.emit(key, { kind: 'change', uri: key, version: String(version), sequence: record.sequence })
     return { uri: key, version: String(version) }
+  }
+
+  /**
+   * A rejected predecessor must not block the next writer, but it must still run after it so two
+   * writers cannot both see the same current version and both commit.
+   */
+  private serialize<T>(key: string, run: () => Promise<T>): Promise<T> {
+    const previous = this.writeTails.get(key) ?? Promise.resolve()
+    const current = previous.then(run, run)
+    this.writeTails.set(key, current.catch(() => undefined))
+    return current
   }
 
   async watch(uri: string, context: ResourceOperationContext): Promise<AsyncIterable<ResourceWatchEvent>> {
@@ -185,8 +203,12 @@ export class VersionedResourceStore implements ResourceProvider {
     const directory = this.directory(key)
     await mkdir(directory, { recursive: true })
     for (const version of record.versions) await writeFile(join(directory, `${version.version}.bin`), version.content)
-    const meta = join(this.options.root, `${Buffer.from(key).toString('hex')}.meta.json`)
+    // A unique staging name keeps concurrent writers from renaming each other's file away.
+    const meta = join(this.options.root, `${Buffer.from(key).toString('hex')}.${randomUUID()}.meta.json`)
     await writeFile(meta, JSON.stringify({ versions: record.versions.map(value => ({ version: value.version, ...(value.contentType ? { contentType: value.contentType } : {}) })), immutable: record.immutable, sequence: record.sequence }))
-    await rename(meta, join(directory, 'meta.json'))
+    await rename(meta, join(directory, 'meta.json')).catch(async error => {
+      await rm(meta, { force: true })
+      throw error
+    })
   }
 }

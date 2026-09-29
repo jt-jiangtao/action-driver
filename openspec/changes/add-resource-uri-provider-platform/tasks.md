@@ -14,7 +14,7 @@
 - [x] 3.1 将会话输入及登记产物接入只读 provider，并保留旧文件 ID 解析；用历史任务和跨会话定向测试验证原版本与隔离。
 - [x] 3.2 接入可写工作资源、插件资源及远程 provider；用定向测试覆盖读写列举监听、远程断线和取消。
 - [x] 3.3 将 Desktop 打开资源及插件 Host API 接入 URI 路由并保留兼容适配；用定向测试验证任意路径/URI 无法绕过桌面白名单。
-- [ ] 3.4 用端到端样例验证旧任务卡片、同会话输入、远程资源与并发写入在重启后仍符合 spec；记录兼容与回滚结果。
+- [x] 3.4 用端到端样例验证旧任务卡片、同会话输入、远程资源与并发写入在重启后仍符合 spec；记录兼容与回滚结果。
 
 ## 进度记录（进行中，未提交归档）
 
@@ -42,3 +42,12 @@
   - 插件 Host API：`artifacts.create/read` 已在 3.2 接入统一 URI（含裸 id 兼容），本轮补齐协作契约：`packages/runtime-contracts/src/stream-protocol.ts` 的 `response.end`/`response.snapshot` `outputFiles` 增加可选 `uri`，`packages/contracts` 的 `TaskOutputFileProjection` 增加可选 `uri`；`task-projection.ts`、`stream/stream-snapshot.ts`、`stream-session-service.ts` 在任务卡片与快照中投影该 URI，渲染层优先用它打开、无 URI 时回退旧标识。
   - 定向测试：`apps/desktop/tests/unit/main/task-output-ipc.test.ts` 4 项（URI 经 `/resources/read` 打开并保留扩展名；`/etc/passwd`、`../../secrets.pdf`、`file://`、`https://`、`adr://v1/...#fragment`、`adr://v2/...` 与同时给出 uri+fileId 全部在 fetch/openPath 之前拒绝）。
   - 本轮验证：`pnpm vitest run apps/desktop/tests/unit/main apps/agent-runtime/tests/unit/service-websocket.test.ts apps/agent-runtime/tests/unit/resources` → 37 文件 138 项通过；`apps/agent-runtime/tests/unit/stream-session-service.test.ts`+`task-projection`+`local-runtime-server`+契约测试 → 8 文件 101 项通过；`runtime-contracts`/`contracts`/`agent-runtime`/`desktop` typecheck 与改动文件 ESLint 通过。
+- 3.4 已完成并勾选：
+  - 端到端样例：`apps/agent-runtime/tests/unit/resources/resource-e2e.test.ts` 用真实 SQLite 存储、真实 provider 注册表与运行时的 HTTP 资源面（`registerResourceRoutes` + `createResourceHttpPort`，Bearer 校验与 `mapErrorToResponse` 一致）覆盖同一用例内的四条主线：
+    1. 旧任务卡片：`toOutputFileProjection` 产出的 URI 经 `POST /resources/read` 读回任务 A 的登记副本，即使任务 B 已覆盖同名输出路径；
+    2. 同会话输入：绑定输入经 URI 读回原字节，跨会话读取得到 403 + `RESOURCE_UNAUTHORIZED`；
+    3. 远程资源：本地运行时经 `createHttpRemoteResourceTransport` 代理到独立远程宿主的 `remote-host` scheme 读回字节，宿主不可达时报 `RESOURCE_UNAVAILABLE` 而不是回退本地文件；
+    4. 并发写入与重启：两个基于 `expectedVersion: '1'` 的并发写入只有一个提交、另一个得到 `RESOURCE_VERSION_CONFLICT`；关闭并重开数据库后，最新版本内容、`?version=1` 历史版本与旧任务卡片 URI 全部仍可读取。
+  - 本轮修复：`resources/store.ts` 的写入在并发下会因共享临时 meta 文件名互相 `rename` 而报 `ENOENT`，且版本检查与提交不是原子的（两个写入者可能都通过检查）。现在按资源键串行化写入（`serialize`），临时 meta 文件名唯一化，冲突稳定返回 `RESOURCE_VERSION_CONFLICT`。
+  - 兼容与回滚：旧入口全部保留（`GET /sessions/:id/outputs/:fileId/content`、`{fileId,taskId,sessionId}` 打开请求、插件 `artifacts.read({id})`、会话输入按 fileId 读取），新 URI 只是叠加；`ACTIONDRIVER_RESOURCE_REMOTE_HOSTS` 未配置时不注册任何远程 scheme，资源平台不改变既有本地路径行为。回滚方式：不再挂载 `resourceRoutes` 或忽略 `uri` 字段即可回到 3.1 之前的旧入口，历史文件 ID 与登记副本不受影响。
+  - 已知限制（不影响本变更验收，记录为后续工作）：远程 HTTP 面目前只有有界内联 read/list/write，没有推送式 watch（远程注册显式 `watch: false`，请求得到 `RESOURCE_UNSUPPORTED`）；远程读取沿用 8 MiB 内联上限，超出报 `RESOURCE_UNSUPPORTED` 而非截断。
