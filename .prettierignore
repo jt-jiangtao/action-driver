@@ -6,4 +6,3 @@ openspec/
 pnpm-lock.yaml
 test-results/
 playwright-report/
-apps/agent-runtime/vendor/

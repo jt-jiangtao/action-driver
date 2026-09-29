@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url'
 const analysisRoot = dirname(fileURLToPath(import.meta.url))
 const repo = resolve(analysisRoot, '../..')
 const backupRoot = join(repo, 'packages/back/browser-desktop/@oai/browser-desktop')
-const embeddedRoot = join(repo, 'apps/agent-runtime/vendor/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill')
+// The original `apps/agent-runtime/vendor` tree was removed after the owned-host cutover; the
+// immutable copy of that tree lives in `packages/back` (see packages/back/backup-manifest.json).
+const embeddedRoot = join(repo, 'packages/back/codex-cua/@oai/cua/dist/lib/js/oai_js_browser/dist/skill')
 const manifest = JSON.parse(await readFile(join(repo, 'packages/back/browser-desktop/manifest.json'), 'utf8'))
 
 function owner(path) {

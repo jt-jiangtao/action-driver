@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "ActionDriver-owned CUA implementation: macOS computer sessions, app/window discovery, browser tab sessions and documentation readers, reconstructed to replace the original @oai/cua bundle.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "ActionDriver-owned CUA REPL host: loads the macOS instruction resources and launches the REPL process against ActionDriver browser and computer service modules.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -15,7 +15,6 @@ export default tseslint.config(
       'analysis/codex-cua/**',
       'apps/agent-runtime/resources/system-skills/**',
       'plugins/*/skills/**',
-      'apps/agent-runtime/vendor/**',
       'scripts/e2e-interactions/fixtures/**'
     ]
   },

@@ -27,5 +27,6 @@
 - 只有改动完成、准备提交时，才一次性运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`；涉及界面、运行时或打包行为的改动在提交前再按需追加 `pnpm test:e2e:local`、`pnpm test:e2e:packaged:macos`。
 - 同一个提交不得重复运行全量验证：提交前确认一次即可，结果（命令、通过／失败数量、已知且与本次改动无关的失败）写进提交信息或对应的 OpenSpec 记录。
 - 提交只包含本次任务的改动：若工作区存在其他人正在编辑的无关文件（例如其它 OpenSpec 规划文件），不得一并提交，并在交付说明中指出。
+- 测试归属：根 `tests/` 只放根级脚本的测试与包与包之间的边界测试；单个包内部的逻辑测试必须放在该包自己的 `tests/` 目录。判断方式见 [docs/testing/test-placement.md](docs/testing/test-placement.md)。
 
 详细分类、检查表、对话顺序、结束条件、记录模板和示例见 [docs/governance/agent-battle-protocol.md](docs/governance/agent-battle-protocol.md)。

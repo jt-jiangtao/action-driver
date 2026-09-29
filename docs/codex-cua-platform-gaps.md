@@ -2,7 +2,7 @@
 
 更新：2026-09-28。对应 OpenSpec：`reconstruct-codex-cua-packages`。
 
-本期用户裁决只重建与验收 macOS。下列项目均为**延期、未实现且未验收**，不是已完成模块；原 vendor 基准保留用于未来对照。通用 TS 代码能构建或 mock 测试通过，不代表支持 Linux/Windows。生产依赖尚未切换。
+本期用户裁决只重建与验收 macOS。下列项目均为**延期、未实现且未验收**，不是已完成模块；原 vendor 全部内容已按原结构备份在 `packages/back/`，保留用于未来对照。通用 TS 代码能构建或 mock 测试通过，不代表支持 Linux/Windows。生产加载与打包已切换为 `@actiondriver/*` 自有实现，`apps/agent-runtime/vendor/` 已删除。
 
 ## 平台入口与现有行为
 
@@ -16,7 +16,7 @@
 
 ## Linux 自有模块
 
-证据根：`apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/linux/`。`@oai/cua/dist/project/cua/sky_js/src/targets/linux/` 也捆绑了对应文件；两个原包均应核对，避免只验收一份。下表按模块归组，`.d.ts` 与 `.js` 合并显示；用途依据文件导出、平台工厂与接口，细节仍须在启动 Linux 重建时逐项核实。
+证据根：`packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/linux/`（历史原件备份；原路径 `apps/agent-runtime/vendor/codex-cua/...` 已在自有宿主切换后删除）。`packages/back/codex-cua/@oai/cua/dist/project/cua/sky_js/src/targets/linux/` 也捆绑了对应文件；两个原包均应核对，避免只验收一份。下表按模块归组，`.d.ts` 与 `.js` 合并显示；用途依据文件导出、平台工厂与接口，细节仍须在启动 Linux 重建时逐项核实。
 
 | 原模块（含同名声明）       | 用途／延期内容                     | 状态           |
 | -------------------------- | ---------------------------------- | -------------- |
@@ -47,7 +47,7 @@ Linux 的 `index.d.ts` 平台导出，以及 `fixtures/{run_sky_service,echo_sky
 
 ## Windows 自有模块
 
-证据根：`apps/agent-runtime/vendor/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/windows/`；CUA 包中有对应捆绑副本。
+证据根：`packages/back/codex-cua/@oai/sky/dist/project/cua/sky_js/src/targets/windows/`（历史原件备份，原路径已删除）；CUA 包中有对应捆绑副本。
 
 | 原模块（含同名声明）                | 用途／延期内容                       | 状态           |
 | ----------------------------------- | ------------------------------------ | -------------- |
@@ -75,7 +75,7 @@ Windows 的 `index.d.ts` 平台导出未重建。helper 的 `onEvent/onExit/requ
 
 ## 原包保留位置
 
-`apps/agent-runtime/vendor/` 全部内容已按原结构备份至 `packages/back/`，其中目前只有 `codex-cua/` 顶层集合。Linux/Windows 原始模块、三方库、声明和指令仍在备份中；保留文件不表示该平台候选实现已完成。备份哈希和链接清单在 `packages/back/backup-manifest.json`，原 vendor 不删除，生产接线不变。
+`apps/agent-runtime/vendor/` 的全部内容（现只有 `codex-cua/` 顶层集合）原样备份在 `packages/back/`，该目录是历史原件备份，原 vendor 已在自有宿主切换后删除，生产运行与打包读取的是 `@actiondriver/*` 自有实现。Linux/Windows 原始模块、三方库、声明和指令仍在备份中；保留文件不表示该平台候选实现已完成。备份哈希和链接清单在 `packages/back/backup-manifest.json`。
 
 配置装配补充：候选 CUA 的配置加载内部边界对非 darwin 先拒绝，再加载后端；macOS 运行时若收到非 mac target 也拒绝。测试只验证拒绝和无加载副作用，不代表 Linux/Windows 原包实现已重建。浏览器环境标签 cloud/orbit/training 的协议兼容继续不计新增平台或部署环境支持。
 

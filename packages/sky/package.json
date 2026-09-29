@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "ActionDriver-owned macOS Sky client: native-pipe transport, RPC framing, computer-use policy and telemetry, reconstructed to replace the original @oai/sky bundle.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -11,10 +11,6 @@ test-results/
 *.log
 apps/agent-runtime/.runtime-cache/
 
-# Vendored Codex Computer Use packages (internal use only, not for release) keep their dist/ and bundled node_modules/
-!apps/agent-runtime/vendor/codex-cua/**/dist/
-!apps/agent-runtime/vendor/codex-cua/**/node_modules/
-
 # Preserve complete original package backups, including build output and bundled dependencies.
 !packages/back/**
 
