@@ -256,7 +256,9 @@ describe('Agent settings pages', () => {
     const detail = screen.getByRole('dialog', { name: 'documents' })
     expect(detail).toBeVisible()
     expect(within(detail).getByText('系统 Skill')).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'Skills' })).toBeInTheDocument()
+    // Radix marks the rest of the page inert while the modal is open, so the list is asserted
+    // as still mounted rather than as part of the exposed accessibility tree.
+    expect(screen.getByRole('heading', { name: 'Skills', hidden: true })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '保存更改' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '卸载' })).not.toBeInTheDocument()
     expect(document.activeElement).toHaveAttribute('aria-label', '关闭 Skill 详情')
@@ -392,5 +394,59 @@ describe('Agent settings pages', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('文件路径不在允许的目录内')
     expect(screen.getByRole('tree', { name: 'Skill 文件' })).toBeVisible()
+  })
+
+  it('keeps the open Skill detail derived from the refreshed list', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
+
+    await user.click(await screen.findByRole('button', { name: /Skill Creator/ }))
+    const detail = screen.getByRole('dialog', { name: 'Skill Creator' })
+    await user.click(within(detail).getByRole('switch', { name: '停用 Skill Creator' }))
+
+    // The refresh after the mutation must update the list row and the still-open detail together.
+    expect(await within(detail).findByRole('switch', { name: '启用 Skill Creator' }))
+      .toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByTestId('e2e/settings/skills/toggles/skill-creator#switch'))
+      .toHaveAttribute('aria-checked', 'false')
+    expect(
+      (await service.listSkills()).find((skill) => skill.id === 'skill-creator')?.enabled
+    ).toBe(false)
+    expect(screen.getByRole('dialog', { name: 'Skill Creator' })).toBeVisible()
+  })
+
+  it('keeps focus inside the Skill dialogs and returns it when they close', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<SkillsPage service={new MockAgentFilesService()} onBack={() => undefined} />)
+
+    const row = await screen.findByRole('button', { name: /data-inspector/ })
+    await user.click(row)
+    const detail = screen.getByRole('dialog', { name: 'data-inspector' })
+    expect(document.activeElement).toHaveAttribute('aria-label', '关闭 Skill 详情')
+
+    // Shift+Tab from the first focusable entry wraps to the last control inside the dialog.
+    await user.tab({ shift: true })
+    expect(detail.contains(document.activeElement)).toBe(true)
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'data-inspector' })).not.toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toBe(row))
+  })
+
+  it('refuses to close the Skill action dialog while a submission is pending', async () => {
+    const user = userEvent.setup()
+    const service = new MockAgentFilesService()
+    vi.spyOn(service, 'createSkill').mockReturnValue(new Promise<never>(() => undefined))
+    renderWithQuery(<SkillsPage service={service} onBack={() => undefined} />)
+
+    await user.click(await screen.findByRole('button', { name: '新建 Skill' }))
+    await user.type(screen.getByLabelText('Skill 名称'), 'pending-skill')
+    await user.click(screen.getByRole('button', { name: '创建 Skill' }))
+    expect(await screen.findByRole('button', { name: '处理中…' })).toBeDisabled()
+
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: '新建 Skill' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '取消' })).toBeDisabled()
   })
 })

@@ -2485,6 +2485,21 @@
   width: min(100%, 480px);
 }
 
+/*
+ * Radix Dialog renders the overlay and its content as siblings, so the modal keeps its own
+ * fixed placement instead of relying on the backdrop's flex centering.
+ */
+.agent-dialog-backdrop + .agent-dialog,
+.skill-detail-backdrop + .skill-detail-dialog {
+  position: fixed;
+  z-index: 41;
+  top: 50%;
+  left: 50%;
+  max-width: calc(100vw - 48px);
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+
 .agent-dialog > header {
   display: flex;
   align-items: flex-start;
