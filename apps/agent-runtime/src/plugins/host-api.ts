@@ -7,7 +7,10 @@ export interface PluginHostAPIPorts {
   storage?: { get(pluginId: string, key: string): Promise<Json>; set(pluginId: string, key: string, value: Json): Promise<void> }
   logging?: { write(entry: PluginOwner & { level: string; message: string; fields: Json }): void }
   sessions?: { getContext(owner: PluginOwner, context: InvocationContext): Promise<Json> }
-  artifacts?: { create(owner: PluginOwner, input: Json, context: InvocationContext): Promise<Json>; read(owner: PluginOwner, input: Json, context: InvocationContext): Promise<Json> }
+  artifacts?: {
+    create(owner: PluginOwner, input: Json, context: InvocationContext, signal: AbortSignal): Promise<Json>
+    read(owner: PluginOwner, input: Json, context: InvocationContext, signal: AbortSignal): Promise<Json>
+  }
   credentials?: { request(owner: PluginOwner, input: { id: string; purpose: string }, context: InvocationContext): Promise<Json> }
   capabilities?: { invoke(owner: PluginOwner, id: string, input: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> }
   resources?: { request(owner: PluginOwner, method: string, input: Json): Promise<Json> }
@@ -47,8 +50,14 @@ export class PluginHostAPI {
       this.ports.logging.write({ ...owner, ...input, fields: redact(input.fields) }); return null
     }
     if (method === 'sessions.getContext' && this.ports.sessions) return this.ports.sessions.getContext(owner, authoritative().context)
-    if (method === 'artifacts.create' && this.ports.artifacts) return this.ports.artifacts.create(owner, payload, authoritative().context)
-    if (method === 'artifacts.read' && this.ports.artifacts) return this.ports.artifacts.read(owner, payload, authoritative().context)
+    if (method === 'artifacts.create' && this.ports.artifacts) {
+      const { context, signal } = authoritative()
+      return this.ports.artifacts.create(owner, payload, context, signal)
+    }
+    if (method === 'artifacts.read' && this.ports.artifacts) {
+      const { context, signal } = authoritative()
+      return this.ports.artifacts.read(owner, payload, context, signal)
+    }
     if (method === 'credentials.request' && this.ports.credentials) return this.ports.credentials.request(owner, z.object({ id: z.string().min(1), purpose: z.string().min(1) }).strict().parse(payload), authoritative().context)
     if ((method === 'capabilities.invoke' || method === 'commands.execute') && this.ports.capabilities) {
       const input = invocationInput.parse(payload), { context, signal } = authoritative()

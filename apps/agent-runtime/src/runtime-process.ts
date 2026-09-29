@@ -40,7 +40,8 @@ import type { RuntimeSkillRegistry } from './skill-registry'
 import { SessionAssetStore } from './media/session-asset-store'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
-import { createResourceHttpPort, createRuntimeResourceRegistryFromStores } from './resources/runtime-resources'
+import { createResourceHttpPort, createRuntimeResourceRegistryFromStores, parseRemoteResourceHosts } from './resources/runtime-resources'
+import { createPluginArtifactHostPorts } from './resources/plugin-resources'
 import { definition as imageDefinition } from '@actiondriver/image-generation-plugin/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
@@ -110,11 +111,14 @@ export async function startAgentRuntimeProcess(
   })
   // Unified resource entry point: session inputs and registered deliverables are served only
   // through their owning provider, which re-checks the persisted ownership records.
-  const resourceRegistry = createRuntimeResourceRegistryFromStores({
+  const resources = createRuntimeResourceRegistryFromStores({
     inputFiles,
     inputFileRecords: repositories.inputFiles,
-    outputs
+    outputs,
+    resourceRoot: join(dirname(databasePath), 'resources'),
+    remote: parseRemoteResourceHosts(environment)
   })
+  const resourceRegistry = resources.registry
   await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
   await assets.cleanOrphanFiles()
   await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
@@ -265,7 +269,16 @@ export async function startAgentRuntimeProcess(
     dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
     retiredPluginIds: ['search', 'web-reader'],
     configuration: { web: webCredentials.configuration },
-    apiPorts: { credentials: webCredentials.credentials },
+    apiPorts: {
+      credentials: webCredentials.credentials,
+      // Plugin artifacts are host-owned resources, so a plugin always goes through the unified
+      // resource entry point instead of writing into a local directory of its own choosing.
+      artifacts: createPluginArtifactHostPorts({
+        store: resources.pluginStore,
+        readResource: (uri, _authority, context) => resourceRegistry.read(uri, context),
+        ids: randomUUID
+      })
+    },
     skills: {
       stage: (owner, skill, root) => pluginInstructions.stage(owner, skill, root),
       publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }

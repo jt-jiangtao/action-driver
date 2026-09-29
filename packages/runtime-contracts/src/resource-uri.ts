@@ -31,7 +31,12 @@ export class ResourceError extends Error {
   }
 }
 
-export interface ResourceScope { taskId?: string; sessionId?: string; version?: string }
+/**
+ * Authority passed to providers. `taskId`/`sessionId`/`version` may also appear in a URI query
+ * string; `pluginId` is an in-memory authority claim only (a plugin cannot name itself in a URI)
+ * and is what plugin-owned resources compare against the owner segment of the resource id.
+ */
+export interface ResourceScope { taskId?: string; sessionId?: string; version?: string; pluginId?: string }
 export interface ResourceReference { scheme: string; id: string; scope: ResourceScope }
 
 const schemePattern = /^[a-z][a-z0-9-]{0,31}$/

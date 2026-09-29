@@ -12,7 +12,7 @@
 ## 3. Provider 与兼容迁移
 
 - [x] 3.1 将会话输入及登记产物接入只读 provider，并保留旧文件 ID 解析；用历史任务和跨会话定向测试验证原版本与隔离。
-- [ ] 3.2 接入可写工作资源、插件资源及远程 provider；用定向测试覆盖读写列举监听、远程断线和取消。
+- [x] 3.2 接入可写工作资源、插件资源及远程 provider；用定向测试覆盖读写列举监听、远程断线和取消。
 - [ ] 3.3 将 Desktop 打开资源及插件 Host API 接入 URI 路由并保留兼容适配；用定向测试验证任意路径/URI 无法绕过桌面白名单。
 - [ ] 3.4 用端到端样例验证旧任务卡片、同会话输入、远程资源与并发写入在重启后仍符合 spec；记录兼容与回滚结果。
 
@@ -30,3 +30,10 @@
 - 3.1 已完成并勾选：`apps/agent-runtime/src/resources/runtime-resources.ts` 提供 `createRuntimeResourceRegistryFromStores`（把 `SessionInputFileStore.read` + `repositories.inputFiles.listBySession` 与 `SessionOutputStore.readSnapshot|listByTask` 接到两个只读 provider）与 `createResourceHttpPort`（每次请求给出独立 deadline 与取消信号）；`runtime-process.ts` 实例化该注册表并把端口传入 `startServiceHttpServer`，`http-service.ts` 在提供 `resourceRoutes` 时挂载 `POST /resources/read|list`。
   - 真实存储定向测试：`apps/agent-runtime/tests/unit/resources/runtime-resources.test.ts` 3 项通过——历史任务产物在后续任务覆盖同名输出路径后仍读到原登记副本、同会话输入可经 URI 读取并列举、跨会话读取与列举被拒（带作用域的 URI 报 `RESOURCE_UNAUTHORIZED`，无作用域 URI 由存储归属校验转成 `RESOURCE_NOT_FOUND`，不泄露字节）。
   - 本轮定向验证：`pnpm vitest run apps/agent-runtime/tests/unit/resources/` → 5 文件 21 项全部通过；`pnpm --filter @actiondriver/agent-runtime typecheck` 通过；改动文件 ESLint 通过。
+- 3.2 已完成并勾选：
+  - 可写工作资源：`apps/agent-runtime/src/resources/work-provider.ts` 提供 `createSessionScopedStoreProvider`，把 `VersionedResourceStore` 按 `<sessionId>/<path>` 命名空间暴露为 `workspace` scheme，支持 read/write/list/watch；跨会话读写与监听在 provider 内先拒绝，写入沿用预期版本、`createOnly`、取消与期限语义。
+  - 插件资源：`apps/agent-runtime/src/resources/plugin-resources.ts` 提供 `createPluginResourceProvider`（`plugin` scheme，按 `<pluginId>/<sessionId>/` 授权）与 `createPluginArtifactHostPorts`；`artifacts.create` 写入宿主拥有的 plugin store，`artifacts.read` 接受统一 URI 并保留裸 artifact id 兼容；`plugins/host-api.ts` 把调用信号传给 artifacts 端口，`runtime-process.ts` 通过 `apiPorts.artifacts` 装配。
+  - 远程 provider：`remote-provider.ts` 把传输的断连、取消、期限和监听缺口翻译成 `RESOURCE_UNAVAILABLE`/`RESOURCE_CANCELLED`/`RESOURCE_DEADLINE_EXCEEDED` 与 `resync-required`，写入中途断连显式标注结果未知且不自动重放；`remote-http-transport.ts` 是真实 HTTP 传输（`/readyz` 探活 + `/resources/read|list|write`），`parseRemoteResourceHosts` 从 `ACTIONDRIVER_RESOURCE_REMOTE_HOSTS` 注册远程 scheme，声明解析失败即报错、不静默丢弃宿主；HTTP 面没有推送通道，因此远程注册显式声明 `watch: false`，watch 请求得到 `RESOURCE_UNSUPPORTED` 而非半截流。
+  - 资源 HTTP 面补齐 `POST /resources/write`（内联上限 8 MiB，支持 `expectedVersion`/`createOnly`/`contentType`），有界读写经 `RESOURCE_INLINE_MAX_BYTES` 校验。
+  - 定向测试：`apps/agent-runtime/tests/unit/resources/provider-platform.test.ts` 13 项（工作资源读写列举监听、跨会话拒绝、并发冲突不覆盖、取消/期限、插件跨 plugin 与跨会话拒绝、远程断连、写入结果未知不重放、watch 缺口、取消传播、HTTP 传输代理与结构化拒绝翻译）；`runtime-resources.test.ts` 新增远程宿主注册/非法声明拒绝 2 项。
+  - 本轮验证：`pnpm vitest run apps/agent-runtime/tests/unit/resources/` → 6 文件 36 项全部通过；`pnpm vitest run apps/agent-runtime/tests/unit/plugins apps/agent-runtime/tests/unit/composition-root.test.ts apps/agent-runtime/tests/unit/runtime-process.test.ts apps/agent-runtime/tests/unit/service-http.test.ts` → 20 文件 95 项通过；`pnpm --filter @actiondriver/agent-runtime typecheck`、`pnpm --filter @actiondriver/runtime-contracts typecheck`、`pnpm vitest run packages/runtime-contracts/tests`（51 项）与改动文件 ESLint 均通过。

@@ -8,10 +8,16 @@ import { openRuntimeDatabase } from '../../../src/database'
 import { SessionWorkspaceStore } from '../../../src/execution/session-workspace'
 import { SessionInputFileStore } from '../../../src/media/session-input-file-store'
 import { SessionOutputStore } from '../../../src/media/session-output-store'
-import { createRuntimeResourceRegistryFromStores } from '../../../src/resources/runtime-resources'
+import { REMOTE_RESOURCE_HOSTS_ENV, createRuntimeResourceRegistryFromStores, parseRemoteResourceHosts } from '../../../src/resources/runtime-resources'
 import { createInputFileStore } from '../../../src/persistence/input-file-store'
 
 const temporaryDirectories: string[] = []
+
+function resourceRoot(): string {
+  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-resource-root-'))
+  temporaryDirectories.push(directory)
+  return directory
+}
 
 async function text(stream: AsyncIterable<Uint8Array>): Promise<string> {
   const chunks: string[] = []
@@ -35,10 +41,11 @@ function createStorage() {
   const workspaces = new SessionWorkspaceStore({ workspaceRoot })
   const inputFiles = new SessionInputFileStore({ database, rootDirectory: directory, workspaces })
   const outputs = new SessionOutputStore({ database, rootDirectory: directory, workspaces })
-  const registry = createRuntimeResourceRegistryFromStores({
+  const { registry } = createRuntimeResourceRegistryFromStores({
     inputFiles,
     inputFileRecords: createInputFileStore(database).inputFiles,
-    outputs
+    outputs,
+    resourceRoot: join(directory, 'resources')
   })
   return { directory, database, workspaceRoot, workspaces, inputFiles, outputs, registry }
 }
@@ -149,5 +156,38 @@ describe('runtime resource registry over the persisted stores', () => {
       .list('adr://v1/session-input/all', context('session-2'))
       .then((entries) => entries.length)
     expect(crossSessionList).toBe(0)
+  })
+})
+
+describe('remote resource host configuration', () => {
+  it('registers each declared host by scheme and keeps the URI scheme authoritative', async () => {
+    const registrations = parseRemoteResourceHosts({
+      [REMOTE_RESOURCE_HOSTS_ENV]: JSON.stringify([{ scheme: 'remote-host', baseUrl: 'http://127.0.0.1:4321', token: 'secret' }])
+    })
+    expect(registrations).toHaveLength(1)
+    expect(registrations[0]?.descriptor).toEqual({ scheme: 'remote-host', version: 1 })
+
+    const { registry } = createRuntimeResourceRegistryFromStores({
+      inputFiles: { read: async () => { throw new Error('unused') } },
+      inputFileRecords: { listBySession: async () => [] },
+      outputs: { readSnapshot: async () => { throw new Error('unused') }, listByTask: async () => [] },
+      resourceRoot: join(resourceRoot(), 'resources'),
+      remote: registrations
+    })
+    expect(registry.descriptors().map(descriptor => descriptor.scheme).sort()).toEqual(['generated-output', 'plugin', 'remote-host', 'session-input', 'workspace'])
+    // The HTTP surface advertises no push channel, so a remote watch is a capability error, not a
+    // broken stream.
+    const watched = await registry
+      .watch('adr://v1/remote-host/doc-1?session=session-1', { authority: { sessionId: 'session-1' }, deadline: Date.now() + 1_000, signal: new AbortController().signal })
+      .then(() => null, (error: ResourceError) => error)
+    expect(watched?.code).toBe('RESOURCE_UNSUPPORTED')
+  })
+
+  it('rejects a malformed remote declaration instead of silently dropping the host', () => {
+    expect(() => parseRemoteResourceHosts({ [REMOTE_RESOURCE_HOSTS_ENV]: 'not json' })).toThrow(/valid JSON/)
+    expect(() => parseRemoteResourceHosts({ [REMOTE_RESOURCE_HOSTS_ENV]: JSON.stringify([{ scheme: 'Remote Host', baseUrl: 'http://x', token: 't' }]) })).toThrow(/invalid scheme/)
+    expect(() => parseRemoteResourceHosts({ [REMOTE_RESOURCE_HOSTS_ENV]: JSON.stringify([{ scheme: 'remote-host', baseUrl: 'file:///etc', token: 't' }]) })).toThrow(/baseUrl/)
+    expect(() => parseRemoteResourceHosts({ [REMOTE_RESOURCE_HOSTS_ENV]: JSON.stringify([{ scheme: 'remote-host', baseUrl: 'http://x' }]) })).toThrow(/token/)
+    expect(parseRemoteResourceHosts({})).toEqual([])
   })
 })
