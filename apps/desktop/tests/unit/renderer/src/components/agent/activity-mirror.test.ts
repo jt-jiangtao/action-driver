@@ -140,12 +140,15 @@ describe('activityOwnedText', () => {
     expect(activityOwnedText(task)).toBe('')
   })
 
-  it('keeps the legacy mirrored layout for transcripts without order', () => {
+  it('owns only the process narration in every transcript shape', () => {
     const timeline = [
       { id: 'text:plan:1', kind: 'text' as const, content: '过程一', phase: 'process' as const },
-      { id: 'text:plan:2', kind: 'text' as const, content: '答案', phase: 'final' as const }
+      { id: 'text:plan:2', kind: 'text' as const, content: '答案', phase: 'final' as const },
+      { id: 'text:plan:3', kind: 'text' as const, content: '待定', phase: 'pending' as const }
     ]
-    expect(activityOwnedText({ status: 'running', activityTimeline: timeline })).toBe('过程一答案')
+    // Pending text stays in the transcript and final text is the answer, so the
+    // activity area never duplicates what the message already shows.
+    expect(activityOwnedText({ status: 'running', activityTimeline: timeline })).toBe('过程一')
     expect(activityOwnedText({ status: 'succeeded', activityTimeline: timeline })).toBe('过程一')
   })
 })

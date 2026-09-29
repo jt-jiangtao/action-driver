@@ -273,6 +273,11 @@ export function isImageGenerationTool(tool: { toolId: string }): boolean {
   return tool.toolId === IMAGE_GENERATION_TOOL_ID
 }
 
+/** True for the built-in image generator id, with or without an `@version` grant suffix. */
+export function isImageGenerationToolId(toolId: string): boolean {
+  return toolId === IMAGE_GENERATION_TOOL_ID || toolId.startsWith(`${IMAGE_GENERATION_TOOL_ID}@`)
+}
+
 /** How many gallery slots this call reserved, regardless of its current status. */
 export function imageGenerationSlotCount(tool: ToolInvocationProjection): number {
   return isImageGenerationTool(tool) ? (tool.imageCount ?? 0) : 0
@@ -369,12 +374,6 @@ export interface TaskProjection {
   priorActivityTurns?: PriorActivityTurnProjection[]
   streamCursor?: number
   streamSequence?: number
-  /**
-   * True once the runtime reported ordered parts for this turn. Ordered turns
-   * render their blocks strictly by `order` in the transcript; turns stored
-   * before that contract stay on the legacy mirrored activity layout.
-   */
-  orderedTranscript?: boolean
   browser: BrowserSkillProjection | null
 }
 

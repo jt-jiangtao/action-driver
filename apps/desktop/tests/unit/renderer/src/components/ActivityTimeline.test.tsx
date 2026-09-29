@@ -244,7 +244,9 @@ describe('ActivityTimeline', () => {
     preparing.tools = []
     preparing.preparingToolName = 'tools_local_command_python_run'
     render(<Timeline task={preparing} />)
-    expect(screen.getByText('先检查输入')).toBeVisible()
+    // Pending narration belongs to the transcript; the activity area stays empty
+    // and the streaming text still suppresses the thinking indicator.
+    expect(screen.queryByText('先检查输入')).toBeNull()
     expect(screen.queryByRole('status')).toBeNull()
   })
 
@@ -297,7 +299,9 @@ describe('ActivityTimeline', () => {
     })
     const { rerender } = render(<Timeline task={mixed} />)
     const region = screen.getByRole('region', { name: '任务过程' })
-    expect(region.textContent).toMatch(/先说明.*调研实现.*再说明.*已执行命令.*最后回答/s)
+    expect(region.textContent).toMatch(/先说明.*调研实现.*再说明.*已执行命令/s)
+    // The pending answer stays in the transcript until the runtime closes it.
+    expect(region).not.toHaveTextContent('最后回答')
     expect(region.querySelectorAll('.activity-group')).toHaveLength(2)
     rerender(
       <Timeline

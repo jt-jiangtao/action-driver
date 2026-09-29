@@ -7,7 +7,7 @@ import {
   emptyActivityTimelineState,
   reduceActivityProjection
 } from '@actiondriver/activity-projection'
-import { normalizeAssistantParts } from '@actiondriver/contracts'
+import { isImageGenerationToolId, normalizeAssistantParts } from '@actiondriver/contracts'
 import type { AppApprovalRequest } from '@actiondriver/contracts'
 import {
   STREAM_PROTOCOL,
@@ -144,7 +144,7 @@ export async function buildStreamSnapshot(
         modelName: invocation.toolId,
         ...persisted,
         argumentsHash: invocation.argumentsHash,
-        ...(invocation.toolId === 'tools/local/image-generation/generate' &&
+        ...(isImageGenerationToolId(invocation.toolId) &&
         Array.isArray((invocation.input as { images?: unknown }).images) &&
         (invocation.input as { images: unknown[] }).images.length >= 1 &&
         (invocation.input as { images: unknown[] }).images.length <= 16

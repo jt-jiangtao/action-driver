@@ -75,7 +75,7 @@ Runtime WS --> RendererStreamClient (连接/鉴权/重连/定序/去重/lifecycl
 - 当前方案：新增纯选择器，把「正文块、工具活动、图片画廊（含批次锚定）、审批卡片、交付文件、失败态」的归属与顺序一次性决定，`AgentResponse` / `ActivityTimeline` 退化为按块类型渲染的哑组件；`legacyHidden` / `isOrderedTranscript` 的兼容路径按删除判据移除。
 - 替代方案：保留现有三处推导，只把它们各自补上单元测试与共享常量（不搬逻辑）。回归面最小，但归属仍然分散，后续每次改动都要同时改三处。
 - 理由：收益主要是可维护性与可测试性，不直接改善渲染成本；因此建议与 D2/D3 分开裁决与提交，并要求先复制现有行为的等价性断言（画廊批次顺序、失败态只保留非文本、legacy 布局）再搬迁。
-- 最终裁决：**采纳**（方案 A），但保留兼容分支：`legacyHidden` / `isOrderedTranscript` 的判定 SHALL 集中到选择器内成为显式分支，而不是删除。理由见「Battle 结论：legacy 分支的执行边界」。
+- 最终裁决：**采纳并删除兼容分支**（方案 A + 第二轮追加裁决）：`legacyHidden` / `isOrderedTranscript` 与运行态兜底一并移除，活动区只拥有 `phase: process` 的文本，所有转录按其持久化顺序渲染。
 
 ### D5 Renderer 与投影的定序去重事实源
 
@@ -120,8 +120,11 @@ Runtime WS --> RendererStreamClient (连接/鉴权/重连/定序/去重/lifecycl
 - 替代方案：方案 B（分两阶段）、方案 C（最小改动），比较见上表。
 - **最终决策：用户选择方案 A（一次到位）**，覆盖 Agent 推荐的方案 B。
 - 用户覆盖项与已知代价：接受方案 A 带来的更大 e2e 回归面与更长验证窗口；接受渲染类测试需要改写（渲染计数与 `MarkdownContent` 的 spy 目标都会变化）；接受展示归属搬迁期间「先复制等价断言、再搬迁」的额外步骤。
-- legacy 分支的执行边界（Agent 在本裁决框架内的决定，用户可覆盖）：实测证明 `legacyHidden` 仍被 4 处测试锁定为受支持行为（`pages.test.tsx` 的 legacy 主流程与镜像布局、`activity-mirror.test.ts` 的无 order 布局、`image-slot-order.test.ts` 的无序 parts 保位）。在 renderer 内把无 order 的 parts 补成位置序会改变 `phase: 'pending'` 过程文本的归属并破坏这些断言，因此本 change 只把判定集中到选择器并显式化判据，不删除行为；删除动作的判据是「Runtime 在持久化与快照恢复时保证 `parts` 全部带 `order`（或在持久化时写入 `orderedTranscript` 标记）」——该改动落在 `apps/agent-runtime`，而该目录当前有其他回话的未提交改动，故不在本 change 内实施。
-- 重新开启条件：出现新证据推翻上述判据（例如 `orderedTranscript` 标记在 Runtime 落地、或实测证明删除后旧转录渲染无差异）。
+- **追加裁决（2026-09-30，第二轮）**：用户要求「处理掉」两项遗留。第一轮公开的边界（删除会改变 4 处断言锁定的行为、需要 Runtime 标记）已被用户接受，按如下方式实施：
+  - 删除镜像布局：活动区只拥有 `phase: process` 的文本；`pending` 与 `final` 只出现在正文。旧转录按其持久化顺序渲染，与有序转录同一路径。
+  - 代价：运行中且缺少顺序信息的旧转录不再把整段文本镜像到活动区（该文本在正文中显示），`pages.test.tsx` 与 `activity-mirror.test.ts`、`ActivityTimeline.test.tsx` 中共 4 个断言按新行为重新基线化；`image-slot-order.test.ts` 的「无序 parts 保位」不受影响，仍成立。
+  - 证据：删除后所有受影响的定向测试（renderer 422 项）与契约测试通过；`orderedTranscript` 字段此前从未被写入或读取，作为死字段一并删除。
+- 重新开启条件：出现新证据说明运行中的无顺序转录需要在活动区提前展示镜像文本（例如 Runtime 恢复路径会长时间停留在 `pending` 且正文不流式）。
 
 ## Risks / Trade-offs
 

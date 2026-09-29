@@ -212,7 +212,7 @@ describe('ActionDriver pages', () => {
     // The process narration and the tool group stay in the elapsed-time archive.
     expect(view.container.querySelector('.activity-archive')).toHaveTextContent('好的，我来测试')
   })
-  it('keeps the legacy message empty while the activity mirror leads the answer stream', () => {
+  it('keeps streamed text in the transcript while the activity mirror is still pending', () => {
     const view = render(
       <TaskPage
         mode="split"
@@ -255,8 +255,11 @@ describe('ActionDriver pages', () => {
         onSubmit={vi.fn()}
       />
     )
-    expect(view.container.querySelector('.agent-message')).not.toHaveTextContent('过程文字')
-    expect(view.container.querySelector('.activity-timeline')).toHaveTextContent('过程文字已')
+    // The answer channel owns pending text; the mirror only carries the process
+    // narration it already closed, so the same sentence never renders twice.
+    expect(view.container.querySelector('.agent-message')).toHaveTextContent('过程文字')
+    expect(view.container.querySelector('.activity-timeline')).not.toHaveTextContent('过程文字已')
+    expect(screen.queryByText('过程文字已')).toBeNull()
   })
   it('renders the Figma home copy and 720px composer contract', () => {
     render(

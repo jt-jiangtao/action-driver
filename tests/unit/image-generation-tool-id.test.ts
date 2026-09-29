@@ -28,16 +28,12 @@ describe('image generation tool id boundary', () => {
     expect(manifest.activation ?? []).toContain(`onTool:${IMAGE_GENERATION_TOOL_ID}`)
   })
 
-  /**
-   * The Runtime still spells the id out in a few files, two of which carry
-   * uncommitted work from another thread. Until that lands, this boundary test
-   * pins the layer this change owns: the desktop renderer.
-   */
-  it('is never hardcoded by renderer consumers', () => {
+  it('is never hardcoded by renderer or runtime consumers', () => {
     const consumers = [
       ...sourceFiles(join(root, 'apps/desktop/src/renderer/src')),
       ...sourceFiles(join(root, 'apps/desktop/src/preload')),
-      ...sourceFiles(join(root, 'apps/desktop/src/shared'))
+      ...sourceFiles(join(root, 'apps/desktop/src/shared')),
+      ...sourceFiles(join(root, 'apps/agent-runtime/src'))
     ]
     const offenders = consumers.filter((file) => readFileSync(file, 'utf8').includes(literal))
     expect(offenders).toEqual([])

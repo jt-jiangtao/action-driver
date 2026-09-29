@@ -12,8 +12,7 @@ import {
 import {
   activityOwnedText,
   dedupeAssistantText,
-  isActivityOwnedText,
-  isOrderedTranscript
+  isActivityOwnedText
 } from '../components/agent/activity-mirror'
 
 /** One item of the activity area, already decided to be visible there. */
@@ -122,7 +121,7 @@ export function selectActivityItems(task: ActivitySelectionTask): ActivityViewIt
   const items: ActivityViewItem[] = []
   for (const item of timeline) {
     if (item.kind === 'text') {
-      if (isActivityOwnedText(task, item)) {
+      if (isActivityOwnedText(item)) {
         items.push({ kind: 'text', id: item.id, content: item.content })
       }
       continue
@@ -140,10 +139,9 @@ export function selectActivityItems(task: ActivitySelectionTask): ActivityViewIt
 
 /**
  * Assistant messages of the current turn after de-duplication and visibility
- * filtering. The mirrored layout for transcripts stored before the order
- * contract lives here as one explicit branch; its deletion criterion is that
- * the runtime guarantees ordered parts (or persists an explicit marker) for
- * every turn.
+ * filtering. Every transcript is read in the order it was persisted: the
+ * activity area owns only the `process` narration, so the mirrored layout for
+ * pre-order transcripts is gone and a turn never shows its text twice.
  */
 export function selectVisibleAssistantMessages(task: TaskProjection): AgentMessageProjection[] {
   const messages = task.messages
@@ -153,17 +151,8 @@ export function selectVisibleAssistantMessages(task: TaskProjection): AgentMessa
     .slice(currentUserIndex + 1)
     .filter((message) => message.role === 'agent')
   if (assistantMessages.length === 0) return []
-  const orderedTurn = isOrderedTranscript(task)
   const hasImageGallery = (task.tools ?? []).some((tool) => imageGenerationSlotCount(tool) > 0)
-  const mirroredLayout =
-    !orderedTurn &&
-    task.status === 'running' &&
-    !hasImageGallery &&
-    !assistantMessages.some((message) =>
-      message.parts?.some((part) => part.kind === 'image')
-    ) &&
-    (task.activityTimeline?.some((item) => item.kind === 'text') ?? false)
-  const activityText = mirroredLayout ? '' : activityOwnedText(task)
+  const activityText = activityOwnedText(task)
   const rendered =
     task.status === 'failed'
       ? assistantMessages
@@ -173,9 +162,7 @@ export function selectVisibleAssistantMessages(task: TaskProjection): AgentMessa
             content: '',
             parts: message.parts?.filter((part) => part.kind !== 'text') ?? []
           }))
-      : mirroredLayout
-        ? []
-        : assistantMessages.map((message) => dedupeAssistantText(message, activityText))
+      : assistantMessages.map((message) => dedupeAssistantText(message, activityText))
   // An empty turn renders nothing: the activity area already reports progress,
   // and an empty message would only add spacing or a second status line. Image
   // tools keep theirs, because the gallery placeholders live there.

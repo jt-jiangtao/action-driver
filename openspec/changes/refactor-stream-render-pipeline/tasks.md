@@ -41,6 +41,13 @@
 - [x] 7.2 准备提交时一次性运行 `corepack pnpm typecheck && corepack pnpm lint && corepack pnpm test`，把命令、通过数、已知无关失败与 Node 版本写入提交信息与本文件
 - [x] 7.3 只提交本变更相关文件（commit `53f5ae6`），并在交付说明中列出工作区中其他回话的未提交文件
 
+## 8. 第二轮：删除旧转录镜像布局并收敛 Runtime 工具 id（用户追加裁决）
+
+- [x] 8.1 删除 `isOrderedTranscript` 与 `legacyHidden`：`isActivityOwnedText` 只认 `phase: process`，`selectVisibleAssistantMessages` 不再有镜像分支；`TaskProjection.orderedTranscript` 死字段一并删除
+- [x] 8.2 重新基线化被旧行为锁定的断言：`pages.test.tsx`（镜像领先正文）、`activity-mirror.test.ts`（无顺序转录）、`ActivityTimeline.test.tsx`（pending 文本归属与指示器）
+- [x] 8.3 `packages/contracts` 新增 `isImageGenerationToolId`（含 `@version` 授权串），Runtime 五处字面量（`tool-activity.ts` ×2、`tool-invocation-service.ts`、`stream/stream-snapshot.ts`、`stream-session-service.ts`、`runtime-process.ts` 授权串 ×2）全部改为引用常量
+- [x] 8.4 根级边界测试扩展到 `apps/agent-runtime/src`；跑 `corepack pnpm vitest run apps/desktop/tests/unit/renderer packages/contracts tests/unit/image-generation-tool-id.test.ts` → 422 通过
+
 ## 验证记录
 
 Node 版本：默认 shell 的 **v20.14.0**（`node_modules` 中 `better-sqlite3` 按 Node 20 ABI 编译，故不使用 Node 24）。

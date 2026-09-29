@@ -12,10 +12,13 @@
   - `TaskPage` 把正文/活动/可见性派生计算抽成纯选择器，并让输入区只订阅所需字段，使输入区不随流式 tick 重渲染。
   - 把生图工具 ID 与「进行中/已完成」判定收进共享常量并删除重复字面量。
 - **需明确裁决后再做（P2 / 方案 A）**
-  - 新增纯选择器 `selectTranscript(task) → Block[]`，让「正文、工具活动、图片画廊、审批卡片」的归属只被决定一次，`AgentResponse` / `ActivityTimeline` 退化为哑组件；同时删除 `legacyHidden` / `isOrderedTranscript` 兼容路径（删除判据见 Battle 待裁决问题 4）。
+  - 新增纯选择器 `selectTranscript(task) → Block[]`，让「正文、工具活动、图片画廊、审批卡片」的归属只被决定一次，`AgentResponse` / `ActivityTimeline` 退化为哑组件。
   - 在 `RendererStreamClient` 与 `StreamTaskProjection` 之间二选一定序与去重的事实源，删除重复账本与重复 `structuredClone`。
   - 取消 `DesktopAgentAdapter.pendingStreamEvents` 缓冲（按 `requestId` 预注册未绑定投影），或明确保留并说明理由。
   - 合并 `DesktopAgentAdapter.tasks` 与投影快照的双状态源。
+- **追加裁决后完成（第二轮，2026-09-30）**
+  - 删除旧转录的镜像布局：`isOrderedTranscript` / `legacyHidden` 及其在 `isActivityOwnedText` 中的运行态兜底一并移除，活动区只拥有 `phase: process` 的过程叙述；`TaskProjection.orderedTranscript` 死字段删除。
+  - Runtime 侧生图工具 id 字面量全部收敛到 `IMAGE_GENERATION_TOOL_ID`（含 `@version` 授权串），根级边界测试覆盖 renderer 与 Runtime。
 
 ## Capabilities
 
@@ -44,7 +47,7 @@
 **Battle 已完成并由用户裁决（2026-09-30）**：用户选择**方案 A「一次到位」**，覆盖 Agent 推荐的方案 B。裁决结论、被否决方案、用户覆盖项与已知代价、回滚方式见 `design.md`；`specs/` 与 `tasks/` 只写入已裁决内容。
 
 - 第 1 项经实测复核确认**不是活跃的 invariant 破坏**（发出的快照不会被原地修改），按既有约定与防御性修复处理，属执行型。
-- legacy 兼容分支按 `design.md`「Battle 结论：legacy 分支的执行边界」处理：本 change 只集中判定与显式化删除判据，不删除行为，因为删除需要 Runtime 侧标记且该目录有其他回话的未提交改动。
+- legacy 兼容分支：Agent 第一轮只做了集中与判据记录（删除会改变 4 处断言锁定的行为）；用户随后明确要求「处理掉」，第二轮已删除镜像布局并重新基线化这些断言（决策与代价见 `design.md` 的追加裁决记录）。
 - 重开条件：出现新证据使前述分类或复核结论失效（例如在真实设备 profile 中证明 Markdown 解析为主要热点、Runtime 侧落地 `orderedTranscript` 标记、或投影中新增了绕过展开语法的写法）。
 
 ## Impact

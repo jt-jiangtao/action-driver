@@ -16,6 +16,7 @@ import { SERVICE_STREAM_PATH, SERVICE_STREAM_PROTOCOL } from './service/websocke
 import { createFetchHttpTransport } from './model-connections/http-transport'
 import { ModelConnectionService } from './model-connections/service'
 import { createInteractionLogRecorder } from '@actiondriver/observability'
+import { IMAGE_GENERATION_TOOL_ID } from '@actiondriver/contracts'
 import { randomUUID } from 'node:crypto'
 import { createScriptTools } from './execution/tools'
 import { createWorkspaceDependenciesTool } from './execution/workspace-dependencies-tool'
@@ -282,11 +283,11 @@ export async function startAgentRuntimeProcess(
         },
         stream: (input, context, signal) => createCommandExecutionPort(computer!.tools, executionContexts, ['computer-use']).stream(input, context, signal)
       } } : {}),
-      'host.image.model': { plugins: ['image-generation'], grants: ['tools/local/image-generation/generate@1'], async invoke() {
+      'host.image.model': { plugins: ['image-generation'], grants: [`${IMAGE_GENERATION_TOOL_ID}@1`], async invoke() {
         const model = await service.getDefaultImageModel()
         return model ? { ...model } : null
       } },
-      'host.image.generate': { plugins: ['image-generation'], grants: ['tools/local/image-generation/generate@1'], async invoke(input, context, signal) {
+      'host.image.generate': { plugins: ['image-generation'], grants: [`${IMAGE_GENERATION_TOOL_ID}@1`], async invoke(input, context, signal) {
         if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 4000 || !context.taskId) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid image request')
         const task = await repositories.tasks.get(context.taskId)
         if (!task || task.sessionId !== context.sessionId) throw new PluginError('IMAGE_SESSION_NOT_FOUND', 'Image task has no owned session')

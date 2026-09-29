@@ -13,6 +13,7 @@ import {
 import {
   appendActivityAnchor,
   insertPartByOrder,
+  isImageGenerationToolId,
   nextPartOrder,
   normalizeAssistantParts,
   type MessageContentPart
@@ -532,7 +533,7 @@ export class StreamSessionService {
               }
               if (
                 typeof payload.toolId === 'string' &&
-                payload.toolId === 'tools/local/image-generation/generate' &&
+                isImageGenerationToolId(payload.toolId) &&
                 typeof payload.callId === 'string' &&
                 typeof payload.imageCount === 'number' &&
                 Number.isInteger(payload.imageCount) &&

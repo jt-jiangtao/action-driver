@@ -1,5 +1,6 @@
 import { PluginError } from '@actiondriver/plugin-contracts'
 import { z } from 'zod'
+import { isImageGenerationToolId } from '@actiondriver/contracts'
 import {
   parseToolCall,
   type ToolCall,
@@ -61,7 +62,7 @@ export class ToolInvocationService {
     const definition = registered.definition
     const decision = this.options.policy.decide(definition, call, context)
     const imageCount =
-      definition.id === 'tools/local/image-generation/generate' && Array.isArray(call.arguments.images)
+      isImageGenerationToolId(definition.id) && Array.isArray(call.arguments.images)
         ? call.arguments.images.length
         : undefined
     const startedAt = this.options.clock.now()

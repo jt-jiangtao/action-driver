@@ -19,5 +19,7 @@ Battle 由用户裁决为**方案 A「一次到位」**，覆盖 Agent 推荐的
 
 ## 已知缺口（需后续裁决或协调）
 
-- `legacyHidden` 的兼容行为按 design 的「legacy 分支的执行边界」保留，只集中判定与记录删除判据；删除需要 Runtime 侧保证 `parts` 带 `order` 或写入 `orderedTranscript` 标记。
-- Runtime 仍有 5 处生图工具 id 字面量，其中 `runtime-process.ts` 与 `stream/stream-snapshot.ts` 在其他回话的未提交改动中，本次未触碰。
+两项遗留已按用户的追加裁决在第二轮处理完毕，见 design 的「追加裁决（2026-09-30，第二轮）」：
+
+- 旧转录的镜像布局已删除：活动区只拥有 `phase: process` 的过程叙述，`pending`/`final` 只出现在正文，全部转录按持久化顺序渲染；4 个断言按新行为重新基线化。
+- Runtime 的生图工具 id 字面量已全部收敛到 `@actiondriver/contracts`，根级边界测试覆盖 renderer 与 Runtime。

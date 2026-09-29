@@ -11,15 +11,6 @@ type ActivityTask = {
   messages?: AgentMessageProjection[] | undefined
 }
 
-/** True once the runtime reported ordered blocks for this turn. */
-export function isOrderedTranscript(task: {
-  messages?: AgentMessageProjection[] | undefined
-}): boolean {
-  return (task.messages ?? []).some((message) =>
-    (message.parts ?? []).some((part) => part.order !== undefined || part.kind === 'activity')
-  )
-}
-
 /** Tool groups the runtime anchored inside the transcript. */
 export function anchoredActivityIds(
   messages: readonly AgentMessageProjection[] | undefined
@@ -37,23 +28,17 @@ export function anchoredActivityIds(
  * narration and belong to the activity area, while the block that ended the
  * task is `final` and stays in the transcript as the answer. Pending blocks are
  * still the answer-to-be, so they render in the transcript and never jump.
- *
- * Transcripts stored before the order contract keep the mirrored layout, where
- * a running turn shows its whole text in the activity area.
  */
 export function isActivityOwnedText(
-  task: ActivityTask,
   item: TaskTimelineProjectionItem
 ): item is Extract<TaskTimelineProjectionItem, { kind: 'text' }> {
-  if (item.kind !== 'text' || item.content.length === 0) return false
-  if (isOrderedTranscript(task)) return item.phase === 'process'
-  return task.status === 'running' || item.phase === 'process'
+  return item.kind === 'text' && item.content.length > 0 && item.phase === 'process'
 }
 
 /** Text the activity area owns; the assistant message must not repeat it. */
 export function activityOwnedText(task: ActivityTask): string {
   return (task.activityTimeline ?? [])
-    .filter((item) => isActivityOwnedText(task, item))
+    .filter((item) => isActivityOwnedText(item))
     .map((item) => item.content)
     .join('')
 }

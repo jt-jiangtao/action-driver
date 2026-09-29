@@ -4,6 +4,7 @@ import {
   SKILL_IDS,
   hasImageGenerationGallery,
   imageGenerationSlotCount,
+  isImageGenerationToolId,
   isImageGenerationRunning,
   isSerializableContract,
   normalizeAssistantParts,
@@ -54,6 +55,13 @@ describe('image generation tool projection', () => {
     }
     expect(isImageGenerationRunning(imageTool({ status: 'completed' }))).toBe(false)
     expect(isImageGenerationRunning(imageTool({ status: 'running', toolId: 'shell' }))).toBe(false)
+  })
+
+  it('matches the tool id with and without a grant version suffix', () => {
+    expect(isImageGenerationToolId(IMAGE_GENERATION_TOOL_ID)).toBe(true)
+    expect(isImageGenerationToolId(`${IMAGE_GENERATION_TOOL_ID}@1`)).toBe(true)
+    expect(isImageGenerationToolId('tools/local/command/shell/run@1')).toBe(false)
+    expect(isImageGenerationToolId('tools/local/image-generation/generate-extra')).toBe(false)
   })
 })
 

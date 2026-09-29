@@ -1,3 +1,4 @@
+import { isImageGenerationToolId } from '@actiondriver/contracts'
 import type { PersistedToolInvocation } from './ports'
 
 type ToolErrorLike = { code?: unknown }
@@ -11,7 +12,7 @@ export function toolActivitySummary(toolId: string, input: unknown): string {
   if (toolId === 'tools/local/command/python/run') return '运行 Python'
   if (toolId === 'tools/local/command/node/run') return '运行 Node.js'
   if (toolId === 'tools/local/command/typescript/run') return '运行 TypeScript'
-  if (toolId === 'tools/local/image-generation/generate@1' || toolId === 'tools/local/image-generation/generate') return '生成图片'
+  if (isImageGenerationToolId(toolId)) return '生成图片'
   if (toolId === 'tools/local/cua/js')
     return isRecord(input) && typeof input.title === 'string' && input.title.trim()
       ? truncate(input.title.trim(), 120)
@@ -49,7 +50,7 @@ export function toolActivityTitle(
                 ? '运行 Node.js'
                 : type === 'tools/local/command/typescript/run'
                   ? '运行 TypeScript'
-                  : type === 'tools/local/image-generation/generate'
+                  : isImageGenerationToolId(type)
                     ? '生成图片'
                   : type === 'tools/local/cua/js'
                       ? cuaAction(input)
