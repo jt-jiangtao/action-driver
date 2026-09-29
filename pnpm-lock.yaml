@@ -319,9 +319,6 @@ importers:
       image-size:
         specifier: 2.0.4
         version: 2.0.4
-      ipaddr.js:
-        specifier: 2.5.0
-        version: 2.5.0
       jsdom:
         specifier: 26.1.0
         version: 26.1.0(supports-color@7.2.0)

@@ -1,9 +1,6 @@
 node_modules/
 out/
 dist/
-apps/native-computer-use-helper/.build/
-apps/computer-use-helper/
-apps/agent-runtime/native/
 coverage/
 playwright-report/
 test-results/

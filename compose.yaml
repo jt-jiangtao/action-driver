@@ -1,4 +1,0 @@
-services:
-  quality:
-    build: .
-    command: pnpm check
