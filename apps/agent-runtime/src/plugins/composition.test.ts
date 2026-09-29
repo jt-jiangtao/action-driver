@@ -2,38 +2,38 @@ import { describe, expect, it } from 'vitest'
 import type { ServiceHttpOptions } from '../service/http-service'
 import { createRuntimePluginPlatform } from './composition'
 import { RuntimeToolRegistry } from '../tool-registry'
-import { createServer } from 'node:http'
+import { createWebCredentialPort } from './web-credentials'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { mkdir, mkdtemp, cp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, cp, rm, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 describe('runtime plugin composition', () => {
   it('loads search catalog externally and routes its existing result through an owned plugin registration', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'actiondriver-search-plugin-'))
-    const server = createServer((_req, res) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ results: [{ title: 'Title', url: 'https://example.test/', content: 'Snippet' }] })) })
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address() as { port: number }
     const root = join(directory, 'web')
     await mkdir(join(root, 'dist'), { recursive: true })
     await cp(resolve('plugins/web/plugin.json'), join(root, 'plugin.json'))
     await cp(resolve('plugins/web/package.json'), join(root, 'package.json'))
     await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(root, 'dist'), '--bundle', '--platform=node', '--format=esm'])
+    const extension = join(root, 'dist', 'extension.js')
+    await writeFile(extension, `globalThis.fetch = async (url, init) => { if (url !== 'https://api.tavily.com/search' || new Headers(init.headers).get('authorization') !== 'Bearer fixture-key') throw new Error('Unexpected provider request'); return new Response(JSON.stringify({ results: [{ title: 'Title', url: 'https://example.test/', content: 'Snippet' }] }), { headers: { 'content-type': 'application/json' } }) };\n` + await readFile(extension, 'utf8'))
+    const web = createWebCredentialPort({ TAVILY_API_KEY: 'fixture-key' })
     const registry = new RuntimeToolRegistry(), grants: string[] = []
     let platform: Awaited<ReturnType<typeof createRuntimePluginPlatform>> | undefined
     try {
-      platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [root], registry, configuration: { web: { endpoint: `http://127.0.0.1:${address.port}` } }, dataRoot: join(directory, 'data'), now: () => Date.now(), ids: () => 'instance' })
+      platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [root], registry, configuration: { web: web.configuration }, apiPorts: { credentials: web.credentials }, dataRoot: join(directory, 'data'), now: () => Date.now(), ids: () => 'instance' })
       expect(platform.catalogs()[0]?.catalog.tools[0]?.inputSchema.required).toEqual(['query'])
       expect(grants).toEqual([])
       await platform.enable('web')
       expect(registry.resolve('tools.local.web.search', 1).owner?.pluginId).toBe('web')
       const events = []
-      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } })) events.push(part)
+      for await (const part of registry.resolve('tools.local.web.search', 1).executor.execute({ callId: 'c', providerCallId: 'p', modelName: 'tools_local_web_search', arguments: { query: 'test' } }, new AbortController().signal, { taskId: 'task', sessionId: 'session', workspace: { root: directory, input: directory, output: directory }, grants: ['tools.local.web.search@1'] })) events.push(part)
       expect(events).toEqual([{ kind: 'result', output: { results: [{ title: 'Title', url: 'https://example.test/', snippet: 'Snippet' }], truncated: false, totalResults: 1 } }])
       await platform.disable('web')
       expect(registry.list()).toEqual([])
     } finally {
-      await platform?.dispose(); server.close(); await rm(directory, { recursive: true, force: true })
+      await platform?.dispose(); await rm(directory, { recursive: true, force: true })
     }
   })
 })
@@ -131,8 +131,32 @@ it('ignores retired built-in packages on restart and preserves their private dat
     try {
       expect(platform.catalogs().map(value => value.manifest.id)).toEqual(['web'])
       await platform.enable('web')
-      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual(['tools.local.web.open'])
+      expect(platform.manager.contributions().map(value => value.contribution.id)).toEqual([])
       for (const id of ['search', 'web-reader']) expect(await readFile(join(directory, 'data', id, 'saved.json'), 'utf8')).toBe('{"preserved":true}')
     } finally { await platform.dispose() }
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
+
+it('replaces a cached web 1.2.0 package with the Tavily/Jina release', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-web-upgrade-'))
+  const packageRoot = join(directory, 'package')
+  const dataRoot = join(directory, 'data')
+  const cached = join(dataRoot, 'installed/web/1.2.0')
+  let platform: Awaited<ReturnType<typeof createRuntimePluginPlatform>> | undefined
+  try {
+    await cp(resolve('apps/agent-runtime/dist/plugins/web'), packageRoot, { recursive: true })
+    const manifest = JSON.parse(await readFile(join(packageRoot, 'plugin.json'), 'utf8')) as { version: string }
+    expect(manifest.version).toBe('1.3.0')
+    await mkdir(join(cached, 'dist'), { recursive: true })
+    await writeFile(join(cached, 'dist/extension.js'), "export function activate() { throw new Error('STALE_WEB_PACKAGE') }")
+    await writeFile(join(cached, 'package.json'), '{"type":"module"}')
+    await writeFile(join(dataRoot, 'installed/web/current.json'), JSON.stringify({ ...manifest, version: '1.2.0' }))
+    const registry = new RuntimeToolRegistry()
+    const credentials = createWebCredentialPort({ TAVILY_API_KEY: 'fixture-search-key', JINA_API_KEY: 'fixture-reader-key' })
+    platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [packageRoot], dataRoot, registry, configuration: { web: credentials.configuration }, apiPorts: { credentials: credentials.credentials }, now: Date.now, ids: () => String(Math.random()) })
+    await platform.enable('web')
+    expect(registry.resolve('tools.local.web.search', 1).owner?.version).toBe('1.3.0')
+    expect(registry.resolve('tools.local.web.open', 1).owner?.version).toBe('1.3.0')
+    expect(await readFile(join(cached, 'dist/extension.js'), 'utf8')).toContain('STALE_WEB_PACKAGE')
+  } finally { await platform?.dispose(); await rm(directory, { recursive: true, force: true }) }
+}, 10000)

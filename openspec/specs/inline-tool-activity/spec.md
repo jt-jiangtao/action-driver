@@ -87,7 +87,7 @@ Runtime SHALL 为每个助手块分配单调递增的 `order`，包括正文、�
 
 #### Scenario: 查看成功搜索结果
 - **WHEN** 用户展开已完成的 Web Search 卡片
-- **THEN** 系统显示规范化且截断的查询和结果摘要，不显示原始 SearXNG JSON、认证信息或 transport 元数据
+- **THEN** 系统显示规范化且截断的查询和结果摘要，不显示原始供应商响应、认证信息或 transport 元数据
 
 ### Requirement: 批准在原活动卡内完成
 系统 SHALL 在 `waiting_approval` 工具的运行卡内显示一次性允许与拒绝操作，并在批准、拒绝、陈旧批准、超时或取消后以同一 call id 更新卡片状态。

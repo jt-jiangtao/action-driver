@@ -9,7 +9,7 @@ describe('desktop development runtime', () => {
     ) as { scripts: Record<string, string> }
 
     expect(packageJson.scripts.dev).toBe(
-      'pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop dev'
+      'node scripts/dev.mjs'
     )
   })
 

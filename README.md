@@ -1,5 +1,7 @@
 源码拉取与子仓库改动查看见 [Browser Fork 文档](docs/development/browser-forks.md)。
 
+网络搜索与网页读取使用 Tavily / Jina；本地密钥与迁移说明见 [网络工具配置](docs/web-tools.md)。
+
 ### 自有 Electron 桌面宿主
 
 标准 `pnpm dev`、`pnpm --filter @actiondriver/desktop preview`、本地 Electron E2E 和 macOS 打包使用 `thridparty/build/electron/Electron.app`。来源记录在 `config/electron-fork.json`，共享解析入口在 `scripts/lib/electron-fork.mjs`；启动前核验完整 bundle、版本与架构。缺失或篡改会明确失败，不能回退 npm 下载的 Electron。npm electron 38.8.6 仍提供类型和构建元数据；不要直接运行裸 electron-vite 或 Electron npm CLI 来启动产品。

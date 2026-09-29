@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolCall, ToolDefinition } from '@actiondriver/runtime-contracts'
 import { RuntimeToolPolicy } from '../src/tool-policy'
-import { createSearxngSearchTool } from '../src/searxng/search-tool'
+import { createTavilySearchTool } from '../../../plugins/web/src/search/tavily'
 
 const readTool: ToolDefinition = {
   id: 'tools.local.command.shell.run',
@@ -55,8 +55,8 @@ describe('RuntimeToolPolicy', () => {
     })
   })
 
-  it('allows each granted local SearXNG search without an approval state', () => {
-    const definition = createSearxngSearchTool({ endpoint: 'http://127.0.0.1:8080' }).definition
+  it('allows each granted Tavily search without an approval state', () => {
+    const definition = createTavilySearchTool({ apiKey: 'fixture-key' }).definition
     const policy = new RuntimeToolPolicy()
     const first = policy.decide(definition, call(definition, { query: 'first' }), {
       grants: ['tools.local.web.search@1']

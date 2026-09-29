@@ -6,7 +6,7 @@ export const definition: ToolDefinition = {
     version: 1,
     modelName: 'tools_local_web_open',
     description:
-      'Read the bounded plain-text content of one public HTTP(S) HTML page by URL. Does not execute JavaScript or follow page links.',
+      'Read bounded content of one public HTTP(S) URL through Jina Reader. Jina may render page scripts remotely; no user login session or automatic link traversal.',
     inputSchema: {
       type: 'object',
       properties: { url: { type: 'string', minLength: 1, maxLength: 2_048 } },
@@ -15,7 +15,7 @@ export const definition: ToolDefinition = {
     },
     risk: 'medium',
     sideEffects: { filesystem: 'none', network: true },
-    timeoutMs: 15_000
+    timeoutMs: 30_000
   }
 export const catalog: PluginCatalog = { tools: [definition], skills: [] }
 export default catalog

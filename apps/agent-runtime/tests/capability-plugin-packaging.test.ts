@@ -16,7 +16,7 @@ it('ships each approved instruction capability in its owning package with every 
     for (const resource of skill.resources) expect((await stat(join(root, resource))).isFile()).toBe(true)
   }
 })
-it('publishes one web catalog and keeps reading available without a search endpoint', async () => {
+it('publishes one web catalog and hides cloud tools without credentials', async () => {
   const { createPluginContext } = await import('@actiondriver/plugin-sdk')
   const { catalog } = await import('../../../plugins/web/src/catalog')
   const { activate } = await import('../../../plugins/web/src/extension')
@@ -28,7 +28,7 @@ it('publishes one web catalog and keeps reading available without a search endpo
     transport: { async request() { return null } }
   })
   await activate(context)
-  expect([...live]).toEqual(['tools.local.web.open'])
+  expect([...live]).toEqual([])
   await context.subscriptions.dispose()
   expect(live.size).toBe(0)
 })

@@ -20,7 +20,6 @@ type ToolMode =
   | 'office'
   | 'office-soffice'
   | 'deliverable'
-  | 'web'
   | 'image'
   | 'image-partial'
   | 'image-cancel'
@@ -207,8 +206,6 @@ export class FakeOpenAiToolServer {
               ? 'tools_local_command_python_run'
             : toolMode === 'deliverable'
               ? 'tools_local_command_shell_run'
-              : toolMode === 'web'
-                ? 'tools_local_web_search'
                 : toolMode === 'python' || toolMode === 'python-blocking'
                   ? 'tools_local_command_python_run'
                   : toolMode === 'node'
@@ -227,8 +224,6 @@ export class FakeOpenAiToolServer {
                     ? '{"script":"{ echo \\"RUNTIME_BIN_DIR=$RUNTIME_BIN_DIR\\"; ls \\"$RUNTIME_BIN_DIR\\"; \\"$RUNTIME_BIN_DIR\\"/soffice --version; } > output/soffice-diag.txt 2>&1; cat output/soffice-diag.txt"}'
                     : toolMode === 'deliverable'
                       ? '{"script":"mkdir -p output && printf \'%%PDF-1.7\\n%%EOF\\n\' > output/report.pdf && printf \'%%PDF-1.7\\n%%EOF\\n\' > output/summary.pdf && echo deliverable-written"}'
-                  : toolMode === 'web'
-                    ? '{"query":"ActionDriver","maxResults":1}'
                     : toolMode === 'python'
                       ? '{"script":"import json,sys; print(json.dumps({\\"executable\\":sys.executable}))"}'
                       : toolMode === 'python-blocking'
@@ -307,8 +302,6 @@ export class FakeOpenAiToolServer {
               this.mode === 'image-cancel' ||
               this.mode === 'image-replay'
             ? '图片已生成'
-            : this.mode === 'web'
-              ? '## 搜索完成\n\n已根据搜索结果完成回答。'
               : '## 已读取\n\n已根据工具结果完成回答。'
       response.write(sseChunk({ content: reply.slice(0, 6) }, null))
       response.write(sseChunk({ content: reply.slice(6) }, null))
@@ -346,50 +339,6 @@ export class FakeOpenAiToolServer {
   releaseTool(): void {
     this.releaseToolResponse?.()
     this.releaseToolResponse = null
-  }
-}
-
-export class FakeSearxngServer {
-  private server: Server | null = null
-  readonly requests: string[] = []
-  endpoint = ''
-
-  async start(): Promise<void> {
-    this.server = createServer((request, response) => {
-      this.requests.push(request.url ?? '')
-      if (request.method !== 'GET' || !request.url?.startsWith('/search?')) {
-        response.writeHead(404).end()
-        return
-      }
-      response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(
-        JSON.stringify({
-          results: [
-            {
-              title: 'ActionDriver result',
-              url: 'https://example.test/actiondriver',
-              content: 'A normalized searchable summary',
-              engines: ['fake'],
-              category: 'general'
-            }
-          ],
-          rawSecret: 'searxng-raw-response-must-not-be-recorded'
-        })
-      )
-    })
-    this.server.listen(0, '127.0.0.1')
-    await once(this.server, 'listening')
-    const address = this.server.address()
-    if (!address || typeof address === 'string') throw new Error('Fake SearXNG did not bind')
-    this.endpoint = `http://127.0.0.1:${address.port}`
-  }
-
-  async close(): Promise<void> {
-    if (!this.server) return
-    const server = this.server
-    this.server = null
-    server.close()
-    await once(server, 'close')
   }
 }
 

@@ -355,7 +355,13 @@ describe('SettingsPage model connections', () => {
       modelResults: { 'gpt-5.2-mini': false }
     })
     const testConnectionSpy = vi.spyOn(service, 'testConnection')
-    const testModelsSpy = vi.spyOn(service, 'testModels')
+    const runTestModels = service.testModels.bind(service)
+    let finishModelTests!: () => void
+    const modelTestsHeld = new Promise<void>((resolve) => { finishModelTests = resolve })
+    const testModelsSpy = vi.spyOn(service, 'testModels').mockImplementation(async (draft, modelIds) => {
+      await modelTestsHeld
+      return runTestModels(draft, modelIds)
+    })
     renderWithQuery(<SettingsPage service={service} onBack={() => {}} />)
 
     await screen.findByText('还没有模型集')
@@ -374,7 +380,7 @@ describe('SettingsPage model connections', () => {
     await user.dblClick(within(dialog).getByRole('button', { name: '测试全部模型' }))
     expect(testModelsSpy).toHaveBeenCalledOnce()
     expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
-    expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
+    finishModelTests()
     expect(await within(dialog).findByText('文本 · 失败')).toBeVisible()
     expect(within(dialog).getAllByText('文本 · 成功')).toHaveLength(2)
     expect(dialog).toHaveAttribute('data-view-state', 'models-partial-failure')

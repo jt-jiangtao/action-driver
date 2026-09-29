@@ -1,6 +1,6 @@
 {
   "name": "@actiondriver/web-plugin",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -22,11 +22,11 @@
     },
     "./search": {
       "development": {
-        "types": "./src/search/execution.ts",
-        "default": "./src/search/execution.ts"
+        "types": "./src/search/tavily.ts",
+        "default": "./src/search/tavily.ts"
       },
-      "types": "./dist/search/execution.d.ts",
-      "default": "./dist/search/execution.js"
+      "types": "./dist/search/tavily.d.ts",
+      "default": "./dist/search/tavily.js"
     },
     "./reader": {
       "development": {

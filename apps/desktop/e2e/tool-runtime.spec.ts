@@ -19,7 +19,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FakeOpenAiToolServer, FakeSearxngServer } from './support/fake-openai-tool-server'
+import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const runtimeEntry = fileURLToPath(new URL('../../agent-runtime/dist/index.js', import.meta.url))
@@ -28,7 +28,6 @@ const apiKey = 'sk-e2e-tool-secret'
 
 let application: ElectronApplication | undefined
 let provider: FakeOpenAiToolServer | undefined
-let search: FakeSearxngServer | undefined
 let userDataDirectory: string
 let homeDirectory: string
 
@@ -42,8 +41,6 @@ test.afterEach(async () => {
   application = undefined
   await provider?.close()
   provider = undefined
-  await search?.close()
-  search = undefined
   if (userDataDirectory) rmSync(userDataDirectory, { recursive: true, force: true })
   if (homeDirectory) rmSync(homeDirectory, { recursive: true, force: true })
 })
@@ -59,7 +56,6 @@ async function launch(
     | 'text'
     | 'tool-preparing'
     | 'python-blocking'
-    | 'web'
     | 'deliverable'
     | 'image'
     | 'image-partial'
@@ -71,10 +67,6 @@ async function launch(
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
-  if (mode === 'web') {
-    search = new FakeSearxngServer()
-    await search.start()
-  }
   userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-data-'))
   homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-home-'))
   const workspace = join(userDataDirectory, 'workspace')
@@ -91,7 +83,6 @@ async function launch(
       HOME: homeDirectory,
       ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
       ...(mode === 'shell-timeout' ? { ACTIONDRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {}),
-      ...(search ? { ACTIONDRIVER_SEARXNG_ENDPOINT: search.endpoint } : {})
     }
   })
   const page = await application.firstWindow()
@@ -437,43 +428,6 @@ test('stops pending image requests without late successful images', async () => 
   )
   await expect(page.getByRole('img', { name: '生成的图片' })).toHaveCount(1)
   expect(provider!.imageCompletions).toEqual(['one'])
-})
-
-test('runs local SearXNG without approval, records only normalized results, and restores history', async () => {
-  const page = await launch('web')
-  const taskId = await sendGoal(page, '搜索 ActionDriver')
-  await expect(page.getByRole('region', { name: '任务过程' })).toBeVisible({
-    timeout: 15_000
-  })
-  await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
-  await expect.poll(() => provider!.completions.length).toBeGreaterThan(0)
-  expect(provider!.completions[0]?.tools?.map((tool) => tool.function?.name)).toContain(
-    'tools_local_web_search'
-  )
-  await expect(page.getByRole('heading', { name: '搜索完成' })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByTestId('e2e/tasks/detail/activity/archive#button')).toBeVisible()
-  await expect(page.getByRole('region', { name: '任务过程' })).not.toContainText(
-    'searxng-raw-response-must-not-be-recorded'
-  )
-  expect(search!.requests).toEqual(['/search?q=ActionDriver&format=json'])
-  expect(JSON.stringify(provider!.completions[1]?.messages)).toContain(
-    'normalized searchable summary'
-  )
-  expect(JSON.stringify(provider!.completions[1]?.messages)).not.toContain(
-    'searxng-raw-response-must-not-be-recorded'
-  )
-  const markdown = page.getByTestId('e2e/tasks/detail/markdown#section').last()
-  await expect(markdown).not.toContainText('正在搜索')
-  await page.reload()
-  await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
-    'data-task-id',
-    taskId
-  )
-  await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
-  await expect(page.locator('.activity-group > summary')).toContainText('已完成搜索 ActionDriver')
-  await expect(page.locator('.activity-group > summary')).not.toContainText('正在')
-  await expect(page.locator('.activity-tool')).toHaveCount(1)
-  await expect(page.locator('.activity-tool')).toContainText('ActionDriver')
 })
 
 async function sendGoal(page: Page, goal: string): Promise<string> {

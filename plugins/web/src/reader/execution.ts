@@ -8,6 +8,7 @@ import { parsePublicUrl } from './address.js'
 import type { ExtractedPage } from './extract.js'
 import { definition } from './catalog.js'
 import { readPublicHtml } from './http.js'
+export { createJinaReaderTool } from './jina.js'
 
 type HtmlReader = (url: string, signal?: AbortSignal) => Promise<{ html: string; url: string }>
 
