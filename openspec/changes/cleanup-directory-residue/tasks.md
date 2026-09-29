@@ -39,9 +39,10 @@
 - [x] 7.2 更新 `.gitignore` 的 `/thridparty/*` 与两条 submodule 反排除为 `/thirdparty/*`，并新增 `!/thirdparty/backup/`、`!/thirdparty/backup/**`；用 `git status` 确认 `thirdparty/{README.md,package.json,build,downloads,tools}` 仍被忽略、备份文件仍受跟踪。
 - [x] 7.3 更新仓库内全部现行 `thridparty` 引用（`.gitignore`、`eslint.config.mjs`、`vitest.config.ts`、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`docs/testing/test-placement.md`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`），并确认剩余命中仅为历史记录与 Fork 仓库内部内容。
 - [x] 7.4 `git mv packages/back thirdparty/backup`，更新 `backup-manifest.json` 的 `destination`、`thirdparty/backup/README.md` 与全部现行 `packages/back` 引用（`analysis/codex-cua/**`、`packages/{cua,sky,cua-repl,cua-parity,browser-runtime,browser-desktop}` 的离线对照测试与文档、`eslint.config.mjs`、`docs/codex-cua-platform-gaps.md`），共 55 个现行文件。
-- [x] 7.5 运行离线对照与证据校验：`node analysis/codex-cua/inventory-browser-desktop.mjs` 后 `analysis/codex-cua/desktop-inventory.json` 无 diff；运行 `analysis/codex-cua` 下可离线执行的来源校验脚本确认基准未漂移。
-- [x] 7.6 运行 CUA 系列包定向测试与脚本测试，确认迁移后的 `thirdparty/backup` 路径可用（Node v24.20.0）。
-- [x] 7.7 准备提交时一次性运行 `corepack pnpm typecheck && corepack pnpm lint && corepack pnpm test`，并记录结果与已知无关失败。
+- [x] 7.5 运行离线对照与证据校验：`node analysis/codex-cua/inventory-browser-desktop.mjs` 后 `analysis/codex-cua/desktop-inventory.json` 无 diff；`node analysis/codex-cua/verify-browser-resource-provenance.mjs`、`python3 analysis/codex-cua/verify-macos-module-mapping.py`、`python3 analysis/codex-cua/verify-duplicated-sky.py` 全部通过，基准未漂移。
+- [x] 7.6 运行 CUA 系列包定向测试与脚本测试，确认迁移后的 `thirdparty/backup` 路径可用（Node v24.20.0）：`vitest run packages/{cua-parity,cua,sky,cua-repl,browser-runtime,browser-desktop}/tests` 185 文件 / 1105 用例全通过；`node --test tests/unit/scripts/**/*.test.mjs` 60 用例全通过。
+- [x] 7.7 准备提交时一次性运行 `corepack pnpm typecheck && corepack pnpm lint && corepack pnpm test` 并记录结果：typecheck 除他人未提交的 `packages/plugin-contracts` 外全部通过；`pnpm lint` 对本改动文件通过，仓库级 lint 因他人正在编辑 `packages/plugin-contracts` 的文件竞态失败；`pnpm test`（Node v20.14.0）2482 用例中 12 失败 / 2468 通过，失败均为既有 Node 版本差异，`apps/agent-runtime` computer-use cua-runtime 单项受并发负载超时、单跑 23/23 通过。
+- [x] 7.8 确认迁移后备份与忽略状态：`git ls-files thirdparty/backup` 仍为 1071；`git check-ignore --no-index --quiet thirdparty/build` 返回已忽略、`thirdparty/backup/.../dist/index.js` 返回未忽略；`git submodule status` 在 `thirdparty/{electron,playwright}` 正常解析。
 
 ## 6. 验证与交付
 
