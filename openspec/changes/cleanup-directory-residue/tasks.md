@@ -71,4 +71,4 @@
 - [x] 9.2 修正 `thirdparty/playwright/action_driver/baseline/README.md`（Fork 基线复现文档，11 处路径）并提交到 `jt-jiangtao/playwright`：`7f98443fcd7ffc902aa42e0eeae040e8806bcf28`。
 - [x] 9.3 两个提交都推送到各自 `origin` 的 `codex/fork-baseline` 分支，使递归拉取主仓库即可取得对应提交（此前两个 baseline 分支只存在于本机）。
 - [x] 9.4 更新主仓库 pin：gitlink（`thirdparty/electron`、`thirdparty/playwright`）、`config/browser-forks.lock.json` 的 `sources.*.commit`、`config/electron-fork.json` 的 `sourceCommit`/`sourceTree`、`docs/development/browser-forks.md` 的提交表与 `README.md`、`docs/development/electron-watermark.md` 中的提交记录。
-- [x] 9.5 验证：`loadBuildInputs`（强制 gitlink 与 lock 精确相等）通过；`resolveElectronFork`（基线祖先校验 + 产物哈希）通过；`node --test tests/unit/scripts/**/*.test.mjs` 60/60 通过；全仓（含两个 Fork 工作树）`rg "thridparty"` 无命中。
+- [x] 9.5 验证：`loadBuildInputs`（强制 gitlink 与 lock 精确相等）通过；`resolveElectronFork`（基线祖先校验 + 产物哈希）通过；`node --test tests/unit/scripts/**/*.test.mjs` 60/60 通过；全仓（含两个 Fork 工作树）内容搜索无错拼字符串命中。
