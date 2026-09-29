@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { satisfies, valid, validRange } from 'semver'
 import { parseContextCondition } from './context-condition.js'
 export * from './context-condition.js'
+import { placementDeclarationSchema } from './placement.js'
+export * from './placement.js'
 
 export const PLUGIN_PROTOCOL_VERSION = 1
 export const PLUGIN_SDK_VERSION = '1.0.0'
@@ -30,6 +32,8 @@ export const contributionSchema = z.object({
 export const manifestSchema = z.object({
   id: identity, version, sdk: range, entry, catalog: entry.optional(),
   platforms: z.array(z.string().regex(/^(darwin|linux|win32)-(arm64|x64)$/)).min(1),
+  /** Optional so every existing manifest keeps working: absent means "no placement requirement". */
+  placement: placementDeclarationSchema.optional(),
   requires: z.array(z.string().min(1)).optional(),
   services: z.array(z.lazy(() => serviceDefinitionSchema)).optional(),
   panels: z.array(z.lazy(() => panelDefinitionSchema)).optional(),
