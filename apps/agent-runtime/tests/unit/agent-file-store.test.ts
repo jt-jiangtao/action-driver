@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -139,39 +139,6 @@ describe('Runtime Agent file ownership', () => {
       'computer-use', 'documents', 'imagegen', 'pdf', 'presentations', 'skill-creator',
       'spreadsheets'
     ])
-  })
-
-  it('replaces a superseded default prompt but never a customized one', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-agent-prompt-refresh-'))
-    const store = new AgentFileStore({ homeDirectory })
-    await store.initialize()
-    const path = join(homeDirectory, '.action-driver', 'prompts', 'main.md')
-    writeFileSync(
-      path,
-      `# ActionDriver 主提示词
-
-你是 ActionDriver 的执行助手。你的职责是准确理解用户目标，在当前可用能力范围内完成任务，并返回可验证的结果。
-
-## 工作原则
-
-- 先识别用户目标、约束和成功标准；信息不足且会影响结果时，只提出必要的澄清问题。
-- 能直接执行时立即行动，不重复确认，不输出内部执行进度。
-- 只陈述已知事实、实际执行的操作和真实结果；不得虚构工具调用、外部结果或完成状态。
-- 遇到不确定性时，明确说明假设、限制和风险；无法继续时说明具体阻塞点。
-- 保持任务边界，不擅自扩大范围或执行无关操作。
-- 优先给出结果，使用简洁、清晰的 Markdown；只有在有助于理解时才补充过程或细节。
-`
-    )
-
-    await new AgentFileStore({ homeDirectory }).initialize()
-
-    const refreshed = await store.getMainPrompt()
-    expect(refreshed.content).toContain('把目标做完再交付')
-    expect(refreshed.content).toContain('output/')
-
-    await store.saveFile({ path: refreshed.path, content: '# 我自己的提示词', expectedDigest: refreshed.digest })
-    await new AgentFileStore({ homeDirectory }).initialize()
-    expect((await store.getMainPrompt()).content).toBe('# 我自己的提示词')
   })
 
   it('seeds the main prompt from the packaged prompt resource', async () => {

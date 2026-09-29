@@ -185,7 +185,7 @@ describe('runtime SQLite database', () => {
     ).toThrow()
     upgraded.close()
     expect(
-      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v16-'))
+      readdirSync(dirname(path)).some((name) => name.startsWith('actiondriver.db.pre-v15-'))
     ).toBe(true)
   })
   it('creates the business schema with production pragmas before becoming ready', () => {
@@ -236,8 +236,7 @@ describe('runtime SQLite database', () => {
       { version: 12 },
       { version: 13 },
       { version: 14 },
-      { version: 15 },
-      { version: 16 }
+      { version: 15 }
     ])
 
     expect(
@@ -297,8 +296,7 @@ describe('runtime SQLite database', () => {
       { version: 12, count: 1 },
       { version: 13, count: 1 },
       { version: 14, count: 1 },
-      { version: 15, count: 1 },
-      { version: 16, count: 1 }
+      { version: 15, count: 1 }
     ])
 
     database.close()
@@ -307,7 +305,7 @@ describe('runtime SQLite database', () => {
   it('rolls back a failed migration and preserves the last applied version', () => {
     const path = databasePath()
     const failingMigration: RuntimeMigration = {
-      version: 17,
+      version: 16,
       name: 'fail-after-writing',
       up(database) {
         database.exec('CREATE TABLE should_rollback (id TEXT PRIMARY KEY)')
@@ -317,7 +315,7 @@ describe('runtime SQLite database', () => {
 
     expect(() =>
       openRuntimeDatabase(path, [...DEFAULT_RUNTIME_MIGRATIONS, failingMigration])
-    ).toThrow('Migration 17 (fail-after-writing) failed: injected migration failure')
+    ).toThrow('Migration 16 (fail-after-writing) failed: injected migration failure')
 
     const database = new Database(path)
     expect(database.prepare('SELECT version FROM schema_migrations').all()).toEqual([
@@ -335,83 +333,13 @@ describe('runtime SQLite database', () => {
       { version: 12 },
       { version: 13 },
       { version: 14 },
-      { version: 15 },
-      { version: 16 }
+      { version: 15 }
     ])
     expect(
       database
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'should_rollback'")
         .get()
     ).toBeUndefined()
-    database.close()
-  })
-
-  it('repairs a drifted session_input_files table so binding before the task row succeeds', () => {
-    const path = databasePath()
-    const upTo14 = DEFAULT_RUNTIME_MIGRATIONS.slice(0, 14).map((migration) =>
-      migration.version !== 13
-        ? migration
-        : {
-            ...migration,
-            // An earlier local build created the table with foreign keys to tasks.
-            up(database: Database.Database) {
-              database.exec(`
-                CREATE TABLE session_input_files (
-                  file_id TEXT PRIMARY KEY,
-                  status TEXT NOT NULL CHECK (status IN ('staged', 'bound')),
-                  session_id TEXT,
-                  task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,
-                  name TEXT NOT NULL,
-                  mime_type TEXT NOT NULL,
-                  byte_length INTEGER NOT NULL,
-                  relative_path TEXT,
-                  checksum TEXT NOT NULL,
-                  created_at TEXT NOT NULL,
-                  bound_at TEXT
-                );
-              `)
-            }
-          }
-    )
-    const drifted = openRuntimeDatabase(path, upTo14)
-    drifted
-      .prepare(
-        `INSERT INTO session_input_files
-          (file_id, status, name, mime_type, byte_length, checksum, created_at)
-         VALUES ('kept', 'staged', 'image.png', 'image/png', 3, 'abc', '2026-09-26')`
-      )
-      .run()
-    expect(() =>
-      drifted
-        .prepare(
-          "UPDATE session_input_files SET status = 'bound', task_id = 'task-not-yet-saved' WHERE file_id = 'kept'"
-        )
-        .run()
-    ).toThrow(/FOREIGN KEY/)
-    drifted.close()
-
-    const database = openRuntimeDatabase(path)
-    expect(database.prepare('PRAGMA foreign_key_list(session_input_files)').all()).toEqual([])
-    expect(
-      database
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'session_input_files' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name"
-        )
-        .all()
-    ).toEqual([
-      { name: 'session_input_files_session_created_idx' },
-      { name: 'session_input_files_task_idx' }
-    ])
-    database
-      .prepare(
-        "UPDATE session_input_files SET status = 'bound', session_id = 's', task_id = 'task-not-yet-saved' WHERE file_id = 'kept'"
-      )
-      .run()
-    expect(
-      database
-        .prepare("SELECT status, task_id FROM session_input_files WHERE file_id = 'kept'")
-        .get()
-    ).toEqual({ status: 'bound', task_id: 'task-not-yet-saved' })
     database.close()
   })
 

@@ -38,13 +38,6 @@ const BUILT_IN_SKILLS = new Set([
 ])
 const RETIRED_BUILT_INS = ['browser-tools', 'computer-tools', 'report-writer'] as const
 
-
-/**
- * Shipped defaults we have superseded. A prompt file that still matches one of
- * them was never customized, so it is refreshed in place instead of blocking
- * the improved default; anything else is treated as a user edit and kept.
- */
-
 export class AgentFileStoreError extends Error {
   constructor(
     readonly code: AgentFileErrorCode,
@@ -92,7 +85,6 @@ export class AgentFileStore {
     this.managedRootRealPath = await realpath(this.managedRoot)
     this.defaultPrompt = await this.readPromptResource('main.md')
     await this.writeDefaultIfMissing(join(this.managedRoot, 'prompts', 'main.md'), this.defaultPrompt)
-    await this.refreshLegacyDefaultPrompt()
     for (const id of RETIRED_BUILT_INS) {
       await rm(join(this.systemRoot, id), { recursive: true, force: true })
     }
@@ -116,30 +108,6 @@ export class AgentFileStore {
 
   private async readPromptResource(name: string): Promise<string> {
     return readFile(join(this.promptSourceRoot, name), 'utf8')
-  }
-
-  private async isSupersededDefault(trimmed: string): Promise<boolean> {
-    const legacyRoot = join(this.promptSourceRoot, 'legacy')
-    const entries = await readdir(legacyRoot, { withFileTypes: true }).catch(() => [])
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.md')) continue
-      const content = await readFile(join(legacyRoot, entry.name), 'utf8').catch(() => '')
-      if (content.trim() === trimmed) return true
-    }
-    return false
-  }
-
-  private async refreshLegacyDefaultPrompt(): Promise<void> {
-    const path = join(this.managedRoot, 'prompts', 'main.md')
-    let current: string
-    try {
-      current = await readFile(path, 'utf8')
-    } catch {
-      return
-    }
-    const trimmed = current.trim()
-    if (!(await this.isSupersededDefault(trimmed))) return
-    await writeFile(path, this.defaultPrompt, 'utf8')
   }
 
   async getMainPrompt(): Promise<AgentTextFileDto> {

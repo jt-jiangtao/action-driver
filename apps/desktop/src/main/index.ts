@@ -5,10 +5,10 @@ import { createPluginPanelProvider } from './plugins/panel-provider'
 import { createPluginContributionClient } from './plugins/contribution-client'
 import { PLUGIN_COMMAND_EXECUTE_CHANNEL, PLUGIN_CONTRIBUTIONS_LIST_CHANNEL, PLUGIN_VIEW_OPEN_CHANNEL } from '../shared/plugin-contributions-contract'
 import { createElectronPluginPanelHost } from './plugins/electron-panel-host'
-import { app, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { createLocalBrowserHost } from './browser-session/local-browser-host.js'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -17,12 +17,6 @@ import { createMainServices } from './container'
 import { applyApplicationName, resolveDesktopIconPath } from './app-identity'
 import { createLocalRuntimeServices } from './local-runtime'
 import { createMainLogging, type MainLogging } from './logging'
-import {
-  createModelConnectionStore,
-  createNodeFileSystem
-} from './model-connections/connection-store'
-import { ModelConnectionHttpClient } from './model-connections/http-client'
-import { createSecretCipher } from './model-connections/secret-cipher'
 import { installNavigationGuards, resolveTrustedRendererOrigin } from './navigation-security'
 import { resolveRuntimePaths } from './runtime-paths'
 import { createProductionSkillProviderHost } from './skill-provider-host'
@@ -282,26 +276,10 @@ app.whenReady().then(async () => {
     registerRuntimeConnectionIpc(ipcMain, serviceDescriptor, serviceToken)
     const serviceUrl = runtime.runtimeSupervisor.serviceUrl
     if (!serviceUrl) throw new Error('Local service did not report an HTTP surface')
-    const modelConnectionClient = new ModelConnectionHttpClient({
-      baseUrl: serviceUrl,
-      token: serviceToken
-    })
     registerTaskOutputIpc(ipcMain, {
       connection: async () => ({ serviceUrl: serviceUrl!, token: serviceToken }),
       openPath: (path) => shell.openPath(path)
     })
-    try {
-      await migrateLegacyModelConnections(
-        modelConnectionClient,
-        app.getPath('userData'),
-        safeStorage
-      )
-    } catch (error) {
-      console.warn(
-        '[model-connections] legacy migration failed; keeping the old file:',
-        error instanceof Error ? error.message : String(error)
-      )
-    }
   }
 
   createWindow(services)
@@ -316,42 +294,6 @@ app.whenReady().then(async () => {
   dialog.showErrorBox('ActionDriver 启动失败', message)
   app.quit()
 })
-
-async function migrateLegacyModelConnections(
-  client: ModelConnectionHttpClient,
-  userDataPath: string,
-  safeStorageLike: Parameters<typeof createSecretCipher>[0]
-): Promise<void> {
-  const filePath = join(userDataPath, 'data', 'model-connections.json')
-  const legacy = createModelConnectionStore({
-    filePath,
-    fs: createNodeFileSystem()
-  }).read()
-  if (legacy.length === 0) return
-
-  const cipher = createSecretCipher(safeStorageLike)
-  let migrated = 0
-  for (const connection of legacy) {
-    try {
-      await client.add({
-        draft: {
-          name: connection.name,
-          protocol: connection.protocol,
-          baseUrl: connection.baseUrl,
-          apiKey: cipher.decrypt(connection.apiKeyCipher)
-        },
-        models: connection.models
-      })
-      migrated += 1
-    } catch (error) {
-      console.warn(
-        `[model-connections] could not migrate "${connection.name}"; keeping the legacy file:`,
-        error instanceof Error ? error.message : String(error)
-      )
-    }
-  }
-  if (migrated === legacy.length) unlinkSync(filePath)
-}
 
 app.on('window-all-closed', () => app.quit())
 app.on('before-quit', (event) => {
