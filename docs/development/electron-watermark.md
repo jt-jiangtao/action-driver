@@ -77,4 +77,4 @@ pnpm test:e2e:packaged:macos
 
 ## 当前本地交付
 
-Electron 源码提交：`593df43ccabaf6ae642534c249cce0423ccb21c2`。已完成自有宏开启构建、宏关闭窗口翻译单元编译、三种策略测试，以及实际 ActionDriver 窗口截图；未构建完整宏关闭或官方配置二进制。源码提交尚未推送远端，新机器不能仅靠主仓库指针获取这个本地提交。发布 Fork 提交后才可承诺递归拉取可用。
+Electron 源码提交：`8b6c1f84f6c20f79b7176ccf868cf9e7615e9384`（在 `593df43c` 基线之上只增加了一处验证脚本路径修正）。已完成自有宏开启构建、宏关闭窗口翻译单元编译、三种策略测试，以及实际 ActionDriver 窗口截图；未构建完整宏关闭或官方配置二进制。该 Fork 分支已推送到 `jt-jiangtao/electron@codex/fork-baseline`，递归拉取主仓库即可取得对应提交。

@@ -61,6 +61,14 @@
 - [x] 8.1 把 `docs/superpowers/**`、其它未归档与已归档 OpenSpec 记录中剩余的错误拼写统一替换为 `thirdparty`，`packages/back` 统一替换为 `thirdparty/backup`（共 30 个文件）；仅替换路径标识，不改写叙事与历史结论。
 - [x] 8.2 修正把包版本写成路径的错误：`packages/browser-desktop/docs/source-mapping.md` 与 `analysis/codex-cua/desktop-source-map.md` 的 `@oai/browser-desktop@0.1.1` 改为实际目录 `@oai/browser-desktop/`。
 - [x] 8.3 补齐 `.prettierignore` 的 `thirdparty/` 忽略（与 ESLint、Vitest 的 `thirdparty/**` 保持一致），并把 `packages/cua-parity/tests/unit/package-artifact.test.ts` 的产物路径守卫补上 `backup`。
-- [x] 8.4 复核剩余命中：除两个 Fork 仓库工作树内部内容外，仓库内已无错拼串（`thirdparty/backup/README.md` 仅保留迁移前的旧路径名，不属于拼写错误）。
+- [x] 8.4 复核剩余命中：本仓库内已无错拼串（`thirdparty/backup/README.md` 仅保留迁移前的旧路径名，不属于拼写错误）；当时仍剩两个 Fork 工作树内的 14 处，由 9.x 处理。
 - [x] 8.5 运行 `openspec validate` 与相关定向测试，确认文档与守卫改动未破坏变更合法性或测试。
-- [x] 8.6 按用户追加要求，把本变更记录中剩余的 28 处错拼串全部改写为「旧目录名」指代（design/proposal/tasks），使主仓库内不再能搜到该拼写错误；仅两个 Fork 仓库工作树内部的 14 处仍待外部仓库修正。
+- [x] 8.6 按用户追加要求，把本变更记录中剩余的 28 处错拼串全部改写为「旧目录名」指代（design/proposal/tasks），使主仓库内不再能搜到该拼写错误。
+
+## 9. 追加清理：修正 Fork 仓库中在用的脚本与文档（用户 2026-09-30 追加要求）
+
+- [x] 9.1 修正 `thirdparty/electron/action_driver/watermark/verify-electron.mjs`（水印验证入口，3 处路径）并提交到 `jt-jiangtao/electron`：`8b6c1f84f6c20f79b7176ccf868cf9e7615e9384`。
+- [x] 9.2 修正 `thirdparty/playwright/action_driver/baseline/README.md`（Fork 基线复现文档，11 处路径）并提交到 `jt-jiangtao/playwright`：`7f98443fcd7ffc902aa42e0eeae040e8806bcf28`。
+- [x] 9.3 两个提交都推送到各自 `origin` 的 `codex/fork-baseline` 分支，使递归拉取主仓库即可取得对应提交（此前两个 baseline 分支只存在于本机）。
+- [x] 9.4 更新主仓库 pin：gitlink（`thirdparty/electron`、`thirdparty/playwright`）、`config/browser-forks.lock.json` 的 `sources.*.commit`、`config/electron-fork.json` 的 `sourceCommit`/`sourceTree`、`docs/development/browser-forks.md` 的提交表与 `README.md`、`docs/development/electron-watermark.md` 中的提交记录。
+- [x] 9.5 验证：`loadBuildInputs`（强制 gitlink 与 lock 精确相等）通过；`resolveElectronFork`（基线祖先校验 + 产物哈希）通过；`node --test tests/unit/scripts/**/*.test.mjs` 60/60 通过；全仓（含两个 Fork 工作树）`rg "thridparty"` 无命中。

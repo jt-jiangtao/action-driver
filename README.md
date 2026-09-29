@@ -8,7 +8,7 @@
 
 当前已验证 Electron 38.8.6 / Chromium 140.0.7339.249，macOS arm64。其他平台必须先构建并审核相应产物记录。二进制不提交到 Git；不同机器重建可能产生不同哈希，必须审核并更新记录，不能绕过校验。
 
-源码位置为 `thirdparty/electron`（来源 jt-jiangtao/electron，提交 593df43ccabaf6ae642534c249cce0423ccb21c2），Chromium DEPS 基线 51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2，Electron 上游补丁后提交 31c3b2fb7d154bd181fdf73ec6e9a6c36e38312f。工具集中在 `thirdparty/tools`，下载在 `thirdparty/downloads`，日志在 `thirdparty/logs`，导出产物在 `thirdparty/build`；Chromium 原位生成文件保留上游布局。
+源码位置为 `thirdparty/electron`（来源 jt-jiangtao/electron，提交 8b6c1f84f6c20f79b7176ccf868cf9e7615e9384），Chromium DEPS 基线 51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2，Electron 上游补丁后提交 31c3b2fb7d154bd181fdf73ec6e9a6c36e38312f。工具集中在 `thirdparty/tools`，下载在 `thirdparty/downloads`，日志在 `thirdparty/logs`，导出产物在 `thirdparty/build`；Chromium 原位生成文件保留上游布局。
 
 构建要求：项目内 Node 22.23.3、锁定 depot_tools、macOS SDK 26.5、Metal Toolchain。`src/out/ActionDriver/args.gn` 使用 Electron testing.gn、target_cpu="arm64"、mac_sdk_path="/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"、enable_precompiled_headers=false。关闭 PCH 解决锁定 Clang GC 插件的文件级 pragma 兼容问题，GC 检查仍开启。
 

@@ -4,8 +4,8 @@
 
 | 路径 | 来源 | 当前提交 |
 | --- | --- | --- |
-| `thirdparty/playwright` | jt-jiangtao/playwright | `10591bdc1e05692ba829287bf300f81abb2d9001` |
-| `thirdparty/electron` | jt-jiangtao/electron | `593df43ccabaf6ae642534c249cce0423ccb21c2` |
+| `thirdparty/playwright` | jt-jiangtao/playwright | `7f98443fcd7ffc902aa42e0eeae040e8806bcf28` |
+| `thirdparty/electron` | jt-jiangtao/electron | `8b6c1f84f6c20f79b7176ccf868cf9e7615e9384` |
 
 新机器拉取（将占位地址替换为主仓库地址）：
 
