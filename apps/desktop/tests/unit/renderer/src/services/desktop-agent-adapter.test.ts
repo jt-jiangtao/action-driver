@@ -225,6 +225,77 @@ describe('DesktopAgentAdapter', () => {
     )
   })
 
+  it('buffers live events inside the projection created before the task exists', async () => {
+    const { adapter, api, streamClient, emitStream } = harness()
+    let acceptCreate: (
+      accepted: Awaited<ReturnType<typeof streamClient.create>>
+    ) => void = () => undefined
+    streamClient.create = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<typeof streamClient.create>>>((resolve) => {
+          acceptCreate = resolve
+        })
+    )
+    const submitted = adapter.submitGoal({
+      goal: 'Book a hotel',
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
+    await vi.waitFor(() => expect(streamClient.create).toHaveBeenCalledOnce())
+
+    // The runtime streams before `create` resolves: the adapter must already own
+    // the events, without a second buffer of its own.
+    emitStream({
+      type: 'response.start',
+      protocol: 'actiondriver.stream.v2',
+      eventId: 'start-1',
+      cursor: 2,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:00.000Z',
+      sequence: 0,
+      model: { connectionId: 'connection-1', modelId: 'gpt-real' }
+    })
+    emitStream({
+      type: 'response.content',
+      protocol: 'actiondriver.stream.v2',
+      eventId: 'content-1',
+      cursor: 3,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:01.000Z',
+      sequence: 1,
+      delta: '**early**',
+      contentIndex: 0
+    })
+
+    acceptCreate({
+      type: 'request.accepted',
+      protocol: 'actiondriver.stream.v2',
+      eventId: 'accepted-1',
+      cursor: 1,
+      sequence: -1,
+      requestId: 'request-1',
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      responseId: 'response-1',
+      streamId: 'stream-1',
+      messageId: 'assistant-1',
+      occurredAt: '2026-09-23T00:00:00.000Z'
+    })
+    await submitted
+
+    expect(api.get).toHaveBeenCalledWith('task-1')
+    expect(adapter.getTask('task-1')?.messages.at(-1)?.content).toBe('**early**')
+  })
+
   it('continues the same session with a new task and preserves the full transcript', async () => {
     const { adapter, api, streamClient, emitStream, setTask } = harness()
     await adapter.submitGoal({

@@ -1,5 +1,9 @@
 import { useMemo, type ReactNode } from 'react'
-import type { MessageContentPart, ToolInvocationProjection } from '@actiondriver/contracts'
+import {
+  hasImageGenerationGallery,
+  type MessageContentPart,
+  type ToolInvocationProjection
+} from '@actiondriver/contracts'
 import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
 import { WanderingDots } from './WanderingDots'
 
@@ -14,12 +18,7 @@ export function ImageGallery({
   tools?: ToolInvocationProjection[]
   readImage?: ImageReader | undefined
 }) {
-  const calls = tools.filter(
-    (tool) =>
-      tool.toolId === 'tools/local/image-generation/generate' &&
-      tool.imageCount &&
-      !['proposed', 'waiting_approval', 'queued'].includes(tool.status)
-  )
+  const calls = tools.filter(hasImageGenerationGallery)
   const grouped = new Set<ImagePart>()
   const groups = calls.map((tool) => {
     const slots = Array.from({ length: tool.imageCount! }, (_, index) => {

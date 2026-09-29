@@ -1324,6 +1324,14 @@ button.task-output-file-thumb {
 .markdown-content > :last-child {
   margin-bottom: 0;
 }
+/* Streamed markdown renders as one wrapper per top-level block, so the
+   first/last-child margin reset has to reach through the wrapper. */
+.markdown-content > .markdown-block:first-child > :first-child {
+  margin-top: 0;
+}
+.markdown-content > .markdown-block:last-child > :last-child {
+  margin-bottom: 0;
+}
 .markdown-content p,
 .markdown-content ul,
 .markdown-content ol,

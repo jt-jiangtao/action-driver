@@ -6,7 +6,8 @@ import type {
   TaskProjection
 } from '@actiondriver/contracts'
 import { Fragment, memo, useEffect, useMemo, useState } from 'react'
-import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
+import type { ComposerAttachments } from '../components/AgentComposer'
+import { TaskComposer } from '../components/TaskComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
 import { ConversationMessages, TaskHeader } from '../components/Conversation'
@@ -16,11 +17,9 @@ import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@actiondriver/contracts'
 import type { ImageReader } from '../components/agent/ConversationImage'
 import { TaskOutputFiles, type OutputFileReader } from '../components/agent/TaskOutputFiles'
-import {
-  activityOwnedText,
-  dedupeAssistantText,
-  isOrderedTranscript
-} from '../components/agent/activity-mirror'
+import { activityOwnedText, dedupeAssistantText } from '../components/agent/activity-mirror'
+import { selectActivityItems, type ActivityViewItem } from '../models/transcript'
+import { useTaskView } from '../models/task-view'
 
 export function TaskPage({
   mode,
@@ -84,66 +83,9 @@ export function TaskPage({
     )
   const inheritedModelUnavailable = !inheritedModel || inheritedModel.disabled
   const latestMessage = task.messages.at(-1)
-  let currentUserIndex = -1
-  for (let index = task.messages.length - 1; index >= 0; index -= 1) {
-    if (task.messages[index]?.role === 'user') {
-      currentUserIndex = index
-      break
-    }
-  }
-  const precedingMessages = task.messages.slice(0, Math.max(0, currentUserIndex))
-  const precedingTurns: Array<{ user: AgentMessageProjection; replies: AgentMessageProjection[] }> =
-    []
-  for (const message of precedingMessages) {
-    if (message.role === 'user') precedingTurns.push({ user: message, replies: [] })
-    else precedingTurns.at(-1)?.replies.push(message)
-  }
-  const priorActivityByUserId = useMemo(
-    () => new Map((task.priorActivityTurns ?? []).map((turn) => [turn.userMessageId, turn])),
-    [task.priorActivityTurns]
-  )
-  const processMessages = currentUserIndex < 0 ? [] : [task.messages[currentUserIndex]!]
-  const assistantMessages =
-    task.status === 'succeeded' || task.status === 'running' || task.status === 'paused' || task.status === 'failed'
-      ? task.messages.slice(currentUserIndex + 1).filter((message) => message.role === 'agent')
-      : []
-  // Ordered turns keep every block in the transcript; the activity area only
-  // takes over the narration the model wrote before its first tool group.
-  // Transcripts stored before the order contract keep the mirrored layout, so
-  // their message stays out of the activity area's way while running.
-  const orderedTurn = isOrderedTranscript(task)
-  const hasImageGallery = (task.tools ?? []).some(
-    (tool) => tool.toolId === 'tools/local/image-generation/generate' && tool.imageCount
-  )
-  const legacyHidden =
-    !orderedTurn &&
-    task.status === 'running' &&
-    !hasImageGallery &&
-    !assistantMessages.some((message) => message.parts?.some((part) => part.kind === 'image')) &&
-    (task.activityTimeline?.some((item) => item.kind === 'text') ?? false)
-  const activityText = legacyHidden ? '' : activityOwnedText(task)
-  // The assistant message is the only place streamed prose renders, in the
-  // order it streamed (text, image batch, image, text). Nothing reorders on
-  // completion; only the earlier process narration folds into the archive.
-  const renderedAssistantMessages =
-    task.status === 'failed'
-      ? assistantMessages.filter((message) => message.parts?.some((part) => part.kind !== 'text')).map((message) => ({
-          ...message,
-          content: '',
-          parts: message.parts?.filter((part) => part.kind !== 'text') ?? []
-        }))
-      : legacyHidden
-        ? []
-        : assistantMessages.map((message) => dedupeAssistantText(message, activityText))
-  // An empty turn renders nothing: the activity area already reports progress,
-  // and an empty message would only add spacing or a second status line. Image
-  // tools keep theirs, because the gallery placeholders live there.
-  const visibleAssistantMessages = renderedAssistantMessages.filter(
-    (message, index) =>
-      message.content.length > 0 ||
-      (message.parts?.length ?? 0) > 0 ||
-      (hasImageGallery && index === renderedAssistantMessages.length - 1)
-  )
+  // Every "who renders what" decision lives in the selector; the page only maps
+  // the resulting entries to components.
+  const entries = useTaskView(task)
   const followKey = `${task.id}:${task.status}:${latestMessage?.id ?? ''}:${latestMessage?.content.length ?? 0}:${latestMessage?.parts?.length ?? 0}`
   return (
     <main
@@ -176,43 +118,73 @@ export function TaskPage({
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
-              {precedingTurns.map((turn) => (
-                <PriorTurn
-                  key={turn.user.id}
-                  user={turn.user}
-                  replies={turn.replies}
-                  activity={priorActivityByUserId.get(turn.user.id)}
-                  readImage={readImage}
-                  readOutputFile={readOutputFile}
-                />
-              ))}
-              <ConversationMessages
-                messages={processMessages}
-                readImage={readImage}
-              />
-              <ActivityTimeline task={task} readImage={readImage} />
-              {(task.pendingAppApproval ?? []).map((request) => (
-                <AppApprovalCard key={request.requestId} request={request} onDecision={onAppDecision} />
-              ))}
-              {visibleAssistantMessages.length > 0 ? (
-                <ConversationMessages
-                  messages={visibleAssistantMessages}
-                  tools={task.tools ?? []}
-                  readImage={readImage}
-                />
-              ) : null}
-              <TaskOutputFiles files={task.outputFiles ?? []} readOutputFile={readOutputFile} />
-              {task.status === 'failed' ? (
-                <div className="agent-failure" role="alert">
-                  <strong>任务执行失败</strong>
-                  <span>
-                    {task.steps.find((step) => step.state === 'failed')?.detail ?? '模型响应失败'}
-                  </span>
-                </div>
-              ) : null}
+              {entries.map((entry) => {
+                switch (entry.kind) {
+                  case 'turn':
+                    return (
+                      <PriorTurn
+                        key={entry.key}
+                        user={entry.turn.user}
+                        replies={entry.turn.replies}
+                        activity={entry.turn.activity}
+                        readImage={readImage}
+                        readOutputFile={readOutputFile}
+                      />
+                    )
+                  case 'user':
+                    return (
+                      <ConversationMessages
+                        key={entry.key}
+                        messages={[entry.message]}
+                        readImage={readImage}
+                      />
+                    )
+                  case 'activity':
+                    return (
+                      <ActivityTimeline
+                        key={entry.key}
+                        task={task}
+                        items={entry.items}
+                        readImage={readImage}
+                      />
+                    )
+                  case 'approval':
+                    return (
+                      <AppApprovalCard
+                        key={entry.key}
+                        request={entry.request}
+                        onDecision={onAppDecision}
+                      />
+                    )
+                  case 'assistant':
+                    return (
+                      <ConversationMessages
+                        key={entry.key}
+                        messages={[entry.message]}
+                        tools={entry.tools}
+                        readImage={readImage}
+                      />
+                    )
+                  case 'output-files':
+                    return (
+                      <TaskOutputFiles
+                        key={entry.key}
+                        files={entry.files}
+                        readOutputFile={readOutputFile}
+                      />
+                    )
+                  case 'failure':
+                    return (
+                      <div key={entry.key} className="agent-failure" role="alert">
+                        <strong>任务执行失败</strong>
+                        <span>{entry.detail}</span>
+                      </div>
+                    )
+                }
+              })}
             </div>
           </ConversationViewport>
-          <AgentComposer
+          <TaskComposer
             key={task.id}
             running={task.status === 'running'}
             disabled={task.status !== 'running' && inheritedModelUnavailable}
@@ -220,9 +192,7 @@ export function TaskPage({
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
             onOpenModelSettings={onOpenModelSettings}
-            onSubmit={(goal, attachments) =>
-              attachments ? onSubmit(goal, attachments) : onSubmit(goal)
-            }
+            onSubmit={onSubmit}
             onInterrupt={onInterrupt}
             width={flowWidth}
           />
@@ -293,10 +263,16 @@ const PriorTurn = memo(function PriorTurn({
     const activityText = activityTask ? activityOwnedText(activityTask) : ''
     return replies.map((message) => dedupeAssistantText(message, activityText))
   }, [activityTask, replies])
+  const activityItems = useMemo(
+    () => (activityTask ? selectActivityItems(activityTask) : NO_ACTIVITY_ITEMS),
+    [activityTask]
+  )
   return (
     <Fragment>
       <ConversationMessages messages={userMessages} readImage={readImage} />
-      {activityTask ? <ActivityTimeline task={activityTask} readImage={readImage} /> : null}
+      {activityTask ? (
+        <ActivityTimeline task={activityTask} items={activityItems} readImage={readImage} />
+      ) : null}
       <ConversationMessages
         messages={visibleReplies}
         tools={activity?.tools ?? NO_TOOLS}
@@ -309,6 +285,7 @@ const PriorTurn = memo(function PriorTurn({
 
 const NO_TOOLS: NonNullable<TaskProjection['tools']> = []
 const NO_FILES: NonNullable<TaskProjection['outputFiles']> = []
+const NO_ACTIVITY_ITEMS: ActivityViewItem[] = []
 
 /** Replies are regrouped on every render, so they compare by their messages, not the array. */
 function samePriorTurn(previous: PriorTurnProps, next: PriorTurnProps): boolean {

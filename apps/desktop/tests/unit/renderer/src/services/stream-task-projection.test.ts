@@ -220,6 +220,59 @@ describe('StreamTaskProjection', () => {
     })
     expect(projection.snapshot()?.pendingAppApproval).toEqual([])
   })
+  it('replaces the approval list instead of editing an emitted snapshot', () => {
+    const emitted: TaskProjection[] = []
+    const pending: Array<() => void> = []
+    const projection = new StreamTaskProjection({
+      onChange: (snapshot) => emitted.push(deepFreeze(snapshot)),
+      schedule: (callback) => pending.push(callback),
+      cancelScheduled: () => pending.splice(0)
+    })
+    projection.attach(task())
+    const approval = {
+      requestId: 'approval-1',
+      taskId: 'task-1',
+      sessionId: 'session-1',
+      target: {
+        bundleId: 'com.apple.Notes',
+        displayName: 'Notes',
+        appPath: '/System/Applications/Notes.app',
+        risk: 'low' as const
+      },
+      allowPersistentApproval: true
+    }
+
+    projection.apply({
+      type: 'computer.app-approval.requested',
+      ...identity,
+      eventId: 'approval-request',
+      sequence: 0,
+      cursor: 1,
+      approval
+    })
+    pending.splice(0).forEach((callback) => callback())
+    const withRequest = emitted.at(-1)!
+
+    projection.apply({
+      type: 'computer.app-approval.resolved',
+      ...identity,
+      eventId: 'approval-resolved',
+      sequence: 1,
+      cursor: 2,
+      approval,
+      decision: 'cancelled'
+    })
+    pending.splice(0).forEach((callback) => callback())
+    const withResolution = emitted.at(-1)!
+
+    // The emitted snapshot is deep frozen: an in-place write would throw here.
+    expect(withRequest.pendingAppApproval).toEqual([approval])
+    expect(withRequest).not.toBe(withResolution)
+    expect(withRequest.pendingAppApproval).not.toBe(withResolution.pendingAppApproval)
+    expect(withRequest.pendingAppApproval).toEqual([approval])
+    expect(withResolution.pendingAppApproval).toEqual([])
+  })
+
   it('inserts a batch after text restored from a text-only snapshot', () => {
     const restored = task()
     restored.messages[1] = { id: 'assistant-1', role: 'agent', content: '已开始' }
@@ -1249,15 +1302,16 @@ describe('StreamTaskProjection', () => {
     expect(projection.snapshot()?.messages.at(-1)?.content).toBe('```ts\nconst ok = true\n```')
   })
 
-  it('ignores duplicate, old, gapped, and non-matching content events', () => {
+  // Duplicates, replays and gaps are the transport's job: RendererStreamClient
+  // delivers every request event exactly once and in sequence (see
+  // renderer-stream-client.test.ts). The reducer only filters foreign events.
+  it('applies the events of its own task and message only', () => {
     const projection = new StreamTaskProjection({ onChange: vi.fn() })
     projection.attach(task())
     projection.apply(start())
     projection.apply(content(1, 'A'))
-    projection.apply(content(1, 'duplicate', 'content-1'))
-    projection.apply(content(0, 'old', 'old'))
-    projection.apply(content(3, 'gap', 'gap'))
     projection.apply({ ...content(2, 'wrong'), messageId: 'other-message' })
+    projection.apply({ ...content(2, 'other-task'), taskId: 'task-2' })
     projection.flush()
 
     expect(projection.snapshot()?.messages.at(-1)?.content).toBe('A')

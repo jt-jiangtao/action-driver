@@ -1,7 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TaskProjection } from '@actiondriver/contracts'
 import { ActivityTimeline } from '../../../../../src/renderer/src/components/ActivityTimeline'
+import { selectActivityItems } from '../../../../../src/renderer/src/models/transcript'
+
+/** The activity area renders the items the transcript selector already decided. */
+function Timeline(props: Omit<ComponentProps<typeof ActivityTimeline>, 'items'>) {
+  return <ActivityTimeline {...props} items={selectActivityItems(props.task)} />
+}
 
 const task = (status: TaskProjection['status']): TaskProjection => ({
   id: 'task-1',
@@ -45,7 +52,7 @@ describe('ActivityTimeline', () => {
     waiting.activityTimeline = []
     waiting.activities = []
     waiting.tools = []
-    const { container } = render(<ActivityTimeline task={waiting} />)
+    const { container } = render(<Timeline task={waiting} />)
     expect(screen.getByText('正在思考')).toHaveClass('activity-active-title')
     expect(screen.queryByText('正在处理请求')).toBeNull()
     expect(document.querySelector('.activity-group')).toBeNull()
@@ -59,7 +66,7 @@ describe('ActivityTimeline', () => {
     preparing.activities = []
     preparing.tools = []
     preparing.preparingToolName = 'tools_local_command_shell_run'
-    const { container } = render(<ActivityTimeline task={preparing} />)
+    const { container } = render(<Timeline task={preparing} />)
     expect(screen.getByRole('status')).toHaveTextContent('正在思考')
     expect(container.querySelector('.activity-group')).toBeNull()
     expect(container).not.toHaveTextContent('command')
@@ -71,7 +78,7 @@ describe('ActivityTimeline', () => {
     preparing.activities = []
     preparing.tools = []
     preparing.preparingToolName = 'tools_local_command_typescript_run'
-    render(<ActivityTimeline task={preparing} />)
+    render(<Timeline task={preparing} />)
     expect(screen.getByRole('status')).toHaveTextContent('正在思考')
   })
 
@@ -81,7 +88,7 @@ describe('ActivityTimeline', () => {
     preparing.activities = []
     preparing.tools = []
     preparing.preparingToolName = 'tools_local_web_open'
-    render(<ActivityTimeline task={preparing} />)
+    render(<Timeline task={preparing} />)
     expect(screen.getByRole('status')).toHaveTextContent('正在思考')
   })
 
@@ -97,7 +104,7 @@ describe('ActivityTimeline', () => {
       scripted.tools![0]!.modelName = modelName
       scripted.tools![0]!.rawInput = JSON.stringify({ script: source, args: ['one'] })
       scripted.tools![0]!.rawOutput = JSON.stringify({ stdout: 'hello\n', result: { exitCode: 0 } })
-      const { container, unmount } = render(<ActivityTimeline task={scripted} />)
+      const { container, unmount } = render(<Timeline task={scripted} />)
       screen.getByText('调研实现').closest('summary')!.click()
       screen.getByText('读取 README').click()
       expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(`${toolId.includes('shell') ? '$ ' : ''}${source}\n\n参数 1：one\n\nhello`)
@@ -113,7 +120,7 @@ describe('ActivityTimeline', () => {
     live.tools![0]!.toolId = 'tools/local/cua/js'
     live.tools![0]!.modelName = 'js'
     live.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getState()' })
-    const liveView = render(<ActivityTimeline task={live} />)
+    const liveView = render(<Timeline task={live} />)
     expect(liveView.container.querySelector('.activity-tool-line')).toHaveTextContent(
       '操作桌面应用'
     )
@@ -132,7 +139,7 @@ describe('ActivityTimeline', () => {
     failed.tools![0]!.modelName = 'js'
     failed.tools![0]!.rawInput = JSON.stringify({ code: 'await cua.getApp("Calculator")' })
     failed.tools![0]!.rawOutput = 'printed before failing'
-    const failedView = render(<ActivityTimeline task={failed} />)
+    const failedView = render(<Timeline task={failed} />)
     screen.getByText('调研实现').closest('summary')!.click()
     screen.getByText('读取 README').click()
     const failedIo = failedView.container.querySelector('.activity-tool-io')
@@ -144,7 +151,7 @@ describe('ActivityTimeline', () => {
     persisted.tools![0]!.toolId = 'tools/local/cua/js'
     persisted.tools![0]!.modelName = 'js'
     persisted.tools![0]!.rawInput = JSON.stringify({ codeLength: 20, executedTextLengths: [] })
-    const persistedView = render(<ActivityTimeline task={persisted} />)
+    const persistedView = render(<Timeline task={persisted} />)
     screen.getByText('调研实现').closest('summary')!.click()
     screen.getByText('读取 README').click()
     expect(persistedView.container.querySelector('.activity-tool-io')).toHaveTextContent('执行代码长度')
@@ -182,7 +189,7 @@ describe('ActivityTimeline', () => {
       }
     ]
     image.activities![0]!.items = [{ id: 'tool:image', kind: 'tool', callId: 'image' }]
-    const { container } = render(<ActivityTimeline task={image} />)
+    const { container } = render(<Timeline task={image} />)
     screen.getByText('生成 2 张图片').click()
 
     const panel = container.querySelector('.activity-tool-io')
@@ -201,7 +208,7 @@ describe('ActivityTimeline', () => {
     scripted.tools![0]!.toolId = 'tools/local/command/python/run'
     scripted.tools![0]!.rawInput = JSON.stringify({ script: 'print("a")\n\nprint("b")', args: [] })
     scripted.tools![0]!.rawOutput = JSON.stringify({ stdout: 'a\nb\n', result: { exitCode: 0 } })
-    const { container } = render(<ActivityTimeline task={scripted} />)
+    const { container } = render(<Timeline task={scripted} />)
     screen.getByText('调研实现').closest('summary')!.click()
     screen.getByText('读取 README').click()
 
@@ -224,7 +231,7 @@ describe('ActivityTimeline', () => {
         imageCount: 4
       }
     ]
-    render(<ActivityTimeline task={generating} />)
+    render(<Timeline task={generating} />)
     expect(screen.queryByText('正在思考')).toBeNull()
   })
 
@@ -236,7 +243,7 @@ describe('ActivityTimeline', () => {
     preparing.activities = []
     preparing.tools = []
     preparing.preparingToolName = 'tools_local_command_python_run'
-    render(<ActivityTimeline task={preparing} />)
+    render(<Timeline task={preparing} />)
     expect(screen.getByText('先检查输入')).toBeVisible()
     expect(screen.queryByRole('status')).toBeNull()
   })
@@ -256,7 +263,7 @@ describe('ActivityTimeline', () => {
       }
     ]
     image.activities![0]!.items = [{ id: 'tool:image', kind: 'tool', callId: 'image' }]
-    const { container } = render(<ActivityTimeline task={image} />)
+    const { container } = render(<Timeline task={image} />)
 
     expect(container.querySelector('.activity-group > summary .lucide-image')).not.toBeNull()
     expect(container.querySelector('.activity-group > summary .lucide-layers')).toBeNull()
@@ -288,12 +295,12 @@ describe('ActivityTimeline', () => {
       activityId: 'second',
       status: 'completed'
     })
-    const { rerender } = render(<ActivityTimeline task={mixed} />)
+    const { rerender } = render(<Timeline task={mixed} />)
     const region = screen.getByRole('region', { name: '任务过程' })
     expect(region.textContent).toMatch(/先说明.*调研实现.*再说明.*已执行命令.*最后回答/s)
     expect(region.querySelectorAll('.activity-group')).toHaveLength(2)
     rerender(
-      <ActivityTimeline
+      <Timeline
         task={{
           ...mixed,
           status: 'succeeded',
@@ -331,7 +338,7 @@ describe('ActivityTimeline', () => {
       activityId: 'next',
       status: 'running'
     })
-    const { container } = render(<ActivityTimeline task={mixed} />)
+    const { container } = render(<Timeline task={mixed} />)
     const groups = container.querySelectorAll<HTMLDetailsElement>('details.activity-group')
     expect(groups).toHaveLength(2)
     expect(groups[0]?.open).toBe(false)
@@ -341,7 +348,7 @@ describe('ActivityTimeline', () => {
   it('formats a completed duration over one minute like the reference header', () => {
     const completed = task('succeeded')
     completed.activityDurationMs = 7 * 60_000 + 22_000
-    render(<ActivityTimeline task={completed} />)
+    render(<Timeline task={completed} />)
     expect(screen.getByText('用时 7 分 22 秒')).toBeVisible()
   })
 
@@ -358,7 +365,7 @@ describe('ActivityTimeline', () => {
       { id: 'tool:read', kind: 'tool', callId: 'read' },
       { id: 'text:b', kind: 'text', content: '最终结论', phase: 'final' }
     ]
-    render(<ActivityTimeline task={mixed} />)
+    render(<Timeline task={mixed} />)
     const process = screen.getByRole('region', { name: '任务过程' })
     expect(process).toHaveTextContent('读取 README')
     expect(process).toHaveTextContent('组外模型正文')
@@ -373,7 +380,7 @@ describe('ActivityTimeline', () => {
     empty.activities![0]!.items = [
       { id: 'text:only', kind: 'text', content: '不可展开的正文', phase: 'process' }
     ]
-    render(<ActivityTimeline task={empty} />)
+    render(<Timeline task={empty} />)
     const group = screen.getByText('调研实现').closest('.activity-group')
     expect(group).not.toBeNull()
     expect(group?.querySelector('summary')).toBeNull()
@@ -384,7 +391,7 @@ describe('ActivityTimeline', () => {
   it('keeps a group with visible tool content expandable', () => {
     const runningTool = task('running')
     runningTool.tools![0]!.status = 'running'
-    render(<ActivityTimeline task={runningTool} />)
+    render(<Timeline task={runningTool} />)
     const group = screen.getByText('调研实现').closest('.activity-group')
     expect(group?.querySelector('summary')).not.toBeNull()
     expect(group?.querySelector('.activity-chevron')).not.toBeNull()
@@ -405,7 +412,7 @@ describe('ActivityTimeline', () => {
       activityId: 'research',
       status: 'queued'
     })
-    const { rerender } = render(<ActivityTimeline task={mixed} />)
+    const { rerender } = render(<Timeline task={mixed} />)
     const group = screen.getByText('调研实现').closest('details') as HTMLDetailsElement
     expect(group.open).toBe(false)
     expect(screen.getByText('调研实现')).toHaveClass('activity-active-title')
@@ -418,11 +425,11 @@ describe('ActivityTimeline', () => {
 
     group.querySelector('summary')!.click()
     expect(group.open).toBe(true)
-    rerender(<ActivityTimeline task={{ ...mixed, activities: [...mixed.activities!] }} />)
+    rerender(<Timeline task={{ ...mixed, activities: [...mixed.activities!] }} />)
     expect(group.open).toBe(true)
 
     mixed.tools![0] = { ...mixed.tools![0]!, status: 'completed' }
-    rerender(<ActivityTimeline task={{ ...mixed, tools: [...mixed.tools!] }} />)
+    rerender(<Timeline task={{ ...mixed, tools: [...mixed.tools!] }} />)
     expect(group.open).toBe(true)
     expect(screen.getByText('调研实现')).not.toHaveClass('activity-active-title')
     expect(screen.getByText('读取 README').closest('.activity-tool-label')).not.toHaveClass(
@@ -433,7 +440,7 @@ describe('ActivityTimeline', () => {
   it('stops animating a group title once its latest tool reaches a terminal state', () => {
     const completedTool = task('running')
     completedTool.activities![0]!.title = '已读取文件'
-    render(<ActivityTimeline task={completedTool} />)
+    render(<Timeline task={completedTool} />)
     expect(screen.getByText('已读取文件')).not.toHaveClass('activity-active-title')
   })
 
@@ -442,7 +449,7 @@ describe('ActivityTimeline', () => {
     try {
       vi.setSystemTime(new Date('2026-09-23T00:00:03.000Z'))
       const running = { ...task('running'), activityStartedAt: '2026-09-23T00:00:00.000Z' }
-      render(<ActivityTimeline task={running} />)
+      render(<Timeline task={running} />)
 
       const header = screen.getByText('已处理 3 秒')
       expect(
@@ -457,7 +464,7 @@ describe('ActivityTimeline', () => {
   })
 
   it('uses a tool action row and expands its raw input and output directly', () => {
-    render(<ActivityTimeline task={task('running')} />)
+    render(<Timeline task={task('running')} />)
     screen.getByText('调研实现').closest('summary')!.click()
     expect(screen.getByText('读取 README').closest('.activity-tool')).toContainElement(
       document.querySelector('.activity-tool .lucide-square-terminal')
@@ -471,7 +478,7 @@ describe('ActivityTimeline', () => {
   it('shows a shell summary without file-specific decoration', () => {
     const read = task('running')
     read.tools![0]!.summary = '访问文件 README.md'
-    const { container } = render(<ActivityTimeline task={read} />)
+    const { container } = render(<Timeline task={read} />)
     expect(container.querySelector('.activity-tool-label')).toHaveTextContent('访问文件 README.md')
     expect(container.querySelector('.activity-tool-path')).toBeNull()
   })
@@ -499,7 +506,7 @@ describe('ActivityTimeline', () => {
       activityId: 'research',
       status: 'completed'
     })
-    const { container } = render(<ActivityTimeline task={mixed} />)
+    const { container } = render(<Timeline task={mixed} />)
     expect(container.querySelector('.activity-group > summary .lucide-layers')).not.toBeNull()
     expect(container.querySelector('.activity-tool .lucide-square-terminal')).not.toBeNull()
     expect(container.querySelector('.activity-tool .lucide-globe-2')).not.toBeNull()
@@ -520,7 +527,7 @@ describe('ActivityTimeline', () => {
       activityId: 'research',
       status: 'completed' as const
     }))
-    const { container } = render(<ActivityTimeline task={computer} />)
+    const { container } = render(<Timeline task={computer} />)
     expect(container.querySelector('.activity-group > summary .lucide-mouse-pointer-2')).not.toBeNull()
     expect(container.querySelectorAll('.activity-tool .lucide-mouse-pointer-2')).toHaveLength(2)
     expect(container.querySelector('.activity-tool .lucide-boxes')).toBeNull()
@@ -540,7 +547,7 @@ describe('ActivityTimeline', () => {
       activityId: 'research',
       status: 'running'
     })
-    const { container, rerender } = render(<ActivityTimeline task={mixed} />)
+    const { container, rerender } = render(<Timeline task={mixed} />)
     expect(
       container.querySelector('.activity-group > summary .lucide-square-terminal')
     ).not.toBeNull()
@@ -548,7 +555,7 @@ describe('ActivityTimeline', () => {
     expect(screen.getByText('正在执行命令').closest('.activity-tool-label')).toHaveClass('activity-active-title')
     // Projections are immutable: an update replaces the changed tool and activity.
     rerender(
-      <ActivityTimeline
+      <Timeline
         task={{
           ...mixed,
           tools: mixed.tools!.map((tool, index) =>
@@ -584,7 +591,7 @@ describe('ActivityTimeline', () => {
       }
     ]
     shell.activities![0]!.items = [{ id: 'tool:shell', kind: 'tool', callId: 'shell' }]
-    const { container } = render(<ActivityTimeline task={shell} />)
+    const { container } = render(<Timeline task={shell} />)
     screen.getAllByText('rg needle README.md')[0]!.click()
     expect(container.querySelector('.activity-tool-io pre')?.textContent).toBe(
       '$ rg needle README.md\n\nneedle is present.'
@@ -617,7 +624,7 @@ describe('ActivityTimeline', () => {
         }
       })
     }
-    const { container, rerender } = render(<ActivityTimeline task={reading} />)
+    const { container, rerender } = render(<Timeline task={reading} />)
     screen.getByText('已读取网页').closest('summary')!.click()
     screen.getByText('已读取网页 example.com').click()
     expect(screen.getByText('页面标题')).toBeVisible()
@@ -636,7 +643,7 @@ describe('ActivityTimeline', () => {
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"result"')
     expect(container.querySelector('.activity-tool-io')).not.toHaveTextContent('"rawInput"')
 
-    rerender(<ActivityTimeline task={{ ...reading, status: 'succeeded' }} />)
+    rerender(<Timeline task={{ ...reading, status: 'succeeded' }} />)
     screen.getByTestId('e2e/tasks/detail/activity/archive#button').click()
     expect(screen.getByText('页面标题')).toBeInTheDocument()
     vi.unstubAllGlobals()
@@ -675,7 +682,7 @@ describe('ActivityTimeline', () => {
         }
       ]
       script.activities![0]!.items = [{ id: 'tool:script', kind: 'tool', callId: 'script' }]
-      const { container, unmount } = render(<ActivityTimeline task={script} />)
+      const { container, unmount } = render(<Timeline task={script} />)
       screen.getByText(title).click()
       expect(container.querySelector('.activity-tool-io')).toHaveTextContent(command)
       expect(container.querySelector('.activity-tool-io')).toHaveTextContent('退出码 0')
@@ -684,12 +691,12 @@ describe('ActivityTimeline', () => {
   })
 
   it('does not flash the thinking row while an activity group is still current', () => {
-    render(<ActivityTimeline task={task('running')} />)
+    render(<Timeline task={task('running')} />)
     expect(screen.queryByText('正在思考')).toBeNull()
   })
 
   it('archives completed process closed under an elapsed-time summary', () => {
-    render(<ActivityTimeline task={task('succeeded')} />)
+    render(<Timeline task={task('succeeded')} />)
     const archive = screen.getByText('用时 3 秒').closest('details')
     expect(archive).not.toHaveAttribute('open')
     expect(archive?.querySelector('.activity-chevron')).not.toBeNull()
@@ -697,7 +704,7 @@ describe('ActivityTimeline', () => {
   })
 
   it('uses right-facing arrows for every expandable activity row', () => {
-    render(<ActivityTimeline task={task('succeeded')} />)
+    render(<Timeline task={task('succeeded')} />)
     const arrows = screen
       .getByRole('region', { name: '任务过程' })
       .querySelectorAll('.activity-chevron')
@@ -706,7 +713,7 @@ describe('ActivityTimeline', () => {
   })
 
   it('uses 16px icons throughout the activity area', () => {
-    render(<ActivityTimeline task={task('succeeded')} />)
+    render(<Timeline task={task('succeeded')} />)
     const icons = screen.getByRole('region', { name: '任务过程' }).querySelectorAll('svg')
     expect(icons.length).toBeGreaterThan(0)
     for (const icon of icons) {
@@ -720,7 +727,7 @@ describe('ActivityTimeline', () => {
     empty.activityTimeline = []
     empty.activities = []
     empty.tools = []
-    render(<ActivityTimeline task={empty} />)
+    render(<Timeline task={empty} />)
     expect(screen.getByText('用时 3 秒').closest('details')).toBeNull()
     expect(screen.getByRole('region', { name: '任务过程' }).querySelector('svg')).toBeNull()
   })
@@ -742,7 +749,7 @@ describe('ActivityTimeline', () => {
         resultSummary: '已完成'
       }
     ]
-    render(<ActivityTimeline task={standalone} />)
+    render(<Timeline task={standalone} />)
     screen.getByText('用时 3 秒').click()
     expect(screen.getByText('访问文件 /')).toBeVisible()
     expect(

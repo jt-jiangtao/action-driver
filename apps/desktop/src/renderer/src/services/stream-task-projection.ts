@@ -18,15 +18,21 @@ import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
 
 type ScheduledHandle = unknown
 
+/**
+ * Reduces the stream of one task into an immutable projection.
+ *
+ * Ordering and de-duplication are the transport's job: `RendererStreamClient`
+ * delivers every request event exactly once, in sequence, before it reaches this
+ * reducer. The reducer therefore keeps no seen-id/cursor ledger of its own; it
+ * only buffers events that arrive while the task it belongs to is still being
+ * created.
+ */
 export class StreamTaskProjection {
   private task: TaskProjection | null = null
   private readonly buffered: StreamServerEvent[] = []
-  private readonly seenEventIds = new Set<string>()
   private readonly toolStreams = new Map<string, Record<string, string>>()
   private readonly toolSequences = new Map<string, number>()
   private activityState: ActivityTimelineState = emptyActivityTimelineState()
-  private lastSequence = -1
-  private lastCursor = 0
   private scheduled: ScheduledHandle | null = null
 
   constructor(
@@ -45,11 +51,16 @@ export class StreamTaskProjection {
         ? { ...message, parts: normalizeAssistantParts(message.parts) }
         : message
     )
-    this.lastCursor = task.streamCursor ?? 0
-    this.lastSequence = task.streamSequence ?? -1
-    this.activityState = activityStateFromTask(task, this.lastCursor)
+    this.activityState = activityStateFromTask(task, task.streamCursor ?? 0)
     const events = this.buffered.splice(0)
-    for (const event of events) this.apply(event)
+    const cursor = task.streamCursor ?? 0
+    // The snapshot handed to `attach` already contains everything up to its
+    // cursor, so buffered events that it covers must not be applied twice.
+    for (const event of events) {
+      if ('cursor' in event && event.type !== 'response.snapshot' && event.cursor <= cursor)
+        continue
+      this.apply(event)
+    }
   }
 
   apply(event: StreamServerEvent): void {
@@ -58,15 +69,8 @@ export class StreamTaskProjection {
       return
     }
     if (!('taskId' in event) || event.taskId !== this.task.id) return
-    if (this.seenEventIds.has(event.eventId)) return
-    if ('cursor' in event && event.type !== 'response.snapshot' && event.cursor <= this.lastCursor)
-      return
 
     if (event.type === 'response.snapshot') {
-      if (event.sequence < this.lastSequence) return
-      this.seenEventIds.add(event.eventId)
-      this.lastSequence = event.sequence
-      this.lastCursor = event.cursor
       this.toolSequences.clear()
       this.toolStreams.clear()
       this.activityState = activityStateFromTask(
@@ -118,9 +122,6 @@ export class StreamTaskProjection {
       this.flush()
       return
     }
-    if (event.sequence !== this.lastSequence + 1) return
-    this.seenEventIds.add(event.eventId)
-    this.lastSequence = event.sequence
     this.recordCursor(event.cursor)
     this.task = { ...this.task, streamSequence: event.sequence }
     if (event.type === 'computer.app-approval.requested') {
@@ -129,19 +130,25 @@ export class StreamTaskProjection {
         event.approval.sessionId !== this.task.sessionId
       )
         return
-      this.task.pendingAppApproval = [
-        ...(this.task.pendingAppApproval ?? []).filter(
-          (approval) => approval.requestId !== event.approval.requestId
-        ),
-        event.approval
-      ]
+      this.task = {
+        ...this.task,
+        pendingAppApproval: [
+          ...(this.task.pendingAppApproval ?? []).filter(
+            (approval) => approval.requestId !== event.approval.requestId
+          ),
+          event.approval
+        ]
+      }
       this.flush()
       return
     }
     if (event.type === 'computer.app-approval.resolved') {
-      this.task.pendingAppApproval = (this.task.pendingAppApproval ?? []).filter(
-        (approval) => approval.requestId !== event.approval.requestId
-      )
+      this.task = {
+        ...this.task,
+        pendingAppApproval: (this.task.pendingAppApproval ?? []).filter(
+          (approval) => approval.requestId !== event.approval.requestId
+        )
+      }
       this.flush()
       return
     }
@@ -518,7 +525,6 @@ export class StreamTaskProjection {
   }
 
   private recordCursor(cursor: number): void {
-    this.lastCursor = cursor
     if (this.task) this.task = { ...this.task, streamCursor: cursor }
   }
 

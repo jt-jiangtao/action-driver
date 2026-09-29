@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  IMAGE_GENERATION_TOOL_ID,
   SKILL_IDS,
+  hasImageGenerationGallery,
+  imageGenerationSlotCount,
+  isImageGenerationRunning,
   isSerializableContract,
   normalizeAssistantParts,
   type BrowserSkillInvocation,
@@ -9,8 +13,49 @@ import {
   type AgentGoalRequest,
   type RecentTaskProjection,
   type SkillExecutionEvent,
-  type TaskProjection
+  type TaskProjection,
+  type ToolInvocationProjection
 } from '../../src/index'
+
+const imageTool = (overrides: Partial<ToolInvocationProjection> = {}): ToolInvocationProjection => ({
+  callId: 'call-1',
+  toolId: IMAGE_GENERATION_TOOL_ID,
+  modelName: 'tools_local_image_generation_generate',
+  summary: '生成图片',
+  argumentsHash: 'hash',
+  imageCount: 2,
+  status: 'running' as const,
+  ...overrides
+})
+
+describe('image generation tool projection', () => {
+  it('reserves slots for its own tool id only', () => {
+    expect(imageGenerationSlotCount(imageTool())).toBe(2)
+    expect(imageGenerationSlotCount(imageTool({ toolId: 'shell' }))).toBe(0)
+    const withoutSlots: ToolInvocationProjection = { ...imageTool() }
+    delete withoutSlots.imageCount
+    expect(imageGenerationSlotCount(withoutSlots)).toBe(0)
+  })
+
+  it('renders a gallery once the call leaves its pending statuses', () => {
+    expect(hasImageGenerationGallery(imageTool({ status: 'queued' }))).toBe(false)
+    expect(hasImageGenerationGallery(imageTool({ status: 'proposed' }))).toBe(false)
+    expect(hasImageGenerationGallery(imageTool({ status: 'waiting_approval' }))).toBe(false)
+    expect(hasImageGenerationGallery(imageTool({ status: 'running' }))).toBe(true)
+    expect(hasImageGenerationGallery(imageTool({ status: 'completed' }))).toBe(true)
+    const withoutSlots: ToolInvocationProjection = { ...imageTool({ status: 'running' }) }
+    delete withoutSlots.imageCount
+    expect(hasImageGenerationGallery(withoutSlots)).toBe(false)
+  })
+
+  it('reports in-flight calls for progress indicators', () => {
+    for (const status of ['proposed', 'queued', 'running', 'waiting_approval'] as const) {
+      expect(isImageGenerationRunning(imageTool({ status }))).toBe(true)
+    }
+    expect(isImageGenerationRunning(imageTool({ status: 'completed' }))).toBe(false)
+    expect(isImageGenerationRunning(imageTool({ status: 'running', toolId: 'shell' }))).toBe(false)
+  })
+})
 
 describe('agent skill contracts', () => {
   it('keeps every attached document instead of treating it as a duplicate image', () => {

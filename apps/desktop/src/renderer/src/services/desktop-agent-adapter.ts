@@ -20,10 +20,20 @@ import type { DesktopApi } from '../../../preload/desktop-api'
 import type { BrowserSessionEvent } from '../../../shared/browser-session-contract'
 
 export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRepository {
+  /**
+   * Last emitted snapshot per task. The stream projection owns the state of a
+   * running task; this map only caches what was last handed to listeners so
+   * `getTask` can answer without a round trip.
+   */
   private readonly tasks = new Map<string, TaskProjection>()
   private readonly listeners = new Set<(task: TaskProjection) => void>()
   private readonly streamProjections = new Map<string, StreamTaskProjection>()
-  private readonly pendingStreamEvents = new Map<string, Parameters<RuntimeStreamListener>[0][]>()
+  /**
+   * The projection created before the runtime named its task. Stream events for
+   * an unknown task buffer inside that projection, so the adapter never needs a
+   * second buffer of its own.
+   */
+  private pendingProjection: StreamTaskProjection | null = null
   private readonly browserSnapshots = new Map<string, BrowserSessionEvent['snapshot']>()
 
   constructor(
@@ -62,24 +72,25 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
   }
 
   async submitGoal(request: AgentGoalRequest): Promise<TaskProjection> {
+    let projection: StreamTaskProjection | null = null
     try {
       const systemPrompt = await this.getSystemPrompt?.()
-      const accepted = await this.streamClient.create({
-        ...request,
-        ...(systemPrompt === undefined ? {} : { systemPrompt })
-      })
-      const projection = new StreamTaskProjection({
+      projection = new StreamTaskProjection({
         onChange: (task) => {
           const updated = this.withBrowser(task)
           this.tasks.set(task.id, updated)
           this.emit(updated)
         }
       })
+      // Created before `create` resolves: everything the runtime streams for
+      // this task is applied in order once the task snapshot is attached.
+      this.pendingProjection = projection
+      const accepted = await this.streamClient.create({
+        ...request,
+        ...(systemPrompt === undefined ? {} : { systemPrompt })
+      })
       this.streamProjections.set(accepted.taskId, projection)
-      for (const event of this.pendingStreamEvents.get(accepted.taskId) ?? []) {
-        projection.apply(event)
-      }
-      this.pendingStreamEvents.delete(accepted.taskId)
+      if (this.pendingProjection === projection) this.pendingProjection = null
 
       const task = await this.api.get(accepted.taskId)
       if (!task) {
@@ -95,6 +106,7 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       this.emit(snapshot)
       return structuredClone(snapshot)
     } catch (error) {
+      if (this.pendingProjection === projection) this.pendingProjection = null
       throw mapAgentError(error)
     }
   }
@@ -185,9 +197,13 @@ export class DesktopAgentAdapter implements AgentCommandService, AgentSessionRep
       projection.apply(event)
       return
     }
-    const pending = this.pendingStreamEvents.get(event.taskId) ?? []
-    pending.push(structuredClone(event))
-    this.pendingStreamEvents.set(event.taskId, pending)
+    const pending = this.pendingProjection
+    if (!pending) return
+    pending.apply(event)
+    if (event.type === 'request.accepted') {
+      this.streamProjections.set(event.taskId, pending)
+      this.pendingProjection = null
+    }
   }
 
   private emit(task: TaskProjection): void {

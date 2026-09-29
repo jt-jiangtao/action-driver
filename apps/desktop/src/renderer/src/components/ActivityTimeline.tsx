@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import type { TaskProjection } from '@actiondriver/contracts'
+import { isImageGenerationRunning, type TaskProjection } from '@actiondriver/contracts'
 import { MarkdownContent } from './MarkdownContent'
 import { ActivityGroup, ToolRow } from './agent/ToolGroup'
 import type { ImageReader } from './agent/ConversationImage'
-import { isActivityOwnedText } from './agent/activity-mirror'
+import type { ActivityViewItem } from '../models/transcript'
 
 /** The task fields the activity area reads; a prior turn passes just these. */
 export type ActivityTimelineTask = Pick<
@@ -20,7 +20,16 @@ export type ActivityTimelineTask = Pick<
   | 'preparingToolName'
 >
 
-export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTask; readImage?: ImageReader | undefined }) {
+export function ActivityTimeline({
+  task,
+  items,
+  readImage
+}: {
+  task: ActivityTimelineTask
+  /** Decided by the transcript selector: items the activity area owns. */
+  items: ActivityViewItem[]
+  readImage?: ImageReader | undefined
+}) {
   // Keyed by reference so memoized groups and rows skip renders while text streams elsewhere.
   const activities = useMemo(
     () => new Map((task.activities ?? []).map((activity) => [activity.activityId, activity])),
@@ -30,24 +39,8 @@ export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTa
     () => new Map((task.tools ?? []).map((tool) => [tool.callId, tool])),
     [task.tools]
   )
-  const timeline =
-    task.activityTimeline && task.activityTimeline.length > 0
-      ? task.activityTimeline
-      : (task.tools ?? []).map((tool) => ({
-          id: `tool:${tool.callId}`,
-          kind: 'tool' as const,
-          callId: tool.callId
-        }))
-  // The activity area owns the process narration the runtime closed before its
-  // tool groups; the answer and pending text stay in the transcript.
-  const items = timeline
-  const hasVisibleContent = items.some((item) =>
-    item.kind === 'text'
-      ? isActivityOwnedText(task, item)
-      : item.kind === 'tool'
-        ? tools.has(item.callId)
-        : activities.has(item.activityId)
-  )
+  const timeline = task.activityTimeline ?? []
+  const hasVisibleContent = items.length > 0
   const latestItem = timeline.at(-1)
   const hasPendingText = latestItem?.kind === 'text' && latestItem.phase === 'pending'
   const hasActiveTool = [...tools.values()].some((tool) =>
@@ -60,9 +53,7 @@ export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTa
   // Image placeholders already show progress; the indicator would sit between
   // the tool group and the images.
   const imageInFlight = (task.tools ?? []).some(
-    (tool) =>
-      tool.toolId === 'tools/local/image-generation/generate' &&
-      ['proposed', 'queued', 'running', 'waiting_approval'].includes(tool.status)
+    (tool) => isImageGenerationRunning(tool)
   )
   const showThinking =
     task.status === 'running' &&
@@ -90,7 +81,6 @@ export function ActivityTimeline({ task, readImage }: { task: ActivityTimelineTa
     <div className="activity-timeline-items">
       {items.map((item) => {
         if (item.kind === 'text') {
-          if (!isActivityOwnedText(task, item)) return null
           return (
             <MarkdownContent
               key={item.id}

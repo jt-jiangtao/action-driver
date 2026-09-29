@@ -249,6 +249,48 @@ export interface ToolInvocationProjection {
     | 'unknown'
 }
 
+/**
+ * Id of the built-in image generation tool. The plugin catalog owns the
+ * definition; every consumer (renderer, Runtime) reads the id from here so the
+ * gallery, the activity area and the task page cannot drift apart.
+ */
+export const IMAGE_GENERATION_TOOL_ID = 'tools/local/image-generation/generate'
+
+/** Statuses before the tool has produced its first gallery slot. */
+const IMAGE_GENERATION_PENDING_STATUSES: readonly string[] = [
+  'proposed',
+  'waiting_approval',
+  'queued'
+]
+/** Statuses that mean the image generator is still working on this call. */
+const IMAGE_GENERATION_ACTIVE_STATUSES: readonly string[] = [
+  ...IMAGE_GENERATION_PENDING_STATUSES,
+  'running'
+]
+
+/** True when the tool is the built-in image generator. */
+export function isImageGenerationTool(tool: { toolId: string }): boolean {
+  return tool.toolId === IMAGE_GENERATION_TOOL_ID
+}
+
+/** How many gallery slots this call reserved, regardless of its current status. */
+export function imageGenerationSlotCount(tool: ToolInvocationProjection): number {
+  return isImageGenerationTool(tool) ? (tool.imageCount ?? 0) : 0
+}
+
+/** True once the call owns visible slots, so placeholders and results can render. */
+export function hasImageGenerationGallery(tool: ToolInvocationProjection): boolean {
+  return (
+    imageGenerationSlotCount(tool) > 0 &&
+    !IMAGE_GENERATION_PENDING_STATUSES.includes(tool.status)
+  )
+}
+
+/** True while the call is queued or running, so progress indicators stay hidden. */
+export function isImageGenerationRunning(tool: ToolInvocationProjection): boolean {
+  return isImageGenerationTool(tool) && IMAGE_GENERATION_ACTIVE_STATUSES.includes(tool.status)
+}
+
 export interface ActivityTextProjection {
   id: string
   kind: 'text'
