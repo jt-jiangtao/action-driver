@@ -1,5 +1,6 @@
 import { ModelServiceError } from '@actiondriver/model-connections'
 import { PluginError } from '@actiondriver/plugin-contracts'
+import { ResourceError } from '@actiondriver/runtime-contracts'
 import { AgentFileStoreError } from '../../agent-files/agent-file-store'
 import { AppApprovalError } from '../../computer-use/app-approval-broker'
 import { AssetError } from '../../media/session-asset-store'
@@ -15,6 +16,20 @@ export type MappedHttpError = {
  * part of the contract: a domain error never leaks as a generic 500.
  */
 export function mapErrorToResponse(error: unknown): MappedHttpError {
+  if (error instanceof ResourceError) {
+    return {
+      status:
+        error.code === 'RESOURCE_UNAUTHORIZED'
+          ? 403
+          : error.code === 'RESOURCE_NOT_FOUND' || error.code === 'RESOURCE_SCHEME_UNKNOWN' || error.code === 'RESOURCE_UNAVAILABLE'
+            ? 404
+            : error.code === 'RESOURCE_VERSION_CONFLICT'
+              ? 409
+              : 400,
+      code: error.code,
+      message: error.message
+    }
+  }
   if (error instanceof PluginError) {
     return {
       status:
