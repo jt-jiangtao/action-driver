@@ -80,6 +80,17 @@ export class PluginManager {
     }
   }
   contributions(): { contribution: Contribution; owner: PluginOwner }[] { return structuredClone([...this.published.values()]) }
+  availableContributions(): { contribution: Contribution; owner: PluginOwner }[] {
+    return this.contributions().filter(({ contribution, owner }) => this.isContributionAvailable(contribution.kind, contribution.id, owner))
+  }
+  isContributionAvailable(kind: Contribution['kind'], id: string, owner?: PluginOwner): boolean {
+    const published = this.published.get(`${kind}:${id}`)
+    if (!published || (owner && (published.owner.pluginId !== owner.pluginId || published.owner.version !== owner.version || published.owner.hostEpoch !== owner.hostEpoch))) return false
+    const record = this.records.get(published.owner.pluginId)
+    if (record?.state !== 'ready') return false
+    const declaration = record.manifest.contributions.find(item => item.kind === kind && item.id === id)
+    return this.ports.contextKeys?.evaluate(declaration?.when) ?? true
+  }
   assertInstance(owner: PluginOwner): void {
     const record = this.records.get(owner.pluginId)
     if (!record?.owner || record.owner.hostEpoch !== owner.hostEpoch || record.owner.version !== owner.version || !['activating', 'ready', 'stopping'].includes(record.state)) throw new PluginError('STALE_INSTANCE', `${owner.pluginId}@${owner.hostEpoch}`)
@@ -112,6 +123,7 @@ export class PluginManager {
     context = { ...context, chain: context.chain.at(-1) === id ? context.chain : [...context.chain, id] }
     const contribution = [...this.published.values()].find(value => value.contribution.id === id)
     if (!contribution) throw new PluginError('UNAVAILABLE', id)
+    if (!this.isContributionAvailable(contribution.contribution.kind, id, contribution.owner)) throw new PluginError('UNAVAILABLE', `${id}: context condition is false`)
     const record = this.record(contribution.owner.pluginId)
     if (!record.host) throw new PluginError('UNAVAILABLE', id)
     const host = record.host

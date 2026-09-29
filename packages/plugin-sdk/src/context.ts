@@ -30,6 +30,10 @@ export function createPluginContext(owner: PluginOwner, ports: { transport: Host
   return {
     plugin: Object.freeze({ ...owner }), subscriptions,
     api: {
+      context: {
+        set: async (key, value) => { await request('context.set', { key, value }) },
+        remove: async key => { await request('context.remove', { key }) }
+      },
       tools: { register: (definition, executor) => subscriptions.add(ports.tools.register(definition, executor)) },
       contributions: { register: (contribution, handler) => subscriptions.add(ports.registrations.register(contribution, handler)) },
       commands: {

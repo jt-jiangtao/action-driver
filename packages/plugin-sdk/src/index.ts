@@ -1,4 +1,4 @@
-import type { Contribution, InvocationContext, Json, PluginOwner, SkillContribution } from '@actiondriver/plugin-contracts'
+import type { ContextValue, Contribution, InvocationContext, Json, PluginOwner, SkillContribution } from '@actiondriver/plugin-contracts'
 import type { ToolDefinition, ToolExecutor } from '@actiondriver/plugin-contracts'
 export type { Contribution, InvocationContext, Json, PluginOwner } from '@actiondriver/plugin-contracts'
 export interface Disposable { dispose(): void | Promise<void> }
@@ -16,6 +16,7 @@ export interface ToolRegistrationPort { register(definition: ToolDefinition, exe
 export type ContributionHandler = (input: Json, context: InvocationContext, signal: AbortSignal) => Promise<Json>
 export interface ResourceHandle { resourceId: string }
 export interface ActionDriverAPI {
+  context: { set(key: string, value: ContextValue): Promise<void>; remove(key: string): Promise<void> }
   tools: ToolRegistrationPort
   contributions: RegistrationPort
   commands: { register(id: string, handler: ContributionHandler): Disposable; execute(id: string, input: Json, context: InvocationContext, signal: AbortSignal): Promise<Json> }

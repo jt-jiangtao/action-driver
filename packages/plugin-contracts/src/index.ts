@@ -2,6 +2,8 @@ import { pluginToolDefinitionSchema as toolDefinitionSchema, toolIdSchema, type 
 export * from './tool.js'
 import { z } from 'zod'
 import { satisfies, valid, validRange } from 'semver'
+import { parseContextCondition } from './context-condition.js'
+export * from './context-condition.js'
 
 export const PLUGIN_PROTOCOL_VERSION = 1
 export const PLUGIN_SDK_VERSION = '1.0.0'
@@ -13,7 +15,8 @@ const entry = z.string().min(1).refine(value => !value.startsWith('/') && !value
 export const contributionSchema = z.object({
   kind: z.enum(['tool', 'command', 'skill', 'capability', 'service', 'panel']),
   id: z.string().min(1),
-  modelName: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional()
+  modelName: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional(),
+  when: z.string().optional()
 }).strict().superRefine((item, context) => {
   const schema = item.kind === 'tool' ? toolIdSchema : contributionId
   if (!schema.safeParse(item.id).success) context.addIssue({ code: 'custom', path: ['id'], message: `Invalid ${item.kind} contribution ID` })
@@ -63,6 +66,10 @@ export function validateManifest(value: unknown, host: { sdk: string; platform: 
   if (!manifest.platforms.includes(host.platform)) throw new PluginError('PLATFORM_UNAVAILABLE', `${manifest.id}: ${host.platform}`)
   const ids = new Set<string>(), names = new Set<string>()
   for (const item of manifest.contributions) {
+    if (item.when !== undefined) {
+      if (item.kind !== 'command' && item.kind !== 'tool') throw new PluginError('INVALID_MANIFEST', `${manifest.id} ${item.id}: when is unsupported for ${item.kind}`)
+      try { parseContextCondition(item.when) } catch (error) { throw new PluginError('INVALID_MANIFEST', `${manifest.id} ${item.id} when: ${error instanceof Error ? error.message : String(error)}`) }
+    }
     const key = `${item.kind}:${item.id}`
     if (ids.has(key) || (item.modelName && names.has(item.modelName))) throw new PluginError('CONTRIBUTION_CONFLICT', `${manifest.id}: ${key}`)
     ids.add(key)

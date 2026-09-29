@@ -22,6 +22,12 @@ corepack pnpm --filter @actiondriver/plugin-sdk pack --pack-destination /absolut
 
 ## 宿主与生命周期
 
+### 声明式可用条件
+
+现有命令和工具贡献可在 `plugin.json` 中添加可选 `when`，例如 `"when": "plugin.example.ready && host.online"`。条件支持布尔键、与字符串或数字字面量的 `==`、`!`、`&&`、`||` 和括号。宿主在安装时校验语法，在上下文变化后更新发现结果，并在调用开始前重检。表达式引用任何未知键时整体为 false，包括 `!plugin.example.missing`。条件长度上限为 1024 字符、嵌套上限为 32 层、引用键上限为 64 个。
+
+插件只可写入自己的 `plugin.<插件 ID>.<名称>` 键，其中名称是单个点号分隔片段，例如 `await context.api.context.set('plugin.example.ready', true)`，可用 `context.api.context.remove` 删除；停用、升级或崩溃时宿主按归属回收旧实例的键。即使插件 ID 含点号，也不能写入另一个插件的键。`host.*` 键由宿主设置，插件不可写。值只接受布尔、字符串或有限数字，不要把凭据或任务私密信息放进条件键。未声明 `when` 的旧贡献沿用原有行为。条件只决定可用性，不授予模型工具 grants，也不替代输入校验、跨插件授权或执行沙箱。
+
 Runtime composition root 的 `createRuntimePluginPlatform` 接受明确的 Node 路径、宿主入口、工具注册表与窄接口 ports。`install(packageDirectory)` 校验并保存不可变版本；`enable(id)` 激活独立进程；`disable(id)` 停止新调用、排空在途调用并回收；`upgrade(packageDirectory, migration)` 固定旧调用版本；`uninstall(id, { deleteData })` 明确选择是否删除私有数据。安装包在重启时恢复发现，外部包默认保持停用，由调用方明确启用。当前没有面向用户的安装管理界面。
 
 SDK 注册及打开的资源自动进入 `context.subscriptions`。插件可导出异步 `deactivate(reason)` 刷新状态，宿主先给它有界退出时间，再回收残留资源。不要在插件里创建全局服务定位器或另建生命周期管理器。崩溃或取消后无法确认副作用的调用报告 `RESULT_UNKNOWN`，不会自动重放；模型收到核查当前状态后再重试的提示。

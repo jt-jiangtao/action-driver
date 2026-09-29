@@ -28,6 +28,9 @@ describe('plugin generator', () => {
     expect(manifest.catalog).toBe('dist/catalog.js')
     expect(await readdir(join(target, 'src'))).toEqual(['catalog.ts', 'execution.ts', 'extension.ts', 'presentation.ts', 'raw-assets.d.ts'])
     expect(await readFile(join(target, 'skills/hello/SKILL.md'), 'utf8')).toContain('tools_local_example_tools_echo')
+    const readme = await readFile(join(target, 'README.md'), 'utf8')
+    expect(readme).toContain('plugin.example-tools.ready')
+    expect(readme).toContain('context.api.context.set')
   })
   it('refuses existing files and invalid plugin IDs without changing destinations', async () => {
     const root = await directory()

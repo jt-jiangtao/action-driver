@@ -16,13 +16,13 @@ export class ToolRegistryError extends Error {
   }
 }
 
-export type RegisteredTool = { definition: ToolDefinition; executor: ToolExecutor; owner?: PluginOwner }
+export type RegisteredTool = { definition: ToolDefinition; executor: ToolExecutor; owner?: PluginOwner; isAvailable?: () => boolean }
 
 export class RuntimeToolRegistry {
   private readonly byVersion = new Map<string, RegisteredTool>()
   private readonly byModelName = new Map<string, RegisteredTool>()
 
-  register(definition: ToolDefinition, executor: ToolExecutor, owner?: PluginOwner): Disposable {
+  register(definition: ToolDefinition, executor: ToolExecutor, owner?: PluginOwner, isAvailable?: () => boolean): Disposable {
     let parsed: ToolDefinition
     try {
       parsed = parseToolDefinition(definition)
@@ -44,7 +44,7 @@ export class RuntimeToolRegistry {
       )
     }
 
-    const registered: RegisteredTool = { definition: parsed, executor, ...(owner ? { owner: structuredClone(owner) } : {}) }
+    const registered: RegisteredTool = { definition: parsed, executor, ...(owner ? { owner: structuredClone(owner) } : {}), ...(isAvailable ? { isAvailable } : {}) }
     this.byVersion.set(this.key(parsed), registered)
     this.byModelName.set(parsed.modelName, registered)
     return { dispose: () => {
@@ -66,7 +66,7 @@ export class RuntimeToolRegistry {
   }
 
   list(): ToolDefinition[] {
-    return [...new Set(this.byVersion.values())].map(({ definition }) => structuredClone(definition))
+    return [...new Set(this.byVersion.values())].filter(tool => tool.isAvailable?.() ?? true).map(({ definition }) => structuredClone(definition))
   }
 
   private key(definition: Pick<ToolDefinition, 'id' | 'version'>): string {

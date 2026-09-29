@@ -1,8 +1,9 @@
 import { z } from 'zod'
-import { PluginError, type InvocationContext, type Json, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { PluginError, type ContextValue, type InvocationContext, type Json, type PluginOwner } from '@actiondriver/plugin-contracts'
 export interface PluginHostAPIPorts {
   assertInstance(owner: PluginOwner): void
   authority(owner: PluginOwner, callId: string): { context: InvocationContext; signal: AbortSignal }
+  context?: { setPlugin(owner: PluginOwner, key: string, value: ContextValue): void; removePlugin(owner: PluginOwner, key: string): void }
   storage?: { get(pluginId: string, key: string): Promise<Json>; set(pluginId: string, key: string, value: Json): Promise<void> }
   logging?: { write(entry: PluginOwner & { level: string; message: string; fields: Json }): void }
   sessions?: { getContext(owner: PluginOwner, context: InvocationContext): Promise<Json> }
@@ -13,6 +14,7 @@ export interface PluginHostAPIPorts {
 }
 const keyInput = z.object({ key: z.string().min(1).max(256) }).strict()
 const writeInput = keyInput.extend({ value: z.json() })
+const contextWriteInput = keyInput.extend({ value: z.union([z.boolean(), z.string(), z.number().finite()]) })
 const invocationInput = z.object({ id: z.string().min(1), input: z.json() }).strict()
 const resourceMethods = new Set(['services.start', 'services.stop', 'panels.open', 'panels.close', 'events.subscribe', 'events.unsubscribe'])
 function redact(value: Json): Json {
@@ -33,6 +35,13 @@ export class PluginHostAPI {
       const input = writeInput.parse(payload)
       await this.ports.storage.set(owner.pluginId, input.key, input.value); return null
     }
+    if (method === 'context.set' && this.ports.context) {
+      const input = contextWriteInput.parse(payload)
+      this.ports.context.setPlugin(owner, input.key, input.value); return null
+    }
+    if (method === 'context.remove' && this.ports.context) {
+      this.ports.context.removePlugin(owner, keyInput.parse(payload).key); return null
+    }
     if (method === 'logging.write' && this.ports.logging) {
       const input = z.object({ level: z.enum(['debug', 'info', 'warn', 'error']), message: z.string().max(8192), fields: z.record(z.string(), z.json()).default({}) }).strict().parse(payload)
       this.ports.logging.write({ ...owner, ...input, fields: redact(input.fields) }); return null
@@ -46,7 +55,7 @@ export class PluginHostAPI {
       return this.ports.capabilities.invoke(owner, input.id, input.input, context, signal)
     }
     if (resourceMethods.has(method) && this.ports.resources) return this.ports.resources.request(owner, method, payload)
-    if (!['storage.get', 'storage.set', 'logging.write', 'sessions.getContext', 'artifacts.create', 'artifacts.read', 'credentials.request', 'capabilities.invoke', 'commands.execute', ...resourceMethods].includes(method)) throw new PluginError('PROTOCOL_ERROR', `Unknown host method ${method}`)
+    if (!['storage.get', 'storage.set', 'context.set', 'context.remove', 'logging.write', 'sessions.getContext', 'artifacts.create', 'artifacts.read', 'credentials.request', 'capabilities.invoke', 'commands.execute', ...resourceMethods].includes(method)) throw new PluginError('PROTOCOL_ERROR', `Unknown host method ${method}`)
     throw new PluginError('UNAVAILABLE', `Host API ${method} is not configured`)
   }
 }

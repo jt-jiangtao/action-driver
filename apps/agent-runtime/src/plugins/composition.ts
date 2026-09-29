@@ -13,13 +13,15 @@ import { PluginHostAPI, type PluginHostAPIPorts } from './host-api'
 import { CapabilityRouter } from './capability-router'
 import { PluginResourceHost } from './resource-host'
 import { NodeServiceSupervisor } from './service-supervisor'
+import { PluginContextKeys } from './context-keys'
 export interface RuntimePluginCompositionOptions {
   retiredPluginIds?: string[]
   node: string; hostEntry: string; packageRoots: string[]; dataRoot: string
   registry: RuntimeToolRegistry; configuration: Record<string, Json>
   toolTimeouts?: Record<string, number>
   now(): number; ids(): string
-  apiPorts?: Omit<PluginHostAPIPorts, 'assertInstance' | 'authority' | 'storage' | 'logging'>
+  apiPorts?: Omit<PluginHostAPIPorts, 'assertInstance' | 'authority' | 'storage' | 'logging' | 'context'>
+  contextKeys?: PluginContextKeys
   skills?: { stage(owner: PluginOwner, skill: SkillContribution, packageRoot: string): Promise<Disposable>; publish(owner: PluginOwner, id: string): Disposable }
   desktopResources?: { begin(owner: PluginOwner): Promise<void>; request(owner: PluginOwner, method: string, input: Json): Promise<Json>; end(owner: PluginOwner): Promise<void> }
   authorizeCapability?(context: InvocationContext, id: string, target: PluginOwner): Promise<boolean>
@@ -27,6 +29,7 @@ export interface RuntimePluginCompositionOptions {
   log?(entry: { pluginId: string; version: string; hostEpoch: string; payload: Json }): void
 }
 export async function createRuntimePluginPlatform(options: RuntimePluginCompositionOptions) {
+  const contextKeys = options.contextKeys ?? new PluginContextKeys()
   const roots = new Map<string, string>(), descriptors = new Map<string, { manifest: PluginManifest; catalog: PluginCatalog }>()
   const versions = new Map<string, { manifest: PluginManifest; catalog: PluginCatalog }>()
   const key = (owner: { pluginId: string; version: string }) => `${owner.pluginId}@${owner.version}`
@@ -66,6 +69,8 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
   const factory: NodePluginHostFactory = new NodePluginHostFactory({
     executable: options.node, hostEntry: options.hostEntry, packageRoot: manifest => repository.packageRoot(manifest), token: randomUUID,
     prepare: async (owner, manifest, registrar) => {
+      contextKeys.begin(owner)
+      registrar.track({ dispose: () => contextKeys.end(owner) })
       if (options.skills) for (const skill of descriptor(owner).catalog.skills) registrar.track(await options.skills.stage(owner, skill, repository.packageRoot(manifest)))
       if (manifest.panels?.length) {
         if (!options.desktopResources) throw new PluginError('UNAVAILABLE', 'Desktop panels host is not configured')
@@ -96,7 +101,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
   })
   const registered = new Map<string, Disposable>()
   const registrationKey = (owner: PluginOwner, id: string) => `${key(owner)}@${owner.hostEpoch}:${id}`
-  const manager: PluginManager = new PluginManager({ repository, factory, ...host, epoch: options.ids,
+  const manager: PluginManager = new PluginManager({ repository, factory, ...host, epoch: options.ids, contextKeys,
     withdraw: (owner, contribution) => {
       const key = registrationKey(owner, contribution.id)
       void registered.get(key)?.dispose(); registered.delete(key)
@@ -117,6 +122,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
           if (!definition) throw new PluginError('INVALID_MANIFEST', `Tool schema missing for ${contribution.id}`)
           const registration = options.registry.register(definition, {
             async *execute(call, signal, executionContext) {
+              if (!manager.isContributionAvailable('tool', definition.id, owner)) throw new PluginError('UNAVAILABLE', `${definition.id}: context condition is false`)
               const remote = resourceHost.resolveTool(owner, definition.id)
               if (remote) {
                 yield { kind: 'result', output: await manager.runPinned(owner, { callId: call.callId, requestId: options.ids(), deadline: options.now() + definition.timeoutMs, source: { kind: 'runtime' }, chain: [], ...(executionContext ? { taskId: executionContext.taskId, sessionId: executionContext.sessionId } : {}) }, signal ?? new AbortController().signal, activeSignal => remote.service.call(remote.name, call.arguments, activeSignal)) }
@@ -130,7 +136,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
               }, signal ?? new AbortController().signal, event => progress.push(event)).then(() => progress.end(), error => progress.fail(error instanceof Error ? error : new Error(String(error))))
               try { for await (const event of progress) yield event as ToolExecutorEvent } finally { await completed }
             }
-          }, owner)
+          }, owner, () => manager.isContributionAvailable('tool', definition.id, owner))
           const key = registrationKey(owner, definition.id)
           registered.set(key, registration)
           registrations.push({ dispose() { if (registered.get(key) === registration) registered.delete(key); return registration.dispose() } })
@@ -163,6 +169,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
     invoke: (id, input, context, signal) => manager.invoke(id, input, context, signal)
   })
   const api: PluginHostAPI = new PluginHostAPI({ ...options.apiPorts,
+    context: contextKeys,
     ...(options.desktopResources ? { resources: { request: options.desktopResources.request } } : {}),
     capabilities: { invoke: async (owner, id, input, context, signal) => {
       const target = options.hostCapabilities?.[id]
@@ -180,6 +187,7 @@ export async function createRuntimePluginPlatform(options: RuntimePluginComposit
   }))
   return {
     manager,
+    contextKeys,
     install: async (root: string) => {
       const manifest = validateManifest(JSON.parse(await readFile(join(root, 'plugin.json'), 'utf8')), host)
       if (descriptors.has(manifest.id)) throw new PluginError('CONTRIBUTION_CONFLICT', manifest.id)
