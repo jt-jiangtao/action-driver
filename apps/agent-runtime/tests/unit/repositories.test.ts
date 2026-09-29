@@ -410,6 +410,66 @@ describe('SQLite runtime repositories', () => {
     repositories.close()
   })
 
+  it('rejects a forbidden payload without partial rows or a cursor advance', async () => {
+    const repositories = createRepositories()
+    await repositories.tasks.save(task)
+    const invocation: PersistedToolInvocation = {
+      id: 'call-rejected',
+      providerCallId: 'provider-rejected',
+      taskId: task.id,
+      toolId: 'tools/local/command/shell/run',
+      toolVersion: 1,
+      argumentsHash: '',
+      decision: 'allow',
+      status: 'proposed',
+      input: { path: 'README.md' },
+      output: null,
+      error: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    const forbiddenEvent: Omit<RuntimeEventRecord, 'cursor'> = {
+      taskId: task.id,
+      threadId: task.threadId,
+      checkpointId: 'checkpoint-1',
+      eventKey: 'call-rejected.0',
+      type: 'tool.proposed',
+      payload: { callId: invocation.id, cookie: 'session-secret' },
+      occurredAt: task.createdAt
+    }
+
+    await expect(
+      repositories.commitToolInvocationWithEvent(invocation, forbiddenEvent)
+    ).rejects.toThrow('PERSISTENCE_PAYLOAD_REJECTED')
+    // The invocation row was written before the rejected event row; the transaction must undo it.
+    expect(await repositories.toolInvocations.listByTask(task.id)).toEqual([])
+    expect(await repositories.events.listAfter(0)).toEqual([])
+
+    // A cross-table commit that cannot find its request must also roll back the message write.
+    const request: PersistedStreamRequest = {
+      requestId: 'request-missing',
+      idempotencyKey: 'key-missing',
+      sessionId: task.sessionId,
+      taskId: task.id,
+      responseId: 'response-missing',
+      streamId: 'stream-missing',
+      messageId: 'message-missing',
+      status: 'running',
+      lastSequence: -1,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    }
+    await expect(
+      repositories.commitAssistantContentWithEvent(
+        request,
+        { id: 'message-orphan', taskId: task.id, role: 'assistant', content: { text: 'x' }, createdAt: task.createdAt },
+        { ...forbiddenEvent, payload: { text: 'x' }, requestId: request.requestId }
+      )
+    ).rejects.toThrow('Unknown stream request: request-missing')
+    expect(await repositories.messages.listByTask(task.id)).toEqual([])
+    repositories.close()
+  })
+
   it('creates one durable stream task per idempotency key and commits content atomically', async () => {
     const repositories = createRepositories()
     const streamTask: RuntimeTaskRecord = {

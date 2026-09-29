@@ -11,15 +11,10 @@ import {
   type StreamServerEvent
 } from '@actiondriver/runtime-contracts'
 import {
-  emptyActivityTimelineState,
-  reduceActivityProjection
-} from '@actiondriver/activity-projection'
-import {
   appendActivityAnchor,
   insertPartByOrder,
   nextPartOrder,
   normalizeAssistantParts,
-  type ImageAssetRef,
   type MessageContentPart
 } from '@actiondriver/contracts'
 import type { ModelInputMessage } from '@actiondriver/model-connections'
@@ -38,20 +33,17 @@ import type {
   StreamSessionRepository,
   RuntimeTaskRecord
 } from './ports'
+import { toolActivityErrorSummary, toolActivityResultSummary } from './tool-activity'
+import { StreamEventDelivery, type Emit } from './stream/event-delivery'
+import { buildStreamSnapshot, type SnapshotEvent } from './stream/stream-snapshot'
 import {
-  persistedToolActivity,
-  toolActivityErrorSummary,
-  toolActivityResultSummary
-} from './tool-activity'
-
-/** Order reserved for one image inside its batch: the batch keeps `index` slots. */
-function imageOrder(parts: readonly MessageContentPart[], callId: string, index: number): number {
-  const batch = parts.find((part) => part.kind === 'image-batch' && part.callId === callId)
-  return batch?.order === undefined ? nextPartOrder(parts) : batch.order + 1 + index
-}
-
-type Emit = (event: StreamServerEvent) => void | Promise<void>
-type SnapshotEvent = Extract<StreamServerEvent, { type: 'response.snapshot' }>
+  attachmentErrorCode,
+  boundedJson,
+  boundedText,
+  imageOrder,
+  isImageAssetRef,
+  messageText
+} from './stream/stream-values'
 
 type ActiveRequest = {
   sessionId: string
@@ -64,8 +56,7 @@ type ActiveRequest = {
 export class StreamSessionService {
   private readonly active = new Map<string, ActiveRequest>()
   private readonly activeSessions = new Set<string>()
-  private readonly publicationTails = new Map<string, Promise<void>>()
-  private readonly publishedCursors = new Map<string, number>()
+  private readonly delivery: StreamEventDelivery
 
   constructor(
     private readonly options: {
@@ -99,7 +90,26 @@ export class StreamSessionService {
         sessionId: string
       ) => Promise<Array<{ name: string; path: string; mimeType: string }>>
     }
-  ) {}
+  ) {
+    this.delivery = new StreamEventDelivery({
+      repositories: this.options.repositories,
+      toServerEvent: (request, record) => this.toServerEvent(request, record),
+      requestNotFoundEvent: (requestId) => ({
+        type: 'request.error',
+        protocol: STREAM_PROTOCOL,
+        eventId: this.options.ids.next('event'),
+        requestId,
+        error: { code: 'request-not-found', message: 'Unknown request', retryable: false },
+        occurredAt: this.options.now()
+      }),
+      hasPendingApprovals: this.options.appApprovals !== undefined,
+      snapshot: (requestId) => this.snapshot(requestId),
+      rebindLiveDelivery: (requestId, emit) => {
+        const active = this.active.get(requestId)
+        if (active) active.delivery.emit = emit
+      }
+    })
+  }
 
   async close(): Promise<void> {
     const active = [...this.active.values()]
@@ -340,7 +350,7 @@ export class StreamSessionService {
     const storedRequest = created.request
     const acceptedRecord = await this.findEvent(storedRequest.requestId, 'request.accepted')
     await emit(this.toServerEvent(storedRequest, acceptedRecord))
-    this.publishedCursors.set(storedRequest.requestId, acceptedRecord.cursor)
+    this.delivery.markPublished(storedRequest.requestId, acceptedRecord.cursor)
 
     if (!created.created) {
       this.activeSessions.delete(sessionId)
@@ -367,8 +377,7 @@ export class StreamSessionService {
         ) {
           this.activeSessions.delete(storedRequest.sessionId)
         }
-        this.publicationTails.delete(storedRequest.requestId)
-        this.publishedCursors.delete(storedRequest.requestId)
+        this.delivery.release(storedRequest.requestId)
       }
     })
     this.active.set(storedRequest.requestId, {
@@ -755,222 +764,30 @@ export class StreamSessionService {
     cursor: number,
     emit: Emit
   ): Promise<void> {
-    const previous = this.publicationTails.get(request.requestId) ?? Promise.resolve()
-    const current = previous.then(async () => {
-      let last = this.publishedCursors.get(request.requestId) ?? 0
-      while (last < cursor) {
-        const records = await this.options.repositories.events.listForRequestAfter(
-          request.requestId,
-          last,
-          256
-        )
-        if (records.length === 0) break
-        for (const record of records) {
-          if (record.cursor > cursor) return
-          await emit(this.toServerEvent(request, record))
-          last = record.cursor
-          this.publishedCursors.set(request.requestId, last)
-        }
-      }
-    })
-    this.publicationTails.set(
-      request.requestId,
-      current.catch(() => undefined)
-    )
-    await current
+    await this.delivery.publishThrough(request, cursor, emit)
   }
 
   private async replay(requestId: string, afterCursor: number, emit: Emit): Promise<void> {
-    const active = this.active.get(requestId)
-    if (active) active.delivery.emit = emit
-    const request = await this.options.repositories.streamRequests.getByRequestId(requestId)
-    if (!request) {
-      await emit({
-        type: 'request.error',
-        protocol: STREAM_PROTOCOL,
-        eventId: this.options.ids.next('event'),
-        requestId,
-        error: { code: 'request-not-found', message: 'Unknown request', retryable: false },
-        occurredAt: this.options.now()
-      })
-      return
-    }
-    if (this.options.appApprovals) {
-      // Approval waiters are process-local. Restore their live state together with the
-      // authoritative task projection rather than briefly displaying historical requests.
-      await emit(await this.snapshot(requestId))
-      return
-    }
-    const first = (await this.options.repositories.events.listForRequestAfter(requestId, 0, 1))[0]
-    const replayExpired =
-      (!first && request.lastSequence >= 0) ||
-      (first !== undefined && first.type !== 'request.accepted' && afterCursor < first.cursor)
-    if (replayExpired) {
-      await emit(await this.snapshot(request.requestId))
-      return
-    }
-    let cursor = afterCursor
-    while (true) {
-      const events = await this.options.repositories.events.listForRequestAfter(
-        requestId,
-        cursor,
-        256
-      )
-      if (events.length === 0) break
-      for (const event of events) {
-        await emit(this.toServerEvent(request, event))
-        cursor = event.cursor
-      }
-    }
+    await this.delivery.replay(requestId, afterCursor, emit)
   }
 
   private async snapshot(requestId: string): Promise<SnapshotEvent> {
-    const {
-      request,
-      cursor,
-      task,
-      messages,
-      tools: toolInvocations,
-      events
-    } = await this.options.repositories.readStreamSnapshot(requestId)
-    const activity = events
-      .map((event) => this.toServerEvent(request, event))
-      .reduce(reduceActivityProjection, emptyActivityTimelineState())
-    const error = toStreamError(task?.error)
-    const end = [...events].reverse().find((event) => event.type === 'response.end')
-    const durationMs = (end?.payload as { durationMs?: unknown } | undefined)?.durationMs
-    let preparingToolName: string | null = null
-    if (request.status === 'running') {
-      for (const event of events) {
-        if (event.type === 'response.tool_preparing') {
-          const modelName = (event.payload as { modelName?: unknown }).modelName
-          preparingToolName = typeof modelName === 'string' ? modelName : null
-        } else if (
-          event.type === 'response.content' ||
-          event.type === 'activity.text' ||
-          event.type.startsWith('tool.')
-        ) {
-          preparingToolName = null
-        }
-      }
-    }
-    return parseStreamServerEvent({
-      type: 'response.snapshot',
-      protocol: STREAM_PROTOCOL,
-      eventId: this.options.ids.next('event'),
-      cursor,
-      requestId: request.requestId,
-      sessionId: request.sessionId,
-      taskId: request.taskId,
-      responseId: request.responseId,
-      streamId: request.streamId,
-      messageId: request.messageId,
-      occurredAt: this.options.now(),
-      sequence: request.lastSequence,
-      status: request.status,
-      pendingAppApproval:
-        request.status === 'running' && this.active.has(request.requestId)
-          ? [...(this.options.appApprovals?.getPending(request.taskId) ?? [])]
-          : [],
-      ...(await this.outputFilesFor(request.taskId)),
-      messages: messages
-        .filter((message) => message.role === 'user' || message.role === 'assistant')
-        .map((message) => ({
-          id: message.id,
-          role: message.role,
-          content: messageText(message.content),
-          ...(messageParts(message.content)
-            ? {
-                parts:
-                  message.role === 'assistant'
-                    ? normalizeAssistantParts(messageParts(message.content)!)
-                    : messageParts(message.content)!
-              }
-            : {}),
-          createdAt: message.createdAt
-        })),
-      tools: toolInvocations.map((invocation) => {
-        const persisted = persistedToolActivity(invocation)
-        const activityId = activity.toolActivityIds[invocation.id] ?? null
-        const rawToolIO = this.options.rawToolIO?.enabled === true
-        const maxRawBytes = this.options.rawToolIO?.maxBytes ?? 64 * 1024
-        const metadata = [...events]
-          .reverse()
-          .find(
-            (event) =>
-              (event.payload as { callId?: string }).callId === invocation.id &&
-              Object.hasOwn(event.payload as object, 'presentation')
-          )?.payload as { presentation?: unknown } | undefined
-        const presentation = metadata
-          ? toolPresentationSchema.safeParse(metadata.presentation).data
-          : this.options.toolPresentation?.(invocation.toolId)
-        const assets = events
-          .filter(
-            (event) =>
-              event.type === 'tool.asset' &&
-              (event.payload as { callId?: string }).callId === invocation.id
-          )
-          .map((event) => (event.payload as { asset?: unknown }).asset)
-        const output = withAssets(invocation.output, assets)
-        const rawInput = rawToolIO ? boundedJson(invocation.input, maxRawBytes) : null
-        const rawOutput = rawToolIO ? boundedJson(invocation.output, maxRawBytes) : null
-        return {
-          callId: invocation.id,
-          toolId: invocation.toolId,
-          modelName: invocation.toolId,
-          ...persisted,
-          argumentsHash: invocation.argumentsHash,
-          ...(invocation.toolId === 'tools/local/image-generation/generate' &&
-          Array.isArray((invocation.input as { images?: unknown }).images) &&
-          (invocation.input as { images: unknown[] }).images.length >= 1 &&
-          (invocation.input as { images: unknown[] }).images.length <= 16
-            ? { imageCount: (invocation.input as { images: unknown[] }).images.length }
-            : {}),
-          status: invocation.status,
-          activityId,
-          ...(rawToolIO
-            ? {
-                details: projectToolDetails(presentation, invocation.input, output, {
-                  maxBytes: maxRawBytes
-                }),
-                ...(presentation ? { presentation } : {})
-              }
-            : {}),
-          ...(rawInput ? { rawInput: rawInput.value } : {}),
-          ...(rawOutput ? { rawOutput: rawOutput.value } : {}),
-          ...(rawInput?.truncated || rawOutput?.truncated ? { rawOutputTruncated: true } : {})
-        }
-      }),
-      ...(activity.activities.length ? { activities: activity.activities } : {}),
-      ...(activity.timeline.length ? { activityTimeline: activity.timeline } : {}),
-      ...(typeof durationMs === 'number' ? { durationMs } : {}),
-      ...(preparingToolName ? { preparingToolName } : {}),
-      error
-    }) as SnapshotEvent
-  }
-
-  private async outputFilesFor(taskId: string): Promise<{
-    outputFiles?: Array<{
-      fileId: string
-      sessionId: string
-      taskId: string
-      name: string
-      mimeType: string
-      byteLength: number
-    }>
-  }> {
-    const files = (await this.options.listOutputs?.(taskId)) ?? []
-    if (files.length === 0) return {}
-    return {
-      outputFiles: files.map((file) => ({
-        fileId: file.fileId,
-        sessionId: file.sessionId,
-        taskId: file.taskId,
-        name: file.name,
-        mimeType: file.mimeType,
-        byteLength: file.byteLength
-      }))
-    }
+    return await buildStreamSnapshot(
+      {
+        repositories: this.options.repositories,
+        toServerEvent: (request, record) => this.toServerEvent(request, record),
+        nextEventId: () => this.options.ids.next('event'),
+        now: () => this.options.now(),
+        ...(this.options.rawToolIO ? { rawToolIO: this.options.rawToolIO } : {}),
+        ...(this.options.toolPresentation
+          ? { toolPresentation: this.options.toolPresentation }
+          : {}),
+        isActive: (candidate) => this.active.has(candidate),
+        pendingAppApprovals: (taskId) => this.options.appApprovals?.getPending(taskId),
+        ...(this.options.listOutputs ? { listOutputs: this.options.listOutputs } : {})
+      },
+      requestId
+    )
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {
@@ -1225,85 +1042,5 @@ export class StreamSessionService {
       sequence: record.sequence,
       ...payload
     })
-  }
-}
-
-function boundedJson(value: unknown, maxBytes: number): { value: string; truncated: boolean } {
-  return boundedText(JSON.stringify(value), maxBytes)
-}
-
-function boundedText(value: unknown, maxBytes: number): { value: string; truncated: boolean } {
-  const text = typeof value === 'string' ? value : ''
-  const bytes = Buffer.byteLength(text, 'utf8')
-  if (bytes <= maxBytes) return { value: text, truncated: false }
-  let end = Math.min(text.length, maxBytes)
-  while (Buffer.byteLength(text.slice(0, end), 'utf8') > maxBytes) end -= 1
-  return { value: text.slice(0, end), truncated: true }
-}
-
-function messageText(content: unknown): string {
-  if (typeof content === 'string') return content
-  const parts = messageParts(content)
-  if (parts)
-    return parts
-      .filter((part) => part.kind === 'text')
-      .map((part) => part.text)
-      .join('')
-  if (content && typeof content === 'object' && 'text' in content) {
-    const text = (content as { text?: unknown }).text
-    if (typeof text === 'string') return text
-  }
-  return ''
-}
-
-function messageParts(content: unknown): MessageContentPart[] | null {
-  if (
-    !content ||
-    typeof content !== 'object' ||
-    !('parts' in content) ||
-    !Array.isArray(content.parts)
-  )
-    return null
-  return content.parts as MessageContentPart[]
-}
-
-function isImageAssetRef(value: unknown): value is ImageAssetRef {
-  if (!value || typeof value !== 'object') return false
-  const asset = value as Partial<ImageAssetRef>
-  return (
-    typeof asset.assetId === 'string' &&
-    typeof asset.sessionId === 'string' &&
-    (asset.mimeType === 'image/png' ||
-      asset.mimeType === 'image/jpeg' ||
-      asset.mimeType === 'image/webp') &&
-    typeof asset.width === 'number' &&
-    typeof asset.height === 'number' &&
-    typeof asset.byteLength === 'number' &&
-    asset.source === 'generated'
-  )
-}
-
-function toStreamError(value: unknown): {
-  code: string
-  message: string
-  retryable: boolean
-} | null {
-  if (!value || typeof value !== 'object') return null
-  const error = value as { code?: unknown; message?: unknown; retryable?: unknown }
-  if (typeof error.code !== 'string' || typeof error.message !== 'string') return null
-  return { code: error.code, message: error.message, retryable: error.retryable === true }
-}
-
-/** The store error code (for example `INPUT_FILE_NOT_FOUND`), so a failed attachment is diagnosable. */
-function attachmentErrorCode(error: unknown): string {
-  if (error instanceof Error && 'code' in error && typeof error.code === 'string') return error.code
-  return error instanceof Error ? error.name : 'UNKNOWN'
-}
-
-function withAssets(output: unknown, assets: unknown[]): unknown {
-  if (!assets.length) return output
-  return {
-    ...(output && typeof output === 'object' && !Array.isArray(output) ? output : {}),
-    assets
   }
 }
