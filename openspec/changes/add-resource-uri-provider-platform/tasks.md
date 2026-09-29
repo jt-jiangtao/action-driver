@@ -1,0 +1,25 @@
+## 1. 资源协议
+
+- [x] 1.1 在共享契约中定义版本化 URI、provider 能力、权威调用上下文、错误码与取消信号；用定向测试验证规范化、非法 URI 和跨作用域拒绝。
+- [x] 1.2 建立 scheme/provider 注册与生命周期管理；用定向测试验证重复注册、版本不兼容、卸载和不可用时无文件系统回退。
+
+## 2. 操作与版本
+
+- [x] 2.1 实现有界流 read、list、write 与能力错误；用定向测试验证大文件、超时、取消及未提交写入不被当作成功。
+- [x] 2.2 实现预期版本写入、创建条件和不可变资源拒写；用并发定向测试验证冲突不覆盖、派生新版不改历史引用。
+- [x] 2.3 实现 watch 的版本/序号、权限撤销和断线重同步；用定向测试验证事件缺口可见且跨会话监听失败。
+
+## 3. Provider 与兼容迁移
+
+- [ ] 3.1 将会话输入及登记产物接入只读 provider，并保留旧文件 ID 解析；用历史任务和跨会话定向测试验证原版本与隔离。
+- [ ] 3.2 接入可写工作资源、插件资源及远程 provider；用定向测试覆盖读写列举监听、远程断线和取消。
+- [ ] 3.3 将 Desktop 打开资源及插件 Host API 接入 URI 路由并保留兼容适配；用定向测试验证任意路径/URI 无法绕过桌面白名单。
+- [ ] 3.4 用端到端样例验证旧任务卡片、同会话输入、远程资源与并发写入在重启后仍符合 spec；记录兼容与回滚结果。
+
+## 进度记录（进行中，未提交归档）
+
+- 已完成 1.1、1.2、2.1、2.2、2.3，实现落在共享契约与 Runtime 资源层，尚未接入既有输入/产物存储、插件资源、远程 provider、Desktop 与插件 Host API；3.1–3.4 未开始。
+  - 契约：`packages/runtime-contracts/src/resource-uri.ts` 定义 `adr://v1/<scheme>/<id>` 规范化 URI（含可选 task/session/version 作用域）、`RESOURCE_*` 结构化错误码、provider 描述符（能力显式声明）、provider 操作接口与有界流读写请求。
+  - 注册表：`apps/agent-runtime/src/resources/registry.ts` 按 scheme 注册 provider，重复 scheme 报 `RESOURCE_VERSION_CONFLICT` 并给出双方归属，协议版本不受支持报 `RESOURCE_UNSUPPORTED`，从未服务的 scheme 报 `RESOURCE_SCHEME_UNKNOWN`，已停用 provider 报 `RESOURCE_UNAVAILABLE`（无文件系统回退），并在分发前完成作用域、取消与截止时间校验。
+  - 语义：`apps/agent-runtime/src/resources/store.ts` 提供 `boundedStream` 与 `VersionedResourceStore`：有界分块读取、写入中断不产生已提交版本、预期版本写入冲突不覆盖、`createOnly` 创建条件、交付后不可变（`RESOURCE_IMMUTABLE`）、按 `version` 选择符读取历史版本、watch 携带版本与序号、`reportGap` 产生 `resync-required`、权限撤销后停止投递。
+  - 定向测试：`pnpm vitest run packages/runtime-contracts/tests/unit/resource-uri.test.ts apps/agent-runtime/tests/unit/resources/` → 3 文件 17 项全部通过；`pnpm --filter @actiondriver/agent-runtime typecheck` 与 `pnpm --filter @actiondriver/runtime-contracts typecheck` 通过；改动文件 ESLint 通过。
