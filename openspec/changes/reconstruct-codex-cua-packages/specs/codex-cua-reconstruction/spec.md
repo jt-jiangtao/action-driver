@@ -63,7 +63,7 @@
 - **THEN** 返回明确平台不可用错误，不创建子进程
 
 ### Requirement: 独立 browser-desktop 包
-系统 SHALL 将本机 `@oai/browser-desktop@0.1.1` 的完整原件及版本和逐文件哈希保存在 `packages/back/browser-desktop/@oai/browser-desktop`，并将其自有 JavaScript、接口和资源还原为独立的 `@actiondriver/browser-desktop` 源码包。与已复制内嵌 browser bundle 相同的内容可以复用已验证的自有实现，但差异部分 SHALL 单独映射和测试。第三方依赖按确切版本引入，不自行重写。
+系统 SHALL 将本机 `@oai/browser-desktop@0.1.1` 的完整原件及版本和逐文件哈希保存在 `thirdparty/backup/browser-desktop/@oai/browser-desktop`，并将其自有 JavaScript、接口和资源还原为独立的 `@actiondriver/browser-desktop` 源码包。与已复制内嵌 browser bundle 相同的内容可以复用已验证的自有实现，但差异部分 SHALL 单独映射和测试。第三方依赖按确切版本引入，不自行重写。
 
 #### Scenario: 独立原件与实现
 - **WHEN** 检查 browser-desktop 的交付物
@@ -102,7 +102,7 @@ This explicit user-approved exception supersedes the exact original-version requ
 Battle complete: user explicitly approved autonomous implementation of missing-runtime helpers under documented contracts. Existing declarations do not prove debounce/caching/error/help details. Alternatives were waiting for missing source (unavailable, leaves modules incomplete) and implementing explicit contracts; recommended latter, user chose it. createDelayedAction uses last-call debounce; createLazyEvaluator caches first successful return, retries synchronous throws, caches Promise identity. sleep/enumerate/invariant follow declarations; env follows documented normalization/cache/missing/invalid behavior. These MUST be labeled autonomous implementations without original runtime parity evidence. Semantic risk remains unknown original edge behavior. Default debounce delay is 0ms, latest receiver forwarded, lazy evaluation forwards first receiver; env errors are retryable and successful/default values cached. Error/help text is project-defined, not asserted original.
 
 ### Requirement: 生产切换后完全移除 agent-runtime vendor
-系统 SHALL 在自有 macOS 宿主真实验收通过后，将生产 Computer Use REPL、CUA、Sky、构建和打包统一切换到 ActionDriver 自有实现，并删除 `apps/agent-runtime/vendor`。切换后的 Computer Use MUST 保持现有授权、取消、截图、重置和资源清理能力。`packages/back` MAY 作为离线对照输入，但 MUST NOT 被产品运行时、构建产物或生产依赖图读取。最终交付还 SHALL 满足 `integrate-browser-use-desktop` 的内置与外部 Chrome 真实验收。
+系统 SHALL 在自有 macOS 宿主真实验收通过后，将生产 Computer Use REPL、CUA、Sky、构建和打包统一切换到 ActionDriver 自有实现，并删除 `apps/agent-runtime/vendor`。切换后的 Computer Use MUST 保持现有授权、取消、截图、重置和资源清理能力。`thirdparty/backup` MAY 作为离线对照输入，但 MUST NOT 被产品运行时、构建产物或生产依赖图读取。最终交付还 SHALL 满足 `integrate-browser-use-desktop` 的内置与外部 Chrome 真实验收。
 
 #### Scenario: 完成联合切换
 - **WHEN** Browser Use 与 Computer Use 自有宿主真实验收均通过

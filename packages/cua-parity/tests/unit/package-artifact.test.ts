@@ -31,7 +31,7 @@ for (const name of ['cua', 'cua-repl', 'browser-runtime', 'sky']) {
         expect(paths).toContain('resources/browser-keyboard.json')
       }
       expect(
-        paths.some((path: string) => /^(src|tests|node_modules|vendor|back)\//.test(path))
+        paths.some((path: string) => /^(src|tests|node_modules|vendor|back|backup)\//.test(path))
       ).toBe(false)
       const unpacked = join(work, 'unpacked')
       await mkdir(unpacked)

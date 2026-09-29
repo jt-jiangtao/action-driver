@@ -6,3 +6,4 @@ openspec/
 pnpm-lock.yaml
 test-results/
 playwright-report/
+thirdparty/

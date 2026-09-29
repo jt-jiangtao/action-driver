@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Browser and Computer services must not depend on Codex App private services or `packages/back` at runtime.
+- Browser and Computer services must not depend on Codex App private services or `thirdparty/backup` at runtime.
 - Only ActionDriver-created browser sessions are visible to Agent; external browser support is macOS Chrome with an isolated profile.
 - Browser RPC and computer RPC each enforce their own Skill/Policy Gate, task ownership, cancellation and takeover state.
 - Preserve Computer Use approval, image storage, timeout, reset and cleanup behavior.

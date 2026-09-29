@@ -8,7 +8,7 @@
 - 提供分阶段统一命令，贯通源码初始化、环境检查、依赖同步、编译、产物导出、来源生成与验证。
 - 自动生成独立 Node 包边界及本机来源记录，不沿用其他机器的产物哈希或绝对路径。
 - 打包阶段复用现有 Electron 原生模块、Computer Use helper 和桌面打包验证入口。
-- 用不含本机 thridparty、node_modules、out、dist 的全新检出完成验收，记录实际阶段结果与失败原因。
+- 用不含本机 thirdparty、node_modules、out、dist 的全新检出完成验收，记录实际阶段结果与失败原因。
 
 ## Capabilities
 

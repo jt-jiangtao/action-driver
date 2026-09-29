@@ -14,7 +14,7 @@
 
 - 只支持 macOS；外部浏览器只支持由 Agent/ActionDriver 启动、使用独立 profile 的 Chrome，不连接现有标签。
 - Browser 与 Computer 的底层自有包及真实验收不得连接 Codex App 私有服务。
-- `packages/back` 保留为离线对照；任何产品源码、依赖图和打包产物不得从该目录加载。
+- `thirdparty/backup` 保留为离线对照；任何产品源码、依赖图和打包产物不得从该目录加载。
 - 不削弱现有 Computer Use 的授权、取消、沙箱、截图、重置与资源清理行为；缺少能力时明确失败，不能假成功。
 - 迭代期只运行改动相关定向测试与必要的 typecheck；全量 `pnpm typecheck`、`pnpm lint`、`pnpm test` 及适用 E2E 仅在准备提交时运行一次。
 - 主仓库有其他任务未提交改动；浏览器隔离工作树也有未提交实现。整合时保留两边现有内容，只提交本次变更涉及的文件。
@@ -25,7 +25,7 @@
 2. Computer Use 授权拒绝、Esc 取消和会话结束时是否释放 helper 与截图资源；Task 3/4 覆盖。
 3. 内置 view 的真实网页是否正是 Agent 操作的页面，且任务切换、折叠和缩放不丢状态；Task 2 覆盖。
 4. Chrome 用户手动关闭、启动失败、CDP 断连时是否报错并清理隔离 profile；Task 2/4 覆盖。
-5. 迁移后的测试、脚本和包内容是否偷偷引用 `vendor` 或 `packages/back` 生产路径；Task 5 覆盖。
+5. 迁移后的测试、脚本和包内容是否偷偷引用 `vendor` 或 `thirdparty/backup` 生产路径；Task 5 覆盖。
 
 ---
 
@@ -74,11 +74,11 @@
 
 **Files:** `packages/{cua,sky,cua-repl,browser-runtime,cua-parity}/tests/*` 的原件路径、`scripts/sync-codex-cua.mjs`、`apps/agent-runtime/scripts/copy-js-entry.mjs` 及测试、`apps/agent-runtime/vendor/`、相关文档/基准。
 
-**Interfaces:** `captureBaseline('packages/back/codex-cua')` 仅在离线差异/漂移测试使用；产品构建仅复制自有 REPL 资源与包，不复制原件。
+**Interfaces:** `captureBaseline('thirdparty/backup/codex-cua')` 仅在离线差异/漂移测试使用；产品构建仅复制自有 REPL 资源与包，不复制原件。
 
 - [ ] 将固定原件测试改读备份，重写“生产仍使用 vendor”的旧断言为“生产不读备份和 vendor”；对纯构建/包边界写失败测试。
 - [ ] 移除 vendor 同步与复制脚本、`CUA_VENDOR_ROOT`、生产源码及打包引用；运行定向测试和源/产物隔离扫描。
-- [ ] 删除 `apps/agent-runtime/vendor` 的全部受控文件，确认该路径不存在；对仓库源代码、构建输出和打包产物复核。保留 `packages/back` 文件与哈希清单。
+- [ ] 删除 `apps/agent-runtime/vendor` 的全部受控文件，确认该路径不存在；对仓库源代码、构建输出和打包产物复核。保留 `thirdparty/backup` 文件与哈希清单。
 
 ### Task 6: 最终验证、记录与提交
 

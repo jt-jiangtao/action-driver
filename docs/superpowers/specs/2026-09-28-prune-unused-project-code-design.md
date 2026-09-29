@@ -6,7 +6,7 @@
 
 ## 范围
 
-审查 `apps/`、`packages/`、`plugins/`、`scripts/`。保留 `packages/back`、Git 子模块、文档和设计资产、未跟踪的 `.env.local`、依赖安装与被忽略的构建缓存。仅清理源码区域内不承担占位用途的空目录。现有 OpenSpec 能力要求不变；详细范围与 Battle 裁决见 `openspec/changes/archive/2026-09-29-prune-unused-project-code/proposal.md`。
+审查 `apps/`、`packages/`、`plugins/`、`scripts/`。保留 `thirdparty/backup`、Git 子模块、文档和设计资产、未跟踪的 `.env.local`、依赖安装与被忽略的构建缓存。仅清理源码区域内不承担占位用途的空目录。现有 OpenSpec 能力要求不变；详细范围与 Battle 裁决见 `openspec/changes/archive/2026-09-29-prune-unused-project-code/proposal.md`。
 
 ## 方法
 

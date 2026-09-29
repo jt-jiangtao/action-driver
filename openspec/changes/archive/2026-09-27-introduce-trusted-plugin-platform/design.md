@@ -143,7 +143,7 @@ plugins/
   image-generation/              # 图像工具与提供商适配
 ```
 
-单插件目录使用 `plugin.json`、`src/`、可选 `skills/`、`ui/`、`services/`、`native/`。构建产物放独立构建目录，安装包使用 `bin/<os>-<arch>/`；源码目录不混入下载工具与构建结果。已有 `thridparty` fork 和工具/构建目录布局由独立任务管理，本设计不重排。
+单插件目录使用 `plugin.json`、`src/`、可选 `skills/`、`ui/`、`services/`、`native/`。构建产物放独立构建目录，安装包使用 `bin/<os>-<arch>/`；源码目录不混入下载工具与构建结果。已有 `thirdparty` fork 和工具/构建目录布局由独立任务管理，本设计不重排。
 
 用户安装版本放应用数据目录的 `plugins/installed/<id>/<version>`，私有数据放 `plugins/data/<id>`。内置包随应用分发，和用户包走同一 SDK；包来源影响分发方式，不赋予私有 API。
 

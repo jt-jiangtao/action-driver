@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 只删代码和无需占位的空源码目录；不清理 `packages/back`、两个 Git 子模块、文档与设计资产、`.env.local` 或被忽略的本地构建产物。
+- 只删代码和无需占位的空源码目录；不清理 `thirdparty/backup`、两个 Git 子模块、文档与设计资产、`.env.local` 或被忽略的本地构建产物。
 - 不改变现行公共契约、产品行为、持久化数据或安全约束；触及这些边界时按 Agent Battle 协议暂停相关写操作。
 - 迭代期只运行定向验证；准备提交时才一次性运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`。本次提交只含本任务改动。
 - OpenSpec 变更的 `tasks.md` 随完成逐项勾选；审计证据写入该变更的 `audit.md`。

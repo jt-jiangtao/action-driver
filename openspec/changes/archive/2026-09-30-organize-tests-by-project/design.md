@@ -13,7 +13,7 @@
 **Non-Goals:**
 
 - 不重写测试逻辑、调整产品功能或更换测试框架。
-- 不移动 `thridparty/`、vendored 源码及开发技能自带的测试。
+- 不移动 `thirdparty/`、vendored 源码及开发技能自带的测试。
 - 不把源码旁的测试辅助模块一概搬走；仅移动测试专用文件及与测试套件紧密绑定的支持文件。
 
 ## Decisions
@@ -32,7 +32,7 @@
 
 ### 3. 第三方边界与独立工作区
 
-**选择：** 只改 `apps/`、`packages/`、`plugins/`、`scripts/` 和根 `tests/` 中由本仓库维护的测试与引用；不触及 `thridparty/` 和 vendored 子树。使用独立工作区，避免将主工作区已有的无关 `apps/desktop/src/renderer/src/main.tsx` 修改混入交付。
+**选择：** 只改 `apps/`、`packages/`、`plugins/`、`scripts/` 和根 `tests/` 中由本仓库维护的测试与引用；不触及 `thirdparty/` 和 vendored 子树。使用独立工作区，避免将主工作区已有的无关 `apps/desktop/src/renderer/src/main.tsx` 修改混入交付。
 
 **替代方案：** 对全仓库测试做不区分所有权的批量移动。它会修改上游代码并增加升级冲突，不符合本次目标。
 

@@ -3,7 +3,7 @@
 ## 基线与方法
 
 - 基线提交：`a88962dd2eed788e2d8cdb9063cb3bbd4fc1df2e`。独立工作区起始只有本变更的未跟踪规划文件；原主工作区的 `.env.local` 未复制、未读取或修改。
-- `git ls-files` 共 3,216 条；排除 `packages/back` 后，`apps/`、`packages/`、`plugins/`、`scripts/` 共 1,518 条。其中文本脚本类代码（TS/TSX/JS/MJS/MTS）1,041 条，Swift 47 条，Python 55 条。`packages/back`、两个 Git 子模块及被忽略的构建目录不进入删除集合。
+- `git ls-files` 共 3,216 条；排除 `thirdparty/backup` 后，`apps/`、`packages/`、`plugins/`、`scripts/` 共 1,518 条。其中文本脚本类代码（TS/TSX/JS/MJS/MTS）1,041 条，Swift 47 条，Python 55 条。`thirdparty/backup`、两个 Git 子模块及被忽略的构建目录不进入删除集合。
 - 以相对导入和 `.js`→`.ts/.tsx` 映射生成候选，得到 86 个零相对入边文件（`apps` 23、`packages` 14、`plugins` 26、`scripts` 23）。逐类反查声明入口、字符串路径、测试与活跃 OpenSpec；零入边本身不构成删除证据。
 - 使用 `rg -n 'DetailBounds|detail-bounds|isExecutorRegistered' apps packages plugins scripts`、工作区包清单、`tsc --noUnusedLocals --noUnusedParameters`、`find ... -type d -empty` 核对删除项。原主工作区的定向基线测试为 41/41 通过；独立工作区相同两组测试也为 41/41 通过。
 

@@ -1,6 +1,6 @@
 ## Context
 
-参见 `proposal.md`。仓库有多个 TypeScript 包、Electron 三进程入口、插件清单、脚本入口及 Swift helper；`packages/back` 是明确备份。`git ls-files` 中约 1,052 个应用、包和插件代码文件。初步静态相对导入扫描出现 147 个零入边文件，但其中包含 `runtime-entry.ts`、插件入口、脚本和包导出，因此零入边只能生成候选，不能直接作为删除依据。已核实 `apps/desktop/src/shared/detail-bounds.ts` 目前无源码引用，可作为首个删除候选。
+参见 `proposal.md`。仓库有多个 TypeScript 包、Electron 三进程入口、插件清单、脚本入口及 Swift helper；`thirdparty/backup` 是明确备份。`git ls-files` 中约 1,052 个应用、包和插件代码文件。初步静态相对导入扫描出现 147 个零入边文件，但其中包含 `runtime-entry.ts`、插件入口、脚本和包导出，因此零入边只能生成候选，不能直接作为删除依据。已核实 `apps/desktop/src/shared/detail-bounds.ts` 目前无源码引用，可作为首个删除候选。
 
 ## Goals / Non-Goals
 
@@ -28,7 +28,7 @@
 
 ### D3：限定写入边界并分组验证
 
-只修改 Git 跟踪的 `apps/`、`packages/`、`plugins/`、`scripts/` 代码及其直接关联的配置和专属测试；清理这些区域下真正空的源码目录。保留 `packages/back`、两个子模块、`.gitkeep` 所维护的 OpenSpec 结构和所有被忽略的本地构建目录。每组先记录删除理由，再删除并运行对应定向测试；全量验证只在准备提交时按 `AGENTS.md` 执行一次。替代方案是同时清空忽略目录，能释放大量磁盘空间，但用户已明确选择“只删代码”。
+只修改 Git 跟踪的 `apps/`、`packages/`、`plugins/`、`scripts/` 代码及其直接关联的配置和专属测试；清理这些区域下真正空的源码目录。保留 `thirdparty/backup`、两个子模块、`.gitkeep` 所维护的 OpenSpec 结构和所有被忽略的本地构建目录。每组先记录删除理由，再删除并运行对应定向测试；全量验证只在准备提交时按 `AGENTS.md` 执行一次。替代方案是同时清空忽略目录，能释放大量磁盘空间，但用户已明确选择“只删代码”。
 
 ### D4：统一测试 Node 环境，并在本分支修复既有失败
 

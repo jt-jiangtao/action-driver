@@ -1,6 +1,6 @@
 ## Context
 
-见 [proposal.md](proposal.md)。本机 Electron Fork 源码仍处于已实现水印的提交 `593df43c`，并保留 `thridparty/build/electron/Electron.app`。当前主分支缺少原先的启动解析器与来源记录，而运行进程实际来自 `node_modules/electron/dist`。桌面项目及打包脚本存在其他任务的未提交改动。
+见 [proposal.md](proposal.md)。本机 Electron Fork 源码仍处于已实现水印的提交 `593df43c`，并保留 `thirdparty/build/electron/Electron.app`。当前主分支缺少原先的启动解析器与来源记录，而运行进程实际来自 `node_modules/electron/dist`。桌面项目及打包脚本存在其他任务的未提交改动。
 
 ## Goals / Non-Goals
 

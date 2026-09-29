@@ -30,7 +30,7 @@
 
 ## 5. 联合切换验收
 
-用户裁决：本变更与 `reconstruct-codex-cua-packages` 的任务 59 联合交付。保留 `packages/back` 离线备份，移除 `apps/agent-runtime/vendor`；Computer Use 必须持续可用。联合设计见 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
+用户裁决：本变更与 `reconstruct-codex-cua-packages` 的任务 59 联合交付。保留 `thirdparty/backup` 离线备份，移除 `apps/agent-runtime/vendor`；Computer Use 必须持续可用。联合设计见 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
 
 - [ ] 5.1 核对本变更 1–4 的真实内置浏览器和外部 Chrome 证据，以及重建变更 59.1–59.3 的自有宿主切换证据；全部通过后才声明 Browser Use 与 vendor 移除联合完成。
 

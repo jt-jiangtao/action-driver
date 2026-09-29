@@ -148,11 +148,11 @@
 - [x] 13.1 重建 AX、坐标 CUA、DOM CUA 全部方法，验证观察模式、截图缺失/解码、输出顺序、全部动作与非法参数原包对照。
 - [x] 13.2 重建内容导出、剪贴板格式映射及日志参数规范化，验证返回值、默认值与异常。
 - [x] 13.3 重建 Tab 核心导航/截图/交接控制和四种 dialog，验证可变 id、无 transport、prompt 输入和未知 dialog；内部 TabControls 基类不当作完整 Tab 导出。
-- [x] 13.4 原 vendor 全部包原样复制到 packages/back，保留原目录，生成逐项哈希清单并校验；备份不参与实现 workspace 或生产接线。
+- [x] 13.4 原 vendor 全部包原样复制到 thirdparty/backup，保留原目录，生成逐项哈希清单并校验；备份不参与实现 workspace 或生产接线。
 - [x] 13.5 验证 AXAPI 可直接连接 CUA Tab facade，补观察/剪贴板和跨包编译断言及受控调用；非真实浏览器验收。
 - [ ] 13.6 完成 Tab 构造装配及全部 capability 注册、Browser/Tabs/User/Agent/manifest/schema/setup/service；此前不声明完整 Browser/Tab 可替换。
 
-第八批最终验证：37 文件 / 186 单元测试通过；browser-runtime 构建、11 项 browser/AX/clipboard/跨包编译断言及 Sky→CUA 集成编译检查通过；vendor 与 packages/back 备份各自 baseline matches，OpenSpec strict valid。备份全部 962 文件/链接可纳入版本管理，已添加仅针对 packages/back 的忽略例外；原 vendor 保留。未运行仓库全量测试、未提交、未切换生产接线。13.6 及真实验收继续未完成。
+第八批最终验证：37 文件 / 186 单元测试通过；browser-runtime 构建、11 项 browser/AX/clipboard/跨包编译断言及 Sky→CUA 集成编译检查通过；vendor 与 thirdparty/backup 备份各自 baseline matches，OpenSpec strict valid。备份全部 962 文件/链接可纳入版本管理，已添加仅针对 thirdparty/backup 的忽略例外；原 vendor 保留。未运行仓库全量测试、未提交、未切换生产接线。13.6 及真实验收继续未完成。
 
 ## 14. Browser 选择与集合核心第九批
 
@@ -168,7 +168,7 @@
 
 第九批（执行型，既有批准范围）：重建 Browsers/Documentation/Agent、Browser history/documentation/nameSession 内部基类、Tabs new/selected/list/get 与 BrowserUser openTabs/claimTab。新增受控原包对照；工厂/observer 顺序、结果身份、错误、可变 public id、日期和输入校验、无关 getter 均验证。独立审查指出 BrowserInfo name/type 不应可选，编译断言 RED→GREEN 修正；异步工厂返回类型发生 Promise 嵌套，编译断言确认 RED 后以 Promise<Awaited<T>> 修正，新增 async 工厂成功/拒绝的原包运行对照。Browser/Tab 完整装配与 schema-dependent 接口不宣称完成。
 
-第九批最终定向验证：39 文件 / 198 单元测试通过；browser-runtime 独立构建、22 项 browser 编译赋值断言与 Sky→CUA 集成编译检查通过；vendor 与 packages/back 均 baseline matches，OpenSpec strict valid。未运行仓库全量测试、未提交、未切换生产依赖。browser 捆绑 schema 库可识别为 Zod 风格，但复制元数据未给出确切版本；14.5 继续未完成，不猜测版本，不重写第三方引擎。14.6、13.6、10.5、SDK 安装锁定及真实验收继续未完成。
+第九批最终定向验证：39 文件 / 198 单元测试通过；browser-runtime 独立构建、22 项 browser 编译赋值断言与 Sky→CUA 集成编译检查通过；vendor 与 thirdparty/backup 均 baseline matches，OpenSpec strict valid。未运行仓库全量测试、未提交、未切换生产依赖。browser 捆绑 schema 库可识别为 Zod 风格，但复制元数据未给出确切版本；14.5 继续未完成，不猜测版本，不重写第三方引擎。14.6、13.6、10.5、SDK 安装锁定及真实验收继续未完成。
 
 ## 15. 能力基础与 API 可见性第十批（14.6 的独立基础部分）
 
@@ -180,7 +180,7 @@
 
 第十批（执行型）：15.1/15.2 的缺模块对照测试先确认 RED，再实现能力集合/元数据/注册描述符、API 可见性代理和默认支持覆盖。测试只追加原 bundle 内部符号 export；重建实现不引用原包。API view 抽为内部装配模块，具体能力命令/完整 factory 不标完成。schema 静态特征及版本证据缺口记录于 packages/browser-runtime/docs/dependency-evidence.md；不以 Zod 系列 API 特征推断唯一发布版本。
 
-第十批最终定向验证：41 文件 / 213 单元测试通过；browser-runtime 构建、28 项编译赋值断言与 Sky→CUA 集成编译检查通过；vendor 和 packages/back 均 baseline matches，OpenSpec strict valid。15 项新增原包受控对照覆盖文档/元数据、记录变化、注册工厂、代理缓存与参数解包、成员可见性和支持覆盖等行为。未运行仓库全量测试、未提交、未切换依赖；未宣称真实操作验收通过。14.5/14.6/13.6/10.5 和实际 SDK 依赖锁定、真实验收继续未完成。
+第十批最终定向验证：41 文件 / 213 单元测试通过；browser-runtime 构建、28 项编译赋值断言与 Sky→CUA 集成编译检查通过；vendor 和 thirdparty/backup 均 baseline matches，OpenSpec strict valid。15 项新增原包受控对照覆盖文档/元数据、记录变化、注册工厂、代理缓存与参数解包、成员可见性和支持覆盖等行为。未运行仓库全量测试、未提交、未切换依赖；未宣称真实操作验收通过。14.5/14.6/13.6/10.5 和实际 SDK 依赖锁定、真实验收继续未完成。
 
 ## 16. 运行时初始化与服务生命周期第十一批（10.5 的基础拆分）
 
@@ -192,7 +192,7 @@
 
 第十一批（执行型）：可信 Node REPL 初始化模块与服务 RPC 生命周期的缺失模块测试先 RED 后 GREEN。新增 9 项初始化测试（8 项原 client 对照与 1 项内部装配传递），6 项原 service 状态对照。原 service 仅通过追加测试 hook 替换 SU/SN 宿主/运行时装配并重置 Xh，原 fse/JXe 函数体不改。截图链路串联候选 Agent/TabsControls/AXAPI/transport/display，对比原客户端命令与字节输出；测试 Browser/Tab 最小装配不作为生产完整工厂。默认 trusted host 错误、捕获 unbound RPC、host emitImage 动态方法、长文本截断、禁用成员、setup 失败与并发实例捕获均覆盖。
 
-第十一批最终定向验证：43 文件 / 228 单元测试通过；browser-runtime 构建、34 项编译赋值断言及 Sky→CUA 集成编译检查通过；vendor 与 packages/back 均 baseline matches，OpenSpec strict valid。未提交、未运行仓库全量检查、未替换生产依赖。初始化/服务内部模块不导出完整 setupBrowserRuntime/handleRpc 生产入口；schema 确切版本、具体能力命令、完整 Browser/Tab/default factory、实际后端与真实验收仍未完成。原服务 environment 四个值的保留不扩大 macOS 平台/部署范围。
+第十一批最终定向验证：43 文件 / 228 单元测试通过；browser-runtime 构建、34 项编译赋值断言及 Sky→CUA 集成编译检查通过；vendor 与 thirdparty/backup 均 baseline matches，OpenSpec strict valid。未提交、未运行仓库全量检查、未替换生产依赖。初始化/服务内部模块不导出完整 setupBrowserRuntime/handleRpc 生产入口；schema 确切版本、具体能力命令、完整 Browser/Tab/default factory、实际后端与真实验收仍未完成。原服务 environment 四个值的保留不扩大 macOS 平台/部署范围。
 
 ## 17. CUA browser 会话与 globals 边界第十二批（10.6 的拆分）
 
@@ -218,7 +218,7 @@
 
 第十三批（执行型）：合并会话缺模块测试先 RED；提取共同 session-lifecycle 供 browser/computer/combined 使用，构建共同 getState 与公开成员装配后 GREEN，保留单独会话全部既有对照。6 项原共同会话对照覆盖单份 core 文档、metadata owner、重写、并发与错误队列恢复。配置加载边界另先 RED→GREEN，5 项原配置对照与 2 项 macOS/loader 控制测试通过；两个 enabled backend 并行加载，全部就绪后才共享文档/发布 agent。声明构建暴露跨模块私有类型不可命名问题，以明确 ReturnType 标注保持公开签名，重新构建通过。具体默认 loaders/自动启动 export 尚未实现，不当作完整默认入口。
 
-第十三批最终定向验证：47 文件 / 258 单元测试通过；CUA/browser-runtime 独立构建、单独/合并/配置会话的编译断言与 browser-runtime、Sky→CUA 集成编译检查通过；vendor 和 packages/back 均 baseline matches，OpenSpec strict valid。新增 13 项测试含 11 项原包受控对照与 2 项本期 macOS/loader 控制验证。未运行仓库全量验证、未提交、未切换生产依赖；18.4、17.4、10.6、10.5、13.6、14.6 及 schema/SDK 版本锁定和真实验收仍未完成。平台缺口文档已补配置装配拒绝规则。
+第十三批最终定向验证：47 文件 / 258 单元测试通过；CUA/browser-runtime 独立构建、单独/合并/配置会话的编译断言与 browser-runtime、Sky→CUA 集成编译检查通过；vendor 和 thirdparty/backup 均 baseline matches，OpenSpec strict valid。新增 13 项测试含 11 项原包受控对照与 2 项本期 macOS/loader 控制验证。未运行仓库全量验证、未提交、未切换生产依赖；18.4、17.4、10.6、10.5、13.6、14.6 及 schema/SDK 版本锁定和真实验收仍未完成。平台缺口文档已补配置装配拒绝规则。
 
 ## 19. 依赖安装与独立产物第十四批
 
@@ -228,7 +228,7 @@
 
 第十四批（执行型）：四个产物测试先因源码/夹具被收录而 RED，添加 files 清单后 GREEN。新增三个真实 SDK 集成测试与四个产物测试；离线 SDK 禁止网络，独立产物在临时目录安装依赖，不借用工作区 SDK。此前认为多文档锁文件异常的判断修正：这是 pnpm 12 的环境/项目双文档格式；shell pnpm 6.32.11 与项目 packageManager 不匹配，改用 corepack pnpm 12.4.1。根锁文件仅添加候选 importer 和明确的 SDK 解析条目，既有解析未改。生产依赖未切换；schema、默认完整入口及真实 macOS 操作验收仍未完成。
 
-第十四批最终定向验证：49 文件 / 265 单元测试通过；四个候选包在产物测试内独立构建并解包验证。CUA/browser-runtime 编译断言、Sky→CUA 集成编译检查全部通过；vendor 与 packages/back 均 baseline matches；OpenSpec strict valid。新增 7 项测试覆盖产物隔离、实际 SDK 固定版本、原 SDK 离线对照与无宿主路径。未运行仓库全量检查、未提交、未切换生产依赖。9.6 完成，schema 精确版本、完整默认入口与真实 macOS 验收保持未完成。
+第十四批最终定向验证：49 文件 / 265 单元测试通过；四个候选包在产物测试内独立构建并解包验证。CUA/browser-runtime 编译断言、Sky→CUA 集成编译检查全部通过；vendor 与 thirdparty/backup 均 baseline matches；OpenSpec strict valid。新增 7 项测试覆盖产物隔离、实际 SDK 固定版本、原 SDK 离线对照与无宿主路径。未运行仓库全量检查、未提交、未切换生产依赖。9.6 完成，schema 精确版本、完整默认入口与真实 macOS 验收保持未完成。
 
 ## 20. Browser API 工厂第十五批（10.5 的装配拆分）
 
@@ -237,7 +237,7 @@
 
 第十五批（执行型）：缺失 api-factory 模块测试先 RED，再实现内部 BrowserApiFactory 后 GREEN；7 项原工厂对照与 1 项可信初始化→候选工厂/Agent/BrowserControls 的跨模块对照通过。编译发现 exactOptionalPropertyTypes 下显式 undefined 选项不兼容，以条件字段传递修复；编译断言保留泛型 Browser/Agent 返回。完整默认入口与 schema/capability/Browser/Tab 完成条件不变，10.5/13.6/14.6/18.4 保持未完成。
 
-第十五批最终定向验证：19 文件 / 136 测试通过（browser-runtime 全部及 CUA browser/config 与独立产物关联测试）；四包构建与独立产物加载由 artifact 测试确认。Browser/CUA 编译断言通过，原 vendor 与 packages/back 均 baseline matches，OpenSpec strict valid。此次未重新执行其余候选包测试；此前第十四批 49 文件 / 265 测试的结果仅作为历史记录。未运行仓库全量检查、未提交、未切换生产依赖；新增工厂保持内部注入边界，不计完整默认运行时完成。
+第十五批最终定向验证：19 文件 / 136 测试通过（browser-runtime 全部及 CUA browser/config 与独立产物关联测试）；四包构建与独立产物加载由 artifact 测试确认。Browser/CUA 编译断言通过，原 vendor 与 thirdparty/backup 均 baseline matches，OpenSpec strict valid。此次未重新执行其余候选包测试；此前第十四批 49 文件 / 265 测试的结果仅作为历史记录。未运行仓库全量检查、未提交、未切换生产依赖；新增工厂保持内部注入边界，不计完整默认运行时完成。
 
 ## 21. Browser/Tab 组合第十六批（13.6/14.6 的内部装配拆分）
 
@@ -256,7 +256,7 @@
 
 第十七批（执行型）：legacy-facade 缺模块先 RED，实现后 GREEN；9 项原包对照。原测试只替换浏览器 setup 和 sky 两处 import 装配，原状态聚合函数体保留。候选使用已有 discovery 实现，不引用 vendor。内部 factory 与旧版默认 cua 单例接线分开，3.2/7.5/10.6/18.4 等默认入口与真实验收任务保持未完成。
 
-第十七批最终定向验证：14 文件 / 80 测试通过（CUA 全部、Sky service/computer 与独立产物关联测试）；四包构建和解包加载验证通过，CUA 泛型/会话断言与 Sky→CUA 集成编译通过；vendor 与 packages/back 均 baseline matches，OpenSpec strict valid。新增 4 项编译赋值验证 legacy computer/provider/documentation/state 精确返回类型。未运行仓库全量检查、未提交、未切换生产依赖。未重新执行其余候选范围测试，不把历史全候选测试数量当作本批结果。
+第十七批最终定向验证：14 文件 / 80 测试通过（CUA 全部、Sky service/computer 与独立产物关联测试）；四包构建和解包加载验证通过，CUA 泛型/会话断言与 Sky→CUA 集成编译通过；vendor 与 thirdparty/backup 均 baseline matches，OpenSpec strict valid。新增 4 项编译赋值验证 legacy computer/provider/documentation/state 精确返回类型。未运行仓库全量检查、未提交、未切换生产依赖。未重新执行其余候选范围测试，不把历史全候选测试数量当作本批结果。
 
 ## 23. 能力数据转换第十八批（14.6 的自有逻辑拆分）
 
@@ -583,13 +583,13 @@ Expanded original registry review revealed Opera/Vivaldi in addition to Chrome/E
 
 ## 55. 独立 browser-desktop 基准与候选包
 
-- [x] 55.1 将本机 `@oai/browser-desktop@0.1.1` 全部 106 个文件复制至 `packages/back/browser-desktop/@oai/browser-desktop`；记录源路径、版本、逐文件哈希/大小/权限和无符号链接事实，以来源变化和备份篡改的定向测试证明漂移明确失败，不覆盖现有 vendor/back。
+- [x] 55.1 将本机 `@oai/browser-desktop@0.1.1` 全部 106 个文件复制至 `thirdparty/backup/browser-desktop/@oai/browser-desktop`；记录源路径、版本、逐文件哈希/大小/权限和无符号链接事实，以来源变化和备份篡改的定向测试证明漂移明确失败，不覆盖现有 vendor/back。
 
 55.1 证据：独立基准共 106 个文件、124 个目录/文件条目，源与备份逐项漂移为零；版本为 0.1.1，原包无符号链接。`desktop-baseline.test.ts` 先因模块缺失失败，补实现后 3 项通过，覆盖字节、权限、删减与元数据漂移；`@actiondriver/cua-parity` 定向构建通过。只读复制与校验未启动或连接 App 服务。
 - [x] 55.2 清点 desktop client/service、四套环境文档、两个 WASM 的自有/第三方/资源归属与接口；核对客户端与内嵌 browser 的字节重复、服务差异及第三方确切版本，交付单独来源映射和证据缺口。
 
 55.2 证据：`analysis/codex-cua/desktop-inventory.json` 对 106 个文件逐项归属并核对 SHA-256；client 和两个 WASM 与内嵌版相同，service 哈希不同（1905434 vs 1372505 字节）；四套文档共 101 项，manifest 仅显式依赖 `classic-level@3.0.0`。`desktop-source-map.md` 写明共享/独立模块与未明的 bundle 内第三方归属，不能将不同服务等同，也未以清单宣称完整还原。
-- [ ] 55.3 建立 `@actiondriver/browser-desktop` 独立构建、显式 ActionDriver 宿主接口及非 Codex 默认入口；为客户端复用、服务差异、资源选择、失败与清理添加正常/边界/错误测试，不从 `packages/back` 或 vendor 导入产品代码。
+- [ ] 55.3 建立 `@actiondriver/browser-desktop` 独立构建、显式 ActionDriver 宿主接口及非 Codex 默认入口；为客户端复用、服务差异、资源选择、失败与清理添加正常/边界/错误测试，不从 `thirdparty/backup` 或 vendor 导入产品代码。
 - [ ] 55.4 按 desktop 服务差异清单逐模块还原自有逻辑与资源，必要时复用已验证的 `browser-runtime` 自有模块；逐模块补离线原包差异和单元测试，未知行为保持未完成，不用候选调用 Codex 私有服务取证。
 
 55.3/55.4 增量证据：修正候选对 `codex-app` 的过早整体拒绝，普通浏览器发现与标签 UI 操作可经 ActionDriver 自有宿主执行；认证交接仍因该环境缺少安全预检文档，在客户端和服务入口下发命令前拒绝。客户端包装显式转发宿主方法，保留原型方法宿主兼容性。3 个 desktop 定向测试文件共 7 项通过，desktop typecheck 与构建通过。本机独立 Chrome/profile 加 127.0.0.1 离线页面验证候选 desktop 客户端创建标签、导航、截图、点击输入及按钮提交，页面标题变为 `ActionDriver desktop UI`，关闭后 profile 为空。完整 desktop 服务差异和其余 UI 路径未验收，55.3/55.4 仍未完成。
@@ -630,21 +630,21 @@ Battle 记录：推荐先完成隔离再合并，避免主线暂存仍有私有�
 
 ## 59. Browser Use 联合交付与 vendor 移除
 
-Battle 裁决：用户要求完全移除 `apps/agent-runtime/vendor`，同时保持 Computer Use 可用，并与 `integrate-browser-use-desktop` 一起交付；`packages/back` 不在删除范围，只用于离线对照。直接删除会破坏当前生产加载和构建；先自有宿主验收、再统一切换和删除。联合设计：`docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
+Battle 裁决：用户要求完全移除 `apps/agent-runtime/vendor`，同时保持 Computer Use 可用，并与 `integrate-browser-use-desktop` 一起交付；`thirdparty/backup` 不在删除范围，只用于离线对照。直接删除会破坏当前生产加载和构建；先自有宿主验收、再统一切换和删除。联合设计：`docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
 
 - [ ] 59.1 完成 55–57、自有 Computer Use helper、CUA/REPL 和 browser 宿主的生产必需路径与真实 macOS 验收，记录未覆盖路径；不以 mock 或原件备份代替。
 - [x] 59.2 将 `apps/agent-runtime` 生产 REPL、Sky 服务、CUA 会话及打包切到 `@actiondriver/*`，保留授权、取消、沙箱、截图、重置和清理；用定向集成测试和真实 Computer Use 夹具验证。
-- [ ] 59.3 将离线对照测试迁到 `packages/back`，清除生产、构建和脚本的 vendor 路径及同步入口；验证产品包不含原件后删除 `apps/agent-runtime/vendor` 全目录。
+- [ ] 59.3 将离线对照测试迁到 `thirdparty/backup`，清除生产、构建和脚本的 vendor 路径及同步入口；验证产品包不含原件后删除 `apps/agent-runtime/vendor` 全目录。
 - [ ] 59.4 与 `integrate-browser-use-desktop` 的内置/外部 Chrome 真实验收共同检查，准备提交时一次性运行仓库治理要求的全量检查；任何阻断失败均不得标记联合交付完成。
 
 59.2 证据：生产 `repl-server.mjs` 动态加载自有 `owned-cua.mjs`，Runtime 通过 `owned-sky-session.ts` 使用 ActionDriver helper 协议；审批与租约由 Runtime 校验。`cua-runtime.test.ts` 16/16、应用审批与自有宿主定向测试 37/37；真实 Electron + fake helper 的应用授权端到端用例通过，点击“仅本次”后产生 `app-state` 请求。原 `codex-service-host.mjs`、模块 loader 和 native-client 已删除。
 
-59.3 进展：`apps/agent-runtime/vendor` 已删除，离线对照测试改读 `packages/back/codex-cua`；Runtime 构建输出无 `dist/vendor`、原服务脚本或备份路径引用。相关候选包定向测试 1126/1129 项首轮通过，另 3 项打包测试因自有宿主与离线安装规则修正后 4/4 通过。macOS 正式打包产物检查和全量提交验证未完成，因此保持未勾选。
+59.3 进展：`apps/agent-runtime/vendor` 已删除，离线对照测试改读 `thirdparty/backup/codex-cua`；Runtime 构建输出无 `dist/vendor`、原服务脚本或备份路径引用。相关候选包定向测试 1126/1129 项首轮通过，另 3 项打包测试因自有宿主与离线安装规则修正后 4/4 通过。macOS 正式打包产物检查和全量提交验证未完成，因此保持未勾选。
 
 59.1 隔离复核：生产 Computer Use 和 Browser Use 均通过 ActionDriver 宿主。候选包源码静态扫描仍报告 17 个原 `nodeRepl`/私有 pipe/turn metadata 形态的引用，见 `analysis/codex-cua/service-isolation-cutover.json`；这对应 55–57 尚未完成的完整源码服务层还原，不能据生产路径成功勾选 59.1、56.1 或 57.3。
 
 59.4 提交门槛首次运行记录（2026-09-28）：`pnpm typecheck` 各包完成；`pnpm lint` 首次报 3 个本次改动问题，定向 ESLint 修复后通过；`pnpm test` 首次 2366 项中 147 项失败，其中大量为工作树安装时跳过脚本导致的 `better-sqlite3` 绑定缺失，重建原生模块后数据库、仓储及应用授权定向测试通过。REPL 入口和文案测试已按自有宿主更新，定向 16/16 通过。剩余旧 UI mock、OTel、MCP 信号与超时等失败尚未消除。`pnpm test:e2e:local` 6/9 通过，Computer Use 授权通过；预加载 API 新增 `browserSession` 导致的断言已修复，另有设置和图片预览 2 项失败待查。`pnpm test:e2e:packaged:macos` 首次在 `classic-level` 构建策略处停止；加入 `allowBuilds` 后 Desktop 与 Runtime 两项生产依赖部署定向检查均通过。以上全量命令不在同一提交上重复运行，59.4 保持未完成。
 
-主仓库同步验收：`/Users/jiangtao/coding/action-driver` 已同步本轮源码，`apps/agent-runtime/vendor` 和旧 `dist/vendor` 均不存在，`packages/back` 保留。主仓库完成 Sky、CUA、Agent Runtime、Desktop 构建；`dist/js-repl/owned-cua.mjs` 存在；Computer Use/REPL/Renderer 投影定向 38/38 通过；浏览器与 Computer Use 真实 Electron 定向端到端 3/3 通过。全量门槛和候选源码服务隔离仍未通过，不据此声明联合交付完成。
+主仓库同步验收：`/Users/jiangtao/coding/action-driver` 已同步本轮源码，`apps/agent-runtime/vendor` 和旧 `dist/vendor` 均不存在，`thirdparty/backup` 保留。主仓库完成 Sky、CUA、Agent Runtime、Desktop 构建；`dist/js-repl/owned-cua.mjs` 存在；Computer Use/REPL/Renderer 投影定向 38/38 通过；浏览器与 Computer Use 真实 Electron 定向端到端 3/3 通过。全量门槛和候选源码服务隔离仍未通过，不据此声明联合交付完成。
 
 启动故障修复（2026-09-28）：用户现有 `command` 插件的 `installed/command/1.2.0` 仍是旧的点号工具名，而同版本内置清单已改为下划线工具名；仓库曾跳过已存在的同版本安装目录，却更新 `current.json`，导致 Runtime 报 `PROTOCOL_ERROR: Undeclared contribution tools.local.command.shell.run` 并退出。现从独立内置源重新暂存和替换同版本包，保留插件私有数据；RuntimeSupervisor 传递 `runtime.failed` 原因，Desktop 捕获启动异常并显示错误。使用真实数据库和插件目录的只读副本启动 Electron UtilityProcess，观察 `runtime.ready` 与正常退出；插件仓库和 Supervisor 定向测试 13/13、四包离线产物测试 4/4、Runtime/Desktop 定向 typecheck、相关 ESLint 和两个构建均通过。未直接修改用户数据；全量门槛和联合交付仍未完成。

@@ -75,4 +75,4 @@
 
 ## 2026-09-28 联合交付门槛
 
-用户要求 Browser Use 与 `apps/agent-runtime/vendor` 移除一起完成，Computer Use 必须保持可用。此项覆盖先前“CUA 整体替换非前置条件”的分期安排：浏览器会话与 UI 可先独立开发和验证，但最终启用和交付必须等待自有 CUA/Sky/REPL 宿主验收、生产切换及 vendor 删除共同完成。`packages/back` 仅用于离线对照，不得作为产品回退路径。具体迁移与风险见联合设计 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
+用户要求 Browser Use 与 `apps/agent-runtime/vendor` 移除一起完成，Computer Use 必须保持可用。此项覆盖先前“CUA 整体替换非前置条件”的分期安排：浏览器会话与 UI 可先独立开发和验证，但最终启用和交付必须等待自有 CUA/Sky/REPL 宿主验收、生产切换及 vendor 删除共同完成。`thirdparty/backup` 仅用于离线对照，不得作为产品回退路径。具体迁移与风险见联合设计 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。

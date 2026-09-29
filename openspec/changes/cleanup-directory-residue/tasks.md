@@ -55,3 +55,11 @@
   - `corepack pnpm test`（Node v20.14.0，本机原生 ABI 匹配）：2479 用例中 12 失败 / 2465 通过，失败文件为 `packages/cua/tests/unit/{tab-reference,browser-session}.test.ts`、`packages/sky/tests/unit/sdk-integration.test.ts`、`packages/browser-runtime/tests/unit/service-{cdp,downloads,native-runtime,page-waits,command-security}.test.ts`，原因均为 Node 版本差异（对照原件使用 `Promise.withResolvers`/`URL.parse` 等 Node 22+ API），与本次改动无关。
   - `corepack pnpm test`（Node v24.20.0）：不可用，20 文件 / 116 用例失败，主要由 `better-sqlite3` 原生绑定 ABI 不匹配（`NODE_MODULE_VERSION 115` vs `137`）与其它工作流未提交的 desktop/Skills 改动引起，非本次改动引入。
 - [x] 6.4 提交只包含本次任务改动，排除他人未完成的 `apps/desktop/src/renderer/src/main.tsx`、`apps/agent-runtime/src/{repositories,stream-session-service}.ts` 与新增 `src/{persistence,stream}/`、`openspec/changes/` 下其它未归档 change 与 `docs/superpowers/specs/` 下多个设计文档，并在交付说明中列出这些未提交文件。
+
+## 8. 追加清理：统一残留的旧路径与拼写（用户 2026-09-30 追加要求）
+
+- [x] 8.1 把 `docs/superpowers/**`、其它未归档与已归档 OpenSpec 记录中剩余的 `thridparty` 拼写统一替换为 `thirdparty`，`packages/back` 统一替换为 `thirdparty/backup`（共 30 个文件）；仅替换路径标识，不改写叙事与历史结论。
+- [x] 8.2 修正把包版本写成路径的错误：`packages/browser-desktop/docs/source-mapping.md` 与 `analysis/codex-cua/desktop-source-map.md` 的 `@oai/browser-desktop@0.1.1` 改为实际目录 `@oai/browser-desktop/`。
+- [x] 8.3 补齐 `.prettierignore` 的 `thirdparty/` 忽略（与 ESLint、Vitest 的 `thirdparty/**` 保持一致），并把 `packages/cua-parity/tests/unit/package-artifact.test.ts` 的产物路径守卫补上 `backup`。
+- [x] 8.4 复核剩余命中：只剩 Fork 仓库工作树内部内容（外部仓库，需另行修正）、本次改名记录中刻意保留的旧名称（如 "`thridparty/` → `thirdparty/`" 与回滚步骤）与 `thirdparty/backup/README.md` 的位置变更说明。
+- [x] 8.5 运行 `openspec validate` 与相关定向测试，确认文档与守卫改动未破坏变更合法性或测试。

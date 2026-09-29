@@ -30,7 +30,7 @@
 
 ## File Structure
 
-- `packages/back/browser-desktop/@oai/browser-desktop/`：App 随附包的只读原件，`packages/back/browser-desktop/manifest.json` 记录版本、哈希、权限和来源。
+- `thirdparty/backup/browser-desktop/@oai/browser-desktop/`：App 随附包的只读原件，`thirdparty/backup/browser-desktop/manifest.json` 记录版本、哈希、权限和来源。
 - `analysis/codex-cua/desktop-inventory.json`、`analysis/codex-cua/desktop-source-map.md`：独立包的文件/模块归属和共享/差异清单；不进入构建。
 - `packages/cua-parity/src/desktop-baseline.ts`：纯文件层快照验证，不加载服务。
 - `packages/cua-parity/src/service-isolation.ts`：候选源码、产物和验收脚本的禁止依赖/路径扫描。
@@ -45,13 +45,13 @@
 
 ### Task 1: 固定 desktop 原件与漂移检测
 
-**Files:** Create `packages/back/browser-desktop/@oai/browser-desktop/`, `packages/back/browser-desktop/manifest.json`, `packages/cua-parity/src/desktop-baseline.ts`, `packages/cua-parity/tests/desktop-baseline.test.ts`; modify `packages/back/README.md`.
+**Files:** Create `thirdparty/backup/browser-desktop/@oai/browser-desktop/`, `thirdparty/backup/browser-desktop/manifest.json`, `packages/cua-parity/src/desktop-baseline.ts`, `packages/cua-parity/tests/desktop-baseline.test.ts`; modify `thirdparty/backup/README.md`.
 
 **Interfaces:** `captureDesktopBaseline(root: string): Promise<{version: string; files: FileRecord[]}>`；`verifyDesktopBaseline(root: string, baseline: DesktopBaseline): Promise<Drift[]>`。复用既有 `FileRecord`/`Drift`，但独立 baseline 不改变 vendor 的 1117 条目快照。
 
 - [ ] 写失败测试：源/备份相同返回空漂移；改一字节、少一文件、改权限都返回对应路径；候选代码不从备份导入。
 - [ ] 运行 `pnpm vitest run packages/cua-parity/tests/desktop-baseline.test.ts`，确认因接口缺失失败。
-- [ ] 从本机安装目录完整复制 106 个文件，保存逐文件 SHA-256、大小、模式和原路径；不覆盖既有 `packages/back/codex-cua`。
+- [ ] 从本机安装目录完整复制 106 个文件，保存逐文件 SHA-256、大小、模式和原路径；不覆盖既有 `thirdparty/backup/codex-cua`。
 - [ ] 实现独立 capture/verify，运行同一定向测试；对原路径与备份逐项校验后再记录基准。
 
 ### Task 2: 来源映射与全包服务隔离检查

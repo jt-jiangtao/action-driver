@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 首期仅 darwin/arm64；不安装或升级系统 Xcode/SDK/Metal，不修改全局 HOME 或包管理器配置。
-- 源码为 thridparty/playwright 与 thridparty/electron；工作区为 thridparty/build/electron-workspace；独立 Electron 检出必须同提交且不共享 Git 元数据。
+- 源码为 thirdparty/playwright 与 thirdparty/electron；工作区为 thirdparty/build/electron-workspace；独立 Electron 检出必须同提交且不共享 Git 元数据。
 - Node 22.23.3：https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-arm64.tar.gz，SHA-256 23b25245dcfb9af7262f8ff142e9e2e0af025368117329e7a7458a51e5922f53。
 - depot_tools 41c9bd890277c2f551499d171d215dfdf5dab97d；pnpm 12.4.1；Electron yarn 4.12.0；node-gyp 11.5.0（既有实际使用版本）。
 - Electron 38.8.6；Chromium DEPS 基线 51dd6cfc5c0bb8a297725ae9270ca43fb0fcc8e2；SDK 26.5；Metal Toolchain 按所选 Xcode 的组件准备并记录版本。
@@ -38,8 +38,8 @@
 - `scripts/build-browser-forks.mjs`：CLI，解析阶段/--jobs/--from，输出错误与退出码。
 - `scripts/lib/browser-forks/{inputs,runner,prepare,sync,build,provenance,pipeline}.mjs`：分别负责输入、进程、工具、源码、编译、导出及调度；相邻同名 .test.mjs 为定向测试。
 - 公共 `BuildContext = {root:string, jobs:number, lock:object, run:RunCommand}`；`RunCommand(spec:{file:string,args:string[],cwd:string,env?:object,logPath:string}):Promise<void>` 非零时抛错。
-- 阶段函数均为 `run<Name>(context:BuildContext):Promise<StageResult>`；`StageResult={outputs:string[],inputDigest:string,outputDigest:string}`。日志和状态写入 thridparty/logs 与 thridparty/build/browser-forks。
-- `scripts/lib/electron-fork.mjs` 保持 resolveElectronFork 外部签名；内部读取锁定输入及 `thridparty/build/electron/provenance.json`。
+- 阶段函数均为 `run<Name>(context:BuildContext):Promise<StageResult>`；`StageResult={outputs:string[],inputDigest:string,outputDigest:string}`。日志和状态写入 thirdparty/logs 与 thirdparty/build/browser-forks。
+- `scripts/lib/electron-fork.mjs` 保持 resolveElectronFork 外部签名；内部读取锁定输入及 `thirdparty/build/electron/provenance.json`。
 - 改 `scripts/build-electron-native.mjs` 固定 node-gyp；复用 `scripts/test-packaged-macos.mjs`，不重写打包系统。
 
 ### Task 1: 锁定输入与可拉取的源码夹具
@@ -106,7 +106,7 @@
 - [ ] 写 stale_input_reexecutes_stage、tampered_output_rejected_on_resume、success_marker_without_output_rejected、verify_uses_both_local_forks 测试。
 - [ ] 跑 pipeline.test.mjs RED。
 - [ ] 实现显式续跑验证；从当前实测来源生成 baseline manifest，调用已有 runSmoke(manifest)，保留真实页面操作、截图和进程关闭。不中断当前旧工作区的后台编译。
-- [ ] 同一测试 GREEN；真实运行 `node --test thridparty/playwright/action_driver/baseline/verify.test.mjs thridparty/playwright/action_driver/baseline/smoke.test.mjs`，预期 14/14。记录待提交文件。
+- [ ] 同一测试 GREEN；真实运行 `node --test thirdparty/playwright/action_driver/baseline/verify.test.mjs thirdparty/playwright/action_driver/baseline/smoke.test.mjs`，预期 14/14。记录待提交文件。
 
 ### Task 7: 桌面打包入口与使用文档
 
@@ -125,7 +125,7 @@
 
 **Interfaces:** 消费 Tasks 1–7；产生真实远端源码获取、阶段日志、本机来源、双 Fork 和打包证据。
 
-- [ ] 准备仅含本任务及既有必要基线的主仓库候选提交快照，确认两个 Fork 的提交均可从真实远端获取。新检出不复制 thridparty、node_modules、out、dist，不通过 URL 本地替换作为最终验收。
+- [ ] 准备仅含本任务及既有必要基线的主仓库候选提交快照，确认两个 Fork 的提交均可从真实远端获取。新检出不复制 thirdparty、node_modules、out、dist，不通过 URL 本地替换作为最终验收。
 - [ ] 在全新目录执行完整入口；记录系统 Xcode/SDK/Metal 版本。真实 prepare/sync/build/export/verify 成功后，在最终准备提交阶段完成 package；大型编译可以跨轮继续，但未结束不得勾选完整成功。
 - [ ] 最终准备提交时执行一次 pnpm typecheck、pnpm lint、pnpm test，以及必要本地与打包 E2E；package 已覆盖的同一打包验收不重复运行。失败数量、无关失败及实际结果进入记录，不伪报全绿。
 - [ ] OpenSpec strict 与差异检查通过；按 executing-plans 做一次 fresh-context 全分支审查，只修重要问题，定向验证；按主题提交本任务主仓库改动，确认 staging 未包含并行文件，归档需走获准流程。

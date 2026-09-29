@@ -45,7 +45,7 @@
 整体构建成功 MUST 通过全新检出、真实远端源码获取、双 Fork 源码编译、基础操作及桌面原生模块和打包启动验证。验收 MUST 记录已安装的系统前置条件，MUST NOT 复制现有工作区的依赖或产物来宣称通过。
 
 #### Scenario: 完整链路通过
-- **WHEN** 从不含 thridparty 构建缓存、node_modules、out 或 dist 的全新检出执行完整流程
+- **WHEN** 从不含 thirdparty 构建缓存、node_modules、out 或 dist 的全新检出执行完整流程
 - **THEN** 实际完成所有构建与验证阶段，提供命令、来源、产物及结果记录
 
 #### Scenario: 只完成部分阶段

@@ -29,7 +29,7 @@
 - 类型：混合。A 为执行型（低风险、可逆、机械，且完全处于既有已批准范围内）；B1、B2 为架构型决策（仓库布局与 Git submodule 路径边界）。
 - A：无需 Battle，已按协议公开分类依据并直接推进。
 - B1、B2：**Battle 已完成并已由用户裁决（2026-09-30）**。Agent 推荐的 B1 方案 2（顶层 `vendor-backup/`）与 B2 方案 2（一次性改名）中，用户选择 **B1 方案 3（`thirdparty/backup/`）**、**B2 方案 2（一次性改名）**；覆盖 Agent 推荐项的已知代价记录在 `design.md` 的 Risks / Trade-offs。
-- 未解决的关键分歧：无。B2 遗留的 Fork 仓库内部 `thridparty` 引用属于外部仓库，需在对应 Fork 中另行修正，已作为已知代价记录。
+- 未解决的关键分歧：无。B2 遗留的 Fork 仓库内部 `thridparty` 引用属于外部仓库，需在对应 Fork 中另行修正，已作为已知代价记录；其余仓库内路径标识（含 `docs/superpowers/**` 与已归档记录）已按用户追加要求统一更新。
 - 重开条件：出现新证据（例如 workspace 工具链改变对无 `package.json` 目录的处理、submodule 迁移在真实工作区失败，或 Fork 仓库内部引用被同步修正）。
 
 ## Impact

@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 仅移动本仓库一方测试；`thridparty/`、vendored 源码和开发技能测试保持原样。
+- 仅移动本仓库一方测试；`thirdparty/`、vendored 源码和开发技能测试保持原样。
 - `src/foo/bar.test.ts` 映射为所属项目的 `tests/unit/foo/bar.test.ts`；已有 `tests/foo.test.ts` 映射为 `tests/unit/foo.test.ts`。
 - `scripts/foo.test.mjs` 映射为根 `tests/unit/scripts/foo.test.mjs`；桌面端 `e2e/**` 映射为 `tests/e2e/**`。
 - 保留断言与产品逻辑；`tests/setup.ts` 等根级测试基础设施可留原位。

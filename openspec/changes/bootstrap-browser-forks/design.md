@@ -1,6 +1,6 @@
 ## Context
 
-参见 proposal.md。现有布局为直属 thridparty/playwright、thridparty/electron，以及 thridparty/build/electron-workspace。源码 submodule 已注册但尚未提交；Playwright action_driver 夹具尚未提交。现有 Electron 构建依赖本机 .gclient、args.gn、thridparty/package.json、Node 22.23.3、depot_tools 41c9bd890277c2f551499d171d215dfdf5dab97d、macOS SDK 26.5 与 Metal Toolchain。
+参见 proposal.md。现有布局为直属 thirdparty/playwright、thirdparty/electron，以及 thirdparty/build/electron-workspace。源码 submodule 已注册但尚未提交；Playwright action_driver 夹具尚未提交。现有 Electron 构建依赖本机 .gclient、args.gn、thirdparty/package.json、Node 22.23.3、depot_tools 41c9bd890277c2f551499d171d215dfdf5dab97d、macOS SDK 26.5 与 Metal Toolchain。
 
 现有 scripts/lib/electron-fork.mjs 读取 config/electron-fork.json，其中混合了锁定源码、构建参数、本机补丁后 Chromium commit 与 bundle 哈希；不能将旧机器记录直接作为新机器重建结果。scripts/test-packaged-macos.mjs 已涵盖 Electron 原生 SQLite binding、Computer Use helper、Runtime 和桌面构建及打包运行验收，可复用。scripts/build-electron-native.mjs 使用 node-gyp@11 范围版本，完整工具输入需要锁定确切解析版本。
 
@@ -16,7 +16,7 @@
 
 新增受 Git 管理的构建输入锁定记录与 gclient/GN/包边界模板，涵盖 Fork 提交、Chromium DEPS 基线、depot_tools 提交、Node 获取地址和校验值、包管理器版本、SDK/Metal 前置条件及 GN 参数。源码提交以主仓库 gitlink 为事实来源，配置声明必须与其一致；不维护互相漂移的两套版本。
 
-本机路径、补丁后实际 Chromium HEAD、产物哈希和阶段状态属于构建输出，记录在被忽略的 thridparty/build 下。来源生成只在显式构建导出阶段执行，启动时只核验，不能重算哈希自动接受篡改。共享解析器改为核验锁定输入与本机生成来源记录，保留版本、架构、完整 bundle、路径边界和源码来源检查；无来源记录明确失败，不回退官方产物。
+本机路径、补丁后实际 Chromium HEAD、产物哈希和阶段状态属于构建输出，记录在被忽略的 thirdparty/build 下。来源生成只在显式构建导出阶段执行，启动时只核验，不能重算哈希自动接受篡改。共享解析器改为核验锁定输入与本机生成来源记录，保留版本、架构、完整 bundle、路径边界和源码来源检查；无来源记录明确失败，不回退官方产物。
 
 替代方案是保留固定本机哈希为所有机器的输入，重建差异会使正常产物启动失败，故不采用。补丁后 Git commit 可能受应用方式影响；验收应记录实际 HEAD，并核对 DEPS 基线、受 Git 管理的补丁队列及应用结果，不能仅复制旧机器 commit。来源记录不是防伪签名。
 
@@ -24,7 +24,7 @@
 
 提供 node scripts/build-browser-forks.mjs，阶段为 prepare、sync、build、export、verify、package，另有 all 顺序执行。支持指定并发及从失败阶段继续；默认沿用已验证 -j8 和文件句柄上限 65536。从任意调用目录解析项目根目录，不写用户的 HOME 或全局包管理器配置。
 
-prepare 验证 macOS arm64、系统工具、磁盘与 SDK/Metal；将项目专用 Node 和锁定 depot_tools 安装到 thridparty/tools，并生成 thridparty/package.json 包边界。已有边界或配置与模板冲突时报告，不静默覆盖。下载校验失败不得进入解包或后续构建；系统条件缺失时给出可执行准备命令，不静默改装系统工具。
+prepare 验证 macOS arm64、系统工具、磁盘与 SDK/Metal；将项目专用 Node 和锁定 depot_tools 安装到 thirdparty/tools，并生成 thirdparty/package.json 包边界。已有边界或配置与模板冲突时报告，不静默覆盖。下载校验失败不得进入解包或后续构建；系统条件缺失时给出可执行准备命令，不静默改装系统工具。
 
 sync 初始化并核验两个源码 submodule，在独立工作区创建同提交 Electron 检出，先初始化 Chromium Git 再运行锁定 gclient，避免首次 clone 失败自动搬迁非空 src。拒绝用户工作树改动或不匹配配置，不执行强制清理。独立 Electron 检出的依赖安装与 Playwright 安装遵循各自锁文件和治理要求。
 
@@ -40,7 +40,7 @@ build 生成 GN 参数并编译 Electron，构建 Playwright；export 导出真�
 
 ### 4. 全新工作区验收
 
-最终使用仅包含获准提交的主仓库全新检出，通过真实 Fork 远端初始化，不复制现有 thridparty、node_modules、out 或 dist。可以使用系统已安装 Xcode/SDK/Metal，但须记录版本与路径；缺少条件应报告，不能用现有构建代替。
+最终使用仅包含获准提交的主仓库全新检出，通过真实 Fork 远端初始化，不复制现有 thirdparty、node_modules、out 或 dist。可以使用系统已安装 Xcode/SDK/Metal，但须记录版本与路径；缺少条件应报告，不能用现有构建代替。
 
 成功标准为双 Fork 实际编译、独立基础操作、原生 ABI 验证和桌面打包启动全部通过。当前后台 Electron 重编只提供迁移验证，不能满足新工作区验收。提交前全量测试按仓库规则执行一次，已知无关失败如实记录，定向测试用于迭代。
 

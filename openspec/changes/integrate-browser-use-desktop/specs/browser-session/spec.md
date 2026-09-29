@@ -83,7 +83,7 @@
 - **WHEN** 在未运行 Codex App 私有服务的 macOS 环境执行内置与外部浏览器验收
 - **THEN** 两种受管表面均可使用 ActionDriver 自有宿主完成本地页面操作
 ### Requirement: Browser Use 与自有运行时联合交付
-系统 SHALL 在生产 Browser Use 的内置浏览器和外部 Chrome 均通过真实 macOS 验收、Computer Use 自有宿主保持可用并删除 `apps/agent-runtime/vendor` 后，才将两者视为联合交付完成。`packages/back` 只用于离线对照，MUST NOT 作为运行时依赖。
+系统 SHALL 在生产 Browser Use 的内置浏览器和外部 Chrome 均通过真实 macOS 验收、Computer Use 自有宿主保持可用并删除 `apps/agent-runtime/vendor` 后，才将两者视为联合交付完成。`thirdparty/backup` 只用于离线对照，MUST NOT 作为运行时依赖。
 
 #### Scenario: 浏览器基础功能已通过但 Computer Use 尚未切换
 - **WHEN** Browser Use 在本地夹具可操作，但 Computer Use 仍依赖 vendor

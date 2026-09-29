@@ -32,7 +32,7 @@
 
 ## 工作区与文件布局
 
-拟使用独立根 `/Users/jiangtao/coding/action-driver/thridparty`。创建前核验目标不存在，若存在先读治理和 Git 状态，不覆盖。已有 `/Users/jiangtao/coding/chromium` 不作本期 checkout，不修改或重置它。
+拟使用独立根 `/Users/jiangtao/coding/action-driver/thirdparty`。创建前核验目标不存在，若存在先读治理和 Git 状态，不覆盖。已有 `/Users/jiangtao/coding/chromium` 不作本期 checkout，不修改或重置它。
 
 - `playwright/`：用户 Fork，分支 `codex/fork-baseline`。
 - `electron/src/electron/`：用户 Electron Fork，分支 `codex/fork-baseline`；其余 `src/` 由 gclient 管理。
@@ -52,7 +52,7 @@
 
 **Interfaces:** Produces: 两个源码目录、确切基线 commit、Chromium DEPS revision、环境诊断记录。
 
-- [ ] 核验目标目录和治理文件；确认不会改写已有工作。使用项目内 thridparty 的独立 checkout，不增加 submodule；以本地 Git exclude 排除大型源码和产物。
+- [ ] 核验目标目录和治理文件；确认不会改写已有工作。使用项目内 thirdparty 的独立 checkout，不增加 submodule；以本地 Git exclude 排除大型源码和产物。
 - [ ] 获取 Playwright Fork，增加官方 upstream；基线 `v1.63.0` 已核验指向 `1b025d7e20a026371cd5f98ba0cdce48892737c8`，checkout 后用 `git rev-parse HEAD` 再核验，创建 `codex/fork-baseline`。
 - [ ] 准备独立 depot_tools，记录 commit；在 electron 根使用 `gclient config --name src/electron --unmanaged https://github.com/jt-jiangtao/electron`，同步时显式指定 Electron 基线 revision，禁止先同步浮动 main。
 - [ ] Electron 基线 `v38.8.6` 已核验 peeled commit 为 `fbc489c43be82f0fc331560ae678a39aeaea38c8`；用 `gclient sync --revision src/electron@fbc489c43be82f0fc331560ae678a39aeaea38c8 --with_branch_heads --with_tags` 获取依赖，随后核验 HEAD、DEPS 的 Chromium revision 与实际 Chromium checkout。

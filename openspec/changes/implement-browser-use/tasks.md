@@ -1,7 +1,7 @@
 ## 1. 基线与来源
 
 - [x] 1.1 用户审查书面设计，使用 Superpowers writing-plans 形成详细执行计划并选择执行方式；确认范围只包含 Fork，不包含产品接入。
-- [x] 1.2 读取两个 Fork 的治理文件，在项目内 thridparty 的独立工作区获取用户仓库；核验 origin、upstream 与工作区位置，不覆盖现有工作。
+- [x] 1.2 读取两个 Fork 的治理文件，在项目内 thirdparty 的独立工作区获取用户仓库；核验 origin、upstream 与工作区位置，不覆盖现有工作。
 - [ ] 1.3 锁定 Playwright、Electron commit 及对应 Chromium revision、构建配置与当前 macOS 架构；交付无浮动版本的基线记录。
 - [ ] 1.4 建立相对上游的差异和补丁追踪规则；核验 ACTION_DRIVER 宏与 Playwright 自有目录要求，必要接线冲突先裁决，无行为改动记录零差异。
 

@@ -74,7 +74,7 @@
 
 - 用户明确授权提交全部当前工作区改动，按主题拆分；本次保存代码检查点，不声明所有验收通过。
 - `pnpm typecheck`：通过。
-- `pnpm lint`：通过。首次扫描因项目内新加入 Fork 源码而终止；补充 thridparty 排除后完成，146 项交互声明有效。
+- `pnpm lint`：通过。首次扫描因项目内新加入 Fork 源码而终止；补充 thirdparty 排除后完成，146 项交互声明有效。
 - `pnpm test`：169 文件通过、1 文件失败、2 文件跳过；1117 项通过、1 项失败、2 项跳过。没有重复运行全量单测。
 - 失败：`cua-runtime.test.ts` / `does not count the real application approval wait against the cell budget`，TIMED_OUT。用例代码与 HEAD 相同，但本轮定向复核仍失败，未证明只是并行抖动，也未证明与全部代码改动无关。
 - `pnpm test:e2e:local`：6 通过、2 失败、1 跳过。失败为 Token Plan 设置项 `wan2.7-image 生图接口` 不存在，以及宽图预览 `wide-image.png` 不存在；这些设置/图片相关文件本轮无改动，仍保留为未解决失败。

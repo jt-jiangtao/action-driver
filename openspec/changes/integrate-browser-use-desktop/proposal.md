@@ -37,4 +37,4 @@
 
 ## 联合交付补充
 
-用户进一步要求与 `reconstruct-codex-cua-packages` 的最终自有宿主切换一起完成：删除 `apps/agent-runtime/vendor`，Computer Use 保持可用。`packages/back` 仅作离线对照。浏览器产品验收与运行时切换验收必须共同通过，不能把单项完成作为最终交付。联合设计见 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。
+用户进一步要求与 `reconstruct-codex-cua-packages` 的最终自有宿主切换一起完成：删除 `apps/agent-runtime/vendor`，Computer Use 保持可用。`thirdparty/backup` 仅作离线对照。浏览器产品验收与运行时切换验收必须共同通过，不能把单项完成作为最终交付。联合设计见 `docs/superpowers/specs/2026-09-28-browser-and-vendor-cutover-design.md`。

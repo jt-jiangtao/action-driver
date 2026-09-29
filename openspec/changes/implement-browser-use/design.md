@@ -1,6 +1,6 @@
 ## Context
 
-参见 proposal.md。两个自有仓库已由用户提供。本期仅在项目内 `thridparty/` 下的独立 Fork 工作区操作，不修改 ActionDriver 产品代码。原计划的产品内嵌浏览器与独立引擎 Provider 任务已推迟。
+参见 proposal.md。两个自有仓库已由用户提供。本期仅在项目内 `thirdparty/` 下的独立 Fork 工作区操作，不修改 ActionDriver 产品代码。原计划的产品内嵌浏览器与独立引擎 Provider 任务已推迟。
 
 ## Goals / Non-Goals
 
