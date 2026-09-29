@@ -4,6 +4,7 @@ import { ResourceError } from '@actiondriver/runtime-contracts'
 import { AgentFileStoreError } from '../../agent-files/agent-file-store'
 import { AppApprovalError } from '../../computer-use/app-approval-broker'
 import { AssetError } from '../../media/session-asset-store'
+import { PlacementError } from '../../placement/hosts'
 
 export type MappedHttpError = {
   status: 200 | 400 | 403 | 404 | 409 | 500
@@ -16,6 +17,22 @@ export type MappedHttpError = {
  * part of the contract: a domain error never leaks as a generic 500.
  */
 export function mapErrorToResponse(error: unknown): MappedHttpError {
+  if (error instanceof PlacementError) {
+    return {
+      status:
+        error.code === 'PLACEMENT_TARGET_MISMATCH'
+          ? 403
+          : error.code === 'PLACEMENT_NO_HOST' || error.code === 'PLACEMENT_DEVICE_MISSING' || error.code === 'PLACEMENT_WORKSPACE_MISSING' || error.code === 'PLACEMENT_UNAVAILABLE'
+            ? 404
+            : error.code === 'PLACEMENT_STALE_INSTANCE'
+              ? 409
+              : error.code === 'PLACEMENT_RESULT_UNKNOWN'
+                ? 500
+                : 400,
+      code: error.code,
+      message: error.message
+    }
+  }
   if (error instanceof ResourceError) {
     return {
       status:

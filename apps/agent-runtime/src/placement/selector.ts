@@ -66,6 +66,9 @@ export function selectHost(
       continue
     }
     if (!host.tools.includes(request.toolId)) continue
+    // The installed plugin version is pinned per call: a host that upgraded (or stopped) the
+    // plugin must not silently serve a different version than the caller asked for.
+    if (!host.plugins.some(plugin => plugin.id === request.plugin.id && plugin.version === request.plugin.version)) continue
     const device = missingDevice(host, request)
     if (device) {
       refusedForDevice ??= device

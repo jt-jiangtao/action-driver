@@ -1,7 +1,6 @@
 import type { Json, PluginOwner } from '@actiondriver/plugin-contracts'
-import type { HostRegistry} from './hosts';
-import { PlacementError, type PlacementAuditEntry, type RegisteredHost } from './hosts'
-import { selectHost, type PlacementRequest } from './selector'
+import { PlacementError, remainingMs, type HostRegistry, type PlacementAuditEntry, type RegisteredHost } from './hosts'
+import { selectHost, type PlacementDecision, type PlacementRequest } from './selector'
 
 /** The channel a host exposes for one fixed instance; the runtime never talks to a host by name. */
 export interface HostChannel {
@@ -36,7 +35,7 @@ export class PlacementInvoker {
    * version are pinned: a disconnect, a superseded instance or a lost confirmation yields a real
    * outcome code and never a silent replay on another host.
    */
-  async invoke(request: PlacementRequest, payload: Json, call: { requestId: string; callId: string; taskId?: string; sessionId?: string; deadline: number; signal: AbortSignal }): Promise<Json> {
+  async invoke(request: PlacementRequest, payload: Json, call: { requestId: string; callId: string; taskId?: string; sessionId?: string; deadline: number; signal: AbortSignal }): Promise<{ value: Json; host: RegisteredHost; location: PlacementDecision['location'] }> {
     const decision = selectHost(this.options.registry, request, { now: this.options.now, ...(this.options.audit ? { audit: this.options.audit } : {}) })
     const pinned = decision.host
     const owner: PluginOwner = { pluginId: request.plugin.id, version: request.plugin.version, hostEpoch: `${pinned.hostId}:${pinned.instanceId}` }
@@ -45,14 +44,14 @@ export class PlacementInvoker {
 
     // The deadline travels with the call: a host that never answers must not keep the turn open.
     const expiry = new AbortController()
-    const timer = setTimeout(() => expiry.abort(new DOMException('deadline exceeded', 'TimeoutError')), Math.max(1, call.deadline - this.options.now()))
+    const timer = setTimeout(() => expiry.abort(new DOMException('deadline exceeded', 'TimeoutError')), remainingMs(call.deadline))
     const signal = AbortSignal.any([call.signal, expiry.signal])
     const onAbort = () => { void this.cancel(pinned, owner, call) }
     signal.addEventListener('abort', onAbort, { once: true })
     try {
       // Re-check right before dispatch: a lease that expired during selection must not be used.
       this.options.registry.assertCurrent(pinned.hostId, pinned.instanceId)
-      const result = await channel.invoke({
+      const invocation = channel.invoke({
         owner,
         toolId: request.toolId,
         payload,
@@ -66,10 +65,14 @@ export class PlacementInvoker {
         },
         signal
       })
+      // A host that ignores the signal must not keep the caller waiting past its own deadline or
+      // cancellation: the call is raced against the abort.
+      invocation.catch(() => undefined)
+      const result = await Promise.race([invocation, aborted(signal)])
       // A result that arrives after the instance was replaced belongs to the old epoch and must
       // never be attributed to the host that superseded it.
       this.options.registry.assertCurrent(pinned.hostId, pinned.instanceId)
-      return result
+      return { value: result, host: pinned, location: decision.location }
     } catch (error) {
       if (error instanceof PlacementError) throw error
       if (this.options.registry.isSuperseded(pinned.hostId, pinned.instanceId)) {
@@ -97,7 +100,14 @@ export class PlacementInvoker {
     const channel = this.options.channel(host)
     if (!channel?.cancel) return
     // Cancellation gets its own short window; it must not reuse the aborted call signal.
-    const window = AbortSignal.timeout(Math.max(1, Math.min(5_000, call.deadline - this.options.now())))
+    const window = AbortSignal.timeout(Math.min(5_000, remainingMs(call.deadline)))
     await channel.cancel(owner, call.callId, window).catch(() => undefined)
   }
+}
+
+function aborted(signal: AbortSignal): Promise<never> {
+  return new Promise<never>((_, reject) => {
+    if (signal.aborted) reject(new Error('aborted'))
+    else signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+  })
 }

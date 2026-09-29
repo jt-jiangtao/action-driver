@@ -42,6 +42,7 @@ import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
 import { createResourceHttpPort, createRuntimeResourceRegistryFromStores, parseRemoteResourceHosts } from './resources/runtime-resources'
 import { createPluginArtifactHostPorts } from './resources/plugin-resources'
+import { PlacementRouter, parseRemoteHostDeclarations } from './placement/router'
 import { definition as imageDefinition } from '@actiondriver/image-generation-plugin/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
 import { VolatileComputerImages } from './computer-use/volatile-images'
@@ -335,6 +336,33 @@ export async function startAgentRuntimeProcess(
   await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => pluginPlatform.enable(id)))
   if (webCredentials.configuration.readerConfigured) local.toolRuntime.grants.push('tools/local/web/open@1')
   local.toolRuntime.grants.push('tools/local/skills/read@1', 'tools/local/skills/install@1')
+  // Capability placement: this process registers itself as the local host and adopts any declared
+  // remote hosts. Tools without a placement declaration keep running right here, unchanged.
+  const placement = new PlacementRouter()
+  const cuaBindings = computer
+    ? {
+        'tools/local/cua/js': { skillId: 'computer-use', contractVersion: 1 },
+        'tools/local/cua/reset': { skillId: 'computer-use', contractVersion: 1 }
+      }
+    : {}
+  placement.registerLocalHost({
+    hostId: 'runtime',
+    instanceId: randomUUID(),
+    kind: 'local-workspace',
+    target: 'local',
+    devices: ['filesystem', 'network', ...(process.platform === 'darwin' ? ['display', 'input'] : [])],
+    workspace: 'session-workspace',
+    tools: local.toolRuntime.registry.list().map(tool => tool.id),
+    plugins: pluginPlatform.catalogs().map(({ manifest }) => ({ id: manifest.id, version: manifest.version })),
+    bindings: cuaBindings,
+    resolve: (skillId, contractVersion) => local.adapters.skillRegistry.resolve(skillId, contractVersion)
+  })
+  for (const declaration of parseRemoteHostDeclarations(environment)) {
+    await placement.connectRemoteHost(declaration).catch((error: unknown) => {
+      // An unreachable host withdraws its new calls; it must not stop the runtime from starting.
+      console.error('[runtime] placement host is unavailable', declaration.baseUrl, error)
+    })
+  }
   const streamSessions = new StreamSessionService({
     ...(appApprovals ? { appApprovals } : {}),
     ...(computer ? { turnEnded: computer.endTurn } : {}),
@@ -394,6 +422,7 @@ export async function startAgentRuntimeProcess(
       skillRegistry: local.adapters.skillRegistry as RuntimeSkillRegistry,
       computerImages,
       resourceRoutes: createResourceHttpPort(resourceRegistry),
+      placementRoutes: placement.routes(),
       ...(environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
         ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
         : {})

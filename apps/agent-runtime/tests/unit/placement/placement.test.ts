@@ -76,6 +76,21 @@ describe('host handshake and directory', () => {
     expect(hosts.list()).toEqual([])
     expect(() => hosts.assertCurrent('desktop-1', 'instance-1')).toThrow(/PLACEMENT_STALE_INSTANCE/)
   })
+
+  it('refuses a handshake that would publish the same plugin twice', () => {
+    const hosts = registry()
+    expect(() => hosts.connect(localHost({ plugins: [{ id: 'web', version: '1.0.0' }, { id: 'web', version: '2.0.0' }] })))
+      .toThrow(/PLACEMENT_UNAVAILABLE/)
+    expect(hosts.list()).toEqual([])
+  })
+
+  it('records a plugin upgrade reported by a re-handshake on the same instance', () => {
+    const audit: PlacementAuditEntry[] = []
+    const hosts = registry(entry => audit.push(entry))
+    hosts.connect(localHost())
+    hosts.connect(localHost({ plugins: [{ id: 'web', version: '2.0.0' }] }))
+    expect(audit.at(-1)).toMatchObject({ kind: 'host.updated', hostId: 'desktop-1', detail: 'web@1.0.0 -> web@2.0.0' })
+  })
 })
 
 describe('placement selection', () => {
@@ -193,7 +208,7 @@ describe('cross-host invocation', () => {
   it('pins host, instance and plugin version and passes only the minimal context', async () => {
     const invoke = vi.fn(async (input: unknown) => { void input; return 'ok' as Json })
     const { invoker, call, request } = harness({ invoke })
-    await expect(invoker.invoke({ ...request, grants: [...request.grants] }, { url: 'https://example.com' }, call)).resolves.toBe('ok')
+    await expect(invoker.invoke({ ...request, grants: [...request.grants] }, { url: 'https://example.com' }, call)).resolves.toMatchObject({ value: 'ok', location: 'local-workspace' })
     expect(invoke).toHaveBeenCalledOnce()
     const sent = invoke.mock.calls[0]![0] as unknown as { owner: { hostEpoch: string }; context: Record<string, unknown> }
     expect(sent.owner.hostEpoch).toBe('desktop-1:instance-1')
@@ -276,6 +291,53 @@ describe('cross-host invocation', () => {
     ).then(() => null, (error: PlacementError) => error)
     expect(failure?.code).toBe('PLACEMENT_STALE_INSTANCE')
     expect(hosts.get('desktop-1')?.instanceId).toBe('instance-2')
+  })
+
+  it('pins the plugin version per call and stops selecting a version the host no longer serves', async () => {
+    const hosts = registry()
+    hosts.connect(localHost())
+    let upgraded = false
+    const invoke = vi.fn(async (input: unknown) => {
+      void input
+      // The host upgrades the plugin while this v1 call is still in flight.
+      hosts.connect(localHost({ plugins: [{ id: 'web', version: '2.0.0' }] }))
+      upgraded = true
+      return 'served by web@1.0.0' as Json
+    })
+    const invoker = new PlacementInvoker({ registry: hosts, channel: () => ({ invoke }), now: () => 2_000 })
+    const pinned = await invoker.invoke(
+      { plugin: { id: 'web', version: '1.0.0' }, toolId: 'tools/local/web/open', grants: ['tools/local/web/open@1'] },
+      null,
+      { requestId: 'r', callId: 'c', deadline: 60_000, signal: new AbortController().signal }
+    )
+    expect(upgraded).toBe(true)
+    // The in-flight call keeps its original owner and version.
+    expect(pinned.value).toBe('served by web@1.0.0')
+    const sent = invoke.mock.calls[0]![0] as unknown as { owner: { version: string } }
+    expect(sent.owner.version).toBe('1.0.0')
+
+    // A new call for the retired version has no host; the new version is selectable.
+    expect(() => selectHost(hosts, {
+      plugin: { id: 'web', version: '1.0.0' },
+      toolId: 'tools/local/web/open',
+      grants: ['tools/local/web/open@1']
+    }, { now: () => 2_000 })).toThrow(/PLACEMENT_NO_HOST/)
+    expect(selectHost(hosts, {
+      plugin: { id: 'web', version: '2.0.0' },
+      toolId: 'tools/local/web/open',
+      grants: ['tools/local/web/open@1']
+    }, { now: () => 2_000 }).host.hostId).toBe('desktop-1')
+  })
+
+  it('stops selecting a plugin the host has stopped serving', () => {
+    const hosts = registry()
+    hosts.connect(localHost())
+    hosts.connect(localHost({ plugins: [] }))
+    expect(() => selectHost(hosts, {
+      plugin: { id: 'web', version: '1.0.0' },
+      toolId: 'tools/local/web/open',
+      grants: ['tools/local/web/open@1']
+    }, { now: () => 2_000 })).toThrow(/PLACEMENT_NO_HOST/)
   })
 
   it('bounds the call with its deadline and reports an unconfirmed outcome', async () => {

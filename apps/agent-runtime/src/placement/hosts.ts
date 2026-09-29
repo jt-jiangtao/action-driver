@@ -26,6 +26,16 @@ export class PlacementError extends Error {
   }
 }
 
+/**
+ * Deadlines in this contract are wall-clock milliseconds. Timer APIs cap out well below that, so a
+ * far-future (or already passed) deadline is clamped instead of overflowing into an instant fire.
+ */
+export const MAX_TIMER_MS = 2_147_483_647
+
+export function remainingMs(deadline: number): number {
+  return Math.min(Math.max(1, deadline - Date.now()), MAX_TIMER_MS)
+}
+
 const handshakeSchema = z
   .object({
     protocol: z.number().int().positive(),
@@ -42,13 +52,17 @@ const handshakeSchema = z
   .strict()
 export type PlacementHandshake = z.infer<typeof handshakeSchema>
 
+function pluginList(plugins: readonly { id: string; version: string }[]): string {
+  return plugins.map(plugin => `${plugin.id}@${plugin.version}`).sort().join(',')
+}
+
 export interface RegisteredHost extends PlacementHandshake {
   instance: number
   connectedAt: number
 }
 
 export interface PlacementAuditEntry {
-  kind: 'host.connected' | 'host.disconnected' | 'host.superseded' | 'placement.selected' | 'placement.refused'
+  kind: 'host.connected' | 'host.disconnected' | 'host.superseded' | 'host.updated' | 'placement.selected' | 'placement.refused'
   at: number
   hostId?: string
   instanceId?: string
@@ -83,6 +97,12 @@ export class HostRegistry {
     if (!protocols.includes(handshake.protocol)) {
       throw new PlacementError('PLACEMENT_PROTOCOL_UNSUPPORTED', `${handshake.hostId} speaks placement protocol ${handshake.protocol}; host supports ${protocols.join(',')}`)
     }
+    // One host advertising two versions of the same plugin would publish the contribution twice.
+    const publishedPlugins = new Set<string>()
+    for (const plugin of handshake.plugins) {
+      if (publishedPlugins.has(plugin.id)) throw new PlacementError('PLACEMENT_UNAVAILABLE', `${handshake.hostId} declares ${plugin.id} more than once`)
+      publishedPlugins.add(plugin.id)
+    }
     const previous = this.hosts.get(handshake.hostId)
     if (previous && previous.instanceId !== handshake.instanceId) {
       // The previous instance must never publish again; keep it only as a rejection tombstone.
@@ -91,9 +111,15 @@ export class HostRegistry {
       this.superseded.set(handshake.hostId, tombstones)
       this.options.audit?.({ kind: 'host.superseded', at: this.options.now(), hostId: handshake.hostId, instanceId: previous.instanceId, detail: `replaced by ${handshake.instanceId}` })
     }
+    // A re-handshake on the same instance is how an upgrade or a plugin stop is reported.
+    const wasInstalled = previous?.instanceId === handshake.instanceId ? pluginList(previous.plugins) : null
+    const nowInstalled = pluginList(handshake.plugins)
     const host: RegisteredHost = { ...handshake, instance: ++this.sequence, connectedAt: this.options.now() }
     this.hosts.set(handshake.hostId, host)
     this.options.audit?.({ kind: 'host.connected', at: host.connectedAt, hostId: host.hostId, instanceId: host.instanceId, location: host.kind })
+    if (wasInstalled !== null && wasInstalled !== nowInstalled) {
+      this.options.audit?.({ kind: 'host.updated', at: this.options.now(), hostId: host.hostId, instanceId: host.instanceId, detail: `${wasInstalled} -> ${nowInstalled}` })
+    }
     return host
   }
 
