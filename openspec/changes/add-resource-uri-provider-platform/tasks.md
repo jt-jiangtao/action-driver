@@ -26,4 +26,4 @@
 - 3.1 进行中（未勾选）：只读 provider 与旧 ID 兼容映射已实现并有定向测试，但**尚未接入真实存储与 Runtime 装配**。
   - 已实现：`apps/agent-runtime/src/resources/media-providers.ts` 提供 `createInputFileProvider`/`createOutputFileProvider`，输入按 `sessionId` 授权读取、产物按 `taskId + sessionId` 校验后读取登记副本，列表以虚拟集合 id `all` 暴露且条目标记 `immutable`；`legacyResourceUri(scheme, fileId, scope)` 把旧文件 ID 直接映射为 URI（id 即 fileId，不改写历史指向）。
   - 定向测试（fake 端口）：`apps/agent-runtime/tests/unit/resources/media-providers.test.ts` 4 项通过——旧 ID 可解析并读到原字节、跨会话读取与监听在 provider 之前被拒绝且未触碰存储、存储归属不符转成结构化 `RESOURCE_NOT_FOUND`、产物列表带任务归属与不可变标记。
-  - 仍缺：`SessionInputFileStore` 需要补 `listBound(sessionId)` 查询；`runtime-process.ts` 未实例化 `ResourceProviderRegistry`，也未把两个 provider 与既有输入/产物存储接线；尚无 HTTP 路由暴露资源操作。
+  - 仍缺：`runtime-process.ts` 未实例化 `ResourceProviderRegistry`，也未把两个 provider 与既有输入/产物存储接线；尚无 HTTP 路由暴露资源操作。下轮核对：输入存储已提供 `listBySession(sessionId)`、产物存储已提供 `listByTask(taskId)` 与 `readSnapshot({fileId,taskId,sessionId})`，provider 端口只需按这两个签名对接，无需新增查询方法。
