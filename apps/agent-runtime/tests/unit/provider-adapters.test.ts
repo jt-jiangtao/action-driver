@@ -21,7 +21,8 @@ import {
   createAnthropicAdapter,
   createOpenAiCompatibleAdapter,
   type OpenAiClientFactory,
-  type OpenAiStreamChunk
+  type OpenAiStreamChunk,
+  type ProviderProbeResult
 } from '../../src/model-connections/provider-adapters'
 
 function transportOf(handler: (request: HttpRequest) => HttpResponse): HttpTransport & {
@@ -1034,6 +1035,87 @@ describe('Anthropic compatible adapter', () => {
       status: null
     })
     expect(transport.requests).toEqual([])
+  })
+})
+
+describe('cross-protocol failure rules', () => {
+  const sharedKey = 'sk-shared-secret'
+  const cases = [
+    {
+      label: 'rejected credentials',
+      status: 401,
+      body: { error: { message: `invalid key ${sharedKey}` } },
+      text: '',
+      probeState: 'failed',
+      code: 'unauthorized'
+    },
+    {
+      label: 'rate limits',
+      status: 429,
+      body: {},
+      text: `too many requests for ${sharedKey}`,
+      probeState: 'failed',
+      code: 'rate-limited'
+    },
+    {
+      label: 'provider errors',
+      status: 503,
+      body: {},
+      text: `upstream refused ${sharedKey}`,
+      probeState: 'failed',
+      code: 'provider-error'
+    },
+    {
+      label: 'unknown routes',
+      status: 404,
+      body: {},
+      text: `missing route ${sharedKey}`,
+      probeState: 'failed',
+      code: 'not-found'
+    },
+    {
+      label: 'rejected parameters',
+      status: 422,
+      body: {},
+      text: `bad parameter ${sharedKey}`,
+      probeState: 'unsupported',
+      code: 'invalid-request'
+    }
+  ] as const
+
+  function probeFailure(result: ProviderProbeResult) {
+    if (result.state === 'success') throw new Error('expected a probe failure')
+    return result.failure
+  }
+
+  it.each(cases)('keeps $label identical across protocols', async (testCase) => {
+    const transport = transportOf(() => ({
+      status: testCase.status,
+      body: testCase.body,
+      text: testCase.text
+    }))
+    const openAi = createOpenAiCompatibleAdapter(transport)
+    const anthropic = createAnthropicAdapter(transport)
+
+    const openAiProbe = await openAi.probeModel({
+      ...endpoint,
+      apiKey: sharedKey,
+      modelId: 'qwen3.7-plus'
+    })
+    const anthropicProbe = await anthropic.probeModel({
+      ...endpoint,
+      apiKey: sharedKey,
+      modelId: 'qwen3.7-plus'
+    })
+
+    expect(openAiProbe.state).toBe(testCase.probeState)
+    expect(anthropicProbe.state).toBe(testCase.probeState)
+    const openAiFailure = probeFailure(openAiProbe)
+    const anthropicFailure = probeFailure(anthropicProbe)
+    expect(openAiFailure.code).toBe(testCase.code)
+    expect(anthropicFailure.code).toBe(testCase.code)
+    expect(openAiFailure.message).not.toContain(sharedKey)
+    expect(anthropicFailure.message).not.toContain(sharedKey)
   })
 })
 
