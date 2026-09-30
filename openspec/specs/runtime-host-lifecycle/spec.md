@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Runtime Host Lifecycle Specification
+
+## Purpose
+
+定义 Agent Runtime 在不同宿主中的启动、就绪与关闭契约，以及本地持久化和执行依赖的装配边界，使 Electron utility process 与纯 Node 进程能够使用同一套 Runtime 服务实现，并保持现有对外协议与资源释放语义。
+
+## Requirements
 
 ### Requirement: 宿主无关的启动与生命周期
 
