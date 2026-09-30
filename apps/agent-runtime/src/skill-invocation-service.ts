@@ -1,5 +1,6 @@
 import type { Clock, SkillProvider, SkillProviderResult, SkillRegistry } from './ports'
-import type { PersistedSkillInvocation, SqliteRuntimeRepositories } from './repositories'
+import type { PersistedSkillInvocation } from './repositories'
+import type { RuntimeEventRecord } from './ports'
 import {
   SkillInvocationStateMachine,
   type SkillInvocationState
@@ -14,6 +15,14 @@ export type ExecuteSkillRequest = {
   input: unknown
 }
 
+/** The only persistence this service needs: its own invocation plus the event it emits. */
+export type SkillInvocationPersistence = {
+  commitSkillInvocationWithEvent(
+    invocation: PersistedSkillInvocation,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+}
+
 export class SkillInvocationService {
   private readonly active = new Map<
     string,
@@ -22,7 +31,7 @@ export class SkillInvocationService {
 
   constructor(
     private readonly registry: SkillRegistry,
-    private readonly repositories: SqliteRuntimeRepositories,
+    private readonly repositories: SkillInvocationPersistence,
     private readonly clock: Clock
   ) {}
 

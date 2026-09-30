@@ -14,11 +14,11 @@ import {
   RuntimeToolRegistry,
   ToolInvocationService,
   openRuntimeDatabase,
-  SqliteRuntimeRepositories,
   type PersistedToolInvocation,
   type RuntimeEventRecord,
   type RuntimeTaskRecord
 } from '../../src/index'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 import {
   ExecutionContextUnavailableError,
   SessionExecutionContextResolver
@@ -55,8 +55,12 @@ function persistedTask(id: string, sessionId: string): RuntimeTaskRecord {
 
 async function createHarness(tasks: RuntimeTaskRecord[]) {
   const directory = temporaryDirectory('actiondriver-execution-context-')
-  const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
-  const repositories = new SqliteRuntimeRepositories(database)
+  const database = openRuntimeDatabase(join(directory, 'state.sqlite'))
+  const repositories = new RolloutSessionStore({
+    sessionsRoot: directory,
+    statePath: join(directory, 'rollout-state.sqlite'),
+    historyPath: join(directory, 'rollout-history.sqlite')
+  })
   for (const task of tasks) await repositories.tasks.save(task)
   const workspaceRoot = join(directory, 'workspace')
   const resolver = new SessionExecutionContextResolver({

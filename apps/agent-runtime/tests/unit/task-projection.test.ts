@@ -3,13 +3,22 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  SqliteRuntimeRepositories,
   buildTaskProjection,
-  openRuntimeDatabase,
   type RuntimeTaskRecord
 } from '../../src/index'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
+
+/** Task and message history now live in the rollout log with its SQLite projection. */
+function createRolloutStore(path: string): RolloutSessionStore {
+  const root = join(path, '..')
+  return new RolloutSessionStore({
+    sessionsRoot: root,
+    statePath: join(root, 'rollout-state.sqlite'),
+    historyPath: join(root, 'rollout-history.sqlite')
+  })
+}
 
 function task(id: string, status: string, error: unknown = null): RuntimeTaskRecord {
   return {
@@ -146,7 +155,7 @@ describe('repository-backed task projections', () => {
 
   it('keeps messages written before document support readable after reopening', async () => {
     const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-legacy-')), 'runtime.db')
-    const first = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const first = createRolloutStore(path)
     const legacy = task('task-success', 'completed')
     await first.tasks.save(legacy)
     await first.messages.save({
@@ -158,7 +167,7 @@ describe('repository-backed task projections', () => {
     })
     first.close()
 
-    const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const reopened = createRolloutStore(path)
     const projection = buildTaskProjection(
       (await reopened.tasks.get(legacy.id))!,
       await reopened.messages.listByTask(legacy.id)
@@ -206,7 +215,7 @@ describe('repository-backed task projections', () => {
 
   it('projects completed and failed records after reopening storage', async () => {
     const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-')), 'runtime.db')
-    const first = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const first = createRolloutStore(path)
     const completed = task('task-success', 'completed')
     const failed = task('task-failed', 'failed', {
       code: 'MODEL_GATEWAY_ERROR',
@@ -237,7 +246,7 @@ describe('repository-backed task projections', () => {
     })
     first.close()
 
-    const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const reopened = createRolloutStore(path)
     const completedProjection = buildTaskProjection(
       (await reopened.tasks.get(completed.id))!,
       await reopened.messages.listByTask(completed.id)

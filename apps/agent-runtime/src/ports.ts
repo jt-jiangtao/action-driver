@@ -333,3 +333,16 @@ export interface RuntimeAdapters {
   clock: Clock
   idGenerator: IdGenerator
 }
+
+/**
+ * Everything the runtime composition needs from persistence: session history
+ * comes from the rollout log, auxiliary stores keep their own state.
+ */
+export interface RuntimeRepositories extends StreamSessionRepository, ToolInvocationPersistence {
+  readonly tasks: TaskRepository
+  readonly messages: MessageRepository
+  readonly events: EventRepository
+  readonly inputFiles: SessionInputFileRepository
+  recoverInterruptedRequests(code: string): Promise<RuntimeEventRecord[]>
+  close(): void
+}

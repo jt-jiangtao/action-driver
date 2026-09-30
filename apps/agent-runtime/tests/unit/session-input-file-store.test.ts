@@ -3,10 +3,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  SqliteRuntimeRepositories,
   openRuntimeDatabase,
   type RuntimeTaskRecord
 } from '../../src/index'
+import { createTestRepositories } from './rollout/test-repositories'
 import {
   MAX_INPUT_FILE_BYTES,
   SessionInputFileStore,
@@ -20,7 +20,7 @@ function createStorage() {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-input-store-'))
   temporaryDirectories.push(directory)
   const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
-  const repositories = new SqliteRuntimeRepositories(database)
+  const repositories = createTestRepositories(directory)
   const workspaceRoot = join(directory, 'workspace')
   const store = new SessionInputFileStore({
     database,

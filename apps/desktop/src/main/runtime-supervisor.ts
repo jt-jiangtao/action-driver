@@ -134,6 +134,8 @@ export class RuntimeSupervisor {
     if (typeof message === 'object' && message !== null && 'type' in message &&
         message.type === 'runtime.failed' && 'message' in message && typeof message.message === 'string') {
       this.lastFailureMessage = message.message
+      // A Runtime that fails before serving must be visible, not only recorded for the UI.
+      console.error('[runtime] failed to start', message.message)
       return
     }
     if (
@@ -187,6 +189,7 @@ export class RuntimeSupervisor {
 
   private handleExit(process: RuntimeProcess, code: number | null): void {
     if (this.currentProcess !== process) return
+    console.error(`[runtime] exited with code ${String(code)} (state=${this.state})`)
     const preservePendingStart = this.state === 'starting'
     this.currentProcess = null
     this.serviceBaseUrl = null
@@ -228,7 +231,7 @@ export class RuntimeSupervisor {
 }
 
 export type ElectronRuntimeProcessFactoryOptions = {
-  databasePath: string
+  dataRoot: string
   workspaceRoot: string
   agentHomeDirectory?: string
   serviceToken?: string
@@ -251,7 +254,7 @@ export function runtimeProcessEnvironment(
   return {
     ...base,
     NODE_OPTIONS: nodeOptions,
-    ACTIONDRIVER_RUNTIME_DATABASE_PATH: options.databasePath,
+    ACTIONDRIVER_RUNTIME_DATA_ROOT: options.dataRoot,
     ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
     ...(options.agentHomeDirectory ? { ACTIONDRIVER_AGENT_HOME: options.agentHomeDirectory } : {}),
     ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
@@ -266,8 +269,12 @@ export function createElectronRuntimeProcessFactory(
   return {
     fork(entryPath) {
       const child = utilityProcess.fork(entryPath, [], {
-        env: runtimeProcessEnvironment(options)
+        env: runtimeProcessEnvironment(options),
+        // A Runtime that dies before serving used to fail silently; keep its output visible.
+        stdio: ['ignore', 'pipe', 'pipe']
       })
+      child.stdout?.on('data', (chunk: Buffer) => process.stdout.write(`[runtime] ${chunk}`))
+      child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(`[runtime] ${chunk}`))
       return {
         postMessage(message) {
           child.postMessage(message)

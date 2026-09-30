@@ -463,6 +463,9 @@ export class LangGraphRunner implements GraphRunner {
         let activityCapturesProgress = state.activityCapturesProgress
         let activityToolNames = state.activityToolNames
         let activityIssueCount = state.activityIssueCount
+        // A picture is a visible block, so it ends the current tool group exactly like prose
+        // does: the next round's tools must start a new group instead of joining this one.
+        let emittedVisibleBlock = false
         for (const [index, providerCall] of state.pendingToolCalls.entries()) {
           if (config.signal?.aborted) throw config.signal.reason
           if (!this.toolRuntime) {
@@ -540,6 +543,7 @@ export class LangGraphRunner implements GraphRunner {
               // model request only; history keeps just the handle.
               if (toolEvent.type === 'tool.asset' && isVolatileComputerImage(toolEvent.asset))
                 screenshots.push(toolEvent.asset)
+              else if (toolEvent.type === 'tool.asset') emittedVisibleBlock = true
             }
           } catch (error) {
             if (config.signal?.aborted) throw error
@@ -610,6 +614,16 @@ export class LangGraphRunner implements GraphRunner {
               titleRevision: activityTitleRevision
             }
           })
+        }
+        if (emittedVisibleBlock && activeActivityId) {
+          await this.modelObservers.get(state.taskId)?.({
+            kind: 'activity',
+            event: { type: 'completed', activityId: activeActivityId }
+          })
+          activeActivityId = null
+          activityTitleRevision = 0
+          activityToolNames = []
+          activityIssueCount = 0
         }
         return {
           modelMessages: [

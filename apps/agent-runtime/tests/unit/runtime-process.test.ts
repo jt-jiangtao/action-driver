@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -11,9 +11,9 @@ import { startLocalOtelCollector } from '../../../../tests/otel-collector'
 import {
   RuntimeToolPolicy,
   RuntimeToolRegistry,
-  SqliteRuntimeRepositories,
   openRuntimeDatabase
 } from '../../src/index'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 
 vi.setConfig({ testTimeout: 20_000 })
 
@@ -56,7 +56,7 @@ describe('Agent Runtime process entry', () => {
     try {
       await startAgentRuntimeProcess(
         parentPort,
-        join(mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-')), 'runtime.db'),
+        mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-')),
         exit,
         {
           ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(
@@ -78,7 +78,7 @@ describe('Agent Runtime process entry', () => {
   it('wires the process tracer into Phoenix model observability', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-')), 'runtime.db')
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-'))
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-root-'))
     await startAgentRuntimeProcess(parentPort, databasePath, exit, {
       ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
@@ -93,10 +93,7 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('refuses a second live Runtime before it can recover the first Runtime tasks', async () => {
-    const databasePath = join(
-      mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-')),
-      'runtime.db'
-    )
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-'))
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-root-'))
     const firstParent = new FakeParentPort()
     const firstExit = vi.fn()
@@ -120,9 +117,17 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('recovers an orphan before announcing readiness and does not append another terminal event on restart', async () => {
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-recovery-')), 'runtime.db')
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-recovery-'))
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-recovery-root-'))
-    const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath))
+    const dataRoot = databasePath
+    const rolloutPaths = {
+      sessionsRoot: dataRoot,
+      statePath: join(dataRoot, 'rollout-state.sqlite'),
+      historyPath: join(dataRoot, 'rollout-history.sqlite')
+    }
+    const repositories = new RolloutSessionStore(rolloutPaths)
+    // The state database still owns process ownership; the crashed writer used it.
+    openRuntimeDatabase(join(dataRoot, 'state.sqlite')).close()
     const timestamp = '2026-01-01T00:00:00.000Z'
     await repositories.createStreamTask({
       request: {
@@ -180,20 +185,28 @@ describe('Agent Runtime process entry', () => {
         sequence: null
       }
     })
-    await repositories.toolInvocations.save({
-      id: 'orphan-tool',
-      providerCallId: 'orphan-provider',
+    await repositories.commitEvent({
       taskId: 'orphan-task',
-      toolId: 'sandbox.shell.run',
-      toolVersion: 1,
-      argumentsHash: 'hash',
-      decision: 'allow',
-      status: 'running',
-      input: { command: 'touch marker' },
-      output: null,
-      error: null,
-      createdAt: timestamp,
-      updatedAt: timestamp
+      threadId: 'orphan-session',
+      checkpointId: 'orphan-checkpoint',
+      eventKey: 'orphan-tool-running',
+      type: 'tool.running',
+      payload: {
+        callId: 'orphan-tool',
+        toolId: 'sandbox.shell.run',
+        modelName: 'shell_run',
+        summary: '执行命令',
+        argumentsHash: 'hash',
+        activityId: 'orphan-group',
+        callSequence: 1
+      },
+      occurredAt: timestamp,
+      eventId: 'orphan-tool-running',
+      requestId: 'orphan',
+      responseId: 'orphan-response',
+      streamId: 'orphan-stream',
+      messageId: 'orphan-assistant',
+      sequence: 1
     })
     repositories.close()
 
@@ -203,10 +216,8 @@ describe('Agent Runtime process entry', () => {
         '-e',
         "const Database = require('better-sqlite3'); const db = new Database(process.argv[1]); " +
           "db.prepare('INSERT INTO runtime_process_owner (singleton, pid, token, acquired_at) VALUES (1, ?, ?, ?)').run(process.pid, 'crashed-owner', new Date().toISOString()); " +
-          "db.prepare('UPDATE messages SET content_json = ? WHERE id = ?').run(" +
-          "JSON.stringify({ text: 'partial' }), 'orphan-assistant'); " +
-          "process.stdout.write('persisted\\n'); setInterval(() => {}, 1000)",
-        databasePath
+        "process.stdout.write('persisted\\n'); setInterval(() => {}, 1000)",
+        join(dataRoot, 'state.sqlite')
       ],
       { cwd: join(process.cwd(), 'apps/agent-runtime') }
     )
@@ -226,17 +237,13 @@ describe('Agent Runtime process entry', () => {
         ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
       })
       await started
-      const read = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath))
+      const read = new RolloutSessionStore(rolloutPaths)
       expect((await read.streamRequests.getByRequestId('orphan'))?.status).toBe('failed')
+      const snapshot = await read.readStreamSnapshot('orphan')
       expect(
-        (await read.events.listForRequestAfter('orphan', 0, 10)).filter(
-          (event) => event.type === 'runtime.interrupted'
-        )
+        snapshot.events.filter((event) => event.type === 'runtime.interrupted')
       ).toHaveLength(1)
-      expect((await read.messages.listByTask('orphan-task')).at(-1)?.content).toEqual({
-        text: 'partial'
-      })
-      expect((await read.toolInvocations.listByTask('orphan-task'))[0]?.status).toBe('unknown')
+      expect(snapshot.tools.find((tool) => tool.id === 'orphan-tool')?.status).toBe('unknown')
       read.close()
       parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
       await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
@@ -246,7 +253,7 @@ describe('Agent Runtime process entry', () => {
   it('announces HTTP readiness and closes on shutdown', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-process-')), 'runtime.db')
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-process-'))
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
     const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
       ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
@@ -263,7 +270,7 @@ describe('Agent Runtime process entry', () => {
   it('reports the HTTP service address when the client injected a token', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = join(mkdtempSync(join(tmpdir(), 'actiondriver-http-')), 'runtime.db')
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-http-'))
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
 
     const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
@@ -334,12 +341,27 @@ describe('Agent Runtime process entry', () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
   })
 
+  it('drops the legacy business database before the runtime starts', async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-legacy-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-legacy-root-'))
+    mkdirSync(dataRoot, { recursive: true })
+    writeFileSync(join(dataRoot, 'actiondriver.db'), 'legacy')
+    writeFileSync(join(dataRoot, 'actiondriver.db-wal'), 'legacy')
+    const parentPort = new FakeParentPort()
+    const exit = vi.fn()
+    await startAgentRuntimeProcess(parentPort, dataRoot, exit, {
+      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+    })
+    expect(existsSync(join(dataRoot, 'actiondriver.db'))).toBe(false)
+    expect(existsSync(join(dataRoot, 'actiondriver.db-wal'))).toBe(false)
+    expect(existsSync(join(dataRoot, 'state.sqlite'))).toBe(true)
+    parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
+  })
+
   it('rejects startup without a configured workspace root', async () => {
     const parentPort = new FakeParentPort()
-    const databasePath = join(
-      mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-')),
-      'runtime.db'
-    )
+    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-'))
     await expect(startAgentRuntimeProcess(parentPort, databasePath, vi.fn(), {})).rejects.toThrow(
       'SANDBOX_ROOT_INVALID'
     )

@@ -18,8 +18,10 @@ import { SessionWorkspaceStore } from '../../src/execution/session-workspace'
 import { SessionOutputStore } from '../../src/media/session-output-store'
 import { readFileSync } from 'node:fs'
 import { AppApprovalBroker } from '../../src/computer-use/app-approval-broker'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 
 const temporaryDirectories: string[] = []
+const harnessClosers: Array<() => void> = []
 
 function createHarness(
   graphRunner: GraphRunner,
@@ -34,8 +36,19 @@ function createHarness(
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
   temporaryDirectories.push(directory)
-  const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
-  const repositories = new SqliteRuntimeRepositories(database)
+  const database = openRuntimeDatabase(join(directory, 'state.sqlite'))
+  const rolloutStore = new RolloutSessionStore({
+    sessionsRoot: directory,
+    statePath: join(directory, 'rollout-state.sqlite'),
+    historyPath: join(directory, 'rollout-history.sqlite')
+  })
+  harnessClosers.push(() => {
+    rolloutStore.close()
+    database.close()
+  })
+  const repositories = Object.assign(rolloutStore, {
+    inputFiles: new SqliteRuntimeRepositories(database).inputFiles
+  })
   const assets = new SessionAssetStore({ database, rootDirectory: directory })
   const inputFiles = new SessionInputFileStore({
     database,
@@ -85,6 +98,13 @@ function createHarness(
 }
 
 afterEach(() => {
+  for (const close of harnessClosers.splice(0)) {
+    try {
+      close()
+    } catch {
+      // A store already torn down must not fail the suite.
+    }
+  }
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -156,14 +176,14 @@ describe('StreamSessionService', () => {
     )
     const collect = async (event: RequestCreateEvent) => {
       const published: StreamServerEvent[] = []
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         void harness.service.handle(event, (serverEvent) => {
           published.push(serverEvent)
           if (serverEvent.type === 'response.end') {
             order.push(`end:${serverEvent.taskId}`)
             resolve()
           }
-        })
+        }).catch(reject)
       })
       return published.find((item) => item.type === 'request.accepted') as Extract<
         StreamServerEvent,
@@ -1984,7 +2004,7 @@ describe('StreamSessionService', () => {
     repositories.close()
   })
 
-  it('returns one authoritative snapshot when the requested replay cursor has expired', async () => {
+  it('replays the persisted request when the client resumes from the beginning', async () => {
     const graphRunner: GraphRunner = {
       async run(request, _signal, observer) {
         await observer?.({
@@ -2028,7 +2048,7 @@ describe('StreamSessionService', () => {
         throw new Error('not used')
       }
     }
-    const { database, repositories, service } = createHarness(graphRunner)
+    const { repositories, service } = createHarness(graphRunner)
     const initial: StreamServerEvent[] = []
     let resolveEnd!: () => void
     const ended = new Promise<void>((resolve) => {
@@ -2071,8 +2091,6 @@ describe('StreamSessionService', () => {
       createdAt: '2026-09-23T00:00:02.000Z',
       updatedAt: '2026-09-23T00:00:03.000Z'
     })
-    database.prepare('DELETE FROM runtime_events WHERE cursor <= 2').run()
-
     const resumed: StreamServerEvent[] = []
     await service.handle(
       {
@@ -2088,38 +2106,19 @@ describe('StreamSessionService', () => {
       }
     )
 
-    expect(resumed).toEqual([
-      expect.objectContaining({
-        type: 'response.snapshot',
-        requestId: accepted.requestId,
-        status: 'completed',
-        sequence: 6,
-        messages: [
-          expect.objectContaining({ role: 'user', content: 'Return **real Markdown**' }),
-          expect.objectContaining({ role: 'assistant', content: 'final answer' })
-        ],
-        tools: [
-          expect.objectContaining({
-            callId: 'call-snapshot',
-            status: 'completed',
-            title: '已执行命令'
-          }),
-          expect.objectContaining({ callId: 'call-image-snapshot', imageCount: 16 })
-        ],
-        activities: [
-          expect.objectContaining({
-            activityId: 'activity-snapshot',
-            title: '正在执行命令',
-            status: 'completed',
-            items: [
-              expect.objectContaining({ kind: 'text', content: '已准备读取。', phase: 'pending' })
-            ]
-          })
-        ],
-        activityTimeline: [
-          { id: 'activity:activity-snapshot', kind: 'activity', activityId: 'activity-snapshot' }
-        ]
-      })
+    // The rollout log keeps every record, so a resume from the beginning replays the request
+    // instead of collapsing to a snapshot; the snapshot path is asserted below.
+    expect(resumed.map((event) => event.type)).toEqual([
+      'request.accepted',
+      'response.start',
+      'activity.started',
+      'activity.text',
+      'activity.completed',
+      'response.content',
+      'response.end',
+      // Seeded afterwards, so they replay after the turn's own records.
+      'tool.completed',
+      'tool.completed'
     ])
 
     const reopened = await service.getTaskSnapshot(accepted.taskId)

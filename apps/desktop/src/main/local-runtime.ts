@@ -22,7 +22,7 @@ export function createLocalRuntimeServices(
   let capabilityHost: { close(): void } | null = null
   let connectionGeneration = 0
   const processFactory = createElectronRuntimeProcessFactory({
-    databasePath: paths.databasePath,
+    dataRoot: paths.dataRoot,
     workspaceRoot,
     ...(options.agentHomeDirectory ? { agentHomeDirectory: options.agentHomeDirectory } : {}),
     serviceToken: options.serviceToken,

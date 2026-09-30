@@ -14,7 +14,8 @@ export type RuntimePaths = {
   computerHelperPath: string
   /** The helper bundle, needed to start it through LaunchServices rather than as a child process. */
   computerHelperBundlePath: string
-  databasePath: string
+  /** Root of every runtime-owned file: rollout logs, projection, auxiliary state, workspaces. */
+  dataRoot: string
   workspaceRoot: string
 }
 
@@ -37,7 +38,7 @@ export function resolveRuntimePaths(options: RuntimePathOptions): RuntimePaths {
     computerHelperBundlePath,
     computerHelperPath: resolve(computerHelperBundlePath, 'Contents', 'MacOS',
       'actiondriver-computer-use'),
-    databasePath: resolve(options.userDataPath, 'data', 'actiondriver.db'),
+    dataRoot: resolve(options.userDataPath, 'data'),
     workspaceRoot: resolve(options.userDataPath, 'workspace')
   }
 }

@@ -2,8 +2,7 @@ import { LangGraphRunner } from './agent-graph'
 import type { GraphToolRuntime } from './agent-graph'
 import type { InteractionLogRecorder } from '@actiondriver/observability'
 import type { ToolExecutionContext } from '@actiondriver/runtime-contracts'
-import type { Clock, IdGenerator, ModelGateway, RuntimeAdapters } from './ports'
-import type { SqliteRuntimeRepositories } from './repositories'
+import type { Clock, IdGenerator, ModelGateway, RuntimeAdapters, RuntimeRepositories } from './ports'
 import { RuntimeSkillRegistry } from './skill-registry'
 import type { ResilientSqliteSaver } from './sqlite-checkpointer'
 import { RuntimeToolRegistry } from './tool-registry'
@@ -28,7 +27,7 @@ class RandomIdGenerator implements IdGenerator {
 }
 
 export function createLocalRuntimeAdapters(options: {
-  repositories: SqliteRuntimeRepositories
+  repositories: RuntimeRepositories
   checkpointer: ResilientSqliteSaver
   modelGateway: ModelGateway
   clock?: Clock

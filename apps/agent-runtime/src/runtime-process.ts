@@ -7,7 +7,7 @@ import { SqliteRuntimeRepositories } from './repositories'
 import { createSqliteCheckpointer } from './sqlite-checkpointer'
 import { ConnectionModelGateway } from './model-connections/model-gateway'
 import { PhoenixModelObservability } from './phoenix-model-observability'
-import { createSqliteModelConnectionStore } from './model-connections/sqlite-store'
+import { createFileModelConnectionStore } from './model-connections/file-store'
 import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
 import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
@@ -24,6 +24,7 @@ import { SessionExecutionContextResolver } from './execution/session-execution-c
 import { SessionSandbox } from './execution/session-sandbox'
 import { SessionWorkspaceStore } from './execution/session-workspace'
 import { dirname, join, resolve } from 'node:path'
+import { rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createWebCredentialPort } from './plugins/web-credentials'
 import { createRuntimePluginPlatform } from './plugins/composition'
@@ -50,12 +51,14 @@ import { ComputerUseControlGate } from './computer-use/control-gate'
 import { LoadedSkills } from './computer-use/skill-gate'
 import type { AppApprovalBroker } from './computer-use/app-approval-broker'
 import { AppApprovalStore } from './computer-use/app-approval-store'
+import { RolloutSessionStore } from './rollout/session-store'
+import { RolloutRuntimeRepositories } from './rollout/runtime-repositories'
 
 type ParentMessageEvent = { data: unknown }
 
 export async function startAgentRuntimeProcess(
   parentPort: ParentPortLike,
-  databasePath: string,
+  dataRoot: string,
   exit: (code: number) => void = process.exit,
   environment: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
@@ -88,7 +91,11 @@ export async function startAgentRuntimeProcess(
       : {})
   })
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
-  const database = openRuntimeDatabase(databasePath)
+  // The session log and its projection replaced the single business database; drop the old file
+  // so a stale schema can never be read, and keep auxiliary state in its own database.
+  for (const suffix of ['', '-wal', '-shm']) rmSync(join(dataRoot, `actiondriver.db${suffix}`), { force: true })
+  const statePath = join(dataRoot, 'state.sqlite')
+  const database = openRuntimeDatabase(statePath)
   let ownership: ReturnType<typeof claimRuntimeOwnership>
   try {
     ownership = claimRuntimeOwnership(database)
@@ -96,18 +103,26 @@ export async function startAgentRuntimeProcess(
     database.close()
     throw error
   }
-  const repositories = new SqliteRuntimeRepositories(database)
-  const assets = new SessionAssetStore({ database, rootDirectory: dirname(databasePath) })
+  const stateRepositories = new SqliteRuntimeRepositories(database)
+  // Session history now lives in an append-only rollout log; the state database keeps the
+  // auxiliary stores (input files, assets, outputs, approvals, ownership).
+  const rolloutStore = new RolloutSessionStore({
+    sessionsRoot: dataRoot,
+    statePath: join(dataRoot, 'rollout-state.sqlite'),
+    historyPath: join(dataRoot, 'rollout-history.sqlite')
+  })
+  const repositories = new RolloutRuntimeRepositories(rolloutStore, stateRepositories)
+  const assets = new SessionAssetStore({ database, rootDirectory: dataRoot })
   const computerImages = new VolatileComputerImages()
   const workspaces = new SessionWorkspaceStore({ workspaceRoot })
   const inputFiles = new SessionInputFileStore({
     database,
-    rootDirectory: dirname(databasePath),
+    rootDirectory: dataRoot,
     workspaces
   })
   const outputs = new SessionOutputStore({
     database,
-    rootDirectory: dirname(databasePath),
+    rootDirectory: dataRoot,
     workspaces
   })
   // Unified resource entry point: session inputs and registered deliverables are served only
@@ -116,15 +131,15 @@ export async function startAgentRuntimeProcess(
     inputFiles,
     inputFileRecords: repositories.inputFiles,
     outputs,
-    resourceRoot: join(dirname(databasePath), 'resources'),
+    resourceRoot: join(dataRoot, 'resources'),
     remote: parseRemoteResourceHosts(environment)
   })
   const resourceRegistry = resources.registry
   await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
   await assets.cleanOrphanFiles()
   await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
-  const checkpointer = createSqliteCheckpointer(databasePath)
-  const logging = createServiceLogger({ databasePath })
+  const checkpointer = createSqliteCheckpointer(join(dataRoot, 'checkpoints.sqlite'))
+  const logging = createServiceLogger({ databasePath: statePath })
   const interactions = createInteractionLogRecorder({
     ids: {
       eventId: () => `service:${randomUUID()}`,
@@ -136,7 +151,7 @@ export async function startAgentRuntimeProcess(
   })
   const credentialSecret = environment.ACTIONDRIVER_CREDENTIAL_KEY?.trim()
   const service = new ModelConnectionService({
-    store: createSqliteModelConnectionStore(database),
+    store: createFileModelConnectionStore({ filePath: join(dataRoot, 'model-connections.json') }),
     cipher: createCredentialCipher(
       credentialSecret ? createCredentialKey(credentialSecret) : Buffer.alloc(0)
     ),
@@ -267,7 +282,7 @@ export async function startAgentRuntimeProcess(
   const pluginPlatform = await createRuntimePluginPlatform({
     node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
     packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
-    dataRoot: join(dirname(databasePath), 'plugins'), registry: local.toolRuntime.registry,
+    dataRoot: join(dataRoot, 'plugins'), registry: local.toolRuntime.registry,
     retiredPluginIds: ['search', 'web-reader'],
     configuration: { web: webCredentials.configuration },
     apiPorts: {
@@ -453,6 +468,11 @@ export async function startAgentRuntimeProcess(
   }
 
   parentPort.on('message', handleShutdown)
+  console.error(
+    '[runtime] ready',
+    httpServer ? `${httpServer.url}${SERVICE_STREAM_PATH}` : 'no-http-service',
+    Date.now()
+  )
   parentPort.postMessage({
     type: 'runtime.ready',
     service: httpServer

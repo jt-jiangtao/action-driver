@@ -1720,6 +1720,121 @@ function toolRunner(model: ModelGateway, executor: ToolExecutor) {
   }
 }
 
+it('starts a new tool group once a generated image separates the work', async () => {
+  const imageTool: ToolDefinition = {
+    id: 'tools/local/image-generation/generate',
+    version: 1,
+    modelName: 'tools_local_image_generation_generate',
+    description: 'Generate an image',
+    inputSchema: {
+      type: 'object',
+      properties: { prompt: { type: 'string' } },
+      required: ['prompt'],
+      additionalProperties: false
+    },
+    risk: 'low',
+    sideEffects: { filesystem: 'write', network: true },
+    timeoutMs: 1_000
+  }
+  const observed: Array<{ type: string; activityId: string; title?: string }> = []
+  let round = 0
+  const model: ModelGateway = {
+    async complete() {
+      round += 1
+      if (round === 1) {
+        return {
+          kind: 'tool-calls',
+          calls: [
+            {
+              providerCallId: 'provider-image',
+              modelName: 'tools_local_image_generation_generate',
+              arguments: { prompt: '猫' }
+            }
+          ]
+        }
+      }
+      if (round === 2) {
+        return {
+          kind: 'tool-calls',
+          calls: [
+            {
+              providerCallId: 'provider-shell',
+              modelName: 'tools_local_command_shell_run',
+              arguments: { command: 'echo done' }
+            }
+          ]
+        }
+      }
+      return { kind: 'finish', content: 'done' }
+    }
+  }
+  const registry = new RuntimeToolRegistry()
+  registry.register(imageTool, {
+    async *execute() {
+      yield {
+        kind: 'asset',
+        index: 0,
+        asset: {
+          assetId: 'asset-1',
+          sessionId: 'session-1',
+          mimeType: 'image/png',
+          width: 8,
+          height: 8,
+          byteLength: 16,
+          source: 'generated'
+        }
+      }
+      yield { kind: 'result', output: 'generated' }
+    }
+  })
+  registry.register(shellTool, {
+    async *execute() {
+      yield { kind: 'result', output: 'done' }
+    }
+  })
+  const policy = new RuntimeToolPolicy()
+  const invocations = new ToolInvocationService({
+    registry,
+    policy,
+    persistence: {
+      async commitToolInvocationWithEvent(_invocation, event) {
+        return { ...event, cursor: 1 }
+      }
+    },
+    clock: { now: () => new Date().toISOString() }
+  })
+  const runner = new LangGraphRunner(model, new MockSkillRegistry(), undefined, {
+    registry,
+    policy,
+    invocations,
+    grants: [
+      'tools/local/command/shell/run@1',
+      'tools/local/image-generation/generate@1'
+    ]
+  })
+
+  await runner.run(
+    { taskId: 'task-image-group', goal: '画图然后执行命令', model: modelRef },
+    undefined,
+    (event) => {
+      if (typeof event === 'object' && event !== null && 'kind' in event && event.kind === 'activity')
+        observed.push((event as { event: { type: string; activityId: string } }).event)
+    }
+  )
+
+  const startedIds = observed.filter((entry) => entry.type === 'started').map((entry) => entry.activityId)
+  expect(startedIds).toHaveLength(2)
+  expect(new Set(startedIds).size).toBe(2)
+  const firstCompleted = observed.findIndex(
+    (entry) => entry.type === 'completed' && entry.activityId === startedIds[0]
+  )
+  const secondStarted = observed.findIndex(
+    (entry) => entry.type === 'started' && entry.activityId === startedIds[1]
+  )
+  expect(firstCompleted).toBeGreaterThanOrEqual(0)
+  expect(firstCompleted).toBeLessThan(secondStarted)
+})
+
 it('tells the model that crashed plugin side effects have an unknown outcome', async () => {
   const { PluginError } = await import('@actiondriver/plugin-contracts')
   let round = 0, toolMessage: unknown

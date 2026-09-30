@@ -2,20 +2,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  SqliteRuntimeRepositories,
-  openRuntimeDatabase,
-  type RuntimeTaskRecord,
-  type SessionInputFileRecord
-} from '../../src/index'
+import { type RuntimeTaskRecord, type SessionInputFileRecord } from '../../src/index'
+import { createTestRepositories, type TestRepositories } from './rollout/test-repositories'
 
 const temporaryDirectories: string[] = []
 
-function createStorage(): { repositories: SqliteRuntimeRepositories; path: string } {
+function createStorage(): { repositories: TestRepositories; path: string } {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-input-files-'))
   temporaryDirectories.push(directory)
   const path = join(directory, 'actiondriver.db')
-  return { repositories: new SqliteRuntimeRepositories(openRuntimeDatabase(path)), path }
+  return { repositories: createTestRepositories(directory), path }
 }
 
 afterEach(() => {
@@ -63,7 +59,7 @@ describe('session input file records', () => {
     await repositories.inputFiles.save(boundInput())
     repositories.close()
 
-    const reopened = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const reopened = createTestRepositories(join(path, '..'))
     await expect(reopened.inputFiles.get('file-1')).resolves.toEqual(boundInput())
     reopened.close()
   })

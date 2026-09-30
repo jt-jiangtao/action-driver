@@ -12,6 +12,7 @@ import {
   type ModelGateway,
   type TaskRepository
 } from '../../src/index'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 import { createScriptTools } from '../../src/execution/tools'
 import { SessionExecutionContextResolver } from '../../src/execution/session-execution-context'
 
@@ -19,10 +20,22 @@ function databasePath(): string {
   return join(mkdtempSync(join(tmpdir(), 'actiondriver-local-runtime-')), 'actiondriver.db')
 }
 
+/** Session history lives in the rollout log; the state database keeps auxiliary stores. */
+function createRepositories(path: string) {
+  const root = join(path, '..')
+  const state = new SqliteRuntimeRepositories(openRuntimeDatabase(join(root, 'state.sqlite')))
+  const rollout = new RolloutSessionStore({
+    sessionsRoot: root,
+    statePath: join(root, 'rollout-state.sqlite'),
+    historyPath: join(root, 'rollout-history.sqlite')
+  })
+  return Object.assign(rollout, { inputFiles: state.inputFiles })
+}
+
 describe('local runtime adapters', () => {
   it('binds injected real model and SQLite ports without production Skill providers', async () => {
     const path = databasePath()
-    const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+    const repositories = createRepositories(path)
     const checkpointer = createSqliteCheckpointer(path)
     const modelGateway: ModelGateway = {
       async complete() {
@@ -63,8 +76,7 @@ describe('local runtime adapters', () => {
 
   it('runs script tools in the session workspace resolved from the persisted task', async () => {
     const path = databasePath()
-    const database = openRuntimeDatabase(path)
-    const repositories = new SqliteRuntimeRepositories(database)
+    const repositories = createRepositories(path)
     const checkpointer = createSqliteCheckpointer(path)
     const modelGateway: ModelGateway = {
       async complete() {
@@ -96,15 +108,6 @@ describe('local runtime adapters', () => {
     })
     await repositories.tasks.save(task('task-a', 'session-a'))
     await repositories.tasks.save(task('task-b', 'session-b'))
-    database
-      .prepare(
-        `INSERT INTO stream_requests
-          (request_id, idempotency_key, session_id, task_id, response_id, stream_id, message_id,
-           status, last_sequence, created_at, updated_at)
-         VALUES ('request-1', 'idempotency-1', 'session-a', 'task-a', 'response-1', 'stream-1',
-           'message-1', 'running', -1, '2026-09-26T00:00:00.000Z', '2026-09-26T00:00:00.000Z')`
-      )
-      .run()
 
     for (const tool of await createScriptTools({
       runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist')

@@ -13,6 +13,7 @@ import {
 } from '../../src/index'
 import { ComputerUseControlGate } from '../../src/computer-use/control-gate'
 import { AppApprovalBroker } from '../../src/computer-use/app-approval-broker'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 
 function createHarness(
   modelGateway: ModelGateway,
@@ -26,7 +27,16 @@ function createHarness(
   appApprovalStore?: { list(): string[]; remove(bundleId: string): void }
 ) {
   const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-server-')), 'actiondriver.db')
-  const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(path))
+  const root = join(path, '..')
+  const state = new SqliteRuntimeRepositories(openRuntimeDatabase(join(root, 'state.sqlite')))
+  const repositories = Object.assign(
+    new RolloutSessionStore({
+      sessionsRoot: root,
+      statePath: join(root, 'rollout-state.sqlite'),
+      historyPath: join(root, 'rollout-history.sqlite')
+    }),
+    { inputFiles: state.inputFiles }
+  )
   const checkpointer = createSqliteCheckpointer(path)
   const local = createLocalRuntimeAdapters({ repositories, checkpointer, modelGateway })
   const server = createLocalRuntimeServer({

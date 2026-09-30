@@ -53,17 +53,17 @@ describe('RuntimeSupervisor', () => {
   it('enables vm modules for the Runtime process and keeps an existing NODE_OPTIONS', () => {
     expect(
       runtimeProcessEnvironment(
-        { databasePath: '/data/actiondriver.db', workspaceRoot: '/workspace' },
+        { dataRoot: '/data', workspaceRoot: '/workspace' },
         { NODE_OPTIONS: '--max-old-space-size=2048' }
       )
     ).toMatchObject({
       NODE_OPTIONS: '--max-old-space-size=2048 --experimental-vm-modules',
-      ACTIONDRIVER_RUNTIME_DATABASE_PATH: '/data/actiondriver.db',
+      ACTIONDRIVER_RUNTIME_DATA_ROOT: '/data',
       ACTIONDRIVER_WORKSPACE_ROOT: '/workspace'
     })
     expect(
       runtimeProcessEnvironment(
-        { databasePath: '/data/actiondriver.db', workspaceRoot: '/workspace' },
+        { dataRoot: '/data', workspaceRoot: '/workspace' },
         {}
       ).NODE_OPTIONS
     ).toBe('--experimental-vm-modules')

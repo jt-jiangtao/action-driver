@@ -10,6 +10,7 @@ import {
   type PersistedSkillInvocation,
   type RuntimeTaskRecord
 } from '../../src/index'
+import { RolloutSessionStore } from '../../src/rollout/session-store'
 
 const temporaryDirectories: string[] = []
 
@@ -17,6 +18,21 @@ function databasePath(): string {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-payload-guard-'))
   temporaryDirectories.push(directory)
   return join(directory, 'actiondriver.db')
+}
+
+/** History lives in the rollout log; skill invocations stay in the state database. */
+function createRepositories(path: string) {
+  const root = join(path, '..')
+  const state = new SqliteRuntimeRepositories(openRuntimeDatabase(join(root, 'state.sqlite')))
+  const rollout = new RolloutSessionStore({
+    sessionsRoot: root,
+    statePath: join(root, 'rollout-state.sqlite'),
+    historyPath: join(root, 'rollout-history.sqlite')
+  })
+  return Object.assign(rollout, {
+    inputFiles: state.inputFiles,
+    skillInvocations: state.skillInvocations
+  })
 }
 
 afterEach(() => {
@@ -66,7 +82,7 @@ describe('persistence payload guard', () => {
   })
 
   it('rejects DOM and Electron objects before writing history', async () => {
-    const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath()))
+    const repositories = createRepositories(databasePath())
     await repositories.tasks.save(task)
     const domDocument = (
       globalThis as typeof globalThis & {
@@ -101,7 +117,7 @@ describe('persistence payload guard', () => {
   })
 
   it('rejects live handles, coordinate references, cookies, and session tokens', async () => {
-    const repositories = new SqliteRuntimeRepositories(openRuntimeDatabase(databasePath()))
+    const repositories = createRepositories(databasePath())
     await repositories.tasks.save(task)
 
     await expect(

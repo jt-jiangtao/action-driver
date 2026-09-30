@@ -5,18 +5,17 @@ import { join } from 'node:path'
 import {
   RuntimeSkillRegistry,
   SkillInvocationService,
-  SqliteRuntimeRepositories,
-  openRuntimeDatabase,
   type RuntimeTaskRecord,
   type SkillProvider
 } from '../../src/index'
+import { createTestRepositories, type TestRepositories } from './rollout/test-repositories'
 
 const temporaryDirectories: string[] = []
 
-function createRepositories(): SqliteRuntimeRepositories {
+function createRepositories(): TestRepositories {
   const directory = mkdtempSync(join(tmpdir(), 'actiondriver-skill-invocation-'))
   temporaryDirectories.push(directory)
-  return new SqliteRuntimeRepositories(openRuntimeDatabase(join(directory, 'actiondriver.db')))
+  return createTestRepositories(directory)
 }
 
 afterEach(() => {

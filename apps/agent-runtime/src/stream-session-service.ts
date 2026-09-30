@@ -389,7 +389,10 @@ export class StreamSessionService {
       operation,
       delivery
     })
-    void operation.catch(() => undefined)
+    void operation.catch((error: unknown) => {
+      // A rejected turn must never disappear silently: the client is left waiting otherwise.
+      console.error('[stream-session] turn failed', error)
+    })
   }
 
   /**
@@ -495,10 +498,10 @@ export class StreamSessionService {
             await this.publishThrough(request, record.cursor, emit)
             return
           }
-          if (event.kind === 'end') {
-            if (event.result?.kind !== 'tool-calls') terminal = event
-            return
-          }
+      if (event.kind === 'end') {
+        if (event.result?.kind !== 'tool-calls') terminal = event
+        return
+      }
           sequence += 1
           content += event.delta
           const last = assistantParts.at(-1)
@@ -795,7 +798,9 @@ export class StreamSessionService {
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {
     const event = (
-      await this.options.repositories.events.listForRequestAfter(requestId, 0, 1)
+      // The acceptance record is not guaranteed to be the very first record of the request once
+      // the turn itself is persisted, so scan the request's persisted events instead of the head.
+      await this.options.repositories.events.listForRequestAfter(requestId, 0, 256)
     ).find((candidate) => candidate.type === type)
     if (!event) throw new Error(`Missing persisted ${type} event for ${requestId}`)
     return event

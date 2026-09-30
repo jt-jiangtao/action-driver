@@ -16,8 +16,7 @@ describe('Runtime paths', () => {
       runtimeEntryPath: '/repo/apps/agent-runtime/dist/index.js',
       computerHelperBundlePath: '/repo/plugins/computer-use/native/dist/arm64/ActionDriver Computer Use.app',
       computerHelperPath: '/repo/plugins/computer-use/native/dist/arm64/ActionDriver Computer Use.app/Contents/MacOS/actiondriver-computer-use',
-      databasePath:
-        '/Users/test/Library/Application Support/ActionDriver/data/actiondriver.db',
+      dataRoot: '/Users/test/Library/Application Support/ActionDriver/data',
       workspaceRoot: '/Users/test/Library/Application Support/ActionDriver/workspace'
     })
   })
@@ -38,7 +37,7 @@ describe('Runtime paths', () => {
         runtimeEntryPath: `/Applications/ActionDriver-${arch}.app/Contents/Resources/agent-runtime/dist/index.js`,
         computerHelperBundlePath: `/Applications/ActionDriver-${arch}.app/Contents/Helpers/ActionDriver Computer Use.app`,
         computerHelperPath: `/Applications/ActionDriver-${arch}.app/Contents/Helpers/ActionDriver Computer Use.app/Contents/MacOS/actiondriver-computer-use`,
-        databasePath: '/tmp/actiondriver-user-data/data/actiondriver.db',
+        dataRoot: '/tmp/actiondriver-user-data/data',
         workspaceRoot: '/tmp/actiondriver-user-data/workspace'
       })
     }

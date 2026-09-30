@@ -1,13 +1,13 @@
 import type { ParentPortLike } from './runtime-parent-port'
 import { startAgentRuntimeProcess } from './runtime-process'
 
-const databasePath = process.env.ACTIONDRIVER_RUNTIME_DATABASE_PATH
+const dataRoot = process.env.ACTIONDRIVER_RUNTIME_DATA_ROOT
 const parentPort = (process as typeof process & { parentPort?: ParentPortLike }).parentPort
 
 if (!parentPort) throw new Error('Agent Runtime requires an Electron parentPort')
-if (!databasePath) throw new Error('Agent Runtime requires ACTIONDRIVER_RUNTIME_DATABASE_PATH')
+if (!dataRoot) throw new Error('Agent Runtime requires ACTIONDRIVER_RUNTIME_DATA_ROOT')
 
-void startAgentRuntimeProcess(parentPort, databasePath).catch((error: unknown) => {
+void startAgentRuntimeProcess(parentPort, dataRoot).catch((error: unknown) => {
   parentPort.postMessage({
     type: 'runtime.failed',
     message: error instanceof Error ? error.message : String(error)

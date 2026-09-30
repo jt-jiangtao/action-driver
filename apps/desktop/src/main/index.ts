@@ -212,7 +212,7 @@ app.whenReady().then(async () => {
       platform: process.platform,
       arch: process.arch
     })
-    const pluginPackageRoot = (owner: { pluginId: string; version: string }) => join(dirname(paths.databasePath), 'plugins/installed', owner.pluginId, owner.version)
+    const pluginPackageRoot = (owner: { pluginId: string; version: string }) => join(paths.dataRoot, 'plugins/installed', owner.pluginId, owner.version)
     const pluginContributions = createPluginContributionClient({ fetch: globalThis.fetch, connection: () => { const url = runtime.runtimeSupervisor.serviceUrl; if (!url) throw new PluginError('UNAVAILABLE', 'Runtime is not ready'); return { url, token: serviceToken } } })
     ipcMain.handle(PLUGIN_CONTRIBUTIONS_LIST_CHANNEL, async () => pluginContributions.list())
     ipcMain.handle(PLUGIN_VIEW_OPEN_CHANNEL, async (_event, input: unknown) => {

@@ -30,7 +30,7 @@ let provider: FakeOpenAiStreamServer
 
 test.beforeAll(async () => {
   expect(existsSync(runtimeEntry)).toBe(true)
-  expect(readFileSync(mainBundle, 'utf8')).toContain('ACTIONDRIVER_RUNTIME_DATABASE_PATH')
+  expect(readFileSync(mainBundle, 'utf8')).toContain('ACTIONDRIVER_RUNTIME_DATA_ROOT')
   provider = new FakeOpenAiStreamServer()
   await provider.start()
 })
