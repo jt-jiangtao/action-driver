@@ -1,6 +1,6 @@
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 import type { ModelRef } from '@action-driver/contracts'
-import { AgentComposer, type ComposerAttachments } from './AgentComposer'
+import { AgentComposer } from './AgentComposer'
 import type { ModelSelectionProjection } from '../models/model-selection'
 
 type TaskComposerProps = {
@@ -9,8 +9,7 @@ type TaskComposerProps = {
   menuCloseKey: string
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
-  onOpenModelSettings?: (() => void) | undefined
-  onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
+  onSubmit(goal: string): Promise<unknown> | void
   onInterrupt?(): void
   width: 480 | 720
 }
@@ -26,16 +25,10 @@ export const TaskComposer = memo(function TaskComposer({
   menuCloseKey,
   modelSelection,
   onSelectModel,
-  onOpenModelSettings,
   onSubmit,
   onInterrupt,
   width
 }: TaskComposerProps) {
-  const submit = useCallback(
-    (goal: string, attachments?: ComposerAttachments) =>
-      attachments ? onSubmit(goal, attachments) : onSubmit(goal),
-    [onSubmit]
-  )
   return (
     <AgentComposer
       running={running}
@@ -43,9 +36,8 @@ export const TaskComposer = memo(function TaskComposer({
       menuCloseKey={menuCloseKey}
       modelSelection={modelSelection}
       onSelectModel={onSelectModel}
-      onSubmit={submit}
+      onSubmit={onSubmit}
       width={width}
-      {...(onOpenModelSettings ? { onOpenModelSettings } : {})}
       {...(onInterrupt ? { onInterrupt } : {})}
     />
   )

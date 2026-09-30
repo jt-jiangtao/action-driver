@@ -1,5 +1,12 @@
 import type { AppApprovalDecision, ModelRef, TaskProjection } from '@action-driver/contracts'
-import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode
+} from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
@@ -14,7 +21,11 @@ import { SkillsPage } from './pages/SkillsPage'
 import { ComputerUsePage } from './pages/ComputerUsePage'
 import { ArchivedChatsPage } from './pages/ArchivedChatsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
-import { createAppNavigationHistory, navigateAppHistory, travelAppHistory } from './models/app-navigation-history'
+import {
+  createAppNavigationHistory,
+  navigateAppHistory,
+  travelAppHistory
+} from './models/app-navigation-history'
 import type { MainAppRoute } from './models/app-route'
 import {
   failedModelSelection,
@@ -25,7 +36,6 @@ import {
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
 import { mergeSubmittedTask } from './models/recent-task-submission'
-import type { ComposerAttachments } from './components/AgentComposer'
 import { taskUsesComputerUse } from './services/agent-session/computer-use-guidance'
 import { useComputerUseGuidance } from './hooks/use-computer-use-guidance'
 
@@ -35,18 +45,27 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const services = useAppServices()
   const queryClient = useQueryClient()
   const restoredTaskId = useRef(initialRoute === 'home' ? readActiveTaskId() : null)
-  const [history, setHistory] = useState(() => createAppNavigationHistory(
-    restoredTaskId.current
-      ? { kind: 'task', taskId: restoredTaskId.current }
-      : initialAppRoute(initialRoute)
-  ))
+  const [history, setHistory] = useState(() =>
+    createAppNavigationHistory(
+      restoredTaskId.current
+        ? { kind: 'task', taskId: restoredTaskId.current }
+        : initialAppRoute(initialRoute)
+    )
+  )
   const route = history.entries[history.index]!
   const navigationRequestId = useRef(0)
-  const setRoute = useCallback((next: AppRoute) => setHistory((current) => navigateAppHistory(current, next)), [])
-  const replaceRoute = useCallback((next: AppRoute) => setHistory((current) => ({
-    ...current,
-    entries: current.entries.map((entry, index) => index === current.index ? next : entry)
-  })), [])
+  const setRoute = useCallback(
+    (next: AppRoute) => setHistory((current) => navigateAppHistory(current, next)),
+    []
+  )
+  const replaceRoute = useCallback(
+    (next: AppRoute) =>
+      setHistory((current) => ({
+        ...current,
+        entries: current.entries.map((entry, index) => (index === current.index ? next : entry))
+      })),
+    []
+  )
   // The shell follows only what it routes on; streamed content re-renders the task page alone.
   const taskStore = useTaskStoreApi()
   const activeTask = useTaskStore(
@@ -174,8 +193,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
 
   const resolveTask = async (taskId: string): Promise<TaskProjection | null> => {
     try {
-      return services.agentSessionRepository.getTask(taskId) ??
+      return (
+        services.agentSessionRepository.getTask(taskId) ??
         (await services.taskCatalog.getTask(taskId))
+      )
     } catch {
       return null
     }
@@ -230,7 +251,9 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       await refreshRecentTasks()
     } catch (error) {
       const detail = error as { code?: string; message?: string } | null
-      setTaskActionError(error instanceof Error ? error.message : detail?.message ?? '操作失败，请重试')
+      setTaskActionError(
+        error instanceof Error ? error.message : (detail?.message ?? '操作失败，请重试')
+      )
       if (detail?.code === 'not-found') await refreshRecentTasks()
     } finally {
       busySessionRef.current = null
@@ -243,7 +266,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       restoredTaskId.current = projection.id
       rememberActiveTaskId(projection.id)
       taskStore.getState().open(projection)
-      const nextMode = previousTaskId ? taskModes.current.get(previousTaskId) ?? 'split' : 'split'
+      const nextMode = previousTaskId ? (taskModes.current.get(previousTaskId) ?? 'split') : 'split'
       taskModes.current.set(projection.id, nextMode)
       setMode(nextMode)
       setRecentTasks((current) => mergeSubmittedTask(current, projection, previousTaskId))
@@ -252,26 +275,6 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     [taskStore]
   )
 
-  const stageImages = useCallback(
-    async (files: File[] = []): Promise<string[]> => {
-      if (files.length === 0) return []
-      if (!services.imageAssets) throw new Error('图片上传暂不可用')
-      const staged = await Promise.all(files.map((file) => services.imageAssets!.uploadImage(file)))
-      return staged.map((asset) => asset.assetId)
-    },
-    [services]
-  )
-  const stageInputFiles = useCallback(
-    async (files: File[] = []): Promise<string[]> => {
-      if (files.length === 0) return []
-      if (!services.inputFiles) throw new Error('文件上传暂不可用')
-      const staged = await Promise.all(
-        files.map((file) => services.inputFiles!.uploadInputFile(file))
-      )
-      return staged.map((file) => file.fileId)
-    },
-    [services]
-  )
   const readImage = useCallback(
     (sessionId: string, assetId: string) => services.imageAssets!.readImage(sessionId, assetId),
     [services]
@@ -283,20 +286,11 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
 
   const submitNewSession = useCallback(
-    async (goal: string, attachments?: ComposerAttachments) => {
+    async (goal: string) => {
       const selected = findSelectedModel(modelSelection)
       if (!selected) throw new Error('请选择可用模型')
-      const imageFiles = attachments?.images ?? []
-      const documentFiles = attachments?.documents ?? []
-      if (documentFiles.length > 0 && !services.inputFiles) throw new Error('文件上传暂不可用')
-      const imageAssetIds = await stageImages(imageFiles)
-      const inputFileIds = services.inputFiles
-        ? await stageInputFiles([...documentFiles, ...imageFiles])
-        : []
       const projection = await services.agentCommandService.submitGoal({
         goal,
-        ...(imageAssetIds.length ? { imageAssetIds } : {}),
-        ...(inputFileIds.length ? { inputFileIds } : {}),
         model: {
           connectionId: selected.connection.id,
           modelId: selected.model.id
@@ -304,30 +298,21 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       })
       presentSubmittedTask(projection)
     },
-    [modelSelection, presentSubmittedTask, services, stageImages, stageInputFiles]
+    [modelSelection, presentSubmittedTask, services]
   )
 
   const submitContinuation = useCallback(
-    async (goal: string, attachments?: ComposerAttachments) => {
+    async (goal: string) => {
       const task = taskStore.getState().activeTask
       if (!task) return
-      const imageFiles = attachments?.images ?? []
-      const documentFiles = attachments?.documents ?? []
-      if (documentFiles.length > 0 && !services.inputFiles) throw new Error('文件上传暂不可用')
-      const imageAssetIds = await stageImages(imageFiles)
-      const inputFileIds = services.inputFiles
-        ? await stageInputFiles([...documentFiles, ...imageFiles])
-        : []
       const previousTaskId = task.id
       const projection = await services.agentCommandService.submitGoal({
         goal,
-        ...(imageAssetIds.length ? { imageAssetIds } : {}),
-        ...(inputFileIds.length ? { inputFileIds } : {}),
         sessionId: task.sessionId
       })
       presentSubmittedTask(projection, previousTaskId)
     },
-    [presentSubmittedTask, services, stageImages, stageInputFiles, taskStore]
+    [presentSubmittedTask, services, taskStore]
   )
 
   // Task controls read the task when they run, so their identity survives streamed updates.
@@ -359,11 +344,14 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     if (task) void services.agentCommandService.interrupt(task.id)
   }, [services, taskStore])
   const expandSidebar = useCallback(() => setSidebarCollapsed(false), [])
-  const changeMode = useCallback((next: TaskLayoutMode) => {
-    const taskId = taskStore.getState().activeTask?.id
-    if (taskId) taskModes.current.set(taskId, next)
-    setMode(next)
-  }, [taskStore])
+  const changeMode = useCallback(
+    (next: TaskLayoutMode) => {
+      const taskId = taskStore.getState().activeTask?.id
+      if (taskId) taskModes.current.set(taskId, next)
+      setMode(next)
+    },
+    [taskStore]
+  )
   const selectModel = useCallback(
     (selected: ModelRef) => setModelSelection((current) => ({ ...current, selected })),
     []
@@ -404,14 +392,23 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const navigation = {
     canGoBack: history.index > 0,
     canGoForward: history.index < history.entries.length - 1,
-    goBack: () => { void travel(-1) },
-    goForward: () => { void travel(1) }
+    goBack: () => {
+      void travel(-1)
+    },
+    goForward: () => {
+      void travel(1)
+    }
   }
-  const withNavigation = (page: ReactNode) =>
+  const withNavigation = (page: ReactNode) => (
     <AppNavigationProvider value={navigation}>
       {page}
-      {navigationError ? <p className="app-navigation-error" role="alert">{navigationError}</p> : null}
+      {navigationError ? (
+        <p className="app-navigation-error" role="alert">
+          {navigationError}
+        </p>
+      ) : null}
     </AppNavigationProvider>
+  )
 
   const openSettings = () => {
     if (route.kind === 'settings') return
@@ -546,12 +543,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           modelSelection={modelSelection}
           onSelectModel={(selected) => setModelSelection((current) => ({ ...current, selected }))}
           onRetryModels={() => void loadModels(modelSelection.selected)}
-          onOpenModelSettings={openSettings}
           onSubmit={submitNewSession}
         />
       ) : activeTask.id ? (
         <ActiveTaskPage
-          onOpenModelSettings={openSettings}
           sidebarCollapsed={sidebarCollapsed}
           onExpandSidebar={expandSidebar}
           mode={mode}

@@ -6,7 +6,6 @@ import type {
   TaskProjection
 } from '@action-driver/contracts'
 import { Fragment, memo, useEffect, useMemo, useState } from 'react'
-import type { ComposerAttachments } from '../components/AgentComposer'
 import { TaskComposer } from '../components/TaskComposer'
 import type { TaskLayoutMode } from '../components/BrowserPanel'
 import { BrowserPanel } from '../components/BrowserPanel'
@@ -28,7 +27,6 @@ export function TaskPage({
   onExpandSidebar,
   modelSelection,
   onSelectModel,
-  onOpenModelSettings,
   onModeChange,
   onPause,
   onResume,
@@ -45,7 +43,6 @@ export function TaskPage({
   onExpandSidebar?: (() => void) | undefined
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
-  onOpenModelSettings?(): void
   onModeChange(mode: TaskLayoutMode): void
   onPause(): Promise<unknown> | void
   onResume(): Promise<unknown> | void
@@ -54,7 +51,7 @@ export function TaskPage({
   onInterrupt(): void
   readImage?: ImageReader | undefined
   readOutputFile?: OutputFileReader | undefined
-  onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
+  onSubmit(goal: string): Promise<unknown> | void
 }) {
   const hasBrowser = task.browser !== null
   const hasComputer = (task.tools ?? []).some((tool) => tool.toolId === 'tools/local/cua/js')
@@ -106,15 +103,40 @@ export function TaskPage({
           browserCollapsed={hasBrowser && mode === 'browser-collapsed'}
           onExpandBrowser={() => onModeChange('split')}
         />
-        {hasComputer && !hasBrowser && <div className="computer-task-controls" aria-label="Computer Use 控制">
-          {task.status === 'paused'
-            ? <button type="button" data-testid="e2e/tasks/detail/computer/resume#button"
-                onClick={() => { void onResume() }}>继续 Agent</button>
-            : <button type="button" data-testid="e2e/tasks/detail/computer/pause#button"
-                onClick={() => { void onPause() }}>暂停</button>}
-          <button type="button" data-testid="e2e/tasks/detail/computer/take-over#button"
-            onClick={() => { void onTakeOver() }}>人工接管</button>
-        </div>}
+        {hasComputer && !hasBrowser && (
+          <div className="computer-task-controls" aria-label="Computer Use 控制">
+            {task.status === 'paused' ? (
+              <button
+                type="button"
+                data-testid="e2e/tasks/detail/computer/resume#button"
+                onClick={() => {
+                  void onResume()
+                }}
+              >
+                继续 Agent
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-testid="e2e/tasks/detail/computer/pause#button"
+                onClick={() => {
+                  void onPause()
+                }}
+              >
+                暂停
+              </button>
+            )}
+            <button
+              type="button"
+              data-testid="e2e/tasks/detail/computer/take-over#button"
+              onClick={() => {
+                void onTakeOver()
+              }}
+            >
+              人工接管
+            </button>
+          </div>
+        )}
         <div className="conversation-body">
           <ConversationViewport followKey={followKey}>
             <div className="conversation-stream" data-width={flowWidth}>
@@ -191,7 +213,6 @@ export function TaskPage({
             menuCloseKey={mode}
             modelSelection={modelSelection}
             onSelectModel={onSelectModel}
-            onOpenModelSettings={onOpenModelSettings}
             onSubmit={onSubmit}
             onInterrupt={onInterrupt}
             width={flowWidth}
@@ -299,19 +320,29 @@ function samePriorTurn(previous: PriorTurnProps, next: PriorTurnProps): boolean 
   )
 }
 
-function AppApprovalCard({ request, onDecision }: {
+function AppApprovalCard({
+  request,
+  onDecision
+}: {
   request: AppApprovalRequest
-  onDecision: ((requestId: string, decision: AppApprovalDecision) => Promise<unknown> | void) | undefined
+  onDecision:
+    | ((requestId: string, decision: AppApprovalDecision) => Promise<unknown> | void)
+    | undefined
 }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [icon, setIcon] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
-    void window.productDesktop?.computerUse?.getAppIcon(request.target.appPath)
-      .then((value) => { if (!cancelled) setIcon(value ?? null) })
+    void window.productDesktop?.computerUse
+      ?.getAppIcon(request.target.appPath)
+      .then((value) => {
+        if (!cancelled) setIcon(value ?? null)
+      })
       .catch(() => undefined)
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [request.target.appPath])
   async function decide(decision: AppApprovalDecision) {
     if (pending || !onDecision) return
@@ -328,23 +359,57 @@ function AppApprovalCard({ request, onDecision }: {
   return (
     <section className="app-approval" aria-label={`${request.target.displayName} 应用授权`}>
       <h2>
-        {icon
-          ? <img className="app-approval-icon" src={icon} alt="" aria-hidden="true" />
-          : <span aria-hidden="true">▣</span>}
+        {icon ? (
+          <img className="app-approval-icon" src={icon} alt="" aria-hidden="true" />
+        ) : (
+          <span aria-hidden="true">▣</span>
+        )}
         <span>{request.target.displayName}</span>
       </h2>
       <p>{request.target.warningSubtitle ?? '允许读取和操作此应用？'}</p>
       {error && <p role="alert">{error}</p>}
       <div className="app-approval-actions">
-        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-deny#button"
-          disabled={pending || !onDecision} onClick={() => { void decide('deny') }}>拒绝</button>
-        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-once#button"
-          disabled={pending || !onDecision} onClick={() => { void decide('once') }}>仅本次</button>
-        <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-session#button"
-          disabled={pending || !onDecision} onClick={() => { void decide('session') }}>本会话</button>
+        <button
+          type="button"
+          data-testid="e2e/tasks/detail/computer/app-approval-deny#button"
+          disabled={pending || !onDecision}
+          onClick={() => {
+            void decide('deny')
+          }}
+        >
+          拒绝
+        </button>
+        <button
+          type="button"
+          data-testid="e2e/tasks/detail/computer/app-approval-once#button"
+          disabled={pending || !onDecision}
+          onClick={() => {
+            void decide('once')
+          }}
+        >
+          仅本次
+        </button>
+        <button
+          type="button"
+          data-testid="e2e/tasks/detail/computer/app-approval-session#button"
+          disabled={pending || !onDecision}
+          onClick={() => {
+            void decide('session')
+          }}
+        >
+          本会话
+        </button>
         {request.allowPersistentApproval && (
-          <button type="button" data-testid="e2e/tasks/detail/computer/app-approval-always#button"
-            disabled={pending || !onDecision} onClick={() => { void decide('always') }}>始终允许</button>
+          <button
+            type="button"
+            data-testid="e2e/tasks/detail/computer/app-approval-always#button"
+            disabled={pending || !onDecision}
+            onClick={() => {
+              void decide('always')
+            }}
+          >
+            始终允许
+          </button>
         )}
       </div>
     </section>

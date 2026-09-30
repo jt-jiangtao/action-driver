@@ -7,15 +7,7 @@ import {
   type Page
 } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -73,7 +65,8 @@ async function launch(
   mkdirSync(workspace, { recursive: true })
   writeFileSync(join(workspace, 'README.md'), '# E2E workspace\n\nneedle is present.\n')
   if (mode === 'shell-timeout') execFileSync('mkfifo', [join(workspace, 'BLOCKING_FIFO')])
-  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
+  application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
     env: {
@@ -82,7 +75,7 @@ async function launch(
       ),
       HOME: homeDirectory,
       ACTION_DRIVER_E2E_HOME_DIRECTORY: homeDirectory,
-      ...(mode === 'shell-timeout' ? { ACTION_DRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {}),
+      ...(mode === 'shell-timeout' ? { ACTION_DRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {})
     }
   })
   const page = await application.firstWindow()
@@ -284,61 +277,6 @@ async function selectDefaultImageModel(page: Page): Promise<void> {
   await page.reload()
 }
 
-test('uploads an image for model recognition and restores it from session assets', async () => {
-  const page = await launch('vision')
-  await page.getByLabel('添加图片').setInputFiles({
-    name: 'tiny.png',
-    mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
-  })
-  await page.getByLabel('任务描述').fill('识别图片')
-  await page.getByLabel('发送').click()
-  const taskPage = page.getByTestId('e2e/tasks/detail/page#page')
-  const taskId = await taskPage.getAttribute('data-task-id')
-  expect(taskId).toMatch(/^task-/)
-  await expect(page.getByText('识别到了图片')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
-  const thumbnail = await page.getByRole('button', { name: '放大图片' }).boundingBox()
-  expect(thumbnail?.width).toBe(104)
-  expect(thumbnail?.height).toBe(104)
-  expect(JSON.stringify(provider!.completions[0]?.messages)).toContain('data:image/png;base64,')
-  expect(JSON.stringify(await runtimeTask(page, taskId!))).not.toContain('data:image/png;base64,')
-  const task = await runtimeTask(page, taskId!)
-  expect(task).not.toBeNull()
-  const uploads = join(
-    userDataDirectory,
-    'data',
-    'sessions',
-    task!.sessionId,
-    'attachments',
-    'uploads'
-  )
-  expect(readdirSync(uploads)).toHaveLength(1)
-  expect(readFileSync(join(uploads, readdirSync(uploads)[0]!))).toEqual(
-    readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
-  )
-  await page.reload()
-  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
-  await expect(page.getByText('识别到了图片')).toBeVisible()
-})
-
-test('keeps an image draft and skips provider calls when vision is unverified', async () => {
-  const page = await launch('vision', 'unsupported')
-  await page.getByLabel('添加图片').setInputFiles({
-    name: 'tiny.png',
-    mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
-  })
-  await page.getByLabel('任务描述').fill('识别图片')
-  await page.getByLabel('发送').click()
-  await expect(page.getByRole('alert')).toContainText('视觉测试尚未通过')
-  await expect(page.getByText('tiny.png')).toBeVisible()
-  await expect(page.getByLabel('任务描述')).toContainText('识别图片')
-  expect(provider!.completions).toHaveLength(0)
-  await page.getByRole('button', { name: '打开模型设置' }).click()
-  await expect(page.getByRole('heading', { name: '模型连接' })).toBeVisible()
-})
-
 test('offers a verified text and image model in both chat and default image settings', async () => {
   const page = await launch('vision')
   await expect(page.getByRole('button', { name: /当前模型/ })).toContainText('e2e-tool-model')
@@ -349,23 +287,6 @@ test('offers a verified text and image model in both chat and default image sett
   await expect(page.getByRole('button', { name: '取消默认生图模型：e2e-tool-model' })).toBeVisible()
   await page.getByRole('button', { name: '返回应用' }).click()
   await expect(page.getByRole('button', { name: /当前模型/ })).toContainText('e2e-tool-model')
-})
-
-test('shows the provider image rejection in the failed turn after reload', async () => {
-  const page = await launch('vision-rejected')
-  await page.getByLabel('添加图片').setInputFiles({
-    name: 'tiny.png',
-    mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
-  })
-  await page.getByLabel('任务描述').fill('这是什么')
-  await page.getByLabel('发送').click()
-  await expect(page.getByRole('alert')).toContainText('Unexpected item type in content.', {
-    timeout: 15_000
-  })
-  await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
-  await page.reload()
-  await expect(page.getByRole('alert')).toContainText('Unexpected item type in content.')
 })
 
 test('shows four independently completed images and restores them after reload', async () => {
@@ -472,7 +393,9 @@ test('runs a real workspace read through WebSocket and returns only final Markdo
   )
   await expect.poll(() => provider!.completions.length).toBe(2)
   const [first, second] = provider!.completions
-  expect(first?.tools?.map((tool) => tool.function?.name)).toContain('tools_local_command_shell_run')
+  expect(first?.tools?.map((tool) => tool.function?.name)).toContain(
+    'tools_local_command_shell_run'
+  )
   expect(first?.tool_choice).toBe('auto')
   expect(second?.messages).toContainEqual(
     expect.objectContaining({
@@ -723,7 +646,10 @@ test('registers a generated deliverable as a task output card after reload', asy
     })
   })
   expect(hovered).toBe(
-    JSON.stringify({ boxShadow: JSON.parse(resting).boxShadow, borderColor: JSON.parse(resting).borderColor })
+    JSON.stringify({
+      boxShadow: JSON.parse(resting).boxShadow,
+      borderColor: JSON.parse(resting).borderColor
+    })
   )
   if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.locator('.task-output-files').screenshot({

@@ -1,5 +1,5 @@
 import { ProductLogo } from '../components/ProductLogo'
-import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
+import { AgentComposer } from '../components/AgentComposer'
 import { AppNavigationControls } from '../components/navigation/AppNavigationControls'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@action-driver/contracts'
@@ -9,15 +9,13 @@ export function HomePage({
   onSelectModel,
   onSubmit,
   onRetryModels,
-  onOpenModelSettings,
   sidebarCollapsed = false,
   onExpandSidebar
 }: {
   modelSelection: ModelSelectionProjection
   onSelectModel(model: ModelRef): void
-  onSubmit(goal: string, attachments?: ComposerAttachments): Promise<unknown> | void
+  onSubmit(goal: string): Promise<unknown> | void
   onRetryModels?(): void
-  onOpenModelSettings?(): void
   sidebarCollapsed?: boolean
   onExpandSidebar?: (() => void) | undefined
 }) {
@@ -61,7 +59,6 @@ export function HomePage({
             modelSelection={modelSelection}
             disabled={!modelSelection.selected}
             onSelectModel={onSelectModel}
-            onOpenModelSettings={onOpenModelSettings}
             onSubmit={onSubmit}
             width={720}
           />

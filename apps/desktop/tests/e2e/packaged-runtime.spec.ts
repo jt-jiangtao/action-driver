@@ -67,9 +67,14 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     }))
     expect(runtime.isPackaged, JSON.stringify(runtime)).toBe(true)
     const provenance = JSON.parse(
-      readFileSync(join(appPath!, 'Contents', 'Resources', 'action-driver-electron-provenance.json'), 'utf8')
+      readFileSync(
+        join(appPath!, 'Contents', 'Resources', 'action-driver-electron-provenance.json'),
+        'utf8'
+      )
     )
-    expect(runtime.executablePath).toBe(realpathSync(join(appPath!, 'Contents', 'MacOS', 'Action-Driver')))
+    expect(runtime.executablePath).toBe(
+      realpathSync(join(appPath!, 'Contents', 'MacOS', 'Action-Driver'))
+    )
     expect(runtime.electron).toBe(provenance.version)
     expect(runtime.chromium).toBe(provenance.chromiumVersion)
     expect(runtime.arch).toBe(provenance.arch)
@@ -110,7 +115,9 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
         )
       )
     )
-    expect(packagedSkills.value).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })]))
+    expect(packagedSkills.value).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })])
+    )
     const root = join(appPath!, 'Contents', 'Resources', 'local-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
     const env = { ...process.env, HOME: '/nonexistent-action-driver-home', PATH: '/usr/bin:/bin' }
@@ -176,7 +183,12 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(provider.completions).toHaveLength(4)
     const modelTools = provider.completions[0]?.tools?.map((tool) => tool.function?.name)
     expect(modelTools).toEqual(
-      expect.arrayContaining(['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run'])
+      expect.arrayContaining([
+        'tools_local_command_shell_run',
+        'tools_local_command_python_run',
+        'tools_local_command_node_run',
+        'tools_local_command_typescript_run'
+      ])
     )
     const messages = JSON.stringify(provider.completions.at(-1)?.messages)
     expect(messages).toContain(root)
@@ -238,21 +250,6 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       'idle'
     )
     expect(provider.completions).toHaveLength(1)
-    provider.setMode('vision')
-    await page.reload()
-    await page.getByLabel('添加图片').setInputFiles({
-      name: 'tiny.png',
-      mimeType: 'image/png',
-      buffer: readFileSync(
-        join(process.cwd(), 'apps', 'local-runtime', 'tests', 'fixtures', 'tiny.png')
-      )
-    })
-    await page.getByLabel('任务描述').fill('识别图片')
-    await page.getByLabel('发送').click()
-    await expect(page.getByText('识别到了图片')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
-    await page.reload()
-    await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
   } finally {
     await application.close()
     await provider.close()

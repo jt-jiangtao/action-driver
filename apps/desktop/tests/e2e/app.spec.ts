@@ -41,8 +41,10 @@ let userDataDirectory: string | undefined
 
 async function launch(viewport = { width: 1440, height: 900 }) {
   userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-visual-e2e-'))
-  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
-    args: [mainEntry, `--user-data-dir=${userDataDirectory}`] })
+  application = await electron.launch({
+    executablePath: await getElectronForkExecutable(),
+    args: [mainEntry, `--user-data-dir=${userDataDirectory}`]
+  })
   const page = await application.firstWindow()
   await page.setViewportSize(viewport)
   return page
@@ -91,8 +93,7 @@ test('captures all Home and Task Figma states through public controls', async ()
     'e2e/shared/sidebar/root#nav',
     'e2e/shared/sidebar/search#button',
     'e2e/shared/sidebar/skills#button',
-    'e2e/shared/sidebar/mcp#button',
-    'e2e/shared/composer/add#button'
+    'e2e/shared/sidebar/mcp#button'
   ])
   await expect(page.getByTestId('e2e/home/main/composer#section')).toHaveCSS('width', '720px')
   await capture(page, 'home-default')
@@ -280,7 +281,7 @@ test('captures all eight Settings Figma states through public controls', async (
   await dialog.getByRole('button', { name: '测试全部模型' }).click()
   await expect(dialog).toHaveAttribute('data-view-state', 'models-testing')
   await expect(dialog).toHaveAttribute('data-view-state', 'models-partial-failure')
-  await expect(dialog.getByText('失败')).toBeVisible()
+  await expect(dialog.getByText('失败').first()).toBeVisible()
   await auditRenderedInteractions(page, contracts)
   await capture(page, 'settings-models-partial-failure')
   await dialog.getByRole('button', { name: '关闭' }).click()

@@ -15,14 +15,12 @@ const capabilities: ReadonlyArray<{ key: ModelCapability; name: string }> = [
 const stateName = { success: '成功', failed: '失败', untested: '待测试' } as const
 
 export function ModelOptionItem({
-  active,
   keyboardActive,
   model,
   optionId,
   selected,
   onSelect
 }: {
-  active: boolean
   keyboardActive: boolean
   model: ModelOptionItemProjection
   optionId: string
@@ -43,7 +41,7 @@ export function ModelOptionItem({
     const rect = iconRef.current?.getBoundingClientRect()
     if (!rect) return
     const width = 188
-    const height = 138
+    const height = 84
     setPosition({
       left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
       top:
@@ -63,7 +61,7 @@ export function ModelOptionItem({
         aria-selected={selected}
         aria-label={model.name}
         className="model-option-item"
-        data-active={active}
+        data-active={keyboardActive}
         data-testid={e2eId('e2e/shared/model-selector/models/:model-id#option', {
           'model-id': model.id
         })}
@@ -104,8 +102,10 @@ export function ModelOptionItem({
           <div className="model-capability-tooltip" role="tooltip" style={position}>
             {rows.map(({ key, name, state }) => (
               <span className="model-capability-tooltip-row" key={key}>
-                <span>{name}：</span>
-                <span data-state={state}>{stateName[state]}</span>
+                <span className="model-capability-name">{name}：</span>
+                <span className="model-capability-state" data-state={state}>
+                  {stateName[state]}
+                </span>
               </span>
             ))}
           </div>,

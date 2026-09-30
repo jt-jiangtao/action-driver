@@ -1,4 +1,3 @@
-import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
 import { AppNavigationControls } from '../navigation/AppNavigationControls'
 
@@ -20,7 +19,6 @@ export function TaskHeader({
       {sidebarCollapsed && onExpandSidebar ? (
         <AppNavigationControls sidebar={{ collapsed: true, onToggle: onExpandSidebar }} />
       ) : null}
-      <AppIcon name="folder" />
       <strong>{title}</strong>
       {browserCollapsed ? (
         <IconButton

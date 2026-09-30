@@ -158,7 +158,6 @@ export function ModelSelector({
                       )
                       return (
                         <ModelOptionItem
-                          active={modelIndex === activeIndex}
                           keyboardActive={modelIndex === keyboardIndex}
                           optionId={`${menuId}-option-${modelIndex}`}
                           key={`${connection.id}:${model.id}`}

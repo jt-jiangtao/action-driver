@@ -7,9 +7,20 @@ import { AppServicesProvider } from '../../../../src/renderer/src/di/services-co
 import { MockModelConnectionsService } from '../../../../src/renderer/src/services/model-connections/mock-model-connections'
 
 vi.mock('../../../../src/renderer/src/components/settings/LocalSourceEditor', () => ({
-  default: ({ value, onChange, ariaLabel }: { value: string; onChange(value: string): void; ariaLabel: string }) => (
-    <textarea aria-label={`${ariaLabel} 源码`} value={value}
-      onChange={(event) => onChange(event.target.value)} />
+  default: ({
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    value: string
+    onChange(value: string): void
+    ariaLabel: string
+  }) => (
+    <textarea
+      aria-label={`${ariaLabel} 源码`}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
   )
 }))
 
@@ -103,135 +114,6 @@ describe('App', () => {
       'split'
     )
     expect(screen.getAllByText('预订周末去杭州的酒店')).toHaveLength(2)
-  })
-
-  it('stages image-only input and passes asset IDs to the stream command', async () => {
-    const user = userEvent.setup()
-    const services = createRendererServices({ mode: 'mock' })
-    const uploadImage = vi.fn(async () => ({
-      assetId: 'staged-1',
-      mimeType: 'image/png' as const,
-      width: 1,
-      height: 1,
-      byteLength: 20,
-      source: 'upload' as const
-    }))
-    services.imageAssets = { uploadImage, readImage: vi.fn() }
-    const submit = vi.spyOn(services.agentCommandService, 'submitGoal')
-    render(
-      <AppServicesProvider services={services}>
-        <App />
-      </AppServicesProvider>
-    )
-    await screen.findByText('我们应该在 Action-Driver 中做些什么？')
-    const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
-    await user.upload(screen.getByLabelText('添加图片'), image)
-    await user.click(screen.getByRole('button', { name: '发送' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
-    expect(uploadImage).toHaveBeenCalledWith(image)
-    expect(submit).toHaveBeenCalledWith(
-      expect.objectContaining({ goal: '', imageAssetIds: ['staged-1'] })
-    )
-  })
-
-  it('stages documents and images as session input files for the next task', async () => {
-    const user = userEvent.setup()
-    const services = createRendererServices({ mode: 'mock' })
-    const uploadImage = vi.fn(async () => ({
-      assetId: 'staged-image',
-      mimeType: 'image/png' as const,
-      width: 1,
-      height: 1,
-      byteLength: 20,
-      source: 'upload' as const
-    }))
-    const uploadInputFile = vi.fn(async (file: File) => ({
-      fileId: `file:${file.name}`,
-      name: file.name,
-      mimeType: file.type,
-      byteLength: file.size
-    }))
-    services.imageAssets = { uploadImage, readImage: vi.fn() }
-    services.inputFiles = { uploadInputFile }
-    const submit = vi.spyOn(services.agentCommandService, 'submitGoal')
-    render(
-      <AppServicesProvider services={services}>
-        <App />
-      </AppServicesProvider>
-    )
-    await screen.findByText('我们应该在 Action-Driver 中做些什么？')
-    const document = new File(['%PDF-1.7'], '季度报告.pdf', { type: 'application/pdf' })
-    const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
-    await user.upload(screen.getByLabelText('选择文档'), document)
-    await user.upload(screen.getByLabelText('添加图片'), image)
-    await user.click(screen.getByRole('button', { name: '发送' }))
-
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
-    expect(uploadInputFile).toHaveBeenCalledWith(document)
-    expect(uploadInputFile).toHaveBeenCalledWith(image)
-    expect(submit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imageAssetIds: ['staged-image'],
-        inputFileIds: ['file:季度报告.pdf', 'file:photo.png']
-      })
-    )
-  })
-
-  it('sends an image with a chat candidate even when its vision test failed', async () => {
-    const user = userEvent.setup()
-    const services = createRendererServices({ mode: 'mock' })
-    services.modelConnectionsService = new MockModelConnectionsService({
-      delayMs: 0,
-      seed: [
-        {
-          id: 'text-gateway',
-          name: '文本网关',
-          protocol: 'openai-compatible',
-          baseUrl: 'https://api.example.com/v1',
-          apiKeyHint: '••••1234',
-          expanded: true,
-          models: [
-            {
-              id: 'text-only',
-              name: 'text-only',
-              enabled: true,
-              testState: 'success',
-              capabilities: {
-                text: { state: 'success', source: 'probe' },
-                vision: { state: 'unsupported', source: 'probe' }
-              }
-            }
-          ]
-        }
-      ]
-    })
-    const uploadImage = vi.fn(async () => ({
-      assetId: 'staged-vision',
-      mimeType: 'image/png' as const,
-      width: 1,
-      height: 1,
-      byteLength: 20,
-      source: 'upload' as const
-    }))
-    services.imageAssets = { uploadImage, readImage: vi.fn() }
-    const submitGoal = vi.spyOn(services.agentCommandService, 'submitGoal')
-    render(
-      <AppServicesProvider services={services}>
-        <App />
-      </AppServicesProvider>
-    )
-    await screen.findByRole('button', { name: /文本网关 \/ text-only/ })
-    const editor = screen.getByLabelText('任务描述')
-    editor.textContent = '分析这张图'
-    fireEvent.input(editor)
-    const image = new File([new Uint8Array([137, 80, 78, 71])], 'draft.png', { type: 'image/png' })
-    await user.upload(screen.getByLabelText('添加图片'), image)
-    await user.click(screen.getByRole('button', { name: '发送' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toBeVisible()
-    expect(uploadImage).toHaveBeenCalledWith(image)
-    expect(submitGoal).toHaveBeenCalledWith(
-      expect.objectContaining({ goal: '分析这张图', imageAssetIds: ['staged-vision'] })
-    )
   })
 
   it('switches between split, expanded, and collapsed browser layouts', async () => {
@@ -431,7 +313,9 @@ describe('App', () => {
     await user.click(screen.getByLabelText('发送'))
 
     expect(await screen.findByTestId('e2e/shared/sidebar/tasks/hotel-task-2#button')).toBeVisible()
-    expect(screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')
+    ).not.toBeInTheDocument()
     expect(screen.getByTestId('e2e/shared/sidebar/tasks/hotel-task-2/pin#button')).toHaveAttribute(
       'aria-label',
       '取消置顶'
@@ -449,7 +333,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '设置' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
     await user.click(screen.getByRole('button', { name: '应用后退' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-task-id', 'hotel-task')
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-task-id',
+      'hotel-task'
+    )
     await user.click(screen.getByRole('button', { name: '应用前进' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
   })
@@ -479,7 +366,9 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
     expect(screen.getByRole('button', { name: '应用前进' })).toBeDisabled()
-    expect((screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }) as HTMLTextAreaElement).value).toContain('草稿')
+    expect(
+      (screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }) as HTMLTextAreaElement).value
+    ).toContain('草稿')
 
     await user.click(screen.getByRole('button', { name: '应用后退' }))
     await user.click(screen.getByRole('button', { name: '放弃更改' }))
@@ -493,7 +382,11 @@ describe('App', () => {
       listRecentTasks: async () => [{ id: 'missing-task', title: '已移除任务', state: 'default' }],
       getTask: async () => null
     }
-    render(<AppServicesProvider services={services}><App /></AppServicesProvider>)
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
     await user.click(await screen.findByRole('button', { name: '已移除任务' }))
     expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     expect(await screen.findByRole('alert')).toHaveTextContent('无法打开任务')
@@ -503,10 +396,18 @@ describe('App', () => {
     const user = userEvent.setup()
     const services = createRendererServices({ mode: 'mock' })
     services.taskCatalog = {
-      listRecentTasks: async () => [{ id: 'missing-task', title: '读取失败任务', state: 'default' }],
-      getTask: async () => { throw new Error('catalog offline') }
+      listRecentTasks: async () => [
+        { id: 'missing-task', title: '读取失败任务', state: 'default' }
+      ],
+      getTask: async () => {
+        throw new Error('catalog offline')
+      }
     }
-    render(<AppServicesProvider services={services}><App /></AppServicesProvider>)
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
     await user.click(await screen.findByRole('button', { name: '读取失败任务' }))
     expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     expect(await screen.findByRole('alert')).toHaveTextContent('无法打开任务')
@@ -520,7 +421,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '新任务' }))
     expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await user.click(screen.getByRole('button', { name: '应用后退' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-expanded'
+    )
   })
 
   it('restores each task layout when navigating between recent tasks', async () => {
@@ -529,9 +433,15 @@ describe('App', () => {
     await screen.findByTestId('e2e/tasks/detail/page#page')
     await user.click(screen.getByRole('button', { name: '放大浏览器' }))
     await user.click(screen.getByRole('button', { name: '比较三款显示器' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'split'
+    )
     await user.click(screen.getByRole('button', { name: '应用后退' }))
-    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute(
+      'data-mode',
+      'browser-expanded'
+    )
   })
 
   it('loads persisted models and tasks, then submits the exact selected model reference', async () => {

@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { loadingModelSelection, toModelSelectionProjection } from '../../../../../../src/renderer/src/models/model-selection'
+import {
+  loadingModelSelection,
+  toModelSelectionProjection
+} from '../../../../../../src/renderer/src/models/model-selection'
 import { mockModelSelection } from '../../../../../../src/renderer/src/testing/model-selection-fixture'
 import { ModelSelector } from '../../../../../../src/renderer/src/components/model-selector/ModelSelector'
 
@@ -76,6 +79,7 @@ describe('ModelSelector', () => {
     render(<ModelSelector projection={projection} onSelect={onSelect} />)
     await user.click(screen.getByRole('button', { name: /当前模型/ }))
     const option = screen.getByRole('option', { name: 'chat' })
+    expect(option).toHaveAttribute('data-active', 'false')
     const icon = within(option).getByRole('img', { name: '查看能力状态' })
     expect(icon.previousElementSibling).toHaveTextContent('chat')
     expect(option.querySelector('.model-option-check')).toBe(option.lastElementChild)
