@@ -17,7 +17,7 @@ const METADATA_FILE = 'binding.json'
 const BINDING_FILE = 'better_sqlite3.node'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const runtimeRoot = join(projectRoot, 'apps/agent-runtime')
+const runtimeRoot = join(projectRoot, 'apps/local-runtime')
 const desktopRequire = createRequire(join(projectRoot, 'apps/desktop/package.json'))
 const runtimeRequire = createRequire(join(runtimeRoot, 'package.json'))
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createProcessObservability } from '../../src/otel'
 import { createInteractionLogRecorder } from '../../src/interaction-store'
-import { PhoenixModelObservability } from '../../../../apps/agent-runtime/src/phoenix-model-observability'
+import { PhoenixModelObservability } from '../../../../apps/local-runtime/src/phoenix-model-observability'
 
 const live = process.env.ACTION_DRIVER_LIVE_OBSERVABILITY === '1'
 

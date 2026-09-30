@@ -1,0 +1,48 @@
+{
+  "name": "@action-driver/agent-runtime",
+  "description": "Host-independent agent graph, sessions, tools, skills, and model gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent-graph": "./src/agent-graph.ts",
+    "./execution-errors": "./src/execution-errors.ts",
+    "./host-ports": "./src/host-ports.ts",
+    "./model-credential-key": "./src/model-credential-key.ts",
+    "./model-gateway": "./src/model-gateway.ts",
+    "./model-trace-port": "./src/model-trace-port.ts",
+    "./ports": "./src/ports.ts",
+    "./skill-invocation-service": "./src/skill-invocation-service.ts",
+    "./skill-invocation-state-machine": "./src/skill-invocation-state-machine.ts",
+    "./skill-registry": "./src/skill-registry.ts",
+    "./stream/event-delivery": "./src/stream/event-delivery.ts",
+    "./stream/stream-snapshot": "./src/stream/stream-snapshot.ts",
+    "./stream/stream-values": "./src/stream/stream-values.ts",
+    "./stream-session-service": "./src/stream-session-service.ts",
+    "./task-projection": "./src/task-projection.ts",
+    "./tool-activity": "./src/tool-activity.ts",
+    "./tool-error-exposure": "./src/tool-error-exposure.ts",
+    "./tool-invocation-service": "./src/tool-invocation-service.ts",
+    "./tool-invocation-state-machine": "./src/tool-invocation-state-machine.ts",
+    "./tool-output-collector": "./src/tool-output-collector.ts",
+    "./tool-policy": "./src/tool-policy.ts",
+    "./tool-registry": "./src/tool-registry.ts",
+    "./tool-result-redaction": "./src/tool-result-redaction.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@action-driver/activity-projection": "workspace:*",
+    "@action-driver/contracts": "workspace:*",
+    "@action-driver/model-connections": "workspace:*",
+    "@action-driver/observability": "workspace:*",
+    "@action-driver/plugin-contracts": "workspace:*",
+    "@action-driver/plugin-sdk": "workspace:*",
+    "@action-driver/runtime-contracts": "workspace:*",
+    "@langchain/core": "1.2.12",
+    "@langchain/langgraph": "1.4.16",
+    "zod": "4.6.5"
+  }
+}

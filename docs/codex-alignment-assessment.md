@@ -81,16 +81,18 @@ Web 是客户端，不必然等于 Cloud。Codex Local 和 Worktree 都可在用
 ### 当前代码锚点
 
 - `packages/runtime-contracts/src/tool-protocol.ts`：扁平模型工具名、JSON object 输入、文本／图片／JSON 输出、session workspace 类型。
-- `apps/agent-runtime/src/execution/session-workspace.ts`：会话目录及 input/output 路径解析。
-- `apps/agent-runtime/src/execution/session-execution-context.ts`：从任务会话推导工作目录。
-- `apps/agent-runtime/src/execution/session-sandbox.ts`：macOS 沙箱与 output 写入范围。
-- `apps/agent-runtime/src/execution/tools.ts`、`process-runner.ts`：脚本及进程执行。
-- `apps/agent-runtime/src/runtime-entry.ts`：强制要求 Electron parentPort 的启动入口。
-- `apps/agent-runtime/src/runtime-process.ts`：本地运行装配和静态工具注册。
-- `apps/agent-runtime/src/agent-graph.ts`：Agent Loop、逐个工具执行及图片上下文。
-- `apps/agent-runtime/src/tool-policy.ts`：基于 grants 的允许／拒绝。
-- `apps/agent-runtime/src/agent-files/agent-file-store.ts`：个人与内置 Skill 管理。
-- `apps/agent-runtime/src/media/session-input-file-store.ts`、`session-output-store.ts`：输入材料和交付快照。
+- `apps/local-runtime/src/execution/session-workspace.ts`：会话目录及 input/output 路径解析。
+- `apps/local-runtime/src/execution/session-execution-context.ts`：从任务会话推导工作目录。
+- `apps/local-runtime/src/execution/session-sandbox.ts`：macOS 沙箱与 output 写入范围。
+- `apps/local-runtime/src/execution/tools.ts`、`process-runner.ts`：脚本及进程执行。
+- `apps/local-runtime/src/runtime-entry.ts`：强制要求 Electron parentPort 的启动入口。
+- `apps/local-runtime/src/runtime-process.ts`：本地运行装配和静态工具注册。
+- `packages/agent-runtime/src/agent-graph.ts`：Agent Loop、逐个工具执行及图片上下文。
+- `packages/agent-runtime/src/tool-policy.ts`：基于 grants 的允许／拒绝。
+- `packages/agent-runtime/src/stream-session-service.ts`：宿主无关的流会话编排。
+- `packages/model-connections/src/index.ts`：模型连接契约；`packages/model-provider-runtime/src/provider-adapters.ts`：供应商协议实现。
+- `apps/local-runtime/src/agent-files/agent-file-store.ts`：个人与内置 Skill 管理。
+- `apps/local-runtime/src/media/session-input-file-store.ts`、`session-output-store.ts`：输入材料和交付快照。
 - `apps/desktop/src/renderer/src/services/task-output-open.ts`：依赖桌面桥接打开交付文件。
 - `docs/roadmap.md`、`openspec/specs/agent-tool-runtime/spec.md`：现有方向和自动执行政策。
 

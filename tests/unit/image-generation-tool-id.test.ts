@@ -33,7 +33,7 @@ describe('image generation tool id boundary', () => {
       ...sourceFiles(join(root, 'apps/desktop/src/renderer/src')),
       ...sourceFiles(join(root, 'apps/desktop/src/preload')),
       ...sourceFiles(join(root, 'apps/desktop/src/shared')),
-      ...sourceFiles(join(root, 'apps/agent-runtime/src'))
+      ...sourceFiles(join(root, 'apps/local-runtime/src'))
     ]
     const offenders = consumers.filter((file) => readFileSync(file, 'utf8').includes(literal))
     expect(offenders).toEqual([])

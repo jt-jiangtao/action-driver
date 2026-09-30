@@ -4,7 +4,7 @@ import {
   type InvocationContext,
   type ToolExecutor
 } from '@action-driver/plugin-sdk'
-import { RuntimeToolRegistry } from '../../../../apps/agent-runtime/src/tool-registry'
+import { RuntimeToolRegistry } from '../../../../packages/agent-runtime/src/tool-registry'
 import { activate } from '../../src/extension'
 
 afterEach(() => vi.unstubAllGlobals())

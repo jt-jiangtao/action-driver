@@ -2,6 +2,10 @@
 
 网络搜索与网页读取使用 Tavily / Jina；本地密钥与迁移说明见 [网络工具配置](docs/web-tools.md)。
 
+### Agent Runtime 包边界
+
+`packages/agent-runtime`（`@action-driver/agent-runtime`）承载 Agent 图、流会话、工具与 Skill 编排，以及模型网关；它只依赖端口，不依赖桌面进程、SQLite 或本地执行器。`packages/model-connections` 只定义模型连接契约，`packages/model-provider-runtime` 实现 OpenAI/Anthropic 协议和 HTTP 传输。`apps/local-runtime`（`@action-driver/local-runtime`）装配本地存储、执行、插件与 Electron/Node 宿主。云端 Agent 可复用共享包，并提供自己的宿主适配器。
+
 ### 自有 Electron 桌面宿主
 
 标准 `pnpm dev`、`pnpm --filter @action-driver/desktop preview`、本地 Electron E2E 和 macOS 打包使用 `thirdparty/build/electron/Electron.app`。来源记录在 `config/electron-fork.json`，共享解析入口在 `scripts/lib/electron-fork.mjs`；启动前核验完整 bundle、版本与架构。缺失或篡改会明确失败，不能回退 npm 下载的 Electron。npm electron 38.8.6 仍提供类型和构建元数据；不要直接运行裸 electron-vite 或 Electron npm CLI 来启动产品。

@@ -111,7 +111,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       )
     )
     expect(packagedSkills.value).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })]))
-    const root = join(appPath!, 'Contents', 'Resources', 'agent-runtime', 'dist')
+    const root = join(appPath!, 'Contents', 'Resources', 'local-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
     const env = { ...process.env, HOME: '/nonexistent-action-driver-home', PATH: '/usr/bin:/bin' }
     const python = join(target, 'python', 'bin', 'python3')
@@ -244,7 +244,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       name: 'tiny.png',
       mimeType: 'image/png',
       buffer: readFileSync(
-        join(process.cwd(), 'apps', 'agent-runtime', 'tests', 'fixtures', 'tiny.png')
+        join(process.cwd(), 'apps', 'local-runtime', 'tests', 'fixtures', 'tiny.png')
       )
     })
     await page.getByLabel('任务描述').fill('识别图片')

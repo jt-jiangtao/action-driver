@@ -12,10 +12,10 @@ test('production loads owned packages and does not reference the offline backup'
     expect(p.scripts.typecheck).toBeTruthy()
     expect(JSON.stringify(p.dependencies ?? {})).not.toMatch(/@oai|vendor/)
   }
-  const runtime = await readFile('apps/agent-runtime/package.json', 'utf8')
+  const runtime = await readFile('apps/local-runtime/package.json', 'utf8')
   expect(runtime).toContain('@action-driver/cua')
   expect(runtime).toContain('@action-driver/sky')
-  const loader = await readFile('apps/agent-runtime/src/runtime-process.ts', 'utf8')
+  const loader = await readFile('apps/local-runtime/src/runtime-process.ts', 'utf8')
   expect(loader).not.toMatch(/vendor\/codex-cua|thirdparty\/backup\/codex-cua/)
 })
 

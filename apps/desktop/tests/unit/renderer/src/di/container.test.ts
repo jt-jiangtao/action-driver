@@ -12,7 +12,7 @@ import { DesktopModelConnectionsService } from '../../../../../src/renderer/src/
 import { RuntimeAgentFilesService } from '../../../../../src/renderer/src/services/runtime-agent-files'
 import { MockModelConnectionsService } from '../../../../../src/renderer/src/services/mock-model-connections'
 import { MockAgentFilesService } from '../../../../../src/renderer/src/services/mock-agent-files'
-import { MockAgentRuntime } from '../../../../../src/renderer/src/services/mock-agent-runtime'
+import { MockAgentSessionService } from '../../../../../src/renderer/src/services/mock-agent-session-service'
 import { MockTaskCatalog } from '../../../../../src/renderer/src/services/mock-task-catalog'
 import { DesktopTaskCatalog } from '../../../../../src/renderer/src/services/desktop-task-catalog'
 import {
@@ -71,7 +71,7 @@ describe('renderer composition root', () => {
   it('binds agent ports and the independently registered skill gateway without exposing the container', () => {
     const services = createRendererServices({ mode: 'mock' })
 
-    expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
+    expect(services.agentCommandService).toBeInstanceOf(MockAgentSessionService)
     expect(services.agentSessionRepository).toBe(services.agentCommandService)
     expect(services.skillGateway).toBeInstanceOf(MockSkillGateway)
     expect(services.agentFilesService).toBeInstanceOf(MockAgentFilesService)
@@ -133,7 +133,7 @@ describe('renderer composition root', () => {
       model: { connectionId: 'connection-1', modelId: 'gpt-real' }
     })
 
-    expect(services.agentCommandService).toBeInstanceOf(MockAgentRuntime)
+    expect(services.agentCommandService).toBeInstanceOf(MockAgentSessionService)
     expect(services.skillGateway.getCapability(SKILL_IDS.browser)).toBe(browserCapability)
     expect(services.skillGateway.getCapability(SKILL_IDS.computer)).toBeInstanceOf(
       MockComputerUseSkillCapability

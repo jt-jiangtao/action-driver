@@ -24,5 +24,5 @@ function run(args) {
   })
 }
 
-const built = await run(['--filter', '@action-driver/agent-runtime', 'build'])
+const built = await run(['--filter', '@action-driver/local-runtime', 'build'])
 process.exitCode = built === 0 ? await run(['--filter', '@action-driver/desktop', 'dev']) : built

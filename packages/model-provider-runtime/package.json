@@ -1,0 +1,26 @@
+{
+  "name": "@action-driver/model-provider-runtime",
+  "description": "OpenAI and Anthropic provider protocol adapters and HTTP transport",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./anthropic-adapter": "./src/anthropic-adapter.ts",
+    "./http-transport": "./src/http-transport.ts",
+    "./openai-compatible-adapter": "./src/openai-compatible-adapter.ts",
+    "./provider-adapters": "./src/provider-adapters.ts",
+    "./provider-failures": "./src/provider-failures.ts",
+    "./provider-http": "./src/provider-http.ts",
+    "./provider-types": "./src/provider-types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@action-driver/contracts": "workspace:*",
+    "@action-driver/model-connections": "workspace:*",
+    "@action-driver/runtime-contracts": "workspace:*",
+    "openai": "6.49.0"
+  }
+}

@@ -8,7 +8,7 @@ import type {
 import type { AgentFilesService } from '../models/agent-files'
 import { SKILL_IDS } from '@action-driver/contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
-import { MockAgentRuntime } from '../services/mock-agent-runtime'
+import { MockAgentSessionService } from '../services/mock-agent-session-service'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
 import { MockModelConnectionsService } from '../services/mock-model-connections'
@@ -102,7 +102,7 @@ export function createRendererServices(options: RendererContainerOptions): AppSe
         [SKILL_IDS.browser]: browserCapability,
         [SKILL_IDS.computer]: computerCapability
       })
-    const runtime = new MockAgentRuntime(skillGateway)
+    const runtime = new MockAgentSessionService(skillGateway)
     agentCommandService = options.agentCommandService ?? runtime
     agentSessionRepository = options.agentSessionRepository ?? runtime
   }

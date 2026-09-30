@@ -1,0 +1,363 @@
+import type { ModelRef } from '@action-driver/contracts'
+import type { ModelUsage } from '@action-driver/model-connections'
+import type {
+  ModelInputMessage,
+  ModelTerminal,
+  ProviderToolCall
+} from '@action-driver/model-connections'
+import type { ToolDefinition } from '@action-driver/runtime-contracts'
+
+export type PersistedSkillInvocation = {
+  id: string
+  taskId: string
+  requestedSkillId: string
+  resolvedProviderId: string | null
+  providerVersion: string | null
+  contractVersion: number
+  status: string
+  input: unknown
+  output: unknown | null
+  error: unknown | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type RuntimeMessage = ModelInputMessage
+
+export type ModelSkillDescription = {
+  skillId: string
+  description: string
+}
+
+export type ModelRequest = {
+  taskId: string
+  sessionId?: string
+  requestId: string
+  model: ModelRef
+  messages: RuntimeMessage[]
+  tools?: ToolDefinition[]
+  skills: ModelSkillDescription[]
+  parameters: {
+    temperature?: number
+    maxTokens?: number
+  }
+}
+
+export type ModelResult =
+  | { kind: 'finish'; content: string }
+  | { kind: 'invoke-skill'; skillId: string; input: unknown }
+  | { kind: 'tool-calls'; calls: ProviderToolCall[] }
+
+export type ModelGatewayEvent =
+  | { kind: 'content'; delta: string }
+  | { kind: 'tool-call-preparing'; index: number; modelName: string }
+  | {
+      kind: 'end'
+      result?: ModelTerminal
+      content: string
+      finishReason: string | null
+      usage: ModelUsage | null
+    }
+
+export type ActivityGraphEvent = {
+  kind: 'activity'
+  event:
+    | { type: 'started'; activityId: string; title: string; titleRevision: number }
+    | { type: 'updated'; activityId: string; title: string; titleRevision: number }
+    | { type: 'text'; activityId: string | null; textId: string; delta: string }
+    | { type: 'text.done'; activityId: string | null; textId: string; phase: 'process' | 'final' }
+    | { type: 'completed'; activityId: string }
+}
+
+export type AgentGraphEvent = ModelGatewayEvent | ActivityGraphEvent
+
+export interface ModelGateway {
+  complete(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult>
+  /** Transitional compatibility for deterministic Skill fixtures; local production gateways provide it. */
+  stream?(request: ModelRequest, signal?: AbortSignal): AsyncIterable<ModelGatewayEvent>
+}
+
+export type ModelEventObserver = (event: AgentGraphEvent) => void | Promise<void>
+export type ToolEventObserver = (event: RuntimeEventRecord) => void | Promise<void>
+
+export type SkillProviderResult = {
+  ok: true
+  providerId: string
+  input: unknown
+  /**
+   * Signals that the Agent must wait for the user before continuing. Skill providers report this
+   * through the Runtime Skill boundary; the graph routes to `awaitUser` and checkpoints state.
+   */
+  needsUser?: boolean
+}
+
+export interface SkillProvider {
+  readonly providerId: string
+  readonly providerVersion: string
+  readonly skillId: string
+  readonly contractVersion: number
+  execute(
+    request: { invocationId: string; input: unknown },
+    signal?: AbortSignal
+  ): Promise<SkillProviderResult>
+  cancel?(invocationId: string): Promise<void>
+}
+
+export interface SkillRegistry {
+  resolve(skillId: string, contractVersion: number): SkillProvider
+}
+
+export type RuntimeTaskRecord = {
+  id: string
+  threadId: string
+  sessionId: string
+  goal: string
+  model: ModelRef
+  status: string
+  error: unknown | null
+  lastCheckpointId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskRepository {
+  get(taskId: string): Promise<RuntimeTaskRecord | null>
+  getLatestBySession(sessionId: string): Promise<RuntimeTaskRecord | null>
+  listBySession(sessionId: string): Promise<RuntimeTaskRecord[]>
+  listRecent(limit: number): Promise<RuntimeTaskRecord[]>
+  listRecentSessions(limit: number): Promise<RuntimeTaskRecord[]>
+  save(task: RuntimeTaskRecord): Promise<void>
+}
+
+export type PersistedToolInvocation = {
+  id: string
+  providerCallId: string
+  taskId: string
+  toolId: string
+  toolVersion: number
+  argumentsHash: string
+  decision: 'allow' | 'require_approval' | 'deny'
+  status:
+    | 'proposed'
+    | 'waiting_approval'
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'unknown'
+  input: unknown
+  output: unknown | null
+  error: unknown | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ToolInvocationRepository {
+  save(invocation: PersistedToolInvocation): Promise<void>
+  listByTask(taskId: string): Promise<PersistedToolInvocation[]>
+}
+
+/** Registry entry of one uploaded document; the bytes live in the session `input/` directory. */
+export type SessionInputFileRecord = {
+  fileId: string
+  status: 'staged' | 'bound'
+  sessionId: string | null
+  taskId: string | null
+  name: string
+  mimeType: string
+  byteLength: number
+  relativePath: string | null
+  checksum: string
+  createdAt: string
+  boundAt: string | null
+}
+
+export type SessionInputFileBinding = {
+  sessionId: string
+  taskId: string
+  relativePath: string
+  boundAt: string
+}
+
+export interface SessionInputFileRepository {
+  save(file: SessionInputFileRecord): Promise<void>
+  get(fileId: string): Promise<SessionInputFileRecord | null>
+  listBySession(sessionId: string): Promise<SessionInputFileRecord[]>
+  listByTask(taskId: string): Promise<SessionInputFileRecord[]>
+  bind(fileId: string, binding: SessionInputFileBinding): Promise<SessionInputFileRecord>
+}
+
+export interface ToolInvocationPersistence {
+  commitToolInvocationWithEvent(
+    invocation: PersistedToolInvocation,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+}
+
+export type PersistedMessage = {
+  id: string
+  taskId: string
+  role: string
+  content: unknown
+  createdAt: string
+}
+
+export type PersistedStreamRequest = {
+  requestId: string
+  idempotencyKey: string
+  sessionId: string
+  taskId: string
+  responseId: string
+  streamId: string
+  messageId: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  lastSequence: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StreamRequestRepository {
+  getByRequestId(requestId: string): Promise<PersistedStreamRequest | null>
+  getByTaskId(taskId: string): Promise<PersistedStreamRequest | null>
+  getByIdempotencyKey(idempotencyKey: string): Promise<PersistedStreamRequest | null>
+}
+
+export interface StreamSessionRepository {
+  readonly tasks: Pick<TaskRepository, 'get' | 'getLatestBySession' | 'listBySession'>
+  readonly messages: Pick<MessageRepository, 'listByTask' | 'listBySession'>
+  readonly events: Pick<EventRepository, 'append' | 'listAfter' | 'listForRequestAfter'>
+  readonly streamRequests: StreamRequestRepository
+  readonly toolInvocations?: Pick<ToolInvocationRepository, 'listByTask'>
+  readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead>
+  createStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    userMessage: PersistedMessage
+    assistantMessage: PersistedMessage
+    acceptedEvent: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<{ created: boolean; request: PersistedStreamRequest }>
+  commitAssistantContentWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+  commitAssistantImageWithEvent(
+    request: PersistedStreamRequest,
+    message: PersistedMessage,
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  ): Promise<RuntimeEventRecord>
+  finishStreamTask(input: {
+    request: PersistedStreamRequest
+    task: RuntimeTaskRecord
+    assistantMessage: PersistedMessage
+    event: Omit<RuntimeEventRecord, 'cursor'>
+  }): Promise<RuntimeEventRecord>
+}
+
+export type StreamSnapshotRead = {
+  request: PersistedStreamRequest
+  cursor: number
+  events: RuntimeEventRecord[]
+  task: RuntimeTaskRecord | null
+  messages: PersistedMessage[]
+  tools: PersistedToolInvocation[]
+}
+
+export interface MessageRepository {
+  save(message: PersistedMessage): Promise<void>
+  listByTask(taskId: string): Promise<PersistedMessage[]>
+  listBySession(sessionId: string): Promise<PersistedMessage[]>
+}
+
+export type RuntimeEventRecord = {
+  cursor: number
+  taskId: string
+  threadId: string
+  checkpointId: string
+  eventKey: string
+  type: string
+  payload: unknown
+  occurredAt: string
+  eventId?: string | null
+  requestId?: string | null
+  responseId?: string | null
+  streamId?: string | null
+  messageId?: string | null
+  sequence?: number | null
+}
+
+export interface EventRepository {
+  append(event: Omit<RuntimeEventRecord, 'cursor'>): Promise<RuntimeEventRecord>
+  listAfter(cursor: number): Promise<RuntimeEventRecord[]>
+  listForRequestAfter(
+    requestId: string,
+    cursor: number,
+    limit: number
+  ): Promise<RuntimeEventRecord[]>
+}
+
+export interface GraphRunner {
+  run(
+    request: {
+      taskId: string
+      sessionId?: string
+      goal: string
+      model: ModelRef
+      messages?: RuntimeMessage[]
+      currentMessage?: RuntimeMessage
+      systemPrompt?: string
+      skills?: ModelSkillDescription[]
+      toolGrants?: string[]
+      streamRequestId?: string
+      /** Files uploaded to this session, exposed to the model as readable paths. */
+      inputContext?: Array<{ name: string; path: string; mimeType: string }>
+    },
+    signal?: AbortSignal,
+    observer?: ModelEventObserver,
+    toolObserver?: ToolEventObserver
+  ): Promise<AgentGraphResult>
+  interrupt(taskId: string): boolean
+  continue(taskId: string): Promise<AgentGraphResult>
+  provideInput(taskId: string, value: unknown): Promise<AgentGraphResult>
+}
+
+export type AgentGraphResult = {
+  taskId: string
+  threadId: string
+  status: 'completed' | 'waiting-user' | 'interrupted' | 'failed'
+  output: unknown
+  error: string | null
+  trace: string[]
+}
+
+export interface Clock {
+  now(): string
+}
+
+export interface IdGenerator {
+  next(prefix: string): string
+}
+
+export interface RuntimeAdapters {
+  graphRunner: GraphRunner
+  taskRepository: TaskRepository
+  eventRepository: EventRepository
+  modelGateway: ModelGateway
+  skillRegistry: SkillRegistry
+  clock: Clock
+  idGenerator: IdGenerator
+}
+
+/**
+ * Everything the runtime composition needs from persistence: session history
+ * comes from the rollout log, auxiliary stores keep their own state.
+ */
+export interface RuntimeRepositories extends StreamSessionRepository, ToolInvocationPersistence {
+  readonly tasks: TaskRepository
+  readonly messages: MessageRepository
+  readonly events: EventRepository
+  readonly inputFiles: SessionInputFileRepository
+  recoverInterruptedRequests(code: string): Promise<RuntimeEventRecord[]>
+  close(): void
+}

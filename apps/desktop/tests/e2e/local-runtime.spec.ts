@@ -19,7 +19,7 @@ import {
 } from './support/fake-openai-stream-server'
 
 const desktopRoot = fileURLToPath(new URL('../..', import.meta.url))
-const runtimeEntry = fileURLToPath(new URL('../../../agent-runtime/dist/index.js', import.meta.url))
+const runtimeEntry = fileURLToPath(new URL('../../../local-runtime/dist/index.js', import.meta.url))
 const mainBundle = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
 const apiKey = 'sk-e2e-stream-secret'
 

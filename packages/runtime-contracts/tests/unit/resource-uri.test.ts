@@ -3,6 +3,7 @@ import {
   ResourceError,
   assertScopeAuthorized,
   formatResourceUri,
+  legacyResourceUri,
   parseResourceUri,
   resourceProviderDescriptorSchema
 } from '../../src/index'
@@ -20,6 +21,14 @@ describe('resource URI contract', () => {
     expect(uri).toBe('adr://v1/session-input/uploads/report.pdf?task=task-1&session=session-1')
     expect(parseResourceUri(uri)).toEqual({ scheme: 'session-input', id: 'uploads/report.pdf', scope: authority })
     expect(formatResourceUri(parseResourceUri(uri))).toBe(uri)
+  })
+
+  it('projects stored file ids into the same canonical URI in any host', () => {
+    expect(legacyResourceUri('session-input', 'uploads/report.pdf', authority)).toBe(
+      formatResourceUri({ scheme: 'session-input', id: 'uploads/report.pdf', scope: authority })
+    )
+    expect(failureCode(() => legacyResourceUri('generated-output', '', authority)))
+      .toBe('RESOURCE_NOT_FOUND')
   })
 
   it('keeps an unscoped URI scoped-free so the host can authorize it later', () => {

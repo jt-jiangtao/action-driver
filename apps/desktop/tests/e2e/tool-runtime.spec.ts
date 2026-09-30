@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
 
 const desktopRoot = fileURLToPath(new URL('../..', import.meta.url))
-const runtimeEntry = fileURLToPath(new URL('../../../agent-runtime/dist/index.js', import.meta.url))
+const runtimeEntry = fileURLToPath(new URL('../../../local-runtime/dist/index.js', import.meta.url))
 const mainBundle = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
 const apiKey = 'sk-e2e-tool-secret'
 
@@ -289,7 +289,7 @@ test('uploads an image for model recognition and restores it from session assets
   await page.getByLabel('添加图片').setInputFiles({
     name: 'tiny.png',
     mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
   })
   await page.getByLabel('任务描述').fill('识别图片')
   await page.getByLabel('发送').click()
@@ -315,7 +315,7 @@ test('uploads an image for model recognition and restores it from session assets
   )
   expect(readdirSync(uploads)).toHaveLength(1)
   expect(readFileSync(join(uploads, readdirSync(uploads)[0]!))).toEqual(
-    readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+    readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
   )
   await page.reload()
   await expect(page.getByRole('img', { name: '上传的图片' })).toBeVisible()
@@ -327,7 +327,7 @@ test('keeps an image draft and skips provider calls when vision is unverified', 
   await page.getByLabel('添加图片').setInputFiles({
     name: 'tiny.png',
     mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
   })
   await page.getByLabel('任务描述').fill('识别图片')
   await page.getByLabel('发送').click()
@@ -356,7 +356,7 @@ test('shows the provider image rejection in the failed turn after reload', async
   await page.getByLabel('添加图片').setInputFiles({
     name: 'tiny.png',
     mimeType: 'image/png',
-    buffer: readFileSync(join(desktopRoot, '../agent-runtime/tests/fixtures/tiny.png'))
+    buffer: readFileSync(join(desktopRoot, '../local-runtime/tests/fixtures/tiny.png'))
   })
   await page.getByLabel('任务描述').fill('这是什么')
   await page.getByLabel('发送').click()

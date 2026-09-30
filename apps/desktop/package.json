@@ -5,7 +5,7 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "predev": "corepack pnpm --filter @action-driver/agent-runtime build && corepack pnpm --dir ../.. build:native:computer-use",
+    "predev": "corepack pnpm --filter @action-driver/local-runtime build && corepack pnpm --dir ../.. build:native:computer-use",
     "dev": "node ../../scripts/run-desktop-electron.mjs dev",
     "prebuild": "corepack pnpm --dir ../.. validate:e2e-interactions",
     "build": "electron-vite build",

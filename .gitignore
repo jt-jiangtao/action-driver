@@ -2,14 +2,14 @@ node_modules/
 .env.local
 out/
 dist/
-apps/agent-runtime/native/
+apps/local-runtime/native/
 coverage/
 playwright-report/
 test-results/
 .superpowers/
 .DS_Store
 *.log
-apps/agent-runtime/.runtime-cache/
+apps/local-runtime/.runtime-cache/
 
 # Swift build output from running swift at the repository root
 /.build/

@@ -13,7 +13,7 @@ describe('Runtime paths', () => {
         arch: 'arm64'
       })
     ).toEqual({
-      runtimeEntryPath: '/repo/apps/agent-runtime/dist/index.js',
+      runtimeEntryPath: '/repo/apps/local-runtime/dist/index.js',
       computerHelperBundlePath: '/repo/plugins/computer-use/native/dist/arm64/Action-Driver Computer Use.app',
       computerHelperPath: '/repo/plugins/computer-use/native/dist/arm64/Action-Driver Computer Use.app/Contents/MacOS/action-driver-computer-use',
       dataRoot: '/Users/test/Library/Application Support/Action-Driver/data',
@@ -34,7 +34,7 @@ describe('Runtime paths', () => {
           arch
         })
       ).toEqual({
-        runtimeEntryPath: `/Applications/Action-Driver-${arch}.app/Contents/Resources/agent-runtime/dist/index.js`,
+        runtimeEntryPath: `/Applications/Action-Driver-${arch}.app/Contents/Resources/local-runtime/dist/index.js`,
         computerHelperBundlePath: `/Applications/Action-Driver-${arch}.app/Contents/Helpers/Action-Driver Computer Use.app`,
         computerHelperPath: `/Applications/Action-Driver-${arch}.app/Contents/Helpers/Action-Driver Computer Use.app/Contents/MacOS/action-driver-computer-use`,
         dataRoot: '/tmp/action-driver-user-data/data',

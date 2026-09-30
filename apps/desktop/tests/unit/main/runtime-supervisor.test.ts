@@ -42,7 +42,7 @@ function harness(options: ConstructorParameters<typeof RuntimeSupervisor>[2] = {
       return process
     })
   }
-  const supervisor = new RuntimeSupervisor(factory, '/app/agent-runtime.js', {
+  const supervisor = new RuntimeSupervisor(factory, '/app/local-runtime.js', {
     shutdownTimeoutMs: 1_000,
     ...options
   })

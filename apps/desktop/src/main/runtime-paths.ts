@@ -33,8 +33,8 @@ export function resolveRuntimePaths(options: RuntimePathOptions): RuntimePaths {
       'Action-Driver Computer Use.app')
   return {
     runtimeEntryPath: options.isPackaged
-      ? resolve(options.resourcesPath, 'agent-runtime', 'dist', 'index.js')
-      : resolve(options.appPath, '..', 'agent-runtime', 'dist', 'index.js'),
+      ? resolve(options.resourcesPath, 'local-runtime', 'dist', 'index.js')
+      : resolve(options.appPath, '..', 'local-runtime', 'dist', 'index.js'),
     computerHelperBundlePath,
     computerHelperPath: resolve(computerHelperBundlePath, 'Contents', 'MacOS',
       'action-driver-computer-use'),

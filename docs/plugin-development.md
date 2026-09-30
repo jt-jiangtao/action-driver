@@ -46,7 +46,7 @@ Skill 由统一指令宿主发布，资源来自同一包，停用后立即不�
 
 ## 内置包与构建
 
-内置 command、web、skills、documents、pdf、presentations、spreadsheets、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @action-driver/agent-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
+内置 command、web、skills、documents、pdf、presentations、spreadsheets、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @action-driver/local-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
 
 提交前按 AGENTS.md 验证；迭代时只运行相关定向测试。脚手架回归会在仓库外实际安装 npm tarball、构建、加载 catalog、运行宿主并验证 Skill 回收。
 

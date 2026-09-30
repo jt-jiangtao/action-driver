@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const output = dirname(fileURLToPath(import.meta.url))
 const root = join(output, '..', '..')
-const { build } = createRequire(join(root, 'apps/agent-runtime/package.json'))('esbuild')
+const { build } = createRequire(join(root, 'apps/local-runtime/package.json'))('esbuild')
 const hostModule = join(root, 'apps/desktop/out/tools/local-browser-host.mjs')
 await mkdir(dirname(hostModule), { recursive: true })
 await build({ entryPoints: [join(root, 'apps/desktop/src/main/browser-session/local-browser-host.ts')],

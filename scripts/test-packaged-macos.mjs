@@ -21,7 +21,7 @@ function run(command, args, env = process.env) {
 try {
   run('corepack', ['pnpm', 'build:native:electron'])
   run('corepack', ['pnpm', 'build:native:computer-use'])
-  run('corepack', ['pnpm', '--filter', '@action-driver/agent-runtime', 'build'])
+  run('corepack', ['pnpm', '--filter', '@action-driver/local-runtime', 'build'])
   run('corepack', ['pnpm', '--filter', '@action-driver/desktop', 'build'])
   run('corepack', [
     'pnpm',
@@ -34,7 +34,7 @@ try {
   run('corepack', [
     'pnpm',
     '--filter',
-    '@action-driver/agent-runtime',
+    '@action-driver/local-runtime',
     'deploy',
     '--prod',
     runtimeDeployment
@@ -43,7 +43,7 @@ try {
   await stageVerifiedElectronHost(app)
   rmSync(join(app, 'Contents', 'Resources', 'default_app.asar'), { force: true })
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
-  run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
+  run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'local-runtime')])
   const computerHelperSource = join(root, 'plugins', 'computer-use', 'native',
     'dist', process.arch, 'Action-Driver Computer Use.app')
   const computerHelperBundle = join(app, 'Contents', 'Helpers', 'Action-Driver Computer Use.app')
@@ -54,8 +54,8 @@ try {
   }
   run('/usr/bin/file', [computerHelper])
   run('codesign', ['--verify', '--strict', '--verbose=2', computerHelperBundle])
-  const runtimeDist = join(app, 'Contents', 'Resources', 'agent-runtime', 'dist')
-  const builtRuntimeDist = join(root, 'apps', 'agent-runtime', 'dist')
+  const runtimeDist = join(app, 'Contents', 'Resources', 'local-runtime', 'dist')
+  const builtRuntimeDist = join(root, 'apps', 'local-runtime', 'dist')
   run('ditto', [join(builtRuntimeDist, 'runtimes'), join(runtimeDist, 'runtimes')])
   run('ditto', [join(builtRuntimeDist, 'bin'), join(runtimeDist, 'bin')])
   run('ditto', [join(builtRuntimeDist, 'system-skills'), join(runtimeDist, 'system-skills')])
@@ -63,7 +63,7 @@ try {
   run('ditto', [join(builtRuntimeDist, 'js-repl'), join(runtimeDist, 'js-repl')])
   run('ditto', [join(builtRuntimeDist, 'resources'), join(runtimeDist, 'resources')])
   if (existsSync(join(runtimeDist, 'vendor')) ||
-      existsSync(join(app, 'Contents', 'Resources', 'agent-runtime', 'vendor'))) {
+      existsSync(join(app, 'Contents', 'Resources', 'local-runtime', 'vendor'))) {
     throw new Error('PACKAGED_VENDOR_PRESENT')
   }
   if (!existsSync(join(runtimeDist, 'js-repl', 'owned-cua.mjs')) ||
@@ -89,7 +89,7 @@ try {
   // bundled runtimes; release packaging keeps its own decision on this tree.
   if (!existsSync(join(builtRuntimeDist, 'dependencies'))) {
     throw new Error(
-      'PACKAGED_DEPENDENCIES_MISSING: run pnpm --filter @action-driver/agent-runtime build:office-local first'
+      'PACKAGED_DEPENDENCIES_MISSING: run pnpm --filter @action-driver/local-runtime build:office-local first'
     )
   }
   run('ditto', [join(builtRuntimeDist, 'dependencies'), join(runtimeDist, 'dependencies')])

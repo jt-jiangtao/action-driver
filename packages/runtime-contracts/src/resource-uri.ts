@@ -39,6 +39,16 @@ export class ResourceError extends Error {
 export interface ResourceScope { taskId?: string; sessionId?: string; version?: string; pluginId?: string }
 export interface ResourceReference { scheme: string; id: string; scope: ResourceScope }
 
+/** Preserve stored file references when projecting them into resource URIs. */
+export function legacyResourceUri(
+  scheme: 'session-input' | 'generated-output',
+  fileId: string,
+  scope: ResourceScope
+): string {
+  if (!fileId) throw new ResourceError('RESOURCE_NOT_FOUND', 'A resource id is required')
+  return formatResourceUri({ scheme, id: fileId, scope })
+}
+
 const schemePattern = /^[a-z][a-z0-9-]{0,31}$/
 const scopePattern = /^[A-Za-z0-9._:-]{1,128}$/
 const unreserved = /[A-Za-z0-9._~-]/

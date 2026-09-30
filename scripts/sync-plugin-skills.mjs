@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const { parse } = createRequire(join(root, 'apps/agent-runtime/package.json'))('yaml')
+const { parse } = createRequire(join(root, 'apps/local-runtime/package.json'))('yaml')
 const owners = { documents: 'documents', pdf: 'pdf', presentations: 'presentations', spreadsheets: 'spreadsheets', 'skill-creator': 'skills', imagegen: 'image-generation' }
 for (const [id, owner] of Object.entries(owners)) {
   const packageRoot = join(root, 'plugins', owner)

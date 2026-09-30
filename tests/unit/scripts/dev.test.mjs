@@ -46,7 +46,7 @@ test('developer startup loads ignored credentials and preserves inherited enviro
   assert.deepEqual(
     calls.map((value) => value.args),
     [
-      ['--filter', '@action-driver/agent-runtime', 'build'],
+      ['--filter', '@action-driver/local-runtime', 'build'],
       ['--filter', '@action-driver/desktop', 'dev']
     ]
   )

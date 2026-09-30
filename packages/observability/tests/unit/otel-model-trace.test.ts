@@ -6,9 +6,9 @@ import {
   SimpleSpanProcessor
 } from '@opentelemetry/sdk-trace-node'
 import { describe, expect, it } from 'vitest'
-import { ConnectionModelGateway } from '../../../../apps/agent-runtime/src/model-connections/model-gateway'
-import { PhoenixModelObservability } from '../../../../apps/agent-runtime/src/phoenix-model-observability'
-import type { ModelRequest } from '../../../../apps/agent-runtime/src/ports'
+import { ConnectionModelGateway } from '../../../../packages/agent-runtime/src/model-gateway'
+import { PhoenixModelObservability } from '../../../../apps/local-runtime/src/phoenix-model-observability'
+import type { ModelRequest } from '../../../../packages/agent-runtime/src/ports'
 import { MemoryInteractionLogStore, createInteractionLogRecorder } from '../../src/interaction-store'
 
 describe('model span parent chain', () => {

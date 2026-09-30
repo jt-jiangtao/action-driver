@@ -20,7 +20,7 @@ describe('renderer service context', () => {
       </AppServicesProvider>
     )
 
-    expect(screen.getByTestId('service-name')).toHaveTextContent('MockAgentRuntime')
+    expect(screen.getByTestId('service-name')).toHaveTextContent('MockAgentSessionService')
   })
 
   it('provides a task store that follows the session repository while mounted', () => {

@@ -2,7 +2,8 @@ import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const runtimeRoot = resolve(process.cwd(), 'apps/agent-runtime')
+const runtimeRoot = resolve(process.cwd(), 'packages/agent-runtime')
+const localRuntimeRoot = resolve(process.cwd(), 'apps/local-runtime')
 
 describe('agent runtime package', () => {
   it('declares a standalone build with pinned runtime dependencies', async () => {
@@ -21,11 +22,10 @@ describe('agent runtime package', () => {
       name: '@action-driver/agent-runtime',
       private: true,
       type: 'module',
-      main: 'dist/index.js'
+      exports: { '.': './src/index.ts' }
     })
     expect(packageJson.scripts).toEqual(
       expect.objectContaining({
-        build: expect.stringContaining('src/runtime-entry.ts'),
         typecheck: 'tsc --noEmit -p tsconfig.json'
       })
     )
@@ -33,9 +33,6 @@ describe('agent runtime package', () => {
       expect.objectContaining({
         '@langchain/core': expect.stringMatching(/^\d/),
         '@langchain/langgraph': expect.stringMatching(/^\d/),
-        '@langchain/langgraph-checkpoint-sqlite': expect.stringMatching(/^\d/),
-        'better-sqlite3': expect.stringMatching(/^\d/),
-        hono: expect.stringMatching(/^\d/),
         zod: expect.stringMatching(/^\d/)
       })
     )
@@ -45,6 +42,15 @@ describe('agent runtime package', () => {
       if (version.startsWith('workspace:')) continue
       expect(version).not.toMatch(/^[~^*]/)
     }
+  })
+
+  it('keeps the local process as a separate app', async () => {
+    const localPackage = JSON.parse(
+      await readFile(resolve(localRuntimeRoot, 'package.json'), 'utf8')
+    ) as { name: string; main: string; dependencies: Record<string, string> }
+    expect(localPackage.name).toBe('@action-driver/local-runtime')
+    expect(localPackage.main).toBe('dist/index.js')
+    expect(localPackage.dependencies['@action-driver/agent-runtime']).toBe('workspace:*')
   })
 
   it('exposes a TypeScript entrypoint and project configuration', async () => {

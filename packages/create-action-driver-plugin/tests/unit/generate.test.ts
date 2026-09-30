@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { createRuntimePluginPlatform } from '../../../../apps/agent-runtime/src/plugins/composition'
-import { AgentFileStore } from '../../../../apps/agent-runtime/src/agent-files/agent-file-store'
-import { PluginInstructionHost } from '../../../../apps/agent-runtime/src/plugins/instruction-host'
-import { RuntimeToolRegistry } from '../../../../apps/agent-runtime/src/tool-registry'
-import { NodePluginHostFactory } from '../../../../apps/agent-runtime/src/plugins/process-host'
-import { PluginManager } from '../../../../apps/agent-runtime/src/plugins/manager'
+import { createRuntimePluginPlatform } from '../../../../apps/local-runtime/src/plugins/composition'
+import { AgentFileStore } from '../../../../apps/local-runtime/src/agent-files/agent-file-store'
+import { PluginInstructionHost } from '../../../../apps/local-runtime/src/plugins/instruction-host'
+import { RuntimeToolRegistry } from '../../../../packages/agent-runtime/src/tool-registry'
+import { NodePluginHostFactory } from '../../../../apps/local-runtime/src/plugins/process-host'
+import { PluginManager } from '../../../../apps/local-runtime/src/plugins/manager'
 import { PLUGIN_UI_PROTOCOL_VERSION, validateManifest, validateCatalog } from '@action-driver/plugin-contracts'
 const run = promisify(execFile)
 import { generatePlugin } from '../../src/generate.mjs'
@@ -64,7 +64,7 @@ describe('packaged SDK and generated plugin', () => {
     const metadata = await run(process.execPath, ['--input-type=module', '-e', "import { presentations } from 'generated/presentation'; console.log(JSON.stringify(presentations))"], { cwd: project })
     expect(JSON.parse(metadata.stdout)['tools/local/generated/echo']).toEqual(catalog.tools[0]?.presentation)
     expect(catalog.skills[0]?.resources).toEqual(['skills/hello/SKILL.md'])
-    const factory = new NodePluginHostFactory({ executable: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoot: () => project, token: () => 'test-token', request: async () => { throw new Error('Unexpected host request') } })
+    const factory = new NodePluginHostFactory({ executable: process.execPath, hostEntry: resolve('apps/local-runtime/src/plugins/host-entry.mjs'), packageRoot: () => project, token: () => 'test-token', request: async () => { throw new Error('Unexpected host request') } })
     const manager = new PluginManager({ sdk: '1.0.0', platform: 'darwin-arm64', uiProtocol: PLUGIN_UI_PROTOCOL_VERSION, epoch: () => 'test', factory, repository: { async publish() {}, async list() { return [] }, async remove() {} } })
     await manager.install(manifest); await manager.enable('generated'); await manager.activate('generated')
     try {
@@ -76,7 +76,7 @@ describe('packaged SDK and generated plugin', () => {
     const registry = new RuntimeToolRegistry(), skills = new PluginInstructionHost(join(root, 'home'), ['computer-use'])
     const files = new AgentFileStore({ homeDirectory: join(root, 'home'), pluginSkills: skills })
     await files.initialize()
-    const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/src/plugins/host-entry.mjs'), packageRoots: [project], skills, dataRoot: join(root, 'installed'), registry, configuration: {}, now: Date.now, ids: () => 'installed' })
+    const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/local-runtime/src/plugins/host-entry.mjs'), packageRoots: [project], skills, dataRoot: join(root, 'installed'), registry, configuration: {}, now: Date.now, ids: () => 'installed' })
     try {
       await platform.enable('generated')
       expect((await files.listSkills()).find(skill => skill.id === 'generated.hello')).toMatchObject({ source: 'plugin', enabled: true })

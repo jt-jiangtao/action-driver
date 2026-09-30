@@ -13,7 +13,7 @@ export default tseslint.config(
       // Immutable original-package snapshots and generated analysis evidence.
       'thirdparty/backup/**',
       'analysis/codex-cua/**',
-      'apps/agent-runtime/resources/system-skills/**',
+      'apps/local-runtime/resources/system-skills/**',
       'plugins/*/skills/**',
       'scripts/e2e-interactions/fixtures/**'
     ]
@@ -22,9 +22,9 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     // Node-side helper scripts that ship with the runtime or the packaging flow.
-    files: ['scripts/**/*.mjs', 'tests/unit/scripts/**/*.mjs', 'apps/agent-runtime/scripts/**/*.mjs',
-      'apps/agent-runtime/resources/js-repl/**/*.mjs',
-      'apps/agent-runtime/src/plugins/**/*.mjs', 'packages/create-action-driver-plugin/src/**/*.mjs',
+    files: ['scripts/**/*.mjs', 'tests/unit/scripts/**/*.mjs', 'apps/local-runtime/scripts/**/*.mjs',
+      'apps/local-runtime/resources/js-repl/**/*.mjs',
+      'apps/local-runtime/src/plugins/**/*.mjs', 'packages/create-action-driver-plugin/src/**/*.mjs',
       'packages/{cua,sky,cua-repl,browser-runtime,cua-parity}/**/*.mjs'],
     languageOptions: {
       globals: {

@@ -230,130 +230,6 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@24.10.1)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(yaml@2.9.1)
 
-  apps/agent-runtime:
-    dependencies:
-      '@action-driver/activity-projection':
-        specifier: workspace:*
-        version: link:../../packages/activity-projection
-      '@action-driver/browser-desktop':
-        specifier: workspace:*
-        version: link:../../packages/browser-desktop
-      '@action-driver/browser-runtime':
-        specifier: workspace:*
-        version: link:../../packages/browser-runtime
-      '@action-driver/command-plugin':
-        specifier: workspace:*
-        version: link:../../plugins/command
-      '@action-driver/computer-use-plugin':
-        specifier: workspace:*
-        version: link:../../plugins/computer-use
-      '@action-driver/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@action-driver/cua':
-        specifier: workspace:*
-        version: link:../../packages/cua
-      '@action-driver/image-generation-plugin':
-        specifier: workspace:*
-        version: link:../../plugins/image-generation
-      '@action-driver/model-connections':
-        specifier: workspace:*
-        version: link:../../packages/model-connections
-      '@action-driver/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
-      '@action-driver/plugin-contracts':
-        specifier: workspace:*
-        version: link:../../packages/plugin-contracts
-      '@action-driver/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../packages/plugin-sdk
-      '@action-driver/runtime-contracts':
-        specifier: workspace:*
-        version: link:../../packages/runtime-contracts
-      '@action-driver/skills-plugin':
-        specifier: workspace:*
-        version: link:../../plugins/skills
-      '@action-driver/sky':
-        specifier: workspace:*
-        version: link:../../packages/sky
-      '@action-driver/web-plugin':
-        specifier: workspace:*
-        version: link:../../plugins/web
-      '@hono/node-server':
-        specifier: 2.1.1
-        version: 2.1.1(hono@4.11.7)
-      '@hono/zod-validator':
-        specifier: 0.9.1
-        version: 0.9.1(hono@4.11.7)(zod@4.6.5)
-      '@langchain/core':
-        specifier: 1.2.12
-        version: 1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
-      '@langchain/langgraph':
-        specifier: 1.4.16
-        version: 1.4.16(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
-      '@langchain/langgraph-checkpoint-sqlite':
-        specifier: 1.0.4
-        version: 1.0.4(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)))
-      '@modelcontextprotocol/sdk':
-        specifier: 1.30.1
-        version: 1.30.1(@cfworker/json-schema@4.1.1)(supports-color@7.2.0)(zod@4.6.5)
-      '@mozilla/readability':
-        specifier: 0.6.0
-        version: 0.6.0
-      '@opentelemetry/api':
-        specifier: 1.9.1
-        version: 1.9.1
-      '@vscode/ripgrep':
-        specifier: 1.18.0
-        version: 1.18.0
-      better-sqlite3:
-        specifier: 12.11.1
-        version: 12.11.1
-      file-type:
-        specifier: 20.5.0
-        version: 20.5.0(supports-color@7.2.0)
-      hono:
-        specifier: 4.11.7
-        version: 4.11.7
-      image-size:
-        specifier: 2.0.4
-        version: 2.0.4
-      jsdom:
-        specifier: 26.1.0
-        version: 26.1.0(supports-color@7.2.0)
-      openai:
-        specifier: 6.49.0
-        version: 6.49.0(ws@8.21.3)(zod@4.6.5)
-      semver:
-        specifier: 7.7.3
-        version: 7.7.3
-      ws:
-        specifier: 8.21.3
-        version: 8.21.3
-      yaml:
-        specifier: 2.9.1
-        version: 2.9.1
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: 9.6.0
-        version: 9.6.0
-      '@types/jsdom':
-        specifier: 21.1.7
-        version: 21.1.7
-      '@types/semver':
-        specifier: 7.7.1
-        version: 7.7.1
-      '@types/ws':
-        specifier: 8.18.1
-        version: 8.18.1
-      esbuild:
-        specifier: 0.28.2
-        version: 0.28.2
-
   apps/desktop:
     dependencies:
       '@action-driver/activity-projection':
@@ -460,6 +336,133 @@ importers:
         specifier: 3.1.0
         version: 3.1.0(supports-color@7.2.0)(vite@6.4.3(@types/node@24.10.1)(yaml@2.9.1))
 
+  apps/local-runtime:
+    dependencies:
+      '@action-driver/activity-projection':
+        specifier: workspace:*
+        version: link:../../packages/activity-projection
+      '@action-driver/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
+      '@action-driver/browser-desktop':
+        specifier: workspace:*
+        version: link:../../packages/browser-desktop
+      '@action-driver/browser-runtime':
+        specifier: workspace:*
+        version: link:../../packages/browser-runtime
+      '@action-driver/command-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/command
+      '@action-driver/computer-use-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/computer-use
+      '@action-driver/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@action-driver/cua':
+        specifier: workspace:*
+        version: link:../../packages/cua
+      '@action-driver/image-generation-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/image-generation
+      '@action-driver/model-connections':
+        specifier: workspace:*
+        version: link:../../packages/model-connections
+      '@action-driver/model-provider-runtime':
+        specifier: workspace:*
+        version: link:../../packages/model-provider-runtime
+      '@action-driver/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      '@action-driver/plugin-contracts':
+        specifier: workspace:*
+        version: link:../../packages/plugin-contracts
+      '@action-driver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      '@action-driver/runtime-contracts':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contracts
+      '@action-driver/skills-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/skills
+      '@action-driver/sky':
+        specifier: workspace:*
+        version: link:../../packages/sky
+      '@action-driver/web-plugin':
+        specifier: workspace:*
+        version: link:../../plugins/web
+      '@hono/node-server':
+        specifier: 2.1.1
+        version: 2.1.1(hono@4.11.7)
+      '@hono/zod-validator':
+        specifier: 0.9.1
+        version: 0.9.1(hono@4.11.7)(zod@4.6.5)
+      '@langchain/core':
+        specifier: 1.2.12
+        version: 1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
+      '@langchain/langgraph':
+        specifier: 1.4.16
+        version: 1.4.16(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
+      '@langchain/langgraph-checkpoint-sqlite':
+        specifier: 1.0.4
+        version: 1.0.4(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)))
+      '@modelcontextprotocol/sdk':
+        specifier: 1.30.1
+        version: 1.30.1(@cfworker/json-schema@4.1.1)(supports-color@7.2.0)(zod@4.6.5)
+      '@mozilla/readability':
+        specifier: 0.6.0
+        version: 0.6.0
+      '@opentelemetry/api':
+        specifier: 1.9.1
+        version: 1.9.1
+      '@vscode/ripgrep':
+        specifier: 1.18.0
+        version: 1.18.0
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
+      file-type:
+        specifier: 20.5.0
+        version: 20.5.0(supports-color@7.2.0)
+      hono:
+        specifier: 4.11.7
+        version: 4.11.7
+      image-size:
+        specifier: 2.0.4
+        version: 2.0.4
+      jsdom:
+        specifier: 26.1.0
+        version: 26.1.0(supports-color@7.2.0)
+      semver:
+        specifier: 7.7.3
+        version: 7.7.3
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: 9.6.0
+        version: 9.6.0
+      '@types/jsdom':
+        specifier: 21.1.7
+        version: 21.1.7
+      '@types/semver':
+        specifier: 7.7.1
+        version: 7.7.1
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+
   packages/activity-projection:
     dependencies:
       '@action-driver/contracts':
@@ -468,6 +471,39 @@ importers:
       '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../runtime-contracts
+
+  packages/agent-runtime:
+    dependencies:
+      '@action-driver/activity-projection':
+        specifier: workspace:*
+        version: link:../activity-projection
+      '@action-driver/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@action-driver/model-connections':
+        specifier: workspace:*
+        version: link:../model-connections
+      '@action-driver/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@action-driver/plugin-contracts':
+        specifier: workspace:*
+        version: link:../plugin-contracts
+      '@action-driver/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      '@action-driver/runtime-contracts':
+        specifier: workspace:*
+        version: link:../runtime-contracts
+      '@langchain/core':
+        specifier: 1.2.12
+        version: 1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3)
+      '@langchain/langgraph':
+        specifier: 1.4.16
+        version: 1.4.16(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.5)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
 
   packages/browser-desktop:
     dependencies:
@@ -539,6 +575,21 @@ importers:
       '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../runtime-contracts
+
+  packages/model-provider-runtime:
+    dependencies:
+      '@action-driver/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@action-driver/model-connections':
+        specifier: workspace:*
+        version: link:../model-connections
+      '@action-driver/runtime-contracts':
+        specifier: workspace:*
+        version: link:../runtime-contracts
+      openai:
+        specifier: 6.49.0
+        version: 6.49.0(ws@8.21.3)(zod@4.6.5)
 
   packages/observability:
     dependencies:
