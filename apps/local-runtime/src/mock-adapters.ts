@@ -7,6 +7,7 @@ import type {
   RuntimeAdapters,
   RuntimeEventRecord,
   RuntimeTaskRecord,
+  SessionCatalogRecord,
   SkillProvider,
   TaskRepository
 } from '@action-driver/agent-runtime/ports'
@@ -113,6 +114,70 @@ export class MockSkillRegistry extends RuntimeSkillRegistry {
 
 class InMemoryTaskRepository implements TaskRepository {
   private readonly tasks = new Map<string, RuntimeTaskRecord>()
+  private readonly metadata = new Map<string, { pinned: boolean; archivedAt: string | null }>()
+
+  private record(task: RuntimeTaskRecord): SessionCatalogRecord {
+    const metadata = this.metadata.get(task.sessionId)
+    return {
+      task,
+      pinned: metadata?.pinned ?? false,
+      archived: metadata?.archivedAt !== null && metadata?.archivedAt !== undefined,
+      archivedAt: metadata?.archivedAt ?? null
+    }
+  }
+
+  async listSessions(input: {
+    archived: boolean
+    query?: string
+    limit: number
+    cursor?: string | null
+  }) {
+    const query = (input.query ?? '').trim().toLocaleLowerCase()
+    const records = (await Promise.all((await this.listRecentSessions(this.tasks.size)).map(async (task) => ({
+      ...this.record(task), title: (await this.listBySession(task.sessionId))[0]?.goal ?? task.goal
+    }))))
+      .filter(
+        (item) =>
+          item.archived === input.archived && item.title.toLocaleLowerCase().includes(query)
+      )
+      .sort((left, right) => {
+        if (!input.archived && left.pinned !== right.pinned) return left.pinned ? -1 : 1
+        const leftTime = input.archived ? (left.archivedAt ?? '') : left.task.updatedAt
+        const rightTime = input.archived ? (right.archivedAt ?? '') : right.task.updatedAt
+        return (
+          rightTime.localeCompare(leftTime) ||
+          right.task.sessionId.localeCompare(left.task.sessionId)
+        )
+      })
+    const start = input.cursor
+      ? Math.max(0, records.findIndex((item) => item.task.sessionId === input.cursor) + 1)
+      : 0
+    const items = records.slice(start, start + Math.max(1, Math.min(input.limit, 100)))
+    return {
+      items,
+      nextCursor:
+        start + items.length < records.length ? (items.at(-1)?.task.sessionId ?? null) : null
+    }
+  }
+
+  async setSessionPinned(sessionId: string, pinned: boolean): Promise<SessionCatalogRecord> {
+    const task = await this.getLatestBySession(sessionId)
+    if (!task) throw new Error(`Unknown session: ${sessionId}`)
+    const previous = this.metadata.get(sessionId)
+    this.metadata.set(sessionId, { pinned, archivedAt: previous?.archivedAt ?? null })
+    return this.record(task)
+  }
+
+  async setSessionArchived(sessionId: string, archived: boolean): Promise<SessionCatalogRecord> {
+    const task = await this.getLatestBySession(sessionId)
+    if (!task) throw new Error(`Unknown session: ${sessionId}`)
+    const previous = this.metadata.get(sessionId)
+    this.metadata.set(sessionId, {
+      pinned: previous?.pinned ?? false,
+      archivedAt: archived ? (previous?.archivedAt ?? new Date().toISOString()) : null
+    })
+    return this.record(task)
+  }
 
   async get(taskId: string): Promise<RuntimeTaskRecord | null> {
     return this.tasks.get(taskId) ?? null

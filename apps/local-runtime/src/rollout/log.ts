@@ -1,4 +1,4 @@
-import { closeSync, fsyncSync, fstatSync, mkdirSync, openSync, readSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, fstatSync, mkdirSync, openSync, readSync, readdirSync, writeSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { parseRolloutLine, type RolloutLine } from './model'
 
@@ -94,4 +94,35 @@ export function sessionRolloutPath(rootDirectory: string, sessionId: string, at 
   const day = String(at.getUTCDate()).padStart(2, '0')
   const stamp = at.toISOString().replace(/[:.]/g, '-').replace('Z', '')
   return join(rootDirectory, 'sessions', year, month, day, `rollout-${stamp}-${sessionId}.jsonl`)
+}
+
+/** Finds authoritative session logs without relying on a disposable projection index. */
+export function discoverSessionRollouts(rootDirectory: string): Array<{ sessionId: string; path: string }> {
+  const found = new Map<string, string>()
+  const visit = (directory: string) => {
+    let entries
+    try { entries = readdirSync(directory, { withFileTypes: true }) } catch { return }
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) { visit(path); continue }
+      if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue
+      const sessionId = readSessionId(path)
+      if (sessionId) found.set(sessionId, path)
+    }
+  }
+  visit(join(rootDirectory, 'sessions'))
+  return [...found].map(([sessionId, path]) => ({ sessionId, path }))
+}
+
+function readSessionId(path: string): string | null {
+  let handle: number
+  try { handle = openSync(path, 'r') } catch { return null }
+  try {
+    const bytes = Buffer.alloc(8192)
+    const count = readSync(handle, bytes, 0, bytes.length, 0)
+    const end = bytes.subarray(0, count).indexOf(0x0a)
+    if (end < 0) return null
+    const line = parseRawLine(bytes.subarray(0, end).toString('utf8'))
+    return line?.t === 'session_meta' ? line.sessionId : null
+  } finally { closeSync(handle) }
 }

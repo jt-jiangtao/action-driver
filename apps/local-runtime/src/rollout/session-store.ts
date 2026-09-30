@@ -11,11 +11,12 @@ import type {
   StreamRequestRepository,
   TaskRepository
 } from '@action-driver/agent-runtime/ports'
+import { existsSync, truncateSync } from 'node:fs'
 import { countRolloutEvents } from './event-bridge'
 import { applyRolloutLine, emptyRolloutState } from './fold'
 import { assertPersistablePayload } from '../persistence-guard'
-import { RolloutWriter, readRollout, sessionRolloutPath } from './log'
-import type { RolloutLine, RolloutLineDraft } from './model'
+import { RolloutWriter, discoverSessionRollouts, readRollout, sessionRolloutPath } from './log'
+import type { RolloutLine, RolloutLineDraft, SessionMetadata } from './model'
 import { RolloutProjection } from './projection'
 import { RolloutReadOperations } from './read'
 import { RolloutWriteOperations } from './write'
@@ -60,10 +61,16 @@ export class RolloutSessionStore implements StreamSessionRepository {
 
   constructor(private readonly options: RolloutStoreOptions) {
     this.now = options.now ?? (() => new Date().toISOString())
+    const projectionFilesMissing = !existsSync(options.statePath) || !existsSync(options.historyPath)
     this.projection = RolloutProjection.open({
       statePath: options.statePath,
       historyPath: options.historyPath
     })
+    for (const rollout of discoverSessionRollouts(options.sessionsRoot)) {
+      if (projectionFilesMissing || !this.projection.getThread(rollout.sessionId))
+        this.projection.rebuild(rollout)
+      else this.projection.project(rollout)
+    }
     this.requests = new RolloutRequestIndex(this.projection.listStreamRequests())
     for (const turn of this.projection.listAllTurns())
       this.taskSessions.set(turn.turnId, turn.sessionId)
@@ -92,6 +99,42 @@ export class RolloutSessionStore implements StreamSessionRepository {
       listBySession: async (sessionId) => this.reader.sessionTasks(sessionId),
       listRecent: async (limit) => this.reader.recentTasks(limit),
       listRecentSessions: async (limit) => this.reader.recentTasks(limit),
+      listSessions: async (query) => {
+        const page = this.projection.queryThreads(query)
+        const items = []
+        for (const thread of page.items) {
+          const task = await this.reader.latestTask(thread.sessionId)
+          if (task)
+            items.push({
+              task,
+              pinned: thread.pinned,
+              archived: thread.archived,
+              archivedAt: thread.archivedAt
+            })
+        }
+        return { items, nextCursor: page.nextCursor }
+      },
+      setSessionPinned: async (sessionId, pinned) => {
+        const thread = this.projection.getThread(sessionId)
+        if (!thread) throw new Error(`Unknown session: ${sessionId}`)
+        await this.setSessionMetadata(sessionId, {
+          pinned,
+          archived: thread.archived,
+          archivedAt: thread.archivedAt
+        })
+        const task = await this.reader.latestTask(sessionId)
+        if (!task) throw new Error(`Unknown session: ${sessionId}`)
+        return { task, pinned, archived: thread.archived, archivedAt: thread.archivedAt }
+      },
+      setSessionArchived: async (sessionId, archived) => {
+        const thread = this.projection.getThread(sessionId)
+        if (!thread) throw new Error(`Unknown session: ${sessionId}`)
+        const task = await this.reader.latestTask(sessionId)
+        if (!task) throw new Error(`Unknown session: ${sessionId}`)
+        const archivedAt = archived ? (thread.archivedAt ?? this.now()) : null
+        await this.setSessionMetadata(sessionId, { pinned: thread.pinned, archived, archivedAt })
+        return { task, pinned: thread.pinned, archived, archivedAt }
+      },
       save: async (task) => {
         this.writerOperations.saveTask(task)
       }
@@ -122,6 +165,18 @@ export class RolloutSessionStore implements StreamSessionRepository {
     this.eventViews.clear()
     for (const runtime of this.sessions.values()) runtime.writer.close()
     this.projection.close()
+  }
+
+  async setSessionMetadata(sessionId: string, metadata: SessionMetadata): Promise<void> {
+    const runtime = this.ensureRuntime(sessionId)
+    if (!runtime) throw new Error(`Unknown session: ${sessionId}`)
+    if (
+      runtime.state.metadata.pinned === metadata.pinned &&
+      runtime.state.metadata.archived === metadata.archived &&
+      runtime.state.metadata.archivedAt === metadata.archivedAt
+    )
+      return
+    this.appendLines(runtime, [{ t: 'session_state', ts: this.now(), ...metadata }])
   }
 
   async createStreamTask(input: {
@@ -208,7 +263,8 @@ export class RolloutSessionStore implements StreamSessionRepository {
   }
 
   private loadRuntime(sessionId: string, path: string): SessionRuntime {
-    const { lines } = readRollout(path)
+    const { lines, validBytes, truncated } = readRollout(path)
+    if (truncated) truncateSync(path, validBytes)
     const state = emptyRolloutState()
     for (const line of lines) applyRolloutLine(state, line)
     const runtime: SessionRuntime = {
@@ -248,7 +304,7 @@ export class RolloutSessionStore implements StreamSessionRepository {
   private advanceWatermarks(lines: readonly RolloutLine[]): void {
     for (const line of lines) {
       const added = countRolloutEvents(line)
-      if (added === 0 || line.t === 'session_meta') continue
+      if (added === 0 || line.t === 'session_meta' || line.t === 'session_state') continue
       const request = this.requests.getByTaskId(line.turnId)
       if (!request) continue
       const next = (this.derivedCounts.get(request.requestId) ?? 0) + added

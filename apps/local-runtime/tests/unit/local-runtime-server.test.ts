@@ -53,6 +53,41 @@ function createHarness(
 const model = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
 describe('local Runtime server composition', () => {
+  it('keeps archived sessions out of recent tasks and rejects archiving active work', async () => {
+    const harness = createHarness({ complete: async () => ({ kind: 'finish', content: 'unused' }) })
+    const task = {
+      id: 'turn-1',
+      threadId: 'session-1',
+      sessionId: 'session-1',
+      goal: '计划旅行',
+      model,
+      status: 'running',
+      error: null,
+      lastCheckpointId: null,
+      createdAt: '2026-09-30T00:00:00.000Z',
+      updatedAt: '2026-09-30T00:00:00.000Z'
+    }
+    await harness.repositories.tasks.save(task)
+    await expect(
+      harness.server.execute('session.archive.set', { sessionId: 'session-1', value: true })
+    ).rejects.toThrow(/running/)
+    await harness.repositories.tasks.save({ ...task, status: 'completed' })
+    await harness.server.execute('session.archive.set', { sessionId: 'session-1', value: true })
+    await expect(harness.server.execute('task.list', { limit: 20 })).resolves.toEqual({ tasks: [] })
+    const page = (await harness.server.execute('session.catalog', {
+      archived: true,
+      limit: 20
+    })) as { items: Array<{ sessionId: string }> }
+    expect(page.items[0]?.sessionId).toBe('session-1')
+    await harness.server.execute('session.archive.set', { sessionId: 'session-1', value: false })
+    const active = (await harness.server.execute('session.catalog', {
+      archived: false,
+      limit: 20
+    })) as { items: Array<{ sessionId: string }> }
+    expect(active.items[0]?.sessionId).toBe('session-1')
+    harness.repositories.close()
+  })
+
   // 3.2: the settings page lists and revokes persisted "always allow" grants through these commands.
   it('lists and removes always-allowed applications', async () => {
     const allowed = new Set(['com.apple.Notes', 'com.apple.Preview'])
@@ -62,7 +97,13 @@ describe('local Runtime server composition', () => {
         allowed.delete(bundleId)
       }
     }
-    const harness = createHarness({ complete: async () => ({ kind: 'finish', content: 'unused' }) }, undefined, undefined, undefined, store)
+    const harness = createHarness(
+      { complete: async () => ({ kind: 'finish', content: 'unused' }) },
+      undefined,
+      undefined,
+      undefined,
+      store
+    )
     await expect(harness.server.execute('computer-use.always-allowed.list', {})).resolves.toEqual({
       bundleIds: ['com.apple.Notes', 'com.apple.Preview']
     })
@@ -351,16 +392,18 @@ describe('local Runtime server composition', () => {
         streamSequence: 3,
         activityDurationMs: 2800,
         activities: [{ items: [{ content: '正文 A' }, { callId: 'call' }] }],
-        tools: [{
-          callId: 'call',
-          rawOutput: 'ok',
-          details: {
-            layout: 'terminal',
-            input: [{ value: 'open' }],
-            output: [{ value: 'running' }]
-          },
-          presentation: { layout: 'terminal' }
-        }]
+        tools: [
+          {
+            callId: 'call',
+            rawOutput: 'ok',
+            details: {
+              layout: 'terminal',
+              input: [{ value: 'open' }],
+              output: [{ value: 'running' }]
+            },
+            presentation: { layout: 'terminal' }
+          }
+        ]
       })
     })
     await harness.server.close()

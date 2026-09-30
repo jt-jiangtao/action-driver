@@ -1,5 +1,12 @@
 import type { DocumentFileRef, ImageAssetRef } from '@action-driver/contracts'
-import { blockRegion, type BlockKind, type BlockRegion, type RolloutLine, type ToolStatus } from './model'
+import {
+  blockRegion,
+  type BlockKind,
+  type BlockRegion,
+  type RolloutLine,
+  type SessionMetadata,
+  type ToolStatus
+} from './model'
 
 export type RolloutBlockState = {
   blockId: string
@@ -73,12 +80,20 @@ export type RolloutSessionState = {
   sessionId: string | null
   threadId: string | null
   model: { connectionId: string; modelId: string } | null
+  metadata: SessionMetadata
   cursor: number
   turns: RolloutTurnState[]
 }
 
 export function emptyRolloutState(): RolloutSessionState {
-  return { sessionId: null, threadId: null, model: null, cursor: -1, turns: [] }
+  return {
+    sessionId: null,
+    threadId: null,
+    model: null,
+    metadata: { pinned: false, archived: false, archivedAt: null },
+    cursor: -1,
+    turns: []
+  }
 }
 
 /** Next free slot: every block keeps the slots it reserved, so gaps never reopen. */
@@ -94,12 +109,23 @@ export function nextOrderForTurn(state: RolloutSessionState, turnId: string): nu
 }
 
 /** Applies one record to the accumulated state. Live streaming and replay share this. */
-export function applyRolloutLine(state: RolloutSessionState, line: RolloutLine): RolloutSessionState {
+export function applyRolloutLine(
+  state: RolloutSessionState,
+  line: RolloutLine
+): RolloutSessionState {
   state.cursor = Math.max(state.cursor, line.seq)
   if (line.t === 'session_meta') {
     state.sessionId = line.sessionId
     state.threadId = line.threadId
     state.model = line.model
+    return state
+  }
+  if (line.t === 'session_state') {
+    state.metadata = {
+      pinned: line.pinned,
+      archived: line.archived,
+      archivedAt: line.archivedAt
+    }
     return state
   }
   if (line.t === 'turn_begin') {

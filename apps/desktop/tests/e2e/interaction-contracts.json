@@ -1146,5 +1146,75 @@
     "coverage": "functional",
     "testFile": "apps/desktop/tests/unit/renderer/src/components/PluginContributionsMenu.test.tsx",
     "testName": "renders the runtime availability, opens a view and runs the bound command with the task"
+  },
+  {
+    "target": "e2e/shared/sidebar/tasks/:task-id/pin#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/components/Sidebar.test.tsx",
+    "testName": "pins and archives through separate buttons without opening the chat"
+  },
+  {
+    "target": "e2e/shared/sidebar/tasks/:task-id/archive#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/components/Sidebar.test.tsx",
+    "testName": "pins and archives through separate buttons without opening the chat"
+  },
+  {
+    "target": "e2e/settings/sidebar/archived#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "archives a completed chat and restores it from settings"
+  },
+  {
+    "target": "e2e/settings/archived/page#page",
+    "route": "settings",
+    "type": "page",
+    "coverage": "visual-only"
+  },
+  {
+    "target": "e2e/settings/archived/search#input",
+    "route": "settings",
+    "type": "input",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "searches all archived chats and loads another page without duplicates"
+  },
+  {
+    "target": "e2e/settings/archived/:task-id/open#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "searches all archived chats and loads another page without duplicates"
+  },
+  {
+    "target": "e2e/settings/archived/:task-id/restore#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "archives a completed chat and restores it from settings"
+  },
+  {
+    "target": "e2e/settings/archived/more#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "searches all archived chats and loads another page without duplicates"
+  },
+  {
+    "target": "e2e/settings/archived/retry#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "shows a retry after the catalog fails to load"
   }
 ]

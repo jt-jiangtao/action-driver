@@ -27,13 +27,15 @@ export function SkillsPage({
   onBack,
   onOpenConnections,
   onOpenMainPrompt,
-  onOpenComputerUse
+  onOpenComputerUse,
+  onOpenArchived
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
   onOpenComputerUse?(): void
+  onOpenArchived?(): void
 }) {
   const queryClient = useQueryClient()
   const skillsQuery = useQuery({
@@ -63,8 +65,7 @@ export function SkillsPage({
 
   const skills = skillsQuery.data ?? null
   const listLoadError = skillsQuery.error ? errorMessage(skillsQuery.error) : null
-  const selectedSkill =
-    skills?.find((candidate) => candidate.id === selectedSkillId) ?? null
+  const selectedSkill = skills?.find((candidate) => candidate.id === selectedSkillId) ?? null
 
   /** Precise cache invalidation for one mutation, awaited so callers see the refreshed list. */
   const refreshSkills = useCallback(async () => {
@@ -218,6 +219,7 @@ export function SkillsPage({
         {...(onOpenConnections ? { onOpenConnections } : {})}
         {...(onOpenMainPrompt ? { onOpenMainPrompt } : {})}
         {...(onOpenComputerUse ? { onOpenComputerUse } : {})}
+        {...(onOpenArchived ? { onOpenArchived } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className="agent-page">

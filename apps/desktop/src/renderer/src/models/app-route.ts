@@ -6,8 +6,15 @@ export type AppRoute =
   | { kind: 'main-prompt'; returnTo: MainAppRoute }
   | { kind: 'skills'; returnTo: MainAppRoute }
   | { kind: 'computer-use'; returnTo: MainAppRoute }
+  | { kind: 'archived'; returnTo: MainAppRoute }
 
-export type InitialAppRoute = 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' | 'computer-use'
+export type InitialAppRoute =
+  | 'home'
+  | 'task'
+  | 'settings'
+  | 'main-prompt'
+  | 'skills'
+  | 'computer-use'
 
 export function initialAppRoute(route: InitialAppRoute): AppRoute {
   if (route === 'task') return { kind: 'task', taskId: 'hotel-task' }

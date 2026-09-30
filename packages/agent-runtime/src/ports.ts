@@ -120,12 +120,31 @@ export type RuntimeTaskRecord = {
   updatedAt: string
 }
 
+export type SessionCatalogRecord = {
+  task: RuntimeTaskRecord
+  pinned: boolean
+  archived: boolean
+  archivedAt: string | null
+}
+
+export type SessionCatalogPage = { items: SessionCatalogRecord[]; nextCursor: string | null }
+
+export type SessionCatalogQuery = {
+  archived: boolean
+  query?: string
+  limit: number
+  cursor?: string | null
+}
+
 export interface TaskRepository {
   get(taskId: string): Promise<RuntimeTaskRecord | null>
   getLatestBySession(sessionId: string): Promise<RuntimeTaskRecord | null>
   listBySession(sessionId: string): Promise<RuntimeTaskRecord[]>
   listRecent(limit: number): Promise<RuntimeTaskRecord[]>
   listRecentSessions(limit: number): Promise<RuntimeTaskRecord[]>
+  listSessions?(query: SessionCatalogQuery): Promise<SessionCatalogPage>
+  setSessionPinned?(sessionId: string, pinned: boolean): Promise<SessionCatalogRecord>
+  setSessionArchived?(sessionId: string, archived: boolean): Promise<SessionCatalogRecord>
   save(task: RuntimeTaskRecord): Promise<void>
 }
 

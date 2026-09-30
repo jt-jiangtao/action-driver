@@ -11,7 +11,11 @@ import {
   buildTaskProjection,
   toOutputFileProjection
 } from '@action-driver/agent-runtime/task-projection'
-import type { MessageRepository, RuntimeAdapters, RuntimeTaskRecord } from '@action-driver/agent-runtime/ports'
+import type {
+  MessageRepository,
+  RuntimeAdapters,
+  RuntimeTaskRecord
+} from '@action-driver/agent-runtime/ports'
 import type { ComputerUseControlGate } from './computer-use/control-gate'
 import {
   AppApprovalError,
@@ -237,6 +241,17 @@ export function createLocalRuntimeServer(options: {
     if (command === 'task.list') {
       const requestedLimit = (rawInput as { limit?: number }).limit ?? 20
       const limit = Math.min(100, Math.max(1, Math.trunc(requestedLimit)))
+      if (taskRepository.listSessions) {
+        const page = await taskRepository.listSessions({ archived: false, limit })
+        return {
+          tasks: await Promise.all(
+            page.items.map(async ({ task }) => {
+              const first = (await taskRepository.listBySession(task.sessionId))[0]
+              return buildRecentTaskProjection(task, first?.goal ?? task.goal)
+            })
+          )
+        }
+      }
       return {
         tasks: await Promise.all(
           (await taskRepository.listRecentSessions(limit)).map(async (task) => {
@@ -245,6 +260,38 @@ export function createLocalRuntimeServer(options: {
           })
         )
       }
+    }
+    if (command === 'session.catalog') {
+      if (!taskRepository.listSessions) throw new Error('Session catalog unavailable')
+      const page = await taskRepository.listSessions(
+        rawInput as { archived: boolean; query?: string; limit: number; cursor?: string | null }
+      )
+      return {
+        items: await Promise.all(
+          page.items.map(async ({ task, pinned, archivedAt }) => {
+            const first = (await taskRepository.listBySession(task.sessionId))[0]
+            return {
+              ...buildRecentTaskProjection(task, first?.goal ?? task.goal),
+              pinned,
+              archivedAt
+            }
+          })
+        ),
+        nextCursor: page.nextCursor
+      }
+    }
+    if (command === 'session.pin.set' || command === 'session.archive.set') {
+      const { sessionId, value } = rawInput as { sessionId: string; value: boolean }
+      if (command === 'session.pin.set') {
+        if (!taskRepository.setSessionPinned) throw new Error('Session pin unavailable')
+        return taskRepository.setSessionPinned(sessionId, value)
+      }
+      if (!taskRepository.setSessionArchived) throw new Error('Session archive unavailable')
+      const latest = await taskRepository.getLatestBySession(sessionId)
+      if (!latest) throw new Error(`Unknown session: ${sessionId}`)
+      if (value && (latest.status === 'running' || latest.status === 'queued'))
+        throw new Error('Cannot archive a running or queued session')
+      return taskRepository.setSessionArchived(sessionId, value)
     }
     if (command === 'task.interrupt') {
       const { taskId } = rawInput as { taskId: string }

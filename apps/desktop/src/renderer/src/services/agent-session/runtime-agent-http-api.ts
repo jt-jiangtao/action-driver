@@ -1,6 +1,7 @@
 import type {
   AppApprovalDecision,
   RecentTaskProjection,
+  SessionCatalogPageProjection,
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
@@ -18,6 +19,14 @@ export type AgentControlApi = Pick<
   | 'controlSkill'
   | 'decideAppApproval'
 > & {
+  listSessions?(
+    archived: boolean,
+    query?: string,
+    cursor?: string | null,
+    limit?: number
+  ): Promise<SessionCatalogPageProjection>
+  setSessionPinned?(sessionId: string, value: boolean): Promise<void>
+  setSessionArchived?(sessionId: string, value: boolean): Promise<void>
   /** Persisted "always allow" Computer Use grants, managed from the settings page. */
   listAlwaysAllowedApps?(): Promise<string[]>
   removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
@@ -38,6 +47,31 @@ export class RuntimeAgentHttpApi implements AgentControlApi {
       `/tasks?limit=${encodeURIComponent(limit)}`
     )
     return result.tasks
+  }
+
+  async listSessions(
+    archived: boolean,
+    query = '',
+    cursor?: string | null,
+    limit = 50
+  ): Promise<SessionCatalogPageProjection> {
+    const params = new URLSearchParams({ archived: String(archived), query, limit: String(limit) })
+    if (cursor) params.set('cursor', cursor)
+    return this.http.request<SessionCatalogPageProjection>(`/sessions/catalog?${params}`)
+  }
+
+  async setSessionPinned(sessionId: string, value: boolean): Promise<void> {
+    await this.http.request(`/sessions/${encodeURIComponent(sessionId)}/pin`, {
+      method: 'PUT',
+      body: { value }
+    })
+  }
+
+  async setSessionArchived(sessionId: string, value: boolean): Promise<void> {
+    await this.http.request(`/sessions/${encodeURIComponent(sessionId)}/archive`, {
+      method: 'PUT',
+      body: { value }
+    })
   }
 
   async listAlwaysAllowedApps(): Promise<string[]> {

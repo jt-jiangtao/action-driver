@@ -1,0 +1,31 @@
+import { describe, expect, it } from 'vitest'
+import { createMockRuntimeAdapters } from '../../src/mock-adapters'
+
+describe('in-memory session catalog', () => {
+  it('preserves the first archive time, clears it on restore, and keeps the pin', async () => {
+    const tasks = createMockRuntimeAdapters().taskRepository
+    const task = {
+      id: 'turn-1',
+      threadId: 'session-1',
+      sessionId: 'session-1',
+      goal: 'Example',
+      model: { connectionId: 'conn', modelId: 'model' },
+      status: 'completed',
+      error: null,
+      lastCheckpointId: null,
+      createdAt: '2026-09-30T00:00:00.000Z',
+      updatedAt: '2026-09-30T00:00:00.000Z'
+    }
+    await tasks.save(task)
+    await tasks.setSessionPinned?.('session-1', true)
+    const first = await tasks.setSessionArchived?.('session-1', true)
+    const repeated = await tasks.setSessionArchived?.('session-1', true)
+    expect(repeated?.archivedAt).toBe(first?.archivedAt)
+    expect((await tasks.listSessions?.({ archived: true, limit: 10 }))?.items[0]?.pinned).toBe(true)
+    await tasks.setSessionArchived?.('session-1', false)
+    expect((await tasks.listSessions?.({ archived: false, limit: 10 }))?.items[0]).toMatchObject({
+      pinned: true,
+      archivedAt: null
+    })
+  })
+})

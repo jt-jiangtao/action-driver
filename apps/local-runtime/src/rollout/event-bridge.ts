@@ -59,7 +59,7 @@ export function deriveRolloutEventsForLine(
 }
 
 function belongsToRequest(line: RolloutLine, request: PersistedStreamRequest): boolean {
-  if (line.t === 'session_meta') return false
+  if (line.t === 'session_meta' || line.t === 'session_state') return false
   return line.turnId === request.taskId
 }
 
@@ -68,7 +68,7 @@ function belongsToRequest(line: RolloutLine, request: PersistedStreamRequest): b
  * a request's sequence watermark without folding the whole log on every append.
  */
 export function countRolloutEvents(line: RolloutLine): number {
-  if (line.t === 'session_meta') return 0
+  if (line.t === 'session_meta' || line.t === 'session_state') return 0
   if (line.t === 'turn_begin' || line.t === 'turn_end' || line.t === 'event') return 1
   if (line.t === 'message') return 0
   if (line.t === 'activity_text')
@@ -87,6 +87,7 @@ function lineToEvents(
   turn: RolloutTurnState | undefined,
   model: { connectionId: string; modelId: string } | null
 ): Array<{ type: string; payload: unknown }> {
+  if (line.t === 'session_meta' || line.t === 'session_state') return []
   if (line.t === 'turn_begin') {
     return [{ type: 'response.start', payload: { model } }]
   }

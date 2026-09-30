@@ -11,6 +11,7 @@ import { TaskPage } from './pages/TaskPage'
 import { MainPromptPage } from './pages/MainPromptPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { ComputerUsePage } from './pages/ComputerUsePage'
+import { ArchivedChatsPage } from './pages/ArchivedChatsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
 import type { MainAppRoute } from './models/app-route'
 import {
@@ -21,6 +22,7 @@ import {
 } from './models/model-selection'
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
+import { mergeSubmittedTask } from './models/recent-task-submission'
 import type { ComposerAttachments } from './components/AgentComposer'
 import { taskUsesComputerUse } from './services/agent-session/computer-use-guidance'
 import { useComputerUseGuidance } from './hooks/use-computer-use-guidance'
@@ -41,6 +43,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const activeTask = useTaskStore(
     useShallow((state) => ({
       id: state.activeTask?.id ?? null,
+      status: state.activeTask?.status ?? null,
       running: state.activeTask?.status === 'running',
       usesComputerUse: taskUsesComputerUse(state.activeTask)
     }))
@@ -53,8 +56,12 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const [recentTasks, setRecentTasks] = useState<readonly RecentTaskSummary[]>([])
   const [recentTasksLoading, setRecentTasksLoading] = useState(true)
   const [recentTasksError, setRecentTasksError] = useState<string | null>(null)
+  const [taskActionError, setTaskActionError] = useState<string | null>(null)
+  const [busySessionId, setBusySessionId] = useState<string | null>(null)
+  const busySessionRef = useRef<string | null>(null)
   const modelRequestId = useRef(0)
   const taskRequestId = useRef(0)
+  const previousActiveStatus = useRef<string | null>(null)
 
   const loadModels = useCallback(
     async (selected: ModelRef | null = null) => {
@@ -90,7 +97,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       if (requestId !== taskRequestId.current) return
       setRecentTasks(recent)
       setRecentTasksError(null)
-      if (initialRoute === 'task' && recent[0]) {
+      if (initialRoute === 'task' && requestId === 1 && recent[0]) {
         const restored = await services.taskCatalog.getTask(recent[0].id)
         if (requestId !== taskRequestId.current) return
         if (restored) {
@@ -101,7 +108,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       }
     } catch (error) {
       if (requestId !== taskRequestId.current) return
-      setRecentTasks([])
+      if (requestId === 1) setRecentTasks([])
       setRecentTasksError(error instanceof Error ? error.message : '任务加载失败')
     } finally {
       if (requestId === taskRequestId.current) setRecentTasksLoading(false)
@@ -164,15 +171,53 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setRoute({ kind: 'task', taskId: projection.id })
   }
 
+  const refreshRecentTasks = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['recent-tasks'], refetchType: 'none' })
+    await loadRecentTasks()
+  }, [loadRecentTasks, queryClient])
+
+  useEffect(() => {
+    const previous = previousActiveStatus.current
+    previousActiveStatus.current = activeTask.status
+    if (
+      (previous === 'running' || previous === 'queued') &&
+      activeTask.status !== 'running' &&
+      activeTask.status !== 'queued'
+    ) {
+      void refreshRecentTasks()
+    }
+  }, [activeTask.status, refreshRecentTasks])
+
+  const changeSession = async (sessionId: string, action: 'pin' | 'archive', value: boolean) => {
+    if (busySessionRef.current) return
+    busySessionRef.current = sessionId
+    setBusySessionId(sessionId)
+    setTaskActionError(null)
+    try {
+      if (action === 'pin') {
+        if (!services.taskCatalog.setPinned) throw new Error('置顶功能暂不可用')
+        await services.taskCatalog.setPinned(sessionId, value)
+      } else {
+        if (!services.taskCatalog.setArchived) throw new Error('归档功能暂不可用')
+        await services.taskCatalog.setArchived(sessionId, value)
+      }
+      await refreshRecentTasks()
+    } catch (error) {
+      const detail = error as { code?: string; message?: string } | null
+      setTaskActionError(error instanceof Error ? error.message : detail?.message ?? '操作失败，请重试')
+      if (detail?.code === 'not-found') await refreshRecentTasks()
+    } finally {
+      busySessionRef.current = null
+      setBusySessionId(null)
+    }
+  }
+
   const presentSubmittedTask = useCallback(
     (projection: TaskProjection, previousTaskId?: string) => {
       restoredTaskId.current = projection.id
       rememberActiveTaskId(projection.id)
       taskStore.getState().open(projection)
-      setRecentTasks((current) => [
-        { id: projection.id, title: projection.title, state: 'default' },
-        ...current.filter((item) => item.id !== projection.id && item.id !== previousTaskId)
-      ])
+      setRecentTasks((current) => mergeSubmittedTask(current, projection, previousTaskId))
       setRoute({ kind: 'task', taskId: projection.id })
     },
     [taskStore]
@@ -291,7 +336,11 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
 
   const mainRoute: MainAppRoute =
-    route.kind === 'settings' || route.kind === 'main-prompt' || route.kind === 'skills' || route.kind === 'computer-use'
+    route.kind === 'settings' ||
+    route.kind === 'main-prompt' ||
+    route.kind === 'skills' ||
+    route.kind === 'computer-use' ||
+    route.kind === 'archived'
       ? route.returnTo
       : route
 
@@ -315,6 +364,23 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     setRoute({ kind: 'computer-use', returnTo: mainRoute })
   }
 
+  const openArchived = () => setRoute({ kind: 'archived', returnTo: mainRoute })
+
+  if (route.kind === 'archived') {
+    return (
+      <ArchivedChatsPage
+        catalog={services.taskCatalog}
+        onBack={() => setRoute(route.returnTo)}
+        onOpenTask={(taskId) => void openTask(taskId)}
+        onRestored={() => void refreshRecentTasks()}
+        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+        onOpenMainPrompt={openMainPrompt}
+        onOpenSkills={openSkills}
+        onOpenComputerUse={openComputerUse}
+      />
+    )
+  }
+
   if (route.kind === 'settings') {
     return (
       <SettingsPage
@@ -326,6 +392,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onOpenMainPrompt={openMainPrompt}
         onOpenSkills={openSkills}
         onOpenComputerUse={openComputerUse}
+        onOpenArchived={openArchived}
       />
     )
   }
@@ -338,6 +405,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenSkills={openSkills}
         onOpenComputerUse={openComputerUse}
+        onOpenArchived={openArchived}
       />
     )
   }
@@ -350,6 +418,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
         onOpenMainPrompt={openMainPrompt}
         onOpenComputerUse={openComputerUse}
+        onOpenArchived={openArchived}
       />
     )
   }
@@ -360,16 +429,25 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       listAlwaysAllowedApps?(): Promise<string[]>
       removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
     }
-    return <ComputerUsePage onBack={() => setRoute(route.returnTo)}
-      onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
-      onOpenMainPrompt={openMainPrompt} onOpenSkills={openSkills}
-      onOpenComputerUse={openComputerUse}
-      {...(alwaysAllowed.listAlwaysAllowedApps
-        ? { listAlwaysAllowedApps: () => alwaysAllowed.listAlwaysAllowedApps!() }
-        : {})}
-      {...(alwaysAllowed.removeAlwaysAllowedApp
-        ? { removeAlwaysAllowedApp: (bundleId: string) => alwaysAllowed.removeAlwaysAllowedApp!(bundleId) }
-        : {})} />
+    return (
+      <ComputerUsePage
+        onBack={() => setRoute(route.returnTo)}
+        onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
+        onOpenMainPrompt={openMainPrompt}
+        onOpenSkills={openSkills}
+        onOpenComputerUse={openComputerUse}
+        onOpenArchived={openArchived}
+        {...(alwaysAllowed.listAlwaysAllowedApps
+          ? { listAlwaysAllowedApps: () => alwaysAllowed.listAlwaysAllowedApps!() }
+          : {})}
+        {...(alwaysAllowed.removeAlwaysAllowedApp
+          ? {
+              removeAlwaysAllowedApp: (bundleId: string) =>
+                alwaysAllowed.removeAlwaysAllowedApp!(bundleId)
+            }
+          : {})}
+      />
+    )
   }
 
   return (
@@ -386,6 +464,10 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           recentTasksLoading={recentTasksLoading}
           recentTasksError={recentTasksError}
           onRetryRecentTasks={() => void loadRecentTasks()}
+          onPinTask={(sessionId, pinned) => void changeSession(sessionId, 'pin', pinned)}
+          onArchiveTask={(sessionId) => void changeSession(sessionId, 'archive', true)}
+          busySessionId={busySessionId}
+          actionError={taskActionError}
         />
       ) : null}
       {route.kind === 'home' ? (

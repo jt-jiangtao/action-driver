@@ -182,10 +182,57 @@
   padding: 0 8px;
   color: var(--ad-color-text-secondary);
 }
-.recent-task span {
+.recent-task-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  text-align: left;
+}
+.recent-task-title-viewport {
+  display: block;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.recent-task-title {
+  display: inline-block;
+  white-space: nowrap;
+  transition: transform 2s linear;
+}
+.recent-task[data-interacting] .recent-task-title {
+  transform: translateX(calc(-1 * var(--title-overflow, 0px)));
+}
+.recent-task-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+.recent-task-action {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--ad-color-text-tertiary);
+}
+.recent-task:hover .recent-task-action,
+.recent-task:focus-within .recent-task-action {
+  display: inline-flex;
+}
+.recent-task-action:hover {
+  background: var(--ad-color-bg-selected);
+  color: var(--ad-color-text-primary);
+}
+.recent-task-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .recent-task-title {
+    transition: none;
+    transform: none !important;
+  }
 }
 .recent-task.is-active {
   color: var(--ad-color-text-primary);

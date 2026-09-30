@@ -7,14 +7,16 @@ export function SettingsSidebar({
   onOpenConnections,
   onOpenMainPrompt,
   onOpenSkills,
-  onOpenComputerUse
+  onOpenComputerUse,
+  onOpenArchived
 }: {
   onBack(): void
-  active?: 'model-connections' | 'main-prompt' | 'skills' | 'computer-use'
+  active?: 'model-connections' | 'main-prompt' | 'skills' | 'computer-use' | 'archived'
   onOpenConnections?(): void
   onOpenMainPrompt?(): void
   onOpenSkills?(): void
   onOpenComputerUse?(): void
+  onOpenArchived?(): void
 }) {
   return (
     <aside className="settings-sidebar">
@@ -83,6 +85,14 @@ export function SettingsSidebar({
         >
           <AppIcon name="monitor" />
           Computer Use
+        </button>
+      </div>
+      <div className="settings-nav-group">
+        <span className="settings-nav-label">聊天</span>
+        <button className={`settings-nav-item ${active === 'archived' ? 'is-active' : ''}`}
+          data-testid="e2e/settings/sidebar/archived#button" type="button"
+          onClick={active === 'archived' ? undefined : onOpenArchived}>
+          <AppIcon name="archive" />已归档的聊天
         </button>
       </div>
       </nav>

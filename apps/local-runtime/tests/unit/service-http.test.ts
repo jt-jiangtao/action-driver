@@ -95,6 +95,57 @@ function authorized(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('service HTTP surface', () => {
+  it('validates session catalog and state mutation routes', async () => {
+    const execute = vi.fn(async (command: string) => {
+      if (command === 'session.archive.set')
+        throw new Error('Cannot archive a running or queued session')
+      return { items: [], nextCursor: null }
+    })
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      taskControl: { execute }
+    })
+    expect((await authorized('/sessions/catalog?archived=true&limit=10')).status).toBe(200)
+    expect(execute).toHaveBeenCalledWith('session.catalog', { archived: true, limit: 10 })
+    expect((await authorized('/sessions/catalog?archived=yes')).status).toBe(400)
+    expect(
+      (
+        await authorized('/sessions/session-1/pin', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ value: 'yes' })
+        })
+      ).status
+    ).toBe(400)
+    expect(
+      (
+        await authorized('/sessions/session-1/archive', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ value: true })
+        })
+      ).status
+    ).toBe(409)
+  })
+
+  it('reports unexpected session storage failures as server errors', async () => {
+    server = await startServiceHttpServer({
+      service: serviceStub(),
+      token: 'service-token',
+      runtimeVersion: '0.1.0',
+      taskControl: { execute: async () => { throw new Error('disk full') } }
+    })
+    const response = await authorized('/sessions/session-1/pin', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ value: true })
+    })
+    expect(response.status).toBe(500)
+    expect(await response.text()).not.toContain('disk full')
+  })
+
   it('accepts and returns per-capability model results', async () => {
     const capabilities = {
       text: { state: 'success', source: 'probe' },

@@ -19,7 +19,9 @@ export type ProjectedThread = {
   goal: string
   createdAt: string
   updatedAt: string
+  pinned: boolean
   archived: boolean
+  archivedAt: string | null
   rolloutPath: string
 }
 
@@ -69,7 +71,9 @@ export class RolloutProjection {
         goal TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL DEFAULT '',
+        pinned INTEGER NOT NULL DEFAULT 0,
         archived INTEGER NOT NULL DEFAULT 0,
+        archived_at TEXT,
         rollout_path TEXT NOT NULL DEFAULT ''
       );
       CREATE INDEX IF NOT EXISTS threads_updated_idx ON threads(updated_at DESC, session_id DESC);
@@ -90,6 +94,11 @@ export class RolloutProjection {
       CREATE INDEX IF NOT EXISTS stream_requests_task_idx ON stream_requests(task_id);
       CREATE INDEX IF NOT EXISTS stream_requests_key_idx ON stream_requests(idempotency_key);
     `)
+    const threadColumns = state.pragma('table_info(threads)') as Array<{ name: string }>
+    if (!threadColumns.some((column) => column.name === 'pinned'))
+      state.exec('ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0')
+    if (!threadColumns.some((column) => column.name === 'archived_at'))
+      state.exec('ALTER TABLE threads ADD COLUMN archived_at TEXT')
     history.exec(`
       CREATE TABLE IF NOT EXISTS turns (
         turn_id TEXT PRIMARY KEY,
@@ -162,9 +171,9 @@ export class RolloutProjection {
   }
 
   getThread(sessionId: string): ProjectedThread | null {
-    const row = this.state
-      .prepare('SELECT * FROM threads WHERE session_id = ?')
-      .get(sessionId) as ThreadRow | undefined
+    const row = this.state.prepare('SELECT * FROM threads WHERE session_id = ?').get(sessionId) as
+      | ThreadRow
+      | undefined
     return row ? threadFromRow(row) : null
   }
 
@@ -173,6 +182,56 @@ export class RolloutProjection {
       .prepare('SELECT * FROM threads ORDER BY updated_at DESC, session_id DESC LIMIT ?')
       .all(limit) as ThreadRow[]
     return rows.map(threadFromRow)
+  }
+
+  queryThreads(input: {
+    archived: boolean
+    query?: string
+    limit: number
+    cursor?: string | null
+  }): {
+    items: ProjectedThread[]
+    nextCursor: string | null
+  } {
+    const limit = Math.max(1, Math.min(input.limit, 100))
+    const term = (input.query ?? '').trim().toLowerCase()
+    const cursor = input.cursor ? decodeThreadCursor(input.cursor) : null
+    const timeColumn = input.archived ? 'archived_at' : 'updated_at'
+    const order = input.archived
+      ? 'archived_at DESC, session_id DESC'
+      : 'pinned DESC, updated_at DESC, session_id DESC'
+    const where = ['archived = ?', "LOWER(title) LIKE ? ESCAPE '\\'"]
+    const args: Array<string | number> = [
+      Number(input.archived),
+      `%${term.replace(/[\\%_]/g, '\\$&')}%`
+    ]
+    if (cursor) {
+      where.push(
+        input.archived
+          ? `(archived_at < ? OR (archived_at = ? AND session_id < ?))`
+          : `(pinned < ? OR (pinned = ? AND (${timeColumn} < ? OR (${timeColumn} = ? AND session_id < ?))))`
+      )
+      if (input.archived) args.push(cursor.time, cursor.time, cursor.id)
+      else args.push(cursor.pinned, cursor.pinned, cursor.time, cursor.time, cursor.id)
+    }
+    const rows = this.state
+      .prepare(`SELECT * FROM threads WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ?`)
+      .all(...args, limit + 1) as ThreadRow[]
+    const page = rows.slice(0, limit)
+    const last = page.at(-1)
+    return {
+      items: page.map(threadFromRow),
+      nextCursor:
+        rows.length > limit && last
+          ? Buffer.from(
+              JSON.stringify({
+                pinned: last.pinned,
+                time: input.archived ? last.archived_at : last.updated_at,
+                id: last.session_id
+              })
+            ).toString('base64url')
+          : null
+    }
   }
 
   saveStreamRequest(request: PersistedStreamRequest): void {
@@ -249,14 +308,15 @@ export class RolloutProjection {
              model_id = excluded.model_id,
              rollout_path = excluded.rollout_path`
         )
-        .run(
-          sessionId,
-          line.model.connectionId,
-          line.model.modelId,
-          line.ts,
-          line.ts,
-          rolloutPath
+        .run(sessionId, line.model.connectionId, line.model.modelId, line.ts, line.ts, rolloutPath)
+      return
+    }
+    if (line.t === 'session_state') {
+      this.state
+        .prepare(
+          'UPDATE threads SET pinned = ?, archived = ?, archived_at = ? WHERE session_id = ?'
         )
+        .run(Number(line.pinned), Number(line.archived), line.archivedAt, sessionId)
       return
     }
     if (line.t === 'turn_begin') {
@@ -315,7 +375,14 @@ export class RolloutProjection {
              updated_at_ordinal = excluded.updated_at_ordinal,
              item_json = excluded.item_json`
         )
-        .run(line.turnId, sessionId, `activity_text:${line.textId}`, line.seq, line.seq, JSON.stringify(line))
+        .run(
+          line.turnId,
+          sessionId,
+          `activity_text:${line.textId}`,
+          line.seq,
+          line.seq,
+          JSON.stringify(line)
+        )
       return
     }
     if (line.t === 'message') {
@@ -328,7 +395,14 @@ export class RolloutProjection {
              updated_at_ordinal = excluded.updated_at_ordinal,
              item_json = excluded.item_json`
         )
-        .run(line.turnId, sessionId, `message:${line.messageId}`, line.seq, line.seq, JSON.stringify(line))
+        .run(
+          line.turnId,
+          sessionId,
+          `message:${line.messageId}`,
+          line.seq,
+          line.seq,
+          JSON.stringify(line)
+        )
       return
     }
     const callId = line.callId
@@ -400,6 +474,27 @@ export class RolloutProjection {
   }
 }
 
+function decodeThreadCursor(encoded: string): { pinned: number; time: string; id: string } {
+  try {
+    const value: unknown = JSON.parse(Buffer.from(encoded, 'base64url').toString())
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'pinned' in value &&
+      'time' in value &&
+      'id' in value &&
+      (value.pinned === 0 || value.pinned === 1) &&
+      typeof value.time === 'string' &&
+      typeof value.id === 'string'
+    ) {
+      return { pinned: value.pinned, time: value.time, id: value.id }
+    }
+  } catch {
+    /* malformed cursor */
+  }
+  throw new Error('Invalid session catalog cursor')
+}
+
 type ThreadRow = {
   session_id: string
   title: string
@@ -409,7 +504,9 @@ type ThreadRow = {
   goal: string
   created_at: string
   updated_at: string
+  pinned: number
   archived: number
+  archived_at: string | null
   rollout_path: string
 }
 
@@ -481,7 +578,9 @@ function threadFromRow(row: ThreadRow): ProjectedThread {
     goal: row.goal,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    pinned: row.pinned === 1,
     archived: row.archived === 1,
+    archivedAt: row.archived_at,
     rolloutPath: row.rollout_path
   }
 }

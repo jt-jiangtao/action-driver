@@ -356,11 +356,79 @@ describe('App', () => {
     await user.click(screen.getByTestId('e2e/settings/sidebar/computer-use#button'))
     expect(await screen.findByTestId('e2e/settings/computer-use/page#page')).toBeVisible()
     // The entry stays in the sidebar once its own page is open, like every other entry.
-    expect(screen.getByTestId('e2e/settings/sidebar/computer-use#button'))
-      .toHaveClass('is-active')
+    expect(screen.getByTestId('e2e/settings/sidebar/computer-use#button')).toHaveClass('is-active')
 
     await user.click(screen.getByRole('button', { name: '模型连接' }))
     expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+  })
+
+  it('archives a completed chat and restores it from settings', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    const archive = await screen.findByTestId(
+      'e2e/shared/sidebar/tasks/research-task/archive#button'
+    )
+    await user.click(archive)
+    expect(
+      screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    await user.click(screen.getByTestId('e2e/settings/sidebar/archived#button'))
+    expect(
+      await screen.findByTestId('e2e/settings/archived/research-task/open#button')
+    ).toBeVisible()
+    await user.click(screen.getByTestId('e2e/settings/archived/research-task/restore#button'))
+    expect(
+      screen.queryByTestId('e2e/settings/archived/research-task/open#button')
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '返回应用' }))
+    expect(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
+  })
+
+  it('keeps a chat visible when archiving fails', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    services.taskCatalog.setArchived = vi.fn(async () => {
+      throw new Error('归档未完成')
+    })
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+    await user.click(
+      await screen.findByTestId('e2e/shared/sidebar/tasks/research-task/archive#button')
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('归档未完成')
+    expect(screen.getByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
+  })
+
+  it('preserves the pinned sidebar row when continuing a chat', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    const getTask = services.taskCatalog.getTask.bind(services.taskCatalog)
+    services.taskCatalog.getTask = async (id) => {
+      const task = await getTask(id)
+      return task?.id === 'research-task' ? { ...task, status: 'succeeded' } : task
+    }
+    render(
+      <AppServicesProvider services={services}>
+        <App />
+      </AppServicesProvider>
+    )
+    await user.click(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task/pin#button'))
+    await user.click(screen.getByTestId('e2e/shared/sidebar/tasks/research-task#button'))
+    const editor = screen.getByLabelText('任务描述')
+    editor.textContent = '继续整理'
+    fireEvent.input(editor)
+    await user.click(screen.getByLabelText('发送'))
+
+    expect(await screen.findByTestId('e2e/shared/sidebar/tasks/hotel-task-2#button')).toBeVisible()
+    expect(screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('e2e/shared/sidebar/tasks/hotel-task-2/pin#button')).toHaveAttribute(
+      'aria-label',
+      '取消置顶'
+    )
   })
 
   it('loads persisted models and tasks, then submits the exact selected model reference', async () => {

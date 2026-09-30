@@ -38,6 +38,8 @@ import {
   PanelLeft,
   PanelRight,
   Package,
+  Pin,
+  Archive,
   Pause,
   Terminal,
   Timer,
@@ -86,6 +88,8 @@ export type AppIconName =
   | 'panel-left'
   | 'panel-right'
   | 'package'
+  | 'pin'
+  | 'archive'
   | 'pause'
   | 'play'
   | 'plus'
@@ -143,6 +147,8 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   'panel-left': PanelLeft,
   'panel-right': PanelRight,
   package: Package,
+  pin: Pin,
+  archive: Archive,
   pause: Pause,
   play: Play,
   plus: Plus,

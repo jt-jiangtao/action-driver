@@ -206,6 +206,58 @@ async function runTurn(store: RolloutSessionStore): Promise<void> {
 }
 
 describe('rollout session store', () => {
+  it('recovers archived sessions when projection databases are deleted before startup', async () => {
+    const paths = workspace()
+    const store = new RolloutSessionStore(paths)
+    await runTurn(store)
+    await store.setSessionMetadata('session-1', { pinned: true, archived: true, archivedAt: '2026-09-30T00:00:09.000Z' })
+    store.close()
+    rmSync(paths.statePath)
+    rmSync(paths.historyPath)
+    const reopened = new RolloutSessionStore(paths)
+    const archived = await reopened.tasks.listSessions?.({ archived: true, limit: 10 })
+    expect(archived?.items[0]).toMatchObject({ pinned: true, archivedAt: '2026-09-30T00:00:09.000Z', task: { sessionId: 'session-1' } })
+    reopened.close()
+  })
+
+  it('can append a new session state after recovering a torn log tail', async () => {
+    const paths = workspace()
+    const store = new RolloutSessionStore(paths)
+    await runTurn(store)
+    store.close()
+    appendFileSync(findRolloutFile(paths.sessionsRoot), '{"t":"session_state","seq":999')
+    const reopened = new RolloutSessionStore(paths)
+    await reopened.setSessionMetadata('session-1', { pinned: true, archived: false, archivedAt: null })
+    expect((await reopened.tasks.listSessions?.({ archived: false, limit: 10 }))?.items[0]?.pinned).toBe(true)
+    reopened.close()
+  })
+
+  it('appends session metadata once and preserves it across reopen', async () => {
+    const paths = workspace()
+    const store = new RolloutSessionStore(paths)
+    await store.createStreamTask({
+      request,
+      task,
+      userMessage: { ...message, role: 'user' },
+      assistantMessage: message,
+      acceptedEvent: event('request.accepted', {}, request.createdAt, 0)
+    })
+    const metadata = { pinned: true, archived: true, archivedAt: '2026-09-30T00:00:09.000Z' }
+    await store.setSessionMetadata('session-1', metadata)
+    store.close()
+
+    const reopened = new RolloutSessionStore(paths)
+    await reopened.setSessionMetadata('session-1', metadata)
+    reopened.close()
+    const states = readFileSync(findRolloutFile(paths.sessionsRoot), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as { t: string })
+      .filter((line) => line.t === 'session_state')
+    expect(states).toHaveLength(1)
+    expect(states[0]).toMatchObject(metadata)
+  })
+
   it('keeps live, paged and reopened event fields equal across interleaved turns and a torn tail', async () => {
     const paths = workspace()
     const store = new RolloutSessionStore(paths)

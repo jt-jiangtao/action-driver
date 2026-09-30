@@ -16,6 +16,7 @@ export function ComputerUsePage({
   onOpenMainPrompt,
   onOpenSkills,
   onOpenComputerUse,
+  onOpenArchived,
   listAlwaysAllowedApps,
   removeAlwaysAllowedApp
 }: {
@@ -24,6 +25,7 @@ export function ComputerUsePage({
   onOpenMainPrompt(): void
   onOpenSkills(): void
   onOpenComputerUse?(): void
+  onOpenArchived?(): void
   listAlwaysAllowedApps?(): Promise<string[]>
   removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
 }) {
@@ -81,7 +83,8 @@ export function ComputerUsePage({
     <SettingsSidebar onBack={onBack} active="computer-use"
       onOpenConnections={onOpenConnections} onOpenMainPrompt={onOpenMainPrompt}
       onOpenSkills={onOpenSkills}
-      {...(onOpenComputerUse ? { onOpenComputerUse } : {})} />
+      {...(onOpenComputerUse ? { onOpenComputerUse } : {})}
+      {...(onOpenArchived ? { onOpenArchived } : {})} />
     <main className="settings-main agent-settings-main">
       <div className="agent-page computer-use-settings">
         <header className="agent-page-header"><div>

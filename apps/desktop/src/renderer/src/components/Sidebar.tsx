@@ -16,7 +16,11 @@ export function Sidebar({
   onOpenSettings,
   recentTasksError,
   recentTasksLoading,
-  onRetryRecentTasks
+  onRetryRecentTasks,
+  onPinTask,
+  onArchiveTask,
+  busySessionId,
+  actionError
 }: {
   active: 'new' | 'task'
   activeTaskId: string | null
@@ -28,6 +32,10 @@ export function Sidebar({
   recentTasksError?: string | null
   recentTasksLoading?: boolean
   onRetryRecentTasks?(): void
+  onPinTask?(sessionId: string, pinned: boolean): void
+  onArchiveTask?(sessionId: string): void
+  busySessionId?: string | null
+  actionError?: string | null
 }) {
   return (
     <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="248">
@@ -71,6 +79,11 @@ export function Sidebar({
       <section className="sidebar-recents" aria-labelledby="recent-tasks-title">
         <h2 id="recent-tasks-title">最近任务</h2>
         <div className="recent-task-list">
+          {actionError ? (
+            <p className="sidebar-empty-state" role="alert">
+              {actionError}
+            </p>
+          ) : null}
           {recentTasksLoading ? <p className="sidebar-empty-state">正在加载任务</p> : null}
           {!recentTasksLoading && recentTasksError ? (
             <div className="sidebar-empty-state">
@@ -92,6 +105,9 @@ export function Sidebar({
               active={active === 'task' && activeTaskId === task.id}
               key={task.id}
               onOpen={(taskId) => onOpenTask?.(taskId)}
+              {...(onPinTask ? { onPin: onPinTask } : {})}
+              {...(onArchiveTask ? { onArchive: onArchiveTask } : {})}
+              busy={busySessionId === task.sessionId}
               task={task}
             />
           ))}

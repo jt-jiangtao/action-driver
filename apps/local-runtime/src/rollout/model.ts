@@ -52,6 +52,16 @@ const sessionMetaLineSchema = z
   })
   .strict()
 
+const sessionStateLineSchema = z
+  .object({
+    t: z.literal('session_state'),
+    ...base,
+    pinned: z.boolean(),
+    archived: z.boolean(),
+    archivedAt: timestampSchema.nullable()
+  })
+  .strict()
+
 const turnBeginLineSchema = z
   .object({
     t: z.literal('turn_begin'),
@@ -186,6 +196,7 @@ const activityTextLineSchema = z
 
 export const rolloutLineSchema = z.discriminatedUnion('t', [
   sessionMetaLineSchema,
+  sessionStateLineSchema,
   turnBeginLineSchema,
   turnEndLineSchema,
   blockLineSchema,
@@ -196,6 +207,8 @@ export const rolloutLineSchema = z.discriminatedUnion('t', [
 ])
 
 export type SessionMetaLine = z.infer<typeof sessionMetaLineSchema>
+export type SessionStateLine = z.infer<typeof sessionStateLineSchema>
+export type SessionMetadata = Pick<SessionStateLine, 'pinned' | 'archived' | 'archivedAt'>
 export type TurnBeginLine = z.infer<typeof turnBeginLineSchema>
 export type TurnEndLine = z.infer<typeof turnEndLineSchema>
 export type BlockLine = z.infer<typeof blockLineSchema>

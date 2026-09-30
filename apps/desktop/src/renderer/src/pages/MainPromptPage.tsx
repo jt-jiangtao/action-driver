@@ -12,13 +12,15 @@ export function MainPromptPage({
   onBack,
   onOpenConnections,
   onOpenSkills,
-  onOpenComputerUse
+  onOpenComputerUse,
+  onOpenArchived
 }: {
   service: AgentFilesService
   onBack(): void
   onOpenConnections?(): void
   onOpenSkills?(): void
   onOpenComputerUse?(): void
+  onOpenArchived?(): void
 }) {
   const queryClient = useQueryClient()
   const [file, setFile] = useState<AgentTextFile | null>(null)
@@ -28,23 +30,27 @@ export function MainPromptPage({
   const [dialog, setDialog] = useState<'restore' | 'leave' | null>(null)
   const pendingNavigation = useRef<(() => void) | null>(null)
 
-  const load = useCallback(async (refresh = false) => {
-    try {
-      if (refresh) await queryClient.invalidateQueries({ queryKey: ['main-prompt'], refetchType: 'none' })
-      const loaded = await queryClient.fetchQuery({
-        queryKey: ['main-prompt'],
-        queryFn: () => service.getMainPrompt(),
-        staleTime: 30_000,
-        retry: false
-      })
-      setFile(loaded)
-      setValue(loaded.content)
-      setSaveState('saved')
-      setError(null)
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : String(loadError))
-    }
-  }, [queryClient, service])
+  const load = useCallback(
+    async (refresh = false) => {
+      try {
+        if (refresh)
+          await queryClient.invalidateQueries({ queryKey: ['main-prompt'], refetchType: 'none' })
+        const loaded = await queryClient.fetchQuery({
+          queryKey: ['main-prompt'],
+          queryFn: () => service.getMainPrompt(),
+          staleTime: 30_000,
+          retry: false
+        })
+        setFile(loaded)
+        setValue(loaded.content)
+        setSaveState('saved')
+        setError(null)
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : String(loadError))
+      }
+    },
+    [queryClient, service]
+  )
 
   useEffect(() => {
     void load()
@@ -101,7 +107,10 @@ export function MainPromptPage({
           ? { onOpenConnections: () => requestNavigation(onOpenConnections) }
           : {})}
         {...(onOpenSkills ? { onOpenSkills: () => requestNavigation(onOpenSkills) } : {})}
-        {...(onOpenComputerUse ? { onOpenComputerUse: () => requestNavigation(onOpenComputerUse) } : {})}
+        {...(onOpenComputerUse
+          ? { onOpenComputerUse: () => requestNavigation(onOpenComputerUse) }
+          : {})}
+        {...(onOpenArchived ? { onOpenArchived: () => requestNavigation(onOpenArchived) } : {})}
       />
       <main className="settings-main agent-settings-main">
         <div className="agent-page">

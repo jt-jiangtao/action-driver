@@ -47,6 +47,24 @@ const turnBegin = (seq: number): RolloutLine => ({
 })
 
 describe('rollout line model', () => {
+  it('parses a session organization record and folds its latest values', () => {
+    const stateLine = {
+      t: 'session_state',
+      seq: 1,
+      ts: '2026-09-30T00:00:01.000Z',
+      pinned: true,
+      archived: true,
+      archivedAt: '2026-09-30T00:00:01.000Z'
+    }
+    expect(parseRolloutLine(stateLine)).toEqual(stateLine)
+    const state = foldRollout([meta(0), stateLine as RolloutLine])
+    expect(state.metadata).toEqual({
+      pinned: true,
+      archived: true,
+      archivedAt: '2026-09-30T00:00:01.000Z'
+    })
+  })
+
   it('parses every record type and rejects malformed records', () => {
     expect(parseRolloutLine(meta(0))?.t).toBe('session_meta')
     expect(parseRolloutLine(turnBegin(1))?.t).toBe('turn_begin')
@@ -112,7 +130,9 @@ describe('rollout log', () => {
     const torn = readRollout(file)
     expect(torn.lines).toHaveLength(2)
     expect(torn.truncated).toBe(true)
-    expect(torn.validBytes).toBe(Buffer.byteLength(`${JSON.stringify(meta(0))}\n${JSON.stringify(turnBegin(1))}\n`))
+    expect(torn.validBytes).toBe(
+      Buffer.byteLength(`${JSON.stringify(meta(0))}\n${JSON.stringify(turnBegin(1))}\n`)
+    )
 
     appendFileSync(file, '\n{"t":"bogus"}\n')
     const invalid = readRollout(file)

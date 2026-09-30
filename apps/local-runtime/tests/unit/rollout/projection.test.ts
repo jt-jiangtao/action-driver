@@ -7,7 +7,12 @@ import { RolloutProjection } from '../../../src/rollout/projection'
 
 const temporaryDirectories: string[] = []
 
-function workspace(): { root: string; rolloutPath: string; statePath: string; historyPath: string } {
+function workspace(): {
+  root: string
+  rolloutPath: string
+  statePath: string
+  historyPath: string
+} {
   const root = mkdtempSync(join(tmpdir(), 'action-driver-projection-'))
   temporaryDirectories.push(root)
   return {
@@ -67,6 +72,77 @@ const batch: RolloutLine = {
 }
 
 describe('rollout projection', () => {
+  it('filters archived titles before paging and keeps pinned sessions first', () => {
+    const paths = workspace()
+    const projection = RolloutProjection.open(paths)
+    for (const [id, title, timestamp, pinned, archived] of [
+      ['a', 'ordinary', '2026-09-30T00:00:03.000Z', false, false],
+      ['b', 'matching older', '2026-09-30T00:00:02.000Z', false, true],
+      ['c', 'matching newer', '2026-09-30T00:00:04.000Z', false, true],
+      ['d', 'pinned', '2026-09-30T00:00:01.000Z', true, false]
+    ] as const) {
+      const path = join(paths.root, `${id}.jsonl`)
+      writeLines(path, [
+        { ...sessionMeta, sessionId: id, threadId: id },
+        { ...turnBegin, goal: title, ts: timestamp },
+        {
+          t: 'session_state',
+          seq: 2,
+          ts: timestamp,
+          pinned,
+          archived,
+          archivedAt: archived ? timestamp : null
+        }
+      ])
+      projection.project({ sessionId: id, path })
+    }
+    expect(
+      projection.queryThreads({ archived: false, limit: 10 }).items.map((item) => item.sessionId)
+    ).toEqual(['d', 'a'])
+    const first = projection.queryThreads({ archived: true, query: 'MATCHING', limit: 1 })
+    expect(first.items.map((item) => item.sessionId)).toEqual(['c'])
+    expect(
+      projection
+        .queryThreads({ archived: true, query: 'matching', limit: 1, cursor: first.nextCursor })
+        .items.map((item) => item.sessionId)
+    ).toEqual(['b'])
+    expect(() => projection.queryThreads({ archived: true, limit: 1, cursor: 'broken' })).toThrow(
+      'Invalid session catalog cursor'
+    )
+    projection.close()
+  })
+
+  it('rebuilds session organization metadata from the log', () => {
+    const { rolloutPath, statePath, historyPath } = workspace()
+    const archivedAt = '2026-09-30T00:00:03.000Z'
+    writeLines(rolloutPath, [
+      sessionMeta,
+      turnBegin,
+      {
+        t: 'session_state',
+        seq: 2,
+        ts: archivedAt,
+        pinned: true,
+        archived: true,
+        archivedAt
+      } as RolloutLine
+    ])
+    const projection = RolloutProjection.open({ statePath, historyPath })
+    projection.project({ sessionId: 'session-1', path: rolloutPath })
+    expect(projection.getThread('session-1')).toMatchObject({
+      pinned: true,
+      archived: true,
+      archivedAt
+    })
+    projection.rebuild({ sessionId: 'session-1', path: rolloutPath })
+    expect(projection.getThread('session-1')).toMatchObject({
+      pinned: true,
+      archived: true,
+      archivedAt
+    })
+    projection.close()
+  })
+
   it('projects threads, turns and items, then resumes incrementally without duplicates', () => {
     const { rolloutPath, statePath, historyPath } = workspace()
     writeLines(rolloutPath, [sessionMeta, turnBegin, batch])

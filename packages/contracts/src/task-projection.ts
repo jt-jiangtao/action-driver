@@ -195,6 +195,16 @@ export type RecentTaskProjection = {
   updatedAt: string
 }
 
+export type SessionCatalogProjection = RecentTaskProjection & {
+  pinned: boolean
+  archivedAt: string | null
+}
+
+export type SessionCatalogPageProjection = {
+  items: SessionCatalogProjection[]
+  nextCursor: string | null
+}
+
 /** A deliverable registered for one task; the bytes stay in the Runtime store. */
 export type TaskOutputFileProjection = {
   fileId: string
