@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from '../../../../../src/renderer/src/pages/SettingsPage'
-import { MockModelConnectionsService } from '../../../../../src/renderer/src/services/mock-model-connections'
+import { MockModelConnectionsService } from '../../../../../src/renderer/src/services/model-connections/mock-model-connections'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 function renderWithQuery(element: ReactElement, options?: RenderOptions) {

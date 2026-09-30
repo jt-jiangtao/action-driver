@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ExecutionTimeline } from '../../../../../src/renderer/src/components/ExecutionTimeline'
-import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 
 describe('ExecutionTimeline', () => {
   it('renders the four vertical steps and progress from the task projection', () => {

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HomePage } from '../../../../../src/renderer/src/pages/HomePage'
 import { TaskPage } from '../../../../../src/renderer/src/pages/TaskPage'
-import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 import { mockModelSelection } from '../../../../../src/renderer/src/testing/model-selection-fixture'
 
 describe('Action-Driver pages', () => {

@@ -22,7 +22,8 @@ import {
 import type { ModelSelectionProjection } from './models/model-selection'
 import type { RecentTaskSummary } from './models/task-catalog'
 import type { ComposerAttachments } from './components/AgentComposer'
-import { taskUsesComputerUse, useComputerUseGuidance } from './services/computer-use-guidance'
+import { taskUsesComputerUse } from './services/agent-session/computer-use-guidance'
+import { useComputerUseGuidance } from './hooks/use-computer-use-guidance'
 
 const ACTIVE_TASK_ID_KEY = 'action-driver.active-task-id'
 

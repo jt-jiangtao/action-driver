@@ -8,6 +8,7 @@ import {
   openRuntimeDatabase,
   type RuntimeMigration
 } from '../../src/index'
+import { DEFAULT_RUNTIME_MIGRATIONS as migrationDefinitions } from '../../src/database/migrations'
 
 const temporaryDirectories: string[] = []
 
@@ -24,6 +25,12 @@ afterEach(() => {
 })
 
 describe('runtime SQLite database', () => {
+  it('keeps the historical migration registry behind the database entrypoint', () => {
+    expect(DEFAULT_RUNTIME_MIGRATIONS).toBe(migrationDefinitions)
+    expect(migrationDefinitions.map(({ version }) => version)).toEqual(
+      Array.from({ length: 16 }, (_, index) => index + 1)
+    )
+  })
   it('creates the business schema with production pragmas before becoming ready', () => {
     const path = databasePath()
     const database = openRuntimeDatabase(path)

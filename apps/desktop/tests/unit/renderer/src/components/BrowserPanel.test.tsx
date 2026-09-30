@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { BrowserPanel } from '../../../../../src/renderer/src/components/BrowserPanel'
 import { BrowserSizeToggle } from '../../../../../src/renderer/src/components/browser/BrowserSizeToggle'
 import { BrowserSkillControls } from '../../../../../src/renderer/src/components/browser/BrowserSkillControls'
-import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 
 describe('BrowserPanel', () => {
   it('exposes maximize and restore through the size toggle component', async () => {

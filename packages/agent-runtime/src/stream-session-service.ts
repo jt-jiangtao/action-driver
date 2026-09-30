@@ -1,8 +1,4 @@
-import {
-  projectToolDetails,
-  toolPresentationSchema,
-  type ToolPresentation
-} from '@action-driver/plugin-contracts'
+import { projectToolDetails, toolPresentationSchema } from '@action-driver/plugin-contracts'
 import {
   STREAM_PROTOCOL,
   parseStreamServerEvent,
@@ -10,47 +6,15 @@ import {
   type StreamClientEvent,
   type StreamServerEvent
 } from '@action-driver/runtime-contracts'
-import {
-  appendActivityAnchor,
-  insertPartByOrder,
-  isImageGenerationToolId,
-  nextPartOrder,
-  normalizeAssistantParts,
-  type MessageContentPart
-} from '@action-driver/contracts'
-import type { ModelInputMessage } from '@action-driver/model-connections'
-import type {
-  AppApprovalEvent,
-  AppApprovalPort,
-  AssetPort,
-  BoundInputFile,
-  InputFilePort,
-  OutputBaseline,
-  OutputPort
-} from './host-ports'
-import type {
-  AgentGraphResult,
-  GraphRunner,
-  IdGenerator,
-  ModelGatewayEvent,
-  PersistedMessage,
-  PersistedStreamRequest,
-  RuntimeEventRecord,
-  StreamSessionRepository,
-  RuntimeTaskRecord
-} from './ports'
+import type { AppApprovalEvent } from './host-ports'
+import type { PersistedStreamRequest, RuntimeEventRecord } from './ports'
 import { toolActivityErrorSummary, toolActivityResultSummary } from './tool-activity'
-import { legacyResourceUri } from '@action-driver/runtime-contracts'
 import { StreamEventDelivery, type Emit } from './stream/event-delivery'
+import type { StreamSessionOptions } from './stream/session-context'
+import { createStreamRequest } from './stream/request-creation'
+import { executeTurn } from './stream/turn-execution'
 import { buildStreamSnapshot, type SnapshotEvent } from './stream/stream-snapshot'
-import {
-  attachmentErrorCode,
-  boundedJson,
-  boundedText,
-  imageOrder,
-  isImageAssetRef,
-  messageText
-} from './stream/stream-values'
+import { boundedJson, boundedText } from './stream/stream-values'
 
 type ActiveRequest = {
   sessionId: string
@@ -65,39 +29,7 @@ export class StreamSessionService {
   private readonly activeSessions = new Set<string>()
   private readonly delivery: StreamEventDelivery
 
-  constructor(
-    private readonly options: {
-      repositories: StreamSessionRepository
-      graphRunner: GraphRunner
-      ids: IdGenerator
-      now(): string
-      rawToolIO?: { enabled: boolean; maxBytes?: number }
-      toolPresentation?: (toolId: string) => ToolPresentation | undefined
-      appApprovals?: AppApprovalPort
-      /**
-       * Host cleanup for a finished turn (Computer Use: cancel pending app approvals, release app
-       * leases). Runs once per turn, whatever its outcome, before its response.end is published.
-       */
-      turnEnded?: (taskId: string) => Promise<void>
-      listEnabledSkills?: () => Promise<Array<{ skillId: string; description: string }>>
-      assets?: AssetPort
-      inputFiles?: InputFilePort
-      outputs?: OutputPort
-      listOutputs?: (taskId: string) => Promise<
-        Array<{
-          fileId: string
-          sessionId: string
-          taskId: string
-          name: string
-          mimeType: string
-          byteLength: number
-        }>
-      >
-      describeSessionInputs?: (
-        sessionId: string
-      ) => Promise<Array<{ name: string; path: string; mimeType: string }>>
-    }
-  ) {
+  constructor(private readonly options: StreamSessionOptions) {
     this.delivery = new StreamEventDelivery({
       repositories: this.options.repositories,
       toServerEvent: (request, record) => this.toServerEvent(request, record),
@@ -179,201 +111,55 @@ export class StreamSessionService {
   }
 
   private async create(event: RequestCreateEvent, emit: Emit): Promise<void> {
-    const existing = await this.options.repositories.streamRequests.getByIdempotencyKey(
-      event.idempotencyKey
+    const prepared = await createStreamRequest(
+      {
+        options: this.options,
+        isSessionActive: (sessionId) => this.activeSessions.has(sessionId),
+        reserveSession: (sessionId) => this.activeSessions.add(sessionId),
+        releaseSession: (sessionId) => this.activeSessions.delete(sessionId),
+        runtimeEvent: (request, type, sequence, payload, eventKey) =>
+          this.runtimeEvent(request, type, sequence, payload, eventKey)
+      },
+      event
     )
-    if (existing) {
-      const acceptedRecord = await this.findEvent(existing.requestId, 'request.accepted')
-      await emit(this.toServerEvent(existing, acceptedRecord))
-      await this.replay(existing.requestId, acceptedRecord.cursor, emit)
+    if (prepared.kind === 'rejected') {
+      await this.emitRequestError(event.requestId, prepared.code, prepared.message, emit)
+      return
+    }
+    if (prepared.kind === 'existing') {
+      const acceptedRecord = await this.findEvent(prepared.request.requestId, 'request.accepted')
+      await emit(this.toServerEvent(prepared.request, acceptedRecord))
+      await this.replay(prepared.request.requestId, acceptedRecord.cursor, emit)
       return
     }
 
-    const previous = event.sessionId
-      ? await this.options.repositories.tasks.getLatestBySession(event.sessionId)
-      : null
-    if (event.sessionId && !previous) {
-      await this.emitRequestError(event.requestId, 'session-not-found', 'Unknown session', emit)
-      return
-    }
-    if (
-      previous &&
-      (previous.status === 'running' || this.activeSessions.has(previous.sessionId))
-    ) {
-      await this.emitRequestError(
-        event.requestId,
-        'session-busy',
-        'Another task is running in this session',
-        emit
-      )
-      return
-    }
-
-    const now = this.options.now()
-    const sessionId = previous?.sessionId ?? this.options.ids.next('session')
-    const model = previous?.model ?? (event.sessionId === null ? event.payload.model : null)
-    if (!model) {
-      await this.emitRequestError(event.requestId, 'session-not-found', 'Unknown session', emit)
-      return
-    }
-    const imageIds = event.payload.input.imageAssetIds ?? []
-    if (imageIds.length > 0 && !this.options.assets) {
-      await this.emitRequestError(
-        event.requestId,
-        'image-unavailable',
-        'Image storage is unavailable',
-        emit
-      )
-      return
-    }
-    let boundAssets: Awaited<ReturnType<AssetPort['bindStaged']>>[] = []
-    try {
-      boundAssets = await Promise.all(
-        imageIds.map((assetId) => this.options.assets!.bindStaged(assetId, sessionId))
-      )
-    } catch (error) {
-      console.warn('[stream-session] image asset bind failed', error)
-      await this.emitRequestError(
-        event.requestId,
-        'image-invalid',
-        `Image cannot be attached (${attachmentErrorCode(error)})`,
-        emit
-      )
-      return
-    }
-    const userParts: MessageContentPart[] = [
-      ...(event.payload.input.content
-        ? [{ kind: 'text' as const, text: event.payload.input.content }]
-        : []),
-      ...boundAssets.map((asset) => ({ kind: 'image' as const, asset }))
-    ]
-    const history = previous ? await this.sessionHistory(previous.sessionId) : []
-    const userMessageId = this.options.ids.next('message')
-    const assistantMessageId = this.options.ids.next('message')
-    const request: PersistedStreamRequest = {
-      requestId: event.requestId,
-      idempotencyKey: event.idempotencyKey,
-      sessionId,
-      taskId: this.options.ids.next('task'),
-      responseId: this.options.ids.next('response'),
-      streamId: this.options.ids.next('stream'),
-      messageId: assistantMessageId,
-      status: 'running',
-      lastSequence: -1,
-      createdAt: now,
-      updatedAt: now
-    }
-    const task: RuntimeTaskRecord = {
-      id: request.taskId,
-      threadId: request.taskId,
-      sessionId: request.sessionId,
-      goal: event.payload.input.content.trim() || '图片消息',
-      model,
-      status: 'running',
-      error: null,
-      lastCheckpointId: null,
-      createdAt: now,
-      updatedAt: now
-    }
-    const inputFileIds = event.payload.input.inputFileIds ?? []
-    let boundInputs: BoundInputFile[] = []
-    if (inputFileIds.length > 0) {
-      if (!this.options.inputFiles) {
-        await this.emitRequestError(
-          event.requestId,
-          'input-unavailable',
-          'File storage is unavailable',
-          emit
-        )
-        return
-      }
-      try {
-        boundInputs = []
-        for (const fileId of inputFileIds) {
-          boundInputs.push(
-            await this.options.inputFiles.bind(fileId, {
-              sessionId,
-              taskId: request.taskId
-            })
-          )
-        }
-      } catch (error) {
-        console.warn('[stream-session] input file bind failed', error)
-        await this.emitRequestError(
-          event.requestId,
-          'input-invalid',
-          `File cannot be attached (${attachmentErrorCode(error)})`,
-          emit
-        )
-        return
-      }
-      // Images keep their existing thumbnail part; only documents need a card.
-      userParts.push(
-        ...boundInputs
-          .filter((file) => !file.mimeType.startsWith('image/'))
-          .map((file) => ({
-            kind: 'document' as const,
-            file: {
-              fileId: file.fileId,
-              sessionId: file.sessionId,
-              taskId: file.taskId,
-              name: file.name,
-              mimeType: file.mimeType,
-              byteLength: file.byteLength
-            }
-          }))
-      )
-      if (!task.goal.trim() || task.goal === '图片消息') task.goal = boundInputs[0]!.name
-    }
-    const userMessage: PersistedMessage = {
-      id: userMessageId,
-      taskId: request.taskId,
-      role: 'user',
-      content: { parts: userParts },
-      createdAt: now
-    }
-    const assistantMessage: PersistedMessage = {
-      id: request.messageId,
-      taskId: request.taskId,
-      role: 'assistant',
-      content: { text: '' },
-      createdAt: now
-    }
-    const acceptedEvent = this.runtimeEvent(request, 'request.accepted', null, {})
-    this.activeSessions.add(sessionId)
-    let created
-    try {
-      created = await this.options.repositories.createStreamTask({
-        request,
-        task,
-        userMessage,
-        assistantMessage,
-        acceptedEvent
-      })
-    } catch (error) {
-      this.activeSessions.delete(sessionId)
-      throw error
-    }
-    const storedRequest = created.request
+    const storedRequest = prepared.request
     const acceptedRecord = await this.findEvent(storedRequest.requestId, 'request.accepted')
     await emit(this.toServerEvent(storedRequest, acceptedRecord))
     this.delivery.markPublished(storedRequest.requestId, acceptedRecord.cursor)
 
-    if (!created.created) {
-      this.activeSessions.delete(sessionId)
+    if (!prepared.persisted) {
+      this.activeSessions.delete(storedRequest.sessionId)
       await this.replay(storedRequest.requestId, acceptedRecord.cursor, emit)
       return
     }
 
     const controller = new AbortController()
     const delivery = { emit }
-    const operation = this.execute(
+    const operation = executeTurn(
+      {
+        options: this.options,
+        runtimeEvent: (request, type, sequence, payload, eventKey) =>
+          this.runtimeEvent(request, type, sequence, payload, eventKey),
+        publishThrough: (request, cursor, sink) => this.publishThrough(request, cursor, sink),
+        releaseSession: (sessionId) => this.activeSessions.delete(sessionId)
+      },
       event,
       storedRequest,
-      task,
-      assistantMessage,
-      history,
-      boundAssets.length > 0 ? { role: 'user', content: userParts } : undefined,
+      prepared.task,
+      prepared.assistantMessage,
+      prepared.history,
+      prepared.currentMessage,
       controller.signal,
       (event) => delivery.emit(event)
     ).finally(() => {
@@ -395,7 +181,6 @@ export class StreamSessionService {
       delivery
     })
     void operation.catch((error: unknown) => {
-      // A rejected turn must never disappear silently: the client is left waiting otherwise.
       console.error('[stream-session] turn failed', error)
     })
   }
@@ -417,357 +202,6 @@ export class StreamSessionService {
     active.controller.abort(new DOMException(reason, 'AbortError'))
     const request = await this.options.repositories.streamRequests.getByRequestId(requestId)
     if (request) await this.options.appApprovals?.cancelTask(request.taskId)
-  }
-
-  private async execute(
-    createEvent: RequestCreateEvent,
-    request: PersistedStreamRequest,
-    initialTask: RuntimeTaskRecord,
-    initialAssistant: PersistedMessage,
-    history: ModelInputMessage[],
-    currentMessage: ModelInputMessage | undefined,
-    signal: AbortSignal,
-    emit: Emit
-  ): Promise<void> {
-    let sequence = 0
-    let activitySequence = 0
-    let content = ''
-    const assistantParts: MessageContentPart[] = []
-    const seenImages = new Set<string>()
-    const assistantContent = () =>
-      assistantParts.some(
-        (part) => part.kind === 'image' || part.kind === 'image-batch' || part.kind === 'activity'
-      )
-        ? { parts: normalizeAssistantParts(assistantParts) }
-        : { text: content }
-    let terminal: Extract<ModelGatewayEvent, { kind: 'end' }> | null = null
-    const startedAt = Date.parse(request.createdAt)
-    const startRecord = await this.options.repositories.commitAssistantContentWithEvent(
-      request,
-      initialAssistant,
-      this.runtimeEvent(request, 'response.start', sequence, { model: initialTask.model })
-    )
-    await this.publishThrough(request, startRecord.cursor, emit)
-
-    let result: AgentGraphResult | null = null
-    let thrown: unknown = null
-    let outputBaseline: OutputBaseline | null = null
-    try {
-      outputBaseline = (await this.options.outputs?.baseline(request.sessionId)) ?? null
-      const sessionInputs = (await this.options.describeSessionInputs?.(request.sessionId)) ?? []
-      result = await this.options.graphRunner.run(
-        {
-          taskId: request.taskId,
-          sessionId: request.sessionId,
-          goal: initialTask.goal,
-          model: initialTask.model,
-          messages: history,
-          ...(sessionInputs.length > 0
-            ? {
-                inputContext: sessionInputs
-              }
-            : {}),
-          ...(currentMessage ? { currentMessage } : {}),
-          ...(createEvent.payload.systemPrompt === undefined
-            ? {}
-            : { systemPrompt: createEvent.payload.systemPrompt }),
-          skills: (await this.options.listEnabledSkills?.()) ?? [],
-          streamRequestId: request.requestId
-        },
-        signal,
-        async (event) => {
-          if (event.kind === 'activity') {
-            const activity = event.event
-            const record = await this.options.repositories.events.append(
-              this.runtimeEvent(
-                request,
-                `activity.${activity.type}`,
-                null,
-                activity,
-                `activity.${activity.type}:${activity.activityId}:${activitySequence++}`
-              )
-            )
-            await this.publishThrough(request, record.cursor, emit)
-            return
-          }
-          if (event.kind === 'tool-call-preparing') {
-            const record = await this.options.repositories.events.append(
-              this.runtimeEvent(
-                request,
-                'response.tool_preparing',
-                null,
-                { index: event.index, modelName: event.modelName },
-                `response.tool_preparing:${activitySequence++}`
-              )
-            )
-            await this.publishThrough(request, record.cursor, emit)
-            return
-          }
-      if (event.kind === 'end') {
-        if (event.result?.kind !== 'tool-calls') terminal = event
-        return
-      }
-          sequence += 1
-          content += event.delta
-          const last = assistantParts.at(-1)
-          const continuesText = last?.kind === 'text'
-          const textOrder = continuesText ? (last.order ?? 0) : nextPartOrder(assistantParts)
-          if (last?.kind === 'text') last.text += event.delta
-          else assistantParts.push({ kind: 'text', text: event.delta, order: textOrder })
-          const contentIndex = assistantParts.indexOf(assistantParts.at(-1)!)
-          const record = await this.options.repositories.commitAssistantContentWithEvent(
-            request,
-            { ...initialAssistant, content: assistantContent() },
-            this.runtimeEvent(request, 'response.content', sequence, {
-              delta: event.delta,
-              contentIndex,
-              order: textOrder
-            })
-          )
-          await this.publishThrough(request, record.cursor, emit)
-        },
-        async (record) => {
-          if (record.requestId === request.requestId) {
-            if (record.type.startsWith('tool.')) {
-              // Anchor the tool group where it starts, so the transcript keeps
-              // the model's own order: prose, tools, images, prose.
-              const activityId = (record.payload as { activityId?: unknown }).activityId
-              if (typeof activityId === 'string') appendActivityAnchor(assistantParts, activityId)
-            }
-            if (record.type === 'tool.running') {
-              const payload = record.payload as {
-                callId?: unknown
-                toolId?: unknown
-                imageCount?: unknown
-              }
-              if (
-                typeof payload.toolId === 'string' &&
-                isImageGenerationToolId(payload.toolId) &&
-                typeof payload.callId === 'string' &&
-                typeof payload.imageCount === 'number' &&
-                Number.isInteger(payload.imageCount) &&
-                payload.imageCount >= 1 &&
-                payload.imageCount <= 16 &&
-                !assistantParts.some(
-                  (part) => part.kind === 'image-batch' && part.callId === payload.callId
-                )
-              ) {
-                const contentIndex = assistantParts.length
-                const batchOrder = nextPartOrder(assistantParts)
-                assistantParts.push({
-                  kind: 'image-batch',
-                  callId: payload.callId,
-                  imageCount: payload.imageCount,
-                  order: batchOrder
-                })
-                sequence += 1
-                let batchRecord
-                try {
-                  batchRecord = await this.options.repositories.commitAssistantContentWithEvent(
-                    request,
-                    { ...initialAssistant, content: assistantContent() },
-                    this.runtimeEvent(
-                      request,
-                      'response.image_batch',
-                      sequence,
-                      {
-                        callId: payload.callId,
-                        imageCount: payload.imageCount,
-                        contentIndex,
-                        order: batchOrder
-                      },
-                      `response.image_batch:${payload.callId}`
-                    )
-                  )
-                } catch (error) {
-                  assistantParts.pop()
-                  sequence -= 1
-                  throw error
-                }
-                await this.publishThrough(request, batchRecord.cursor, emit)
-                return
-              }
-            }
-            await this.publishThrough(request, record.cursor, emit)
-            if (record.type === 'tool.asset') {
-              const payload = record.payload as {
-                callId?: unknown
-                index?: unknown
-                asset?: unknown
-              }
-              if (
-                typeof payload.callId !== 'string' ||
-                typeof payload.index !== 'number' ||
-                !isImageAssetRef(payload.asset) ||
-                payload.asset.sessionId !== request.sessionId
-              )
-                return
-              const asset = payload.asset
-              const callId = payload.callId
-              const imageIndex = payload.index
-              const imageKey = `${callId}:${imageIndex}`
-              if (seenImages.has(imageKey)) return
-              if (assistantParts.length === 0 && content)
-                assistantParts.push({
-                  kind: 'text',
-                  text: content,
-                  order: nextPartOrder(assistantParts)
-                })
-              // The batch reserved a slot per image, so the picture lands where
-              // it was planned even when a later slot finishes first.
-              const order = imageOrder(assistantParts, callId, imageIndex)
-              insertPartByOrder(assistantParts, {
-                kind: 'image',
-                asset,
-                generation: { callId, index: imageIndex },
-                order
-              })
-              const contentIndex = assistantParts.findIndex(
-                (part) => part.kind === 'image' && part.asset.assetId === asset.assetId
-              )
-              sequence += 1
-              let imageRecord
-              try {
-                imageRecord = await this.options.repositories.commitAssistantImageWithEvent(
-                  request,
-                  { ...initialAssistant, content: assistantContent() },
-                  this.runtimeEvent(
-                    request,
-                    'response.image',
-                    sequence,
-                    {
-                      asset,
-                      contentIndex,
-                      callId,
-                      index: imageIndex,
-                      order
-                    },
-                    `response.image:${imageKey}`
-                  )
-                )
-              } catch (error) {
-                const inserted = assistantParts.findIndex(
-                  (part) => part.kind === 'image' && part.asset.assetId === asset.assetId
-                )
-                if (inserted >= 0) assistantParts.splice(inserted, 1)
-                sequence -= 1
-                throw error
-              }
-              seenImages.add(imageKey)
-              await this.publishThrough(request, imageRecord.cursor, emit)
-            }
-          }
-        }
-      )
-    } catch (error) {
-      thrown = error
-    }
-
-    const occurredAt = this.options.now()
-    const cancelled = signal.aborted || result?.status === 'interrupted'
-    const terminalEvent = terminal as Extract<ModelGatewayEvent, { kind: 'end' }> | null
-    const completed = result?.status === 'completed' && terminalEvent !== null && !cancelled
-    const status = completed ? 'completed' : cancelled ? 'cancelled' : 'failed'
-    if (completed && terminalEvent) {
-      content = terminalEvent.content
-      // The streamed part order is canonical: text stays where it appeared
-      // relative to the visual batches. Only text the model sent without
-      // streaming it (terminal answer with no content events) is appended, so
-      // live rendering and the stored transcript never disagree.
-      const hasVisuals = assistantParts.some(
-        (part) => part.kind === 'image' || part.kind === 'image-batch'
-      )
-      if (hasVisuals && content) {
-        const streamedText = assistantParts
-          .filter((part) => part.kind === 'text')
-          .map((part) => part.text)
-          .join('')
-        // Only append an answer the model never streamed; anything already in
-        // the transcript (in its streamed position) stays untouched.
-        if (!streamedText || (!streamedText.endsWith(content) && !content.endsWith(streamedText))) {
-          assistantParts.push({
-            kind: 'text',
-            text: content,
-            order: nextPartOrder(assistantParts)
-          })
-        }
-      }
-    }
-    const error = completed
-      ? null
-      : cancelled
-        ? { code: 'cancelled', message: 'Request was cancelled', retryable: false }
-        : {
-            code: 'model-execution-failed',
-            message: result?.error ?? (thrown instanceof Error ? thrown.message : String(thrown)),
-            retryable: false
-          }
-    sequence += 1
-    const persistedRequest: PersistedStreamRequest = {
-      ...request,
-      status,
-      lastSequence: sequence,
-      updatedAt: occurredAt
-    }
-    const task: RuntimeTaskRecord = {
-      ...initialTask,
-      status,
-      error,
-      updatedAt: occurredAt
-    }
-    let registeredOutputs: Array<{
-      fileId: string
-      sessionId: string
-      taskId: string
-      name: string
-      mimeType: string
-      byteLength: number
-    }> = []
-    if (completed && outputBaseline && this.options.outputs) {
-      const changes = await this.options.outputs.detectChanges(request.sessionId, outputBaseline)
-      if (changes.length > 0) {
-        registeredOutputs = await this.options.outputs.register({
-          sessionId: request.sessionId,
-          taskId: request.taskId,
-          files: changes
-        })
-      }
-    }
-    await this.options.appApprovals?.cancelTask(request.taskId)
-    try {
-      await this.options.turnEnded?.(request.taskId)
-    } catch (error) {
-      // Cleanup must not keep the turn from ending; its failure is only reported.
-      console.warn('[stream-session] turn cleanup failed', error)
-    }
-    const endRecord = await this.options.repositories.finishStreamTask({
-      request: persistedRequest,
-      task,
-      assistantMessage: { ...initialAssistant, content: assistantContent() },
-      event: this.runtimeEvent(request, 'response.end', sequence, {
-        status,
-        content,
-        finishReason: completed && terminalEvent ? terminalEvent.finishReason : null,
-        usage: completed && terminalEvent ? terminalEvent.usage : null,
-        durationMs: Math.max(0, Date.parse(occurredAt) - startedAt),
-        ...(registeredOutputs.length > 0
-          ? {
-              outputFiles: registeredOutputs.map((file) => ({
-                fileId: file.fileId,
-                sessionId: file.sessionId,
-                taskId: file.taskId,
-                uri: legacyResourceUri('generated-output', file.fileId, { sessionId: file.sessionId, taskId: file.taskId }),
-                name: file.name,
-                mimeType: file.mimeType,
-                byteLength: file.byteLength
-              }))
-            }
-          : {}),
-        error
-      })
-    })
-    this.activeSessions.delete(request.sessionId)
-    await this.publishThrough(persistedRequest, endRecord.cursor, emit)
   }
 
   private async publishThrough(
@@ -802,30 +236,14 @@ export class StreamSessionService {
   }
 
   private async findEvent(requestId: string, type: string): Promise<RuntimeEventRecord> {
-    const event = (
+    const event =
       // The acceptance record is not guaranteed to be the very first record of the request once
       // the turn itself is persisted, so scan the request's persisted events instead of the head.
-      await this.options.repositories.events.listForRequestAfter(requestId, 0, 256)
-    ).find((candidate) => candidate.type === type)
+      (await this.options.repositories.events.listForRequestAfter(requestId, 0, 256)).find(
+        (candidate) => candidate.type === type
+      )
     if (!event) throw new Error(`Missing persisted ${type} event for ${requestId}`)
     return event
-  }
-
-  private async sessionHistory(sessionId: string): Promise<ModelInputMessage[]> {
-    const [tasks, messages] = await Promise.all([
-      this.options.repositories.tasks.listBySession(sessionId),
-      this.options.repositories.messages.listBySession(sessionId)
-    ])
-    const terminalTaskIds = new Set(
-      tasks.filter((task) => task.status !== 'running').map((task) => task.id)
-    )
-    return messages.flatMap<ModelInputMessage>((message): ModelInputMessage[] => {
-      if (!terminalTaskIds.has(message.taskId)) return []
-      if (message.role !== 'user' && message.role !== 'assistant') return []
-      return message.role === 'user'
-        ? [{ role: 'user' as const, content: messageText(message.content) }]
-        : [{ role: 'assistant' as const, content: messageText(message.content) }]
-    })
   }
 
   private async emitRequestError(

@@ -26,7 +26,7 @@ describe('renderer dependency boundary', () => {
     for (const file of files) {
       const source = await readFile(file, 'utf8')
       expect(source).not.toMatch(/from ['"]inversify['"]/)
-      expect(source).not.toMatch(/services\/mock-|services\/desktop-/)
+      expect(source).not.toMatch(/services\/(?:[^/'"]+\/)*(?:mock|desktop)-/)
       expect(source).not.toMatch(/new Container\(/)
     }
   })
@@ -38,8 +38,8 @@ describe('renderer dependency boundary', () => {
     for (const file of files) {
       const source = await readFile(file, 'utf8')
       if (
-        file.endsWith('services/renderer-stream-client.ts') ||
-        file.endsWith('services/stream-task-projection.ts')
+        file.endsWith('services/agent-session/renderer-stream-client.ts') ||
+        file.endsWith('services/agent-session/stream-task-projection.ts')
       ) {
         expect(source).toMatch(/@action-driver\/runtime-contracts/)
       } else {

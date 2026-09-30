@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../../../src/renderer/src/App'
 import { createRendererServices } from '../../../../src/renderer/src/di/container'
 import { AppServicesProvider } from '../../../../src/renderer/src/di/services-context'
-import { MockModelConnectionsService } from '../../../../src/renderer/src/services/mock-model-connections'
+import { MockModelConnectionsService } from '../../../../src/renderer/src/services/model-connections/mock-model-connections'
 
 function renderApp(
   initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' | 'computer-use' = 'home'

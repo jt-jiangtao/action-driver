@@ -8,30 +8,30 @@ import type {
 import type { AgentFilesService } from '../models/agent-files'
 import { SKILL_IDS } from '@action-driver/contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
-import { MockAgentSessionService } from '../services/mock-agent-session-service'
+import { MockAgentSessionService } from '../services/agent-session/mock-agent-session-service'
 import type { ModelConnectionsService } from '../models/model-connections'
 import type { TaskCatalog } from '../models/task-catalog'
-import { MockModelConnectionsService } from '../services/mock-model-connections'
-import { DesktopModelConnectionsService } from '../services/desktop-model-connections'
-import { MockTaskCatalog } from '../services/mock-task-catalog'
-import { DesktopTaskCatalog } from '../services/desktop-task-catalog'
+import { MockModelConnectionsService } from '../services/model-connections/mock-model-connections'
+import { DesktopModelConnectionsService } from '../services/model-connections/desktop-model-connections'
+import { MockTaskCatalog } from '../services/task-catalog/mock-task-catalog'
+import { DesktopTaskCatalog } from '../services/task-catalog/desktop-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
   MockSkillGateway
-} from '../services/mock-skill-capabilities'
-import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/desktop-agent-adapter'
-import { MockAgentFilesService } from '../services/mock-agent-files'
-import { RuntimeAgentFilesService } from '../services/runtime-agent-files'
-import { RuntimeHttpClient } from '../services/runtime-http-client'
-import { RuntimeAgentHttpApi } from '../services/runtime-agent-http-api'
-import { RuntimeModelHttpApi } from '../services/runtime-model-http-api'
-import { RendererStreamClient } from '../services/renderer-stream-client'
+} from '../services/skills/mock-skill-capabilities'
+import { DesktopAgentAdapter, DesktopSkillGateway } from '../services/agent-session/desktop-agent-adapter'
+import { MockAgentFilesService } from '../services/agent-files/mock-agent-files'
+import { RuntimeAgentFilesService } from '../services/agent-files/runtime-agent-files'
+import { RuntimeHttpClient } from '../services/transport/runtime-http-client'
+import { RuntimeAgentHttpApi } from '../services/agent-session/runtime-agent-http-api'
+import { RuntimeModelHttpApi } from '../services/model-connections/runtime-model-http-api'
+import { RendererStreamClient } from '../services/agent-session/renderer-stream-client'
 import {
   DesktopPluginContributionsService,
   MockPluginContributionsService,
   type PluginContributionsService
-} from '../services/plugin-contributions'
+} from '../services/plugins/plugin-contributions'
 
 export interface AppServices {
   agentCommandService: AgentCommandService

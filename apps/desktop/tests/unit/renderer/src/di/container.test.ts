@@ -7,19 +7,19 @@ import {
   type TaskProjection
 } from '@action-driver/contracts'
 import type { DesktopApi } from '../../../../../src/preload/desktop-api'
-import { DesktopAgentAdapter, DesktopSkillGateway } from '../../../../../src/renderer/src/services/desktop-agent-adapter'
-import { DesktopModelConnectionsService } from '../../../../../src/renderer/src/services/desktop-model-connections'
-import { RuntimeAgentFilesService } from '../../../../../src/renderer/src/services/runtime-agent-files'
-import { MockModelConnectionsService } from '../../../../../src/renderer/src/services/mock-model-connections'
-import { MockAgentFilesService } from '../../../../../src/renderer/src/services/mock-agent-files'
-import { MockAgentSessionService } from '../../../../../src/renderer/src/services/mock-agent-session-service'
-import { MockTaskCatalog } from '../../../../../src/renderer/src/services/mock-task-catalog'
-import { DesktopTaskCatalog } from '../../../../../src/renderer/src/services/desktop-task-catalog'
+import { DesktopAgentAdapter, DesktopSkillGateway } from '../../../../../src/renderer/src/services/agent-session/desktop-agent-adapter'
+import { DesktopModelConnectionsService } from '../../../../../src/renderer/src/services/model-connections/desktop-model-connections'
+import { RuntimeAgentFilesService } from '../../../../../src/renderer/src/services/agent-files/runtime-agent-files'
+import { MockModelConnectionsService } from '../../../../../src/renderer/src/services/model-connections/mock-model-connections'
+import { MockAgentFilesService } from '../../../../../src/renderer/src/services/agent-files/mock-agent-files'
+import { MockAgentSessionService } from '../../../../../src/renderer/src/services/agent-session/mock-agent-session-service'
+import { MockTaskCatalog } from '../../../../../src/renderer/src/services/task-catalog/mock-task-catalog'
+import { DesktopTaskCatalog } from '../../../../../src/renderer/src/services/task-catalog/desktop-task-catalog'
 import {
   MockBrowserSkillCapability,
   MockComputerUseSkillCapability,
   MockSkillGateway
-} from '../../../../../src/renderer/src/services/mock-skill-capabilities'
+} from '../../../../../src/renderer/src/services/skills/mock-skill-capabilities'
 import { createRendererServices } from '../../../../../src/renderer/src/di/container'
 
 function createDesktopApi(): DesktopApi {

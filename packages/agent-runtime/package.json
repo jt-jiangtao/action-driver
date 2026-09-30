@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./agent-graph": "./src/agent-graph.ts",
+    "./graph/helpers": "./src/graph/helpers.ts",
     "./execution-errors": "./src/execution-errors.ts",
     "./host-ports": "./src/host-ports.ts",
     "./model-credential-key": "./src/model-credential-key.ts",

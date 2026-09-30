@@ -17,6 +17,8 @@ import {
   type TaskProjection,
   type ToolInvocationProjection
 } from '../../src/index'
+import { normalizeAssistantParts as normalizeMessageParts } from '../../src/message-content'
+import { SKILL_IDS as skillIds } from '../../src/skill'
 
 const imageTool = (overrides: Partial<ToolInvocationProjection> = {}): ToolInvocationProjection => ({
   callId: 'call-1',
@@ -66,6 +68,10 @@ describe('image generation tool projection', () => {
 })
 
 describe('agent skill contracts', () => {
+  it('keeps the root contract functions and ids identical to their topic modules', () => {
+    expect(normalizeMessageParts).toBe(normalizeAssistantParts)
+    expect(skillIds).toBe(SKILL_IDS)
+  })
   it('keeps every attached document instead of treating it as a duplicate image', () => {
     const document = (fileId: string) => ({
       fileId,

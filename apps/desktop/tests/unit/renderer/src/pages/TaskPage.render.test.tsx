@@ -2,7 +2,7 @@ import type { AgentMessageProjection, TaskProjection } from '@action-driver/cont
 import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import { act, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StreamTaskProjection } from '../../../../../src/renderer/src/services/stream-task-projection'
+import { StreamTaskProjection } from '../../../../../src/renderer/src/services/agent-session/stream-task-projection'
 import { mockModelSelection } from '../../../../../src/renderer/src/testing/model-selection-fixture'
 import { TaskPage } from '../../../../../src/renderer/src/pages/TaskPage'
 import { markdownIt } from '../../../../../src/renderer/src/components/markdown-blocks'

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PluginContributionsMenu } from '../../../../../src/renderer/src/components/plugins/PluginContributionsMenu'
 import { AppServicesProvider } from '../../../../../src/renderer/src/di/services-context'
 import { createRendererServices } from '../../../../../src/renderer/src/di/container'
-import type { PluginContributionsService } from '../../../../../src/renderer/src/services/plugin-contributions'
+import type { PluginContributionsService } from '../../../../../src/renderer/src/services/plugins/plugin-contributions'
 
 function renderMenu(service: PluginContributionsService, taskId?: string) {
   const services = createRendererServices({ mode: 'mock', pluginContributions: service })

@@ -1,0 +1,168 @@
+import type { RuntimeMigration } from './types'
+
+export const migrations1To4: readonly RuntimeMigration[] = [
+  {
+    version: 1,
+    name: 'create-runtime-business-schema',
+    up(database) {
+      database.exec(`
+        CREATE TABLE tasks (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL UNIQUE,
+          goal TEXT NOT NULL,
+          status TEXT NOT NULL,
+          last_checkpoint_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE messages (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          role TEXT NOT NULL,
+          content_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX messages_task_created_idx ON messages(task_id, created_at, id);
+
+        CREATE TABLE steps (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          step_key TEXT NOT NULL,
+          title TEXT NOT NULL,
+          detail TEXT NOT NULL,
+          status TEXT NOT NULL,
+          checkpoint_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(task_id, step_key, checkpoint_id)
+        );
+
+        CREATE TABLE skill_invocations (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          requested_skill_id TEXT NOT NULL,
+          resolved_provider_id TEXT,
+          provider_version TEXT,
+          contract_version INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          input_json TEXT NOT NULL,
+          output_json TEXT,
+          error_json TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX skill_invocations_task_idx ON skill_invocations(task_id, created_at, id);
+
+        CREATE TABLE runtime_events (
+          cursor INTEGER PRIMARY KEY AUTOINCREMENT,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL,
+          checkpoint_id TEXT NOT NULL,
+          event_key TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          occurred_at TEXT NOT NULL,
+          UNIQUE(thread_id, checkpoint_id, event_key)
+        );
+
+        CREATE INDEX runtime_events_task_cursor_idx ON runtime_events(task_id, cursor);
+      `)
+    }
+  },
+  {
+    version: 2,
+    name: 'create-model-connection-schema',
+    up(database) {
+      database.exec(`
+        CREATE TABLE model_connections (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          protocol TEXT NOT NULL,
+          base_url TEXT NOT NULL,
+          api_key_cipher TEXT NOT NULL,
+          api_key_hint TEXT NOT NULL,
+          expanded INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE model_connection_models (
+          connection_id TEXT NOT NULL REFERENCES model_connections(id) ON DELETE CASCADE,
+          model_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL,
+          test_state TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          PRIMARY KEY (connection_id, model_id)
+        );
+      `)
+    }
+  },
+  {
+    version: 3,
+    name: 'add-task-model-and-model-calls',
+    up(database) {
+      database.exec(`
+        ALTER TABLE tasks ADD COLUMN connection_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE tasks ADD COLUMN model_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE tasks ADD COLUMN error_json TEXT;
+
+        CREATE TABLE model_calls (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          request_id TEXT NOT NULL,
+          correlation_id TEXT NOT NULL,
+          connection_id TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          status TEXT NOT NULL,
+          request_json TEXT NOT NULL,
+          response_json TEXT,
+          error_json TEXT,
+          started_at TEXT NOT NULL,
+          completed_at TEXT
+        );
+
+        CREATE INDEX model_calls_task_started_idx ON model_calls(task_id, started_at, id);
+      `)
+    }
+  },
+  {
+    version: 4,
+    name: 'add-recoverable-stream-requests',
+    up(database) {
+      database.exec(`
+        CREATE TABLE stream_requests (
+          request_id TEXT PRIMARY KEY,
+          idempotency_key TEXT NOT NULL UNIQUE,
+          session_id TEXT NOT NULL,
+          task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+          response_id TEXT NOT NULL UNIQUE,
+          stream_id TEXT NOT NULL UNIQUE,
+          message_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL,
+          last_sequence INTEGER NOT NULL DEFAULT -1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX stream_requests_session_created_idx
+          ON stream_requests(session_id, created_at, request_id);
+
+        ALTER TABLE runtime_events ADD COLUMN event_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN request_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN response_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN stream_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN message_id TEXT;
+        ALTER TABLE runtime_events ADD COLUMN sequence INTEGER;
+
+        CREATE UNIQUE INDEX runtime_events_event_id_unique
+          ON runtime_events(event_id) WHERE event_id IS NOT NULL;
+        CREATE INDEX runtime_events_request_cursor_idx
+          ON runtime_events(request_id, cursor) WHERE request_id IS NOT NULL;
+      `)
+    }
+  }
+]

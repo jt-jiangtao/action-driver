@@ -5,7 +5,7 @@ import { App } from '../../../../src/renderer/src/App'
 import type * as SidebarModule from '../../../../src/renderer/src/components/Sidebar'
 import { createRendererServices } from '../../../../src/renderer/src/di/container'
 import { AppServicesProvider } from '../../../../src/renderer/src/di/services-context'
-import { mockTaskFixture } from '../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 
 const renders = vi.hoisted(() => ({ sidebar: 0 }))
 

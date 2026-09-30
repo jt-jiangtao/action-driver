@@ -2,7 +2,7 @@ import type { TaskProjection } from '@action-driver/contracts'
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { createRendererServices } from '../../../../../src/renderer/src/di/container'
-import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 import { AppServicesProvider, useAppServices, useTaskStore, useTaskStoreApi } from '../../../../../src/renderer/src/di/services-context'
 
 function Probe() {

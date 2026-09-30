@@ -16,6 +16,7 @@ import {
   type SkillRegistry
 } from '../../src/index'
 import { activityTitleForTool, activityTitleForTools } from '@action-driver/agent-runtime/agent-graph'
+import { activityTitleForTools as groupTitleFromGraphHelpers } from '@action-driver/agent-runtime/graph/helpers'
 
 const modelRef = { connectionId: 'connection-1', modelId: 'gpt-real' }
 
@@ -40,6 +41,9 @@ class MockSkillRegistry extends RuntimeSkillRegistry {
 }
 
 describe('minimal agent StateGraph', () => {
+  it('exposes the same pure activity titles through the graph helpers boundary', () => {
+    expect(groupTitleFromGraphHelpers).toBe(activityTitleForTools)
+  })
   it('tells the model where the session inputs are before it plans', async () => {
     const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
     const model: ModelGateway = {

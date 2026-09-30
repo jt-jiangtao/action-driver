@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ConversationMessages, TaskHeader } from '../../../../../src/renderer/src/components/Conversation'
 import { AgentResponse } from '../../../../../src/renderer/src/components/agent/AgentResponse'
 import { UserMessage } from '../../../../../src/renderer/src/components/agent/UserMessage'
-import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
+import { mockTaskFixture } from '../../../../../src/renderer/src/services/task-catalog/mock-task-fixture'
 import agentStyles from '../../../../../src/renderer/src/styles/agent.css?raw'
 
 /** The image the preview currently shows, or null while it is closed. */

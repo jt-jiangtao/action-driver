@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MainPromptPage } from '../../../../../src/renderer/src/pages/MainPromptPage'
 import { SkillsPage } from '../../../../../src/renderer/src/pages/SkillsPage'
-import { MockAgentFilesService } from '../../../../../src/renderer/src/services/mock-agent-files'
+import { MockAgentFilesService } from '../../../../../src/renderer/src/services/agent-files/mock-agent-files'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 
