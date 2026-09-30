@@ -38,8 +38,8 @@ describe('BrowserPanel', () => {
     expect(screen.getByLabelText('Browser Skill 控制')).toHaveAttribute('aria-busy', 'true')
     finish?.()
   })
-  it('renders the static raster, target highlight, and running controls', () => {
-    render(
+  it('should show an empty browser with controls when no live session exists', () => {
+    const { rerender } = render(
       <BrowserPanel
         mode="split"
         projection={mockTaskFixture.browser!}
@@ -50,11 +50,17 @@ describe('BrowserPanel', () => {
       />
     )
 
-    expect(screen.getByAltText('杭州酒店搜索结果')).toBeVisible()
-    expect(screen.getByText('选择入住日期')).toBeVisible()
+    expect(screen.getByText('开始浏览')).toBeVisible()
+    expect(screen.queryByAltText('杭州酒店搜索结果')).not.toBeInTheDocument()
+    expect(screen.queryByText('选择入住日期')).not.toBeInTheDocument()
     expect(screen.getByText('Browser Skill · 运行中')).toBeVisible()
     expect(screen.getByText('暂停')).toBeVisible()
     expect(screen.getByText('人工接管')).toBeVisible()
+
+    rerender(<BrowserPanel mode="browser-expanded" projection={mockTaskFixture.browser!}
+      onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()} onTakeOver={vi.fn()} />)
+    expect(screen.getByText('开始浏览')).toBeVisible()
+    expect(screen.queryByAltText('杭州酒店搜索结果')).not.toBeInTheDocument()
   })
 
   it('uses the managed page and sends address-bar navigation to its active tab', async () => {
@@ -69,7 +75,7 @@ describe('BrowserPanel', () => {
             canGoBack: true, canGoForward: false }
         ] }}
       onModeChange={vi.fn()} onPause={vi.fn()} onResume={vi.fn()} onTakeOver={vi.fn()} />)
-    expect(screen.queryByAltText('杭州酒店搜索结果')).not.toBeInTheDocument()
+    expect(screen.queryByText('开始浏览')).not.toBeInTheDocument()
     await user.clear(screen.getByRole('textbox', { name: '地址' }))
     await user.type(screen.getByRole('textbox', { name: '地址' }), 'https://wikipedia.org/{Enter}')
     expect(command).toHaveBeenCalledWith({ action: 'execute', taskId: 'task-1',

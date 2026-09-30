@@ -6,8 +6,10 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { auditRenderedInteractions as auditPageInteractions } from './interaction-audit'
 import type { InteractionContract } from './interaction-audit'
 
@@ -35,9 +37,12 @@ const artifact = (name: string) =>
   fileURLToPath(new URL(`../../../../design/actual/${name}.png`, import.meta.url))
 
 let application: ElectronApplication | undefined
+let userDataDirectory: string | undefined
 
 async function launch(viewport = { width: 1440, height: 900 }) {
-  application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: [mainEntry] })
+  userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-visual-e2e-'))
+  application = await electron.launch({ executablePath: await getElectronForkExecutable(),
+    args: [mainEntry, `--user-data-dir=${userDataDirectory}`] })
   const page = await application.firstWindow()
   await page.setViewportSize(viewport)
   return page
@@ -67,6 +72,8 @@ async function expectInsideViewport(page: Page, selector: ReturnType<Page['locat
 test.afterEach(async () => {
   await application?.close()
   application = undefined
+  if (userDataDirectory) rmSync(userDataDirectory, { recursive: true, force: true })
+  userDataDirectory = undefined
 })
 
 test.afterAll(() => {

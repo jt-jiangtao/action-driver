@@ -1,7 +1,6 @@
 import type { BrowserSkillProjection } from '@action-driver/contracts'
 import type { BrowserSessionCommand, BrowserSessionControl } from '@action-driver/browser-desktop'
 import { useEffect, useRef } from 'react'
-import hotelSearch from '../assets/hotel-search.png'
 import { BrowserNavigationBar } from './browser/BrowserNavigationBar'
 import { BrowserSkillControls } from './browser/BrowserSkillControls'
 import { BrowserTabBar } from './browser/BrowserTabBar'
@@ -113,29 +112,12 @@ export function BrowserPanel({
             <strong>Chrome 已在独立窗口打开</strong>
             <span>Agent 正在此会话中操作页面</span>
           </div>
-        ) : live ? null : expanded ? (
+        ) : live ? null : (
           <div className="browser-empty-state">
             <AppIcon name="globe" />
             <strong>开始浏览</strong>
             <span>输入 URL 以打开页面</span>
           </div>
-        ) : (
-          <>
-            <img className="browser-raster" src={hotelSearch} alt="杭州酒店搜索结果" />
-            {projection.target ? (
-              <div
-                className="browser-target"
-                style={{
-                  left: projection.target.x,
-                  top: projection.target.y,
-                  width: projection.target.width,
-                  height: projection.target.height
-                }}
-              >
-                <span>{projection.target.label}</span>
-              </div>
-            ) : null}
-          </>
         )}
         {live ? null : <BrowserSkillControls
           status={projection.status}

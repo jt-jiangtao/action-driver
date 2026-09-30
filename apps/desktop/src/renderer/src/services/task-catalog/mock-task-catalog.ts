@@ -107,7 +107,7 @@ function createProjection(seed: TaskSeed): TaskProjection {
       ...mockBrowserSkillProjection,
       title: seed.browserTitle,
       url: seed.browserUrl,
-      target: seed.id === 'hotel-task' ? structuredClone(mockBrowserSkillProjection.target) : null
+      target: null
     }
   }
 }

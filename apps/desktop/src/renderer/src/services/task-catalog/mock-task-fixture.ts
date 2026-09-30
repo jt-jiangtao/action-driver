@@ -4,7 +4,7 @@ export const mockBrowserSkillProjection: BrowserSkillProjection = {
   title: '杭州酒店 · 携程旅行',
   url: 'https://hotels.ctrip.com/hotels/list',
   status: 'running',
-  target: { label: '选择入住日期', x: 146, y: 178, width: 220, height: 52 }
+  target: null
 }
 
 export const mockTaskFixture: TaskProjection = {
