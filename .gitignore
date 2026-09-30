@@ -14,10 +14,11 @@ apps/local-runtime/.runtime-cache/
 # Swift build output from running swift at the repository root
 /.build/
 
-# Track the two Fork sources and the immutable original-package backup; keep toolchains and build artifacts local.
+# Track fork sources and the immutable original-package backup; keep toolchains and build artifacts local.
 /thirdparty/*
 !/thirdparty/playwright/
 !/thirdparty/electron/
+!/thirdparty/onlyoffice/
 # Preserve the complete original package backup, including build output and bundled dependencies.
 !/thirdparty/backup/
 !/thirdparty/backup/**
