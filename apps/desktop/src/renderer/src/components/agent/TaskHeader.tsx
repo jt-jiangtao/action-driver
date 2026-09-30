@@ -1,6 +1,6 @@
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
-import { SidebarRestoreButton } from '../navigation/SidebarRestoreButton'
+import { AppNavigationControls } from '../navigation/AppNavigationControls'
 
 export function TaskHeader({
   title,
@@ -18,7 +18,7 @@ export function TaskHeader({
   return (
     <header className={`task-header${sidebarCollapsed ? ' has-sidebar-restore' : ''}`}>
       {sidebarCollapsed && onExpandSidebar ? (
-        <SidebarRestoreButton onClick={onExpandSidebar} />
+        <AppNavigationControls sidebar={{ collapsed: true, onToggle: onExpandSidebar }} />
       ) : null}
       <AppIcon name="folder" />
       <strong>{title}</strong>

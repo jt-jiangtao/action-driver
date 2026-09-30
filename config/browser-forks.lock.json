@@ -12,7 +12,7 @@
     "electron": {
       "path": "thirdparty/electron",
       "repo": "https://github.com/jt-jiangtao/electron.git",
-      "commit": "0343e0193a6d593287df7bb0a95765afa35ed7e1",
+      "commit": "91695a0efd441d88059db5211c45be23b7a0f060",
       "version": "38.8.6"
     }
   },

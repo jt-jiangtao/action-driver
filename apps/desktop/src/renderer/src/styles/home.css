@@ -9,11 +9,13 @@
 }
 .home-topbar {
   display: flex;
-  flex: 0 0 56px;
+  flex: 0 0 var(--ad-shell-topbar-height);
   align-items: center;
   justify-content: flex-end;
-  height: 56px;
-  padding: 0 18px;
+  height: var(--ad-shell-topbar-height);
+  padding: 0;
+  background: var(--ad-shell-topbar-bg);
+  border-bottom: 1px solid var(--ad-color-border-default);
   -webkit-app-region: drag;
 }
 .home-topbar button {
@@ -21,7 +23,7 @@
 }
 .is-sidebar-collapsed .home-topbar {
   justify-content: flex-start;
-  padding-left: 88px;
+  padding-left: 0;
 }
 .home-body {
   display: flex;

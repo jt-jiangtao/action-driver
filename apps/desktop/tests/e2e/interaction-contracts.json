@@ -712,6 +712,22 @@
     "testName": "expands connections and selects a model"
   },
   {
+    "target": "e2e/shared/navigation/back#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "navigates application history across tasks and settings without changing browser history"
+  },
+  {
+    "target": "e2e/shared/navigation/forward#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "navigates application history across tasks and settings without changing browser history"
+  },
+  {
     "target": "e2e/shared/sidebar/collapse#button",
     "route": "shared",
     "type": "button",

@@ -15,7 +15,7 @@
   flex-direction: column;
   width: 248px;
   height: 100%;
-  padding: 14px 18px 16px;
+  padding: 0 18px 16px;
   overflow: hidden;
   background: var(--ad-color-bg-sidebar);
   border-right: 1px solid var(--ad-color-border-default);
@@ -27,16 +27,48 @@
 .sidebar-window-row {
   display: flex;
   align-items: center;
-  height: 24px;
-  margin-bottom: 8px;
+  height: var(--ad-shell-topbar-height);
+  margin: 0 -18px 8px;
+  background: var(--ad-shell-topbar-bg);
+  border-bottom: 1px solid var(--ad-color-border-default);
 }
-.traffic-light-spacer {
-  flex: 0 0 64px;
-  height: 12px;
+.app-window-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  height: var(--ad-shell-topbar-height);
+  margin-left: var(--ad-shell-controls-left);
+  -webkit-app-region: no-drag;
 }
-.sidebar-collapse {
-  width: 24px;
-  height: 24px;
+.app-window-controls .ui-icon-button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+.app-window-controls .ui-icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+.app-window-controls .ui-icon-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.app-window-control-placeholder { width: 28px; height: 28px; }
+.app-navigation-error {
+  position: fixed;
+  z-index: 20;
+  top: calc(var(--ad-shell-topbar-height) + 8px);
+  right: 20px;
+  max-width: min(360px, calc(100vw - 40px));
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--ad-color-status-danger);
+  background: var(--ad-color-bg-surface);
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 8px;
+  box-shadow: var(--ad-shadow-floating);
 }
 .sidebar-brand-row {
   display: grid;

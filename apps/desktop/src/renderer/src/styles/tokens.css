@@ -1,6 +1,9 @@
 :root {
   --ad-color-bg-canvas: #ffffff;
   --ad-color-bg-sidebar: #f7f7f8;
+  --ad-shell-topbar-height: 44px;
+  --ad-shell-topbar-bg: #f7f7f8;
+  --ad-shell-controls-left: 80px;
   --ad-color-bg-surface: #ffffff;
   --ad-color-bg-subtle: #f1f1f2;
   --ad-color-bg-hover: #f1f1f2;

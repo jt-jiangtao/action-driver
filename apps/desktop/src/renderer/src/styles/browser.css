@@ -28,11 +28,12 @@
 }
 .browser-tabbar {
   display: flex;
-  flex: 0 0 44px;
+  flex: 0 0 var(--ad-shell-topbar-height);
   align-items: center;
-  height: 44px;
+  height: var(--ad-shell-topbar-height);
   padding: 0 12px;
-  background: #f5f5f6;
+  background: var(--ad-shell-topbar-bg);
+  border-bottom: 1px solid var(--ad-color-border-default);
   -webkit-app-region: drag;
 }
 .browser-tabbar button {
@@ -40,7 +41,7 @@
 }
 .browser-tabbar.has-sidebar-restore {
   gap: 10px;
-  padding-left: 88px;
+  padding-left: 0;
 }
 .browser-tab {
   display: grid;

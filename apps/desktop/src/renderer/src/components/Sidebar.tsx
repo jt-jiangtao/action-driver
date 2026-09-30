@@ -5,6 +5,7 @@ import { RecentTaskItem } from './navigation/RecentTaskItem'
 import { SettingsNavEntry } from './navigation/SettingsNavEntry'
 import { SidebarEntry } from './navigation/SidebarEntry'
 import { PluginContributionsMenu } from './plugins/PluginContributionsMenu'
+import { AppNavigationControls } from './navigation/AppNavigationControls'
 
 export function Sidebar({
   active,
@@ -40,14 +41,7 @@ export function Sidebar({
   return (
     <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="248">
       <div className="sidebar-window-row">
-        <span className="traffic-light-spacer" aria-hidden="true" />
-        <IconButton
-          className="sidebar-collapse"
-          icon="panel-left"
-          aria-label="折叠侧栏"
-          onClick={onCollapse}
-          testId="e2e/shared/sidebar/collapse#button"
-        />
+        <AppNavigationControls sidebar={{ collapsed: false, onToggle: onCollapse }} />
       </div>
 
       <div className="sidebar-brand-row">

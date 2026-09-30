@@ -1,5 +1,6 @@
 import { ProductLogo } from './ProductLogo'
 import { AppIcon } from './ui/AppIcon'
+import { AppNavigationControls } from './navigation/AppNavigationControls'
 
 export function SettingsSidebar({
   onBack,
@@ -8,7 +9,8 @@ export function SettingsSidebar({
   onOpenMainPrompt,
   onOpenSkills,
   onOpenComputerUse,
-  onOpenArchived
+  onOpenArchived,
+  beforeNavigate
 }: {
   onBack(): void
   active?: 'model-connections' | 'main-prompt' | 'skills' | 'computer-use' | 'archived'
@@ -17,10 +19,11 @@ export function SettingsSidebar({
   onOpenSkills?(): void
   onOpenComputerUse?(): void
   onOpenArchived?(): void
+  beforeNavigate?: (navigate: () => void) => void
 }) {
   return (
     <aside className="settings-sidebar">
-      <div className="settings-drag-space" aria-hidden="true" />
+      <div className="settings-drag-space"><AppNavigationControls beforeNavigate={beforeNavigate} /></div>
       <button
         className="settings-back"
         data-testid="e2e/settings/sidebar/back#button"

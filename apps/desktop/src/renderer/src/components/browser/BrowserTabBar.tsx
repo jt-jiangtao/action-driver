@@ -2,7 +2,7 @@ import type { TaskLayoutMode } from '../BrowserPanel'
 import { AppIcon } from '../ui/AppIcon'
 import { IconButton } from '../ui/IconButton'
 import { BrowserSizeToggle } from './BrowserSizeToggle'
-import { SidebarRestoreButton } from '../navigation/SidebarRestoreButton'
+import { AppNavigationControls } from '../navigation/AppNavigationControls'
 
 export function BrowserTabBar({
   expanded,
@@ -30,7 +30,7 @@ export function BrowserTabBar({
   return (
     <div className={`browser-tabbar${expanded && sidebarCollapsed ? ' has-sidebar-restore' : ''}`}>
       {expanded && sidebarCollapsed && onExpandSidebar ? (
-        <SidebarRestoreButton onClick={onExpandSidebar} />
+        <AppNavigationControls sidebar={{ collapsed: true, onToggle: onExpandSidebar }} />
       ) : null}
       {tabs ? <div className="browser-tabs" role="tablist">{tabs.map((tab) =>
         <div className={`browser-tab${tab.id === activeTabId ? ' is-active' : ''}`} key={tab.id}>

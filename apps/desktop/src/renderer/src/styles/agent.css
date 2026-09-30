@@ -339,17 +339,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 56px;
+  height: var(--ad-shell-topbar-height);
   padding: 0 18px;
+  background: var(--ad-shell-topbar-bg);
   border-bottom: 1px solid var(--ad-color-border-default);
   -webkit-app-region: drag;
 }
 .task-header.has-sidebar-restore {
-  padding-left: 88px;
-}
-.task-header .sidebar-restore-button {
-  margin-right: 2px;
-  -webkit-app-region: no-drag;
+  padding-left: 0;
 }
 .task-header > svg {
   flex: 0 0 16px;

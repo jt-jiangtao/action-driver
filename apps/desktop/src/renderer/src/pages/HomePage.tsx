@@ -1,6 +1,6 @@
 import { ProductLogo } from '../components/ProductLogo'
 import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
-import { SidebarRestoreButton } from '../components/navigation/SidebarRestoreButton'
+import { AppNavigationControls } from '../components/navigation/AppNavigationControls'
 import type { ModelSelectionProjection } from '../models/model-selection'
 import type { ModelRef } from '@action-driver/contracts'
 
@@ -25,7 +25,7 @@ export function HomePage({
     <main className="home-page">
       <header className="home-topbar">
         {sidebarCollapsed && onExpandSidebar ? (
-          <SidebarRestoreButton onClick={onExpandSidebar} />
+          <AppNavigationControls sidebar={{ collapsed: true, onToggle: onExpandSidebar }} />
         ) : null}
       </header>
       <div className="home-body">

@@ -102,6 +102,7 @@ export function MainPromptPage({
     <div className="settings-shell" data-testid="e2e/settings/main-prompt/page#page">
       <SettingsSidebar
         onBack={() => requestNavigation(onBack)}
+        beforeNavigate={requestNavigation}
         active="main-prompt"
         {...(onOpenConnections
           ? { onOpenConnections: () => requestNavigation(onOpenConnections) }
@@ -113,6 +114,7 @@ export function MainPromptPage({
         {...(onOpenArchived ? { onOpenArchived: () => requestNavigation(onOpenArchived) } : {})}
       />
       <main className="settings-main agent-settings-main">
+        <div className="settings-main-topbar" aria-hidden="true" />
         <div className="agent-page">
           <header className="agent-page-header">
             <div>

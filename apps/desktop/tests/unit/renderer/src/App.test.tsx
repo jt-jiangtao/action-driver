@@ -6,6 +6,13 @@ import { createRendererServices } from '../../../../src/renderer/src/di/containe
 import { AppServicesProvider } from '../../../../src/renderer/src/di/services-context'
 import { MockModelConnectionsService } from '../../../../src/renderer/src/services/model-connections/mock-model-connections'
 
+vi.mock('../../../../src/renderer/src/components/settings/LocalSourceEditor', () => ({
+  default: ({ value, onChange, ariaLabel }: { value: string; onChange(value: string): void; ariaLabel: string }) => (
+    <textarea aria-label={`${ariaLabel} 源码`} value={value}
+      onChange={(event) => onChange(event.target.value)} />
+  )
+}))
+
 function renderApp(
   initialRoute: 'home' | 'task' | 'settings' | 'main-prompt' | 'skills' | 'computer-use' = 'home'
 ) {
@@ -429,6 +436,102 @@ describe('App', () => {
       'aria-label',
       '取消置顶'
     )
+  })
+
+  it('navigates application history across tasks and settings without changing browser history', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    expect(screen.getByRole('button', { name: '应用后退' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '应用前进' })).toBeDisabled()
+
+    await user.click(await screen.findByRole('button', { name: /预订周末去杭州的酒店/ }))
+    await screen.findByTestId('e2e/tasks/detail/page#page')
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-task-id', 'hotel-task')
+    await user.click(screen.getByRole('button', { name: '应用前进' }))
+    expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+  })
+
+  it('discards forward application history after opening another settings page', async () => {
+    const user = userEvent.setup()
+    renderApp('settings')
+    await user.click(screen.getByRole('button', { name: '主提示词' }))
+    expect(await screen.findByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Skills' }))
+    expect(await screen.findByTestId('e2e/settings/skills/page#page')).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用前进' })).toBeDisabled()
+  })
+
+  it('keeps history and the draft when leaving main prompt is cancelled', async () => {
+    const user = userEvent.setup()
+    renderApp('settings')
+    await user.click(screen.getByRole('button', { name: '主提示词' }))
+    await screen.findByRole('textbox', { name: '主提示词 Markdown' })
+    await user.click(screen.getByRole('button', { name: '源码' }))
+    await user.type(await screen.findByRole('textbox', { name: '主提示词 Markdown 源码' }), '草稿')
+
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    expect(screen.getByRole('dialog', { name: '离开主提示词？' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.getByTestId('e2e/settings/main-prompt/page#page')).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用前进' })).toBeDisabled()
+    expect((screen.getByRole('textbox', { name: '主提示词 Markdown 源码' }) as HTMLTextAreaElement).value).toContain('草稿')
+
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    await user.click(screen.getByRole('button', { name: '放弃更改' }))
+    expect(await screen.findByTestId('e2e/settings/model-connections/page#page')).toBeVisible()
+  })
+
+  it('keeps the current page and reports an unavailable recent task', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    services.taskCatalog = {
+      listRecentTasks: async () => [{ id: 'missing-task', title: '已移除任务', state: 'default' }],
+      getTask: async () => null
+    }
+    render(<AppServicesProvider services={services}><App /></AppServicesProvider>)
+    await user.click(await screen.findByRole('button', { name: '已移除任务' }))
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
+    expect(await screen.findByRole('alert')).toHaveTextContent('无法打开任务')
+  })
+
+  it('reports a failed task lookup without leaving the current page', async () => {
+    const user = userEvent.setup()
+    const services = createRendererServices({ mode: 'mock' })
+    services.taskCatalog = {
+      listRecentTasks: async () => [{ id: 'missing-task', title: '读取失败任务', state: 'default' }],
+      getTask: async () => { throw new Error('catalog offline') }
+    }
+    render(<AppServicesProvider services={services}><App /></AppServicesProvider>)
+    await user.click(await screen.findByRole('button', { name: '读取失败任务' }))
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
+    expect(await screen.findByRole('alert')).toHaveTextContent('无法打开任务')
+  })
+
+  it('preserves task browser layout when history returns from home', async () => {
+    const user = userEvent.setup()
+    renderApp('task')
+    await screen.findByTestId('e2e/tasks/detail/page#page')
+    await user.click(screen.getByRole('button', { name: '放大浏览器' }))
+    await user.click(screen.getByRole('button', { name: '新任务' }))
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
+  })
+
+  it('restores each task layout when navigating between recent tasks', async () => {
+    const user = userEvent.setup()
+    renderApp('task')
+    await screen.findByTestId('e2e/tasks/detail/page#page')
+    await user.click(screen.getByRole('button', { name: '放大浏览器' }))
+    await user.click(screen.getByRole('button', { name: '比较三款显示器' }))
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
+    await user.click(screen.getByRole('button', { name: '应用后退' }))
+    expect(await screen.findByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'browser-expanded')
   })
 
   it('loads persisted models and tasks, then submits the exact selected model reference', async () => {

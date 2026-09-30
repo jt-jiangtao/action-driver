@@ -16,7 +16,7 @@ export function createMainWindowOptions(
     icon: iconPath,
     backgroundColor: '#FFFFFF',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 17 },
+    trafficLightPosition: { x: 14, y: 15 },
     webPreferences: {
       preload: _preloadPath,
       contextIsolation: true,

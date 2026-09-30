@@ -11,7 +11,7 @@ describe('createMainWindowOptions', () => {
     expect(options.minWidth).toBe(1024)
     expect(options.minHeight).toBe(700)
     expect(options.titleBarStyle).toBe('hiddenInset')
-    expect(options.trafficLightPosition).toEqual({ x: 14, y: 17 })
+    expect(options.trafficLightPosition).toEqual({ x: 14, y: 15 })
     expect(options.title).toBe('Action-Driver')
     expect(options.icon).toBe('/tmp/action-driver.png')
     expect(options.webPreferences).toMatchObject({

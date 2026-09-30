@@ -1,8 +1,9 @@
 import type { AppApprovalDecision, ModelRef, TaskProjection } from '@action-driver/contracts'
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
+import { AppNavigationProvider } from './components/navigation/AppNavigationControls'
 import type { TaskLayoutMode } from './components/BrowserPanel'
 import { useAppServices, useTaskStore, useTaskStoreApi } from './di/services-context'
 import { HomePage } from './pages/HomePage'
@@ -13,6 +14,7 @@ import { SkillsPage } from './pages/SkillsPage'
 import { ComputerUsePage } from './pages/ComputerUsePage'
 import { ArchivedChatsPage } from './pages/ArchivedChatsPage'
 import { initialAppRoute, type AppRoute, type InitialAppRoute } from './models/app-route'
+import { createAppNavigationHistory, navigateAppHistory, travelAppHistory } from './models/app-navigation-history'
 import type { MainAppRoute } from './models/app-route'
 import {
   failedModelSelection,
@@ -33,11 +35,18 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const services = useAppServices()
   const queryClient = useQueryClient()
   const restoredTaskId = useRef(initialRoute === 'home' ? readActiveTaskId() : null)
-  const [route, setRoute] = useState<AppRoute>(() =>
+  const [history, setHistory] = useState(() => createAppNavigationHistory(
     restoredTaskId.current
       ? { kind: 'task', taskId: restoredTaskId.current }
       : initialAppRoute(initialRoute)
-  )
+  ))
+  const route = history.entries[history.index]!
+  const navigationRequestId = useRef(0)
+  const setRoute = useCallback((next: AppRoute) => setHistory((current) => navigateAppHistory(current, next)), [])
+  const replaceRoute = useCallback((next: AppRoute) => setHistory((current) => ({
+    ...current,
+    entries: current.entries.map((entry, index) => index === current.index ? next : entry)
+  })), [])
   // The shell follows only what it routes on; streamed content re-renders the task page alone.
   const taskStore = useTaskStoreApi()
   const activeTask = useTaskStore(
@@ -50,6 +59,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   )
   useComputerUseGuidance(activeTask.id, activeTask.usesComputerUse)
   const [mode, setMode] = useState<TaskLayoutMode>('split')
+  const taskModes = useRef(new Map<string, TaskLayoutMode>())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modelSelection, setModelSelection] =
     useState<ModelSelectionProjection>(loadingModelSelection)
@@ -59,9 +69,12 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const [taskActionError, setTaskActionError] = useState<string | null>(null)
   const [busySessionId, setBusySessionId] = useState<string | null>(null)
   const busySessionRef = useRef<string | null>(null)
+  const [navigationError, setNavigationError] = useState<string | null>(null)
   const modelRequestId = useRef(0)
   const taskRequestId = useRef(0)
   const previousActiveStatus = useRef<string | null>(null)
+
+  useEffect(() => setNavigationError(null), [route])
 
   const loadModels = useCallback(
     async (selected: ModelRef | null = null) => {
@@ -102,7 +115,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         if (requestId !== taskRequestId.current) return
         if (restored) {
           taskStore.getState().open(restored)
-          setRoute({ kind: 'task', taskId: restored.id })
+          replaceRoute({ kind: 'task', taskId: restored.id })
           rememberActiveTaskId(restored.id)
         }
       }
@@ -113,7 +126,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     } finally {
       if (requestId === taskRequestId.current) setRecentTasksLoading(false)
     }
-  }, [initialRoute, queryClient, services, taskStore])
+  }, [initialRoute, queryClient, replaceRoute, services, taskStore])
 
   useEffect(() => {
     void loadModels()
@@ -130,20 +143,20 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
         if (cancelled || restoredTaskId.current !== taskId) return
         if (restored) {
           taskStore.getState().open(restored)
-          setRoute({ kind: 'task', taskId: restored.id })
+          replaceRoute({ kind: 'task', taskId: restored.id })
         } else {
           restoredTaskId.current = null
           rememberActiveTaskId(null)
-          setRoute({ kind: 'home' })
+          replaceRoute({ kind: 'home' })
         }
       })
       .catch(() => {
-        if (!cancelled && restoredTaskId.current === taskId) setRoute({ kind: 'home' })
+        if (!cancelled && restoredTaskId.current === taskId) replaceRoute({ kind: 'home' })
       })
     return () => {
       cancelled = true
     }
-  }, [services, taskStore])
+  }, [replaceRoute, services, taskStore])
 
   useEffect(() => {
     const task = taskStore.getState().activeTask
@@ -157,17 +170,30 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     restoredTaskId.current = null
     rememberActiveTaskId(null)
     setRoute({ kind: 'home' })
-    setMode('split')
+  }
+
+  const resolveTask = async (taskId: string): Promise<TaskProjection | null> => {
+    try {
+      return services.agentSessionRepository.getTask(taskId) ??
+        (await services.taskCatalog.getTask(taskId))
+    } catch {
+      return null
+    }
   }
 
   const openTask = async (taskId: string) => {
-    const projection =
-      services.agentSessionRepository.getTask(taskId) ??
-      (await services.taskCatalog.getTask(taskId))
-    if (!projection) return
+    const requestId = ++navigationRequestId.current
+    const projection = await resolveTask(taskId)
+    if (requestId !== navigationRequestId.current) return
+    if (!projection) {
+      setNavigationError('无法打开任务：该任务已不可用')
+      return
+    }
+    setNavigationError(null)
     restoredTaskId.current = projection.id
     rememberActiveTaskId(projection.id)
     taskStore.getState().open(projection)
+    setMode(taskModes.current.get(projection.id) ?? 'split')
     setRoute({ kind: 'task', taskId: projection.id })
   }
 
@@ -217,6 +243,9 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       restoredTaskId.current = projection.id
       rememberActiveTaskId(projection.id)
       taskStore.getState().open(projection)
+      const nextMode = previousTaskId ? taskModes.current.get(previousTaskId) ?? 'split' : 'split'
+      taskModes.current.set(projection.id, nextMode)
+      setMode(nextMode)
       setRecentTasks((current) => mergeSubmittedTask(current, projection, previousTaskId))
       setRoute({ kind: 'task', taskId: projection.id })
     },
@@ -330,6 +359,11 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     if (task) void services.agentCommandService.interrupt(task.id)
   }, [services, taskStore])
   const expandSidebar = useCallback(() => setSidebarCollapsed(false), [])
+  const changeMode = useCallback((next: TaskLayoutMode) => {
+    const taskId = taskStore.getState().activeTask?.id
+    if (taskId) taskModes.current.set(taskId, next)
+    setMode(next)
+  }, [taskStore])
   const selectModel = useCallback(
     (selected: ModelRef) => setModelSelection((current) => ({ ...current, selected })),
     []
@@ -343,6 +377,41 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     route.kind === 'archived'
       ? route.returnTo
       : route
+
+  const travel = async (delta: -1 | 1) => {
+    const targetHistory = travelAppHistory(history, delta)
+    if (targetHistory === history) return
+    const requestId = ++navigationRequestId.current
+    const target = targetHistory.entries[targetHistory.index]!
+    if (target.kind === 'task') {
+      const projection = await resolveTask(target.taskId)
+      if (requestId !== navigationRequestId.current) return
+      if (!projection) {
+        setNavigationError('无法打开任务：该任务已不可用')
+        return
+      }
+      setNavigationError(null)
+      taskStore.getState().open(projection)
+      setMode(taskModes.current.get(projection.id) ?? 'split')
+      restoredTaskId.current = projection.id
+      rememberActiveTaskId(projection.id)
+    } else if (target.kind === 'home') {
+      restoredTaskId.current = null
+      rememberActiveTaskId(null)
+    }
+    if (requestId === navigationRequestId.current) setHistory(targetHistory)
+  }
+  const navigation = {
+    canGoBack: history.index > 0,
+    canGoForward: history.index < history.entries.length - 1,
+    goBack: () => { void travel(-1) },
+    goForward: () => { void travel(1) }
+  }
+  const withNavigation = (page: ReactNode) =>
+    <AppNavigationProvider value={navigation}>
+      {page}
+      {navigationError ? <p className="app-navigation-error" role="alert">{navigationError}</p> : null}
+    </AppNavigationProvider>
 
   const openSettings = () => {
     if (route.kind === 'settings') return
@@ -367,7 +436,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const openArchived = () => setRoute({ kind: 'archived', returnTo: mainRoute })
 
   if (route.kind === 'archived') {
-    return (
+    return withNavigation(
       <ArchivedChatsPage
         catalog={services.taskCatalog}
         onBack={() => setRoute(route.returnTo)}
@@ -382,7 +451,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   if (route.kind === 'settings') {
-    return (
+    return withNavigation(
       <SettingsPage
         service={services.modelConnectionsService}
         onBack={() => {
@@ -398,7 +467,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   if (route.kind === 'main-prompt') {
-    return (
+    return withNavigation(
       <MainPromptPage
         service={services.agentFilesService}
         onBack={() => setRoute(route.returnTo)}
@@ -411,7 +480,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   }
 
   if (route.kind === 'skills') {
-    return (
+    return withNavigation(
       <SkillsPage
         service={services.agentFilesService}
         onBack={() => setRoute(route.returnTo)}
@@ -429,7 +498,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
       listAlwaysAllowedApps?(): Promise<string[]>
       removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
     }
-    return (
+    return withNavigation(
       <ComputerUsePage
         onBack={() => setRoute(route.returnTo)}
         onOpenConnections={() => setRoute({ kind: 'settings', returnTo: route.returnTo })}
@@ -450,7 +519,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     )
   }
 
-  return (
+  return withNavigation(
     <div className={`app-shell${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}`}>
       {!sidebarCollapsed ? (
         <Sidebar
@@ -488,7 +557,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           mode={mode}
           modelSelection={modelSelection}
           onSelectModel={selectModel}
-          onModeChange={setMode}
+          onModeChange={changeMode}
           onPause={pauseTask}
           onResume={resumeTask}
           onTakeOver={takeOverTask}
