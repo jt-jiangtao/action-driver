@@ -76,6 +76,9 @@ export function createEmbeddedBrowserHost(
       assertOpen()
       if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite) ||
           bounds.width < 0 || bounds.height < 0) throw new Error('BROWSER_VIEWPORT_INVALID')
+      if (viewport.x === bounds.x && viewport.y === bounds.y &&
+          viewport.width === bounds.width && viewport.height === bounds.height &&
+          visible === show) return
       viewport = { ...bounds }
       visible = show
       syncViews()
