@@ -19,11 +19,9 @@ export class RolloutWriteOperations {
     assistantMessage: PersistedMessage
     acceptedEvent: Omit<RuntimeEventRecord, 'cursor'>
   }): Promise<{ created: boolean; request: PersistedStreamRequest }> {
-    const existing = [...this.context.requests.values()].find(
-      (request) => request.taskId === input.request.taskId
-    )
+    const existing = this.context.requests.getByTaskId(input.request.taskId)
     if (existing) return { created: false, request: existing }
-    this.context.requests.set(input.request.requestId, input.request)
+    this.context.requests.upsert(input.request)
     this.context.projection.saveStreamRequest(input.request)
     this.context.taskSessions.set(input.request.taskId, input.request.sessionId)
     const runtime = this.context.runtimeFor(input.request.sessionId, input.task)
@@ -88,7 +86,7 @@ export class RolloutWriteOperations {
     assistantMessage: PersistedMessage
     event: Omit<RuntimeEventRecord, 'cursor'>
   }): Promise<RuntimeEventRecord> {
-    this.context.requests.set(input.request.requestId, input.request)
+    this.context.requests.upsert(input.request)
     this.context.projection.saveStreamRequest(input.request)
     const runtime = this.context.ensureRuntime(input.request.sessionId)
     const turn = runtime?.state.turns.find((candidate) => candidate.turnId === input.request.taskId)
@@ -121,7 +119,7 @@ export class RolloutWriteOperations {
   }
 
   async commitEvent(event: Omit<RuntimeEventRecord, 'cursor'>): Promise<RuntimeEventRecord> {
-    const request = event.requestId ? this.context.requests.get(event.requestId) : undefined
+    const request = event.requestId ? this.context.requests.getByRequestId(event.requestId) : null
     const sessionId = request?.sessionId ?? this.context.taskSessions.get(event.taskId)
     if (!sessionId) throw new Error(`Unknown session for task: ${event.taskId}`)
     const runtime = this.context.ensureRuntime(sessionId)

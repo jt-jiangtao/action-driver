@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -12,7 +12,12 @@ import { RolloutSessionStore } from '../../../src/rollout/session-store'
 
 const temporaryDirectories: string[] = []
 
-function workspace(): { root: string; statePath: string; historyPath: string; sessionsRoot: string } {
+function workspace(): {
+  root: string
+  statePath: string
+  historyPath: string
+  sessionsRoot: string
+} {
   const root = mkdtempSync(join(tmpdir(), 'action-driver-session-store-'))
   temporaryDirectories.push(root)
   return {
@@ -113,33 +118,76 @@ async function runTurn(store: RolloutSessionStore): Promise<void> {
   await store.commitAssistantContentWithEvent(
     request,
     message,
-    event('activity.text', { activityId: null, textId: 'text:turn-1:1', delta: '先看看' }, '2026-09-30T00:00:02.000Z', 2)
+    event(
+      'activity.text',
+      { activityId: null, textId: 'text:turn-1:1', delta: '先看看' },
+      '2026-09-30T00:00:02.000Z',
+      2
+    )
   )
   await store.commitAssistantContentWithEvent(
     request,
     message,
-    event('response.content', { delta: '先看看', contentIndex: 0, order: 1 }, '2026-09-30T00:00:02.100Z', 3)
+    event(
+      'response.content',
+      { delta: '先看看', contentIndex: 0, order: 1 },
+      '2026-09-30T00:00:02.100Z',
+      3
+    )
   )
   await store.commitAssistantContentWithEvent(
     request,
     message,
-    event('activity.text.done', { activityId: null, textId: 'text:turn-1:1', phase: 'process' }, '2026-09-30T00:00:02.200Z', 4)
+    event(
+      'activity.text.done',
+      { activityId: null, textId: 'text:turn-1:1', phase: 'process' },
+      '2026-09-30T00:00:02.200Z',
+      4
+    )
   )
   await store.events.append(
-    event('activity.started', { activityId: 'activity:turn-1:1', title: '生成图片', titleRevision: 1 }, '2026-09-30T00:00:03.000Z', 5)
+    event(
+      'activity.started',
+      { activityId: 'activity:turn-1:1', title: '生成图片', titleRevision: 1 },
+      '2026-09-30T00:00:03.000Z',
+      5
+    )
   )
   await store.commitAssistantContentWithEvent(
     request,
     message,
-    event('response.image_batch', { callId: 'call-1', imageCount: 2, contentIndex: 1, order: 3 }, '2026-09-30T00:00:04.000Z', 6)
+    event(
+      'response.image_batch',
+      { callId: 'call-1', imageCount: 2, contentIndex: 1, order: 3 },
+      '2026-09-30T00:00:04.000Z',
+      6
+    )
   )
   await store.events.append(
-    event('tool.proposed', { callId: 'call-1', toolId: 'tools/local/image-generation/generate', modelName: 'image_generate', summary: '生成图片', argumentsHash: '', activityId: 'activity:turn-1:1', callSequence: 7 }, '2026-09-30T00:00:05.000Z', 7)
+    event(
+      'tool.proposed',
+      {
+        callId: 'call-1',
+        toolId: 'tools/local/image-generation/generate',
+        modelName: 'image_generate',
+        summary: '生成图片',
+        argumentsHash: '',
+        activityId: 'activity:turn-1:1',
+        callSequence: 7
+      },
+      '2026-09-30T00:00:05.000Z',
+      7
+    )
   )
   await store.commitAssistantImageWithEvent(
     request,
     message,
-    event('response.image', { asset, callId: 'call-1', index: 0, contentIndex: 2, order: 4 }, '2026-09-30T00:00:06.000Z', 8)
+    event(
+      'response.image',
+      { asset, callId: 'call-1', index: 0, contentIndex: 2, order: 4 },
+      '2026-09-30T00:00:06.000Z',
+      8
+    )
   )
   await store.events.append(
     event('activity.completed', { activityId: 'activity:turn-1:1' }, '2026-09-30T00:00:07.000Z', 9)
@@ -148,11 +196,73 @@ async function runTurn(store: RolloutSessionStore): Promise<void> {
     request: { ...request, status: 'completed' },
     task: { ...task, status: 'completed' },
     assistantMessage: message,
-    event: event('response.end', { status: 'completed', content: '完成', durationMs: 7000 }, '2026-09-30T00:00:08.000Z', 10)
+    event: event(
+      'response.end',
+      { status: 'completed', content: '完成', durationMs: 7000 },
+      '2026-09-30T00:00:08.000Z',
+      10
+    )
   })
 }
 
 describe('rollout session store', () => {
+  it('keeps live, paged and reopened event fields equal across interleaved turns and a torn tail', async () => {
+    const paths = workspace()
+    const store = new RolloutSessionStore(paths)
+    const secondRequest = {
+      ...request,
+      requestId: 'request-2',
+      taskId: 'turn-2',
+      responseId: 'response-2',
+      streamId: 'stream-2',
+      messageId: 'message-2'
+    }
+    await store.createStreamTask({
+      request,
+      task,
+      userMessage: { ...message, role: 'user' },
+      assistantMessage: message,
+      acceptedEvent: event('request.accepted', {}, request.createdAt, 0)
+    })
+    await store.createStreamTask({
+      request: secondRequest,
+      task: { ...task, id: secondRequest.taskId },
+      userMessage: { ...message, id: 'user-2', taskId: secondRequest.taskId, role: 'user' },
+      assistantMessage: { ...message, id: secondRequest.messageId, taskId: secondRequest.taskId },
+      acceptedEvent: {
+        ...event('request.accepted', {}, request.createdAt, 0),
+        taskId: secondRequest.taskId,
+        requestId: secondRequest.requestId,
+        responseId: secondRequest.responseId,
+        streamId: secondRequest.streamId,
+        messageId: secondRequest.messageId
+      }
+    })
+    await store.events.append(event('benchmark.tick', { value: 1 }, request.createdAt, 1))
+    const initial = await store.events.listForRequestAfter(request.requestId, 0, 100)
+    await store.events.append(event('benchmark.tick', { value: 2 }, request.createdAt, 2))
+    const live = (await store.readStreamSnapshot(request.requestId)).events
+    expect(live.length).toBe(initial.length + 1)
+    const paged = []
+    let cursor = 0
+    while (true) {
+      const page = await store.events.listForRequestAfter(request.requestId, cursor, 2)
+      if (page.length === 0) break
+      paged.push(...page)
+      cursor = page.at(-1)!.cursor
+    }
+    expect(paged).toEqual(live)
+    expect(
+      (await store.streamRequests.getByIdempotencyKey(request.idempotencyKey))?.requestId
+    ).toBe(request.requestId)
+    store.close()
+    appendFileSync(findRolloutFile(paths.sessionsRoot), '{"t":"event","seq":999')
+    const reopened = new RolloutSessionStore(paths)
+    expect((await reopened.readStreamSnapshot(request.requestId)).events).toEqual(live)
+    expect(await reopened.events.listForRequestAfter(request.requestId, 0, 100)).toEqual(live)
+    reopened.close()
+  })
+
   it('writes domain records to one JSONL log', async () => {
     const paths = workspace()
     const store = new RolloutSessionStore(paths)
@@ -196,7 +306,9 @@ describe('rollout session store', () => {
     expect(snapshot.tools.map((tool) => tool.id)).toEqual(['call-1'])
     expect(snapshot.events.some((entry) => entry.type === 'response.end')).toBe(true)
     expect(
-      snapshot.events.filter((entry) => entry.type === 'response.content').map((entry) => entry.payload)
+      snapshot.events
+        .filter((entry) => entry.type === 'response.content')
+        .map((entry) => entry.payload)
     ).toEqual([{ delta: '先看看', contentIndex: 0, order: 1 }])
     reopened.close()
   })
@@ -219,8 +331,12 @@ describe('rollout session store', () => {
     const records = readFileSync(findRolloutFile(paths.sessionsRoot), 'utf8')
       .trim()
       .split('\n')
-      .map((line) => JSON.parse(line) as { t: string; kind?: string; status?: string; callId?: string })
-    const kinds = records.map((record) => (record.t === 'block' ? `block:${record.kind}` : record.t))
+      .map(
+        (line) => JSON.parse(line) as { t: string; kind?: string; status?: string; callId?: string }
+      )
+    const kinds = records.map((record) =>
+      record.t === 'block' ? `block:${record.kind}` : record.t
+    )
     // The batch reserves its slots before any picture lands, and the tool is
     // recorded as proposed/running before it completes.
     expect(kinds.indexOf('block:image_batch')).toBeLessThan(kinds.indexOf('block:image'))

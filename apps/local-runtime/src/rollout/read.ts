@@ -15,7 +15,7 @@ export class RolloutReadOperations {
   constructor(private readonly context: RolloutStoreContext) {}
 
   async readStreamSnapshot(requestId: string): Promise<StreamSnapshotRead> {
-    const request = this.context.requests.get(requestId)
+    const request = this.context.requests.getByRequestId(requestId)
     if (!request) throw new Error(`Unknown stream request: ${requestId}`)
     const runtime = this.context.ensureRuntime(request.sessionId)
     const lines = runtime?.lines ?? []
@@ -25,7 +25,7 @@ export class RolloutReadOperations {
     const lastSequence = events.at(-1)?.sequence ?? null
     if (lastSequence !== null && lastSequence !== request.lastSequence) {
       const updated: PersistedStreamRequest = { ...request, lastSequence }
-      this.context.requests.set(request.requestId, updated)
+      this.context.requests.upsert(updated)
       this.context.projection.saveStreamRequest(updated)
     }
     let cursor = 0
@@ -57,27 +57,26 @@ export class RolloutReadOperations {
     cursor: number,
     limit: number
   ): Promise<RuntimeEventRecord[]> {
-    const request = this.context.requests.get(requestId)
+    const request = this.context.requests.getByRequestId(requestId)
     if (!request) return []
-    const events = deriveRolloutEvents(
-      this.context.ensureRuntime(request.sessionId)?.lines ?? [],
-      request
-    ).filter((event) => event.cursor > cursor)
-    return events.slice(0, limit)
+    const runtime = this.context.ensureRuntime(request.sessionId)
+    return this.context.eventViews.listAfter(
+      request,
+      runtime?.lines ?? [],
+      cursor,
+      limit,
+      runtime?.reopened
+    )
   }
 
   async taskRecord(taskId: string): Promise<RuntimeTaskRecord | null> {
     const sessionId =
-      this.context.taskSessions.get(taskId) ??
-      [...this.context.requests.values()].find((candidate) => candidate.taskId === taskId)
-        ?.sessionId
+      this.context.taskSessions.get(taskId) ?? this.context.requests.getByTaskId(taskId)?.sessionId
     if (!sessionId) return null
     const state = this.context.ensureRuntime(sessionId)?.state
     const turn = state?.turns.find((candidate) => candidate.turnId === taskId)
     if (!turn) return null
-    const request = [...this.context.requests.values()].find(
-      (candidate) => candidate.taskId === taskId
-    )
+    const request = this.context.requests.getByTaskId(taskId)
     return {
       id: taskId,
       threadId: sessionId,
@@ -120,16 +119,12 @@ export class RolloutReadOperations {
 
   async messagesForTask(taskId: string): Promise<PersistedMessage[]> {
     const sessionId =
-      this.context.taskSessions.get(taskId) ??
-      [...this.context.requests.values()].find((candidate) => candidate.taskId === taskId)
-        ?.sessionId
+      this.context.taskSessions.get(taskId) ?? this.context.requests.getByTaskId(taskId)?.sessionId
     if (!sessionId) return []
     const state = this.context.ensureRuntime(sessionId)?.state
     const turn = state?.turns.find((candidate) => candidate.turnId === taskId)
     if (!turn) return []
-    const request = [...this.context.requests.values()].find(
-      (candidate) => candidate.taskId === taskId
-    )
+    const request = this.context.requests.getByTaskId(taskId)
     const stored: PersistedMessage[] = turn.messages.map((message) => ({
       id: message.messageId,
       taskId,
@@ -178,9 +173,7 @@ export class RolloutReadOperations {
 
   async toolsForTask(taskId: string): Promise<PersistedToolInvocation[]> {
     const sessionId =
-      this.context.taskSessions.get(taskId) ??
-      [...this.context.requests.values()].find((candidate) => candidate.taskId === taskId)
-        ?.sessionId
+      this.context.taskSessions.get(taskId) ?? this.context.requests.getByTaskId(taskId)?.sessionId
     if (!sessionId) return []
     const state = this.context.ensureRuntime(sessionId)?.state
     const turn = state?.turns.find((candidate) => candidate.turnId === taskId)

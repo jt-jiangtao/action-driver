@@ -1,8 +1,10 @@
-import type { PersistedStreamRequest, RuntimeTaskRecord } from '@action-driver/agent-runtime/ports'
+import type { RuntimeTaskRecord } from '@action-driver/agent-runtime/ports'
 import type { RolloutSessionState } from './fold'
 import type { RolloutLine, RolloutLineDraft } from './model'
 import type { RolloutProjection } from './projection'
 import type { RolloutWriter } from './log'
+import type { RolloutRequestIndex } from './request-index'
+import type { RequestEventViews } from './request-event-view'
 
 export type SessionRuntime = {
   sessionId: string
@@ -10,11 +12,13 @@ export type SessionRuntime = {
   writer: RolloutWriter
   lines: RolloutLine[]
   state: RolloutSessionState
+  reopened: boolean
 }
 
 /** Shared access to the store's sole in-memory state and append operation. */
 export type RolloutStoreContext = {
-  readonly requests: Map<string, PersistedStreamRequest>
+  readonly requests: RolloutRequestIndex
+  readonly eventViews: RequestEventViews
   readonly taskSessions: Map<string, string>
   readonly projection: RolloutProjection
   now(): string

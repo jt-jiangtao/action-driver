@@ -54,7 +54,7 @@ export class RolloutRecoveryOperations {
       })
       this.context.appendLines(runtime, drafts)
       const updated: PersistedStreamRequest = { ...request, status: 'failed', updatedAt: at }
-      this.context.requests.set(request.requestId, updated)
+      this.context.requests.upsert(updated)
       this.context.projection.saveStreamRequest(updated)
       recovered.push(...deriveRolloutEvents(runtime.lines, updated))
     }

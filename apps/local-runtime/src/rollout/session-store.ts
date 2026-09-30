@@ -20,6 +20,8 @@ import { RolloutProjection } from './projection'
 import { RolloutReadOperations } from './read'
 import { RolloutWriteOperations } from './write'
 import { RolloutRecoveryOperations } from './recovery'
+import { RolloutRequestIndex } from './request-index'
+import { RequestEventViews } from './request-event-view'
 import type { RolloutStoreContext, SessionRuntime } from './store-context'
 
 export type RolloutStoreOptions = {
@@ -38,7 +40,8 @@ export type RolloutStoreOptions = {
 export class RolloutSessionStore implements StreamSessionRepository {
   private readonly projection: RolloutProjection
   private readonly sessions = new Map<string, SessionRuntime>()
-  private readonly requests = new Map<string, PersistedStreamRequest>()
+  private readonly requests: RolloutRequestIndex
+  private readonly eventViews = new RequestEventViews()
   private readonly taskSessions = new Map<string, string>()
   private readonly derivedCounts = new Map<string, number>()
   private readonly now: () => string
@@ -61,12 +64,12 @@ export class RolloutSessionStore implements StreamSessionRepository {
       statePath: options.statePath,
       historyPath: options.historyPath
     })
-    for (const request of this.projection.listStreamRequests())
-      this.requests.set(request.requestId, request)
+    this.requests = new RolloutRequestIndex(this.projection.listStreamRequests())
     for (const turn of this.projection.listAllTurns())
       this.taskSessions.set(turn.turnId, turn.sessionId)
     const context: RolloutStoreContext = {
       requests: this.requests,
+      eventViews: this.eventViews,
       taskSessions: this.taskSessions,
       projection: this.projection,
       now: this.now,
@@ -78,12 +81,10 @@ export class RolloutSessionStore implements StreamSessionRepository {
     this.writerOperations = new RolloutWriteOperations(context)
     this.recovery = new RolloutRecoveryOperations(context)
     this.streamRequests = {
-      getByRequestId: async (requestId) => this.requests.get(requestId) ?? null,
-      getByTaskId: async (taskId) =>
-        [...this.requests.values()].find((request) => request.taskId === taskId) ?? null,
+      getByRequestId: async (requestId) => this.requests.getByRequestId(requestId),
+      getByTaskId: async (taskId) => this.requests.getByTaskId(taskId),
       getByIdempotencyKey: async (idempotencyKey) =>
-        [...this.requests.values()].find((request) => request.idempotencyKey === idempotencyKey) ??
-        null
+        this.requests.getByIdempotencyKey(idempotencyKey)
     }
     this.tasks = {
       get: async (taskId) => this.reader.taskRecord(taskId),
@@ -118,6 +119,7 @@ export class RolloutSessionStore implements StreamSessionRepository {
   }
 
   close(): void {
+    this.eventViews.clear()
     for (const runtime of this.sessions.values()) runtime.writer.close()
     this.projection.close()
   }
@@ -214,7 +216,8 @@ export class RolloutSessionStore implements StreamSessionRepository {
       path,
       writer: new RolloutWriter(path),
       lines,
-      state
+      state,
+      reopened: lines.length > 0
     }
     this.sessions.set(sessionId, runtime)
     return runtime
@@ -229,6 +232,9 @@ export class RolloutSessionStore implements StreamSessionRepository {
       runtime.writer.append(record)
       runtime.lines.push(record)
       applyRolloutLine(runtime.state, record)
+      this.eventViews.append(record, runtime.state, (requestId) =>
+        this.requests.getByRequestId(requestId)
+      )
       appended.push(record)
     }
     this.projection.project({ sessionId: runtime.sessionId, path: runtime.path })
@@ -243,12 +249,12 @@ export class RolloutSessionStore implements StreamSessionRepository {
     for (const line of lines) {
       const added = countRolloutEvents(line)
       if (added === 0 || line.t === 'session_meta') continue
-      const request = [...this.requests.values()].find((entry) => entry.taskId === line.turnId)
+      const request = this.requests.getByTaskId(line.turnId)
       if (!request) continue
       const next = (this.derivedCounts.get(request.requestId) ?? 0) + added
       this.derivedCounts.set(request.requestId, next)
       const updated: PersistedStreamRequest = { ...request, lastSequence: next - 1 }
-      this.requests.set(request.requestId, updated)
+      this.requests.upsert(updated)
       this.projection.saveStreamRequest(updated)
     }
   }

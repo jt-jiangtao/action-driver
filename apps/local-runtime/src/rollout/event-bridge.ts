@@ -1,5 +1,10 @@
 import type { PersistedStreamRequest, RuntimeEventRecord } from '@action-driver/agent-runtime/ports'
-import { applyRolloutLine, emptyRolloutState, type RolloutTurnState } from './fold'
+import {
+  applyRolloutLine,
+  emptyRolloutState,
+  type RolloutSessionState,
+  type RolloutTurnState
+} from './fold'
 import type { BlockLine, RolloutLine, ToolLine } from './model'
 
 /**
@@ -12,37 +17,45 @@ export function deriveRolloutEvents(
   request: PersistedStreamRequest
 ): RuntimeEventRecord[] {
   const events: RuntimeEventRecord[] = []
-  let state = emptyRolloutState()
-  let sequence = 0
+  const state = emptyRolloutState()
   for (const line of lines) {
     // Every record folds first: session metadata (the turn's model) and other turns belong to
     // the same log and must be applied even when they emit nothing for this request.
-    state = applyRolloutLine(state, line)
-    if (!belongsToRequest(line, request)) continue
-    const turn = state.turns.find((candidate) => candidate.turnId === request.taskId)
-    // Acceptance and narration can precede the turn record that anchors them.
-    if (!turn && line.t !== 'event' && line.t !== 'message' && line.t !== 'activity_text')
-      continue
-    for (const event of lineToEvents(line, turn, state.model)) {
-      events.push({
-        cursor: line.seq,
-        taskId: request.taskId,
-        threadId: request.sessionId,
-        checkpointId: request.responseId,
-        eventKey: `${line.seq}:${sequence}:${event.type}`,
-        occurredAt: line.ts,
-        eventId: `${request.requestId}:${line.seq}:${sequence}:${event.type}`,
-        requestId: request.requestId,
-        responseId: request.responseId,
-        streamId: request.streamId,
-        messageId: request.messageId,
-        sequence,
-        ...event
-      })
-      sequence += 1
-    }
+    applyRolloutLine(state, line)
+    events.push(...deriveRolloutEventsForLine(line, request, state, events.length))
   }
   return events
+}
+
+/** Derive one post-fold line using the same mapping as full replay. */
+export function deriveRolloutEventsForLine(
+  line: RolloutLine,
+  request: PersistedStreamRequest,
+  stateAfter: RolloutSessionState,
+  firstSequence: number
+): RuntimeEventRecord[] {
+  if (!belongsToRequest(line, request)) return []
+  const turn = stateAfter.turns.find((candidate) => candidate.turnId === request.taskId)
+  // Acceptance and narration can precede the turn record that anchors them.
+  if (!turn && line.t !== 'event' && line.t !== 'message' && line.t !== 'activity_text') return []
+  return lineToEvents(line, turn, stateAfter.model).map((event, index) => {
+    const sequence = firstSequence + index
+    return {
+      cursor: line.seq,
+      taskId: request.taskId,
+      threadId: request.sessionId,
+      checkpointId: request.responseId,
+      eventKey: `${line.seq}:${sequence}:${event.type}`,
+      occurredAt: line.ts,
+      eventId: `${request.requestId}:${line.seq}:${sequence}:${event.type}`,
+      requestId: request.requestId,
+      responseId: request.responseId,
+      streamId: request.streamId,
+      messageId: request.messageId,
+      sequence,
+      ...event
+    }
+  })
 }
 
 function belongsToRequest(line: RolloutLine, request: PersistedStreamRequest): boolean {
@@ -78,17 +91,19 @@ function lineToEvents(
     return [{ type: 'response.start', payload: { model } }]
   }
   if (line.t === 'turn_end') {
-    return [{
-      type: 'response.end',
-      payload: {
-      status: line.status,
-      content: line.content ?? turn?.finalContent ?? '',
-      finishReason: null,
-      usage: null,
-      durationMs: line.durationMs ?? 0,
-      error: line.error ?? null
+    return [
+      {
+        type: 'response.end',
+        payload: {
+          status: line.status,
+          content: line.content ?? turn?.finalContent ?? '',
+          finishReason: null,
+          usage: null,
+          durationMs: line.durationMs ?? 0,
+          error: line.error ?? null
+        }
       }
-    }]
+    ]
   }
   if (line.t === 'event') return [{ type: line.type, payload: line.payload }]
   if (line.t === 'message') return []
@@ -130,29 +145,33 @@ function lineToEvents(
       ]
     }
     if (line.kind === 'image_batch') {
-      return [{
-        type: 'response.image_batch',
-        payload: {
-          callId: line.callId,
-          imageCount: line.imageCount,
-          contentIndex,
-          order: line.order
+      return [
+        {
+          type: 'response.image_batch',
+          payload: {
+            callId: line.callId,
+            imageCount: line.imageCount,
+            contentIndex,
+            order: line.order
+          }
         }
-      }]
+      ]
     }
     if (line.kind === 'image') {
       // An image whose asset never landed (write failure) must not be published.
       if (!line.asset) return []
-      return [{
-        type: 'response.image',
-        payload: {
-          asset: line.asset,
-          contentIndex,
-          callId: line.generation?.callId,
-          index: line.generation?.index ?? 0,
-          order: line.order
+      return [
+        {
+          type: 'response.image',
+          payload: {
+            asset: line.asset,
+            contentIndex,
+            callId: line.generation?.callId,
+            index: line.generation?.index ?? 0,
+            order: line.order
+          }
         }
-      }]
+      ]
     }
     if (line.kind === 'tool_group') {
       if (line.status === 'completed')
@@ -165,10 +184,12 @@ function lineToEvents(
         title: line.title ?? turn.goal,
         titleRevision: Math.max(1, line.titleRevision ?? 1)
       }
-      return [{
-        type: payload.titleRevision > 1 ? 'activity.updated' : 'activity.started',
-        payload
-      }]
+      return [
+        {
+          type: payload.titleRevision > 1 ? 'activity.updated' : 'activity.started',
+          payload
+        }
+      ]
     }
     return []
   }
