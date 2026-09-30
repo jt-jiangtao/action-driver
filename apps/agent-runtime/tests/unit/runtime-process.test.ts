@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
-import { startAgentRuntimeProcess } from '../../src/runtime-process'
+import { createAgentRuntime } from '../../src/runtime-process'
+import { startAgentRuntimeProcess } from '../../src/electron-host'
 import { createScriptTools } from '../../src/execution/tools'
 import { startLocalOtelCollector } from '../../../../tests/otel-collector'
 import {
@@ -42,6 +43,24 @@ class FakeParentPort extends EventEmitter {
 }
 
 describe('Agent Runtime process entry', () => {
+  it('starts and closes without an Electron parent port', async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-hostless-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-hostless-root-'))
+    const runtime = await createAgentRuntime({ dataRoot, workspaceRoot, environment: {} })
+    expect(runtime.ready).toEqual({ service: null })
+    await runtime.close()
+    await runtime.close()
+  })
+
+  it('releases the storage owner when a later startup step fails', async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-startup-failure-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-startup-failure-root-'))
+    await expect(createAgentRuntime({ dataRoot, workspaceRoot,
+      environment: { ACTIONDRIVER_PLACEMENT_HOSTS: 'not-json' }
+    })).rejects.toThrow('must be valid JSON')
+    const runtime = await createAgentRuntime({ dataRoot, workspaceRoot, environment: {} })
+    await runtime.close()
+  }, 20_000)
   it('disables inherited LangChain tracing flags before running the graph', async () => {
     const keys = [
       'LANGSMITH_TRACING_V2',

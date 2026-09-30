@@ -1,68 +1,45 @@
+import { createRuntimePluginAssembly } from './runtime-plugin-assembly'
+import { createRuntimeStorage } from './runtime-storage'
+import { createRuntimeExecutionEnvironment } from './runtime-execution'
 import { createLocalRuntimeServer } from './local-runtime-server'
 import { createLocalRuntimeAdapters } from './local-adapters'
-import type { ParentPortLike } from './runtime-parent-port'
-import { openRuntimeDatabase } from './database'
-import { claimRuntimeOwnership } from './runtime-ownership'
-import { SqliteRuntimeRepositories } from './repositories'
-import { createSqliteCheckpointer } from './sqlite-checkpointer'
+import type { RuntimeReadyDescriptor } from './runtime-host'
 import { ConnectionModelGateway } from './model-connections/model-gateway'
 import { PhoenixModelObservability } from './phoenix-model-observability'
-import { createFileModelConnectionStore } from './model-connections/file-store'
-import { createCredentialCipher, createCredentialKey } from './model-connections/credential-cipher'
-import { createServiceLogger } from './service/logger'
 import { startServiceHttpServer, type ServiceHttpServer } from './service/http-service'
 import { StreamSessionService } from './stream-session-service'
 import { SERVICE_STREAM_PATH, SERVICE_STREAM_PROTOCOL } from './service/websocket-service'
-import { createFetchHttpTransport } from './model-connections/http-transport'
-import { ModelConnectionService } from './model-connections/service'
-import { createInteractionLogRecorder } from '@actiondriver/observability'
-import { IMAGE_GENERATION_TOOL_ID } from '@actiondriver/contracts'
 import { randomUUID } from 'node:crypto'
-import { createScriptTools } from './execution/tools'
-import { createWorkspaceDependenciesTool } from './execution/workspace-dependencies-tool'
 import { SessionExecutionContextResolver } from './execution/session-execution-context'
-import { SessionSandbox } from './execution/session-sandbox'
-import { SessionWorkspaceStore } from './execution/session-workspace'
-import { dirname, join, resolve } from 'node:path'
-import { rmSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createWebCredentialPort } from './plugins/web-credentials'
-import { createRuntimePluginPlatform } from './plugins/composition'
 import { PluginInstructionHost } from './plugins/instruction-host'
-import { createDesktopResourcePort } from './plugins/desktop-resource-port'
-import { createCommandExecutionPort } from './plugins/command-port'
-import { resolveExecutionRuntimePaths } from './execution/runtime-paths'
-import { extractPageTextIsolated } from './web-open/extract-isolated'
-import { PluginError } from '@actiondriver/plugin-contracts'
 import { AgentFileStore } from './agent-files/agent-file-store'
 import { SkillInstaller } from './agent-files/skill-installer'
-import { createSkillStoragePorts } from './plugins/skill-port'
 import type { RuntimeSkillRegistry } from './skill-registry'
-import { SessionAssetStore } from './media/session-asset-store'
-import { SessionInputFileStore } from './media/session-input-file-store'
-import { SessionOutputStore } from './media/session-output-store'
-import { createResourceHttpPort, createRuntimeResourceRegistryFromStores, parseRemoteResourceHosts } from './resources/runtime-resources'
-import { createPluginArtifactHostPorts } from './resources/plugin-resources'
+import { createResourceHttpPort } from './resources/runtime-resources'
 import { PlacementRouter, parseRemoteHostDeclarations } from './placement/router'
-import { definition as imageDefinition } from '@actiondriver/image-generation-plugin/catalog'
 import { createComputerUseEntry } from './computer-use/entry'
-import { VolatileComputerImages } from './computer-use/volatile-images'
 import { ComputerUseControlGate } from './computer-use/control-gate'
 import { LoadedSkills } from './computer-use/skill-gate'
 import type { AppApprovalBroker } from './computer-use/app-approval-broker'
 import { AppApprovalStore } from './computer-use/app-approval-store'
-import { RolloutSessionStore } from './rollout/session-store'
-import { RolloutRuntimeRepositories } from './rollout/runtime-repositories'
 
-type ParentMessageEvent = { data: unknown }
+export type AgentRuntimeOptions = {
+  dataRoot: string
+  workspaceRoot: string
+  environment?: NodeJS.ProcessEnv
+}
 
-export async function startAgentRuntimeProcess(
-  parentPort: ParentPortLike,
-  dataRoot: string,
-  exit: (code: number) => void = process.exit,
-  environment: NodeJS.ProcessEnv = process.env
-): Promise<void> {
-  const workspaceRoot = environment.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
+export type AgentRuntime = {
+  ready: RuntimeReadyDescriptor
+  close(): Promise<void>
+}
+
+export async function createAgentRuntime(options: AgentRuntimeOptions): Promise<AgentRuntime> {
+  const { dataRoot } = options
+  const environment = options.environment ?? process.env
+  const workspaceRoot = options.workspaceRoot.trim()
   if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
   // LangGraph remains in use, but inherited LangChain flags must not enable its LangSmith exporter.
   for (const key of [
@@ -73,93 +50,18 @@ export async function startAgentRuntimeProcess(
   ])
     process.env[key] = 'false'
   const runtimeEntry = fileURLToPath(import.meta.url)
-  const runtimeDist = resolve(dirname(runtimeEntry), runtimeEntry.endsWith('.ts') ? '../dist' : '.')
-  const timeoutOverride = Number(environment.ACTIONDRIVER_SCRIPT_TIMEOUT_MS)
-  const agentHome = environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
-  // Scripts may read the installed Skills they were told to run, next to the
-  // bundled runtimes, and nothing else.
-  const sandbox = new SessionSandbox({
-    runtimeRoots: [runtimeDist, join(agentHome, '.action-driver', 'skills')]
-  })
-  const scriptTools = await createScriptTools({
-    runtimeDist,
-    sandbox,
-    ...(Number.isSafeInteger(timeoutOverride) &&
-    timeoutOverride >= 1_000 &&
-    timeoutOverride <= 600_000
-      ? { timeoutMs: timeoutOverride }
-      : {})
-  })
+  const execution = await createRuntimeExecutionEnvironment({ runtimeEntry, workspaceRoot, environment })
+  const { runtimeDist, agentHome } = execution
   const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
-  // The session log and its projection replaced the single business database; drop the old file
-  // so a stale schema can never be read, and keep auxiliary state in its own database.
-  for (const suffix of ['', '-wal', '-shm']) rmSync(join(dataRoot, `actiondriver.db${suffix}`), { force: true })
-  const statePath = join(dataRoot, 'state.sqlite')
-  const database = openRuntimeDatabase(statePath)
-  let ownership: ReturnType<typeof claimRuntimeOwnership>
+  const storage = await createRuntimeStorage({ dataRoot, workspaceRoot, environment })
+  let startupPlugin: Awaited<ReturnType<typeof createRuntimePluginAssembly>> | null = null
+  let startupComputer: Awaited<ReturnType<typeof createComputerUseEntry>> | null = null
+  let startupHttpServer: ServiceHttpServer | null = null
   try {
-    ownership = claimRuntimeOwnership(database)
-  } catch (error) {
-    database.close()
-    throw error
-  }
-  const stateRepositories = new SqliteRuntimeRepositories(database)
-  // Session history now lives in an append-only rollout log; the state database keeps the
-  // auxiliary stores (input files, assets, outputs, approvals, ownership).
-  const rolloutStore = new RolloutSessionStore({
-    sessionsRoot: dataRoot,
-    statePath: join(dataRoot, 'rollout-state.sqlite'),
-    historyPath: join(dataRoot, 'rollout-history.sqlite')
-  })
-  const repositories = new RolloutRuntimeRepositories(rolloutStore, stateRepositories)
-  const assets = new SessionAssetStore({ database, rootDirectory: dataRoot })
-  const computerImages = new VolatileComputerImages()
-  const workspaces = new SessionWorkspaceStore({ workspaceRoot })
-  const inputFiles = new SessionInputFileStore({
-    database,
-    rootDirectory: dataRoot,
-    workspaces
-  })
-  const outputs = new SessionOutputStore({
-    database,
-    rootDirectory: dataRoot,
-    workspaces
-  })
-  // Unified resource entry point: session inputs and registered deliverables are served only
-  // through their owning provider, which re-checks the persisted ownership records.
-  const resources = createRuntimeResourceRegistryFromStores({
-    inputFiles,
-    inputFileRecords: repositories.inputFiles,
-    outputs,
-    resourceRoot: join(dataRoot, 'resources'),
-    remote: parseRemoteResourceHosts(environment)
-  })
-  const resourceRegistry = resources.registry
-  await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
-  await assets.cleanOrphanFiles()
-  await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
-  const checkpointer = createSqliteCheckpointer(join(dataRoot, 'checkpoints.sqlite'))
-  const logging = createServiceLogger({ databasePath: statePath })
-  const interactions = createInteractionLogRecorder({
-    ids: {
-      eventId: () => `service:${randomUUID()}`,
-      correlationId: randomUUID
-    },
-    logger: logging.logger,
-    tracer: logging.tracer,
-    meter: logging.meter
-  })
-  const credentialSecret = environment.ACTIONDRIVER_CREDENTIAL_KEY?.trim()
-  const service = new ModelConnectionService({
-    store: createFileModelConnectionStore({ filePath: join(dataRoot, 'model-connections.json') }),
-    cipher: createCredentialCipher(
-      credentialSecret ? createCredentialKey(credentialSecret) : Buffer.alloc(0)
-    ),
-    transport: createFetchHttpTransport(),
-    imageResolver: (asset) => asset.assetId.startsWith('volatile-computer:')
-      ? Promise.resolve(computerImages.read(asset))
-      : assets.read(asset.assetId, asset.sessionId)
-  })
+  const {
+    database, repositories, assets, computerImages, workspaces, inputFiles, outputs,
+    resourceRegistry, checkpointer, logging, interactions, service
+  } = storage
   const modelTraces = new PhoenixModelObservability(logging.tracer)
   const executionContexts = new SessionExecutionContextResolver({
     tasks: repositories.tasks,
@@ -245,112 +147,18 @@ export async function startAgentRuntimeProcess(
       return null
     })
     if (computer) {
+      startupComputer = computer
       appApprovals = computer.approvals
       for (const tool of computer.tools) {
         local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
       }
     }
   }
-  for (const tool of scriptTools) {
-    local.toolRuntime.grants.push(`${tool.definition.id}@${tool.definition.version}`)
-  }
-  const workspaceDependenciesTool = createWorkspaceDependenciesTool(runtimeDist)
-  local.toolRuntime.grants.push(`${workspaceDependenciesTool.definition.id}@${workspaceDependenciesTool.definition.version}`)
-  local.toolRuntime.grants.push(`${imageDefinition.id}@${imageDefinition.version}`)
-  const webCredentials = createWebCredentialPort(environment)
-  local.toolRuntime.isAvailable = async (definition) => {
-    if (definition.id === 'tools/local/web/search') return webCredentials.configuration.searchConfigured
-    if (definition.id === 'tools/local/web/open') return webCredentials.configuration.readerConfigured
-    if (definition.id === imageDefinition.id)
-      return (await service.getDefaultImageModel()) !== null
-    if (definition.id === 'tools/local/cua/js' ||
-        definition.id === 'tools/local/cua/reset') {
-      for (const skillId of ['browser-use', 'computer-use']) {
-        try { local.adapters.skillRegistry.resolve(skillId, 1); return true }
-        catch { /* try the other owned surface */ }
-      }
-      return false
-    }
-    return true
-  }
-  local.toolRuntime.capabilityNotice = async () =>
-    (await service.getDefaultImageModel()) === null
-      ? '本应用支持图片生成，但当前没有配置默认生图模型。若用户请求生成图片，请说明需前往“设置 → 模型连接”启用一个模型的图片生成能力并设为默认模型；不要说应用完全没有生图工具。'
-      : null
-  let computerActivated = false
-  const runtimePaths = await resolveExecutionRuntimePaths(runtimeDist, process.arch, ['node'])
-  const pluginPlatform = await createRuntimePluginPlatform({
-    node: runtimePaths.node, hostEntry: join(runtimeDist, 'plugin-host.mjs'),
-    packageRoots: ['command', 'web', 'image-generation', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => join(runtimeDist, 'plugins', id)),
-    dataRoot: join(dataRoot, 'plugins'), registry: local.toolRuntime.registry,
-    retiredPluginIds: ['search', 'web-reader'],
-    configuration: { web: webCredentials.configuration },
-    apiPorts: {
-      credentials: webCredentials.credentials,
-      // Plugin artifacts are host-owned resources, so a plugin always goes through the unified
-      // resource entry point instead of writing into a local directory of its own choosing.
-      artifacts: createPluginArtifactHostPorts({
-        store: resources.pluginStore,
-        readResource: (uri, _authority, context) => resourceRegistry.read(uri, context),
-        ids: randomUUID
-      })
-    },
-    skills: {
-      stage: (owner, skill, root) => pluginInstructions.stage(owner, skill, root),
-      publish: (owner, id) => { const registration = pluginInstructions.publish(owner, id); return { dispose: () => { loadedSkills.forget(id); return registration.dispose() } } }
-    },
-    desktopResources: createDesktopResourcePort(local.adapters.skillRegistry, randomUUID),
-    // Desktop-initiated menu commands resolve their grants from the persisted task, never from
-    // the request body.
-    commandAuthority: async request => {
-      if (!request.taskId) return { grants: [], taskId: '', sessionId: '' }
-      const context = await executionContexts.resolve(request.taskId)
-      return { grants: context.grants ?? [], taskId: context.taskId, sessionId: context.sessionId }
-    },
-    toolTimeouts: Object.fromEntries(scriptTools.map(tool => [tool.definition.id, tool.definition.timeoutMs])),
-    hostCapabilities: {
-      ...createSkillStoragePorts({ store: agentFiles, installer: skillInstaller, contexts: executionContexts, record: (sessionId, skillId) => loadedSkills.record(sessionId, skillId) }),
-      ...(computer ? { 'host.computer.execute': {
-        plugins: ['computer-use'], grants: ['tools/local/cua/js@1', 'tools/local/cua/reset@1'],
-        async start() {
-          if (computerActivated) await computer!.restart()
-          computerActivated = true
-          return { dispose: () => computer!.dispose() }
-        },
-        stream: (input, context, signal) => createCommandExecutionPort(computer!.tools, executionContexts, ['computer-use']).stream(input, context, signal)
-      } } : {}),
-      'host.image.model': { plugins: ['image-generation'], grants: [`${IMAGE_GENERATION_TOOL_ID}@1`], async invoke() {
-        const model = await service.getDefaultImageModel()
-        return model ? { ...model } : null
-      } },
-      'host.image.generate': { plugins: ['image-generation'], grants: [`${IMAGE_GENERATION_TOOL_ID}@1`], async invoke(input, context, signal) {
-        if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 4000 || !context.taskId) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid image request')
-        const task = await repositories.tasks.get(context.taskId)
-        if (!task || task.sessionId !== context.sessionId) throw new PluginError('IMAGE_SESSION_NOT_FOUND', 'Image task has no owned session')
-        const model = await service.getDefaultImageModel()
-        if (!model) throw new PluginError('IMAGE_MODEL_NOT_CONFIGURED', 'No default image model')
-        const selected = input.model
-        if (!selected || typeof selected !== 'object' || Array.isArray(selected) || selected.connectionId !== model.connectionId || selected.modelId !== model.modelId) throw new PluginError('AUTHORIZATION_DENIED', 'Image model selection changed')
-        const bytes = await service.generateImage({ model, prompt: input.prompt }, signal)
-        signal.throwIfAborted()
-        return { ...await assets.saveGenerated(task.sessionId, bytes) }
-      } },
-      'host.command.execute': createCommandExecutionPort([...scriptTools, workspaceDependenciesTool], executionContexts),
-      'host.web.extract': { plugins: ['web'], grants: ['tools/local/web/open@1'], async invoke(input, _context, signal) {
-        if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.html !== 'string' || Buffer.byteLength(input.html) > 4 * 1024 * 1024 || typeof input.url !== 'string' || input.url.length > 2048) throw new PluginError('TOOL_INPUT_INVALID', 'Invalid bounded HTML input')
-        return { ...await extractPageTextIsolated(input.html, input.url, { signal }) }
-      } }
-    },
-    now: Date.now, ids: randomUUID,
-    log: entry => console.error('[plugin]', JSON.stringify(entry))
+  const pluginPlatform = await createRuntimePluginAssembly({
+    dataRoot, environment, execution, storage, local, executionContexts,
+    pluginInstructions, agentFiles, skillInstaller, loadedSkills, computer
   })
-  if (webCredentials.configuration.searchConfigured) {
-    // Tool grants remain host-owned; a plugin never authorizes itself.
-    local.toolRuntime.grants.push('tools/local/web/search@1')
-  }
-  await Promise.all(['command', 'image-generation', 'web', 'skills', 'documents', 'pdf', 'presentations', 'spreadsheets', ...(computer ? ['computer-use'] : []), ...(process.platform === 'darwin' ? ['browser-use'] : [])].map(id => pluginPlatform.enable(id)))
-  if (webCredentials.configuration.readerConfigured) local.toolRuntime.grants.push('tools/local/web/open@1')
-  local.toolRuntime.grants.push('tools/local/skills/read@1', 'tools/local/skills/install@1')
+  startupPlugin = pluginPlatform
   // Capability placement: this process registers itself as the local host and adopts any declared
   // remote hosts. Tools without a placement declaration keep running right here, unchanged.
   const placement = new PlacementRouter()
@@ -442,45 +250,47 @@ export async function startAgentRuntimeProcess(
         ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
         : {})
     })
+    startupHttpServer = httpServer
   }
 
-  const handleShutdown = (event: ParentMessageEvent) => {
-    if (
-      typeof event.data !== 'object' ||
-      event.data === null ||
-      !('type' in event.data) ||
-      event.data.type !== 'runtime.shutdown'
-    ) {
-      return
-    }
-    parentPort.off('message', handleShutdown)
-    void server.close().then(async () => {
+  let closing: Promise<void> | null = null
+  const close = () => {
+    closing ??= (async () => {
+      await server.close()
       await pluginPlatform?.dispose()
       await computer?.dispose()
       computerImages.clear()
       await httpServer?.close()
-      checkpointer.close()
-      ownership.release()
-      repositories.close()
-      await logging.close()
-      exit(0)
-    })
+      await storage.close()
+    })()
+    return closing
   }
 
-  parentPort.on('message', handleShutdown)
   console.error(
     '[runtime] ready',
     httpServer ? `${httpServer.url}${SERVICE_STREAM_PATH}` : 'no-http-service',
     Date.now()
   )
-  parentPort.postMessage({
-    type: 'runtime.ready',
-    service: httpServer
+  return {
+    ready: { service: httpServer
       ? {
           baseUrl: httpServer.url,
           streamPath: SERVICE_STREAM_PATH,
           streamProtocol: SERVICE_STREAM_PROTOCOL
         }
-      : null
-  })
+      : null },
+    close
+  }
+  } catch (error) {
+    for (const release of [
+      () => startupHttpServer?.close(),
+      () => startupPlugin?.dispose(),
+      () => startupComputer?.dispose(),
+      () => { storage.computerImages.clear() },
+      () => storage.close()
+    ]) {
+      try { await release() } catch { /* preserve the startup failure */ }
+    }
+    throw error
+  }
 }

@@ -78,6 +78,7 @@
 
 关键任务：
 
+- 云端装配前置：`split-runtime-host-bootstrap` 把 Runtime 的宿主引导与存储/执行装配从 Electron 解耦，使同一装配可在无 Electron 环境启动；复用边界与优先级见 [analysis/cloud-runtime-preflight.md](../analysis/cloud-runtime-preflight.md)。
 - 云端装配：传输（HTTPS/WSS）、存储（远端）、凭据（托管密钥服务）、部署与可观察性。
 - 云端侧执行环境与能力范围（例如云端浏览器/沙箱）的选型与隔离边界。
 - 历史归属与同步策略（需要独立 Battle：客户端权威 / 云端权威 / 混合）。
