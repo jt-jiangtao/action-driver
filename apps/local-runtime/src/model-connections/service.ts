@@ -3,26 +3,30 @@ import { createHash } from 'node:crypto'
 import type { ModelRef } from '@action-driver/contracts'
 import type {
   ImageResolver,
-  OpenAiClientFactory,
-  ProviderFailure
+  OpenAiClientFactory
 } from '@action-driver/model-provider-runtime/provider-adapters'
 import { createModelProviderAdapter } from '@action-driver/model-provider-runtime/provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
-import {
-  createTokenPlanImageGenerationAdapter,
-  isTokenPlanBaseUrl
-} from '../media/token-plan-image-generation-adapter'
+import { createTokenPlanImageGenerationAdapter } from '../media/token-plan-image-generation-adapter'
 import type { SecretCipher } from './credential-cipher'
-import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
+import { apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
-import { ModelStorageError } from './store'
 import { ModelServiceError } from '@action-driver/model-connections'
 import {
   capabilityCandidates,
   isChatCandidate,
   isVerifiedTokenPlanImageModel
 } from './model-capability-catalog'
-import { probeCapability } from './capability-probes'
+import { probeModelCapabilities } from './model-capability-testing'
+import { toServiceError } from './model-service-error'
+import {
+  imageApiForModel,
+  isImageEligible,
+  mergeDiscoveredModel,
+  selectedImageApi,
+  toDto,
+  withCatalogLabels
+} from './model-option-policy'
 import type {
   ModelAddRequestDto,
   ModelConnectionDto,
@@ -37,7 +41,6 @@ import type {
   ModelTestRequestDto,
   ModelTestResultDto,
   ImageEndpointVerification,
-  ImageGenerationApi,
   ModelConnectionServicePort,
   ModelCompletionServicePort
 } from '@action-driver/model-connections'
@@ -165,9 +168,10 @@ export class ModelConnectionService
 
   async testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]> {
     const validated = validateDraft(request.draft)
-    const results = await this.probeModelCapabilities(
+    const results = await probeModelCapabilities(
       { baseUrl: validated.baseUrl, apiKey: validated.apiKey, protocol: validated.protocol },
-      request.modelIds
+      request.modelIds,
+      this.options.transport
     )
     for (const result of results) {
       if (result.imageEndpointVerification) {
@@ -185,13 +189,14 @@ export class ModelConnectionService
   ): Promise<ModelTestResultDto[]> {
     const connections = this.read()
     const connection = requireConnection(connections, request.connectionId)
-    const results = await this.probeModelCapabilities(
+    const results = await probeModelCapabilities(
       {
         baseUrl: connection.baseUrl,
         apiKey: this.decrypt(connection),
         protocol: connection.protocol
       },
-      request.modelIds
+      request.modelIds,
+      this.options.transport
     )
     const byId = new Map(results.map((result) => [result.modelId, result]))
     const currentConnections = this.read()
@@ -376,73 +381,6 @@ export class ModelConnectionService
     this.write(connections.filter((connection) => connection.id !== connectionId))
   }
 
-  private async probeModelCapabilities(
-    endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
-    modelIds: readonly string[]
-  ): Promise<ModelTestResultDto[]> {
-    const results: ModelTestResultDto[] = new Array(modelIds.length)
-    let nextIndex = 0
-    const testOne = async (modelId: string): Promise<ModelTestResultDto> => {
-      const candidates = capabilityCandidates(modelId, endpoint.baseUrl)
-      const capabilities: NonNullable<ModelTestResultDto['capabilities']> = {}
-      let imageEndpointVerification: ImageEndpointVerification | undefined
-      await Promise.all(
-        candidates.probes.map(async (capability) => {
-          try {
-            if (
-              capability === 'image_generation' &&
-              isVerifiedTokenPlanImageModel(modelId, endpoint.baseUrl)
-            ) {
-              const tested = await probeTokenPlanImageEndpoints(
-                endpoint,
-                modelId,
-                this.options.transport
-              )
-              capabilities.image_generation = tested.capability
-              imageEndpointVerification = tested.verification
-            } else {
-              capabilities[capability] = await probeCapability({
-                endpoint,
-                modelId,
-                capability,
-                transport: this.options.transport
-              })
-            }
-          } catch (error) {
-            const failure = toServiceError(error)
-            capabilities[capability] = {
-              state: 'failed',
-              source: 'probe',
-              testedAt: new Date().toISOString(),
-              failure: { code: failure.code, message: failure.message }
-            }
-          }
-        })
-      )
-      const states = Object.values(capabilities).map((result) => result.state)
-      const state = states.includes('success')
-        ? 'success'
-        : states.includes('failed') || states.includes('inconclusive')
-          ? 'failed'
-          : 'unsupported'
-      return {
-        modelId,
-        state,
-        capabilities,
-        ...(imageEndpointVerification ? { imageEndpointVerification } : {})
-      }
-    }
-    await Promise.all(
-      Array.from({ length: Math.min(4, modelIds.length) }, async () => {
-        while (nextIndex < modelIds.length) {
-          const index = nextIndex++
-          results[index] = await testOne(modelIds[index]!)
-        }
-      })
-    )
-    return results
-  }
-
   private read(): StoredModelConnection[] {
     try {
       return this.options.store.read()
@@ -497,18 +435,6 @@ export class ModelConnectionService
   }
 }
 
-function toDto(connection: StoredModelConnection): ModelConnectionDto {
-  return {
-    id: connection.id,
-    name: connection.name,
-    protocol: connection.protocol,
-    baseUrl: connection.baseUrl,
-    apiKeyHint: connection.apiKeyHint,
-    expanded: connection.expanded,
-    models: connection.models.map((model) => withCatalogLabels(model, connection.baseUrl))
-  }
-}
-
 function requireConnection(
   connections: readonly StoredModelConnection[],
   connectionId: string
@@ -520,54 +446,6 @@ function requireConnection(
   return connection
 }
 
-function mergeDiscoveredModel(connection: StoredModelConnection, id: string): ModelOptionDto {
-  const existing = connection.models.find((model) => model.id === id)
-  return existing
-    ? { ...existing }
-    : { id, name: id, enabled: true, testState: 'untested', imageGenerationApi: 'openai-images' }
-}
-
-function withCatalogLabels(model: ModelOptionDto, baseUrl: string): ModelOptionDto {
-  const { probes, displayOnly: labels } = capabilityCandidates(model.id, baseUrl)
-  const needsImageVerification =
-    isVerifiedTokenPlanImageModel(model.id, baseUrl) &&
-    model.capabilities?.image_generation?.state === 'success' &&
-    !isImageEligible(model, baseUrl)
-  return {
-    ...model,
-    ...(needsImageVerification
-      ? {
-          capabilities: {
-            ...model.capabilities,
-            image_generation: { state: 'untested' as const, source: 'legacy' as const }
-          }
-        }
-      : {}),
-    probeCandidates: probes,
-    chatCandidate: isChatCandidate(model.id, baseUrl),
-    ...(labels.length ? { catalogLabels: labels } : {})
-  }
-}
-
-function isImageEligible(model: ModelOptionDto, baseUrl: string): boolean {
-  if (model.capabilities?.image_generation?.state !== 'success') return false
-  if (!isVerifiedTokenPlanImageModel(model.id, baseUrl)) return true
-  const selected = model.imageEndpointVerification?.selectedApi
-  return Boolean(
-    selected && model.imageEndpointVerification?.results[selected]?.state === 'success'
-  )
-}
-
-function selectedImageApi(model: ModelOptionDto, baseUrl: string): ImageGenerationApi {
-  if (!isVerifiedTokenPlanImageModel(model.id, baseUrl)) return imageApiForModel(baseUrl)
-  const results = model.imageEndpointVerification!.results
-  return results['token-plan'].state === 'success' ? 'token-plan' : 'openai-images'
-}
-
-function imageApiForModel(baseUrl: string): 'token-plan' | 'openai-images' {
-  return isTokenPlanBaseUrl(baseUrl) ? 'token-plan' : 'openai-images'
-}
-
 function draftImageVerificationKey(
   draft: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
   modelId: string
@@ -575,61 +453,6 @@ function draftImageVerificationKey(
   return createHash('sha256')
     .update(JSON.stringify([draft.protocol, draft.baseUrl, draft.apiKey, modelId]))
     .digest('hex')
-}
-
-async function probeTokenPlanImageEndpoints(
-  endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
-  modelId: string,
-  transport: HttpTransport
-): Promise<{
-  capability: NonNullable<NonNullable<ModelTestResultDto['capabilities']>['image_generation']>
-  verification: ImageEndpointVerification
-}> {
-  const results = {} as ImageEndpointVerification['results']
-  for (const api of ['openai-images', 'token-plan'] as const) {
-    const adapter =
-      api === 'token-plan'
-        ? createTokenPlanImageGenerationAdapter()
-        : createImageGenerationAdapter()
-    const outcome = await probeCapability({
-      endpoint,
-      modelId,
-      capability: 'image_generation',
-      transport,
-      imageGenerator: (signal) =>
-        adapter.generate(
-          {
-            baseUrl: endpoint.baseUrl,
-            apiKey: endpoint.apiKey,
-            modelId,
-            prompt: 'A simple blue square on a white background'
-          },
-          signal
-        )
-    })
-    results[api] = {
-      state: outcome.state === 'success' ? 'success' : 'failed',
-      testedAt: outcome.testedAt ?? new Date().toISOString(),
-      ...(outcome.failure ? { failure: outcome.failure } : {})
-    }
-  }
-  const selectedApi: ImageGenerationApi | null =
-    results['token-plan'].state === 'success'
-      ? 'token-plan'
-      : results['openai-images'].state === 'success'
-        ? 'openai-images'
-        : null
-  return {
-    capability: {
-      state: selectedApi ? 'success' : 'failed',
-      source: 'probe',
-      testedAt: results['token-plan'].testedAt,
-      ...(!selectedApi && results['token-plan'].failure
-        ? { failure: results['token-plan'].failure }
-        : {})
-    },
-    verification: { selectedApi, results }
-  }
 }
 
 export function validateDraft(draft: ModelConnectionDraftDto): ModelConnectionDraftDto {
@@ -664,30 +487,4 @@ function nextConnectionId(connections: readonly StoredModelConnection[], name: s
     suffix += 1
   }
   return id
-}
-
-function toServiceError(failure: ProviderFailure | unknown): ModelServiceError {
-  if (failure instanceof ModelServiceError) return failure
-  if (failure instanceof ModelStorageError) {
-    return new ModelServiceError('storage-error', failure.message)
-  }
-  if (failure instanceof SecretCipherUnavailableError) {
-    return new ModelServiceError('secret-unavailable', failure.message)
-  }
-  if (isProviderFailure(failure)) {
-    return new ModelServiceError(failure.code, failure.message)
-  }
-  return new ModelServiceError(
-    'unknown',
-    failure instanceof Error ? failure.message : String(failure)
-  )
-}
-
-function isProviderFailure(value: unknown): value is ProviderFailure {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { code?: unknown }).code === 'string' &&
-    typeof (value as { message?: unknown }).message === 'string'
-  )
 }
