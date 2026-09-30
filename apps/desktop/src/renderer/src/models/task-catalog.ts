@@ -19,5 +19,6 @@ export interface TaskCatalog {
   listArchivedTasks?(query: string, cursor?: string | null): Promise<ArchivedTaskPage>
   setPinned?(sessionId: string, pinned: boolean): Promise<void>
   setArchived?(sessionId: string, archived: boolean): Promise<void>
+  deleteSession?(sessionId: string): Promise<void>
   getTask(taskId: string): Promise<TaskProjection | null>
 }

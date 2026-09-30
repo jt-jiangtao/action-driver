@@ -28,6 +28,8 @@ export function ArchivedChatsPage({
   const [cursor, setCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<RecentTaskSummary | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const load = useCallback(
@@ -74,6 +76,27 @@ export function ArchivedChatsPage({
       setBusyId(null)
     }
   }
+  const remove = async () => {
+    const item = deleteTarget
+    if (!item?.sessionId || !catalog.deleteSession || busyId) return
+    setBusyId(item.sessionId)
+    setError(null)
+    try {
+      await catalog.deleteSession(item.sessionId)
+      setItems((current) => current.filter((candidate) => candidate.sessionId !== item.sessionId))
+      setDeleteTarget(null)
+      setNotice('聊天已永久删除')
+      await load()
+      onRestored()
+    } catch (cause) {
+      const detail = cause as { code?: string; message?: string } | null
+      if (detail?.code === 'not-found') await load()
+      setDeleteTarget(null)
+      setError(cause instanceof Error ? cause.message : detail?.message ?? '删除聊天失败')
+    } finally {
+      setBusyId(null)
+    }
+  }
   return (
     <div className="settings-shell" data-testid="e2e/settings/archived/page#page">
       <SettingsSidebar
@@ -85,6 +108,8 @@ export function ArchivedChatsPage({
         onOpenComputerUse={onOpenComputerUse}
       />
       <main className="settings-main">
+        <div className="settings-main-topbar" aria-hidden="true" />
+        <div className="settings-main-scroll is-archived">
         <div className="settings-content archived-chat-content">
           <header className="settings-page-header">
             <h1>已归档的聊天</h1>
@@ -122,8 +147,24 @@ export function ArchivedChatsPage({
                 >
                   <strong>{item.title}</strong>
                   <small>
-                    {item.archivedAt ? new Date(item.archivedAt).toLocaleString('zh-CN') : ''}
+                    {item.archivedAt ? new Intl.DateTimeFormat('zh-CN', {
+                      year: 'numeric', month: 'long', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    }).format(new Date(item.archivedAt)) : ''}
                   </small>
+                </button>
+                <button
+                  type="button"
+                  className="archived-chat-delete"
+                  aria-label={`删除${item.title}`}
+                  title="永久删除"
+                  disabled={busyId !== null}
+                  data-testid={e2eId('e2e/settings/archived/:task-id/delete#button', {
+                    'task-id': item.id
+                  })}
+                  onClick={() => setDeleteTarget(item)}
+                >
+                  <AppIcon name="trash" size={14} />
                 </button>
                 <button
                   type="button"
@@ -160,7 +201,30 @@ export function ArchivedChatsPage({
             </button>
           ) : null}
         </div>
+        </div>
       </main>
+      {deleteTarget ? (
+        <div className="agent-dialog-backdrop">
+          <section className="agent-dialog is-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-chat-title">
+            <header><div>
+              <h2 id="delete-chat-title">永久删除聊天？</h2>
+              <p>“{deleteTarget.title}”及其记录将被删除，无法恢复。</p>
+            </div></header>
+            <footer>
+              <button className="agent-secondary-button" type="button" disabled={busyId !== null}
+                data-testid="e2e/settings/archived/delete/cancel#button"
+                onClick={() => setDeleteTarget(null)}>取消</button>
+              <button className="agent-primary-button is-danger" type="button" disabled={busyId !== null}
+                data-testid="e2e/settings/archived/delete/confirm#button"
+                onClick={() => void remove()}>{busyId ? '删除中…' : '永久删除'}</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+      {notice ? <div className="archive-toast archived-delete-toast" role="status">
+        <AppIcon name="trash" size={15} /><span>{notice}</span>
+        <button type="button" aria-label="关闭提示" data-testid="e2e/settings/archived/delete/toast-close#button" onClick={() => setNotice(null)}><AppIcon name="close" size={14} /></button>
+      </div> : null}
     </div>
   )
 }

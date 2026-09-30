@@ -1,6 +1,5 @@
 import { ProductLogo } from './ProductLogo'
 import type { RecentTaskSummary } from '../models/task-catalog'
-import { IconButton } from './ui/IconButton'
 import { RecentTaskItem } from './navigation/RecentTaskItem'
 import { SettingsNavEntry } from './navigation/SettingsNavEntry'
 import { SidebarEntry } from './navigation/SidebarEntry'
@@ -18,7 +17,6 @@ export function Sidebar({
   recentTasksError,
   recentTasksLoading,
   onRetryRecentTasks,
-  onPinTask,
   onArchiveTask,
   busySessionId,
   actionError
@@ -33,13 +31,12 @@ export function Sidebar({
   recentTasksError?: string | null
   recentTasksLoading?: boolean
   onRetryRecentTasks?(): void
-  onPinTask?(sessionId: string, pinned: boolean): void
   onArchiveTask?(sessionId: string): void
   busySessionId?: string | null
   actionError?: string | null
 }) {
   return (
-    <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="248">
+    <aside className="sidebar" data-testid="e2e/shared/sidebar/root#nav" data-width="236">
       <div className="sidebar-window-row">
         <AppNavigationControls sidebar={{ collapsed: false, onToggle: onCollapse }} />
       </div>
@@ -49,17 +46,11 @@ export function Sidebar({
           <ProductLogo size={18} />
         </span>
         <strong>Action-Driver</strong>
-        <IconButton
-          className="sidebar-search"
-          icon="search"
-          aria-label="搜索"
-          testId="e2e/shared/sidebar/search#button"
-        />
       </div>
 
       <nav className="sidebar-primary-nav" aria-label="主导航">
         <SidebarEntry
-          icon="plus"
+          icon="new-chat"
           label="新任务"
           onClick={onNewTask}
           selected={active === 'new'}
@@ -99,7 +90,6 @@ export function Sidebar({
               active={active === 'task' && activeTaskId === task.id}
               key={task.id}
               onOpen={(taskId) => onOpenTask?.(taskId)}
-              {...(onPinTask ? { onPin: onPinTask } : {})}
               {...(onArchiveTask ? { onArchive: onArchiveTask } : {})}
               busy={busySessionId === task.sessionId}
               task={task}

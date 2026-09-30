@@ -7,14 +7,12 @@ export function RecentTaskItem({
   task,
   active,
   onOpen,
-  onPin,
   onArchive,
   busy = false
 }: {
   task: RecentTaskSummary
   active: boolean
   onOpen(taskId: string): void
-  onPin?(sessionId: string, pinned: boolean): void
   onArchive?(sessionId: string): void
   busy?: boolean
 }) {
@@ -76,21 +74,6 @@ export function RecentTaskItem({
           <span aria-label="加载中" className="loading-icon">
             <AppIcon name="loader" />
           </span>
-        ) : null}
-        {task.sessionId && onPin ? (
-          <button
-            type="button"
-            className="recent-task-action"
-            aria-label={task.pinned ? '取消置顶' : '置顶'}
-            title={task.pinned ? '取消置顶' : '置顶'}
-            data-testid={e2eId('e2e/shared/sidebar/tasks/:task-id/pin#button', {
-              'task-id': task.id
-            })}
-            disabled={busy}
-            onClick={() => onPin(task.sessionId!, !task.pinned)}
-          >
-            <AppIcon name="pin" size={15} />
-          </button>
         ) : null}
         {task.sessionId && onArchive ? (
           <button

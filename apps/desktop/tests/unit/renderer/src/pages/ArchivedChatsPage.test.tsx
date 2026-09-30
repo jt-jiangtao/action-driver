@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ArchivedChatsPage } from '../../../../../src/renderer/src/pages/ArchivedChatsPage'
@@ -37,6 +37,26 @@ function show(catalog: TaskCatalog) {
 }
 
 describe('ArchivedChatsPage', () => {
+  it('requires confirmation before permanently deleting an archived chat', async () => {
+    const user = userEvent.setup()
+    const deleteSession = vi.fn(async () => {})
+    show({
+      listRecentTasks: async () => [],
+      getTask: async () => null,
+      listArchivedTasks: async () => ({ items: deleteSession.mock.calls.length ? [] : [old], nextCursor: null }),
+      deleteSession
+    })
+    await user.click(await screen.findByTestId('e2e/settings/archived/old/delete#button'))
+    expect(screen.getByRole('dialog', { name: '永久删除聊天？' })).toBeVisible()
+    await user.click(screen.getByTestId('e2e/settings/archived/delete/cancel#button'))
+    expect(deleteSession).not.toHaveBeenCalled()
+    await user.click(screen.getByTestId('e2e/settings/archived/old/delete#button'))
+    await user.click(screen.getByTestId('e2e/settings/archived/delete/confirm#button'))
+    await waitFor(() => expect(deleteSession).toHaveBeenCalledWith('session-old'))
+    expect(await screen.findByText('聊天已永久删除')).toBeVisible()
+    expect(screen.queryByTestId('e2e/settings/archived/old/open#button')).not.toBeInTheDocument()
+  })
+
   it('shows a retry after the catalog fails to load', async () => {
     const user = userEvent.setup()
     let attempts = 0

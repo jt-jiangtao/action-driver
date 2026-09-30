@@ -141,7 +141,6 @@ class InMemoryTaskRepository implements TaskRepository {
           item.archived === input.archived && item.title.toLocaleLowerCase().includes(query)
       )
       .sort((left, right) => {
-        if (!input.archived && left.pinned !== right.pinned) return left.pinned ? -1 : 1
         const leftTime = input.archived ? (left.archivedAt ?? '') : left.task.updatedAt
         const rightTime = input.archived ? (right.archivedAt ?? '') : right.task.updatedAt
         return (
@@ -177,6 +176,17 @@ class InMemoryTaskRepository implements TaskRepository {
       archivedAt: archived ? (previous?.archivedAt ?? new Date().toISOString()) : null
     })
     return this.record(task)
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const task = await this.getLatestBySession(sessionId)
+    if (!task) throw new Error(`Unknown session: ${sessionId}`)
+    if (!this.metadata.get(sessionId)?.archivedAt)
+      throw new Error('Only archived sessions can be deleted')
+    if (task.status === 'running' || task.status === 'queued')
+      throw new Error('Cannot delete a running or queued session')
+    for (const item of await this.listBySession(sessionId)) this.tasks.delete(item.id)
+    this.metadata.delete(sessionId)
   }
 
   async get(taskId: string): Promise<RuntimeTaskRecord | null> {

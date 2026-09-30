@@ -293,6 +293,13 @@ export function createLocalRuntimeServer(options: {
         throw new Error('Cannot archive a running or queued session')
       return taskRepository.setSessionArchived(sessionId, value)
     }
+    if (command === 'session.delete') {
+      const { sessionId } = rawInput as { sessionId: string }
+      if (!taskRepository.deleteSession)
+        throw new Error('Session deletion unavailable')
+      await taskRepository.deleteSession(sessionId)
+      return { deleted: true }
+    }
     if (command === 'task.interrupt') {
       const { taskId } = rawInput as { taskId: string }
       await options.appApprovals?.cancelTask(taskId)

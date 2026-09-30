@@ -128,6 +128,9 @@ describe('service HTTP surface', () => {
         })
       ).status
     ).toBe(409)
+    expect((await authorized('/sessions/invalid.id', { method: 'DELETE' })).status).toBe(400)
+    expect((await authorized('/sessions/session-1', { method: 'DELETE' })).status).toBe(200)
+    expect(execute).toHaveBeenCalledWith('session.delete', { sessionId: 'session-1' })
   })
 
   it('reports unexpected session storage failures as server errors', async () => {

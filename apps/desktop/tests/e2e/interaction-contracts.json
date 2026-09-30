@@ -366,12 +366,6 @@
     "coverage": "visual-only"
   },
   {
-    "target": "e2e/settings/sidebar/search#input",
-    "route": "settings",
-    "type": "input",
-    "coverage": "visual-only"
-  },
-  {
     "target": "e2e/settings/sidebar/skills#button",
     "route": "settings",
     "type": "button",
@@ -699,12 +693,6 @@
     "target": "e2e/shared/sidebar/root#nav",
     "route": "shared",
     "type": "nav",
-    "coverage": "visual-only"
-  },
-  {
-    "target": "e2e/shared/sidebar/search#button",
-    "route": "shared",
-    "type": "button",
     "coverage": "visual-only"
   },
   {
@@ -1094,20 +1082,12 @@
     "testName": "renders the runtime availability, opens a view and runs the bound command with the task"
   },
   {
-    "target": "e2e/shared/sidebar/tasks/:task-id/pin#button",
-    "route": "shared",
-    "type": "button",
-    "coverage": "functional",
-    "testFile": "apps/desktop/tests/unit/renderer/src/components/Sidebar.test.tsx",
-    "testName": "pins and archives through separate buttons without opening the chat"
-  },
-  {
     "target": "e2e/shared/sidebar/tasks/:task-id/archive#button",
     "route": "shared",
     "type": "button",
     "coverage": "functional",
     "testFile": "apps/desktop/tests/unit/renderer/src/components/Sidebar.test.tsx",
-    "testName": "pins and archives through separate buttons without opening the chat"
+    "testName": "archives without opening the chat or showing a pin action"
   },
   {
     "target": "e2e/settings/sidebar/archived#button",
@@ -1148,6 +1128,36 @@
     "testName": "archives a completed chat and restores it from settings"
   },
   {
+    "target": "e2e/settings/archived/:task-id/delete#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "requires confirmation before permanently deleting an archived chat"
+  },
+  {
+    "target": "e2e/settings/archived/delete/cancel#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "requires confirmation before permanently deleting an archived chat"
+  },
+  {
+    "target": "e2e/settings/archived/delete/confirm#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
+    "testName": "requires confirmation before permanently deleting an archived chat"
+  },
+  {
+    "target": "e2e/settings/archived/delete/toast-close#button",
+    "route": "settings",
+    "type": "button",
+    "coverage": "visual-only"
+  },
+  {
     "target": "e2e/settings/archived/more#button",
     "route": "settings",
     "type": "button",
@@ -1162,5 +1172,29 @@
     "coverage": "functional",
     "testFile": "apps/desktop/tests/unit/renderer/src/pages/ArchivedChatsPage.test.tsx",
     "testName": "shows a retry after the catalog fails to load"
+  },
+  {
+    "target": "e2e/shared/archive-toast/view#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "archives a completed chat and restores it from settings"
+  },
+  {
+    "target": "e2e/shared/archive-toast/undo#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "undoes an archive from the toast and can dismiss it"
+  },
+  {
+    "target": "e2e/shared/archive-toast/close#button",
+    "route": "shared",
+    "type": "button",
+    "coverage": "functional",
+    "testFile": "apps/desktop/tests/unit/renderer/src/App.test.tsx",
+    "testName": "undoes an archive from the toast and can dismiss it"
   }
 ]

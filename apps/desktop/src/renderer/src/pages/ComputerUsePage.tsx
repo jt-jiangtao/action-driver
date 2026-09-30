@@ -87,6 +87,7 @@ export function ComputerUsePage({
       {...(onOpenArchived ? { onOpenArchived } : {})} />
     <main className="settings-main agent-settings-main">
       <div className="settings-main-topbar" aria-hidden="true" />
+      <div className="settings-main-scroll is-computer-use">
       <div className="agent-page computer-use-settings">
         <header className="agent-page-header"><div>
           <h1>电脑操控</h1>
@@ -153,6 +154,7 @@ export function ComputerUsePage({
                 </ul>}
           </div>
         </section>}
+      </div>
       </div>
     </main>
   </div>

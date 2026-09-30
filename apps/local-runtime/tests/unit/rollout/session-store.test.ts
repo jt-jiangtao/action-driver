@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { appendFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -9,6 +9,7 @@ import type {
   RuntimeTaskRecord
 } from '@action-driver/agent-runtime/ports'
 import { RolloutSessionStore } from '../../../src/rollout/session-store'
+import { discoverSessionRollouts } from '../../../src/rollout/log'
 
 const temporaryDirectories: string[] = []
 
@@ -206,6 +207,23 @@ async function runTurn(store: RolloutSessionStore): Promise<void> {
 }
 
 describe('rollout session store', () => {
+  it('permanently removes an archived session from the rollout and projections', async () => {
+    const paths = workspace()
+    const store = new RolloutSessionStore(paths)
+    await runTurn(store)
+    await expect(store.tasks.deleteSession?.('session-1')).rejects.toThrow('Only archived')
+    await store.tasks.setSessionArchived?.('session-1', true)
+    const rolloutPath = discoverSessionRollouts(paths.sessionsRoot)[0]!.path
+    await store.tasks.deleteSession?.('session-1')
+    expect(existsSync(rolloutPath)).toBe(false)
+    expect(await store.tasks.get('turn-1')).toBeNull()
+    expect(await store.tasks.listSessions?.({ archived: true, limit: 10 })).toEqual({ items: [], nextCursor: null })
+    store.close()
+    const reopened = new RolloutSessionStore(paths)
+    expect(await reopened.tasks.get('turn-1')).toBeNull()
+    reopened.close()
+  })
+
   it('recovers archived sessions when projection databases are deleted before startup', async () => {
     const paths = workspace()
     const store = new RolloutSessionStore(paths)

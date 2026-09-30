@@ -221,7 +221,7 @@ describe('App', () => {
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '返回应用' }))
-    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '248')
+    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '236')
     expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   })
 
@@ -258,11 +258,11 @@ describe('App', () => {
       'e2e/shared/sidebar/tasks/research-task/archive#button'
     )
     await user.click(archive)
+    expect(await screen.findByRole('status', { name: '已归档的聊天' })).toBeVisible()
     expect(
       screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')
     ).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '设置' }))
-    await user.click(screen.getByTestId('e2e/settings/sidebar/archived#button'))
+    await user.click(screen.getByTestId('e2e/shared/archive-toast/view#button'))
     expect(
       await screen.findByTestId('e2e/settings/archived/research-task/open#button')
     ).toBeVisible()
@@ -272,6 +272,17 @@ describe('App', () => {
     ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '返回应用' }))
     expect(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
+  })
+
+  it('undoes an archive from the toast and can dismiss it', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task/archive#button'))
+    await user.click(await screen.findByTestId('e2e/shared/archive-toast/undo#button'))
+    expect(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
+    await user.click(screen.getByTestId('e2e/shared/sidebar/tasks/research-task/archive#button'))
+    await user.click(await screen.findByTestId('e2e/shared/archive-toast/close#button'))
+    expect(screen.queryByRole('status', { name: '已归档的聊天' })).not.toBeInTheDocument()
   })
 
   it('keeps a chat visible when archiving fails', async () => {
@@ -292,7 +303,7 @@ describe('App', () => {
     expect(screen.getByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
   })
 
-  it('preserves the pinned sidebar row when continuing a chat', async () => {
+  it('keeps a single sidebar row when continuing a chat', async () => {
     const user = userEvent.setup()
     const services = createRendererServices({ mode: 'mock' })
     const getTask = services.taskCatalog.getTask.bind(services.taskCatalog)
@@ -305,7 +316,6 @@ describe('App', () => {
         <App />
       </AppServicesProvider>
     )
-    await user.click(await screen.findByTestId('e2e/shared/sidebar/tasks/research-task/pin#button'))
     await user.click(screen.getByTestId('e2e/shared/sidebar/tasks/research-task#button'))
     const editor = screen.getByLabelText('任务描述')
     editor.textContent = '继续整理'
@@ -316,10 +326,7 @@ describe('App', () => {
     expect(
       screen.queryByTestId('e2e/shared/sidebar/tasks/research-task#button')
     ).not.toBeInTheDocument()
-    expect(screen.getByTestId('e2e/shared/sidebar/tasks/hotel-task-2/pin#button')).toHaveAttribute(
-      'aria-label',
-      '取消置顶'
-    )
+    expect(screen.queryByRole('button', { name: '置顶' })).not.toBeInTheDocument()
   })
 
   it('navigates application history across tasks and settings without changing browser history', async () => {

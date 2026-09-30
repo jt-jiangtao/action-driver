@@ -48,6 +48,17 @@ export class RolloutRequestIndex {
     }
   }
 
+  removeSession(sessionId: string): void {
+    for (const request of this.requests.values()) {
+      if (request.sessionId !== sessionId) continue
+      this.requests.delete(request.requestId)
+      if (this.taskIds.get(request.taskId) === request.requestId)
+        this.refresh(this.taskIds, request.taskId, (item) => item.taskId)
+      if (this.idempotencyKeys.get(request.idempotencyKey) === request.requestId)
+        this.refresh(this.idempotencyKeys, request.idempotencyKey, (item) => item.idempotencyKey)
+    }
+  }
+
   private insert(
     index: Map<string, string>,
     key: string,

@@ -19,7 +19,8 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '248')
+    expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '236')
+    expect(screen.queryByRole('button', { name: '搜索' })).not.toBeInTheDocument()
     expect(screen.getByText('Action-Driver')).toBeVisible()
     expect(screen.getByText('新任务')).toBeVisible()
     expect(screen.getByText('Skills')).toBeVisible()
@@ -59,10 +60,9 @@ describe('Sidebar', () => {
     expect(onOpenTask).toHaveBeenCalledWith('research-task')
   })
 
-  it('pins and archives through separate buttons without opening the chat', async () => {
+  it('archives without opening the chat or showing a pin action', async () => {
     const user = userEvent.setup()
     const onOpenTask = vi.fn()
-    const onPinTask = vi.fn()
     const onArchiveTask = vi.fn()
     render(
       <Sidebar
@@ -71,7 +71,6 @@ describe('Sidebar', () => {
         activeTaskId={null}
         onNewTask={vi.fn()}
         onOpenTask={onOpenTask}
-        onPinTask={onPinTask}
         onArchiveTask={onArchiveTask}
         recentTasks={[
           { id: 'turn-1', sessionId: 'session-1', title: '很长的聊天标题', state: 'default' },
@@ -79,9 +78,8 @@ describe('Sidebar', () => {
         ]}
       />
     )
-    await user.click(screen.getByTestId('e2e/shared/sidebar/tasks/turn-1/pin#button'))
+    expect(screen.queryByRole('button', { name: '置顶' })).not.toBeInTheDocument()
     await user.click(screen.getByTestId('e2e/shared/sidebar/tasks/turn-1/archive#button'))
-    expect(onPinTask).toHaveBeenCalledWith('session-1', true)
     expect(onArchiveTask).toHaveBeenCalledWith('session-1')
     expect(onOpenTask).not.toHaveBeenCalled()
     expect(screen.getByTestId('e2e/shared/sidebar/tasks/turn-2/archive#button')).toBeDisabled()

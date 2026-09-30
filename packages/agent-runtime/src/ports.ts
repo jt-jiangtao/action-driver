@@ -145,6 +145,7 @@ export interface TaskRepository {
   listSessions?(query: SessionCatalogQuery): Promise<SessionCatalogPage>
   setSessionPinned?(sessionId: string, pinned: boolean): Promise<SessionCatalogRecord>
   setSessionArchived?(sessionId: string, archived: boolean): Promise<SessionCatalogRecord>
+  deleteSession?(sessionId: string): Promise<void>
   save(task: RuntimeTaskRecord): Promise<void>
 }
 

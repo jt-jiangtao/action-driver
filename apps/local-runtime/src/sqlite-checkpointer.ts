@@ -70,6 +70,12 @@ export class ResilientSqliteSaver extends SqliteSaver {
   close(): void {
     this.db.close()
   }
+
+  override async deleteThread(threadId: string): Promise<void> {
+    this.setup()
+    await super.deleteThread(threadId)
+  }
+
 }
 
 export function createSqliteCheckpointer(path: string): ResilientSqliteSaver {

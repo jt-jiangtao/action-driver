@@ -98,9 +98,6 @@
     0 5px 18px rgb(20 24 33 / 7%),
     0 1px 3px rgb(20 24 33 / 4%);
 }
-.agent-composer:focus-within {
-  border-color: var(--ad-color-border-strong, #a8adb6);
-}
 .agent-composer[data-state='disabled'] {
   background: var(--ad-color-bg-subtle);
   border-color: var(--ad-color-border-default);

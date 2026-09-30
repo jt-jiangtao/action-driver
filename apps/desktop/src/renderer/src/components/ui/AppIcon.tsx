@@ -38,7 +38,6 @@ import {
   PanelLeft,
   PanelRight,
   Package,
-  Pin,
   Archive,
   Pause,
   Terminal,
@@ -48,6 +47,7 @@ import {
   Moon,
   Play,
   Plus,
+  SquarePen,
   RefreshCw,
   Search,
   ScrollText,
@@ -88,11 +88,11 @@ export type AppIconName =
   | 'panel-left'
   | 'panel-right'
   | 'package'
-  | 'pin'
   | 'archive'
   | 'pause'
   | 'play'
   | 'plus'
+  | 'new-chat'
   | 'pointer'
   | 'refresh'
   | 'search'
@@ -147,11 +147,11 @@ const iconByName: Record<AppIconName, LucideIcon> = {
   'panel-left': PanelLeft,
   'panel-right': PanelRight,
   package: Package,
-  pin: Pin,
   archive: Archive,
   pause: Pause,
   play: Play,
   plus: Plus,
+  'new-chat': SquarePen,
   pointer: MousePointer2,
   refresh: RefreshCw,
   search: Search,

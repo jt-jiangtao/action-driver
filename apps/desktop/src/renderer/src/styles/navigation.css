@@ -11,11 +11,11 @@
 /* Sidebar */
 .sidebar {
   display: flex;
-  flex: 0 0 248px;
+  flex: 0 0 236px;
   flex-direction: column;
-  width: 248px;
+  width: 236px;
   height: 100%;
-  padding: 0 18px 16px;
+  padding: 0 16px 10px;
   overflow: hidden;
   background: var(--ad-color-bg-sidebar);
   border-right: 1px solid var(--ad-color-border-default);
@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   height: var(--ad-shell-topbar-height);
-  margin: 0 -18px 8px;
+  margin: 0 -16px 6px;
   background: var(--ad-shell-topbar-bg);
   border-bottom: 1px solid var(--ad-color-border-default);
 }
@@ -70,13 +70,37 @@
   border-radius: 8px;
   box-shadow: var(--ad-shadow-floating);
 }
+.archive-toast {
+  position: fixed;
+  z-index: 30;
+  top: calc(var(--ad-shell-topbar-height) + 12px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 8px 6px 12px;
+  color: var(--ad-color-text-primary);
+  background: var(--ad-color-bg-surface);
+  border: 1px solid var(--ad-color-border-default);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgb(20 24 33 / 14%);
+  transform: translateX(-50%);
+}
+.archive-toast > svg { flex: 0 0 auto; }
+.archive-toast > span { white-space: nowrap; font-size: 13px; font-weight: 600; }
+.archive-toast button { min-height: 28px; padding: 0 10px; border-radius: 8px; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.archive-toast button:hover { filter: brightness(0.95); }
+.archive-toast-view { margin-left: 8px; background: var(--ad-color-bg-subtle); }
+.archive-toast-undo { color: #fff; background: #1f2228; }
+.archive-toast .archive-toast-close { display: grid; place-items: center; width: 28px; padding: 0; color: var(--ad-color-text-secondary); }
 .sidebar-brand-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 32px;
+  grid-template-columns: 28px minmax(0, 1fr);
   column-gap: 10px;
   align-items: center;
-  height: 44px;
-  margin-bottom: 8px;
+  height: 40px;
+  margin-bottom: 10px;
 }
 .sidebar-logo-slot {
   display: flex;
@@ -88,21 +112,18 @@
 }
 .sidebar-brand-row strong {
   overflow: hidden;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sidebar-search {
-  justify-self: end;
-}
 .sidebar-primary-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  height: 116px;
-  margin-bottom: 10px;
+  height: 104px;
+  margin-bottom: 14px;
 }
 .sidebar-nav-item,
 .recent-task {
@@ -110,13 +131,14 @@
   align-items: center;
   width: 100%;
   min-width: 0;
-  height: 36px;
+  height: 32px;
   border-radius: 8px;
   text-align: left;
 }
 .sidebar-nav-item {
-  gap: 10px;
+  gap: 9px;
   padding: 0 8px;
+  font-size: 13px;
   font-weight: 500;
 }
 .sidebar-nav-item,
@@ -131,9 +153,10 @@
   background: var(--ad-color-bg-hover);
 }
 .sidebar-nav-item svg {
-  flex: 0 0 16px;
+  flex: 0 0 14px;
   color: #606672;
 }
+.sidebar .sidebar-nav-item svg { width: 14px; height: 14px; }
 .sidebar-nav-item.is-active {
   color: var(--ad-color-action-primary);
   background: var(--ad-color-bg-selected);
@@ -150,23 +173,24 @@
 }
 .sidebar-footer {
   margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--ad-color-border-default);
+  padding-top: 8px;
 }
 .sidebar-recents h2 {
-  height: 26px;
-  margin: 0 0 10px;
+  height: 22px;
+  margin: 0 0 8px;
   color: var(--ad-color-text-tertiary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
-  line-height: 26px;
+  line-height: 22px;
 }
 .recent-task-list {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  gap: 2px;
   min-height: 0;
-  padding-right: 10px;
+  margin-right: -12px;
+  padding-right: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: #a8adb6 transparent;
@@ -208,11 +232,13 @@
   font-weight: 500;
 }
 .recent-task {
-  flex: 0 0 36px;
+  flex: 0 0 32px;
   justify-content: space-between;
   gap: 8px;
   padding: 0 8px;
   color: var(--ad-color-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
 }
 .recent-task-open {
   flex: 1 1 auto;

@@ -19,10 +19,7 @@ export function mergeSubmittedTask(
     sessionId: projection.sessionId,
     title: projection.title,
     state,
-    pinned: false
   }
   const remaining = current.filter((item) => item.sessionId !== projection.sessionId && item.id !== projection.id)
-  const firstUnpinned = remaining.findIndex((item) => !item.pinned)
-  const index = firstUnpinned < 0 ? remaining.length : firstUnpinned
-  return [...remaining.slice(0, index), submitted, ...remaining.slice(index)]
+  return [submitted, ...remaining]
 }

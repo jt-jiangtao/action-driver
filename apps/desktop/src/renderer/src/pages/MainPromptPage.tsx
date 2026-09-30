@@ -115,6 +115,7 @@ export function MainPromptPage({
       />
       <main className="settings-main agent-settings-main">
         <div className="settings-main-topbar" aria-hidden="true" />
+        <div className="settings-main-scroll is-main-prompt">
         <div className="agent-page">
           <header className="agent-page-header">
             <div>
@@ -167,6 +168,7 @@ export function MainPromptPage({
               </button>
             </div>
           ) : null}
+        </div>
         </div>
       </main>
       {dialog === 'restore' && file ? (

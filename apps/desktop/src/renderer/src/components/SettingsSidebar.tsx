@@ -1,4 +1,3 @@
-import { ProductLogo } from './ProductLogo'
 import { AppIcon } from './ui/AppIcon'
 import { AppNavigationControls } from './navigation/AppNavigationControls'
 
@@ -33,15 +32,6 @@ export function SettingsSidebar({
         <AppIcon name="arrow-left" />
         返回应用
       </button>
-      <label className="settings-search">
-        <AppIcon name="search" />
-        <input
-          type="search"
-          aria-label="搜索设置"
-          data-testid="e2e/settings/sidebar/search#input"
-          placeholder="搜索设置"
-        />
-      </label>
       <nav className="settings-sidebar-nav" aria-label="设置导航">
       <div className="settings-nav-group">
         <span className="settings-nav-label">模型</span>
@@ -99,10 +89,6 @@ export function SettingsSidebar({
         </button>
       </div>
       </nav>
-      <div className="settings-brand">
-        <ProductLogo size={18} />
-        <strong>Action-Driver</strong>
-      </div>
     </aside>
   )
 }

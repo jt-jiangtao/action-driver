@@ -9,7 +9,7 @@ export class DesktopTaskCatalog implements TaskCatalog {
     const tasks = this.api.listSessions
       ? (await this.api.listSessions(false, '', null, 50)).items
       : await this.api.listTasks(50)
-    return tasks.map((task) => ({
+    return [...tasks].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).map((task) => ({
       id: task.id,
       sessionId: task.sessionId,
       title: task.title,
@@ -42,6 +42,11 @@ export class DesktopTaskCatalog implements TaskCatalog {
   async setArchived(sessionId: string, archived: boolean): Promise<void> {
     if (!this.api.setSessionArchived) throw new Error('归档功能暂不可用')
     await this.api.setSessionArchived(sessionId, archived)
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    if (!this.api.deleteSession) throw new Error('删除聊天功能暂不可用')
+    await this.api.deleteSession(sessionId)
   }
 
   getTask(taskId: string) {

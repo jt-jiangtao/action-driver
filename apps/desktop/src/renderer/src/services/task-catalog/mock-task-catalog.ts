@@ -116,10 +116,11 @@ export class MockTaskCatalog implements TaskCatalog {
   private readonly tasks = new Map(seeds.map((seed) => [seed.id, createProjection(seed)]))
   private readonly pinned = new Set<string>()
   private readonly archivedAt = new Map<string, string>()
+  private readonly deleted = new Set<string>()
 
   async listRecentTasks(): Promise<readonly RecentTaskSummary[]> {
     return seeds
-      .filter(({ id }) => !this.archivedAt.has(`${id}-session`))
+      .filter(({ id }) => !this.archivedAt.has(`${id}-session`) && !this.deleted.has(id))
       .map(({ id, title, state }) => ({
         id,
         sessionId: `${id}-session`,
@@ -127,13 +128,12 @@ export class MockTaskCatalog implements TaskCatalog {
         state,
         pinned: this.pinned.has(`${id}-session`)
       }))
-      .sort((a, b) => Number(b.pinned) - Number(a.pinned))
   }
 
   async listArchivedTasks(query: string, cursor?: string | null) {
     const matching = seeds.filter(
       ({ id, title }) =>
-        this.archivedAt.has(`${id}-session`) &&
+        this.archivedAt.has(`${id}-session`) && !this.deleted.has(id) &&
         title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
     ).sort((left, right) => (this.archivedAt.get(`${right.id}-session`) ?? '').localeCompare(this.archivedAt.get(`${left.id}-session`) ?? '') || right.id.localeCompare(left.id))
     const start = cursor ? Math.max(0, matching.findIndex(({ id }) => id === cursor) + 1) : 0
@@ -159,11 +159,20 @@ export class MockTaskCatalog implements TaskCatalog {
 
   async setArchived(sessionId: string, archived: boolean): Promise<void> {
     const seed = seeds.find(({ id }) => `${id}-session` === sessionId)
-    if (!seed) throw new Error('找不到聊天')
+    if (!seed || this.deleted.has(seed.id)) throw new Error('找不到聊天')
     if (archived && seed.state === 'loading') throw new Error('进行中的聊天无法归档')
     if (archived && !this.archivedAt.has(sessionId))
       this.archivedAt.set(sessionId, new Date().toISOString())
     if (!archived) this.archivedAt.delete(sessionId)
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const seed = seeds.find(({ id }) => `${id}-session` === sessionId)
+    if (!seed || this.deleted.has(seed.id)) throw new Error('找不到聊天')
+    if (!this.archivedAt.has(sessionId)) throw new Error('只能删除已归档的聊天')
+    this.deleted.add(seed.id)
+    this.archivedAt.delete(sessionId)
+    this.tasks.delete(seed.id)
   }
 
   async getTask(taskId: string): Promise<TaskProjection | null> {

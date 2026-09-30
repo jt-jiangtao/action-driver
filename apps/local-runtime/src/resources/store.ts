@@ -157,6 +157,20 @@ export class VersionedResourceStore implements ResourceProvider {
     this.revokedScopes.push({ ...scope })
   }
 
+  async deleteSession(sessionId: string, namespace: 'workspace' | 'plugin'): Promise<void> {
+    this.revokeScope({ sessionId })
+    for (const key of await this.keys()) {
+      const owned = namespace === 'workspace'
+        ? key === sessionId || key.startsWith(`${sessionId}/`)
+        : key.split('/')[1] === sessionId
+      if (!owned) continue
+      this.records.delete(key)
+      this.watchers.delete(key)
+      this.writeTails.delete(key)
+      await rm(this.directory(key), { recursive: true, force: true })
+    }
+  }
+
   async closeWatches(): Promise<void> {
     for (const close of this.pending.splice(0)) close()
     this.watchers.clear()

@@ -27,6 +27,7 @@ export type AgentControlApi = Pick<
   ): Promise<SessionCatalogPageProjection>
   setSessionPinned?(sessionId: string, value: boolean): Promise<void>
   setSessionArchived?(sessionId: string, value: boolean): Promise<void>
+  deleteSession?(sessionId: string): Promise<void>
   /** Persisted "always allow" Computer Use grants, managed from the settings page. */
   listAlwaysAllowedApps?(): Promise<string[]>
   removeAlwaysAllowedApp?(bundleId: string): Promise<string[]>
@@ -72,6 +73,10 @@ export class RuntimeAgentHttpApi implements AgentControlApi {
       method: 'PUT',
       body: { value }
     })
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.http.request(`/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
   }
 
   async listAlwaysAllowedApps(): Promise<string[]> {

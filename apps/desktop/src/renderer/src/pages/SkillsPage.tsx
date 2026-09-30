@@ -223,6 +223,7 @@ export function SkillsPage({
       />
       <main className="settings-main agent-settings-main">
         <div className="settings-main-topbar" aria-hidden="true" />
+        <div className="settings-main-scroll is-skills">
         <div className="agent-page">
           <SkillListPanel
             skills={skills}
@@ -306,6 +307,7 @@ export function SkillsPage({
               {error}
             </div>
           ) : null}
+        </div>
         </div>
       </main>
       {dialog ? (

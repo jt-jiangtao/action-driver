@@ -93,6 +93,21 @@ export function registerTaskRoutes(app: Hono, options: TaskRoutes): void {
       }
     })
   }
+  app.delete('/sessions/:sessionId', async (context) => {
+    const sessionId = context.req.param('sessionId')
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return context.json(invalid(), 400)
+    try {
+      return context.json(success(await tasks.execute('session.delete', { sessionId })))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.startsWith('Unknown session:'))
+        return context.json(failure('not-found', message), 404)
+      if (message === 'Only archived sessions can be deleted' ||
+          message === 'Cannot delete a running or queued session')
+        return context.json(failure('invalid-state', message), 409)
+      return context.json(failure('internal-error', '删除聊天失败，请重试'), 500)
+    }
+  })
   app.get('/tasks/:taskId', async (context) =>
     context.json(success(await tasks.execute('task.get', { taskId: context.req.param('taskId') })))
   )

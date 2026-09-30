@@ -12,6 +12,8 @@ import type {
   TaskRepository
 } from '@action-driver/agent-runtime/ports'
 import { existsSync, truncateSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { basename, resolve, sep } from 'node:path'
 import { countRolloutEvents } from './event-bridge'
 import { applyRolloutLine, emptyRolloutState } from './fold'
 import { assertPersistablePayload } from '../persistence-guard'
@@ -31,6 +33,7 @@ export type RolloutStoreOptions = {
   statePath: string
   historyPath: string
   now?: () => string
+  onDeleteSession?: (sessionId: string, taskIds: readonly string[]) => Promise<void>
 }
 
 /**
@@ -134,6 +137,28 @@ export class RolloutSessionStore implements StreamSessionRepository {
         const archivedAt = archived ? (thread.archivedAt ?? this.now()) : null
         await this.setSessionMetadata(sessionId, { pinned: thread.pinned, archived, archivedAt })
         return { task, pinned: thread.pinned, archived, archivedAt }
+      },
+      deleteSession: async (sessionId) => {
+        const thread = this.projection.getThread(sessionId)
+        if (!thread) throw new Error(`Unknown session: ${sessionId}`)
+        if (!thread.archived) throw new Error('Only archived sessions can be deleted')
+        const latest = await this.reader.latestTask(sessionId)
+        if (latest?.status === 'running' || latest?.status === 'queued')
+          throw new Error('Cannot delete a running or queued session')
+        const root = resolve(this.options.sessionsRoot, 'sessions')
+        const path = resolve(thread.rolloutPath)
+        if (!path.startsWith(root + sep) || !basename(path).endsWith(`-${sessionId}.jsonl`))
+          throw new Error('Invalid session rollout path')
+        const taskIds = (await this.reader.sessionTasks(sessionId)).map((task) => task.id)
+        await this.options.onDeleteSession?.(sessionId, taskIds)
+        this.sessions.get(sessionId)?.writer.close()
+        await rm(path, { force: true })
+        this.projection.deleteSession(sessionId)
+        this.sessions.delete(sessionId)
+        this.requests.removeSession(sessionId)
+        this.eventViews.clear()
+        for (const taskId of taskIds) this.taskSessions.delete(taskId)
+        this.derivedCounts.delete(sessionId)
       },
       save: async (task) => {
         this.writerOperations.saveTask(task)

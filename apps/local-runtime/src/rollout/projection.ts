@@ -170,6 +170,14 @@ export class RolloutProjection {
     this.project(rollout)
   }
 
+  deleteSession(sessionId: string): void {
+    this.history.transaction(() => {
+      this.dropSession(sessionId)
+      this.deleteProjectionState(sessionId)
+    }).immediate()
+    this.state.prepare('DELETE FROM stream_requests WHERE session_id = ?').run(sessionId)
+  }
+
   getThread(sessionId: string): ProjectedThread | null {
     const row = this.state.prepare('SELECT * FROM threads WHERE session_id = ?').get(sessionId) as
       | ThreadRow
@@ -199,7 +207,7 @@ export class RolloutProjection {
     const timeColumn = input.archived ? 'archived_at' : 'updated_at'
     const order = input.archived
       ? 'archived_at DESC, session_id DESC'
-      : 'pinned DESC, updated_at DESC, session_id DESC'
+      : 'updated_at DESC, session_id DESC'
     const where = ['archived = ?', "LOWER(title) LIKE ? ESCAPE '\\'"]
     const args: Array<string | number> = [
       Number(input.archived),
@@ -209,10 +217,10 @@ export class RolloutProjection {
       where.push(
         input.archived
           ? `(archived_at < ? OR (archived_at = ? AND session_id < ?))`
-          : `(pinned < ? OR (pinned = ? AND (${timeColumn} < ? OR (${timeColumn} = ? AND session_id < ?))))`
+          : `(${timeColumn} < ? OR (${timeColumn} = ? AND session_id < ?))`
       )
       if (input.archived) args.push(cursor.time, cursor.time, cursor.id)
-      else args.push(cursor.pinned, cursor.pinned, cursor.time, cursor.time, cursor.id)
+      else args.push(cursor.time, cursor.time, cursor.id)
     }
     const rows = this.state
       .prepare(`SELECT * FROM threads WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ?`)

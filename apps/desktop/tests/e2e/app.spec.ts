@@ -91,7 +91,6 @@ test('captures all Home and Task Figma states through public controls', async ()
   await auditRenderedInteractions(page, contracts, [
     'e2e/home/main/composer#section',
     'e2e/shared/sidebar/root#nav',
-    'e2e/shared/sidebar/search#button',
     'e2e/shared/sidebar/skills#button',
     'e2e/shared/sidebar/mcp#button'
   ])
@@ -113,7 +112,7 @@ test('captures all Home and Task Figma states through public controls', async ()
   await page.getByLabel('任务描述').fill('帮我预订本周六到周日，杭州西湖附近评分 4.5 以上的酒店。')
   await page.getByLabel('发送').click()
   await expect(page.getByTestId('e2e/tasks/detail/page#page')).toHaveAttribute('data-mode', 'split')
-  await expect(page.getByTestId('e2e/shared/sidebar/root#nav')).toHaveCSS('width', '248px')
+  await expect(page.getByTestId('e2e/shared/sidebar/root#nav')).toHaveCSS('width', '236px')
   await expect(page.getByTestId('e2e/tasks/detail/agent#section')).toHaveCSS('width', '536px')
   await expect(page.getByTestId('e2e/tasks/detail/browser#section')).toHaveCSS('width', '656px')
   await auditRenderedInteractions(page, contracts, [
@@ -188,7 +187,6 @@ test('captures all eight Settings Figma states through public controls', async (
   await expect(page.getByText('公司模型网关')).toBeVisible()
   await auditRenderedInteractions(page, contracts, [
     'e2e/settings/model-connections/page#page',
-    'e2e/settings/sidebar/search#input',
     'e2e/settings/sidebar/model-connections#button'
   ])
   await capture(page, 'settings-populated')

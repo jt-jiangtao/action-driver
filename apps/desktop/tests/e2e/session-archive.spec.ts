@@ -7,7 +7,7 @@ import { getElectronForkExecutable } from './support/electron-fork'
 
 const mainEntry = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
 
-test('pins, archives, searches and restores a chat in the desktop shell', async () => {
+test('archives, searches and restores a chat in the desktop shell', async () => {
   const userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-session-archive-'))
   const application = await electron.launch({
     executablePath: await getElectronForkExecutable(),
@@ -16,15 +16,12 @@ test('pins, archives, searches and restores a chat in the desktop shell', async 
   try {
     const page = await application.firstWindow()
     await page.setViewportSize({ width: 1440, height: 900 })
-    const pin = page.getByTestId('e2e/shared/sidebar/tasks/research-task/pin#button')
     await page.getByTestId('e2e/shared/sidebar/tasks/research-task#button').hover()
-    await expect(pin).toBeVisible()
-    await pin.click()
-    await expect(page.getByTestId('e2e/shared/sidebar/tasks/research-task#button')).toBeVisible()
+    await expect(page.getByRole('button', { name: '置顶' })).toHaveCount(0)
     await page.getByTestId('e2e/shared/sidebar/tasks/research-task/archive#button').click()
     await expect(page.getByTestId('e2e/shared/sidebar/tasks/research-task#button')).toHaveCount(0)
-    await page.getByRole('button', { name: '设置' }).click()
-    await page.getByTestId('e2e/settings/sidebar/archived#button').click()
+    await expect(page.getByRole('status', { name: '已归档的聊天' })).toBeVisible()
+    await page.getByTestId('e2e/shared/archive-toast/view#button').click()
     await page.getByTestId('e2e/settings/archived/search#input').fill('研究')
     await expect(page.getByTestId('e2e/settings/archived/research-task/open#button')).toBeVisible()
     await page.getByTestId('e2e/settings/archived/research-task/restore#button').click()

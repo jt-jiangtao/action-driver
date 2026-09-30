@@ -151,6 +151,7 @@ export function SettingsPage({
 
       <main className="settings-main">
         <div className="settings-main-topbar" aria-hidden="true" />
+        <div className="settings-main-scroll is-model-connections">
         <div className="settings-content">
           <SettingsPageTitle
             hasConnections={loading || connections.length > 0}
@@ -292,6 +293,7 @@ export function SettingsPage({
               {actionError}
             </p>
           ) : null}
+        </div>
         </div>
       </main>
       {dialogOpen ? (

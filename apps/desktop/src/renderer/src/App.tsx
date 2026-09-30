@@ -10,6 +10,7 @@ import {
 import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
+import { AppIcon } from './components/ui/AppIcon'
 import { AppNavigationProvider } from './components/navigation/AppNavigationControls'
 import type { TaskLayoutMode } from './components/BrowserPanel'
 import { useAppServices, useTaskStore, useTaskStoreApi } from './di/services-context'
@@ -86,6 +87,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const [recentTasksLoading, setRecentTasksLoading] = useState(true)
   const [recentTasksError, setRecentTasksError] = useState<string | null>(null)
   const [taskActionError, setTaskActionError] = useState<string | null>(null)
+  const [archivedSessionId, setArchivedSessionId] = useState<string | null>(null)
   const [busySessionId, setBusySessionId] = useState<string | null>(null)
   const busySessionRef = useRef<string | null>(null)
   const [navigationError, setNavigationError] = useState<string | null>(null)
@@ -94,6 +96,11 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const previousActiveStatus = useRef<string | null>(null)
 
   useEffect(() => setNavigationError(null), [route])
+  useEffect(() => {
+    if (!archivedSessionId) return
+    const timer = window.setTimeout(() => setArchivedSessionId(null), 8000)
+    return () => window.clearTimeout(timer)
+  }, [archivedSessionId])
 
   const loadModels = useCallback(
     async (selected: ModelRef | null = null) => {
@@ -235,20 +242,16 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
     }
   }, [activeTask.status, refreshRecentTasks])
 
-  const changeSession = async (sessionId: string, action: 'pin' | 'archive', value: boolean) => {
+  const changeSessionArchive = async (sessionId: string, archived: boolean) => {
     if (busySessionRef.current) return
     busySessionRef.current = sessionId
     setBusySessionId(sessionId)
     setTaskActionError(null)
     try {
-      if (action === 'pin') {
-        if (!services.taskCatalog.setPinned) throw new Error('置顶功能暂不可用')
-        await services.taskCatalog.setPinned(sessionId, value)
-      } else {
-        if (!services.taskCatalog.setArchived) throw new Error('归档功能暂不可用')
-        await services.taskCatalog.setArchived(sessionId, value)
-      }
+      if (!services.taskCatalog.setArchived) throw new Error('归档功能暂不可用')
+      await services.taskCatalog.setArchived(sessionId, archived)
       await refreshRecentTasks()
+      setArchivedSessionId(archived ? sessionId : null)
     } catch (error) {
       const detail = error as { code?: string; message?: string } | null
       setTaskActionError(
@@ -402,6 +405,41 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
   const withNavigation = (page: ReactNode) => (
     <AppNavigationProvider value={navigation}>
       {page}
+      {archivedSessionId ? (
+        <div className="archive-toast" role="status" aria-label="已归档的聊天">
+          <AppIcon name="archive" size={18} />
+          <span>已归档的聊天</span>
+          <button
+            className="archive-toast-view"
+            type="button"
+            data-testid="e2e/shared/archive-toast/view#button"
+            onClick={() => {
+              setArchivedSessionId(null)
+              setRoute({ kind: 'archived', returnTo: mainRoute })
+            }}
+          >
+            查看
+          </button>
+          <button
+            className="archive-toast-undo"
+            type="button"
+            data-testid="e2e/shared/archive-toast/undo#button"
+            disabled={busySessionId !== null}
+            onClick={() => void changeSessionArchive(archivedSessionId, false)}
+          >
+            撤销
+          </button>
+          <button
+            className="archive-toast-close"
+            type="button"
+            aria-label="关闭归档提示"
+            data-testid="e2e/shared/archive-toast/close#button"
+            onClick={() => setArchivedSessionId(null)}
+          >
+            <AppIcon name="close" size={16} />
+          </button>
+        </div>
+      ) : null}
       {navigationError ? (
         <p className="app-navigation-error" role="alert">
           {navigationError}
@@ -530,8 +568,7 @@ export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute 
           recentTasksLoading={recentTasksLoading}
           recentTasksError={recentTasksError}
           onRetryRecentTasks={() => void loadRecentTasks()}
-          onPinTask={(sessionId, pinned) => void changeSession(sessionId, 'pin', pinned)}
-          onArchiveTask={(sessionId) => void changeSession(sessionId, 'archive', true)}
+          onArchiveTask={(sessionId) => void changeSessionArchive(sessionId, true)}
           busySessionId={busySessionId}
           actionError={taskActionError}
         />

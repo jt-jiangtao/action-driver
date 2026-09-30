@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { rmSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInteractionLogRecorder } from '@action-driver/observability'
 import { openRuntimeDatabase } from './database'
@@ -9,7 +10,7 @@ import { RolloutSessionStore } from './rollout/session-store'
 import { RolloutRuntimeRepositories } from './rollout/runtime-repositories'
 import { SessionAssetStore } from './media/session-asset-store'
 import { VolatileComputerImages } from './computer-use/volatile-images'
-import { SessionWorkspaceStore } from './execution/session-workspace'
+import { SessionWorkspaceStore, sessionWorkspacePaths } from './execution/session-workspace'
 import { SessionInputFileStore } from './media/session-input-file-store'
 import { SessionOutputStore } from './media/session-output-store'
 import {
@@ -42,6 +43,7 @@ export async function createRuntimeStorage(options: {
     }
   ]
   let closed = false
+  let clearSessionResources: (sessionId: string) => Promise<void> = async () => undefined
   const close = async () => {
     if (closed) return
     closed = true
@@ -59,12 +61,31 @@ export async function createRuntimeStorage(options: {
     const ownership = claimRuntimeOwnership(database)
     releases.push(() => ownership.release())
     const stateRepositories = new SqliteRuntimeRepositories(database)
+    const checkpointer = createSqliteCheckpointer(join(dataRoot, 'checkpoints.sqlite'))
+    releases.push(() => checkpointer.close())
     // Session history now lives in an append-only rollout log; the state database keeps the
     // auxiliary stores (input files, assets, outputs, approvals, ownership).
     const rolloutStore = new RolloutSessionStore({
       sessionsRoot: dataRoot,
       statePath: join(dataRoot, 'rollout-state.sqlite'),
-      historyPath: join(dataRoot, 'rollout-history.sqlite')
+      historyPath: join(dataRoot, 'rollout-history.sqlite'),
+      onDeleteSession: async (sessionId, taskIds) => {
+        const removeRecords = database.transaction(() => {
+          for (const table of ['session_assets', 'session_input_files', 'task_output_files'])
+            database.prepare(`DELETE FROM ${table} WHERE session_id = ?`).run(sessionId)
+          for (const taskId of taskIds)
+            for (const table of ['steps', 'skill_invocations', 'runtime_events'])
+              database.prepare(`DELETE FROM ${table} WHERE task_id = ?`).run(taskId)
+        })
+        removeRecords()
+        await checkpointer.deleteThread(sessionId)
+        await Promise.all([
+          rm(join(dataRoot, 'sessions', sessionId), { recursive: true, force: true }),
+          rm(join(dataRoot, 'outputs', sessionId), { recursive: true, force: true }),
+          rm(sessionWorkspacePaths(workspaceRoot, sessionId).root, { recursive: true, force: true })
+        ])
+        await clearSessionResources(sessionId)
+      }
     })
     releases.push(() => rolloutStore.close())
     const repositories = new RolloutRuntimeRepositories(rolloutStore, stateRepositories)
@@ -90,12 +111,16 @@ export async function createRuntimeStorage(options: {
       resourceRoot: join(dataRoot, 'resources'),
       remote: parseRemoteResourceHosts(environment)
     })
+    clearSessionResources = async (sessionId) => {
+      await Promise.all([
+        resources.workStore.deleteSession(sessionId, 'workspace'),
+        resources.pluginStore.deleteSession(sessionId, 'plugin')
+      ])
+    }
     const resourceRegistry = resources.registry
     await assets.cleanExpiredStaged(24 * 60 * 60 * 1000)
     await assets.cleanOrphanFiles()
     await repositories.recoverInterruptedRequests('RUNTIME_RESTARTED')
-    const checkpointer = createSqliteCheckpointer(join(dataRoot, 'checkpoints.sqlite'))
-    releases.push(() => checkpointer.close())
     const logging = createServiceLogger({ databasePath: statePath })
     releases.push(() => logging.close())
     const interactions = createInteractionLogRecorder({
