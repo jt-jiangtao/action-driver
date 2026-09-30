@@ -46,7 +46,7 @@
 
 - [x] 7.1 运行 `pnpm typecheck`、`pnpm lint`、`pnpm test` 并记录通过/失败数量与已知无关失败；验证：三项命令结果记录进提交信息或本变更记录
 - [x] 7.2 因涉及运行时与打包行为，追加 `pnpm test:e2e:local`（必要时 `pnpm test:e2e:packaged:macos`）；验证：e2e 结果记录进提交信息或本变更记录
-- [ ] 7.3 提交只包含本变更相关文件，排除工作区中其他会话的 `placement/*`、`main.tsx` 等无关改动；验证：`git status` 与提交 diff 复核
+- [x] 7.3 提交只包含本变更相关文件，排除工作区中其他会话的 `placement/*`、`main.tsx` 等无关改动；验证：`git status` 与提交 diff 复核
 
 ## 8. 范围说明（未裁决项不实施）
 
