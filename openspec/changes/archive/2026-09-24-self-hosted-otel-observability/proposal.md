@@ -7,9 +7,9 @@
 - 使用 OpenTelemetry JavaScript Logs SDK 代替 Pino 产生 Main 与 Runtime 的结构化运行日志；通过 OTLP 送入本地 Docker 中的 Alloy，再进入 Loki。容器自身日志也由 Alloy 采集。
 - 为 HTTP、IPC、任务、工具及模型等关键边界建立 OpenTelemetry trace，上报 Tempo；运行日志与 trace 共享关联标识。指标进入 Prometheus，由 Grafana 统一展示日志、链路、指标和告警。
 - 在本地 Docker 中部署 Phoenix，保存并展示完整 LLM 提示词、输入和输出。Tempo 与 Loki 不保存这些原文；相关 trace 使用共同标识跳转 Phoenix。
-- Grafana 在仅绑定本机端口的前提下使用匿名 Editor，并预置可直接查看 ActionDriver 日志、调用量、错误及耗时的仪表盘；Explore 可用于进一步查询。
+- Grafana 在仅绑定本机端口的前提下使用匿名 Editor，并预置可直接查看 Action-Driver 日志、调用量、错误及耗时的仪表盘；Explore 可用于进一步查询。
 - HTTP、IPC、WebSocket 调用摘要与其他运行日志统一通过 OpenTelemetry Logs SDK 进入 Loki，不再写本机日志文件或 `LocalInteractionLogStore`，也不再提供本机 `GET /logs` 与前端日志列表/详情。接口日志仅包含操作、方向、传输、结果、耗时、错误和关联标识，不记录任意请求/响应正文。
-- ActionDriver 不再提供日志或观测平台页面、侧栏入口及外链按钮；操作者按运维文档从浏览器直接打开本地 Grafana/Phoenix，完整模型输入输出仍仅在 Phoenix 查看。
+- Action-Driver 不再提供日志或观测平台页面、侧栏入口及外链按钮；操作者按运维文档从浏览器直接打开本地 Grafana/Phoenix，完整模型输入输出仍仅在 Phoenix 查看。
 - **BREAKING** 模型日志不再以 LangSmith 为事实来源；现有未完成的 `use-langsmith-model-logs` 变更由本变更取代其后续方向。迁移时核对其未提交实现，不直接清除用户工作树。
 
 ## Capabilities

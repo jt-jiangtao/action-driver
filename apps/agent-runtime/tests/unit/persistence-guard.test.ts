@@ -15,9 +15,9 @@ import { RolloutSessionStore } from '../../src/rollout/session-store'
 const temporaryDirectories: string[] = []
 
 function databasePath(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-payload-guard-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-payload-guard-'))
   temporaryDirectories.push(directory)
-  return join(directory, 'actiondriver.db')
+  return join(directory, 'action-driver.db')
 }
 
 /** History lives in the rollout log; skill invocations stay in the state database. */

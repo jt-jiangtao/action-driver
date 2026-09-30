@@ -7,7 +7,7 @@ import type {
 import { StreamLifecycleGuard, StreamProtocolError } from '../../src/stream-lifecycle'
 
 const identity = {
-  protocol: 'actiondriver.stream.v2' as const,
+  protocol: 'action-driver.stream.v2' as const,
   cursor: 1,
   requestId: 'request-1',
   sessionId: 'session-1',

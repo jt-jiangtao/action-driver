@@ -1,4 +1,4 @@
-import { declaredDevices, supportsLocation, type PlacementDeclaration, type PlacementLocation } from '@actiondriver/plugin-contracts'
+import { declaredDevices, supportsLocation, type PlacementDeclaration, type PlacementLocation } from '@action-driver/plugin-contracts'
 import type { HostRegistry} from './hosts';
 import { PlacementError, type PlacementAuditEntry, type RegisteredHost } from './hosts'
 

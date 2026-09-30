@@ -6,7 +6,7 @@
 
 GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构建同时启用 `ACTION_DRIVER_DEVELOPMENT`，默认显示水印。自有官方构建仅传 `--action-driver-watermark` 时显示。`action_driver = false` 默认关闭，不编译自有覆盖层，即使传参数也不显示。其他平台未实现水印。
 
-修改位置为 `thirdparty/electron/shell/browser/ui/cocoa/action_driver`、受宏保护的 `electron_ns_window.h/mm` 和 GN 接线。测试夹具在 `thirdparty/electron/action_driver/watermark`。
+修改位置为 `thirdparty/electron/shell/browser/ui/cocoa/action-driver`、受宏保护的 `electron_ns_window.h/mm` 和 GN 接线。测试夹具在 `thirdparty/electron/action-driver/watermark`。
 
 ## 修改与重建
 
@@ -22,7 +22,7 @@ GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构
 )
 ```
 
-更新 `config/browser-forks.lock.json` 中 Electron 的 commit，使其与直属源码及主仓库 submodule 指针一致。在 `src/out/ActionDriver/args.gn` 保留既有 SDK、CPU 和测试配置，加入 `action_driver = true`；不要直接覆盖已有参数。
+更新 `config/browser-forks.lock.json` 中 Electron 的 commit，使其与直属源码及主仓库 submodule 指针一致。在 `src/out/Action-Driver/args.gn` 保留既有 SDK、CPU 和测试配置，加入 `action_driver = true`；不要直接覆盖已有参数。
 
 从项目根运行：
 
@@ -32,8 +32,8 @@ GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构
   ulimit -n 65536
   export PATH="$PWD/thirdparty/build/electron-workspace/src/buildtools/mac:$PWD/thirdparty/build/electron-workspace/src/third_party/ninja:$PWD/thirdparty/tools/node-v22.23.3-darwin-arm64/bin:$PATH"
   cd thirdparty/build/electron-workspace/src
-  gn gen out/ActionDriver
-  ninja -C out/ActionDriver -j8 electron
+  gn gen out/Action-Driver
+  ninja -C out/Action-Driver -j8 electron
 )
 ```
 
@@ -41,11 +41,11 @@ GN 参数 `action_driver = true` 在 macOS 启用 `ACTION_DRIVER`。非官方构
 
 ## 导出和启动
 
-退出正在运行的 ActionDriver，再从项目根执行：
+退出正在运行的 Action-Driver，再从项目根执行：
 
 ```sh
 node scripts/export-electron-fork.mjs
-pnpm --filter @actiondriver/desktop dev
+pnpm --filter @action-driver/desktop dev
 ```
 
 导出工具要求两个 Electron 检出均干净、提交和远端与锁文件匹配，Chromium 基线有效且 `ninja -n electron` 无待构建工作。它核对实际版本、平台、架构和 `action_driver=true`，生成提交、源码树、补丁、GN 参数及 bundle 哈希记录。
@@ -59,9 +59,9 @@ pnpm --filter @actiondriver/desktop dev
 定向验证：
 
 ```sh
-node --test thirdparty/electron/action_driver/watermark/native.test.mjs
+node --test thirdparty/electron/action-driver/watermark/native.test.mjs
 node --test tests/unit/scripts/lib/export-electron-fork.test.mjs
-node thirdparty/electron/action_driver/watermark/verify-electron.mjs "$PWD/thirdparty/build/electron/Electron.app/Contents/MacOS/Electron"
+node thirdparty/electron/action-driver/watermark/verify-electron.mjs "$PWD/thirdparty/build/electron/Electron.app/Contents/MacOS/Electron"
 pnpm exec playwright test apps/desktop/tests/e2e/electron-fork-runtime.spec.ts
 ```
 
@@ -73,8 +73,8 @@ pnpm exec playwright test apps/desktop/tests/e2e/electron-fork-runtime.spec.ts
 pnpm test:e2e:packaged:macos
 ```
 
-打包脚本从校验后的自有 Electron.app 复制宿主，将来源记录写入包内 `Contents/Resources/actiondriver-electron-provenance.json`，再加入桌面及运行时资源。该命令生成临时 smoke 包并验证，不是安装包发布命令。开发内核被打包后仍默认显示水印；需要无默认水印的自有发行版应另建官方配置并重新导出。
+打包脚本从校验后的自有 Electron.app 复制宿主，将来源记录写入包内 `Contents/Resources/action-driver-electron-provenance.json`，再加入桌面及运行时资源。该命令生成临时 smoke 包并验证，不是安装包发布命令。开发内核被打包后仍默认显示水印；需要无默认水印的自有发行版应另建官方配置并重新导出。
 
-## 当前本地交付
+## 当前交付
 
-Electron 源码提交：`8b6c1f84f6c20f79b7176ccf868cf9e7615e9384`（在 `593df43c` 基线之上只增加了一处验证脚本路径修正）。已完成自有宏开启构建、宏关闭窗口翻译单元编译、三种策略测试，以及实际 ActionDriver 窗口截图；未构建完整宏关闭或官方配置二进制。该 Fork 分支已推送到 `jt-jiangtao/electron@codex/fork-baseline`，递归拉取主仓库即可取得对应提交。
+Electron 源码提交：`0343e0193a6d593287df7bb0a95765afa35ed7e1`（统一品牌源码符号、夹具目录和 GN 引用）。已完成自有宏开启构建、宏关闭窗口翻译单元编译、三种策略测试，以及重新构建并导出完整 Electron.app；未构建完整宏关闭或官方配置二进制。此提交已推送到 `jt-jiangtao/electron@codex/fork-baseline`，且通过 `git ls-remote` 确认远端引用；主仓库的新 gitlink 可供递归拉取。

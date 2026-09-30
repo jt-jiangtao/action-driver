@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Json, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { Json, PluginOwner } from '@action-driver/plugin-contracts'
 import { PlacementError } from './hosts'
 import type { HostChannel, InvocationContextDto } from './invoker'
 
@@ -64,7 +64,7 @@ export function createLocalSkillChannel(options: {
 const responseSchema = z.object({ ok: z.boolean(), value: z.json().optional(), error: z.object({ code: z.string(), message: z.string() }).optional() }).strict()
 
 /**
- * Talks to another ActionDriver runtime's placement surface. The pinned owner travels with every
+ * Talks to another Action-Driver runtime's placement surface. The pinned owner travels with every
  * call so the remote host can reject a call that names a different plugin version than it serves.
  */
 export function createHttpHostChannel(options: { baseUrl: string; token: string; fetch?: typeof fetch }): HostChannel {

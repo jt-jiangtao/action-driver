@@ -16,13 +16,13 @@ function stubComputerUse(status: {
   eventPosting: boolean
 }) {
   const permissions = vi.fn(async () => ({ ...status,
-    permissionTarget: 'ActionDriver Computer Use' }))
+    permissionTarget: 'Action-Driver Computer Use' }))
   const api = {
     permissions,
     ensureGuidance: vi.fn(async () => true),
     openSystemSettings: vi.fn(async () => undefined)
   }
-  vi.stubGlobal('actionDriverDesktop', { computerUse: api })
+  vi.stubGlobal('productDesktop', { computerUse: api })
   return api
 }
 
@@ -60,9 +60,9 @@ describe('Computer Use settings page', () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: '电脑操控' })).toBeVisible()
-    expect(screen.getByText('管理 ActionDriver 如何使用你电脑上的其他应用程序')).toBeVisible()
+    expect(screen.getByText('管理 Action-Driver 如何使用你电脑上的其他应用程序')).toBeVisible()
     expect(screen.getByText('任意应用')).toBeVisible()
-    expect(screen.getByText('允许 ActionDriver 控制你电脑上的应用')).toBeVisible()
+    expect(screen.getByText('允许 Action-Driver 控制你电脑上的应用')).toBeVisible()
     await waitFor(() => expect(screen.getByTestId('e2e/settings/computer-use/any-app#switch'))
       .toHaveAttribute('aria-checked', 'true'))
     expect(screen.getByText('辅助功能已授权')).toBeVisible()

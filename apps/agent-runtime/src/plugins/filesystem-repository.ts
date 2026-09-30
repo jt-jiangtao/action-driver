@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, readdir, rename, rm, realpath, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
-import { PluginError, type Json, type PluginManifest } from '@actiondriver/plugin-contracts'
+import { PluginError, type Json, type PluginManifest } from '@action-driver/plugin-contracts'
 import type { PluginRepository } from './ports'
 export class FilesystemPluginRepository implements PluginRepository {
   constructor(private readonly root: string, private readonly source: (manifest: PluginManifest) => string, private readonly ids: () => string) {}

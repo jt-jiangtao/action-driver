@@ -1,4 +1,4 @@
-import type { AppApprovalDecision } from '@actiondriver/contracts'
+import type { AppApprovalDecision } from '@action-driver/contracts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,7 +7,7 @@ import { TaskPage } from '../../../../../src/renderer/src/pages/TaskPage'
 import { mockTaskFixture } from '../../../../../src/renderer/src/services/mock-task-fixture'
 import { mockModelSelection } from '../../../../../src/renderer/src/testing/model-selection-fixture'
 
-describe('ActionDriver pages', () => {
+describe('Action-Driver pages', () => {
   it.each([['拒绝', 'deny'], ['仅本次', 'once'], ['本会话', 'session'], ['始终允许', 'always']])('sends %s through app approval', async (label, decision) => {
     const onAppDecision = vi.fn(async () => undefined)
     const view = renderApproval(onAppDecision)
@@ -265,7 +265,7 @@ describe('ActionDriver pages', () => {
     render(
       <HomePage modelSelection={mockModelSelection} onSelectModel={vi.fn()} onSubmit={vi.fn()} />
     )
-    expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     expect(screen.getByTestId('e2e/home/main/composer#section')).toHaveAttribute(
       'data-width',
       '720'
@@ -452,11 +452,11 @@ describe('ActionDriver pages', () => {
               callId: 'call-2',
               toolId: 'tools/local/web/search@1',
               modelName: 'tools_local_web_search',
-              summary: '搜索 “ActionDriver”',
+              summary: '搜索 “Action-Driver”',
               argumentsHash: '',
               status: 'completed',
               durationMs: 42,
-              resultSummary: 'ActionDriver Documentation'
+              resultSummary: 'Action-Driver Documentation'
             }
           ]
         }}
@@ -475,7 +475,7 @@ describe('ActionDriver pages', () => {
     const timeline = screen.getByRole('region', { name: '任务过程' })
     expect(timeline).toHaveTextContent('已处理')
     expect(timeline).toHaveTextContent('rg TODO README.md')
-    expect(timeline).toHaveTextContent('搜索 “ActionDriver”')
+    expect(timeline).toHaveTextContent('搜索 “Action-Driver”')
     expect(timeline.textContent!.indexOf('已处理')).toBeLessThan(
       timeline.textContent!.indexOf('rg TODO')
     )
@@ -839,7 +839,7 @@ describe('ActionDriver pages', () => {
   // 3.1: the card shows the real application icon when macOS can provide one.
   it('shows the real application icon on the approval card', async () => {
     const getAppIcon = vi.fn(async () => 'data:image/png;base64,QQ==')
-    vi.stubGlobal('actionDriverDesktop', { computerUse: { getAppIcon } })
+    vi.stubGlobal('productDesktop', { computerUse: { getAppIcon } })
     renderApproval(vi.fn())
     await expect.poll(() => document.querySelector('.app-approval-icon')?.getAttribute('src'))
       .toBe('data:image/png;base64,QQ==')
@@ -848,7 +848,7 @@ describe('ActionDriver pages', () => {
   })
 
   it('falls back to the placeholder when the application icon is unavailable', async () => {
-    vi.stubGlobal('actionDriverDesktop', { computerUse: { getAppIcon: vi.fn(async () => null) } })
+    vi.stubGlobal('productDesktop', { computerUse: { getAppIcon: vi.fn(async () => null) } })
     renderApproval(vi.fn())
     await screen.findByTestId('e2e/tasks/detail/computer/app-approval-once#button')
     expect(document.querySelector('.app-approval-icon')).toBeNull()

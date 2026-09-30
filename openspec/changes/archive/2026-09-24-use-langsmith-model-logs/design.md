@@ -6,7 +6,7 @@
 
 **Goals:**
 
-- 用 LangSmith 追踪真实模型调用，并以 ActionDriver `sessionId`、`taskId`、`requestId` 保持可查询的对应关系。
+- 用 LangSmith 追踪真实模型调用，并以 Action-Driver `sessionId`、`taskId`、`requestId` 保持可查询的对应关系。
 - 让模型层列表直接消费 LangSmith 会话摘要，详情由应用内隔离视图中的 LangSmith UI 展示。
 - 将 LangSmith API 访问限制在 Runtime，将远程内容创建和导航限制在 Desktop Main 的验证入口，Renderer 不接触 API Key 或任意 URL。
 
@@ -32,7 +32,7 @@ Runtime 启动时读取 `LANGSMITH_API_KEY`、可选 `LANGSMITH_ENDPOINT` 和 `L
 
 ### 3. 详情 URL 由 Runtime 产生、Desktop Main 验证并在隔离视图展示
 
-LangSmith 查询适配器从当前查询返回的 run/thread 的应用路径或 SDK URL 生成详情地址，并连同列表摘要及根据配置端点确定的 Web origin 返回。预加载层只暴露类型化的展示、定位和关闭详情动作；Desktop Main 比较 URL 的 HTTPS 协议和 Runtime 返回的 Web origin，并确认目标为当前列表记录的详情地址后，才创建 `WebContentsView`。远程视图不加载 ActionDriver preload，关闭 Node 集成，启用 sandbox、context isolation 和 webSecurity；独立处理 HTTPS 导航及新窗口请求，不允许远程内容导航应用主窗口。Renderer 只提供视图在窗口内容区的边界，并保留列表组件状态。
+LangSmith 查询适配器从当前查询返回的 run/thread 的应用路径或 SDK URL 生成详情地址，并连同列表摘要及根据配置端点确定的 Web origin 返回。预加载层只暴露类型化的展示、定位和关闭详情动作；Desktop Main 比较 URL 的 HTTPS 协议和 Runtime 返回的 Web origin，并确认目标为当前列表记录的详情地址后，才创建 `WebContentsView`。远程视图不加载 Action-Driver preload，关闭 Node 集成，启用 sandbox、context isolation 和 webSecurity；独立处理 HTTPS 导航及新窗口请求，不允许远程内容导航应用主窗口。Renderer 只提供视图在窗口内容区的边界，并保留列表组件状态。
 
 先前方案是系统默认浏览器外跳，隔离及登录成本较低，但离开应用；用户重新裁决为应用内展示。直接使用 `<webview>` 标签也可实现，但 Electron 官方提示其架构与稳定性风险，因此选择由 Main 管理的 `WebContentsView`。登录重定向可在隔离视图内走 HTTPS；非 HTTPS 跳转及弹窗一律拒绝。
 
@@ -47,7 +47,7 @@ LangSmith 查询适配器从当前查询返回的 run/thread 的应用路径或 
 - [异步追踪写入造成刚完成任务短暂未出现在列表] → 调用终态前 flush 有界追踪队列；列表自动刷新，仍未可见时显示真实空/错误状态而非伪造记录。
 - [详情 URL 被篡改或远程页面试图访问桌面能力] → 只接受当前查询所产生、HTTPS 且与配置 Web origin 匹配的初始地址；隔离视图无 preload、Node 权限与应用 IPC。拒绝非 HTTPS 导航和新窗口请求。
 - [内嵌登录、Cookie 或 SSO 流程与系统浏览器不同] → 在隔离视图中使用独立页面会话；登录可能需要在视图内完成，失败时展示可诊断页面错误，不恢复外跳。
-- [SDK API/数据模型变更] → 以 Runtime 内部适配器隔离 SDK 类型，公共 contracts 只暴露 ActionDriver DTO。
+- [SDK API/数据模型变更] → 以 Runtime 内部适配器隔离 SDK 类型，公共 contracts 只暴露 Action-Driver DTO。
 
 ## Migration Plan
 

@@ -2,24 +2,24 @@
 
 ## Purpose
 
-定义 ActionDriver 首个可运行桌面壳层的用户可见行为，使 macOS 应用在安全的 Electron 进程边界内稳定呈现已确认的导航、品牌和页面布局。
+定义 Action-Driver 首个可运行桌面壳层的用户可见行为，使 macOS 应用在安全的 Electron 进程边界内稳定呈现已确认的导航、品牌和页面布局。
 
 ## Requirements
 
 ### Requirement: 启动桌面应用
-系统 SHALL 以名称为 `ActionDriver` 且使用白色圆角方形底、居中蓝紫 ActionDriver 标志的品牌图标启动 macOS 桌面窗口，并默认显示 ActionDriver 首页，不打开外部浏览器窗口。应用名称 SHALL 在 Electron 应用身份、主窗口标题和页面标题中保持一致；在 macOS Dock API 可用时，系统 SHALL 使用同一品牌图标。
+系统 SHALL 以名称为 `Action-Driver` 且使用白色圆角方形底、居中蓝紫 Action-Driver 标志的品牌图标启动 macOS 桌面窗口，并默认显示 Action-Driver 首页，不打开外部浏览器窗口。应用名称 SHALL 在 Electron 应用身份、主窗口标题和页面标题中保持一致；在 macOS Dock API 可用时，系统 SHALL 使用同一品牌图标。
 
 #### Scenario: 首次启动
-- **WHEN** 用户启动 ActionDriver
+- **WHEN** 用户启动 Action-Driver
 - **THEN** 系统在单一桌面窗口中显示首页及左侧导航
 
 #### Scenario: 原生应用身份
 - **WHEN** Electron 主进程初始化应用与主窗口
-- **THEN** 应用名称和窗口标题显示为 `ActionDriver`，窗口图标使用随应用提供的白底圆角 ActionDriver 品牌位图
+- **THEN** 应用名称和窗口标题显示为 `Action-Driver`，窗口图标使用随应用提供的白底圆角 Action-Driver 品牌位图
 
 #### Scenario: macOS Dock 品牌
 - **WHEN** 应用在提供 Dock API 的 macOS 环境完成初始化
-- **THEN** Dock 使用与主窗口一致的 ActionDriver 品牌图标
+- **THEN** Dock 使用与主窗口一致的 Action-Driver 品牌图标
 
 #### Scenario: 非 macOS 环境
 - **WHEN** 应用运行环境不提供 Dock API
@@ -41,7 +41,7 @@
 - **THEN** 桥接脚本以受支持的形式加载成功并暴露白名单能力，页面读不到未声明的桌面接口
 
 ### Requirement: 呈现统一侧栏
-系统 SHALL 在首页和任务页默认呈现宽度为 248px 的浅色侧栏，包含窗口控制区域、ActionDriver 品牌、新任务、Skills、MCP、最近任务列表和设置入口，并且不显示底部用户名。每个最近任务条目 SHALL 关联一个稳定的 Mock task ID，并能打开共享任务详情页。系统 SHALL 允许用户将侧栏完全隐藏，并在当前可见页面顶部提供可用的恢复按钮；隐藏与恢复 SHALL 保留当前任务、输入草稿和浏览器布局状态。
+系统 SHALL 在首页和任务页默认呈现宽度为 248px 的浅色侧栏，包含窗口控制区域、Action-Driver 品牌、新任务、Skills、MCP、最近任务列表和设置入口，并且不显示底部用户名。每个最近任务条目 SHALL 关联一个稳定的 Mock task ID，并能打开共享任务详情页。系统 SHALL 允许用户将侧栏完全隐藏，并在当前可见页面顶部提供可用的恢复按钮；隐藏与恢复 SHALL 保留当前任务、输入草稿和浏览器布局状态。
 
 #### Scenario: 首页侧栏
 - **WHEN** 用户位于首页且侧栏未收起
@@ -81,7 +81,7 @@
 - **THEN** 系统打开对应设置页面，保留两个入口及其独立图标，并只突出显示当前页面入口
 
 ### Requirement: 遵循设计基础
-系统 SHALL 使用 Figma 中定义的语义色、字体层级、间距、圆角、阴影和动效 Token，并使用现有 ActionDriver 品牌资产与统一图标适配层。
+系统 SHALL 使用 Figma 中定义的语义色、字体层级、间距、圆角、阴影和动效 Token，并使用现有 Action-Driver 品牌资产与统一图标适配层。
 
 #### Scenario: 1440×900 基准窗口
 - **WHEN** 窗口内容区域为 1440×900
@@ -110,7 +110,7 @@ macOS arm64 桌面的开发、预览、自动化测试与打包入口 SHALL 使�
 自有 macOS Electron SHALL 在启用 ACTION_DRIVER 的非官方开发构建中默认显示原生全屏斜向平铺的 `action-driver-dev` 水印，初始透明度为 5%。水印 MUST NOT 修改网页 DOM 或截获页面交互。官方自有构建仅在传入 `--action-driver-watermark` 时显示；未启用 ACTION_DRIVER 的构建不显示自有水印。
 
 #### Scenario: 开发窗口显示水印
-- **WHEN** 用户以已验证的自有开发 Fork 启动 ActionDriver
+- **WHEN** 用户以已验证的自有开发 Fork 启动 Action-Driver
 - **THEN** 原生窗口内容区域显示平铺的 `action-driver-dev` 水印，且点击、输入与滚动仍正常
 
 #### Scenario: 验收水印来源

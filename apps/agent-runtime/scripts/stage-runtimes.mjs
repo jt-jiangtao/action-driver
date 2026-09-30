@@ -46,7 +46,7 @@ async function archiveFor(artifact) {
 
 export async function stageRuntime(kind, artifact, target) {
   const archive = await archiveFor(artifact)
-  const temporary = await mkdtemp(join(tmpdir(), 'actiondriver-runtime-'))
+  const temporary = await mkdtemp(join(tmpdir(), 'action-driver-runtime-'))
   try {
     await exec('/usr/bin/tar', ['-xzf', archive, '-C', temporary], { maxBuffer: 1024 * 1024 })
     const source = kind === 'python' ? join(temporary, 'python') : join(temporary, artifact.file.replace(/\.tar\.gz$/, ''))

@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest'
 
 it('publishes semantic presentation for all twelve builtins through standalone package exports', async () => {
-  const standalone = await import('@actiondriver/command-plugin/presentation')
+  const standalone = await import('@action-driver/command-plugin/presentation')
   expect(Object.keys(standalone.presentations)).toHaveLength(5)
   const packages = ['command', 'web', 'skills', 'image-generation', 'computer-use']
   const tools = []
   for (const name of packages) {
-    const { catalog } = await import(`@actiondriver/${name}-plugin/catalog`)
+    const { catalog } = await import(`@action-driver/${name}-plugin/catalog`)
     expect(catalog.tools.every((tool: { presentation?: unknown }) => tool.presentation)).toBe(true)
-    const { presentations } = await import(`@actiondriver/${name}-plugin/presentation`)
+    const { presentations } = await import(`@action-driver/${name}-plugin/presentation`)
     for (const tool of catalog.tools) {
       expect(tool.presentation).toEqual(presentations[tool.id])
       expect(tool.presentation.output.length).toBeGreaterThan(0)
@@ -20,12 +20,12 @@ it('publishes semantic presentation for all twelve builtins through standalone p
 })
 
 it('extracts real builtin result fields and keeps command streams and validated assets distinct', async () => {
-  const { projectToolDetails } = await import('@actiondriver/plugin-sdk')
-  const { presentations: command } = await import('@actiondriver/command-plugin/presentation')
-  const { presentations: web } = await import('@actiondriver/web-plugin/presentation')
-  const { presentations: skills } = await import('@actiondriver/skills-plugin/presentation')
-  const { presentations: image } = await import('@actiondriver/image-generation-plugin/presentation')
-  const { presentations: computer } = await import('@actiondriver/computer-use-plugin/presentation')
+  const { projectToolDetails } = await import('@action-driver/plugin-sdk')
+  const { presentations: command } = await import('@action-driver/command-plugin/presentation')
+  const { presentations: web } = await import('@action-driver/web-plugin/presentation')
+  const { presentations: skills } = await import('@action-driver/skills-plugin/presentation')
+  const { presentations: image } = await import('@action-driver/image-generation-plugin/presentation')
+  const { presentations: computer } = await import('@action-driver/computer-use-plugin/presentation')
   const project = (metadata: Parameters<typeof projectToolDetails>[0], input: unknown, output: unknown) => projectToolDetails(metadata, input, output)
   expect(project(command['tools/local/command/node/run'], { script: 'console.log(0)', args: ['a'] }, { stdout: '0', stderr: 'warning', result: { exitCode: 0 } }).output.map(field => field.value)).toEqual(['0', 'warning', '0'])
   expect(project(command['tools/local/command/node/run'], {}, { result: { exitCode: 0 } }).output[0]).toMatchObject({ value: '0', placement: 'footer' })
@@ -44,7 +44,7 @@ it('extracts real builtin result fields and keeps command streams and validated 
 })
 
 it('places each command exit code in the generic details footer', async () => {
-  const { presentations } = await import('@actiondriver/command-plugin/presentation')
+  const { presentations } = await import('@action-driver/command-plugin/presentation')
   for (const language of ['shell', 'python', 'node', 'typescript']) {
     const fields = presentations[`tools/local/command/${language}/run`]!.output
     expect(fields.find(field => field.path === 'result.exitCode')).toMatchObject({ placement: 'footer' })
@@ -53,7 +53,7 @@ it('places each command exit code in the generic details footer', async () => {
 })
 
 it('declares terminal layout only for the four command runners', async () => {
-  const { presentations } = await import('@actiondriver/command-plugin/presentation')
+  const { presentations } = await import('@action-driver/command-plugin/presentation')
   for (const language of ['shell', 'python', 'node', 'typescript']) {
     expect(presentations[`tools/local/command/${language}/run`]).toMatchObject({ layout: 'terminal' })
   }

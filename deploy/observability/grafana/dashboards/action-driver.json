@@ -1,8 +1,8 @@
 {
   "id": null,
-  "uid": "actiondriver-overview",
-  "title": "ActionDriver 观测概览",
-  "tags": ["actiondriver", "observability"],
+  "uid": "action-driver-overview",
+  "title": "Action-Driver 观测概览",
+  "tags": ["action-driver", "observability"],
   "timezone": "browser",
   "schemaVersion": 41,
   "version": 1,
@@ -22,7 +22,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (transport) (increase(actiondriver_calls_total[$__range]))",
+          "expr": "sum by (transport) (increase(action_driver_calls_total[$__range]))",
           "legendFormat": "{{transport}}",
           "instant": true,
           "range": false
@@ -40,7 +40,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (transport) (increase(actiondriver_calls_total{outcome=\"error\"}[$__range]))",
+          "expr": "sum by (transport) (increase(action_driver_calls_total{outcome=\"error\"}[$__range]))",
           "legendFormat": "{{transport}}",
           "instant": true,
           "range": false
@@ -58,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, transport) (increase(actiondriver_call_duration_milliseconds_bucket[$__range])))",
+          "expr": "histogram_quantile(0.95, sum by (le, transport) (increase(action_driver_call_duration_milliseconds_bucket[$__range])))",
           "legendFormat": "{{transport}}",
           "instant": true,
           "range": false
@@ -76,7 +76,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service_name=~\"actiondriver-(main|service)\"}",
+          "expr": "{service_name=~\"action-driver-(main|service)\"}",
           "queryType": "range",
           "maxLines": 200
         }

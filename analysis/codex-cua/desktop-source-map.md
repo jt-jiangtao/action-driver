@@ -4,11 +4,11 @@
 
 | 原件 | 证据 | 候选归属与限制 |
 | --- | --- | --- |
-| `scripts/browser-client.mjs` | SHA-256 `d9d0143a…e1324`，151506 字节；与内嵌 browser client 完全相同 | `@actiondriver/browser-runtime` 的客户端接口可共享；需要显式 ActionDriver host port，不能使用原版 `globalThis.nodeRepl.rpc('browser', …)`。 |
-| `scripts/browser-service.mjs` | SHA-256 `fc0660ba…90086`，1905434 字节；内嵌版为 `65833283…1f855e`，1372505 字节 | 单独的 `@actiondriver/browser-desktop` 服务适配。两个 bundle 虽均导出 `handleRpc`，分派 `setup`/`execute`，并接受 `codex-app`、`training`、`cloud`、`orbit` 环境，但哈希/大小不同，不能用内嵌版代替。内部差异需按接口和行为测试逐一确认。 |
+| `scripts/browser-client.mjs` | SHA-256 `d9d0143a…e1324`，151506 字节；与内嵌 browser client 完全相同 | `@action-driver/browser-runtime` 的客户端接口可共享；需要显式 Action-Driver host port，不能使用原版 `globalThis.nodeRepl.rpc('browser', …)`。 |
+| `scripts/browser-service.mjs` | SHA-256 `fc0660ba…90086`，1905434 字节；内嵌版为 `65833283…1f855e`，1372505 字节 | 单独的 `@action-driver/browser-desktop` 服务适配。两个 bundle 虽均导出 `handleRpc`，分派 `setup`/`execute`，并接受 `codex-app`、`training`、`cloud`、`orbit` 环境，但哈希/大小不同，不能用内嵌版代替。内部差异需按接口和行为测试逐一确认。 |
 | `scripts/browser-accessibility.wasm.br` | SHA-256 `97d2773f…8185ee`，4084148 字节；与内嵌版相同 | 原件/生成资源，只记录哈希；不重写 WASM。需确定可再分发来源和自有 CDP 宿主的加载边界。 |
 | `scripts/zxing_reader.wasm` | SHA-256 `0e8d688d…92a392`，1065866 字节；与内嵌版相同 | 第三方 QR 解码资源，既有 `zxing-wasm@3.1.2` 证据见 browser-runtime 来源映射；按固定版本引入，不重写。 |
-| `environment-docs/*` | `cloud` 27、`codex-app` 29、`orbit` 28、`training` 17 文件，完整哈希见 JSON | 资源选择属于 desktop 差异模块。文档是原件资料，不直接作为 ActionDriver 运行时指令；`codex-app` 缺 `browserAuthSafetyPrecheck.md`，对应认证分支必须保持拒绝。 |
+| `environment-docs/*` | `cloud` 27、`codex-app` 29、`orbit` 28、`training` 17 文件，完整哈希见 JSON | 资源选择属于 desktop 差异模块。文档是原件资料，不直接作为 Action-Driver 运行时指令；`codex-app` 缺 `browserAuthSafetyPrecheck.md`，对应认证分支必须保持拒绝。 |
 | `package.json` | 唯一显式运行依赖 `classic-level@3.0.0` | 仅在实际需要的候选模块按固定版本引入；bundle 内其他代码的精确第三方归属仍要逐一核对。 |
 
 原 service 尾部可静态读出 `handleRpc(request)`，它按 `request.method` 调用 `setup(params)` 或 `execute(params)`；`setup` 返回 `apiManifest` 与 `disabledMemberIds`，`execute` 在初始化前报错。它初始化时仍读取特权 Node REPL、私有服务信息以及环境配置，因此这些静态接口证据不构成可直接使用的宿主实现。`browser-client.mjs` 相同只证明 client bundle 可共享，不证明 service 差异可忽略。

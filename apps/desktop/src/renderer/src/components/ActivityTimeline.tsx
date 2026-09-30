@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { isImageGenerationRunning, type TaskProjection } from '@actiondriver/contracts'
+import { isImageGenerationRunning, type TaskProjection } from '@action-driver/contracts'
 import { MarkdownContent } from './MarkdownContent'
 import { ActivityGroup, ToolRow } from './agent/ToolGroup'
 import type { ImageReader } from './agent/ConversationImage'

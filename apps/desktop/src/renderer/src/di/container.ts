@@ -4,9 +4,9 @@ import type {
   SkillCapability,
   SkillGateway,
   TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import type { AgentFilesService } from '../models/agent-files'
-import { SKILL_IDS } from '@actiondriver/contracts'
+import { SKILL_IDS } from '@action-driver/contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
 import { MockAgentRuntime } from '../services/mock-agent-runtime'
 import type { ModelConnectionsService } from '../models/model-connections'

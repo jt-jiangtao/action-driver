@@ -1,4 +1,4 @@
-import type { ToolDefinition, ToolExecutor } from '@actiondriver/plugin-sdk'
+import type { ToolDefinition, ToolExecutor } from '@action-driver/plugin-sdk'
 import { parsePublicUrl } from '../reader/address.js'
 import {
   boundedText,

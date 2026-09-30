@@ -9,7 +9,7 @@ Agent Runtime 已经是一个 loopback HTTP/WS 服务，但它的**启动入口�
 - 新增**宿主无关的 Runtime 装配入口**与**宿主生命周期端口**：就绪描述符上报与关闭传播不再依赖 `parentPort`。
 - 保留 Electron utility process 适配器（现有行为不变），新增**纯 Node 进程适配器**（信号 + 退出码），让同一装配在无 Electron 环境启动并完成一次会话。
 - 把**存储与执行装配收敛为单一入口**：rollout 日志与投影、辅助状态库、资产目录、输入/输出文件、checkpointer、模型连接文件、执行沙箱与运行时路径由一处构造，并在关闭时统一释放。
-- 不改变对外 HTTP/WS 契约、`actiondriver.stream.v2` 协议、工具与事件语义、服务凭据校验与工作区约束。
+- 不改变对外 HTTP/WS 契约、`action-driver.stream.v2` 协议、工具与事件语义、服务凭据校验与工作区约束。
 - 不实现云端部署、远端存储、身份/多租户、调度或云端执行环境。
 
 ## Capabilities

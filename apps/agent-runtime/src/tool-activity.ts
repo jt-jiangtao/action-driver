@@ -1,4 +1,4 @@
-import { isImageGenerationToolId } from '@actiondriver/contracts'
+import { isImageGenerationToolId } from '@action-driver/contracts'
 import type { PersistedToolInvocation } from './ports'
 
 type ToolErrorLike = { code?: unknown }

@@ -2,9 +2,9 @@ import { BrowserWindow, ipcMain, session } from 'electron'
 import { realpath, stat } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { z } from 'zod'
-import { PluginError, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { PluginError, type PluginOwner } from '@action-driver/plugin-contracts'
 import { PluginPanelHost, type PanelHostPorts } from './panel-host'
-const CHANNEL = 'actiondriver:plugin-panel:message'
+const CHANNEL = 'action-driver:plugin-panel:message'
 /** Containers this desktop host actually renders; any other declared container fails per view. */
 export const SUPPORTED_VIEW_CONTAINERS = ['sidebar', 'window'] as const
 export function createElectronPluginPanelHost(options: Omit<PanelHostPorts, 'create'> & { preload: string; packageRoot(owner: PluginOwner): string }) {
@@ -16,7 +16,7 @@ export function createElectronPluginPanelHost(options: Omit<PanelHostPorts, 'cre
       file = await realpath(resolve(root, definition.entry))
       if (relative(root, file).startsWith('..') || !(await stat(file)).isFile()) throw new PluginError('INVALID_MANIFEST', 'Panel entry is outside package')
     }
-    const partition = session.fromPartition(`actiondriver-plugin-panel-${resourceId}`)
+    const partition = session.fromPartition(`action-driver-plugin-panel-${resourceId}`)
     partition.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     partition.setPermissionCheckHandler(() => false)
     const window = new BrowserWindow({ title: definition.title ?? definition.id, show: false, width: 800, height: 600, webPreferences: { ...preferences, session: partition, preload: options.preload } })

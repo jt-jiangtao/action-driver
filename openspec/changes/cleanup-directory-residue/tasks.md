@@ -6,7 +6,7 @@
 - [x] 1.4 删除 `.gitignore` 中 `apps/agent-runtime/vendor/codex-cua/**` 的两条 `!` 反排除规则及注释，保留 `!packages/back/**`；用 `git check-ignore --no-index --quiet` 确认 `packages/back` 内的 `dist/` 与 `node_modules/` 未被忽略，`git ls-files packages/back` 仍为 1071。（该反排除规则在 7.2/7.4 中改为 `!/thirdparty/backup/**`，受跟踪文件数不变）
 - [x] 1.5 删除 `.prettierignore` 中已失效的 `apps/agent-runtime/vendor/`，运行 `corepack pnpm lint` 确认格式检查不受影响。（已在提交前门禁运行）
 - [x] 1.6 把 `docs/codex-cua-platform-gaps.md` 中三处 `apps/agent-runtime/vendor/...` 证据根改指向 `packages/back/...` 对应路径，并注明该目录是历史原件备份、原 vendor 已删除；逐条确认新路径真实存在。
-- [x] 1.7 更正 `packages/back/README.md` 中"当前生产运行路径仍使用 vendor""不删除原 vendor""生产接线不变"等与事实相反的表述，说明原 vendor 已删除、生产已切换为 `@actiondriver/*` 自有实现、备份仅用于离线对照。
+- [x] 1.7 更正 `packages/back/README.md` 中"当前生产运行路径仍使用 vendor""不删除原 vendor""生产接线不变"等与事实相反的表述，说明原 vendor 已删除、生产已切换为 `@action-driver/*` 自有实现、备份仅用于离线对照。
 - [x] 1.8 用 `rg -n "agent-runtime/vendor"`（排除 `.git`）确认仓库内不再有待处理的现存引用，仅历史 OpenSpec/计划文档允许保留原文。（剩余命中全部为历史记录或明确说明删除事实的现行文档）
 
 ## 2. `packages/runtime-protocol/` 清理（执行型）
@@ -67,8 +67,8 @@
 
 ## 9. 追加清理：修正 Fork 仓库中在用的脚本与文档（用户 2026-09-30 追加要求）
 
-- [x] 9.1 修正 `thirdparty/electron/action_driver/watermark/verify-electron.mjs`（水印验证入口，3 处路径）并提交到 `jt-jiangtao/electron`：`8b6c1f84f6c20f79b7176ccf868cf9e7615e9384`。
-- [x] 9.2 修正 `thirdparty/playwright/action_driver/baseline/README.md`（Fork 基线复现文档，11 处路径）并提交到 `jt-jiangtao/playwright`：`7f98443fcd7ffc902aa42e0eeae040e8806bcf28`。
+- [x] 9.1 修正 `thirdparty/electron/action-driver/watermark/verify-electron.mjs`（水印验证入口，3 处路径）并提交到 `jt-jiangtao/electron`：`8b6c1f84f6c20f79b7176ccf868cf9e7615e9384`。
+- [x] 9.2 修正 `thirdparty/playwright/action-driver/baseline/README.md`（Fork 基线复现文档，11 处路径）并提交到 `jt-jiangtao/playwright`：`7f98443fcd7ffc902aa42e0eeae040e8806bcf28`。
 - [x] 9.3 两个提交都推送到各自 `origin` 的 `codex/fork-baseline` 分支，使递归拉取主仓库即可取得对应提交（此前两个 baseline 分支只存在于本机）。
 - [x] 9.4 更新主仓库 pin：gitlink（`thirdparty/electron`、`thirdparty/playwright`）、`config/browser-forks.lock.json` 的 `sources.*.commit`、`config/electron-fork.json` 的 `sourceCommit`/`sourceTree`、`docs/development/browser-forks.md` 的提交表与 `README.md`、`docs/development/electron-watermark.md` 中的提交记录。
 - [x] 9.5 验证：`loadBuildInputs`（强制 gitlink 与 lock 精确相等）通过；`resolveElectronFork`（基线祖先校验 + 产物哈希）通过；`node --test tests/unit/scripts/**/*.test.mjs` 60/60 通过；全仓（含两个 Fork 工作树）内容搜索无错拼字符串命中。

@@ -76,7 +76,7 @@ expect(input.source).toBe('local')
 const modelSkillSchema = z.object({ skillId: z.string().min(1), description: z.string() }).strict()
 skills: z.array(modelSkillSchema)
 ```
-- [ ] **Step 4: 重跑上述测试和 `corepack pnpm --filter @actiondriver/runtime-contracts typecheck`；核对旧规划各文件不再声称普通 Skill 必须有 executor。**
+- [ ] **Step 4: 重跑上述测试和 `corepack pnpm --filter @action-driver/runtime-contracts typecheck`；核对旧规划各文件不再声称普通 Skill 必须有 executor。**
 - [ ] **Step 5: 仅暂存本 Task 的文件并提交 `docs: reconcile ordinary skill contract`。**
 
 ### Task 2: 普通 Skill 的解析、状态与读取
@@ -102,7 +102,7 @@ await expect(store.readEnabledSkillFile('plain', '../other')).rejects.toThrow()
 const enabled = (await this.listSkills()).filter((skill) => skill.available && skill.enabled)
 return enabled.map(({ id, description }) => ({ skillId: id, description }))
 ```
-- [ ] **Step 4: 重跑定向测试与 `corepack pnpm --filter @actiondriver/agent-runtime typecheck`。**
+- [ ] **Step 4: 重跑定向测试与 `corepack pnpm --filter @action-driver/agent-runtime typecheck`。**
 - [ ] **Step 5: 仅暂存本 Task 文件与新增依赖锁文件并提交 `feat: enable instruction skills without executors`。**
 
 ### Task 3: 系统 Skill 迁移与本地文件夹原子安装
@@ -195,7 +195,7 @@ expect(await screen.findByText('GitHub')).toBeVisible()
 ```
 - [ ] **Step 2: 运行 `corepack pnpm exec vitest run apps/desktop/src/renderer/src/pages/AgentSettingsPages.test.tsx apps/desktop/src/renderer/src/services/runtime-agent-files.test.ts`，确认失败。**
 - [ ] **Step 3: 为运行时/Mock 服务增加同构安装方法，接入现有 SkillsPage 状态与样式。**Desktop Main 通过 `dialog.showOpenDialog({ properties: ['openDirectory'] })` 返回本地来源路径；通过固定根目录和合法 skillId 调用 `shell.showItemInFolder`，Renderer 不接收任意文件系统能力。GitHub 输入 URL；安装后失效化现有 `['skills']` 查询，卸载仅触及应用管理目录。
-- [ ] **Step 4: 重跑 UI 与服务测试、`corepack pnpm --filter @actiondriver/desktop typecheck`；手动检查列表/详情间距和焦点。**
+- [ ] **Step 4: 重跑 UI 与服务测试、`corepack pnpm --filter @action-driver/desktop typecheck`；手动检查列表/详情间距和焦点。**
 - [ ] **Step 5: 仅暂存本 Task 文件并提交 `feat: manage installed skills in settings`。**
 
 ### Task 7: 进程执行器接收 stdin 源码

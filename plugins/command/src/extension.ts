@@ -1,4 +1,4 @@
-import { PluginError, type PluginContext, type ToolExecutorEvent } from '@actiondriver/plugin-sdk'
+import { PluginError, type PluginContext, type ToolExecutorEvent } from '@action-driver/plugin-sdk'
 import { createCommandCatalog } from './catalog.js'
 export function activate(context: PluginContext): void {
   for (const definition of createCommandCatalog().tools) {

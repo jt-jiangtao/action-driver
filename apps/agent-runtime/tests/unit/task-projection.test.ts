@@ -154,7 +154,7 @@ describe('repository-backed task projections', () => {
   })
 
   it('keeps messages written before document support readable after reopening', async () => {
-    const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-legacy-')), 'runtime.db')
+    const path = join(mkdtempSync(join(tmpdir(), 'action-driver-projection-legacy-')), 'runtime.db')
     const first = createRolloutStore(path)
     const legacy = task('task-success', 'completed')
     await first.tasks.save(legacy)
@@ -214,7 +214,7 @@ describe('repository-backed task projections', () => {
   })
 
   it('projects completed and failed records after reopening storage', async () => {
-    const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-projection-')), 'runtime.db')
+    const path = join(mkdtempSync(join(tmpdir(), 'action-driver-projection-')), 'runtime.db')
     const first = createRolloutStore(path)
     const completed = task('task-success', 'completed')
     const failed = task('task-failed', 'failed', {

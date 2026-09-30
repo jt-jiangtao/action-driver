@@ -1,11 +1,11 @@
 import type { ParentPortLike } from './electron-host'
 import { startAgentRuntimeProcess } from './electron-host'
 
-const dataRoot = process.env.ACTIONDRIVER_RUNTIME_DATA_ROOT
+const dataRoot = process.env.ACTION_DRIVER_RUNTIME_DATA_ROOT
 const parentPort = (process as typeof process & { parentPort?: ParentPortLike }).parentPort
 
 if (!parentPort) throw new Error('RUNTIME_HOST_UNAVAILABLE: Electron parentPort is required')
-if (!dataRoot) throw new Error('Agent Runtime requires ACTIONDRIVER_RUNTIME_DATA_ROOT')
+if (!dataRoot) throw new Error('Agent Runtime requires ACTION_DRIVER_RUNTIME_DATA_ROOT')
 
 void startAgentRuntimeProcess(parentPort, dataRoot).catch((error: unknown) => {
   parentPort.postMessage({

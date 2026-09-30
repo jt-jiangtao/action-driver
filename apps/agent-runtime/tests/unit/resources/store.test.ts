@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ResourceError } from '@actiondriver/runtime-contracts'
+import { ResourceError } from '@action-driver/runtime-contracts'
 import { VersionedResourceStore, boundedStream } from '../../../src/resources/store'
 import { ResourceProviderRegistry } from '../../../src/resources/registry'
 
@@ -11,7 +11,7 @@ const directories: string[] = []
 afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
 
 async function platform() {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-resources-')); directories.push(root)
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-resources-')); directories.push(root)
   const registry = new ResourceProviderRegistry({ supportedVersions: [1], now: () => 1000 })
   const store = new VersionedResourceStore({ root, maxChunkBytes: 4, now: () => 1000 })
   registry.register({ scheme: 'workspace', version: 1, capabilities: { read: true, write: true, list: true, watch: true } }, store)

@@ -143,7 +143,7 @@ test('global registration waits for runtime creation and snapshots surface selec
   })
 })
 
-test('registration uses explicit ActionDriver surface settings and ignores ambient private host', async () => {
+test('registration uses explicit Action-Driver surface settings and ignores ambient private host', async () => {
   vi.stubGlobal('nodeRepl', { env: { CUA_REPL_ENABLED_SURFACES: 'computer' } })
   const seen: unknown[] = []
   try {

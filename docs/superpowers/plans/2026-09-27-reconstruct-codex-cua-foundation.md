@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- packages/cua、sky、cua-repl、browser-runtime、cua-parity，使用 @actiondriver/*。
+- packages/cua、sky、cua-repl、browser-runtime、cua-parity，使用 @action-driver/*。
 - 原始 vendor 不重写；analysis/codex-cua 不作为产品构建输入。
 - 前期仅差异 runner 引用新实现，禁止改 agent-runtime 默认依赖、生产 loader 与打包接线。
 - 固定基准内每个自有 lib、JS 模块、类型与接口均属于自主实现范围；先分析用途与行为契约，不要求逐语句翻译；第三方依赖核实后直接在使用方 package.json 声明确切版本并由 pnpm-lock.yaml 固定，不使用 ^、~ 或 latest，不重写；未复制原生二进制不计入范围。
@@ -115,12 +115,12 @@ interface NormalizationRule { path: string; reason: string }
 
 **Files:** File Structure 中列出的四个包文件；packages/cua-parity/tests/workspace-boundary.test.ts。
 
-**Interfaces:** 包名 @actiondriver/cua、sky、cua-repl、browser-runtime；`build`、`typecheck`；暂不承诺源码清点之前尚未知的导出接口。
+**Interfaces:** 包名 @action-driver/cua、sky、cua-repl、browser-runtime；`build`、`typecheck`；暂不承诺源码清点之前尚未知的导出接口。
 
 - [ ] Step 1: 写 workspace-boundary 测试，四包 private=true、名称正确、独立 build/typecheck 可用、不依赖 @oai、不依赖 vendor 路径；agent-runtime/package.json 不引用候选包。
 - [ ] Step 2: 运行 `pnpm vitest run packages/cua-parity/tests/workspace-boundary.test.ts`，确认缺包失败。
 - [ ] Step 3: 沿用 plugin-sdk 的 tsconfig 分层，Node ESM 输出的相对导入使用 .js；入口空导出只标为 scaffold，不冒充功能实现；mapping 文档标明模块未还原。
-- [ ] Step 4: 同一定向测试通过；对五个包分别运行 `pnpm --filter @actiondriver/<包名> build` 和 typecheck。第三方依赖按清点的确切版本引入，不复制 vendor/node_modules；版本不可获取或定制补丁差异明确报告。依赖安装只更新本次 workspace 所需项，不升级其他依赖；四包不接入产品。
+- [ ] Step 4: 同一定向测试通过；对五个包分别运行 `pnpm --filter @action-driver/<包名> build` 和 typecheck。第三方依赖按清点的确切版本引入，不复制 vendor/node_modules；版本不可获取或定制补丁差异明确报告。依赖安装只更新本次 workspace 所需项，不升级其他依赖；四包不接入产品。
 
 ### Task 4: 独立进程 runner
 

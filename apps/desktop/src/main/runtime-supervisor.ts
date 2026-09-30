@@ -254,12 +254,12 @@ export function runtimeProcessEnvironment(
   return {
     ...base,
     NODE_OPTIONS: nodeOptions,
-    ACTIONDRIVER_RUNTIME_DATA_ROOT: options.dataRoot,
-    ACTIONDRIVER_WORKSPACE_ROOT: options.workspaceRoot,
-    ...(options.agentHomeDirectory ? { ACTIONDRIVER_AGENT_HOME: options.agentHomeDirectory } : {}),
-    ...(options.serviceToken ? { ACTIONDRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
-    ...(options.credentialKey ? { ACTIONDRIVER_CREDENTIAL_KEY: options.credentialKey } : {}),
-    ACTIONDRIVER_RENDERER_ORIGIN: options.trustedRendererOrigin ?? ''
+    ACTION_DRIVER_RUNTIME_DATA_ROOT: options.dataRoot,
+    ACTION_DRIVER_WORKSPACE_ROOT: options.workspaceRoot,
+    ...(options.agentHomeDirectory ? { ACTION_DRIVER_AGENT_HOME: options.agentHomeDirectory } : {}),
+    ...(options.serviceToken ? { ACTION_DRIVER_SERVICE_TOKEN: options.serviceToken } : {}),
+    ...(options.credentialKey ? { ACTION_DRIVER_CREDENTIAL_KEY: options.credentialKey } : {}),
+    ACTION_DRIVER_RENDERER_ORIGIN: options.trustedRendererOrigin ?? ''
   }
 }
 

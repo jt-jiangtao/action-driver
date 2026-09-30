@@ -3,9 +3,9 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FilesystemPluginRepository, PluginPrivateStorage } from '../../../src/plugins/filesystem-repository'
-import { validateManifest } from '@actiondriver/plugin-contracts'
+import { validateManifest } from '@action-driver/plugin-contracts'
 it('keeps version packages and plugin-private data separate and preserves data on uninstall by default', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-plugin-store-')), source = join(root, 'source')
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-plugin-store-')), source = join(root, 'source')
   await mkdir(source); await writeFile(join(source, 'entry.mjs'), 'export function activate() {}')
   const manifest = validateManifest({ id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'entry.mjs', platforms: ['darwin-arm64'] }, { sdk: '1.0.0', platform: 'darwin-arm64' })
   let sequence = 0
@@ -27,7 +27,7 @@ it('keeps version packages and plugin-private data separate and preserves data o
 })
 
 it('refreshes a bundled package when its contents change without a version bump', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-plugin-refresh-'))
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-plugin-refresh-'))
   const source = join(root, 'bundled')
   await mkdir(source)
   await writeFile(join(source, 'entry.mjs'), 'export const name = "old"')

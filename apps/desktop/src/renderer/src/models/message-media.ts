@@ -4,7 +4,7 @@ import {
   type AgentMessageProjection,
   type MessageContentPart,
   type ToolInvocationProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 
 type ImagePart = Extract<MessageContentPart, { kind: 'image' }>
 

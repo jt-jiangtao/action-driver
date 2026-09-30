@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ToolInvocationProjection } from '@actiondriver/contracts'
+import type { ToolInvocationProjection } from '@action-driver/contracts'
 import { ActivityItems, ToolRow } from '../../../../../../src/renderer/src/components/agent/ToolGroup'
 const tool = (extra: Record<string, unknown>): ToolInvocationProjection => ({
   callId: 'c',
@@ -51,7 +51,7 @@ describe('unified semantic tool details', () => {
   })
   it('opens safe links through the desktop interface and keeps unsafe links inert', () => {
     const open = vi.fn(async () => {})
-    vi.stubGlobal('actionDriverDesktop', { externalLinks: { open } })
+    vi.stubGlobal('productDesktop', { externalLinks: { open } })
     render(
       <ToolRow
         tool={tool({

@@ -51,7 +51,7 @@ Main 侧引入最小端口：
 
 ### 5. IPC 与 Preload 白名单
 
-新增 `shared/model-ipc-contract.ts` 定义通道与 DTO，Main 注册具名 Handler（list、test-connection、discover、refresh、test-models、test-connection-models、set-model-enabled、add、delete），Preload 暴露 `window.actionDriverDesktop.modelConnections.*`，复用 `agent` 命名空间已有的 `{ ok, value } | { ok: false, error }` 响应约定与错误序列化。
+新增 `shared/model-ipc-contract.ts` 定义通道与 DTO，Main 注册具名 Handler（list、test-connection、discover、refresh、test-models、test-connection-models、set-model-enabled、add、delete），Preload 暴露 `window.productDesktop.modelConnections.*`，复用 `agent` 命名空间已有的 `{ ok, value } | { ok: false, error }` 响应约定与错误序列化。
 
 这与既有 `desktop-shell` 要求一致：页面不能传入任意通道名，也不能读取明文密钥；因此通道名是常量，DTO 里没有原始 Key 字段。
 

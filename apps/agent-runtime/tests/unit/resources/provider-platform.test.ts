@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ResourceError } from '@actiondriver/runtime-contracts'
-import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceWatchEvent } from '@actiondriver/runtime-contracts'
-import type { InvocationContext } from '@actiondriver/plugin-contracts'
+import type { ResourceError } from '@action-driver/runtime-contracts'
+import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceWatchEvent } from '@action-driver/runtime-contracts'
+import type { InvocationContext } from '@action-driver/plugin-contracts'
 import { createPluginArtifactHostPorts, createPluginResourceProvider, pluginArtifactResourceId } from '../../../src/resources/plugin-resources'
 import { createRemoteResourceProvider, type RemoteResourceTransport } from '../../../src/resources/remote-provider'
 import { createHttpRemoteResourceTransport } from '../../../src/resources/remote-http-transport'
@@ -16,7 +16,7 @@ import { createSessionScopedStoreProvider } from '../../../src/resources/work-pr
 const temporaryDirectories: string[] = []
 
 function root(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-provider-platform-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-provider-platform-'))
   temporaryDirectories.push(directory)
   return directory
 }

@@ -67,8 +67,8 @@ async function launch(
 ): Promise<Page> {
   provider = new FakeOpenAiToolServer(mode)
   await provider.start()
-  userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-data-'))
-  homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-tool-e2e-home-'))
+  userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-tool-e2e-data-'))
+  homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-tool-e2e-home-'))
   const workspace = join(userDataDirectory, 'workspace')
   mkdirSync(workspace, { recursive: true })
   writeFileSync(join(workspace, 'README.md'), '# E2E workspace\n\nneedle is present.\n')
@@ -81,16 +81,16 @@ async function launch(
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
-      ...(mode === 'shell-timeout' ? { ACTIONDRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {}),
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: homeDirectory,
+      ...(mode === 'shell-timeout' ? { ACTION_DRIVER_SCRIPT_TIMEOUT_MS: '10000' } : {}),
     }
   })
   const page = await application.firstWindow()
   page.on('pageerror', (error) => console.error(`[renderer:pageerror] ${error.message}`))
-  await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+  await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   await page.evaluate(
     async ({ baseUrl, secret, visionState }) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const url = new URL(connection.wsUrl)
       url.protocol = 'http:'
       url.pathname = '/model-connections'
@@ -204,7 +204,7 @@ test('keeps the running indicator clear of the divider in the initial state', as
   expect(spacing.fromDividerToText).toBeGreaterThanOrEqual(14)
   await expect(elapsed).toBeVisible()
   provider!.releaseTool()
-  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+  if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.locator('.activity-timeline').screenshot({
       path: test.info().outputPath('activity-initial-thinking.png')
     })
@@ -237,7 +237,7 @@ async function runtimeTask(
   messages: Array<{ content: unknown }>
 } | null> {
   return await page.evaluate(async (id) => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = `/tasks/${encodeURIComponent(id)}`
@@ -257,7 +257,7 @@ async function runtimeTask(
 
 async function selectDefaultImageModel(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     const headers = {
@@ -601,7 +601,7 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   expect(groupChevron!.x - (groupTitle!.x + groupTitle!.width)).toBeLessThanOrEqual(12)
   expect(groupChevron!.x - groupTitle!.x).toBeLessThan(180)
   await expect(group.locator(':scope > summary svg').last()).toHaveCSS('transform', 'none')
-  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+  if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.screenshot({ path: test.info().outputPath('activity-expanded.png') })
   }
   expect(provider!.completions).toHaveLength(3)
@@ -662,7 +662,7 @@ test('keeps interleaved process and tool calls ordered live and after reopening'
   expect(longSize.scrollHeight).toBeGreaterThan(longSize.clientHeight)
   expect(longSize.itemsTop).toBeGreaterThanOrEqual(longSize.headingBottom)
   await expect(longItems).toHaveCSS('mask-image', /linear-gradient/)
-  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+  if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.screenshot({ path: test.info().outputPath('activity-scroll-fade.png') })
   }
   const headingBeforeScroll = await restoredGroup.locator(':scope > summary').boundingBox()
@@ -725,7 +725,7 @@ test('registers a generated deliverable as a task output card after reload', asy
   expect(hovered).toBe(
     JSON.stringify({ boxShadow: JSON.parse(resting).boxShadow, borderColor: JSON.parse(resting).borderColor })
   )
-  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+  if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.locator('.task-output-files').screenshot({
       path: test.info().outputPath('task-output-files.png')
     })
@@ -784,7 +784,7 @@ test('runs a granted shell command without approval and answers', async () => {
   await sendGoal(page, '在 README 中查找 needle')
   await expect(page.getByRole('heading', { name: '已读取' })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('e2e/tasks/detail/activity/approve#button')).toHaveCount(0)
-  if (process.env.ACTIONDRIVER_VISUAL_CAPTURE) {
+  if (process.env.ACTION_DRIVER_VISUAL_CAPTURE) {
     await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
     await page.locator('.activity-group > summary').click()
     await page.locator('.activity-tool > summary').first().click()

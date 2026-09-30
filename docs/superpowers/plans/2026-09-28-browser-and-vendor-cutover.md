@@ -4,7 +4,7 @@
 
 **Goal:** 完成 macOS 右侧内置 Browser Use 与 Agent 自行启动的外部 Chrome，同时在保持 Computer Use 可用的条件下完全移除 `apps/agent-runtime/vendor`。
 
-**Architecture:** `packages/browser-desktop` 管理宿主中立的会话，`apps/desktop` 注入 Electron 内置网页和独立 Chrome、绑定任务并展示 UI。`apps/agent-runtime` 经 ActionDriver 自有 helper/host 装配 CUA、Sky、REPL，不再加载原件；备份仅供离线对照。浏览器产品与底层切换分阶段实现，最后共同验收。
+**Architecture:** `packages/browser-desktop` 管理宿主中立的会话，`apps/desktop` 注入 Electron 内置网页和独立 Chrome、绑定任务并展示 UI。`apps/agent-runtime` 经 Action-Driver 自有 helper/host 装配 CUA、Sky、REPL，不再加载原件；备份仅供离线对照。浏览器产品与底层切换分阶段实现，最后共同验收。
 
 **Tech Stack:** TypeScript 5.9、Node ESM、Electron 38、React、Playwright Core、Swift macOS Computer Use helper、Vitest、OpenSpec。
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 只支持 macOS；外部浏览器只支持由 Agent/ActionDriver 启动、使用独立 profile 的 Chrome，不连接现有标签。
+- 只支持 macOS；外部浏览器只支持由 Agent/Action-Driver 启动、使用独立 profile 的 Chrome，不连接现有标签。
 - Browser 与 Computer 的底层自有包及真实验收不得连接 Codex App 私有服务。
 - `thirdparty/backup` 保留为离线对照；任何产品源码、依赖图和打包产物不得从该目录加载。
 - 不削弱现有 Computer Use 的授权、取消、沙箱、截图、重置与资源清理行为；缺少能力时明确失败，不能假成功。
@@ -33,7 +33,7 @@
 
 **Files:** `openspec/changes/{integrate-browser-use-desktop,reconstruct-codex-cua-packages}/tasks.md`、浏览器隔离工作树内的 `packages/browser-desktop/src/session-*`、`apps/desktop/src/main/browser-session/*`、主仓库自有宿主文件。
 
-**Interfaces:** 以 `BrowserDesktopSessionController`、`ActionDriverBrowserHost`、`ActionDriverComputerHost` 为后续稳定边界。整合已有实现时不得覆盖主仓库已有未提交的 `browser-runtime`、Sky、CUA 改动。
+**Interfaces:** 以 `BrowserDesktopSessionController`、`ProductBrowserHost`、`ProductComputerHost` 为后续稳定边界。整合已有实现时不得覆盖主仓库已有未提交的 `browser-runtime`、Sky、CUA 改动。
 
 - [ ] 只读核对两处 `git status`、文件哈希和定向测试结果，列出已完成、重复及冲突文件；为要继续的单一工作树保留所有现有改动。
 - [ ] 对重叠的 `browser-runtime` 文件逐段合并接口与实现，保留主仓库自有宿主进展及隔离工作树的浏览器会话进展。
@@ -54,7 +54,7 @@
 
 **Files:** `packages/{sky,cua,cua-repl,browser-runtime,browser-desktop}/src/`；`apps/agent-runtime/src/computer-use/{cua-runtime,entry,codex-sky-session}.ts`；`apps/agent-runtime/resources/js-repl/{repl-server,codex-service-host}.mjs` 及相关定向测试。具体包级缺口见自有宿主实施计划 Task 2–7、OpenSpec 55–57。
 
-**Interfaces:** `createActionDriverSky(ActionDriverComputerHost, options)` 使用版本化 `ComputerHelperRequest`；`createTinyskyAlt({browserHost,computerHost,...})` 只接收自有端口；REPL 子进程由受控宿主提供模块映射，不接收 `CUA_VENDOR_ROOT`。
+**Interfaces:** `createProductSky(ProductComputerHost, options)` 使用版本化 `ComputerHelperRequest`；`createTinyskyAlt({browserHost,computerHost,...})` 只接收自有端口；REPL 子进程由受控宿主提供模块映射，不接收 `CUA_VENDOR_ROOT`。
 
 - [ ] 为当前仍未覆盖的 Sky/Browser 命令、BrowserDesktop 服务差异、CUA 合并会话及 REPL 重置写失败的定向测试；运行对应测试确认缺口。
 - [ ] 实现并接入自有 host，移除候选入口的 Codex 私有 pipe、RPC 和全局 fallback；逐包运行对应测试、类型检查和服务隔离扫描。
@@ -64,7 +64,7 @@
 
 **Files:** `analysis/codex-cua/owned-macos-acceptance.md`、浏览器真实验收记录；`apps/agent-runtime/src/runtime-process.ts`、`src/computer-use/*`、`resources/js-repl/*`、`package.json`，以及桌面产品接线。
 
-**Interfaces:** 生产 `createComputerUseEntry` 不接收 `vendorRoot`；运行时和 REPL 只从已安装自有包与 ActionDriver helper 装配 CUA/Sky。Browser Use Tool Provider 和 UI 指向 Task 2 的同一会话。
+**Interfaces:** 生产 `createComputerUseEntry` 不接收 `vendorRoot`；运行时和 REPL 只从已安装自有包与 Action-Driver helper 装配 CUA/Sky。Browser Use Tool Provider 和 UI 指向 Task 2 的同一会话。
 
 - [ ] 在可重置 macOS helper 和本地 HTTP 页面上覆盖 OpenSpec 57.1–57.3 及 Browser Use 4.1–4.2；逐项列明通过、阻断和证据级别。
 - [ ] 仅当生产必需路径无阻断差异时，写失败的运行时定向测试：装配不含 vendor、授权/取消/重置仍可用、Browser Use 两表面被 Agent 调用。

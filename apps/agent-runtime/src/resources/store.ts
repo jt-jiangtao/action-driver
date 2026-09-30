@@ -10,7 +10,7 @@ import {
   type ResourceReadResult,
   type ResourceWatchEvent,
   type ResourceWriteRequest
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 /** Chunk helper so providers never need to buffer a whole file to serve a read. */
 export function boundedStream(bytes: Uint8Array, options: { maxChunkBytes?: number } = {}): AsyncIterable<Uint8Array> {

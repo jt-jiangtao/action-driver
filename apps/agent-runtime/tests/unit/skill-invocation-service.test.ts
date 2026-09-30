@@ -13,7 +13,7 @@ import { createTestRepositories, type TestRepositories } from './rollout/test-re
 const temporaryDirectories: string[] = []
 
 function createRepositories(): TestRepositories {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-skill-invocation-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-skill-invocation-'))
   temporaryDirectories.push(directory)
   return createTestRepositories(directory)
 }

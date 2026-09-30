@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { PluginResourceHost } from '../../../src/plugins/resource-host'
 import type { SupervisedService } from '../../../src/plugins/service-supervisor'
-import type { PluginManifest } from '@actiondriver/plugin-contracts'
+import type { PluginManifest } from '@action-driver/plugin-contracts'
 it('closes a service whose handshake finishes after its owning epoch stopped', async () => {
   const owner = { pluginId: 'fixture', version: '1.0.0', hostEpoch: 'old' }
   const dispose = vi.fn(async () => {})

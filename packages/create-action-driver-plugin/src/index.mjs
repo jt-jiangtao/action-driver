@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { generatePlugin } from './generate.mjs'
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
-  console.log('Usage: npm create actiondriver-plugin <plugin-id> [--directory <path>]')
+  console.log('Usage: npm create action-driver-plugin <plugin-id> [--directory <path>]')
 } else {
   const id = args.shift()
   let directory = id

@@ -1,4 +1,4 @@
-import type { ToolDetails, ToolPresentation } from '@actiondriver/plugin-contracts'
+import type { ToolDetails, ToolPresentation } from '@action-driver/plugin-contracts'
 export type SkillExecutionState =
   | 'queued'
   | 'running'

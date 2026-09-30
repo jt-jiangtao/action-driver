@@ -4,11 +4,11 @@ import type {
   ModelCompletionEvent,
   ModelCompletionOutcome,
   ModelCompletionServicePort
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import {
   MemoryInteractionLogStore,
   createInteractionLogRecorder
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import {
   ConnectionModelGateway,
   LangGraphRunner,

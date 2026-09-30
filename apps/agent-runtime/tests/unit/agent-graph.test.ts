@@ -2,7 +2,7 @@ import { MemorySaver } from '@langchain/langgraph'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import type { ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
+import type { ToolDefinition, ToolExecutor } from '@action-driver/runtime-contracts'
 import {
   COMPUTER_USE_GUIDANCE_ERRORS,
   LangGraphRunner,
@@ -1836,7 +1836,7 @@ it('starts a new tool group once a generated image separates the work', async ()
 })
 
 it('tells the model that crashed plugin side effects have an unknown outcome', async () => {
-  const { PluginError } = await import('@actiondriver/plugin-contracts')
+  const { PluginError } = await import('@action-driver/plugin-contracts')
   let round = 0, toolMessage: unknown
   const model: ModelGateway = { async complete(request) {
     if (round++ === 0) return { kind: 'tool-calls', calls: [{ providerCallId: 'p', modelName: 'tools_local_command_shell_run', arguments: { command: 'write' } }] }

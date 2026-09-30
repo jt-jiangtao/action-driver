@@ -1,9 +1,9 @@
 {
-  "name": "@actiondriver/sky",
+  "name": "@action-driver/sky",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ActionDriver-owned macOS Sky client: native-pipe transport, RPC framing, computer-use policy and telemetry, reconstructed to replace the original @oai/sky bundle.",
+  "description": "Action-Driver-owned macOS Sky client: native-pipe transport, RPC framing, computer-use policy and telemetry, reconstructed to replace the original @oai/sky bundle.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,9 +13,9 @@
       "types": "./dist/service.d.ts",
       "import": "./dist/service.js"
     },
-    "./actiondriver": {
-      "types": "./dist/mac/actiondriver-host.d.ts",
-      "import": "./dist/mac/actiondriver-host.js"
+    "./action-driver": {
+      "types": "./dist/mac/action-driver-host.d.ts",
+      "import": "./dist/mac/action-driver-host.js"
     }
   },
   "scripts": {
@@ -31,6 +31,6 @@
     "docs"
   ],
   "devDependencies": {
-    "@actiondriver/runtime-contracts": "workspace:*"
+    "@action-driver/runtime-contracts": "workspace:*"
   }
 }

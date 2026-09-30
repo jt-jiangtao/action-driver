@@ -141,7 +141,7 @@ expect(view.container.querySelector('.agent-message')?.firstElementChild).toHave
 ```
 
 - [x] **Step 2: 运行定向组件测试。** `pnpm exec vitest run apps/desktop/src/renderer/src/components/Conversation.test.tsx apps/desktop/src/renderer/src/services/stream-task-projection.test.ts`；如果现有画廊已满足全部断言，只保留测试变更，不为扩大上限重写组件。
-- [x] **Step 3: 更新 Skill。** 将 `SKILL.md` 的 2–4 与 up-to-four 文案改为 1–16、同时最多 4 个请求、超过 16 张分次调用；只修改 ActionDriver 适配入口，原始 Codex 参考文件和 `LICENSE.txt` 不变。增加测试断言适配说明包含上限 16。
+- [x] **Step 3: 更新 Skill。** 将 `SKILL.md` 的 2–4 与 up-to-four 文案改为 1–16、同时最多 4 个请求、超过 16 张分次调用；只修改 Action-Driver 适配入口，原始 Codex 参考文件和 `LICENSE.txt` 不变。增加测试断言适配说明包含上限 16。
 - [x] **Step 4: 验证随包文件。** `pnpm exec vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/desktop/src/renderer/src/components/Conversation.test.tsx`，再运行 `pnpm test:e2e:packaged:macos`，确认 Skill 资源和许可证仍随包存在。
 - [x] **Step 5: 提交展示与 Skill 变更。** 只暂存本任务实际修改文件，随后 `git commit -m "feat: show and guide larger image batches"`。
 

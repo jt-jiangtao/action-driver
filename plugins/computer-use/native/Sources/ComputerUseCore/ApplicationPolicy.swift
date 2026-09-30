@@ -4,7 +4,7 @@ import Foundation
 /// Read-only application resolution and policy. Never launches or activates a target.
 struct ApplicationPolicy {
     let organizationPolicyURL: URL
-    /// ActionDriver itself, recognized by path: it ships as a renamed Electron.app, so its bundle id
+    /// Action-Driver itself, recognized by path: it ships as a renamed Electron.app, so its bundle id
     /// says nothing about it, and the model must never drive the app that shows its approvals.
     var ownerApplications: [URL] = []
 
@@ -72,9 +72,9 @@ struct ApplicationPolicy {
         }
         let forbidden: Set<String> = ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable",
             "com.mitchellh.ghostty", "com.apple.SecurityAgent", "com.apple.keychainaccess",
-            "com.actiondriver.computer-use"]
+            "com.action-driver.computer-use"]
         let owners = Set(ownerApplications.map { $0.resolvingSymlinksInPath().standardizedFileURL.path })
-        let isForbidden = forbidden.contains(id) || id.hasPrefix("com.actiondriver.")
+        let isForbidden = forbidden.contains(id) || id.hasPrefix("com.action-driver.")
             || id == Bundle.main.bundleIdentifier
             || owners.contains(url.resolvingSymlinksInPath().standardizedFileURL.path)
         let highRisk: Set<String> = ["com.apple.systempreferences", "com.apple.Safari", "com.google.Chrome", "org.mozilla.firefox",

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Download, X } from 'lucide-react'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 import { e2eId } from '../../testing/e2e-id'
 import { useObjectUrl } from '../../hooks/use-object-url'
 import { ImagePreviewGroup } from './ImagePreviewGroup'

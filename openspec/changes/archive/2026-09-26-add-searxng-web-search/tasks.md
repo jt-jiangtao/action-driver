@@ -3,7 +3,7 @@
 ## 1. 搜索工具契约与本机目标校验
 
 - [x] 1.1 在 Agent Runtime 新增 SearXNG provider / executor 与 `web.search@1` 定义，校验查询和筛选输入 schema；通过单元测试验证合法输入、空查询、未知字段和结果数量上限。
-- [x] 1.2 实现 `ACTIONDRIVER_SEARXNG_ENDPOINT` 的字面量 loopback URL 校验与固定 `/search` 请求构造；通过单元测试验证 IPv4/IPv6 合法地址以及协议、主机、端口、凭据、路径和重定向拒绝。
+- [x] 1.2 实现 `ACTION_DRIVER_SEARXNG_ENDPOINT` 的字面量 loopback URL 校验与固定 `/search` 请求构造；通过单元测试验证 IPv4/IPv6 合法地址以及协议、主机、端口、凭据、路径和重定向拒绝。
 - [x] 1.3 实现有超时和响应字节上限的 JSON HTTP 客户端，并将结果规范化为截断的标题、URL、摘要和来源元数据；通过 fake SearXNG 测试覆盖成功、畸形 JSON、非成功状态、超时、重定向和过大响应，确认不请求结果链接。
 
 ## 2. Tool Runtime 与日志集成

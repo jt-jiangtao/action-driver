@@ -1,6 +1,6 @@
 # macOS Sky 候选服务隔离验收（2026-09-28）
 
-候选 `@actiondriver/sky` 的 `dist/service.js` 已在真实 ChatGPT App 随附的 `cua_node` Rust supervisor / Node REPL 特权宿主中隔离加载，并完成 `sky` 的 `setup` 与 `list_apps` 原包对照。此记录只证明只读发现路径；需应用授权的 AX、截图和操作仍未在候选服务端验收。
+候选 `@action-driver/sky` 的 `dist/service.js` 已在真实 ChatGPT App 随附的 `cua_node` Rust supervisor / Node REPL 特权宿主中隔离加载，并完成 `sky` 的 `setup` 与 `list_apps` 原包对照。此记录只证明只读发现路径；需应用授权的 AX、截图和操作仍未在候选服务端验收。
 
 测试先构建 `packages/sky`，将 `dist/`、`package.json` 临时复制到 `~/.codex/sky-service-acceptance-<随机>/`，将 `node_modules` 符号链接到同一工作树锁定的 Sky 依赖。分别启动两个独立的 `cua-repl` MCP 子进程：一个保留插件 `.mcp.json` 中的原版 `NODE_REPL_TRUSTED_SERVICES.sky`；另一个仅在该子进程环境中将 `sky` 映射到临时候选 `dist/service.js`。两个进程均完成 MCP `initialize`，Node REPL 首次调用按 CUA 要求执行 `cua.getState()`，随后通过 `nodeRepl.rpc('sky', ...)` 调用服务。每次测试结束都停止子进程并删除临时目录；插件配置与生产映射未修改。
 

@@ -1,10 +1,10 @@
-import { setupBrowserRuntime } from '@actiondriver/browser-runtime'
-import type { ActionDriverBrowserHost, RuntimeSetupOptions } from '@actiondriver/browser-runtime'
+import { setupBrowserRuntime } from '@action-driver/browser-runtime'
+import type { ProductBrowserHost, RuntimeSetupOptions } from '@action-driver/browser-runtime'
 import { readDesktopResource } from './resources.js'
 import type { DesktopEnvironment } from './resources.js'
 
 export interface BrowserDesktopOptions extends Omit<RuntimeSetupOptions, 'environment' | 'host'> {
-  host: ActionDriverBrowserHost
+  host: ProductBrowserHost
   environment: DesktopEnvironment
 }
 

@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseResourceUri } from '@actiondriver/runtime-contracts'
+import { parseResourceUri } from '@action-driver/runtime-contracts'
 import {
   TASK_OUTPUT_OPEN_CHANNEL,
   type TaskOutputOpenRequest
@@ -33,7 +33,7 @@ export function registerTaskOutputIpc(
       ? await readResource(request, connection)
       : await readLegacy(request, connection)
     if (bytes.byteLength === 0) throw new Error('TASK_OUTPUT_UNAVAILABLE')
-    const directory = await mkdtemp(join(options.temporaryRoot ?? tmpdir(), 'actiondriver-open-'))
+    const directory = await mkdtemp(join(options.temporaryRoot ?? tmpdir(), 'action-driver-open-'))
     const path = join(
       directory,
       `${request.kind === 'legacy' ? request.fileId : 'resource'}${safeExtension(contentType)}`

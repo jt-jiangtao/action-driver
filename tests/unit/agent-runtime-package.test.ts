@@ -18,7 +18,7 @@ describe('agent runtime package', () => {
     }
 
     expect(packageJson).toMatchObject({
-      name: '@actiondriver/agent-runtime',
+      name: '@action-driver/agent-runtime',
       private: true,
       type: 'module',
       main: 'dist/index.js'

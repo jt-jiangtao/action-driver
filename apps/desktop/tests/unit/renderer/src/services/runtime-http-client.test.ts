@@ -21,7 +21,7 @@ describe('RuntimeHttpClient', () => {
       async () => ({
         wsUrl: 'ws://127.0.0.1:45123/stream',
         accessToken: 'secret',
-        protocol: 'actiondriver.stream.v2'
+        protocol: 'action-driver.stream.v2'
       }),
       fetcher
     )
@@ -35,7 +35,7 @@ describe('RuntimeHttpClient', () => {
         headers: expect.objectContaining({
           authorization: 'Bearer secret',
           'content-type': 'application/pdf',
-          'x-actiondriver-file-name': encodeURIComponent('季度报告.pdf')
+          'x-action-driver-file-name': encodeURIComponent('季度报告.pdf')
         })
       })
     )
@@ -47,7 +47,7 @@ describe('RuntimeHttpClient', () => {
     }), { status: 409 }))
     const client = new RuntimeHttpClient(
       async () => ({ wsUrl: 'ws://127.0.0.1:45123/stream', accessToken: 'secret',
-        protocol: 'actiondriver.stream.v2' }),
+        protocol: 'action-driver.stream.v2' }),
       fetcher
     )
     await expect(client.request('/agent-files/file', { method: 'POST', body: { path: 'x' } }))

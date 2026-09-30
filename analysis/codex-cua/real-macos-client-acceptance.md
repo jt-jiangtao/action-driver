@@ -1,6 +1,6 @@
 # macOS 浏览器客户端实机对照（2026-09-28）
 
-本记录验证候选 `@actiondriver/browser-runtime` **客户端**调用现有原版 `browser` 特权服务的可观察结果。候选服务端未在此运行；不能据此认定服务端或四包整体完成。
+本记录验证候选 `@action-driver/browser-runtime` **客户端**调用现有原版 `browser` 特权服务的可观察结果。候选服务端未在此运行；不能据此认定服务端或四包整体完成。
 
 ## 固定夹具与运行边界
 
@@ -15,7 +15,7 @@
 |---|---|---|---|
 | 浏览器发现 | 2 个，类型为 extension、iab | ID/name/type 列表一致 | 通过 |
 | 默认浏览器文档与标签列表 | 文档 48056 字符，初始标签数 0 | 初始标签数 0 | 通过当前夹具 |
-| 打开本地页面 | 标题 `ActionDriver browser acceptance`，页面有输入/按钮/Waiting | 相同页面和控件 | 通过 |
+| 打开本地页面 | 标题 `Action-Driver browser acceptance`，页面有输入/按钮/Waiting | 相同页面和控件 | 通过 |
 | 输入 `Ada` 后点击 Apply | AX 文本 `Hello, Ada` | AX 文本 `Hello, Ada` | 通过 |
 | 结果页截图 | 14139 字节 | 14139 字节 | 逐字节相同 |
 | 清理 | 两个临时标签均关闭 | IAB 剩余标签数 0 | 通过 |

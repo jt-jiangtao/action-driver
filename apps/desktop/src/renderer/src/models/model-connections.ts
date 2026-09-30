@@ -3,7 +3,7 @@ import type {
   ModelKind,
   ModelCapability,
   ModelCapabilityResultDto
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 

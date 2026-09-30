@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { imageSize } from 'image-size'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 
 type Metadata = Pick<ImageAssetRef, 'mimeType' | 'width' | 'height' | 'byteLength'>
 type Pending = {

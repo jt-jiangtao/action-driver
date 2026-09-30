@@ -1,5 +1,5 @@
 import type { RuntimeConnectionInfo } from '../../../shared/runtime-connection-contract'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 
 export class RuntimeHttpClient {
   constructor(
@@ -69,7 +69,7 @@ export class RuntimeHttpClient {
       headers: {
         authorization: `Bearer ${connection.accessToken}`,
         'content-type': file.type || 'application/octet-stream',
-        'x-actiondriver-file-name': encodeURIComponent(file.name)
+        'x-action-driver-file-name': encodeURIComponent(file.name)
       },
       body: file
     })

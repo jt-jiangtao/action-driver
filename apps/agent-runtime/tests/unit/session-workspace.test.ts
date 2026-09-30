@@ -7,7 +7,7 @@ import { SessionWorkspaceStore } from '../../src/execution/session-workspace'
 const temporaryDirectories: string[] = []
 
 function fixture() {
-  const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-session-workspace-'))
+  const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-session-workspace-'))
   temporaryDirectories.push(workspaceRoot)
   return { workspaceRoot, store: new SessionWorkspaceStore({ workspaceRoot }) }
 }

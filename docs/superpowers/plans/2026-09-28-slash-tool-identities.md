@@ -66,11 +66,11 @@
 
 ### Task 5: 插件 SDK 和脚手架
 
-**Files:** `packages/create-actiondriver-plugin/src/generate.mjs`、`generate.test.ts`、`packages/plugin-sdk/src/index.ts`、`docs/plugin-development.md`。
+**Files:** `packages/create-action-driver-plugin/src/generate.mjs`、`generate.test.ts`、`packages/plugin-sdk/src/index.ts`、`docs/plugin-development.md`。
 
 **Interfaces:** 生成插件使用 `tools/local/<plugin>/echo` 与现有下划线模型名；点号工具贡献显式失败。
 
-- [x] 补生成、安装、执行和旧点号拒绝测试，运行 `packages/create-actiondriver-plugin/src/generate.test.ts` 观察失败。
+- [x] 补生成、安装、执行和旧点号拒绝测试，运行 `packages/create-action-driver-plugin/src/generate.test.ts` 观察失败。
 - [x] 更新模板和文档示例，重跑测试确认构建产物可装载调用。
 
 ### Task 6: 安装副本刷新与第三方旧包失败

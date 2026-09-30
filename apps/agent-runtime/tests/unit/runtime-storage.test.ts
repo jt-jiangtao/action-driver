@@ -6,13 +6,13 @@ import { createRuntimeStorage } from '../../src/runtime-storage'
 
 describe('runtime storage assembly', () => {
   it('releases ownership when assembly fails after opening the state database', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-storage-error-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-storage-error-workspace-'))
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-storage-error-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-storage-error-workspace-'))
     await expect(
       createRuntimeStorage({
         dataRoot,
         workspaceRoot,
-        environment: { ACTIONDRIVER_RESOURCE_REMOTE_HOSTS: 'not-json' }
+        environment: { ACTION_DRIVER_RESOURCE_REMOTE_HOSTS: 'not-json' }
       })
     ).rejects.toThrow('must be valid JSON')
     const recovered = await createRuntimeStorage({ dataRoot, workspaceRoot, environment: {} })
@@ -20,11 +20,11 @@ describe('runtime storage assembly', () => {
   }, 20_000)
 
   it('removes legacy files and releases ownership for the next startup', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-storage-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-storage-workspace-'))
-    writeFileSync(join(dataRoot, 'actiondriver.db'), 'legacy')
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-storage-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-storage-workspace-'))
+    writeFileSync(join(dataRoot, 'action-driver.db'), 'legacy')
     const first = await createRuntimeStorage({ dataRoot, workspaceRoot, environment: {} })
-    expect(existsSync(join(dataRoot, 'actiondriver.db'))).toBe(false)
+    expect(existsSync(join(dataRoot, 'action-driver.db'))).toBe(false)
     expect(existsSync(join(dataRoot, 'state.sqlite'))).toBe(true)
     await first.close()
     const second = await createRuntimeStorage({ dataRoot, workspaceRoot, environment: {} })

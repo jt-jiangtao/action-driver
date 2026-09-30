@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PluginError, type InvocationContext, type Json } from '@actiondriver/plugin-contracts'
+import { PluginError, type InvocationContext, type Json } from '@action-driver/plugin-contracts'
 import type { AgentFileStore } from '../agent-files/agent-file-store'
 import type { SkillInstaller } from '../agent-files/skill-installer'
 import type { SessionExecutionContextResolver } from '../execution/session-execution-context'

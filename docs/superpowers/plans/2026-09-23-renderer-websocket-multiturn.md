@@ -4,7 +4,7 @@
 
 **Goal:** Let the Electron Renderer own the Runtime WebSocket and support real multi-turn conversations where every turn creates a new task in the same persisted session.
 
-**Architecture:** Main starts the local Runtime and exposes only an immutable, one-launch `wsUrl + accessToken` connection descriptor through Preload; Renderer owns the `actiondriver.stream.v1` client and applies events directly. Runtime separates unique execution `threadId` from shared `sessionId`, creates a new task for each turn, sends the complete persisted conversation to the model, and projects one sidebar session with per-turn logs.
+**Architecture:** Main starts the local Runtime and exposes only an immutable, one-launch `wsUrl + accessToken` connection descriptor through Preload; Renderer owns the `action-driver.stream.v1` client and applies events directly. Runtime separates unique execution `threadId` from shared `sessionId`, creates a new task for each turn, sends the complete persisted conversation to the model, and projects one sidebar session with per-turn logs.
 
 **Tech Stack:** TypeScript, Electron 38, React 19, browser WebSocket API, `ws` server, Zod, SQLite/`better-sqlite3`, LangGraph, Vitest, Testing Library, Playwright, OpenAI Node SDK, `markdown-it`.
 
@@ -232,7 +232,7 @@ git commit -m "feat: execute multi-turn session tasks"
 
 - [ ] **Step 1: Write a failing Renderer-client test around a browser-compatible fake WebSocket**
 
-Assert that the client fetches connection info, constructs exactly one socket with `actiondriver.stream.v1`, sends `auth` first, resolves `create` on `request.accepted`, publishes `response.content`, retries after close, sends `request.resume(afterCursor)`, and never puts the token in a URL or thrown error.
+Assert that the client fetches connection info, constructs exactly one socket with `action-driver.stream.v1`, sends `auth` first, resolves `create` on `request.accepted`, publishes `response.content`, retries after close, sends `request.resume(afterCursor)`, and never puts the token in a URL or thrown error.
 
 - [ ] **Step 2: Run the Renderer-client test and verify RED**
 
@@ -445,7 +445,7 @@ The test must:
 7. Assert the sidebar has one session item, not two task items.
 8. Assert model logs contain one session, two tasks, and exactly one completed call per task.
 9. Reload the window and assert the complete transcript returns without duplicate messages.
-10. Assert interaction logs contain no access token, auth frame, `actiondriver:log:list`, or per-delta model record.
+10. Assert interaction logs contain no access token, auth frame, `action-driver:log:list`, or per-delta model record.
 
 - [ ] **Step 3: Run E2E and verify RED**
 

@@ -2,7 +2,7 @@ import { constants, realpathSync } from 'node:fs'
 import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionWorkspacePaths } from '@actiondriver/runtime-contracts'
+import type { SessionWorkspacePaths } from '@action-driver/runtime-contracts'
 
 export class SandboxUnavailableError extends Error {
   readonly code = 'SANDBOX_UNAVAILABLE'
@@ -76,7 +76,7 @@ export class SessionSandbox {
     const workspaceRoot = canonicalPath(request.workspace.root)
     const outputDirectory = canonicalPath(request.workspace.output)
     const callDirectory = canonicalPath(
-      await mkdtemp(join(this.temporaryRoot, 'actiondriver-script-'))
+      await mkdtemp(join(this.temporaryRoot, 'action-driver-script-'))
     )
     const tempDirectory = join(callDirectory, 'tmp')
     try {

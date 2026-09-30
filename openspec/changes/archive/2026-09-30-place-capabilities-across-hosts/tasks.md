@@ -25,15 +25,15 @@
 - 2.3 已完成并勾选：`placement/invoker.ts` 在调用开始时固定宿主、实例与插件版本，只向目标宿主传递 requestId/callId/taskId/sessionId/deadline/grants 最小上下文，deadline 通过独立超时信号传播，取消请求发往被固定的实例；未获确认的取消或超时按 `PLACEMENT_RESULT_UNKNOWN` 记录，不视为成功。
   - 未授权资源拒绝依赖变更一已验收的资源层（跨会话 URI 读取返回 `RESOURCE_UNAUTHORIZED`，见 `openspec/specs/resource-uri-platform`），本变更不再重复实现。
 - 3.1 已完成并勾选：断连或渠道异常且宿主不再是当前实例时报 `PLACEMENT_RESULT_UNKNOWN`，绝不自动重放或改投其他宿主；宿主以新实例重连后旧实例结果被 `PLACEMENT_STALE_INSTANCE` 丢弃，新调用必须重新握手并在 `selectHost` 重新校验授权。
-- 本轮验证：`pnpm vitest run apps/agent-runtime/tests/unit/placement packages/plugin-contracts/tests` → 6 文件 45 项通过（其中 placement 14 项）；`pnpm --filter @actiondriver/plugin-contracts build` 后 `pnpm --filter @actiondriver/plugin-contracts typecheck`、`pnpm --filter @actiondriver/agent-runtime typecheck` 与改动文件 ESLint 通过。
+- 本轮验证：`pnpm vitest run apps/agent-runtime/tests/unit/placement packages/plugin-contracts/tests` → 6 文件 45 项通过（其中 placement 14 项）；`pnpm --filter @action-driver/plugin-contracts build` 后 `pnpm --filter @action-driver/plugin-contracts typecheck`、`pnpm --filter @action-driver/agent-runtime typecheck` 与改动文件 ESLint 通过。
 - 3.2 已完成并勾选：
   - 选择器现在要求宿主声明的插件清单包含被抓取的 `plugin@version`：宿主升级或停用插件后，新调用不再落到该版本，而在途调用继续按原 owner/version 归属（`PlacementInvoker` 固定 `hostEpoch` 与 `version`）。
   - `HostRegistry.connect` 拒绝同一插件 id 的重复声明（防止一次握手双重发布贡献），并对同实例重新握手记录 `host.updated` 审计（升级/停用可追踪）。
   - 定向测试：`placement.test.ts` 新增 4 项——重复插件声明被拒、升级审计、升级期间在途调用保持 v1 且新调用只选到 v2、停用插件后不再可选。
 - 3.3 已完成并勾选：
   - 新增真实通道与宿主面：`placement/channels.ts`（本地技能通道 + 远程 HTTP 通道，只传 owner/toolId/payload/最小 context，信号属于传输状态不上线）、`placement/routes.ts`（`GET /placement/hosts`、`POST /placement/handshake|disconnect|invoke|cancel`）、`placement/router.ts`（`PlacementRouter` 组合宿主目录、选择器、调用器与通道；`connectRemoteHost` 采纳远端自报的 hostId/instanceId/清单，避免用本进程臆造的实例 ID 固定调用）。
-  - 接入运行时：`runtime-process.ts` 把本进程注册为本地宿主（工具清单取自真实工具注册表、插件清单取自 `pluginPlatform.catalogs()`、仅绑定实际可经技能通道执行的 `tools/local/cua/*`），按 `ACTIONDRIVER_PLACEMENT_HOSTS` 连接远程宿主（不可达只记日志、撤回新调用而不阻止启动），并把宿主面挂到服务 HTTP（`http-service.ts` 的 `placementRoutes`）；`http-errors.ts` 新增 `PlacementError` 映射（403/404/409/500/400）。
-  - 旧本地路径兼容：`PlacementRouter.invoke` 对未声明他处、且没有非本地宿主服务该工具的调用返回 `{placed:false}`，生产路径继续走既有本地通道；无声明插件在任何位置都不受影响。回滚方式：不配置 `ACTIONDRIVER_PLACEMENT_HOSTS` 或移除 `placementRoutes` 即回到纯本地执行，声明字段可保留不使用。
+  - 接入运行时：`runtime-process.ts` 把本进程注册为本地宿主（工具清单取自真实工具注册表、插件清单取自 `pluginPlatform.catalogs()`、仅绑定实际可经技能通道执行的 `tools/local/cua/*`），按 `ACTION_DRIVER_PLACEMENT_HOSTS` 连接远程宿主（不可达只记日志、撤回新调用而不阻止启动），并把宿主面挂到服务 HTTP（`http-service.ts` 的 `placementRoutes`）；`http-errors.ts` 新增 `PlacementError` 映射（403/404/409/500/400）。
+  - 旧本地路径兼容：`PlacementRouter.invoke` 对未声明他处、且没有非本地宿主服务该工具的调用返回 `{placed:false}`，生产路径继续走既有本地通道；无声明插件在任何位置都不受影响。回滚方式：不配置 `ACTION_DRIVER_PLACEMENT_HOSTS` 或移除 `placementRoutes` 即回到纯本地执行，声明字段可保留不使用。
   - 定向测试：`router.test.ts` 9 项——未声明本地工具走旧路径、云端工具经真实 HTTP 宿主面执行并回传、缺少云端 grant 明确拒绝且不回落本地、仅远程插件无宿主时明确 `PLACEMENT_NO_HOST`、固定到旧实例的调用被 409 拒绝、UI 宿主只能执行已声明绑定、宿主握手与选择进入审计、取消只在调用真正结束后确认、配置解析与回滚路径。
 - 3.4 已完成并勾选（`placement/security-acceptance.test.ts` 4 项故障/安全演练）：
   - 最小上下文：跨宿主线上负载仅含 requestId/callId/taskId/sessionId/deadline/grants 与固定 owner，断言不含 `adr://`、`file://`、token/secret/apiKey 字样；远程宿主拿不到资源 URI 或工作区路径。

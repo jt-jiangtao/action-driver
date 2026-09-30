@@ -3,9 +3,9 @@ import type {
   ModelCompletionOutcome,
   ModelFailureCode,
   ModelInputMessage
-} from '@actiondriver/model-connections'
-import type { ToolDefinition } from '@actiondriver/runtime-contracts'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+} from '@action-driver/model-connections'
+import type { ToolDefinition } from '@action-driver/runtime-contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 
 export type ImageResolver = (asset: ImageAssetRef) => Promise<{
   bytes: Uint8Array

@@ -6,7 +6,7 @@
 - [x] 1.4 实现声明依赖解析；定向测试验证缺失、不兼容和循环依赖均明确失败，无 mock fallback。
 
 - [x] 1.5 将公共 API/SDK 构建为独立 npm 包，验证 JavaScript、声明文件和 npm pack 产物不依赖仓库内部路径。
-- [x] 1.6 实现 create-actiondriver-plugin TypeScript 脚手架；验证 Skill/schema/执行同包、非空目录保护、生成项目构建及统一宿主生命周期。
+- [x] 1.6 实现 create-action-driver-plugin TypeScript 脚手架；验证 Skill/schema/执行同包、非空目录保护、生成项目构建及统一宿主生命周期。
 
 ## 2. 插件宿主与生命周期
 

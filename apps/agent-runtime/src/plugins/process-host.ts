@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { resolve, relative } from 'node:path'
 import { satisfies } from 'semver'
-import { PluginError, type InvocationContext, type Json, type PluginManifest, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { PluginError, type InvocationContext, type Json, type PluginManifest, type PluginOwner } from '@action-driver/plugin-contracts'
 import type { ContributionRegistrar, HostInstance, PluginHostFactory } from './ports'
 export interface NodePluginHostOptions {
   executable: string; hostEntry: string; packageRoot(manifest: PluginManifest): string; token(): string

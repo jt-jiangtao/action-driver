@@ -13,6 +13,6 @@
 
 ## 3. 端到端验证与文档
 
-- [x] 3.1 使用受控 LangSmith 适配器完成跨 Runtime、IPC 和 Renderer 的集成测试，验证同一 ActionDriver 会话聚合、成功/失败/空/未配置状态、筛选刷新以及不可信详情地址拒绝。
+- [x] 3.1 使用受控 LangSmith 适配器完成跨 Runtime、IPC 和 Renderer 的集成测试，验证同一 Action-Driver 会话聚合、成功/失败/空/未配置状态、筛选刷新以及不可信详情地址拒绝。
 - [ ] 3.2 在隔离的真实 LangSmith 项目中完成桌面端手工或 E2E 验证：提交真实模型调用后会话出现在模型层列表，点击会话和任务详情均在应用内隔离视图显示正确页面；记录所需环境变量与已接受的数据出站/离线限制。
-- [x] 3.3 运行针对变更的 `corepack pnpm exec vitest run` 测试集、`corepack pnpm --filter @actiondriver/agent-runtime typecheck`、Desktop 类型检查和 `openspec validate use-langsmith-model-logs --strict`，确认所有命令通过后再更新任务勾选状态。
+- [x] 3.3 运行针对变更的 `corepack pnpm exec vitest run` 测试集、`corepack pnpm --filter @action-driver/agent-runtime typecheck`、Desktop 类型检查和 `openspec validate use-langsmith-model-logs --strict`，确认所有命令通过后再更新任务勾选状态。

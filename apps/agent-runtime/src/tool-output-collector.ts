@@ -1,4 +1,4 @@
-import type { ToolExecutorEvent } from '@actiondriver/runtime-contracts'
+import type { ToolExecutorEvent } from '@action-driver/runtime-contracts'
 
 export type CollectedToolOutput = {
   stdout: string

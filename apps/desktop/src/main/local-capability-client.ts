@@ -1,7 +1,7 @@
 import {
   LOCAL_CAPABILITY_PATH, LOCAL_CAPABILITY_PROTOCOL, localCapabilityFrame,
   type LocalCapabilityFrame
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import { WebSocket, type RawData } from 'ws'
 import type { SkillProviderHost } from './skill-provider-host'
 

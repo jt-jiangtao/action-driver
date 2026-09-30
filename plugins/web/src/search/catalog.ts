@@ -1,5 +1,5 @@
 import { presentations } from '../presentation.js'
-import type { PluginCatalog, ToolDefinition } from '@actiondriver/plugin-sdk'
+import type { PluginCatalog, ToolDefinition } from '@action-driver/plugin-sdk'
 
 export function createSearchDefinition(timeoutMs = 30_000): ToolDefinition {
   return {

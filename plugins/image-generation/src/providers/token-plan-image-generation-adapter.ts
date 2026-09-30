@@ -1,5 +1,5 @@
 import { readLimited, type ImageGenerationRequest } from './image-generation-adapter'
-import { MAX_IMAGE_BYTES } from '@actiondriver/plugin-sdk'
+import { MAX_IMAGE_BYTES } from '@action-driver/plugin-sdk'
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 const GENERATION_PATH = '/api/v1/services/aigc/multimodal-generation/generation'

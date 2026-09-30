@@ -1,4 +1,4 @@
-# ActionDriver Local LangGraph Runtime Implementation Plan
+# Action-Driver Local LangGraph Runtime Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -47,7 +47,7 @@
 
 - Produces: `RUNTIME_PROTOCOL_VERSION = { major: 1, minor: 0 }`.
 - Produces: `RuntimeEnvelope`, `RuntimeCommandMap`, `RuntimeEvent`, `SkillExecuteRequest`, `parseRuntimeEnvelope(value: unknown): RuntimeEnvelope`.
-- Consumes: serializable projections from `@actiondriver/contracts`.
+- Consumes: serializable projections from `@action-driver/contracts`.
 
 - [ ] **Step 1: Write the failing protocol tests**
 
@@ -79,11 +79,11 @@ describe('runtime protocol', () => {
 
 Run: `corepack pnpm vitest run packages/runtime-contracts/tests/protocol.test.ts`
 
-Expected: FAIL because `@actiondriver/runtime-contracts` does not exist.
+Expected: FAIL because `@action-driver/runtime-contracts` does not exist.
 
 - [ ] **Step 3: Add the package and concrete schemas**
 
-Set `@actiondriver/runtime-contracts` dependencies to `@actiondriver/contracts: workspace:*` and `zod: 4.6.5`, then run `corepack pnpm install` once to update `pnpm-lock.yaml`.
+Set `@action-driver/runtime-contracts` dependencies to `@action-driver/contracts: workspace:*` and `zod: 4.6.5`, then run `corepack pnpm install` once to update `pnpm-lock.yaml`.
 
 ```ts
 // packages/runtime-contracts/src/protocol.ts
@@ -165,7 +165,7 @@ export function parseRuntimeEnvelope(value: unknown): RuntimeEnvelope {
 
 Add a test that calls `structuredClone(parseRuntimeEnvelope(fixture))` for every envelope fixture and asserts `isSerializableContract(fixture) === true`.
 
-Run: `corepack pnpm install --frozen-lockfile && corepack pnpm vitest run packages/runtime-contracts packages/contracts && corepack pnpm --filter @actiondriver/runtime-contracts typecheck`
+Run: `corepack pnpm install --frozen-lockfile && corepack pnpm vitest run packages/runtime-contracts packages/contracts && corepack pnpm --filter @action-driver/runtime-contracts typecheck`
 
 Expected: PASS with no unknown envelope accepted.
 
@@ -193,7 +193,7 @@ git commit -m "feat(protocol): add typed runtime message contracts"
 
 - Produces: `AppServicesProvider({ services, children })` and `useAppServices(): AppServices`.
 - Produces: `createRendererContainer({ mode, desktopApi, ...overrides })` as the only frontend construction entry.
-- Consumes: `AgentCommandService`, `AgentSessionRepository`, and `SkillGateway` from `@actiondriver/contracts`.
+- Consumes: `AgentCommandService`, `AgentSessionRepository`, and `SkillGateway` from `@action-driver/contracts`.
 
 - [ ] **Step 1: Write failing Context and architecture tests**
 
@@ -300,7 +300,7 @@ git commit -m "refactor(renderer): enforce inversify composition root"
 - Produces: `ModelGateway.invoke(request, signal): Promise<ModelResult>`.
 - Produces: `createRuntimeContainer({ mode, databasePath, clock, idGenerator }): Container`.
 - Produces: `RuntimeServices` without exporting the underlying container to graph nodes.
-- Consumes: protocol types from `@actiondriver/runtime-contracts`.
+- Consumes: protocol types from `@action-driver/runtime-contracts`.
 
 - [ ] **Step 1: Write failing Runtime composition tests**
 
@@ -327,8 +327,8 @@ Use exact dependencies:
 ```json
 {
   "dependencies": {
-    "@actiondriver/contracts": "workspace:*",
-    "@actiondriver/runtime-contracts": "workspace:*",
+    "@action-driver/contracts": "workspace:*",
+    "@action-driver/runtime-contracts": "workspace:*",
     "@langchain/core": "1.2.12",
     "@langchain/langgraph": "1.4.16",
     "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
@@ -343,19 +343,19 @@ Add `@types/better-sqlite3: 9.6.0` to devDependencies and run `corepack pnpm ins
 
 ```ts
 export const RUNTIME_TYPES = {
-  modelGateway: Symbol.for('actiondriver.runtime.model-gateway'),
-  graphRunner: Symbol.for('actiondriver.runtime.graph-runner'),
-  taskRepository: Symbol.for('actiondriver.runtime.task-repository'),
-  eventRepository: Symbol.for('actiondriver.runtime.event-repository'),
-  skillRegistry: Symbol.for('actiondriver.runtime.skill-registry'),
-  clock: Symbol.for('actiondriver.runtime.clock'),
-  idGenerator: Symbol.for('actiondriver.runtime.id-generator')
+  modelGateway: Symbol.for('action-driver.runtime.model-gateway'),
+  graphRunner: Symbol.for('action-driver.runtime.graph-runner'),
+  taskRepository: Symbol.for('action-driver.runtime.task-repository'),
+  eventRepository: Symbol.for('action-driver.runtime.event-repository'),
+  skillRegistry: Symbol.for('action-driver.runtime.skill-registry'),
+  clock: Symbol.for('action-driver.runtime.clock'),
+  idGenerator: Symbol.for('action-driver.runtime.id-generator')
 } as const
 ```
 
 - [ ] **Step 4: Verify Runtime build and container**
 
-Run: `corepack pnpm install --frozen-lockfile && corepack pnpm --filter @actiondriver/agent-runtime typecheck && corepack pnpm vitest run apps/agent-runtime/tests/container.test.ts`
+Run: `corepack pnpm install --frozen-lockfile && corepack pnpm --filter @action-driver/agent-runtime typecheck && corepack pnpm vitest run apps/agent-runtime/tests/container.test.ts`
 
 Expected: PASS without reading model environment variables.
 
@@ -704,8 +704,8 @@ expect(api).not.toHaveProperty('databasePath')
 
 ```ts
 utilityProcess.fork(runtimeEntryPath, [], {
-  env: { ACTIONDRIVER_DATABASE_PATH: databasePath },
-  serviceName: 'ActionDriver Agent Runtime',
+  env: { ACTION_DRIVER_DATABASE_PATH: databasePath },
+  serviceName: 'Action-Driver Agent Runtime',
   stdio: 'pipe'
 })
 ```
@@ -767,7 +767,7 @@ it('binds local adapters without changing React consumers', () => {
 })
 ```
 
-Assert `mode: 'local'` without `desktopApi` throws during composition, while `mode: 'mock'` never reads `window.actionDriverDesktop`.
+Assert `mode: 'local'` without `desktopApi` throws during composition, while `mode: 'mock'` never reads `window.productDesktop`.
 
 - [ ] **Step 2: Implement a cached Renderer adapter**
 
@@ -775,7 +775,7 @@ The adapter subscribes once through Preload, stores `TaskProjection` objects in 
 
 - [ ] **Step 3: Configure build order and packaged Runtime entry**
 
-Root build order must run `@actiondriver/runtime-contracts`, `@actiondriver/agent-runtime`, then `@actiondriver/desktop`. Electron packaging must copy `apps/agent-runtime/dist/**` and the correct better-sqlite3 binary into application resources. `resolveRuntimeEntryPath()` must fail with `RUNTIME_ARTIFACT_MISSING` if the entry or native module is absent.
+Root build order must run `@action-driver/runtime-contracts`, `@action-driver/agent-runtime`, then `@action-driver/desktop`. Electron packaging must copy `apps/agent-runtime/dist/**` and the correct better-sqlite3 binary into application resources. `resolveRuntimeEntryPath()` must fail with `RUNTIME_ARTIFACT_MISSING` if the entry or native module is absent.
 
 - [ ] **Step 4: Add packaged Runtime E2E**
 

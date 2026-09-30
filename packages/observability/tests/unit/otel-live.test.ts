@@ -3,12 +3,12 @@ import { createProcessObservability } from '../../src/otel'
 import { createInteractionLogRecorder } from '../../src/interaction-store'
 import { PhoenixModelObservability } from '../../../../apps/agent-runtime/src/phoenix-model-observability'
 
-const live = process.env.ACTIONDRIVER_LIVE_OBSERVABILITY === '1'
+const live = process.env.ACTION_DRIVER_LIVE_OBSERVABILITY === '1'
 
 describe.skipIf(!live)('Docker observability acceptance', () => {
   it('exports one application call and a complete model span', async () => {
-    const marker = `ACTIONDRIVER_LIVE_${Date.now()}`
-    const processTelemetry = createProcessObservability({ serviceName: 'actiondriver-live-test' })
+    const marker = `ACTION_DRIVER_LIVE_${Date.now()}`
+    const processTelemetry = createProcessObservability({ serviceName: 'action-driver-live-test' })
     const recorder = createInteractionLogRecorder({
       ids: { eventId: () => 'live:event-1', correlationId: () => 'live:correlation-1' },
       logger: processTelemetry.logger,

@@ -25,7 +25,7 @@ const lines: RolloutLine[] = [
     sessionId: 'session-1',
     threadId: 'session-1',
     model: { connectionId: 'conn', modelId: 'model' },
-    originator: 'actiondriver-desktop',
+    originator: 'action-driver-desktop',
     version: '0.1.0'
   },
   {

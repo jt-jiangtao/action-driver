@@ -16,7 +16,7 @@ describe('preload Runtime bootstrap', () => {
   it('exposes only environment and the authenticated Runtime connection', async () => {
     const connection = {
       wsUrl: 'ws://127.0.0.1:4321/stream',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       accessToken: 'launch-token'
     }
     const invoke = vi.fn(async () => connection)
@@ -40,7 +40,7 @@ describe('preload Runtime bootstrap', () => {
 
   it('asks the helper to prompt the system only for an explicit authorization request', async () => {
     const status = { accessibility: false, screenRecording: false, eventPosting: false,
-      permissionTarget: 'ActionDriver Computer Use' }
+      permissionTarget: 'Action-Driver Computer Use' }
     const invoke = vi.fn(async () => status)
     const api = createDesktopApi('darwin', '0.1.0', { invoke })
 

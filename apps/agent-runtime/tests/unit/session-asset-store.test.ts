@@ -10,9 +10,9 @@ const fixture = (name: string) =>
   readFileSync(join(process.cwd(), 'apps/agent-runtime/tests/fixtures', name))
 
 function setup(now = () => new Date('2026-09-25T00:00:00.000Z')) {
-  const root = mkdtempSync(join(tmpdir(), 'actiondriver-images-'))
+  const root = mkdtempSync(join(tmpdir(), 'action-driver-images-'))
   roots.push(root)
-  const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+  const database = openRuntimeDatabase(join(root, 'action-driver.db'))
   return { root, database, store: new SessionAssetStore({ database, rootDirectory: root, now }) }
 }
 

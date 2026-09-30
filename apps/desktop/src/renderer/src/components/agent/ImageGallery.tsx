@@ -3,7 +3,7 @@ import {
   hasImageGenerationGallery,
   type MessageContentPart,
   type ToolInvocationProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
 import { WanderingDots } from './WanderingDots'
 

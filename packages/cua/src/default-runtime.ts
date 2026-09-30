@@ -1,19 +1,19 @@
 import { createConfiguredCUASession } from './runtime-factory.js'
 import type { SessionBrowsers } from './browser-session.js'
 import type { SessionHost, MacComputer } from './computer-session.js'
-import type { ActionDriverBrowserHost } from '@actiondriver/browser-runtime'
-import type { ActionDriverComputerHost } from '@actiondriver/sky'
+import type { ProductBrowserHost } from '@action-driver/browser-runtime'
+import type { ProductComputerHost } from '@action-driver/sky'
 import { randomUUID } from 'node:crypto'
 
 export interface TinyskyOptions {
   browser?: boolean
   computer?: boolean
-  browserHost?: ActionDriverBrowserHost
-  computerHost?: ActionDriverComputerHost
+  browserHost?: ProductBrowserHost
+  computerHost?: ProductComputerHost
   sessionId?: string
   sessionHost?: SessionHost
 }
-/** Assemble a CUA session from explicitly supplied ActionDriver hosts. */
+/** Assemble a CUA session from explicitly supplied Action-Driver hosts. */
 export function createTinyskyAlt(
   options: TinyskyOptions = {}
 ): ReturnType<typeof createConfiguredCUASession> {
@@ -22,7 +22,7 @@ export function createTinyskyAlt(
   const browserHost = options.browserHost
   return createConfiguredCUASession(options, {
     loadBrowserSetup: async () => {
-      const { setupBrowserRuntime } = await import('@actiondriver/browser-runtime')
+      const { setupBrowserRuntime } = await import('@action-driver/browser-runtime')
       return async (options) => {
         const agent = await setupBrowserRuntime({
           ...options,
@@ -35,8 +35,8 @@ export function createTinyskyAlt(
       }
     },
     loadComputer: async () => {
-      const { createActionDriverSky } = await import('@actiondriver/sky/actiondriver')
-      return createActionDriverSky(options.computerHost!, {
+      const { createProductSky } = await import('@action-driver/sky/action-driver')
+      return createProductSky(options.computerHost!, {
         sessionId: options.sessionId ?? randomUUID()
       }) as unknown as MacComputer
     },

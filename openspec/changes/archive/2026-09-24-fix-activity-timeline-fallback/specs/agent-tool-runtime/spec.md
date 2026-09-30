@@ -25,4 +25,4 @@
 
 #### Scenario: 查询日志页面
 - **WHEN** 客户端调用日志查询控制面
-- **THEN** 系统继续排除 `actiondriver:log:list` 等日志读取操作，避免日志递归记录自身
+- **THEN** 系统继续排除 `action-driver:log:list` 等日志读取操作，避免日志递归记录自身

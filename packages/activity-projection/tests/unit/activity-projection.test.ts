@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyActivityTimelineState, reduceActivityProjection } from '../../src'
-import { STREAM_PROTOCOL, type StreamServerEvent } from '@actiondriver/runtime-contracts'
+import { STREAM_PROTOCOL, type StreamServerEvent } from '@action-driver/runtime-contracts'
 
 const base = {
   protocol: STREAM_PROTOCOL,

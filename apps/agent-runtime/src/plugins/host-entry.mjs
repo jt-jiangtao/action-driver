@@ -1,4 +1,4 @@
-import { createPluginContext, EventQueue, PluginError } from '@actiondriver/plugin-sdk'
+import { createPluginContext, EventQueue, PluginError } from '@action-driver/plugin-sdk'
 import { pathToFileURL } from 'node:url'
 let binding, module, context
 const events = new Map(), handlers = new Map(), pending = new Map(), controllers = new Map()

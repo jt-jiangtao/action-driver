@@ -6,7 +6,7 @@ type MonacoInstance = {
 
 type EditorComponent = ComponentType<Record<string, unknown>>
 
-const THEME = 'actiondriver-light'
+const THEME = 'action-driver-light'
 const LINE_HEIGHT = 18
 const MIN_HEIGHT = 56
 const MAX_HEIGHT = 640

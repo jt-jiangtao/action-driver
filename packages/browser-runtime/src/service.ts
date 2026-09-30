@@ -2,7 +2,7 @@ import { createBrowserService } from './service-lifecycle.js'
 import { initializeBrowserHost } from './service-host-initialization.js'
 import { beginNativeRuntimeTelemetry, createNativeRuntimeFromInitialized } from './service-native-runtime.js'
 
-/** Reconstruction-only service entry. ActionDriver production uses the injected desktop host. */
+/** Reconstruction-only service entry. Action-Driver production uses the injected desktop host. */
 let activeHost: Awaited<ReturnType<typeof initializeBrowserHost>> | undefined
 let activeRuntime: Awaited<ReturnType<typeof createNativeRuntimeFromInitialized>> | undefined
 let assemblyQueue = Promise.resolve()

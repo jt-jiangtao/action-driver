@@ -14,8 +14,8 @@ describe('tool activity titles', () => {
     expect(toolActivityTitle('tools/local/command/shell/run@1', { command: 'cat README.md' }, 'completed')).toBe(
       '已执行命令'
     )
-    expect(toolActivityTitle('tools/local/web/search@1', { query: 'ActionDriver' }, 'failed')).toBe(
-      '搜索网页“ActionDriver”失败'
+    expect(toolActivityTitle('tools/local/web/search@1', { query: 'Action-Driver' }, 'failed')).toBe(
+      '搜索网页“Action-Driver”失败'
     )
   })
 

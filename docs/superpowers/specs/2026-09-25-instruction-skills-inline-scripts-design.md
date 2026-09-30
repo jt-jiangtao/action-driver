@@ -2,7 +2,7 @@
 
 ## 目标与成功标准
 
-用户可以将 GitHub 仓库子目录或本地文件夹中的普通 `SKILL.md` 安装到 ActionDriver 固定目录，启用后在新任务中被发现，并在需要时读取正文和附属文件；无需 `executor`。模型调用 Shell、Python、Node 或 TypeScript 时，只向对应独立工具提交脚本源码文本与可选参数。无系统 Python/Node 的机器仍可运行包内解释器支持范围内的脚本。
+用户可以将 GitHub 仓库子目录或本地文件夹中的普通 `SKILL.md` 安装到 Action-Driver 固定目录，启用后在新任务中被发现，并在需要时读取正文和附属文件；无需 `executor`。模型调用 Shell、Python、Node 或 TypeScript 时，只向对应独立工具提交脚本源码文本与可选参数。无系统 Python/Node 的机器仍可运行包内解释器支持范围内的脚本。
 
 验收时需要看到：两种来源安装及错误回滚、设置页和 Agent 入口一致、停用后新任务不发现、Markdown 不授予工具权限、四种语言选择正确、取消与超时可靠、旧任务记录不重放。
 

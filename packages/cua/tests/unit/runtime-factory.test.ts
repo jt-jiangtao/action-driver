@@ -73,7 +73,7 @@ test('configured runtime forwards browser environment, hidden AX member and docu
   })
 })
 
-test('configured browser tab sends observations only to the injected ActionDriver host', async () => {
+test('configured browser tab sends observations only to the injected Action-Driver host', async () => {
   const f = fixture()
   const privateWrites: unknown[] = []
   Reflect.set(globalThis, 'nodeRepl', { write: (...args: unknown[]) => privateWrites.push(args) })

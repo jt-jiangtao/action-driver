@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/tokens.css'
 import { App } from './App'
@@ -11,13 +10,11 @@ const compositionMode = resolveDesktopCompositionMode(import.meta.env.MODE)
 const services = createRendererServices(
   compositionMode === 'mock'
     ? { mode: 'mock' }
-    : { mode: 'local', desktopApi: window.actionDriverDesktop }
+    : { mode: 'local', desktopApi: window.productDesktop }
 )
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppServicesProvider services={services}>
-      <App />
-    </AppServicesProvider>
-  </StrictMode>
+  <AppServicesProvider services={services}>
+    <App />
+  </AppServicesProvider>
 )

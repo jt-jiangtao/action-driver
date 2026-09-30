@@ -32,7 +32,7 @@ describe('OpenTelemetry process observability', () => {
       | undefined
     expect(factory).toBeTypeOf('function')
     const process = factory!({
-      serviceName: 'actiondriver-test',
+      serviceName: 'action-driver-test',
       endpoint: collector.endpoint,
       logExporter: exporter
     })
@@ -53,14 +53,14 @@ describe('OpenTelemetry process observability', () => {
       taskId: 'task-1',
       trace_id: activeTraceId
     })
-    expect(records[0]?.resource.attributes['service.name']).toBe('actiondriver-test')
+    expect(records[0]?.resource.attributes['service.name']).toBe('action-driver-test')
     expect(JSON.stringify(records)).not.toMatch(/PROMPT_NEVER_IN_LOKI|MESSAGE_NEVER_IN_LOKI/)
   })
 
   it('reports a failed export without throwing into the caller', async () => {
     const factory = observability.createProcessObservability
     const process = factory({
-      serviceName: 'actiondriver-failure-test',
+      serviceName: 'action-driver-failure-test',
       endpoint: collector.endpoint,
       logExporter: {
         export(_records, callback) {
@@ -77,7 +77,7 @@ describe('OpenTelemetry process observability', () => {
 
   it('bounds shutdown when an exporter never completes', async () => {
     const process = observability.createProcessObservability({
-      serviceName: 'actiondriver-timeout-test',
+      serviceName: 'action-driver-timeout-test',
       endpoint: collector.endpoint,
       closeTimeoutMs: 25,
       logExporter: {
@@ -95,7 +95,7 @@ describe('OpenTelemetry process observability', () => {
 
   it('keeps business logging non-blocking when the batch queue is saturated', async () => {
     const process = observability.createProcessObservability({
-      serviceName: 'actiondriver-pressure-test',
+      serviceName: 'action-driver-pressure-test',
       endpoint: collector.endpoint,
       closeTimeoutMs: 25,
       logExporter: {

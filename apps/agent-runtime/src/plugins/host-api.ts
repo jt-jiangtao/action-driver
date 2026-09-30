@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PluginError, type ContextValue, type InvocationContext, type Json, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { PluginError, type ContextValue, type InvocationContext, type Json, type PluginOwner } from '@action-driver/plugin-contracts'
 export interface PluginHostAPIPorts {
   assertInstance(owner: PluginOwner): void
   authority(owner: PluginOwner, callId: string): { context: InvocationContext; signal: AbortSignal }

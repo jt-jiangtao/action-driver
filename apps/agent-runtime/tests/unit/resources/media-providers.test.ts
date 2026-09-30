@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ResourceError } from '@actiondriver/runtime-contracts'
+import type { ResourceError } from '@action-driver/runtime-contracts'
 import { createInputFileProvider, createOutputFileProvider, legacyResourceUri } from '../../../src/resources/media-providers'
 import { ResourceProviderRegistry } from '../../../src/resources/registry'
 

@@ -10,7 +10,7 @@
 
 ## Decisions
 
-1. **源码归属**：packages/cua、sky、cua-repl、browser-runtime、browser-desktop；使用 @actiondriver/*。每包 src、tests、docs/source-mapping.md。相比 thirdparty，该布局匹配现有 workspace，适合自主维护；用户已确认。
+1. **源码归属**：packages/cua、sky、cua-repl、browser-runtime、browser-desktop；使用 @action-driver/*。每包 src、tests、docs/source-mapping.md。相比 thirdparty，该布局匹配现有 workspace，适合自主维护；用户已确认。
 2. **验证归属**：packages/cua-parity 管理独立进程 runner、固定夹具、差异规则和报告。analysis/codex-cua 仅放阅读副本，不作为编译输入。原始 vendor 不重写。
 3. **基准版本**：清点全部文件、导出、动态导入、资源及第三方模块；保存版本、哈希和来源。原包同步发生变化时验证明确拒绝，重新采纳基准需独立记录，不能自动接受。
 4. **实现方法**：先分析每个自有 lib 的用途、接口、状态变化、错误、副作用与依赖，分别标注声明、源码和运行实验依据，以及尚未确认的推断，再按项目架构编写可维护 TS。不要求逐语句翻译或保留原内部模块划分，但所有自有能力与类型必须有对应实现和验证，不能遗漏未被当前产品使用的能力。重复捆绑模块识别后记录全部来源，未经验证不合并。第三方代码核实来源并复用确切版本，不重写；无法确定归属的代码保留 unknown，不擅自当成第三方排除。
@@ -26,7 +26,7 @@
 - [browser 大 bundle 和跨包重复逻辑] → 先识别归属与依赖，逐模块验证，未知边界升级 Battle。
 - [原包需私有服务或平台依赖] → 区分 mock 协议验证与真实运行；不可用真实路径记录阻塞，禁止静默缩减验收范围。
 - [macOS 特权 Node 对原生依赖的 Team ID 检查] → 隔离加载实验证实工作区 ad-hoc 签名的 classic-level 3.0.0 被 App Node 拒绝，同版本 App 签名包可加载；最终独立产物必须在目标宿主签名/打包流程中验证，不将测试用 App 包路径作为生产依赖。
-- [隔离 MCP 客户端缺 Codex App 注入的 turn metadata] → 候选服务虽曾在真实 Rust supervisor 中加载，但浏览器发现按契约拒绝；用户现禁止所有候选接 Codex 私有服务，后续验收必须改用 ActionDriver 自有宿主。历史实验不计最终验收，不能伪造元数据。
+- [隔离 MCP 客户端缺 Codex App 注入的 turn metadata] → 候选服务虽曾在真实 Rust supervisor 中加载，但浏览器发现按契约拒绝；用户现禁止所有候选接 Codex 私有服务，后续验收必须改用 Action-Driver 自有宿主。历史实验不计最终验收，不能伪造元数据。
 - [集中替换产生集成风险] → 提前执行跨包与真实夹具测试，保留原包及切换回退记录。
 - [格式化及分析资料膨胀] → 生成脚本和来源清单可复现，生成资料不进入产品构建。
 - [原始资料含专有声明] → 保存来源标识；重建与行为对齐本身不改变原始资料声明，不将它推断为独立原创证明。
@@ -41,7 +41,7 @@
 
 ## Naming
 
-用户要求新实现不要 oai_ 前缀：package 名使用 @actiondriver/*，内部目录、模块与标识按职责命名（core、types、browser、computer 等），不复制 oai_js_* 的目录名；原始 vendor 与来源映射可保留原路径作为追踪证据。
+用户要求新实现不要 oai_ 前缀：package 名使用 @action-driver/*，内部目录、模块与标识按职责命名（core、types、browser、computer 等），不复制 oai_js_* 的目录名；原始 vendor 与来源映射可保留原路径作为追踪证据。
 
 ## Unit Tests
 
@@ -72,21 +72,21 @@ Battle complete: user explicitly approved autonomous implementation of missing-r
 
 ## 2026-09-28 browser-desktop Decision
 
-**Decision:** Add a distinct `packages/browser-desktop` workspace package for the installed `@oai/browser-desktop@0.1.1` client, service-facing contract and resources. Keep its immutable source snapshot under `thirdparty/backup/browser-desktop/@oai/browser-desktop`; never import that snapshot from product code. The existing `browser-runtime` continues to represent the copied `@oai/cua` nested browser baseline. Shared behavior may be delegated to verified `@actiondriver/browser-runtime` APIs, but differing service behavior must retain separate mapping, tests and explicit adapters.
+**Decision:** Add a distinct `packages/browser-desktop` workspace package for the installed `@oai/browser-desktop@0.1.1` client, service-facing contract and resources. Keep its immutable source snapshot under `thirdparty/backup/browser-desktop/@oai/browser-desktop`; never import that snapshot from product code. The existing `browser-runtime` continues to represent the copied `@oai/cua` nested browser baseline. Shared behavior may be delegated to verified `@action-driver/browser-runtime` APIs, but differing service behavior must retain separate mapping, tests and explicit adapters.
 
-**Boundary:** All reconstructed `@actiondriver/*` packages and their acceptance tests do not connect to or depend on Codex App private services, its native pipes, session IDs, turn metadata or auth broker. ActionDriver-owned helpers, sockets and browser hosts remain valid. Define owned host interfaces and use local stubs for unit/differential tests. Existing computer-use native Swift helper is a candidate owned backend; browser capabilities need an owned host. Real macOS acceptance for every affected package must run through ActionDriver-owned hosts on resettable fixtures; an isolated run of an original bundle, historical Codex-host run or mock does not count. Keep the production loader unchanged until all original and expanded acceptance gates pass.
+**Boundary:** All reconstructed `@action-driver/*` packages and their acceptance tests do not connect to or depend on Codex App private services, its native pipes, session IDs, turn metadata or auth broker. Action-Driver-owned helpers, sockets and browser hosts remain valid. Define owned host interfaces and use local stubs for unit/differential tests. Existing computer-use native Swift helper is a candidate owned backend; browser capabilities need an owned host. Real macOS acceptance for every affected package must run through Action-Driver-owned hosts on resettable fixtures; an isolated run of an original bundle, historical Codex-host run or mock does not count. Keep the production loader unchanged until all original and expanded acceptance gates pass.
 
 **Alternatives:** Merging both bundles into `browser-runtime` saves a package but obscures divergent service contracts and makes provenance and rollback harder. Using the installed Codex service would give convenient real-device coverage but violates the user's isolation requirement. Waiting for a proprietary host API would leave the newly requested package unimplemented. The separate package plus owned host interface is selected.
 
 **Risks / trade-offs:** The installed service bundle is 1,905,434 bytes without original TS/source map; some private-host paths may remain unverifiable offline. `classic-level@3.0.0` remains a third-party dependency, but local App Node Team ID checks cannot be satisfied by ad-hoc signing, and this machine has no matching signing identity. Do not treat an App-signed test binary as standalone package acceptance. Cloud/orbit include byte-identical `browserAuthSafetyPrecheck.md`; codex-app does not, so the codex-app auth precheck remains fail-closed. Unverified private-host paths block production replacement rather than being waived.
 
-**Expanded ruling:** The user clarified that the Codex-service ban applies to *all* reconstructed packages, not only browser-desktop. An interface-only implementation with mock tests is executable but cannot meet the prior complete-then-switch goal; recommended path is to adapt all candidates to ActionDriver-owned macOS computer/browser hosts. Existing `sky`/`browser-runtime`/`cua-repl` Node REPL and private-pipe seams require an audit and migration. The original snapshots remain immutable even where they contain private-service calls. Historical Codex-backed experiments remain labeled research, never final acceptance. Risk: building the owned browser host substantially expands effort; no production cutover until it exists and real macOS scenarios pass.
+**Expanded ruling:** The user clarified that the Codex-service ban applies to *all* reconstructed packages, not only browser-desktop. An interface-only implementation with mock tests is executable but cannot meet the prior complete-then-switch goal; recommended path is to adapt all candidates to Action-Driver-owned macOS computer/browser hosts. Existing `sky`/`browser-runtime`/`cua-repl` Node REPL and private-pipe seams require an audit and migration. The original snapshots remain immutable even where they contain private-service calls. Historical Codex-backed experiments remain labeled research, never final acceptance. Risk: building the owned browser host substantially expands effort; no production cutover until it exists and real macOS scenarios pass.
 
 **Merge sequencing override:** The user explicitly chose an immediate work-in-progress merge to local `main` after being told the candidate still contains private-host seams and lacks owned-host acceptance. The alternative was finishing isolation and acceptance on this branch before merge; it reduces mainline risk but delays visibility. Respect the chosen sequence: commit the current candidate with incomplete status and full pre-commit checks, fast-forward local `main`, then continue implementation. Do not switch production dependencies or treat the merge as acceptance. Do not push remote without a separate request. This override changes integration timing only; the final no-Codex-service and acceptance gates remain binding.
 
 ## 2026-09-28 vendor removal and Browser Use joint delivery
 
-**Decision:** The final product and source tree must not contain `apps/agent-runtime/vendor`. Preserve `thirdparty/backup` for offline provenance only. Keep Computer Use usable while replacing the production REPL, CUA and Sky loading path with ActionDriver-owned packages and the existing macOS helper protocol. Do not solve directory removal by loading originals from the backup. Link final cutover to `integrate-browser-use-desktop`: the right embedded browser and Agent-owned external Chrome must both pass real macOS acceptance.
+**Decision:** The final product and source tree must not contain `apps/agent-runtime/vendor`. Preserve `thirdparty/backup` for offline provenance only. Keep Computer Use usable while replacing the production REPL, CUA and Sky loading path with Action-Driver-owned packages and the existing macOS helper protocol. Do not solve directory removal by loading originals from the backup. Link final cutover to `integrate-browser-use-desktop`: the right embedded browser and Agent-owned external Chrome must both pass real macOS acceptance.
 
 **Alternatives:** Deleting now and disabling Computer Use is fast but violates the user's availability requirement. Moving originals into `thirdparty/backup` and loading there hides the path without achieving service independence. The selected staged cutover retains the existing production path only until owned-host coverage passes; then it removes source, build, packaging and test-path references and deletes the directory in the same delivery.
 

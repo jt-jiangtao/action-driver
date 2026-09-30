@@ -2,16 +2,16 @@
 
 更新：2026-09-28。对应 OpenSpec：`reconstruct-codex-cua-packages`。
 
-本期用户裁决只重建与验收 macOS。下列项目均为**延期、未实现且未验收**，不是已完成模块；原 vendor 全部内容已按原结构备份在 `thirdparty/backup/`，保留用于未来对照。通用 TS 代码能构建或 mock 测试通过，不代表支持 Linux/Windows。生产加载与打包已切换为 `@actiondriver/*` 自有实现，`apps/agent-runtime/vendor/` 已删除。
+本期用户裁决只重建与验收 macOS。下列项目均为**延期、未实现且未验收**，不是已完成模块；原 vendor 全部内容已按原结构备份在 `thirdparty/backup/`，保留用于未来对照。通用 TS 代码能构建或 mock 测试通过，不代表支持 Linux/Windows。生产加载与打包已切换为 `@action-driver/*` 自有实现，`apps/agent-runtime/vendor/` 已删除。
 
 ## 平台入口与现有行为
 
 | 包／入口                        | Linux、Windows 缺口                                                                           | 当前候选版行为                                                                                                 |
 | ------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `@actiondriver/sky`             | 平台工厂、连接、请求、观察、动作、音频及平台资源                                              | 实现 MacComputer；`loadMacOptions` 只接受 `target: mac`，不自动构造 Linux/Windows 客户端                       |
-| `@actiondriver/cua`             | Linux/Windows computer session、应用/窗口绑定与对应文档、默认平台分发                         | 已实现通用发现与 macOS session；通用发现中残留的平台分支不是平台 backend 实现                                  |
-| `@actiondriver/cua-repl`        | Linux/Windows 指令资源装配、配置、服务启动和平台子进程生命周期验证                            | `loadInstructions` 只接受 `darwin`；其他平台明确拒绝。仅 macOS/global 候选资源，不将 vendor 指令存在当作已接线 |
-| `@actiondriver/browser-runtime` | Linux/Windows browser 服务启动、宿主集成、浏览器路径/profile 发现、打包原生依赖兼容和真实操作 | macOS 候选 setup/service 已接线但未完成特权原生管道及页面端到端验收；Linux/Windows 未实现也未验收 |
+| `@action-driver/sky`             | 平台工厂、连接、请求、观察、动作、音频及平台资源                                              | 实现 MacComputer；`loadMacOptions` 只接受 `target: mac`，不自动构造 Linux/Windows 客户端                       |
+| `@action-driver/cua`             | Linux/Windows computer session、应用/窗口绑定与对应文档、默认平台分发                         | 已实现通用发现与 macOS session；通用发现中残留的平台分支不是平台 backend 实现                                  |
+| `@action-driver/cua-repl`        | Linux/Windows 指令资源装配、配置、服务启动和平台子进程生命周期验证                            | `loadInstructions` 只接受 `darwin`；其他平台明确拒绝。仅 macOS/global 候选资源，不将 vendor 指令存在当作已接线 |
+| `@action-driver/browser-runtime` | Linux/Windows browser 服务启动、宿主集成、浏览器路径/profile 发现、打包原生依赖兼容和真实操作 | macOS 候选 setup/service 已接线但未完成特权原生管道及页面端到端验收；Linux/Windows 未实现也未验收 |
 | Sky core 命令工具               | Windows `win32_cmd` 包装及 Windows 可执行文件/环境处理                                        | 当前测试和重建范围为 macOS；通用工具存在不等于 Windows 支持                                                    |
 
 ## Linux 自有模块
@@ -75,7 +75,7 @@ Windows 的 `index.d.ts` 平台导出未重建。helper 的 `onEvent/onExit/requ
 
 ## 原包保留位置
 
-`apps/agent-runtime/vendor/` 的全部内容（现只有 `codex-cua/` 顶层集合）原样备份在 `thirdparty/backup/`，该目录是历史原件备份，原 vendor 已在自有宿主切换后删除，生产运行与打包读取的是 `@actiondriver/*` 自有实现。Linux/Windows 原始模块、三方库、声明和指令仍在备份中；保留文件不表示该平台候选实现已完成。备份哈希和链接清单在 `thirdparty/backup/backup-manifest.json`。
+`apps/agent-runtime/vendor/` 的全部内容（现只有 `codex-cua/` 顶层集合）原样备份在 `thirdparty/backup/`，该目录是历史原件备份，原 vendor 已在自有宿主切换后删除，生产运行与打包读取的是 `@action-driver/*` 自有实现。Linux/Windows 原始模块、三方库、声明和指令仍在备份中；保留文件不表示该平台候选实现已完成。备份哈希和链接清单在 `thirdparty/backup/backup-manifest.json`。
 
 配置装配补充：候选 CUA 的配置加载内部边界对非 darwin 先拒绝，再加载后端；macOS 运行时若收到非 mac target 也拒绝。测试只验证拒绝和无加载副作用，不代表 Linux/Windows 原包实现已重建。浏览器环境标签 cloud/orbit/training 的协议兼容继续不计新增平台或部署环境支持。
 

@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { createPluginPanelProvider } from '../../../../src/main/plugins/panel-provider'
 import { PluginPanelHost } from '../../../../src/main/plugins/panel-host'
-import type { PluginManifest } from '@actiondriver/plugin-contracts'
+import type { PluginManifest } from '@action-driver/plugin-contracts'
 it('binds declared panel resources to one epoch and closes them on bridge loss', async () => {
   const owner = { pluginId: 'fixture', version: '1.0.0', hostEpoch: 'first' }, dispose = vi.fn()
   const manifest: PluginManifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.js', platforms: [`${process.platform}-${process.arch}`], contributions: [{ kind: 'panel', id: 'fixture.view' }], panels: [{ id: 'fixture.view', entry: 'ui/index.html', messages: {} }], activation: [], dependencies: [] }

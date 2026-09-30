@@ -1,10 +1,10 @@
-import type { TaskProjection } from '@actiondriver/contracts'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { TaskProjection } from '@action-driver/contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import { StreamTaskProjection } from '../../../../../src/renderer/src/services/stream-task-projection'
 
 const identity = {
-  protocol: 'actiondriver.stream.v2' as const,
+  protocol: 'action-driver.stream.v2' as const,
   cursor: 2,
   sequence: 0,
   requestId: 'request-1',
@@ -1147,7 +1147,7 @@ describe('StreamTaskProjection', () => {
       callSequence: 1,
       toolId: 'tools/local/web/search',
       modelName: 'tools_local_web_search',
-      summary: 'ActionDriver',
+      summary: 'Action-Driver',
       argumentsHash: 'sha256:abc',
       activityId: null,
       durationMs: 42,

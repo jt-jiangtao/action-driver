@@ -17,11 +17,11 @@ test('codex-app ordinary browser discovery reaches the owned host', async () => 
   const host = {
     setup: vi.fn(async () => ({ apiManifest: { interfaces: { Agent: {}, Browsers: {}, Documentation: {} } }, disabledMemberIds: [] })),
     execute: vi.fn(async (command: { type: string }) =>
-      command.type === 'list_browsers' ? [{ id: 'local', name: 'ActionDriver Chrome' }] : 'docs'),
+      command.type === 'list_browsers' ? [{ id: 'local', name: 'Action-Driver Chrome' }] : 'docs'),
     displayImage: vi.fn(), close: vi.fn(async () => {})
   }
   const client = await setupBrowserDesktop({ host, environment: 'codex-app' })
-  expect(await client.browsers.list()).toEqual([{ id: 'local', name: 'ActionDriver Chrome' }])
+  expect(await client.browsers.list()).toEqual([{ id: 'local', name: 'Action-Driver Chrome' }])
   expect(host.execute).toHaveBeenCalledTimes(1)
 })
 

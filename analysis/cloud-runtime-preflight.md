@@ -1,4 +1,4 @@
-# ActionDriver 云端服务预研：Runtime 复用边界与抽离优先级
+# Action-Driver 云端服务预研：Runtime 复用边界与抽离优先级
 
 - 评估日期：2026-09-30。
 - 状态：待裁决，仅供讨论；不是已批准的设计或实施计划。
@@ -24,7 +24,7 @@
 | 装配已经显式注入，且拒绝回退到 mock | `composition-root.ts:9`、`local-adapters.ts:30`；`createRuntimeServices` 在 local 模式没有 adapters 时直接抛错 | 抽离缺口不是"缺接口"，而是"缺一个可替换的装配根" |
 | Electron 耦合点很少且已参数化 | 全仓库 `parentPort` 仅 `runtime-entry.ts:5`、`runtime-process.ts:57/441/455/456`（外加与宿主无关的 `web-open/extract-worker.ts` 的 worker_threads）；`startAgentRuntimeProcess(parentPort, databasePath, exit, environment)` 已接收注入的 `environment` | 宿主引导拆分是**小改**，不是重写 |
 | parentPort 只承担"就绪上报 + 关闭指令"两件事 | `runtime-process.ts:456` 上报 `runtime.ready` 与服务描述符；`441/455` 只处理 `runtime.shutdown` | 可用一个极小的 host 端口替代，不需要通用事件总线 |
-| 存储接口层已就绪，但装配仍内联在启动函数 | `ports.ts:341` 已定义宿主无关的 `RuntimeRepositories`；`local-adapters.ts` 已改为依赖该接口；`runtime-process.ts` 已改用 `RolloutRuntimeRepositories`（rollout 日志 + `rollout-state.sqlite`/`rollout-history.sqlite` 投影）并通过 `ACTIONDRIVER_RUNTIME_DATA_ROOT` 驱动，但仍在 `startAgentRuntimeProcess` 内联构造 `openRuntimeDatabase`、`SqliteRuntimeRepositories`、`RolloutSessionStore`、资产/输入/输出存储、`createSqliteCheckpointer` 与模型连接文件 | **存储接口抽离已完成**（rollout 变更）；剩下的是"装配入口收敛为单一工厂"，属宿主拆分同一变更 |
+| 存储接口层已就绪，但装配仍内联在启动函数 | `ports.ts:341` 已定义宿主无关的 `RuntimeRepositories`；`local-adapters.ts` 已改为依赖该接口；`runtime-process.ts` 已改用 `RolloutRuntimeRepositories`（rollout 日志 + `rollout-state.sqlite`/`rollout-history.sqlite` 投影）并通过 `ACTION_DRIVER_RUNTIME_DATA_ROOT` 驱动，但仍在 `startAgentRuntimeProcess` 内联构造 `openRuntimeDatabase`、`SqliteRuntimeRepositories`、`RolloutSessionStore`、资产/输入/输出存储、`createSqliteCheckpointer` 与模型连接文件 | **存储接口抽离已完成**（rollout 变更）；剩下的是"装配入口收敛为单一工厂"，属宿主拆分同一变更 |
 | 单写者是显式设计 | `runtime-ownership.ts` `claimRuntimeOwnership` 用 `runtime_process_owner` 表 + PID 活性做单进程独占；rollout 设计决策 5 写明"每会话单写者 + 跨进程锁文件" | 多实例路线必须与"每会话单写者"一致，而不是简单水平扩展 |
 | 执行环境是 macOS 专属 | `session-sandbox.ts:117` 非 darwin 直接 `SandboxUnavailableError`，profile 写死 `system.sb`、拒绝 `/Users`、禁止 localhost 出站；`execution/runtime-paths.ts` 要求 `process.platform === 'darwin'` 且存在 `runtimes/darwin-<arch>` 与 `bin/rg`，否则 `RUNTIME_ARCH_UNSUPPORTED` | 云端（Linux 容器）是**新实现**，不是抽象 |
 | 运行中状态大量驻留单进程内存 | `agent-graph.ts:152` `activeControllers`/`modelObservers`/`toolObservers`/`streamRequestIds`；`stream-session-service.ts:59-60` `active`/`activeSessions`；`stream/event-delivery.ts:15` `publicationTails`/`publishedCursors` | 多实例下取消、审批、会话互斥会失效 |
@@ -47,7 +47,7 @@
 | `ports.ts` 全套端口 | `GraphRunner`、仓储、`ModelGateway`、`SkillRegistry`、`Clock`、`IdGenerator` | 这就是云端要实现的契约面；不需要新增第二套接口 |
 | 工具/技能调用内核 | `tool-invocation-service.ts`、`tool-registry.ts`、`tool-policy.ts`、`tool-invocation-state-machine.ts`、`tool-activity.ts`、`tool-error-exposure.ts`、`tool-result-redaction.ts`、`skill-registry.ts` | 只依赖 `ToolInvocationPersistence` 等端口，无宿主假设 |
 | 流会话编排 `stream-session-service.ts` | 依赖 `StreamSessionRepository`、`GraphRunner`、`IdGenerator` 与可选 IO 端口 | 逻辑可复用；它的内存映射是 4.4 的多实例问题 |
-| 流协议与投递 | `packages/runtime-contracts/src/stream-protocol.ts`（`actiondriver.stream.v2` + zod 解析）、`stream/event-delivery.ts`、`stream/stream-snapshot.ts` | 线上协议与客户端契约稳定，重连按 cursor 重放本来就是设计目标 |
+| 流协议与投递 | `packages/runtime-contracts/src/stream-protocol.ts`（`action-driver.stream.v2` + zod 解析）、`stream/event-delivery.ts`、`stream/stream-snapshot.ts` | 线上协议与客户端契约稳定，重连按 cursor 重放本来就是设计目标 |
 | HTTP/WS 服务面 | `service/http-service.ts`、`service/http/*`（路由、错误映射、请求策略）、`service/websocket-service.ts` | Hono + `node:http` + `ws` 在任意 Node 云环境中可跑；只有鉴权模型要换 |
 | 契约包 | `packages/contracts`、`runtime-contracts`、`plugin-contracts`、`model-connections`、`observability` | 纯 DTO/schema；`model-connections` 用 fetch 传输，`observability` 用 OTLP，都已云端友好 |
 | 装配模式 | `composition-root.ts` + `local-adapters.ts` | "显式注入、无隐式回退"是可复用的做法；`local-*` 本身是本地实现 |
@@ -90,7 +90,7 @@
 
 ### 3.2 存储装配 — P1（接口已就绪，只需收敛装配入口）
 
-**现状（rollout 变更落地后）**：`openspec/changes/replace-sqlite-store-with-rollout-jsonl` 已把会话历史改为 rollout JSONL + SQLite 投影，并在 `ports.ts` 引入宿主无关的 `RuntimeRepositories`；`local-adapters.ts` 已不再依赖具体存储实现，`runtime-entry.ts` 已从单库文件路径改为 `ACTIONDRIVER_RUNTIME_DATA_ROOT` 数据根。也就是说，**"存储接口抽离"这一项已经完成**，比原计划更早满足。
+**现状（rollout 变更落地后）**：`openspec/changes/replace-sqlite-store-with-rollout-jsonl` 已把会话历史改为 rollout JSONL + SQLite 投影，并在 `ports.ts` 引入宿主无关的 `RuntimeRepositories`；`local-adapters.ts` 已不再依赖具体存储实现，`runtime-entry.ts` 已从单库文件路径改为 `ACTION_DRIVER_RUNTIME_DATA_ROOT` 数据根。也就是说，**"存储接口抽离"这一项已经完成**，比原计划更早满足。
 
 **剩余问题**：具体实现仍在 `startAgentRuntimeProcess` 内联构造——`openRuntimeDatabase`、`claimRuntimeOwnership`、`SqliteRuntimeRepositories`、`RolloutSessionStore`、`RolloutRuntimeRepositories`、资产/输入/输出存储、`createSqliteCheckpointer`、模型连接文件，全部在同一个启动函数里按 `dataRoot` 拼路径。
 
@@ -153,7 +153,7 @@
 3. **把"每会话单写者 + 取消需到达持有者"写成显式契约（P1）**：文档与类型注释即可，不改运行行为。
 4. **服务配置对象收敛（P1，可选）**：`ServiceHttpOptions` 已是大对象，可在宿主拆分时顺手把"传输参数"与"业务端口"分开，避免云端装配误传本地字段。
 
-这四项都不改变对外 `actiondriver.stream.v2` 协议，也不改动已裁决的 rollout 范围。
+这四项都不改变对外 `action-driver.stream.v2` 协议，也不改动已裁决的 rollout 范围。
 
 ### 4.2 云端立项后再做
 

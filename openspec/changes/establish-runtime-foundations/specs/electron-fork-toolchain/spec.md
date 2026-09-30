@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 定制 Electron/Chromium Fork 的版本、补丁和构建产物管理行为，确保后续 Chromium 内核能力能够被持续构建、验证和追溯。
+定义 Action-Driver 定制 Electron/Chromium Fork 的版本、补丁和构建产物管理行为，确保后续 Chromium 内核能力能够被持续构建、验证和追溯。
 
 ## ADDED Requirements
 
@@ -12,7 +12,7 @@
 - **THEN** 所有上游 revision 与构建参数均来自已提交的版本清单
 
 ### Requirement: 以可审查补丁维护内核差异
-系统 SHALL 将 ActionDriver 对 Electron 和 Chromium 的修改维护为有顺序、可单独审查且可重复应用的补丁序列。
+系统 SHALL 将 Action-Driver 对 Electron 和 Chromium 的修改维护为有顺序、可单独审查且可重复应用的补丁序列。
 
 #### Scenario: 在锁定基线上应用补丁
 - **WHEN** 构建系统检出版本清单指定的上游源码
@@ -22,11 +22,11 @@
 系统 MUST 为每个定制 Electron 构建产物记录目标架构、上游 revision、补丁集标识、构建时间、协议兼容版本和内容校验值。
 
 #### Scenario: 验收构建产物
-- **WHEN** ActionDriver 桌面应用选择一个定制 Electron 产物
+- **WHEN** Action-Driver 桌面应用选择一个定制 Electron 产物
 - **THEN** 构建系统验证产物清单、目标架构和校验值后才允许打包
 
 ### Requirement: 生产版使用定制 Electron
-系统 MUST 让生产版 ActionDriver 依赖经过验收的定制 Electron 产物，不得在缺失 Fork 产物时静默回退到公开发行版 Electron。
+系统 MUST 让生产版 Action-Driver 依赖经过验收的定制 Electron 产物，不得在缺失 Fork 产物时静默回退到公开发行版 Electron。
 
 #### Scenario: Fork 产物缺失
 - **WHEN** 生产打包无法取得版本清单指定的定制 Electron 产物

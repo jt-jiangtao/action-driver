@@ -6,7 +6,7 @@ import {
 import { COMPUTER_GUIDANCE_ENSURE_CHANNEL } from '../../../src/shared/computer-use-contract'
 
 const granted = { accessibility: true, screenRecording: true, eventPosting: true,
-  permissionTarget: 'ActionDriver Computer Use' }
+  permissionTarget: 'Action-Driver Computer Use' }
 
 describe('Computer Use guidance', () => {
   it('opens guidance only when a required permission is missing', () => {

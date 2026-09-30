@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { Server } from 'node:http'
-import type { StructuredLogger } from '@actiondriver/observability'
-import { startBestEffortInteraction, type InteractionLogRecorder } from '@actiondriver/observability'
+import type { StructuredLogger } from '@action-driver/observability'
+import { startBestEffortInteraction, type InteractionLogRecorder } from '@action-driver/observability'
 import { WebSocket, WebSocketServer } from 'ws'
 import {
   STREAM_PROTOCOL,
   parseStreamClientEvent,
   type StreamClientEvent,
   type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 export const SERVICE_STREAM_PATH = '/stream' as const
 export const SERVICE_STREAM_PROTOCOL = STREAM_PROTOCOL

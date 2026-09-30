@@ -1,6 +1,6 @@
-## ActionDriver Computer Use (macOS)
+## Action-Driver Computer Use (macOS)
 
-The `cua` global controls macOS applications through the ActionDriver helper. Read the application state before choosing element indices or coordinates. App access may pause for user approval.
+The `cua` global controls macOS applications through the Action-Driver helper. Read the application state before choosing element indices or coordinates. App access may pause for user approval.
 
 ```js
 const apps = await cua.listApps({ emit: false })

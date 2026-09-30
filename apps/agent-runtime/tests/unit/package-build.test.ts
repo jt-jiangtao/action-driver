@@ -9,7 +9,7 @@ describe('agent runtime build', () => {
     ) as { scripts: { build: string; 'build:office-local': string } }
 
     expect(packageJson.scripts.build).toContain('--external:ws')
-    expect(packageJson.scripts.build).toContain('__actionDriverCreateRequire(import.meta.url)')
+    expect(packageJson.scripts.build).toContain('__productCreateRequire(import.meta.url)')
     expect(packageJson.scripts.build).toContain('scripts/stage-runtimes.mjs')
     expect(packageJson.scripts.build).toContain('scripts/copy-rg.mjs')
     expect(packageJson.scripts.build).toContain('scripts/copy-system-skills.mjs')

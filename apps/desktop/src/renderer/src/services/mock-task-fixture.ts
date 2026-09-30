@@ -1,4 +1,4 @@
-import type { BrowserSkillProjection, TaskProjection } from '@actiondriver/contracts'
+import type { BrowserSkillProjection, TaskProjection } from '@action-driver/contracts'
 
 export const mockBrowserSkillProjection: BrowserSkillProjection = {
   title: '杭州酒店 · 携程旅行',

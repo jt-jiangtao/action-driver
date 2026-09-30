@@ -1,11 +1,11 @@
-import type { ModelRef } from '@actiondriver/contracts'
-import type { ModelUsage } from '@actiondriver/model-connections'
+import type { ModelRef } from '@action-driver/contracts'
+import type { ModelUsage } from '@action-driver/model-connections'
 import type {
   ModelInputMessage,
   ModelTerminal,
   ProviderToolCall
-} from '@actiondriver/model-connections'
-import type { ToolDefinition } from '@actiondriver/runtime-contracts'
+} from '@action-driver/model-connections'
+import type { ToolDefinition } from '@action-driver/runtime-contracts'
 
 export type RuntimeMessage = ModelInputMessage
 

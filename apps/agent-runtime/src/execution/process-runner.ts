@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { StringDecoder } from 'node:string_decoder'
-import type { ToolExecutorEvent } from '@actiondriver/runtime-contracts'
+import type { ToolExecutorEvent } from '@action-driver/runtime-contracts'
 
 export type ProcessSpec = {
   executable: string

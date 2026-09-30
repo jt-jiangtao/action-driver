@@ -3,7 +3,7 @@ import {
   isPublicAddress,
   parsePublicUrl,
   resolvePublicAddress
-} from '@actiondriver/web-plugin/address'
+} from '@action-driver/web-plugin/address'
 
 describe('tools_local_web_open public address policy', () => {
   it('accepts only credential-free HTTP(S) URLs with public literal addresses', () => {

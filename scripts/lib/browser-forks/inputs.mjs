@@ -22,7 +22,7 @@ export function validateLock(lock) {
   const tools=lock.tools
   if(!version(tools?.node?.version) || !/^[a-f0-9]{64}$/.test(tools.node.sha256 ?? '') || tools.node.url !== `https://nodejs.org/dist/v${tools.node.version}/node-v${tools.node.version}-darwin-arm64.tar.gz` || !commit(tools.depotTools?.commit) || tools.depotTools.repo !== 'https://chromium.googlesource.com/chromium/tools/depot_tools.git') invalid('tools')
   for(const tool of ['pnpm','yarn','nodeGyp']) if(!version(tools[tool])) invalid(tool)
-  if(lock.system?.sdkVersion !== '26.5' || lock.system.metalRequired !== true || lock.build?.output !== 'out/ActionDriver' || lock.build.fileLimit !== 65536 || !Number.isSafeInteger(lock.build.jobs) || lock.build.jobs < 1) invalid('build')
+  if(lock.system?.sdkVersion !== '26.5' || lock.system.metalRequired !== true || lock.build?.output !== 'out/Action-Driver' || lock.build.fileLimit !== 65536 || !Number.isSafeInteger(lock.build.jobs) || lock.build.jobs < 1) invalid('build')
 }
 export async function loadBuildInputs(root) {
   const text = await readFile(path.join(root,'config/browser-forks.lock.json'),'utf8')

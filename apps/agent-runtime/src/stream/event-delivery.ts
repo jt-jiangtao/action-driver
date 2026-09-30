@@ -1,4 +1,4 @@
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import type {
   PersistedStreamRequest,
   RuntimeEventRecord,

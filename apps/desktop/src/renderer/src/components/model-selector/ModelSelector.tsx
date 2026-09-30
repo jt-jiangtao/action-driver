@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import type { ModelSelectionProjection } from '../../models/model-selection'
 import { findSelectedModel } from '../../models/model-selection'
 import { ModelConnectionItem } from './ModelConnectionItem'

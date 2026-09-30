@@ -1,4 +1,4 @@
-import type { AgentMessageProjection, MessageContentPart } from '@actiondriver/contracts'
+import type { AgentMessageProjection, MessageContentPart } from '@action-driver/contracts'
 import { describe, expect, it } from 'vitest'
 import { dedupeAssistantText, activityOwnedText } from '../../../../../../src/renderer/src/components/agent/activity-mirror'
 

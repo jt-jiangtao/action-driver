@@ -10,12 +10,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 describe('runtime plugin composition', () => {
   it('loads search catalog externally and routes its existing result through an owned plugin registration', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'actiondriver-search-plugin-'))
+    const directory = await mkdtemp(join(tmpdir(), 'action-driver-search-plugin-'))
     const root = join(directory, 'web')
     await mkdir(join(root, 'dist'), { recursive: true })
     await cp(resolve('plugins/web/plugin.json'), join(root, 'plugin.json'))
     await cp(resolve('plugins/web/package.json'), join(root, 'package.json'))
-    await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(root, 'dist'), '--bundle', '--platform=node', '--format=esm'])
+    await promisify(execFile)('corepack', ['pnpm', '--filter', '@action-driver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(root, 'dist'), '--bundle', '--platform=node', '--format=esm'])
     const extension = join(root, 'dist', 'extension.js')
     await writeFile(extension, `globalThis.fetch = async (url, init) => { if (url !== 'https://api.tavily.com/search' || new Headers(init.headers).get('authorization') !== 'Bearer fixture-key') throw new Error('Unexpected provider request'); return new Response(JSON.stringify({ results: [{ title: 'Title', url: 'https://example.test/', content: 'Snippet' }] }), { headers: { 'content-type': 'application/json' } }) };\n` + await readFile(extension, 'utf8'))
     const web = createWebCredentialPort({ TAVILY_API_KEY: 'fixture-key' })
@@ -38,7 +38,7 @@ describe('runtime plugin composition', () => {
   })
 })
 it('streams a declared host capability with runtime grants and authoritative task context', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-forward-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-forward-plugin-'))
   const packageRoot = join(directory, 'package')
   await mkdir(packageRoot)
   const definition = { id: 'fixture/echo', version: 1, modelName: 'fixture_echo', description: 'Echo', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
@@ -64,7 +64,7 @@ it('streams a declared host capability with runtime grants and authoritative tas
   } finally { finish(); await platform.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 10000)
 it('installs, pins an in-flight version, upgrades its real package and uninstalls registrations', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-upgrade-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-upgrade-plugin-'))
   const { writeFile } = await import('node:fs/promises')
   const definition = { id: 'fixture/version', version: 1, modelName: 'fixture_version', description: 'Version', inputSchema: { type: 'object', properties: {} }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }
   async function packageVersion(version: string) {
@@ -97,7 +97,7 @@ it('installs, pins an in-flight version, upgrades its real package and uninstall
   } finally { await platform.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 10000)
 it('routes an authenticated declared panel message to a live plugin without granting input control', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-panel-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-panel-plugin-'))
   const root = join(directory, 'package'); await mkdir(root)
   const { writeFile } = await import('node:fs/promises')
   await writeFile(join(root, 'plugin.json'), JSON.stringify({ id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'extension.mjs', platforms: [`${process.platform}-${process.arch}`], contributions: [{ kind: 'panel', id: 'fixture.view' }], panels: [{ id: 'fixture.view', url: 'https://example.test/', messages: { inspect: { type: 'object', properties: {}, additionalProperties: false } } }] }))
@@ -119,13 +119,13 @@ it('routes an authenticated declared panel message to a live plugin without gran
 
 it('ignores retired built-in packages on restart and preserves their private data', async () => {
   const { writeFile, readFile } = await import('node:fs/promises')
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-retired-plugins-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-retired-plugins-'))
   try {
     const webRoot = join(directory, 'web')
     await mkdir(join(webRoot, 'dist'), { recursive: true })
     await cp(resolve('plugins/web/plugin.json'), join(webRoot, 'plugin.json'))
     await cp(resolve('plugins/web/package.json'), join(webRoot, 'package.json'))
-    await promisify(execFile)('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(webRoot, 'dist'), '--bundle', '--platform=node', '--format=esm'])
+    await promisify(execFile)('corepack', ['pnpm', '--filter', '@action-driver/agent-runtime', 'exec', 'esbuild', resolve('plugins/web/src/catalog.ts'), resolve('plugins/web/src/extension.ts'), '--outdir=' + join(webRoot, 'dist'), '--bundle', '--platform=node', '--format=esm'])
     for (const id of ['search', 'web-reader']) {
       const root = join(directory, 'installed', id)
       await mkdir(root, { recursive: true })
@@ -143,7 +143,7 @@ it('ignores retired built-in packages on restart and preserves their private dat
 })
 
 it('replaces a cached web 1.2.0 package with the Tavily/Jina release', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-web-upgrade-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-web-upgrade-'))
   const packageRoot = join(directory, 'package')
   const dataRoot = join(directory, 'data')
   const cached = join(dataRoot, 'installed/web/1.2.0')
@@ -166,7 +166,7 @@ it('replaces a cached web 1.2.0 package with the Tavily/Jina release', async () 
   } finally { await platform?.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 10000)
 it('rejects a persisted third-party plugin with a dotted tool identity before activation', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-old-tool-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-old-tool-plugin-'))
   const { writeFile } = await import('node:fs/promises')
   const root = join(directory, 'installed', 'fixture', '1.0.0')
   await mkdir(root, { recursive: true })
@@ -180,7 +180,7 @@ it('rejects a persisted third-party plugin with a dotted tool identity before ac
 })
 
 it('replaces a same-version built-in copy with slash identities and preserves private data', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-builtin-cutover-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-builtin-cutover-'))
   const { writeFile, readFile } = await import('node:fs/promises')
   const source = join(directory, 'source')
   const installed = join(directory, 'installed', 'fixture', '1.0.0')
@@ -211,7 +211,7 @@ it('replaces a same-version built-in copy with slash identities and preserves pr
 }, 10_000)
 
 it('discovers declared views and menus without activation, activates on demand and re-checks conditions and grants', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-ui-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-ui-plugin-'))
   const { writeFile } = await import('node:fs/promises')
   const packageRoot = join(directory, 'package')
   await mkdir(packageRoot)

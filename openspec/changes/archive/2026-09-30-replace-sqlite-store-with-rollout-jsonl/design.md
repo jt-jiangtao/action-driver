@@ -4,7 +4,7 @@
 
 参考实现（本机 `~/.codex` 实测）：会话以 `sessions/YYYY/MM/DD/rollout-*.jsonl` 追加式日志保存，行类型为 `session_meta`、`turn_context`、`response_item`、`event_msg`、`token_usage_record`、`world_state`；SQLite（`state_*.sqlite`、`thread_history_*.sqlite`、`logs_*.sqlite`、`memories_*.sqlite`、`goals_*.sqlite`、`queue_*.sqlite`）承担投影/索引/日志/记忆/目标/队列；`thread_history_projection_state.next_rollout_byte_offset / next_rollout_ordinal` 是 rollout→SQLite 的增量投影游标，`threads.rollout_path` 指回 JSONL。官方 app-server 文档亦描述 `thread/metadata/update` 为 SQLite-backed、`thread/archive` 为移动线程日志文件。
 
-约束：只支持 macOS 本地运行时；模型连接凭据已由受 OS 保护的密钥能力持有；现有对外流式协议 `actiondriver.stream.v2` 与 `StreamServerEvent` 需要保持不变，避免牵动 Renderer；工作区存在其他会话未提交的 `placement/*` 与 `main.tsx` 改动，本变更不得触碰或提交它们。
+约束：只支持 macOS 本地运行时；模型连接凭据已由受 OS 保护的密钥能力持有；现有对外流式协议 `action-driver.stream.v2` 与 `StreamServerEvent` 需要保持不变，避免牵动 Renderer；工作区存在其他会话未提交的 `placement/*` 与 `main.tsx` 改动，本变更不得触碰或提交它们。
 
 ## Goals / Non-Goals
 
@@ -89,7 +89,7 @@
 
 ### 8. 删除旧运行库；checkpoint 引擎状态暂留
 
-删除 `data/actiondriver.db` 与其旁文件，不迁移。LangGraph 的 checkpoint 属引擎内部状态，与用户可见历史无关，本次保持独立文件，不在本变更范围内。
+删除 `data/action-driver.db` 与其旁文件，不迁移。LangGraph 的 checkpoint 属引擎内部状态，与用户可见历史无关，本次保持独立文件，不在本变更范围内。
 
 理由：用户已裁决不迁移；checkpoint 与「会话历史顺序」不是同一问题，混在一起会扩大范围。
 
@@ -97,7 +97,7 @@
 
 ### 9. 领域记录 + 记录→事件适配层（apply 期间补充裁决）
 
-日志行保持领域化（`block`/`tool`/`turn`），同时新增一个适配层把记录确定性地还原成既有 `RuntimeEventRecord`，喂给现有 `toServerEvent`。文本记录携带增量而非全量，折叠时按序号拼接。这样 `StreamEventDelivery`、`stream-snapshot`、`reconnect replay` 与对外 `actiondriver.stream.v2` 协议都无需改动，实时与重放继续共用同一条链路。
+日志行保持领域化（`block`/`tool`/`turn`），同时新增一个适配层把记录确定性地还原成既有 `RuntimeEventRecord`，喂给现有 `toServerEvent`。文本记录携带增量而非全量，折叠时按序号拼接。这样 `StreamEventDelivery`、`stream-snapshot`、`reconnect replay` 与对外 `action-driver.stream.v2` 协议都无需改动，实时与重放继续共用同一条链路。
 
 理由：apply 时发现重连是「逐条重发持久化事件」，若日志只存折叠后的全量块状态就无法还原增量，而 specs 同时要求「保持 `StreamServerEvent` 不变」与「重放与快照一致」。适配层让日志保持 Codex 式领域记录，又不动对外协议。
 
@@ -133,7 +133,7 @@
 
 ## Migration Plan
 
-1. 运行时启动时检测旧库是否存在；存在则删除 `actiondriver.db`、`actiondriver.db-wal`、`actiondriver.db-shm`，不读取、不转换。
+1. 运行时启动时检测旧库是否存在；存在则删除 `action-driver.db`、`action-driver.db-wal`、`action-driver.db-shm`，不读取、不转换。
 2. 新会话从空日志开始；`sessions/`、`blobs/`、`index.jsonl` 目录按需创建。
 3. 回滚策略：保留删除前的旧库副本（可选），若需回退则停止新版运行时、恢复旧库并回到本次变更之前的提交。
 

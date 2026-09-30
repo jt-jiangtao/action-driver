@@ -1,4 +1,4 @@
-import type { StructuredLogger } from '@actiondriver/observability'
+import type { StructuredLogger } from '@action-driver/observability'
 import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -122,11 +122,11 @@ describe('service interaction logging', () => {
 
   it('does not create a local operational log next to the database', async () => {
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('ACTIONDRIVER_LOG_PRETTY', '0')
+    vi.stubEnv('ACTION_DRIVER_LOG_PRETTY', '0')
     const collector = await startLocalOtelCollector()
     vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', collector.endpoint)
-    const dataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-logs-'))
-    const databasePath = join(dataDirectory, 'data', 'actiondriver.db')
+    const dataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-logs-'))
+    const databasePath = join(dataDirectory, 'data', 'action-driver.db')
 
     try {
       const serviceLogger = createServiceLogger({ databasePath, pretty: false, level: 'info' })

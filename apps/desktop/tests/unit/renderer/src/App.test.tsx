@@ -30,7 +30,7 @@ describe('App', () => {
         <App />
       </AppServicesProvider>
     )
-    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    await screen.findByText('我们应该在 Action-Driver 中做些什么？')
     await screen.findByRole('button', { name: '设置' })
     await user.click(screen.getByRole('button', { name: '设置' }))
     await screen.findByText('公司模型网关')
@@ -66,7 +66,7 @@ describe('App', () => {
       },
       getTask
     }
-    sessionStorage.setItem('actiondriver.active-task-id', 'hotel-task')
+    sessionStorage.setItem('action-driver.active-task-id', 'hotel-task')
 
     render(
       <AppServicesProvider services={services}>
@@ -87,7 +87,7 @@ describe('App', () => {
     const user = userEvent.setup()
     renderApp()
 
-    expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await user.type(screen.getByLabelText('任务描述'), '预订杭州酒店')
     await user.click(screen.getByLabelText('发送'))
 
@@ -116,7 +116,7 @@ describe('App', () => {
         <App />
       </AppServicesProvider>
     )
-    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    await screen.findByText('我们应该在 Action-Driver 中做些什么？')
     const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('添加图片'), image)
     await user.click(screen.getByRole('button', { name: '发送' }))
@@ -152,7 +152,7 @@ describe('App', () => {
         <App />
       </AppServicesProvider>
     )
-    await screen.findByText('我们应该在 ActionDriver 中做些什么？')
+    await screen.findByText('我们应该在 Action-Driver 中做些什么？')
     const document = new File(['%PDF-1.7'], '季度报告.pdf', { type: 'application/pdf' })
     const image = new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('选择文档'), document)
@@ -292,7 +292,7 @@ describe('App', () => {
     renderApp('task')
 
     await user.click(await screen.findByText('新任务'))
-    expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await user.click(await screen.findByRole('button', { name: /预订周末去杭州的酒店/ }))
 
     expect(screen.getByTestId('e2e/tasks/detail/page#page')).toBeVisible()
@@ -320,7 +320,7 @@ describe('App', () => {
     renderApp()
     await user.click(screen.getByRole('button', { name: 'Skills' }))
     await user.click(screen.getByRole('button', { name: 'MCP' }))
-    expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   })
 
   it('opens model connection settings and returns to the application', async () => {
@@ -333,7 +333,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: '返回应用' }))
     expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '248')
-    expect(screen.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    expect(screen.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   })
 
   it('can start directly on the settings route', () => {

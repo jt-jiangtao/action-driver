@@ -11,7 +11,7 @@ const desktopRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 test('owns an embedded page and an independently launched Chrome session', async () => {
   test.setTimeout(60_000)
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-browser-e2e-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-browser-e2e-'))
   const server = createServer((request, response) => {
     response.writeHead(200, { 'content-type': 'text/html' })
     response.end(`<title>${request.url === '/second' ? 'Second' : 'First'}</title><h1>Browser acceptance</h1><input style="position:absolute;left:10px;top:55px;width:240px;height:40px" oninput="document.title='Typed '+this.value"><a href="/popup" target="_blank" style="position:absolute;left:10px;top:130px">Open popup</a>`)
@@ -25,11 +25,11 @@ test('owns an embedded page and an independently launched Chrome session', async
     application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: ['.', `--user-data-dir=${join(directory, 'data')}`],
       cwd: desktopRoot, env: { ...Object.fromEntries(Object.entries(process.env)
         .filter((entry): entry is [string, string] => typeof entry[1] === 'string')), HOME: directory,
-        ACTIONDRIVER_E2E_HOME_DIRECTORY: directory } })
+        ACTION_DRIVER_E2E_HOME_DIRECTORY: directory } })
     const page = await application.firstWindow()
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     const result = await page.evaluate(async (origin) => {
-      const api = window.actionDriverDesktop.browserSession
+      const api = window.productDesktop.browserSession
       const taskId = 'browser-acceptance'
       const embedded = await api.command({ action: 'open', taskId, surface: 'embedded' })
       if (!embedded?.sessionId || !embedded.activeTabId) throw new Error('embedded session missing')
@@ -105,11 +105,11 @@ test('shows the page opened and navigated by the task agent in the right browser
     application = await electron.launch({ executablePath: await getElectronForkExecutable(), args: ['.', `--user-data-dir=${join(directory, 'data')}`],
       cwd: desktopRoot, env: { ...Object.fromEntries(Object.entries(process.env)
         .filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
-        HOME: directory, ACTIONDRIVER_E2E_HOME_DIRECTORY: directory } })
+        HOME: directory, ACTION_DRIVER_E2E_HOME_DIRECTORY: directory } })
     const page = await application.firstWindow()
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await page.evaluate(async (baseUrl) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const endpoint = new URL(connection.wsUrl)
       endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:'
       endpoint.pathname = '/model-connections'
@@ -171,11 +171,11 @@ test('lets the agent open only its isolated Chrome from the CUA JS entry', async
       args: ['.', `--user-data-dir=${join(directory, 'data')}`], cwd: desktopRoot,
       env: { ...Object.fromEntries(Object.entries(process.env)
         .filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
-      HOME: directory, ACTIONDRIVER_E2E_HOME_DIRECTORY: directory } })
+      HOME: directory, ACTION_DRIVER_E2E_HOME_DIRECTORY: directory } })
     const page = await application.firstWindow()
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await page.evaluate(async (baseUrl) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const endpoint = new URL(connection.wsUrl)
       endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:'
       endpoint.pathname = '/model-connections'

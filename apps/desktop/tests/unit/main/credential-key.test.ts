@@ -6,7 +6,7 @@ import { resolveCredentialKey } from '../../../src/main/credential-key'
 
 describe('credential key resolution', () => {
   it('generates once and reads the same stable key on the next start', () => {
-    const userDataPath = mkdtempSync(join(tmpdir(), 'actiondriver-cred-'))
+    const userDataPath = mkdtempSync(join(tmpdir(), 'action-driver-cred-'))
 
     const first = resolveCredentialKey({ userDataPath })
     const second = resolveCredentialKey({ userDataPath })
@@ -16,7 +16,7 @@ describe('credential key resolution', () => {
   })
 
   it('replaces a corrupt key with a fresh one', () => {
-    const userDataPath = mkdtempSync(join(tmpdir(), 'actiondriver-cred-'))
+    const userDataPath = mkdtempSync(join(tmpdir(), 'action-driver-cred-'))
     const directory = join(userDataPath, 'data')
     mkdirSync(directory, { recursive: true })
     writeFileSync(join(directory, 'credential-secret'), 'v10-corrupt-value')

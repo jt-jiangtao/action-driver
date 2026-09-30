@@ -1,5 +1,5 @@
-import type { ActivityProjection, TaskTimelineProjectionItem } from '@actiondriver/contracts'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { ActivityProjection, TaskTimelineProjectionItem } from '@action-driver/contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 
 export type ActivityTimelineState = {
   cursor: number

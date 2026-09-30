@@ -157,7 +157,7 @@ public protocol SessionOverlayPresenting: AnyObject {
 /// Non-activating overlay plus a listen-only event tap feeding `SessionSupervision`.
 @MainActor
 public final class SessionOverlayController: SessionOverlayPresenting {
-    public static let overlayText = "ActionDriver 正在使用你的电脑 · Esc 取消"
+    public static let overlayText = "Action-Driver 正在使用你的电脑 · Esc 取消"
     private static let escapeKeyCode: Int64 = 53
 
     private let supervision: SessionSupervision

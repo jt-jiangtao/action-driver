@@ -13,11 +13,11 @@
 
 ## 3. 外部 Chrome 与 Agent 工具
 
-- [ ] 3.1 将自有 `createLocalBrowserHost` 通过 ActionDriver 适配层注入 `browser-desktop` 会话核心，作为外部 Chrome 表面；以隔离 profile 实机夹具验证 Agent 启动、操作、关闭和清理，且不附着用户原有 Chrome。
+- [ ] 3.1 将自有 `createLocalBrowserHost` 通过 Action-Driver 适配层注入 `browser-desktop` 会话核心，作为外部 Chrome 表面；以隔离 profile 实机夹具验证 Agent 启动、操作、关闭和清理，且不附着用户原有 Chrome。
 - [x] 3.2 为 `browser-use` 注册 Skill Provider，并让统一 CUA JS 工具按 browser/computer 表面分别执行授权；通过 Agent Runtime 定向测试验证未授权拒绝及内置、外部两种表面的实际调用。
 - [ ] 3.3 将人工接管和恢复与 Agent 命令执行联动；以定向并发测试验证接管期间 Agent 停止操作、恢复前重读页面、已关闭目标不重放。
-- [x] 3.4 使用还原的 `@actiondriver/cua` 合并会话和 `@actiondriver/cua-repl` 语义，将 Browser Use 与 Computer Use 接入同一持久 JS 工具及重置工具；定向测试覆盖跨调用变量、浏览器与桌面混合调用、重置和失败恢复。
-- [ ] 3.5 让 `browser-runtime` 独占通用 Browser/Tab 调用实现，`browser-desktop` 复用客户端并补齐桌面专有服务；将本机 Chrome 启动移至 ActionDriver 宿主适配。用独立服务/客户端对照及包依赖检查验证没有重复命令执行或循环依赖。
+- [x] 3.4 使用还原的 `@action-driver/cua` 合并会话和 `@action-driver/cua-repl` 语义，将 Browser Use 与 Computer Use 接入同一持久 JS 工具及重置工具；定向测试覆盖跨调用变量、浏览器与桌面混合调用、重置和失败恢复。
+- [ ] 3.5 让 `browser-runtime` 独占通用 Browser/Tab 调用实现，`browser-desktop` 复用客户端并补齐桌面专有服务；将本机 Chrome 启动移至 Action-Driver 宿主适配。用独立服务/客户端对照及包依赖检查验证没有重复命令执行或循环依赖。
 - [ ] 3.6 在可信 browser/computer RPC 分别执行任务归属、Skill/Policy Gate、取消、人工接管和目标身份检查；用混合 JS 单元验证任一表面授权不能越权到另一表面。
 - [x] 3.7 统一入口真实验收通过后移除模型可见的 `tools.local.browser-use.command`；工具卡片按实际表面显示标题、原始 JS 输入、文本/错误/图片输出，任务重新打开仍可见，浏览器截图 Base64 不作为正文。
 
@@ -38,7 +38,7 @@
 
 统一 CUA JS 增量证据（2026-09-28）：同一持久会话的 Browser/Computer 分权与混合调用、重置清理、截图资源、任务重载通过 Agent Runtime 28 项定向测试及真实 Electron 4 项定向用例；浏览器命令补上后退/前进/刷新、双击、移动、拖拽、单键、AX 截图及截图裁剪/整页参数，任务关闭等待尚在打开中的 Chrome。生产 CUA bundle 经定向扫描无 Codex 私有管道/路径，`apps/agent-runtime/vendor` 及构建副本不存在。候选 `browser-runtime` 服务源码仍有 11 项私有宿主/turn metadata 扫描结果；完整包隔离、打包和故障矩阵未完成，4.3、4.4、5.1 继续未勾选。
 
-生产依赖部署定向检查：`corepack pnpm --filter @actiondriver/agent-runtime deploy --prod /tmp/actiondriver-cua-runtime-deploy-check` 成功；部署后 `dist/js-repl/owned-cua.mjs` 存在、vendor 不存在，产物中无 `CODEX_HOME`、`SKY_CUA_SERVICE_PATH`、`nativePipe`、`Codex Computer Use.app` 或 `@oai/sky`；直接从部署目录创建 Browser-only CUA 会话可列出 `iab`。这不是正式打包 App 与完整源码服务隔离验收。
+生产依赖部署定向检查：`corepack pnpm --filter @action-driver/agent-runtime deploy --prod /tmp/action-driver-cua-runtime-deploy-check` 成功；部署后 `dist/js-repl/owned-cua.mjs` 存在、vendor 不存在，产物中无 `CODEX_HOME`、`SKY_CUA_SERVICE_PATH`、`nativePipe`、`Codex Computer Use.app` 或 `@oai/sky`；直接从部署目录创建 Browser-only CUA 会话可列出 `iab`。这不是正式打包 App 与完整源码服务隔离验收。
 
 提交门槛首次运行记录（2026-09-28）：`pnpm test:e2e:local` 6/9 通过；Computer Use 授权用例通过，预加载 API 新增 `browserSession` 的断言已更新，另 2 项设置与图片预览失败待查。macOS 打包检查首次被 `classic-level` 构建策略阻断；补充 allowBuilds 后 Desktop/Runtime 生产依赖部署定向通过。完整服务隔离仍有 22 项候选源码引用，联合 5.1 不标记完成。
 

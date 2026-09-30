@@ -5,7 +5,7 @@
 **Migration**: 删除侧栏入口、页面路由及专用外链 IPC；操作者从运维文档获取本地 Grafana/Phoenix 地址，在浏览器中直接查看。
 
 ### Requirement: 接口层日志使用真实数据源
-**Reason**: 接口日志的事实来源已迁到 Loki；ActionDriver 不再提供本机接口日志列表。
+**Reason**: 接口日志的事实来源已迁到 Loki；Action-Driver 不再提供本机接口日志列表。
 **Migration**: 移除接口日志读取服务与前端列表；在 Grafana/Loki 查询结构化调用摘要。
 
 ### Requirement: 筛选并刷新接口层日志
@@ -21,7 +21,7 @@
 **Migration**: 移除模型层 Mock 列表和相关筛选；从运维文档打开 Phoenix。
 
 ### Requirement: 以全页结构查看模型会话详情
-**Reason**: 完整模型调用详情由 Phoenix 展示，ActionDriver 不再维护第二套模型详情 UI。
+**Reason**: 完整模型调用详情由 Phoenix 展示，Action-Driver 不再维护第二套模型详情 UI。
 **Migration**: 从运维文档打开 Phoenix 页面；不再在应用中渲染自制模型详情。
 
 ### Requirement: 导航动态模型调用链并查看完整数据

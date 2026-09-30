@@ -14,8 +14,8 @@ import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { FakeOpenAiToolServer } from './support/fake-openai-tool-server'
 
-const appPath = process.env.ACTIONDRIVER_PACKAGED_APP
-test.skip(!appPath, 'Set ACTIONDRIVER_PACKAGED_APP to a macOS application bundle')
+const appPath = process.env.ACTION_DRIVER_PACKAGED_APP
+test.skip(!appPath, 'Set ACTION_DRIVER_PACKAGED_APP to a macOS application bundle')
 
 /** Reads the newest tool result the fake provider received, whatever turn order the app used. */
 function latestToolPayload(provider: FakeOpenAiToolServer): {
@@ -35,15 +35,15 @@ function latestToolPayload(provider: FakeOpenAiToolServer): {
 }
 
 test('packaged macOS app boots its bundled Runtime and authenticates the Renderer', async () => {
-  const userData = mkdtempSync(join(tmpdir(), 'actiondriver-packaged-data-'))
-  const home = mkdtempSync(join(tmpdir(), 'actiondriver-packaged-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'action-driver-packaged-data-'))
+  const home = mkdtempSync(join(tmpdir(), 'action-driver-packaged-home-'))
   const workspace = join(userData, 'workspace')
   mkdirSync(workspace, { recursive: true })
   writeFileSync(join(workspace, 'README.md'), 'needle is present in the packaged workspace\n')
   const provider = new FakeOpenAiToolServer('triple')
   await provider.start()
   const application = await electron.launch({
-    executablePath: join(appPath!, 'Contents', 'MacOS', 'ActionDriver'),
+    executablePath: join(appPath!, 'Contents', 'MacOS', 'Action-Driver'),
     args: [`--user-data-dir=${userData}`],
     env: {
       ...Object.fromEntries(
@@ -51,7 +51,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
       ),
       HOME: home,
       PATH: '/usr/bin:/bin',
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: home
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: home
     }
   })
   try {
@@ -67,18 +67,18 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     }))
     expect(runtime.isPackaged, JSON.stringify(runtime)).toBe(true)
     const provenance = JSON.parse(
-      readFileSync(join(appPath!, 'Contents', 'Resources', 'actiondriver-electron-provenance.json'), 'utf8')
+      readFileSync(join(appPath!, 'Contents', 'Resources', 'action-driver-electron-provenance.json'), 'utf8')
     )
-    expect(runtime.executablePath).toBe(realpathSync(join(appPath!, 'Contents', 'MacOS', 'ActionDriver')))
+    expect(runtime.executablePath).toBe(realpathSync(join(appPath!, 'Contents', 'MacOS', 'Action-Driver')))
     expect(runtime.electron).toBe(provenance.version)
     expect(runtime.chromium).toBe(provenance.chromiumVersion)
     expect(runtime.arch).toBe(provenance.arch)
     expect(provenance.repo).toBe('https://github.com/jt-jiangtao/electron.git')
     const page = await application.firstWindow()
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
-    expect(page.url()).toBe('actiondriver://renderer/index.html')
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
+    expect(page.url()).toBe('action-driver://renderer/index.html')
     const result = await page.evaluate(async () => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const url = new URL(connection.wsUrl)
       url.protocol = 'http:'
       url.pathname = '/model-connections'
@@ -90,7 +90,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     })
     expect(result).toEqual({ authorized: 200, unauthorized: 401 })
     const packagedSkills = await page.evaluate(async () => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const url = new URL(connection.wsUrl)
       url.protocol = 'http:'
       url.pathname = '/agent-files/skills'
@@ -113,7 +113,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(packagedSkills.value).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'computer-use', source: 'plugin' })]))
     const root = join(appPath!, 'Contents', 'Resources', 'agent-runtime', 'dist')
     const target = join(root, 'runtimes', `darwin-${process.arch}`)
-    const env = { ...process.env, HOME: '/nonexistent-actiondriver-home', PATH: '/usr/bin:/bin' }
+    const env = { ...process.env, HOME: '/nonexistent-action-driver-home', PATH: '/usr/bin:/bin' }
     const python = join(target, 'python', 'bin', 'python3')
     const node = join(target, 'node', 'bin', 'node')
     const py = execFileSync(
@@ -144,7 +144,7 @@ test('packaged macOS app boots its bundled Runtime and authenticates the Rendere
     expect(bundled.js.builtIn).toBe(true)
     expect(bundled.shell).toContain('needle')
     await page.evaluate(async (baseUrl) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const url = new URL(connection.wsUrl)
       url.protocol = 'http:'
       url.pathname = '/model-connections'

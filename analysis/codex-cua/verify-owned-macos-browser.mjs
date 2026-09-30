@@ -14,16 +14,16 @@ const hostModule = join(root, 'apps/desktop/out/tools/local-browser-host.mjs')
 await mkdir(dirname(hostModule), { recursive: true })
 await build({ entryPoints: [join(root, 'apps/desktop/src/main/browser-session/local-browser-host.ts')],
   outfile: hostModule, bundle: true, platform: 'node', format: 'esm',
-  external: ['playwright-core', '@actiondriver/browser-runtime'] })
+  external: ['playwright-core', '@action-driver/browser-runtime'] })
 const { createLocalBrowserHost } = await import(pathToFileURL(hostModule).href)
 const server = createServer((_request, response) => {
   response.writeHead(200, { 'content-type': 'text/html' })
-  response.end('<!doctype html><title>ActionDriver fixture</title><h1 id="ready">Ready</h1><input id="entry" onkeydown="if(event.key===\'Enter\')document.body.dataset.enter=\'yes\'"><button id="submit" onclick="document.querySelector(\'#ready\').textContent=document.querySelector(\'#entry\').value" ondblclick="document.body.dataset.doubleClick=\'yes\'">Apply</button>')
+  response.end('<!doctype html><title>Action-Driver fixture</title><h1 id="ready">Ready</h1><input id="entry" onkeydown="if(event.key===\'Enter\')document.body.dataset.enter=\'yes\'"><button id="submit" onclick="document.querySelector(\'#ready\').textContent=document.querySelector(\'#entry\').value" ondblclick="document.body.dataset.doubleClick=\'yes\'">Apply</button>')
 })
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const address = server.address()
 if (!address || typeof address === 'string') throw Error('Local fixture failed to bind')
-const profileRoot = await mkdtemp(join(tmpdir(), 'actiondriver-owned-browser-'))
+const profileRoot = await mkdtemp(join(tmpdir(), 'action-driver-owned-browser-'))
 let host
 try {
   host = await createLocalBrowserHost({ profileRoot })
@@ -34,7 +34,7 @@ try {
   const url = `http://127.0.0.1:${address.port}/`
   await host.execute({ type: 'navigate_tab_url', browser_id: browser.id, tab_id: tab.id, url })
   const state = await host.execute({ type: 'get_tab', browser_id: browser.id, tab_id: tab.id })
-  assert.equal(state.title, 'ActionDriver fixture')
+  assert.equal(state.title, 'Action-Driver fixture')
   const cdp = await host.execute({ type: 'tab_cdp_call', browser_id: browser.id, tab_id: tab.id,
     method: 'Runtime.evaluate', params: {
       expression: 'document.querySelector("#ready").textContent', returnByValue: true

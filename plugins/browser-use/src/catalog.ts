@@ -1,4 +1,4 @@
-import type { PluginCatalog } from '@actiondriver/plugin-sdk'
+import type { PluginCatalog } from '@action-driver/plugin-sdk'
 
 /** Browser Use contributes instructions; the model calls the shared CUA JS entry. */
 export const catalog: PluginCatalog = {

@@ -1,1 +1,1 @@
-await import("@actiondriver/cua/tinysky-alt");
+await import("@action-driver/cua/tinysky-alt");

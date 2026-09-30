@@ -1,6 +1,6 @@
 ## Purpose
 
-定义随 ActionDriver 桌面应用运行的本地 Agent Runtime 行为，使任务能够在不依赖远程会话状态的情况下执行、暂停、恢复并通过 Skill 调用桌面能力。
+定义随 Action-Driver 桌面应用运行的本地 Agent Runtime 行为，使任务能够在不依赖远程会话状态的情况下执行、暂停、恢复并通过 Skill 调用桌面能力。
 
 ## ADDED Requirements
 
@@ -8,7 +8,7 @@
 系统 MUST 在 Renderer 之外的本地独立进程中运行 Agent Loop，并由 Electron Main 启动、监督和关闭该进程。
 
 #### Scenario: 启动桌面应用
-- **WHEN** 用户启动 ActionDriver
+- **WHEN** 用户启动 Action-Driver
 - **THEN** Electron Main 启动单一 Agent Runtime 实例，并只在运行时完成就绪检查后接受任务命令
 
 #### Scenario: Runtime 尚未就绪
@@ -42,7 +42,7 @@
 - **THEN** Runtime 从最近一次安全恢复点继续，并保持同一任务和运行线程标识
 
 ### Requirement: 模型推理不拥有会话历史
-系统 MUST 将模型推理作为可替换的远程调用边界，并且远程推理服务不得成为 ActionDriver 任务、消息、步骤或 checkpoint 的持久化事实来源。
+系统 MUST 将模型推理作为可替换的远程调用边界，并且远程推理服务不得成为 Action-Driver 任务、消息、步骤或 checkpoint 的持久化事实来源。
 
 #### Scenario: 请求模型推理
 - **WHEN** Agent Loop 需要模型输出

@@ -1,9 +1,9 @@
 {
-  "name": "@actiondriver/cua-parity",
+  "name": "@action-driver/cua-parity",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Offline parity tooling that diffs the ActionDriver-owned CUA packages against the immutable original bundles in thirdparty/backup and reports interface, baseline and service-isolation differences.",
+  "description": "Offline parity tooling that diffs the Action-Driver-owned CUA packages against the immutable original bundles in thirdparty/backup and reports interface, baseline and service-isolation differences.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

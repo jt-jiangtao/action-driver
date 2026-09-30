@@ -1,8 +1,8 @@
-import { toolPresentationSchema, toolDetailsSchema } from '@actiondriver/plugin-contracts'
-import type { ModelRef } from '@actiondriver/contracts'
+import { toolPresentationSchema, toolDetailsSchema } from '@action-driver/plugin-contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import { z } from 'zod'
 
-export const STREAM_PROTOCOL = 'actiondriver.stream.v2' as const
+export const STREAM_PROTOCOL = 'action-driver.stream.v2' as const
 
 const idSchema = z.string().trim().min(1)
 const timestampSchema = z.string().trim().min(1)

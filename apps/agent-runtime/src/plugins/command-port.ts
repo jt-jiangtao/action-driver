@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { PluginError, type InvocationContext, type Json } from '@actiondriver/plugin-contracts'
-import type { ToolCall, ToolExecutor, ToolExecutionContext } from '@actiondriver/runtime-contracts'
+import { PluginError, type InvocationContext, type Json } from '@action-driver/plugin-contracts'
+import type { ToolCall, ToolExecutor, ToolExecutionContext } from '@action-driver/runtime-contracts'
 export function createCommandExecutionPort(
   tools: Array<{ definition: { id: string; version: number; modelName: string }; executor: ToolExecutor }>,
   contexts: { resolve(taskId: string): Promise<ToolExecutionContext> },

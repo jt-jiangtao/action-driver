@@ -1,5 +1,5 @@
-import type { ModelRef } from '@actiondriver/contracts'
-import type { ModelCapability } from '@actiondriver/model-connections'
+import type { ModelRef } from '@action-driver/contracts'
+import type { ModelCapability } from '@action-driver/model-connections'
 import type { ModelConnection } from './model-connections'
 
 export type ModelSelectionState = 'loading' | 'ready' | 'empty' | 'error'

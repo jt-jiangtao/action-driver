@@ -1,5 +1,5 @@
-import { sky } from '@actiondriver/sky'
-import { setupBrowserRuntime } from '@actiondriver/browser-runtime'
+import { sky } from '@action-driver/sky'
+import { setupBrowserRuntime } from '@action-driver/browser-runtime'
 import { createLegacyCUAFacade } from './legacy-facade.js'
 import type { LegacyCUAFacade } from './legacy-facade.js'
 type DefaultAgent = Awaited<ReturnType<typeof setupBrowserRuntime>>

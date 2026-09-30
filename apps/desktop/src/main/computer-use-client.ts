@@ -7,7 +7,7 @@ import {
   computerHelperRequest,
   computerHelperResponse,
   type ComputerHelperRequest
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 type Pending = {
   resolve(value: unknown): void
@@ -21,7 +21,7 @@ export type ComputerUseClientOptions = {
   helperPath: string
   socketPath: string
   tokenPath: string
-  /** ActionDriver's own .app; the helper refuses to drive it (D9). */
+  /** Action-Driver's own .app; the helper refuses to drive it (D9). */
   ownerAppPath?: string
   /** Overridable for tests; production launches the signed helper through LaunchServices. */
   launch?(helperPath: string, socketPath: string, tokenPath: string, ownerAppPath?: string): void
@@ -30,7 +30,7 @@ export type ComputerUseClientOptions = {
 
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
-/** `open` arguments that start the helper; it can only recognize ActionDriver itself by path. */
+/** `open` arguments that start the helper; it can only recognize Action-Driver itself by path. */
 export function helperLaunchArguments(
   helperPath: string,
   socketPath: string,
@@ -41,7 +41,7 @@ export function helperLaunchArguments(
     ...(ownerAppPath ? ['--owner-app', ownerAppPath] : [])]
 }
 
-/** The .app bundle an executable runs from (ActionDriver ships as a renamed Electron.app). */
+/** The .app bundle an executable runs from (Action-Driver ships as a renamed Electron.app). */
 export function owningAppBundle(executablePath: string): string | undefined {
   const match = /^(.*?\.app)\/Contents\/MacOS\/[^/]+$/.exec(executablePath)
   return match?.[1]

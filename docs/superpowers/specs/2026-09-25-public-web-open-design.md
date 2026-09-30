@@ -2,7 +2,7 @@
 
 ## 目标与裁决
 
-ActionDriver 的 `web_search` 已能找到公开网页，但只返回摘要。新 `web_open` 接收一个 URL，读取单个静态 HTML 页面的标题、正文和最终来源。用户已确认独立静态工具，以及仅允许公网 HTTP(S)；本机、内网与私有地址，包括重定向后的地址，都必须被拒绝。完成标准见 [OpenSpec 行为规格](../../../openspec/changes/add-web-open/specs/public-web-page-reading/spec.md)。
+Action-Driver 的 `web_search` 已能找到公开网页，但只返回摘要。新 `web_open` 接收一个 URL，读取单个静态 HTML 页面的标题、正文和最终来源。用户已确认独立静态工具，以及仅允许公网 HTTP(S)；本机、内网与私有地址，包括重定向后的地址，都必须被拒绝。完成标准见 [OpenSpec 行为规格](../../../openspec/changes/add-web-open/specs/public-web-page-reading/spec.md)。
 
 此变更为产品与架构决策型。Battle 检查了搜索摘要不足、Browser Skill 尚未实施、出站网络与提示注入边界。备选是先完成 Browser Skill 再读取 DOM，它可处理动态站点，但明显扩大首版的导航、会话和 UI 范围。推荐并最终裁决独立的单页静态读取。没有用户覆盖项，也没有未解决的关键分歧。
 

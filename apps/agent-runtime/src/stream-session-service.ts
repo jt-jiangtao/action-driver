@@ -2,14 +2,14 @@ import {
   projectToolDetails,
   toolPresentationSchema,
   type ToolPresentation
-} from '@actiondriver/plugin-contracts'
+} from '@action-driver/plugin-contracts'
 import {
   STREAM_PROTOCOL,
   parseStreamServerEvent,
   type RequestCreateEvent,
   type StreamClientEvent,
   type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import {
   appendActivityAnchor,
   insertPartByOrder,
@@ -17,8 +17,8 @@ import {
   nextPartOrder,
   normalizeAssistantParts,
   type MessageContentPart
-} from '@actiondriver/contracts'
-import type { ModelInputMessage } from '@actiondriver/model-connections'
+} from '@action-driver/contracts'
+import type { ModelInputMessage } from '@action-driver/model-connections'
 import type { SessionAssetStore } from './media/session-asset-store'
 import type { AppApprovalBroker, AppApprovalEvent } from './computer-use/app-approval-broker'
 import type { BoundInputFile, SessionInputFileStore } from './media/session-input-file-store'

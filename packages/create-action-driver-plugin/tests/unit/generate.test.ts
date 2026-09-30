@@ -10,11 +10,11 @@ import { PluginInstructionHost } from '../../../../apps/agent-runtime/src/plugin
 import { RuntimeToolRegistry } from '../../../../apps/agent-runtime/src/tool-registry'
 import { NodePluginHostFactory } from '../../../../apps/agent-runtime/src/plugins/process-host'
 import { PluginManager } from '../../../../apps/agent-runtime/src/plugins/manager'
-import { PLUGIN_UI_PROTOCOL_VERSION, validateManifest, validateCatalog } from '@actiondriver/plugin-contracts'
+import { PLUGIN_UI_PROTOCOL_VERSION, validateManifest, validateCatalog } from '@action-driver/plugin-contracts'
 const run = promisify(execFile)
 import { generatePlugin } from '../../src/generate.mjs'
 const temporary: string[] = []
-async function directory() { const path = await mkdtemp(join(tmpdir(), 'actiondriver-generator-')); temporary.push(path); return path }
+async function directory() { const path = await mkdtemp(join(tmpdir(), 'action-driver-generator-')); temporary.push(path); return path }
 afterEach(async () => { await Promise.all(temporary.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
 describe('plugin generator', () => {
   it('creates a same-package catalog, skill, execution and lifecycle with npm SDK dependency', async () => {
@@ -22,7 +22,7 @@ describe('plugin generator', () => {
     await generatePlugin({ id: 'example-tools', directory: target })
     const pkg = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'))
     const manifest = JSON.parse(await readFile(join(target, 'plugin.json'), 'utf8'))
-    expect(pkg.dependencies).toEqual({ '@actiondriver/plugin-sdk': '^1.0.0' })
+    expect(pkg.dependencies).toEqual({ '@action-driver/plugin-sdk': '^1.0.0' })
     expect(pkg.exports).toEqual({ '.': './dist/extension.js', './catalog': './dist/catalog.js', './presentation': './dist/presentation.js' })
     expect(manifest.entry).toBe('dist/extension.js')
     expect(manifest.catalog).toBe('dist/catalog.js')
@@ -53,7 +53,7 @@ describe('packaged SDK and generated plugin', () => {
       await run('corepack', ['pnpm', '--dir', resolve('packages', pkg), 'pack', '--pack-destination', root])
     }
     await generatePlugin({ id: 'generated', directory: project })
-    await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(root, 'actiondriver-plugin-contracts-1.0.0.tgz'), join(root, 'actiondriver-plugin-sdk-1.0.0.tgz')], { cwd: project })
+    await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(root, 'action-driver-plugin-contracts-1.0.0.tgz'), join(root, 'action-driver-plugin-sdk-1.0.0.tgz')], { cwd: project })
     await run('npm', ['test'], { cwd: project })
     const manifest = validateManifest(JSON.parse(await readFile(join(project, 'plugin.json'), 'utf8')), { sdk: '1.0.0', platform: 'darwin-arm64', uiProtocol: PLUGIN_UI_PROTOCOL_VERSION })
     // A separate Node process imports only generated dist and installed tarballs.
@@ -87,8 +87,8 @@ describe('packaged SDK and generated plugin', () => {
     } finally { await platform.dispose() }
     await expect(files.readEnabledSkillFile('generated.hello')).rejects.toThrow('Skill 未启用')
 
-    const packedSDK = JSON.parse(await readFile(join(project, 'node_modules/@actiondriver/plugin-sdk/package.json'), 'utf8'))
-    expect(packedSDK.dependencies).toEqual({ '@actiondriver/plugin-contracts': '1.0.0' })
+    const packedSDK = JSON.parse(await readFile(join(project, 'node_modules/@action-driver/plugin-sdk/package.json'), 'utf8'))
+    expect(packedSDK.dependencies).toEqual({ '@action-driver/plugin-contracts': '1.0.0' })
     const packed = await run('npm', ['pack', '--json'], { cwd: project })
     expect(JSON.parse(packed.stdout)[0].files.map((file: { path: string }) => file.path)).toContain('skills/hello/SKILL.md')
   }, 60000)

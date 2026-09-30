@@ -1,0 +1,6 @@
+interface:
+  display_name: "Action-Driver Optimization"
+  short_description: "Evidence-first performance and architecture optimization for Action-Driver"
+  default_prompt: "Use $action-driver-optimization to analyze this Action-Driver optimization request and propose evidence-backed improvements."
+policy:
+  allow_implicit_invocation: true

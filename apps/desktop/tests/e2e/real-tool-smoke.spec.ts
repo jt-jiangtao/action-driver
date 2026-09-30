@@ -12,10 +12,10 @@ import {
   type Page
 } from '@playwright/test'
 
-const sourceProfile = process.env.ACTIONDRIVER_REAL_SMOKE_PROFILE
+const sourceProfile = process.env.ACTION_DRIVER_REAL_SMOKE_PROFILE
 const desktopRoot = fileURLToPath(new URL('../..', import.meta.url))
 
-test.skip(!sourceProfile, 'Set ACTIONDRIVER_REAL_SMOKE_PROFILE to run against a saved connection')
+test.skip(!sourceProfile, 'Set ACTION_DRIVER_REAL_SMOKE_PROFILE to run against a saved connection')
 
 async function runtimeTask(
   page: Page,
@@ -25,7 +25,7 @@ async function runtimeTask(
   messages: Array<{ content: unknown }>
 } | null> {
   return await page.evaluate(async (id) => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = `/tasks/${encodeURIComponent(id)}`
@@ -43,7 +43,7 @@ async function runtimeTask(
 
 test('calls a saved real model and observes a real shell file read', async () => {
   test.setTimeout(90_000)
-  const temporaryProfile = mkdtempSync(join(tmpdir(), 'actiondriver-real-tool-smoke-'))
+  const temporaryProfile = mkdtempSync(join(tmpdir(), 'action-driver-real-tool-smoke-'))
   const userDataPath = join(temporaryProfile, 'user-data')
   const dataPath = join(userDataPath, 'data')
   const workspacePath = join(userDataPath, 'workspace')
@@ -51,8 +51,8 @@ test('calls a saved real model and observes a real shell file read', async () =>
   mkdirSync(workspacePath, { recursive: true })
   const sourceData = join(sourceProfile!, 'data')
   execFileSync('sqlite3', [
-    join(sourceData, 'actiondriver.db'),
-    `.backup "${join(dataPath, 'actiondriver.db')}"`
+    join(sourceData, 'action-driver.db'),
+    `.backup "${join(dataPath, 'action-driver.db')}"`
   ])
   copyFileSync(join(sourceData, 'credential-secret'), join(dataPath, 'credential-secret'))
   // Session workspaces isolate scripts from the shared workspace root, so the
@@ -60,7 +60,7 @@ test('calls a saved real model and observes a real shell file read', async () =>
   writeFileSync(
     join(workspacePath, 'SMOKE_INSTRUCTIONS.md'),
     'Use tools_local_command_shell_run to create this marker inside the session working directory first:\n' +
-      'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923\n'
+      'ACTION_DRIVER_REAL_TOOL_SMOKE_MARKER_20260923\n'
   )
   let application: ElectronApplication | undefined
   try {
@@ -74,17 +74,17 @@ test('calls a saved real model and observes a real shell file read', async () =>
           )
         ),
         HOME: join(temporaryProfile, 'home'),
-        ACTIONDRIVER_E2E_HOME_DIRECTORY: join(temporaryProfile, 'home')
+        ACTION_DRIVER_E2E_HOME_DIRECTORY: join(temporaryProfile, 'home')
       }
     })
     const page = await application.firstWindow()
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     await page.getByRole('button', { name: /当前模型/ }).click()
     await page.getByRole('option', { name: 'qwen3.7-max' }).click()
     await page
       .getByLabel('任务描述')
       .fill(
-        '请调用 tools_local_command_shell_run：先在当前工作目录写入 SMOKE.md，内容为 ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923，' +
+        '请调用 tools_local_command_shell_run：先在当前工作目录写入 SMOKE.md，内容为 ACTION_DRIVER_REAL_TOOL_SMOKE_MARKER_20260923，' +
           '然后读回并准确返回这一行。不要猜测文件内容。'
       )
     await page.getByLabel('发送').click()
@@ -99,7 +99,7 @@ test('calls a saved real model and observes a real shell file read', async () =>
       .not.toBe('running')
     const persisted = await runtimeTask(page, taskId!)
     expect(persisted?.messages.at(-1)?.content).toContain(
-      'ACTIONDRIVER_REAL_TOOL_SMOKE_MARKER_20260923'
+      'ACTION_DRIVER_REAL_TOOL_SMOKE_MARKER_20260923'
     )
   } finally {
     await application?.close()

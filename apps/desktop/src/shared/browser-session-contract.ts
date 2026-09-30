@@ -7,7 +7,7 @@ import type {
   BrowserSessionControl,
   BrowserSessionSnapshot,
   BrowserSurface
-} from '@actiondriver/browser-desktop'
+} from '@action-driver/browser-desktop'
 
 export type BrowserSessionRequest =
   | { action: 'open'; taskId: string; surface: BrowserSurface }

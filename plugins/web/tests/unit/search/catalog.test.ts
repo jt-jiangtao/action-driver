@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { catalog } from '../../../src/search/catalog'
 import { activate } from '../../../src/search/extension'
-import { createPluginContext } from '@actiondriver/plugin-sdk'
+import { createPluginContext } from '@action-driver/plugin-sdk'
 describe('search plugin catalog and lifecycle', () => {
   it('exposes a complete schema before configuration or activation without granting tools', () => {
     expect(catalog.tools[0]).toMatchObject({ id: 'tools/local/web/search', version: 1, modelName: 'tools_local_web_search', inputSchema: { required: ['query'], additionalProperties: false } })

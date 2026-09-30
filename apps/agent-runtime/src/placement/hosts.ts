@@ -5,7 +5,7 @@ import {
   PLACEMENT_PROTOCOL_VERSION,
   PLACEMENT_WORKSPACE_REQUIREMENTS,
   type PlacementLocation
-} from '@actiondriver/plugin-contracts'
+} from '@action-driver/plugin-contracts'
 
 export const PLACEMENT_ERROR_CODES = [
   'PLACEMENT_NO_HOST',

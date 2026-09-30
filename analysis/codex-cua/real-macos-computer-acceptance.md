@@ -1,6 +1,6 @@
 # macOS Computer Use 客户端实机对照（2026-09-28）
 
-本记录验证候选 `@actiondriver/sky` **客户端**调用现有原版 `sky` 特权服务的可观察结果。候选 Sky 服务另有隔离宿主中的只读发现验收记录，见 [real-macos-sky-service-acceptance.md](real-macos-sky-service-acceptance.md)；两项局部验证均不能认定整体依赖可替换。
+本记录验证候选 `@action-driver/sky` **客户端**调用现有原版 `sky` 特权服务的可观察结果。候选 Sky 服务另有隔离宿主中的只读发现验收记录，见 [real-macos-sky-service-acceptance.md](real-macos-sky-service-acceptance.md)；两项局部验证均不能认定整体依赖可替换。
 
 ## 运行边界
 
@@ -20,4 +20,4 @@
 
 ## 尚需验证
 
-候选 `@actiondriver/sky/service` 的 `setup` 与 `list_apps` 已在隔离特权宿主中运行；授权后的 AX/截图/动作和资源清理尚未由候选服务端验收。音频、拖拽、剪贴板、跨窗口状态和异常路径还须独立实机对照。生产仍加载原包。
+候选 `@action-driver/sky/service` 的 `setup` 与 `list_apps` 已在隔离特权宿主中运行；授权后的 AX/截图/动作和资源清理尚未由候选服务端验收。音频、拖拽、剪贴板、跨窗口状态和异常路径还须独立实机对照。生产仍加载原包。

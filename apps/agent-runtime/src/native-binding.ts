@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const ELECTRON_NATIVE_BINDING_ENV = 'ACTIONDRIVER_RUNTIME_NATIVE_BINDING'
+export const ELECTRON_NATIVE_BINDING_ENV = 'ACTION_DRIVER_RUNTIME_NATIVE_BINDING'
 export const NATIVE_BINDING_METADATA_FILE = 'binding.json'
 export const NATIVE_BINDING_FILE = 'better_sqlite3.node'
 

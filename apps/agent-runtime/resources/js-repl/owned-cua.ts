@@ -1,9 +1,9 @@
-import { createCUASession } from '@actiondriver/cua/computer'
-import { createActionDriverSky } from '@actiondriver/sky/actiondriver'
-import { setupBrowserDesktop } from '@actiondriver/browser-desktop'
-import { readApiManifest, readBrowserDocument } from '@actiondriver/browser-runtime'
+import { createCUASession } from '@action-driver/cua/computer'
+import { createProductSky } from '@action-driver/sky/action-driver'
+import { setupBrowserDesktop } from '@action-driver/browser-desktop'
+import { readApiManifest, readBrowserDocument } from '@action-driver/browser-runtime'
 import { randomUUID } from 'node:crypto'
-import type { ComputerHelperRequest } from '@actiondriver/runtime-contracts'
+import type { ComputerHelperRequest } from '@action-driver/runtime-contracts'
 
 export function createOwnedCua(
   request: (input: ComputerHelperRequest) => Promise<unknown>,
@@ -54,7 +54,7 @@ export function createOwnedCua(
     }
   }).then((agent) => createCUASession({
     agent,
-    computer: createActionDriverSky({ request }, { sessionId: randomUUID() }),
+    computer: createProductSky({ request }, { sessionId: randomUUID() }),
     getHost: () => host
   }))
 }

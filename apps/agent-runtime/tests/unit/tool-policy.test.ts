@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ToolCall, ToolDefinition } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolDefinition } from '@action-driver/runtime-contracts'
 import { RuntimeToolPolicy } from '../../src/tool-policy'
 import { createTavilySearchTool } from '../../../../plugins/web/src/search/tavily'
 

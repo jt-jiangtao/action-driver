@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createBrowserDesktopSessionController } from '@actiondriver/browser-desktop'
-import type { BrowserDesktopHostSession } from '@actiondriver/browser-desktop'
+import { createBrowserDesktopSessionController } from '@action-driver/browser-desktop'
+import type { BrowserDesktopHostSession } from '@action-driver/browser-desktop'
 
 function makeController() {
   const operations: string[] = []

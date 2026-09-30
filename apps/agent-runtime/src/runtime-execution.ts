@@ -10,8 +10,8 @@ export async function createRuntimeExecutionEnvironment(options: {
 }) {
   const { runtimeEntry, workspaceRoot, environment } = options
   const runtimeDist = resolve(dirname(runtimeEntry), runtimeEntry.endsWith('.ts') ? '../dist' : '.')
-  const agentHome = environment.ACTIONDRIVER_AGENT_HOME?.trim() || workspaceRoot
-  const timeoutOverride = Number(environment.ACTIONDRIVER_SCRIPT_TIMEOUT_MS)
+  const agentHome = environment.ACTION_DRIVER_AGENT_HOME?.trim() || workspaceRoot
+  const timeoutOverride = Number(environment.ACTION_DRIVER_SCRIPT_TIMEOUT_MS)
   const sandbox = new SessionSandbox({
     runtimeRoots: [runtimeDist, join(agentHome, '.action-driver', 'skills')]
   })

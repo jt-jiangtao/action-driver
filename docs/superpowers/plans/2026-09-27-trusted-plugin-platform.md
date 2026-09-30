@@ -47,12 +47,12 @@
 
 ### Task 3: npm create 脚手架（OpenSpec 1.6）
 
-**Files:** packages/create-actiondriver-plugin/{package.json,src/index.mjs,src/generate.mjs,templates} 与 generate.test.ts。
+**Files:** packages/create-action-driver-plugin/{package.json,src/index.mjs,src/generate.mjs,templates} 与 generate.test.ts。
 **Interfaces:** Consumes npm plugin-sdk，PluginModule/PluginCatalog；Produces generatePlugin({id,directory,sdkVersion}): Promise<void> 与 CLI bin。
 
 - [ ] RED：非空目录和非法 ID 不写；生成包能构建、读目录、真实宿主加载和停用。
 - [x] GREEN：原子临时目录生成，同包 skills/src/catalog/src/extension/src/execution，build/test/package 配置。
-- [x] Verify：corepack pnpm vitest run packages/create-actiondriver-plugin/src/generate.test.ts。Expected: 生成项目完整行为通过。
+- [x] Verify：corepack pnpm vitest run packages/create-action-driver-plugin/src/generate.test.ts。Expected: 生成项目完整行为通过。
 
 ### Task 4: 首个 search 迁移（OpenSpec 5.1）
 

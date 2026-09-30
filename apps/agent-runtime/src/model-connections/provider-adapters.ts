@@ -1,4 +1,4 @@
-import type { ModelProtocol } from '@actiondriver/model-connections'
+import type { ModelProtocol } from '@action-driver/model-connections'
 import type { HttpTransport } from './http-transport'
 import { createAnthropicAdapter } from './anthropic-adapter'
 import {

@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import type { AgentMessageProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import type { AgentMessageProjection, ToolInvocationProjection } from '@action-driver/contracts'
 import { MarkdownContent } from '../MarkdownContent'
 import type { ImageReader } from './ConversationImage'
 import { ImageGallery } from './ImageGallery'

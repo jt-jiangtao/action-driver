@@ -44,11 +44,11 @@ public final class ComputerUseWire {
             case ComputerUseError.cancelled, is CancellationError:
                 code = "CANCELLED"; message = "Request cancelled"
             case NativeComputerUseError.accessibilityDenied:
-                code = "ACCESSIBILITY_DENIED"; message = "Enable Accessibility for ActionDriver Computer Use"
+                code = "ACCESSIBILITY_DENIED"; message = "Enable Accessibility for Action-Driver Computer Use"
             case NativeComputerUseError.screenRecordingDenied:
-                code = "SCREEN_RECORDING_DENIED"; message = "Enable Screen Recording for ActionDriver Computer Use"
+                code = "SCREEN_RECORDING_DENIED"; message = "Enable Screen Recording for Action-Driver Computer Use"
             case NativeComputerUseError.eventPostingDenied:
-                code = "ACCESSIBILITY_DENIED"; message = "Allow ActionDriver Computer Use to control the Mac"
+                code = "ACCESSIBILITY_DENIED"; message = "Allow Action-Driver Computer Use to control the Mac"
             case NativeComputerUseError.noFrontmostApplication:
                 code = "ENGINE_UNAVAILABLE"; message = "No foreground application"
             case NativeComputerUseError.selfIsFrontmost:

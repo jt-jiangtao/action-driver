@@ -7,18 +7,18 @@ export default defineConfig({
     plugins: [
       externalizeDepsPlugin({
         exclude: [
-          '@actiondriver/runtime-contracts',
-          '@actiondriver/plugin-contracts',
-          '@actiondriver/plugin-sdk',
-          '@actiondriver/model-connections',
-          '@actiondriver/observability'
+          '@action-driver/runtime-contracts',
+          '@action-driver/plugin-contracts',
+          '@action-driver/plugin-sdk',
+          '@action-driver/model-connections',
+          '@action-driver/observability'
         ]
       })
     ]
   },
   preload: {
     plugins: [
-      externalizeDepsPlugin({ exclude: ['@actiondriver/model-connections'] })
+      externalizeDepsPlugin({ exclude: ['@action-driver/model-connections'] })
     ],
     build: {
       rollupOptions: {

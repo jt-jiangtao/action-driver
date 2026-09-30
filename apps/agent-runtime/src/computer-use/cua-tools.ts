@@ -1,11 +1,11 @@
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 import type {
   ToolDefinition,
   ToolExecutor,
   ToolExecutorEvent,
   ToolExecutionContext
-} from '@actiondriver/runtime-contracts'
-import { catalog } from '@actiondriver/computer-use-plugin/catalog'
+} from '@action-driver/runtime-contracts'
+import { catalog } from '@action-driver/computer-use-plugin/catalog'
 import { createCuaRuntime } from './cua-runtime'
 import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
 

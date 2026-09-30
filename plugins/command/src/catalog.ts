@@ -1,5 +1,5 @@
 import { presentations } from './presentation.js'
-import type { PluginCatalog, ToolDefinition } from '@actiondriver/plugin-sdk'
+import type { PluginCatalog, ToolDefinition } from '@action-driver/plugin-sdk'
 type Kind = 'shell' | 'python' | 'node' | 'ts'
 
 const inputSchema: ToolDefinition['inputSchema'] = {

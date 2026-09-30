@@ -18,7 +18,7 @@
 
 ## Impact
 
-- 服务端：`ModelGateway` 增加真实实现（协议适配复用 `@actiondriver/model-connections`），新增模型选择解析与调用记录。
+- 服务端：`ModelGateway` 增加真实实现（协议适配复用 `@action-driver/model-connections`），新增模型选择解析与调用记录。
 - Agent Loop：`plan` 节点消费真实输出；失败/超时进入可诊断状态；步骤投影包含模型决策摘要。
 - 客户端：模型选择器选中项随任务提交传给服务端；时间线展示真实步骤。
 - 测试：真实调用使用本地假服务端或注入传输端口，不访问真实供应商；网络路径使用注入替身。

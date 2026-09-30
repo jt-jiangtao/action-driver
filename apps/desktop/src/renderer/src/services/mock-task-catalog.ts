@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import type { RecentTaskSummary, TaskCatalog } from '../models/task-catalog'
 import { mockBrowserSkillProjection } from './mock-task-fixture'
 

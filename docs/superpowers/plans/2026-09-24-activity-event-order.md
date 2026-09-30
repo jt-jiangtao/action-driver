@@ -114,7 +114,7 @@ await observer?.({ kind: 'activity', event: {
 
 Persist and forward these through `StreamSessionService`. Keep `response.content` for the stored assistant message, but do not use it to render process order. If a model call emits zero text, emit no text item.
 
-- [ ] **Step 4: Run GREEN.** Run all Task 2 Vitest files and `corepack pnpm --filter @actiondriver/agent-runtime typecheck`.
+- [ ] **Step 4: Run GREEN.** Run all Task 2 Vitest files and `corepack pnpm --filter @action-driver/agent-runtime typecheck`.
 - [ ] **Step 5: Commit this tested unit.** Stage only Task 2 files and commit `feat: classify streamed activity text`.
 
 ### Task 3: Make cursor-ordered projection and snapshots agree
@@ -190,7 +190,7 @@ await current
 
 Do not sort by `occurredAt`. Keep the new `textId` optional when parsing historical events and use `eventId` as a fallback for those records; new emissions must always include `textId`. Keep current public snapshot fields only if they are used by the renderer; remove newly redundant fields only after consumer search.
 
-- [ ] **Step 4: Run GREEN.** Run Task 3 tests, `corepack pnpm --filter @actiondriver/runtime-contracts typecheck`, and `corepack pnpm --filter @actiondriver/agent-runtime typecheck`.
+- [ ] **Step 4: Run GREEN.** Run Task 3 tests, `corepack pnpm --filter @action-driver/runtime-contracts typecheck`, and `corepack pnpm --filter @action-driver/agent-runtime typecheck`.
 - [ ] **Step 5: Commit this tested unit.** Stage only Task 3 files and commit `feat: project ordered activity events from cursor`.
 
 ### Task 4: Render one ordered process instead of two reordered content lanes
@@ -228,7 +228,7 @@ expect(screen.queryByTestId('e2e/tasks/detail/tool-activity/running#section')).t
 
 Preserve raw I/O disclosure, approval bar, shimmer/reduced-motion behavior, and running/terminal duration header.
 
-- [ ] **Step 4: Run GREEN.** Run Task 4 Vitest files and `corepack pnpm --filter @actiondriver/desktop typecheck`.
+- [ ] **Step 4: Run GREEN.** Run Task 4 Vitest files and `corepack pnpm --filter @action-driver/desktop typecheck`.
 - [ ] **Step 5: Commit this tested unit.** Stage only Task 4 files and commit `fix: render task process in event order`.
 
 ### Task 5: Verify the full flow and reconcile planning artifacts

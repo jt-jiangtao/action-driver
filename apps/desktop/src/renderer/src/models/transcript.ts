@@ -8,7 +8,7 @@ import {
   type TaskProjection,
   type TaskTimelineProjectionItem,
   type ToolInvocationProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import {
   activityOwnedText,
   dedupeAssistantText,

@@ -2,7 +2,7 @@ import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ToolCall, ToolEvent } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolEvent } from '@action-driver/runtime-contracts'
 import {
   SqliteRuntimeRepositories,
   createLocalRuntimeAdapters,
@@ -17,7 +17,7 @@ import { createScriptTools } from '../../src/execution/tools'
 import { SessionExecutionContextResolver } from '../../src/execution/session-execution-context'
 
 function databasePath(): string {
-  return join(mkdtempSync(join(tmpdir(), 'actiondriver-local-runtime-')), 'actiondriver.db')
+  return join(mkdtempSync(join(tmpdir(), 'action-driver-local-runtime-')), 'action-driver.db')
 }
 
 /** Session history lives in the rollout log; the state database keeps auxiliary stores. */

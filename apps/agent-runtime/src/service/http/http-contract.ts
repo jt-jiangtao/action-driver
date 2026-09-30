@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import type { ModelFailureCode } from '@actiondriver/model-connections'
-import type { AgentFileErrorCode } from '@actiondriver/runtime-contracts'
+import type { ModelFailureCode } from '@action-driver/model-connections'
+import type { AgentFileErrorCode } from '@action-driver/runtime-contracts'
 
 export type Envelope<T> =
   | { ok: true; value: T }

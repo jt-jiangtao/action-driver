@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/runtime-contracts",
+  "name": "@action-driver/runtime-contracts",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/contracts": "workspace:*",
+    "@action-driver/contracts": "workspace:*",
     "zod": "4.6.5",
-    "@actiondriver/plugin-contracts": "workspace:*"
+    "@action-driver/plugin-contracts": "workspace:*"
   }
 }

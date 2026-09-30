@@ -137,7 +137,7 @@ available width = control width - paddingLeft - paddingRight
 
 Reserve the trailing icon as a visible child. Do not hide the chevron or status icon to obtain a pass. Static HUG labels may expand and do not require truncation. Fixed-width dynamic labels require single-line ending truncation.
 
-## ActionDriver authoritative sources
+## Action-Driver authoritative sources
 
 The checked-in project configuration currently tracks these Component Set ids:
 

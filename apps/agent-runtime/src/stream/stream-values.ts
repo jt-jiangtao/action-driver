@@ -1,4 +1,4 @@
-import { nextPartOrder, type ImageAssetRef, type MessageContentPart } from '@actiondriver/contracts'
+import { nextPartOrder, type ImageAssetRef, type MessageContentPart } from '@action-driver/contracts'
 
 /** Order reserved for one image inside its batch: the batch keeps `index` slots. */
 export function imageOrder(

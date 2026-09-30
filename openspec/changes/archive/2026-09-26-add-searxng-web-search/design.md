@@ -16,7 +16,7 @@
 
 - 不在桌面应用中启动、升级或观察 Docker / SearXNG，不配置其上游引擎或凭据。
 - 不进行网页正文抓取、链接跟随、Browser Use、截图、下载、网络通用代理或远程 SearXNG。
-- 不迁移模型 API、增加托管搜索提供方或新增搜索设置 UI；本阶段通过 `ACTIONDRIVER_SEARXNG_ENDPOINT` 注入本机 endpoint，缺失或无效时工具不注册。
+- 不迁移模型 API、增加托管搜索提供方或新增搜索设置 UI；本阶段通过 `ACTION_DRIVER_SEARXNG_ENDPOINT` 注入本机 endpoint，缺失或无效时工具不注册。
 
 ## Decisions
 
@@ -28,7 +28,7 @@
 
 ### 2. endpoint 由显式环境配置注入，并使用字面量 loopback 目标
 
-Runtime 读取 `ACTIONDRIVER_SEARXNG_ENDPOINT`；只接受以 `http://127.0.0.1:<port>` 或 `http://[::1]:<port>` 表达、无路径前缀和无凭据的 URL。适配器固定将请求构造为该 origin 的 `/search`，使用 `redirect: 'manual'`，并拒绝重定向。未配置或无效时保持工具不可发现。
+Runtime 读取 `ACTION_DRIVER_SEARXNG_ENDPOINT`；只接受以 `http://127.0.0.1:<port>` 或 `http://[::1]:<port>` 表达、无路径前缀和无凭据的 URL。适配器固定将请求构造为该 origin 的 `/search`，使用 `redirect: 'manual'`，并拒绝重定向。未配置或无效时保持工具不可发现。
 
 备选方案 A 是使用 `localhost` 或可配置远程 URL；DNS 解析、代理和 hosts 覆盖会破坏“本地-only”边界。备选方案 B 是增加桌面设置页与持久化连接配置；它能改善普通用户体验，但扩大了跨进程配置与 UI 范围。用户已裁决优先本机 Docker + 接口调用，因此首版选择显式环境配置；设置页留给独立变更。
 
@@ -46,7 +46,7 @@ Runtime 读取 `ACTIONDRIVER_SEARXNG_ENDPOINT`；只接受以 `http://127.0.0.1:
 
 ### 5. Docker 是用户管理的外部依赖
 
-仓库提供独立的 Compose 与 SearXNG `settings.yml` 样例，服务端口仅发布到 `127.0.0.1`，并显式启用 JSON 输出。文档说明启动、健康检查、`ACTIONDRIVER_SEARXNG_ENDPOINT` 配置、停止及常见失败；这些文件不参与 Electron 打包产物，也不由 Runtime 读取或控制。
+仓库提供独立的 Compose 与 SearXNG `settings.yml` 样例，服务端口仅发布到 `127.0.0.1`，并显式启用 JSON 输出。文档说明启动、健康检查、`ACTION_DRIVER_SEARXNG_ENDPOINT` 配置、停止及常见失败；这些文件不参与 Electron 打包产物，也不由 Runtime 读取或控制。
 
 备选方案是应用下载并管理镜像。它会引入桌面权限、更新、磁盘、跨平台 Docker 检测和故障责任，超出用户批准范围。最终裁决为外部、用户管理的部署。
 
@@ -63,4 +63,4 @@ Runtime 读取 `ACTIONDRIVER_SEARXNG_ENDPOINT`；只接受以 `http://127.0.0.1:
 1. 添加搜索 provider、endpoint 验证、工具定义和运行时条件注册；先以 fake SearXNG 覆盖输入、拒绝和错误路径。
 2. 完成真实工具循环、批准、WebSocket 事件及 L1 双层日志的集成与端到端测试。
 3. 添加外部 Docker Compose、设置样例和使用文档；由用户手动启动后，使用配置的 loopback endpoint 做真实 smoke。
-4. 回滚时移除 `ACTIONDRIVER_SEARXNG_ENDPOINT` 或停用注册；模型恢复为没有 Web Search 的既有工具列表，已有本地审计记录保留且不会被伪装为成功搜索。
+4. 回滚时移除 `ACTION_DRIVER_SEARXNG_ENDPOINT` 或停用注册；模型恢复为没有 Web Search 的既有工具列表，已有本地审计记录保留且不会被伪装为成功搜索。

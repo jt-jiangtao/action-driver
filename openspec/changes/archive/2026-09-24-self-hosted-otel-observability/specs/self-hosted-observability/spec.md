@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 在单机自托管环境中产生、采集和查询运行日志、分布式调用链、指标与完整模型调用内容的可验证行为，并明确各类数据的事实来源和故障边界。
+定义 Action-Driver 在单机自托管环境中产生、采集和查询运行日志、分布式调用链、指标与完整模型调用内容的可验证行为，并明确各类数据的事实来源和故障边界。
 
 ## ADDED Requirements
 
@@ -17,7 +17,7 @@
 
 #### Scenario: 无需登录查看 Grafana 数据
 - **WHEN** 操作者在部署主机上打开 Grafana 首页
-- **THEN** 预置的 ActionDriver 仪表盘可查看应用日志、调用量、错误和耗时，且可进入 Explore 自由查询 Loki、Tempo、Prometheus
+- **THEN** 预置的 Action-Driver 仪表盘可查看应用日志、调用量、错误和耗时，且可进入 Explore 自由查询 Loki、Tempo、Prometheus
 
 ### Requirement: 运行日志使用 OpenTelemetry 日志信号
 Desktop Main 与 Agent Runtime SHALL 通过 OpenTelemetry Logs SDK 产生结构化运行日志，并 SHALL 将其发送到本地采集器与 Loki；容器服务的运行日志 SHALL 同样进入 Loki。日志 SHALL 包含服务名、级别、时间及可用的任务、请求和 trace 关联标识。应用 SHALL NOT 再将运行日志写入本机 JSON 文件或提供本机日志读取接口。
@@ -56,10 +56,10 @@ Desktop Main 与 Agent Runtime SHALL 通过 OpenTelemetry Logs SDK 产生结构�
 - **THEN** 操作者可在 Grafana 查看请求量、错误率和耗时，并可定位到相关日志或链路
 
 ### Requirement: 应用内不提供观测入口
-ActionDriver SHALL NOT 在设置侧栏、页面路由或 Preload/Main IPC 中提供 Grafana/Phoenix 导航或日志详情入口；平台的本机访问地址与启动方法 SHALL 由运维文档说明。
+Action-Driver SHALL NOT 在设置侧栏、页面路由或 Preload/Main IPC 中提供 Grafana/Phoenix 导航或日志详情入口；平台的本机访问地址与启动方法 SHALL 由运维文档说明。
 
 #### Scenario: 打开设置页面
-- **WHEN** 用户进入 ActionDriver 设置
+- **WHEN** 用户进入 Action-Driver 设置
 - **THEN** 设置侧栏不显示“日志/观测平台”，应用中也没有 Grafana/Phoenix 外链按钮
 
 ### Requirement: 接口调用日志仅存统一平台

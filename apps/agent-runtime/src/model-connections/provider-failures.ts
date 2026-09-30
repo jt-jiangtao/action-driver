@@ -1,4 +1,4 @@
-import type { ModelFailureCode } from '@actiondriver/model-connections'
+import type { ModelFailureCode } from '@action-driver/model-connections'
 import type { ProviderFailure, ProviderProbeResult } from './provider-types'
 
 export type SendResult =

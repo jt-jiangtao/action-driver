@@ -3,7 +3,7 @@ import type {
   ToolDefinition,
   ToolExecutionContext,
   ToolExecutor
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import {
   OfficeDependenciesUnavailableError,
   resolveExecutionRuntimePaths,
@@ -12,7 +12,7 @@ import {
 import { runProcess } from './process-runner'
 import { ExecutionContextUnavailableError } from './session-execution-context'
 import { SessionSandbox } from './session-sandbox'
-import { commandDescriptors, createCommandCatalog } from '@actiondriver/command-plugin/catalog'
+import { commandDescriptors, createCommandCatalog } from '@action-driver/command-plugin/catalog'
 
 type Registered = { definition: ToolDefinition; executor: ToolExecutor }
 

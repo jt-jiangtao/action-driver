@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { selectTranscript, type TranscriptEntry } from './transcript'
 
 /**

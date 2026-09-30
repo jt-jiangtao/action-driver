@@ -15,4 +15,4 @@
 - 仓储拆分：`repositories.ts` 1114 行 → 466 行；新增 `persistence/{task-store,input-file-store,stream-store,tool-store,json-columns}.ts`。各领域仓储都由构造函数注入同一个 `Database.Database`，`recoverInterruptedRequests`、`createStreamTask`、`commit*` 等跨表聚合写入仍留在组合层，并保持 `database.transaction(...).immediate()` 边界。
 - 新增 1 项故障注入断言：被拒负载（`PERSISTENCE_PAYLOAD_REJECTED`）不留下工具行与事件行；找不到 stream request 的跨表提交回滚已写入的消息。`repositories.test.ts` 13 项通过。
 - 原有约束保持通过：并发发布顺序、快照高水位、断线回放/重放过期、写失败不发布、幂等提交（`stream-session-service.test.ts` 33 项、`repositories.test.ts` 13 项）。
-- 相关定向套件：stream-session-service、repositories、runtime-process、composition-root、persistence-guard、database、tool-invocation-service 共 87 项通过；`pnpm --filter @actiondriver/agent-runtime typecheck` 与改动文件 ESLint 通过。
+- 相关定向套件：stream-session-service、repositories、runtime-process、composition-root、persistence-guard、database、tool-invocation-service 共 87 项通过；`pnpm --filter @action-driver/agent-runtime typecheck` 与改动文件 ESLint 通过。

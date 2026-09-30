@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 macOS ActionDriver 任务页提供可由用户和 Agent 共同操作的真实内置浏览器，并允许 Agent 自行启动和操作隔离的外部 Chrome。
+**Goal:** 在 macOS Action-Driver 任务页提供可由用户和 Agent 共同操作的真实内置浏览器，并允许 Agent 自行启动和操作隔离的外部 Chrome。
 
 **Architecture:** `packages/browser-desktop` 持有宿主注入的通用会话核心；Electron Main 注入内置 `WebContentsView` 和自有独立 Chrome host，并维护 task→session 绑定。Renderer 通过类型化 IPC 展示和控制受管会话；Agent 通过既有 Tool Registry、Policy Gate 和 Skill Provider 访问同一会话。
 
@@ -12,9 +12,9 @@
 
 ## Global Constraints
 
-- 首版只支持 macOS；外部浏览器只支持 Chrome，且由 ActionDriver 自行启动隔离 profile。
+- 首版只支持 macOS；外部浏览器只支持 Chrome，且由 Action-Driver 自行启动隔离 profile。
 - 不连接用户已有浏览器实例或标签页，不依赖 Codex App 私有服务。
-- `packages/browser-desktop` 实现可复用会话、标签身份、命令和生命周期；不引用任务、Electron UI 或 Agent。`apps/desktop` 只实现 ActionDriver 专有宿主、任务绑定、IPC 与界面。
+- `packages/browser-desktop` 实现可复用会话、标签身份、命令和生命周期；不引用任务、Electron UI 或 Agent。`apps/desktop` 只实现 Action-Driver 专有宿主、任务绑定、IPC 与界面。
 - `browser-desktop` 新产品会话核心单独导出和验收；不将其视为还原候选的全包原件等价证明。
 - Agent 工具必须经过 Tool Registry、Policy Gate、Provider；Renderer 只通过具名类型化桥接操作浏览器。
 - Mock 视觉夹具继续可用，生产 Browser Use 不回退到 Mock。
@@ -39,7 +39,7 @@
 
 - [ ] 写失败的定向测试：隔离任务、tab ID 身份、关闭后命令、接管暂停、恢复前读取当前状态、快照可序列化。
 - [ ] 运行 `pnpm vitest run packages/browser-desktop/tests/session-controller.test.ts`，确认针对缺失行为失败。
-- [ ] 实现最小契约和会话核心；命令绑定明确 session/tab，串行化同一会话的 Agent 命令，不把旧 tab 命令重定向，且不引入 ActionDriver 任务或 Electron 类型。
+- [ ] 实现最小契约和会话核心；命令绑定明确 session/tab，串行化同一会话的 Agent 命令，不把旧 tab 命令重定向，且不引入 Action-Driver 任务或 Electron 类型。
 - [ ] 重跑该定向测试，确认通过；更新 OpenSpec 1.1、1.2 的复选框。
 
 ### Task 2: 任务投影与桥接边界
@@ -90,7 +90,7 @@
 
 **Files:** Create `apps/desktop/src/main/browser-session/external-chrome-host.ts` 及测试；modify `apps/desktop/src/main/index.ts`，必要时只对 `packages/browser-runtime/src/local-browser-host.ts` 增加缺失的明确端口能力。
 
-**Interfaces:** `createExternalChromeHost(profileRoot): BrowserDesktopHost` 包装自有 `createLocalBrowserHost`，注入 `BrowserDesktopSessionController`，仅返回 ActionDriver 创建的 tab，关闭时清理其 context/profile。
+**Interfaces:** `createExternalChromeHost(profileRoot): BrowserDesktopHost` 包装自有 `createLocalBrowserHost`，注入 `BrowserDesktopSessionController`，仅返回 Action-Driver 创建的 tab，关闭时清理其 context/profile。
 
 - [ ] 写失败测试：Chrome 不存在、启动失败、用户关闭窗口、隔离 profile、只列出受管 tab、关闭清理。
 - [ ] 运行外部 host 定向测试，确认失败。

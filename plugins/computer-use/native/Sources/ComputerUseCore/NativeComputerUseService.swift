@@ -39,7 +39,7 @@ public final class NativeComputerUseService {
     /// Timestamp of the most recent action, used to wait for the interface to settle.
     private var lastActionAt: Date?
 
-    /// `ownerApplications` names ActionDriver itself; the app that contains a packaged helper is
+    /// `ownerApplications` names Action-Driver itself; the app that contains a packaged helper is
     /// always added, so the model can never drive the app that shows its approvals.
     public init(permissions: SystemPermissionGate = NativeSystemPermissionGate(),
                 organizationPolicyURL: URL? = nil, ownerApplications: [URL] = [],
@@ -51,7 +51,7 @@ public final class NativeComputerUseService {
         self.ownerApplications = ownerApplications
             + [ApplicationPolicy.containingApplication(of: Bundle.main.bundleURL)].compactMap { $0 }
         self.organizationPolicyURL = organizationPolicyURL ?? URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library/Application Support/ActionDriver/computer-use-policy.json")
+            .appendingPathComponent("Library/Application Support/Action-Driver/computer-use-policy.json")
     }
 
     /// Drives the overlay from the socket worker thread; AppKit work hops to the main run loop.
@@ -148,7 +148,7 @@ public final class NativeComputerUseService {
                 "accessibility": permissions.accessibility(prompt: prompted("accessibility")),
                 "screenRecording": permissions.screenRecording(prompt: prompted("screenRecording")),
                 "eventPosting": permissions.eventPosting(prompt: prompted("eventPosting")),
-                "permissionTarget": "ActionDriver Computer Use"
+                "permissionTarget": "Action-Driver Computer Use"
             ]
         case .act:
             guard let session = request.sessionId, let identifier = request.app,

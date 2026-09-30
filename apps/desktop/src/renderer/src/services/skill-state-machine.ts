@@ -1,4 +1,4 @@
-import type { SkillExecutionState } from '@actiondriver/contracts'
+import type { SkillExecutionState } from '@action-driver/contracts'
 
 export type SkillCommand = 'pause' | 'resume' | 'take-over' | 'complete' | 'fail'
 

@@ -100,17 +100,17 @@
 
 - [x] 9.1 helper 提供 Unix domain socket 服务：私有运行目录（0700）、socket 0600、token 握手、单连接串行、无 TCP 监听。
 - [x] 9.2 Main 通过 LaunchServices 启动 helper 并连接 socket：既有 socket 复用、就绪超时、崩溃感知与重启、shutdown 与残留清理；删除 stdio 通道与相关回退开关。
-- [x] 9.3 开发与打包都用稳定签名身份（自签名 `ActionDriver Dev Signing` 或 Developer ID），保证授权条目不随重建失效。
+- [x] 9.3 开发与打包都用稳定签名身份（自签名 `Action-Driver Dev Signing` 或 Developer ID），保证授权条目不随重建失效。
 - [x] 9.4 验证 helper 作为发起进程能被授权：直连 socket 探针与应用内判定都反映 helper 自身身份。
-- [ ] 9.5 发布/安装场景验证：安装后的 `ActionDriver.app` 能通过 LaunchServices 拉起 `Contents/Helpers` 内的 helper 并完成 socket 握手。（**未自动化的原因**：暂存目录冒烟里 `open -a` 按 bundle id 解析，可能拉起构建树里的另一份注册副本；实测在暂存环境无法稳定断言，已把该断言挪到安装后验证。）
+- [ ] 9.5 发布/安装场景验证：安装后的 `Action-Driver.app` 能通过 LaunchServices 拉起 `Contents/Helpers` 内的 helper 并完成 socket 握手。（**未自动化的原因**：暂存目录冒烟里 `open -a` 按 bundle id 解析，可能拉起构建树里的另一份注册副本；实测在暂存环境无法稳定断言，已把该断言挪到安装后验证。）
 
 ### 9.x 实施记录
 
 - 实测：`open -n -a <helper> --args --socket … --token-file …` 后，helper 进程 `ppid=1`（由 launchd 托管），socket 权限 `srw-------`，握手 + `permissions` 请求返回结构化结果，`AXIsProcessTrusted()` 反映的是 helper 自身身份（同证书的探针应用未授权时为 `false`，授权后为 `true`）。
 - 对照证据：同一二进制直接由 shell 启动读到 `accessibility=true`（继承终端授权），经 LaunchServices 启动读到 `false`（自己的身份）——这正是本次架构改动的依据。
-- 开发签名：本机无 Apple 签名身份，改为独立钥匙串 `~/Library/Keychains/actiondriver-dev.keychain-db` 中的自签名 `ActionDriver Dev Signing`；构建用 `ACTIONDRIVER_CODESIGN_IDENTITY` + `ACTIONDRIVER_CODESIGN_KEYCHAIN` 传入，脚本会先解锁该钥匙串。
-- 路径长度坑：Unix domain socket 路径上限约 104 字节，e2e 的临时 userData 路径会超限导致 bind 失败；socket 因此改放到 `os.tmpdir()`（`actiondriver-computer-use.sock`）。helper 在 socket 创建失败时直接退出，避免每次重试都残留一个空转进程。
-- 构建脚本现在**默认**使用本机开发签名身份（存在 `actiondriver-dev.keychain-db` 时），否则才退回 ad-hoc；这样 `pnpm dev`、e2e、打包冒烟的重建都不会再把授权条目弄失效。
+- 开发签名：本机无 Apple 签名身份，改为独立钥匙串 `~/Library/Keychains/action-driver-dev.keychain-db` 中的自签名 `Action-Driver Dev Signing`；构建用 `ACTION_DRIVER_CODESIGN_IDENTITY` + `ACTION_DRIVER_CODESIGN_KEYCHAIN` 传入，脚本会先解锁该钥匙串。
+- 路径长度坑：Unix domain socket 路径上限约 104 字节，e2e 的临时 userData 路径会超限导致 bind 失败；socket 因此改放到 `os.tmpdir()`（`action-driver-computer-use.sock`）。helper 在 socket 创建失败时直接退出，避免每次重试都残留一个空转进程。
+- 构建脚本现在**默认**使用本机开发签名身份（存在 `action-driver-dev.keychain-db` 时），否则才退回 ad-hoc；这样 `pnpm dev`、e2e、打包冒烟的重建都不会再把授权条目弄失效。
 - 打包冒烟（`pnpm test:e2e:packaged:macos`）在启动路径改为 LaunchServices + socket 之后重跑通过：打包应用启动内置 Runtime 并完成 Renderer 鉴权（1 项通过，18.7s）。
 - `pnpm test:e2e:local` 在该版本为 7 通过 / 1 失败，失败项是既有的 Token Plan 生图接口下拉框用例（与本次改动无关）。
 
@@ -122,16 +122,16 @@
 - `pnpm typecheck`、`pnpm lint`：通过；交互契约校验 138 项声明。
 - `pnpm test`：150 个文件通过、2 跳过；935 个用例通过、2 跳过。
 - `pnpm test:e2e:local`：7 项中 6 项通过，1 项失败——既有 `persists the selected Token Plan image API and default model in settings` 用例仍在查找当前设置界面已移除的“生图接口”下拉框，与本次改动无关（同一失败已记录在 `openspec/changes/archive/2026-09-26-add-office-document-system-skills/tasks.md`）。本次另修正该文件中过期的 preload 桥接键断言（补齐 `computerUse` 与既有 `taskOutput`）。
-- `pnpm test:e2e:packaged:macos`：通过。打包脚本把 helper 放入 `Contents/Helpers/ActionDriver Computer Use.app`，校验可执行位、arm64 架构与 `codesign --verify --strict`，随后打包应用启动并通过 `packaged-runtime.spec.ts`。
-- 真实 helper 二进制 stdio 冒烟（`dist/arm64/actiondriver-computer-use`）：`permissions` 返回 `{accessibility, screenRecording, eventPosting, permissionTarget: "ActionDriver Computer Use"}`；`observe` 返回当前前台应用的结构化元素树与 `observationId`；`maxElements: 1, maxDepth: 1` 时返回树仅 1 个节点；失效 `observationId` / `elementRef` 的 `act` 返回 `STALE_REFERENCE`；`shutdown` 返回 `{accepted: true}` 并退出。
+- `pnpm test:e2e:packaged:macos`：通过。打包脚本把 helper 放入 `Contents/Helpers/Action-Driver Computer Use.app`，校验可执行位、arm64 架构与 `codesign --verify --strict`，随后打包应用启动并通过 `packaged-runtime.spec.ts`。
+- 真实 helper 二进制 stdio 冒烟（`dist/arm64/action-driver-computer-use`）：`permissions` 返回 `{accessibility, screenRecording, eventPosting, permissionTarget: "Action-Driver Computer Use"}`；`observe` 返回当前前台应用的结构化元素树与 `observationId`；`maxElements: 1, maxDepth: 1` 时返回树仅 1 个节点；失效 `observationId` / `elementRef` 的 `act` 返回 `STALE_REFERENCE`；`shutdown` 返回 `{accepted: true}` 并退出。
 - 真实 helper 单会话串行冒烟：逐条请求/响应可用；`wait` 请求超过自身截止时间时返回 `{"code":"TIMED_OUT","message":"Request deadline elapsed"}`；随后 `shutdown` 返回 `{accepted: true}` 并退出。
 - 同一时刻并发投递的第二个请求返回 `ENGINE_UNAVAILABLE: Computer Use is busy`：单实例 helper 选择拒绝而不是排队，Main 侧每条任务的动作轮次本身串行；多任务同时操作桌面会被拒绝而非静默交错。
 
 2026-09-26，授权指引窗口（本轮追加）：
 
-- 实测本机“系统设置 → 隐私与安全性 → 设备控制和数据访问”列表：`ChatGPT` 开启，`Codex Computer Use` 关闭，没有 `ActionDriver Computer Use` 条目。开发构建下 helper 由宿主进程启动、ad-hoc 签名无 Team ID，读回的三项权限都继承宿主授权，所以窗口直接显示 `Done`，系统不会出现“拖入列表”的指引。
-- 指引窗口按 Codex 参考形态 1:1 实现：无窗口标题文本（清空文档标题，避免共用 `index.html` 的 `ActionDriver` 标题泄漏到标题栏）、应用图标、`Enable Codex Computer Use` 标题与说明、`Accessibility` 与 `Screenshots` 两张卡片。参考图里的 `Chrome Extension` 一行不复制；输入事件随辅助功能生效，也不单列。
-- `pnpm test:e2e:local`：8 项中 7 项通过。新增用例验证：`ensureGuidance` 打开第二个窗口、两窗口同时存在、指引窗口 `closable=false`/`resizable=false`、窗口标题不含 `ActionDriver`、点 `Back` 后只剩一个窗口。唯一失败仍是既有的 `persists the selected Token Plan image API and default model in settings`。
+- 实测本机“系统设置 → 隐私与安全性 → 设备控制和数据访问”列表：`ChatGPT` 开启，`Codex Computer Use` 关闭，没有 `Action-Driver Computer Use` 条目。开发构建下 helper 由宿主进程启动、ad-hoc 签名无 Team ID，读回的三项权限都继承宿主授权，所以窗口直接显示 `Done`，系统不会出现“拖入列表”的指引。
+- 指引窗口按 Codex 参考形态 1:1 实现：无窗口标题文本（清空文档标题，避免共用 `index.html` 的 `Action-Driver` 标题泄漏到标题栏）、应用图标、`Enable Codex Computer Use` 标题与说明、`Accessibility` 与 `Screenshots` 两张卡片。参考图里的 `Chrome Extension` 一行不复制；输入事件随辅助功能生效，也不单列。
+- `pnpm test:e2e:local`：8 项中 7 项通过。新增用例验证：`ensureGuidance` 打开第二个窗口、两窗口同时存在、指引窗口 `closable=false`/`resizable=false`、窗口标题不含 `Action-Driver`、点 `Back` 后只剩一个窗口。唯一失败仍是既有的 `persists the selected Token Plan image API and default model in settings`。
 - `pnpm typecheck`、`pnpm lint` 通过（交互契约 145 项）；`pnpm test`：153 个文件通过、2 跳过，951 个用例通过、2 跳过。
 - 样式检查：用真实应用同时打开主窗口与指引窗口截图核对，指引窗口在独立表面下自适应、无设置页侧栏残留。
 - 待确认：窗口文案里的产品名当前取 `Codex`（与本机系统设置条目一致），如需改回其它名称，只需改 `ComputerUseGuidance.tsx` 的 `PRODUCT_NAME` 常量。
@@ -149,4 +149,4 @@
 
 - 3.1–3.5 需要把真实点击、中文／快捷键输入与滚动注入到可预测的系统窗口，会改动本机桌面焦点与内容，未在本次自动执行；本次只验证了等待超时、失效引用与权限缺失等无副作用路径。3.4 中“迟到效果被记录”同样依赖真实越界动作。
 - 5.4 需要在非 macOS 主机上运行；本机只能验证注册被平台开关关闭的代码路径。
-- 7.2 的 helper 随应用启动、TCC 权限归属、授权后重检／重启、权限撤销与系统设置中的实际进程名需要用户在“系统设置 → 隐私与安全性”交互授权后确认；本次只验证了打包、签名、启动与直接调用 helper 的能力域行为。带正式 Developer ID 的发布签名（`ACTIONDRIVER_CODESIGN_IDENTITY`）同样未在本机执行。
+- 7.2 的 helper 随应用启动、TCC 权限归属、授权后重检／重启、权限撤销与系统设置中的实际进程名需要用户在“系统设置 → 隐私与安全性”交互授权后确认；本次只验证了打包、签名、启动与直接调用 helper 的能力域行为。带正式 Developer ID 的发布签名（`ACTION_DRIVER_CODESIGN_IDENTITY`）同样未在本机执行。

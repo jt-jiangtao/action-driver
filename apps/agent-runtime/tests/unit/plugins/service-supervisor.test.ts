@@ -9,8 +9,8 @@ describe('supervised plugin services', () => {
     await expect(supervisor.start({ id: 'fixture.native', kind: 'native', artifacts: { 'linux-x64': 'bin/linux-x64/helper' } }, owner, resolve('apps/agent-runtime/src/plugins/fixtures'))).rejects.toThrow('PLATFORM_UNAVAILABLE')
   })
   it('connects stdio MCP, exposes schema and drops availability on stop without inheriting global credentials', async () => {
-    const original = process.env.ACTIONDRIVER_TEST_GLOBAL_CREDENTIAL
-    process.env.ACTIONDRIVER_TEST_GLOBAL_CREDENTIAL = 'should-not-be-inherited'
+    const original = process.env.ACTION_DRIVER_TEST_GLOBAL_CREDENTIAL
+    process.env.ACTION_DRIVER_TEST_GLOBAL_CREDENTIAL = 'should-not-be-inherited'
     const supervisor = new NodeServiceSupervisor({ node: process.execPath, platform: 'darwin-arm64', log() {} })
     const service = await supervisor.start({ id: 'fixture.mcp', kind: 'mcp-stdio', runtime: 'node', entry: 'mcp-server.mjs' }, owner, resolve('apps/agent-runtime/src/plugins/fixtures'))
     try {
@@ -21,7 +21,7 @@ describe('supervised plugin services', () => {
       await expect(service.call('echo', {}, new AbortController().signal)).rejects.toThrow('UNAVAILABLE')
     } finally {
       await service.dispose()
-      if (original === undefined) delete process.env.ACTIONDRIVER_TEST_GLOBAL_CREDENTIAL; else process.env.ACTIONDRIVER_TEST_GLOBAL_CREDENTIAL = original
+      if (original === undefined) delete process.env.ACTION_DRIVER_TEST_GLOBAL_CREDENTIAL; else process.env.ACTION_DRIVER_TEST_GLOBAL_CREDENTIAL = original
     }
   })
   it('refuses non-protocol stdout from an MCP process', async () => {
@@ -45,7 +45,7 @@ it('restarts a failed Node service only up to its declared limit', async () => {
   const { mkdtemp, writeFile, rm } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-restart-'))
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-restart-'))
   await writeFile(join(root, 'service.mjs'), "process.stdout.write('started\\n'); process.exitCode = 1")
   let launches = 0
   let exited!: () => void

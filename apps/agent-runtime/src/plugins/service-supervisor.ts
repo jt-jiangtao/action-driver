@@ -5,8 +5,8 @@ import { spawn } from 'node:child_process'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { PluginError, serviceDefinitionSchema, type Json, type PluginOwner, type ServiceDefinition } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { PluginError, serviceDefinitionSchema, type Json, type PluginOwner, type ServiceDefinition } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 export interface SupervisedService extends Disposable {
   isAvailable(): boolean
   tools(): { name: string; description?: string; inputSchema: Record<string, unknown> }[]
@@ -32,7 +32,7 @@ export class NodeServiceSupervisor {
       if (native) { await access(path, constants.X_OK); executable = path } else args = [path, ...args]
     }
     if (service.kind === 'mcp-stdio' || service.kind === 'mcp-http') {
-      const client = new Client({ name: `actiondriver-${owner.pluginId}`, version: owner.version })
+      const client = new Client({ name: `action-driver-${owner.pluginId}`, version: owner.version })
       const transport = service.kind === 'mcp-stdio'
         ? new StdioClientTransport({ command: executable, args, env: {}, cwd: root, stderr: 'pipe' })
         : new StreamableHTTPClientTransport(new URL(service.url ?? ''), { requestInit: { headers: await this.options.credentials?.(owner, service.url ?? '') ?? {} } })

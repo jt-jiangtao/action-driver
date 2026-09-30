@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PluginError, type PluginUiContributions, type Json } from '@actiondriver/plugin-contracts'
+import { PluginError, type PluginUiContributions, type Json } from '@action-driver/plugin-contracts'
 
 /**
  * Talks to the runtime plugin interface over the authenticated local service. The desktop never

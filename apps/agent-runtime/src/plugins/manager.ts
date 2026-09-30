@@ -1,5 +1,5 @@
-import { PluginError, resolveDependencies, validateManifest, type Contribution, type PluginManifest, type PluginOwner, type InvocationContext, type Json } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { PluginError, resolveDependencies, validateManifest, type Contribution, type PluginManifest, type PluginOwner, type InvocationContext, type Json } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 import type { HostInstance, PluginManagerPorts } from './ports'
 
 type State = 'disabled' | 'dormant' | 'activating' | 'ready' | 'stopping' | 'failed'

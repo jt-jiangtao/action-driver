@@ -5,14 +5,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { createLocalBrowserHost } from '../../../../src/main/browser-session/local-browser-host'
-import { setupBrowserRuntime } from '@actiondriver/browser-runtime'
+import { setupBrowserRuntime } from '@action-driver/browser-runtime'
 
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })))
 })
 async function profileRoot() {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-browser-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-browser-test-'))
   roots.push(root)
   return root
 }

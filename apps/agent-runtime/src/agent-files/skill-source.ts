@@ -51,7 +51,7 @@ export async function cloneGitSkill({
   destination: string
   environment?: NodeJS.ProcessEnv
 }): Promise<void> {
-  const temporaryRoot = await mkdtemp(join(tmpdir(), 'actiondriver-github-skill-'))
+  const temporaryRoot = await mkdtemp(join(tmpdir(), 'action-driver-github-skill-'))
   const checkout = join(temporaryRoot, 'repo')
   try {
     const args = ['clone', '--quiet', '--depth', '1', '--filter=blob:none', '--sparse']

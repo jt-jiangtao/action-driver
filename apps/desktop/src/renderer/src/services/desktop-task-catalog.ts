@@ -1,4 +1,4 @@
-import type { SkillExecutionState } from '@actiondriver/contracts'
+import type { SkillExecutionState } from '@action-driver/contracts'
 import type { AgentControlApi } from './runtime-agent-http-api'
 import type { RecentTaskSummary, TaskCatalog } from '../models/task-catalog'
 

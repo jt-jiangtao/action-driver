@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Browser Use and Computer Use execute through one persistent Codex-style CUA JS entry while preserving ActionDriver-owned browser and computer hosts.
+**Goal:** Browser Use and Computer Use execute through one persistent Codex-style CUA JS entry while preserving Action-Driver-owned browser and computer hosts.
 
-**Architecture:** `@actiondriver/browser-runtime` owns the one Browser/Tab client and generic command protocol. `@actiondriver/browser-desktop` reuses that client and implements desktop-specific service behavior. `@actiondriver/cua` combines injected browser and computer backends; the ActionDriver runtime hosts a persistent JS REPL and routes each privileged RPC through its existing policy and task boundaries.
+**Architecture:** `@action-driver/browser-runtime` owns the one Browser/Tab client and generic command protocol. `@action-driver/browser-desktop` reuses that client and implements desktop-specific service behavior. `@action-driver/cua` combines injected browser and computer backends; the Action-Driver runtime hosts a persistent JS REPL and routes each privileged RPC through its existing policy and task boundaries.
 
 **Tech Stack:** TypeScript 5.9, Node ESM, Electron 38, React, Playwright Core, Swift macOS helper, Vitest, Playwright E2E.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Browser and Computer services must not depend on Codex App private services or `thirdparty/backup` at runtime.
-- Only ActionDriver-created browser sessions are visible to Agent; external browser support is macOS Chrome with an isolated profile.
+- Only Action-Driver-created browser sessions are visible to Agent; external browser support is macOS Chrome with an isolated profile.
 - Browser RPC and computer RPC each enforce their own Skill/Policy Gate, task ownership, cancellation and takeover state.
 - Preserve Computer Use approval, image storage, timeout, reset and cleanup behavior.
 - Do not migrate old Browser Use JSON tool records.
@@ -34,11 +34,11 @@
 
 **Files:** `packages/browser-runtime/src/{default-runtime,host-port,local-browser-host}.ts`, `packages/browser-desktop/src/{index,service,session-controller}.ts`, `apps/desktop/src/main/browser-session/{embedded-host,external-chrome-host}.ts`, package exports and focused tests.
 
-**Interfaces:** `setupBrowserRuntime({host})` remains the one Browser/Tab client bootstrap; `setupBrowserDesktop({host,environment})` delegates to it. `ActionDriverBrowserHost` remains the injected `setup/execute/displayImage/close` port. ActionDriver's Chrome launcher and Electron WebContentsView stay outside generic browser-runtime code.
+**Interfaces:** `setupBrowserRuntime({host})` remains the one Browser/Tab client bootstrap; `setupBrowserDesktop({host,environment})` delegates to it. `ProductBrowserHost` remains the injected `setup/execute/displayImage/close` port. Action-Driver's Chrome launcher and Electron WebContentsView stay outside generic browser-runtime code.
 
-- [ ] Write a failing package-boundary test that detects duplicate client implementations, browser-desktop importing only the public runtime entry, and a generic runtime importing Electron or the ActionDriver task layer.
+- [ ] Write a failing package-boundary test that detects duplicate client implementations, browser-desktop importing only the public runtime entry, and a generic runtime importing Electron or the Action-Driver task layer.
 - [ ] Run the focused test and confirm the intended failure before editing implementation.
-- [ ] Move `createLocalBrowserHost` and its concrete CDP adapter to the ActionDriver host layer, exposing only the generic port types and required resource access from browser-runtime; keep browser-desktop's desktop-specific service implementation separate from the shared client.
+- [ ] Move `createLocalBrowserHost` and its concrete CDP adapter to the Action-Driver host layer, exposing only the generic port types and required resource access from browser-runtime; keep browser-desktop's desktop-specific service implementation separate from the shared client.
 - [ ] Run browser-runtime/browser-desktop and Desktop host targeted tests and typechecks; compare the public client behavior and desktop-specific failures with the fixed offline evidence.
 
 ### Task 2: Adapt the browser service to the task's managed sessions

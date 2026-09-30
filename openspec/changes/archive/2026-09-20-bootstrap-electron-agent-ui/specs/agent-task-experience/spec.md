@@ -9,7 +9,7 @@
 
 #### Scenario: 查看空白首页
 - **WHEN** 用户进入首页且尚未提交目标
-- **THEN** 页面显示“我们应该在 ActionDriver 中做些什么？”以及仅包含加号和发送按钮的输入框
+- **THEN** 页面显示“我们应该在 Action-Driver 中做些什么？”以及仅包含加号和发送按钮的输入框
 
 ### Requirement: 使用富文本输入框
 系统 SHALL 使用 Slate.js 提供输入能力，并保持 Figma 中的自定义 Codex 风格视觉，不套用 Ant Design 输入框外观。

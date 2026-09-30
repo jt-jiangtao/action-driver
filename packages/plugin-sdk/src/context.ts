@@ -1,4 +1,4 @@
-import type { InvocationContext, Json, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { InvocationContext, Json, PluginOwner } from '@action-driver/plugin-contracts'
 import type { Disposable, DisposableStore, HostTransport, PluginContext, RegistrationPort, ToolRegistrationPort, ResourceHandle } from './index.js'
 export class ResourceLedger implements DisposableStore, Disposable {
   private readonly resources: Disposable[] = []

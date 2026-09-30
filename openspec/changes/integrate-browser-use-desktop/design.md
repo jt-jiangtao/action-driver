@@ -7,7 +7,7 @@
 **Goals:**
 
 - 让内置网页的可见页面与 Agent 实际操作页面为同一对象。
-- 将可复用的桌面会话与标签操作放在 `packages/browser-desktop`，保持宿主注入；任务绑定、Electron 实现、UI 和 Agent 接线留在 ActionDriver 应用层。
+- 将可复用的桌面会话与标签操作放在 `packages/browser-desktop`，保持宿主注入；任务绑定、Electron 实现、UI 和 Agent 接线留在 Action-Driver 应用层。
 - 以类型化、可序列化的会话契约协调任务、Renderer、Electron Main 和 Agent Runtime。
 - 保留确定性的 Mock 页面，生产会话则始终呈现真实状态。
 
@@ -27,13 +27,13 @@
 
 ### 2. 内置网页使用 Main 持有的隔离原生 view
 
-在当前 BrowserWindow 的右侧网页区域安放独立 `WebContentsView`。Renderer 继续绘制标签栏、地址栏和控制条，向 Main 提交网页区域矩形与可见状态；Main 负责 view 的创建、尺寸同步、切换、销毁及页面导航事件。网页使用独立 session partition，不加载 ActionDriver preload，禁止将网页导航带入应用 Renderer。Agent 对内置标签的操作通过该 view 的 webContents/CDP 能力实现，并以真实 view 截图和事件回传结果。原生 view 的层级要求网页区域与控件区域分离；窗口尺寸和设备缩放变化需在真实 Electron 验收。
+在当前 BrowserWindow 的右侧网页区域安放独立 `WebContentsView`。Renderer 继续绘制标签栏、地址栏和控制条，向 Main 提交网页区域矩形与可见状态；Main 负责 view 的创建、尺寸同步、切换、销毁及页面导航事件。网页使用独立 session partition，不加载 Action-Driver preload，禁止将网页导航带入应用 Renderer。Agent 对内置标签的操作通过该 view 的 webContents/CDP 能力实现，并以真实 view 截图和事件回传结果。原生 view 的层级要求网页区域与控件区域分离；窗口尺寸和设备缩放变化需在真实 Electron 验收。
 
 替代方案是对外部 Chrome 截图并在右侧回放。它可复用现有 host，却会把用户输入、焦点、滚动和缩放变成远程坐标问题。用户已选择右侧真实浏览器产品形态，故采用原生 view；这是本次 Battle 的最终裁决。
 
 ### 3. 外部窗口只启动受管 Chrome
 
-复用 `createLocalBrowserHost` 的隔离 profile 启动、页面操作与清理能力，在桌面 Provider 中注册为 `external-chrome` 表面。仅把 ActionDriver 创建的 context/page 纳入会话映射，不枚举或附着用户 Chrome。任务选择表面后只对该表面发命令；切换表面需显式新建会话，不自动复制页面、cookies 或历史记录。
+复用 `createLocalBrowserHost` 的隔离 profile 启动、页面操作与清理能力，在桌面 Provider 中注册为 `external-chrome` 表面。仅把 Action-Driver 创建的 context/page 纳入会话映射，不枚举或附着用户 Chrome。任务选择表面后只对该表面发命令；切换表面需显式新建会话，不自动复制页面、cookies 或历史记录。
 
 替代方案是 Chrome 扩展连接现有标签页，省去新窗口，却扩大权限、认证和既有标签归属范围。用户明确排除连接，故不采用。用户还将外部首版限定为 Chrome，接受其他浏览器暂不可用的范围代价。
 
@@ -45,9 +45,9 @@
 
 ### 5. Browser Use 与 Computer Use 共用还原库的 CUA JS 入口
 
-模型可见工具使用持久 JS 调用及重置，沿用 `@actiondriver/cua-repl` 的调用语义，由 `@actiondriver/cua` 的合并 `createCUASession` 提供浏览器和桌面对象。一个单元可先用 `cua.getTab()` 操作浏览器，再用 `cua.getApp()` 操作桌面；REPL 跨调用保留变量，重置清除变量与会话。浏览器通过自有 Browser host RPC 执行，桌面通过现有 macOS helper RPC 执行，不把网页操作转成桌面坐标点击。生产模型可见的 `tools.local.browser-use.command` 在统一入口真实验收通过后移除；右侧 UI 继续使用内部 Browser Session 命令端口。
+模型可见工具使用持久 JS 调用及重置，沿用 `@action-driver/cua-repl` 的调用语义，由 `@action-driver/cua` 的合并 `createCUASession` 提供浏览器和桌面对象。一个单元可先用 `cua.getTab()` 操作浏览器，再用 `cua.getApp()` 操作桌面；REPL 跨调用保留变量，重置清除变量与会话。浏览器通过自有 Browser host RPC 执行，桌面通过现有 macOS helper RPC 执行，不把网页操作转成桌面坐标点击。生产模型可见的 `tools.local.browser-use.command` 在统一入口真实验收通过后移除；右侧 UI 继续使用内部 Browser Session 命令端口。
 
-`@actiondriver/browser-runtime` 独占通用 Browser/Tab 客户端、命令协议及通用服务；`@actiondriver/browser-desktop` 依赖并复用这一客户端，只增加 Codex desktop 原包独有的 service、资源与桌面会话行为。两原 client bundle 相同，service bundle 不同，因此不能仅更换实例就宣称桌面服务等价。`@actiondriver/cua` 通过注入获得 browser agent，不反向导入 `browser-desktop`。Electron `WebContentsView`、受管 Chrome 启动、任务绑定与权限留在 ActionDriver 应用层；本机 Chrome 启动实现从通用包迁出。所有特权对象留在宿主进程，REPL 只收发可序列化数据。
+`@action-driver/browser-runtime` 独占通用 Browser/Tab 客户端、命令协议及通用服务；`@action-driver/browser-desktop` 依赖并复用这一客户端，只增加 Codex desktop 原包独有的 service、资源与桌面会话行为。两原 client bundle 相同，service bundle 不同，因此不能仅更换实例就宣称桌面服务等价。`@action-driver/cua` 通过注入获得 browser agent，不反向导入 `browser-desktop`。Electron `WebContentsView`、受管 Chrome 启动、任务绑定与权限留在 Action-Driver 应用层；本机 Chrome 启动实现从通用包迁出。所有特权对象留在宿主进程，REPL 只收发可序列化数据。
 
 每个 browser/computer RPC 按当前任务独立执行 Skill、Policy、接管状态、取消和目标身份检查，已授权一种表面不能授权另一种。工具投影使用模型标题和实际 surface，显示真实 JS 输入、文本/错误/图片输出，并在任务重新读取后保留；截图以受控资源呈现，不输出 Base64 正文。旧 JSON 工具记录不迁移。
 
@@ -58,7 +58,7 @@
 - [原生 view 层级遮挡浮动控制条或弹层] → 控件放在网页区域之外，按可见区域设置 bounds，在分栏、放大、折叠、切换任务和最小窗口下进行真实 Electron 验收。
 - [CDP 附着和页面事件行为因 Electron 版本变化] → 锁定仓库现有 Electron 版本，针对实际打包产物验证；对调试器分离和页面销毁提供明确错误。
 - [用户与 Agent 同时操作发生目标漂移] → 命令绑定 session/tab；接管暂停 Agent，恢复前重读页面状态；关闭的 tab 不重映射。
-- [外部 Chrome 崩溃或清理失败] → 将会话标为失败，拒绝继续使用旧 tab，记录并清理 ActionDriver 自有临时 profile；不触及用户 profile。
+- [外部 Chrome 崩溃或清理失败] → 将会话标为失败，拒绝继续使用旧 tab，记录并清理 Action-Driver 自有临时 profile；不触及用户 profile。
 - [内置与外部浏览器登录状态不一致] → 明确显示 surface，隔离 profile，不自动迁移认证信息。用户已接受这一权衡。
 - [现有 Mock 视觉规范和生产行为冲突] → 仅修改生产任务场景的规范，Mock 仍为视觉验收夹具。
 - [产品集成与 browser-desktop 原件还原状态混淆] → 新会话核心单独导出和验收；保留现有 service facade 与尚未完成的差异验证门槛，不声称整个包已达原件等价。

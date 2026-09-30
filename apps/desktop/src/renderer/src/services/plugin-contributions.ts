@@ -1,4 +1,4 @@
-import type { PluginUiContributions } from '@actiondriver/plugin-contracts'
+import type { PluginUiContributions } from '@action-driver/plugin-contracts'
 import type { DesktopApi } from '../../../preload/desktop-api'
 
 /** Renderer port for declared plugin views and menus. Availability stays runtime-owned. */

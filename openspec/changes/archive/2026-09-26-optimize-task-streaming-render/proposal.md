@@ -23,7 +23,7 @@
 
 - 渲染进程：`App.tsx`、`pages/TaskPage.tsx`、`components/Conversation.tsx`、`components/agent/*`、`components/MarkdownContent.tsx`、`components/ActivityTimeline.tsx`、`services/stream-task-projection.ts`、`services/desktop-agent-adapter.ts`、新增 `stores/task-store.ts`。
 - 共享包：`packages/activity-projection` 归约器改为按需复制。
-- 依赖：`@actiondriver/desktop` 新增运行时依赖 `zustand`。
+- 依赖：`@action-driver/desktop` 新增运行时依赖 `zustand`。
 - 不改变任何对外契约、IPC、Runtime 协议或页面视觉。
 
 ## Battle Status

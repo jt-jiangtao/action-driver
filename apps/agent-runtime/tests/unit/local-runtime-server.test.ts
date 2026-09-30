@@ -1,4 +1,4 @@
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,7 +26,7 @@ function createHarness(
   appApprovals?: AppApprovalBroker,
   appApprovalStore?: { list(): string[]; remove(bundleId: string): void }
 ) {
-  const path = join(mkdtempSync(join(tmpdir(), 'actiondriver-server-')), 'actiondriver.db')
+  const path = join(mkdtempSync(join(tmpdir(), 'action-driver-server-')), 'action-driver.db')
   const root = join(path, '..')
   const state = new SqliteRuntimeRepositories(openRuntimeDatabase(join(root, 'state.sqlite')))
   const repositories = Object.assign(

@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import type { SkillExecutionEvent } from '@actiondriver/contracts'
+import type { SkillExecutionEvent } from '@action-driver/contracts'
 
 export const LOCAL_CAPABILITY_PATH = '/capabilities'
-export const LOCAL_CAPABILITY_PROTOCOL = 'actiondriver.local-capabilities.v1'
+export const LOCAL_CAPABILITY_PROTOCOL = 'action-driver.local-capabilities.v1'
 
 const provider = z.object({
   providerId: z.string().min(1),

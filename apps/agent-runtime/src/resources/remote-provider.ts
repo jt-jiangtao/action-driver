@@ -1,4 +1,4 @@
-import { ResourceError } from '@actiondriver/runtime-contracts'
+import { ResourceError } from '@action-driver/runtime-contracts'
 import type {
   ResourceEntry,
   ResourceOperationContext,
@@ -6,7 +6,7 @@ import type {
   ResourceReadResult,
   ResourceWatchEvent,
   ResourceWriteRequest
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 /**
  * Transport a remote provider speaks over. The runtime never copies remote bytes into local

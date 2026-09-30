@@ -1,6 +1,6 @@
 ## Why
 
-ActionDriver 已具备可运行的 Electron UI 和 Mock Skill 边界，但 Agent、持久化、跨进程通信与定制 Chromium 仍只有占位接口。需要先建立可独立验证的 Phase 0 运行时基础，才能在不把浏览器实现耦合进 Renderer 的前提下安全进入 Browser Use 开发。
+Action-Driver 已具备可运行的 Electron UI 和 Mock Skill 边界，但 Agent、持久化、跨进程通信与定制 Chromium 仍只有占位接口。需要先建立可独立验证的 Phase 0 运行时基础，才能在不把浏览器实现耦合进 Renderer 的前提下安全进入 Browser Use 开发。
 
 ## What Changes
 

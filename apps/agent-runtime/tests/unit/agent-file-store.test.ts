@@ -8,7 +8,7 @@ import { AgentFileStore } from '../../src/agent-files/agent-file-store'
 
 describe('Runtime Agent file ownership', () => {
   it('removes retired system copies while preserving personal and legacy Skills', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-system-retire-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-system-retire-'))
     const skillsRoot = join(homeDirectory, '.action-driver', 'skills')
     await mkdir(join(skillsRoot, 'browser-tools'), { recursive: true })
     await mkdir(join(skillsRoot, 'computer-tools-legacy'), { recursive: true })
@@ -31,7 +31,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('seeds every skill-creator resource and restores missing files without replacing the entry', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-skill-creator-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-skill-creator-'))
     const root = join(homeDirectory, '.action-driver', 'skills', '.system', 'skill-creator')
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
@@ -50,7 +50,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('installs the complete imagegen system Skill and keeps it read-only', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-imagegen-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-imagegen-'))
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
     const root = join(homeDirectory, '.action-driver', 'skills', '.system', 'imagegen')
@@ -74,7 +74,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('seeds and protects all four office document Skills without overwriting user state', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-office-skills-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-office-skills-'))
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
     for (const id of ['documents', 'pdf', 'presentations', 'spreadsheets']) {
@@ -100,7 +100,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('enables and reads an ordinary Skill without an executor, then respects disabling', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-ordinary-skill-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-ordinary-skill-'))
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
     const directory = join(homeDirectory, '.action-driver', 'skills', 'plain')
@@ -127,7 +127,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('keeps an existing prompt and Skill definition intact across repeated initialization', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-agent-files-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-agent-files-'))
     const first = new AgentFileStore({ homeDirectory })
     await first.initialize()
     const original = await first.getMainPrompt()
@@ -142,7 +142,7 @@ describe('Runtime Agent file ownership', () => {
   })
 
   it('seeds the main prompt from the packaged prompt resource', async () => {
-    const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-agent-prompt-resource-'))
+    const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-agent-prompt-resource-'))
     const store = new AgentFileStore({ homeDirectory })
     await store.initialize()
 

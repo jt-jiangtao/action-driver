@@ -5,7 +5,7 @@ import {
   type AgentSessionRepository,
   type SkillCapability,
   type TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import type { DesktopApi } from '../../../../../src/preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../../../../../src/renderer/src/services/desktop-agent-adapter'
 import { DesktopModelConnectionsService } from '../../../../../src/renderer/src/services/desktop-model-connections'
@@ -28,7 +28,7 @@ function createDesktopApi(): DesktopApi {
     runtimeConnection: {
       get: async () => ({
         wsUrl: 'ws://127.0.0.1:4321/stream',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'launch-token'
       })
     },
@@ -51,9 +51,9 @@ function createDesktopApi(): DesktopApi {
     taskOutput: { open: async () => undefined },
     computerUse: {
       permissions: async () => ({ accessibility: false, screenRecording: false,
-        eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
+        eventPosting: false, permissionTarget: 'Action-Driver Computer Use' }),
       requestPermissions: async () => ({ accessibility: false, screenRecording: false,
-        eventPosting: false, permissionTarget: 'ActionDriver Computer Use' }),
+        eventPosting: false, permissionTarget: 'Action-Driver Computer Use' }),
       getAppIcon: async () => null,
       openSystemSettings: async () => undefined,
       ensureGuidance: async () => true

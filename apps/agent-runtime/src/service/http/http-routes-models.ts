@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 import { z } from 'zod'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import type {
   ModelAddRequestDto,
   ModelConnectionDto,
@@ -11,7 +11,7 @@ import type {
   ModelSetEnabledRequestDto,
   ModelTestRequestDto,
   ModelTestResultDto
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import { enabledSchema, id, success, validate } from './http-contract'
 
 export type ModelConnectionRoutes = {

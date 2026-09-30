@@ -27,7 +27,7 @@ type FakeHelper = {
 }
 
 async function startFakeHelper(): Promise<FakeHelper> {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-helper-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-helper-'))
   const socketPath = join(directory, 'computer-use.sock')
   const tokenPath = join(directory, 'computer-use.token')
   const requests: Array<Record<string, unknown>> = []
@@ -69,7 +69,7 @@ async function startFakeHelper(): Promise<FakeHelper> {
 
 function createClient(helper: FakeHelper, overrides: Partial<{ connectTimeoutMs: number }> = {}) {
   return new ComputerUseClient({
-    helperPath: '/unused/ActionDriver Computer Use.app',
+    helperPath: '/unused/Action-Driver Computer Use.app',
     socketPath: helper.socketPath,
     tokenPath: helper.tokenPath,
     launch: () => undefined,
@@ -158,13 +158,13 @@ describe('ComputerUseClient', () => {
   })
 
   it('fails when no helper ever starts listening', async () => {
-    const directory = mkdtempSync(join(tmpdir(), 'actiondriver-nohelper-'))
+    const directory = mkdtempSync(join(tmpdir(), 'action-driver-nohelper-'))
     const launch = vi.fn()
     const client = new ComputerUseClient({
-      helperPath: '/unused/ActionDriver Computer Use.app',
+      helperPath: '/unused/Action-Driver Computer Use.app',
       socketPath: join(directory, 'missing.sock'),
       tokenPath: join(directory, 'missing.token'),
-      ownerAppPath: '/Applications/ActionDriver.app',
+      ownerAppPath: '/Applications/Action-Driver.app',
       launch,
       connectTimeoutMs: 150
     })
@@ -174,20 +174,20 @@ describe('ComputerUseClient', () => {
       maxDepth: 8, maxElements: 100
     })).rejects.toThrow('ENGINE_UNAVAILABLE')
     expect(launch).toHaveBeenCalledTimes(1)
-    expect(launch).toHaveBeenCalledWith('/unused/ActionDriver Computer Use.app',
-      join(directory, 'missing.sock'), join(directory, 'missing.token'), '/Applications/ActionDriver.app')
+    expect(launch).toHaveBeenCalledWith('/unused/Action-Driver Computer Use.app',
+      join(directory, 'missing.sock'), join(directory, 'missing.token'), '/Applications/Action-Driver.app')
     client.close()
   })
 
-  // The helper refuses to drive ActionDriver itself, which it can only recognize by path (D9).
-  it('names ActionDriver itself when launching the helper', () => {
-    expect(helperLaunchArguments('/h.app', '/s.sock', '/t.token', '/Applications/ActionDriver.app')).toEqual([
+  // The helper refuses to drive Action-Driver itself, which it can only recognize by path (D9).
+  it('names Action-Driver itself when launching the helper', () => {
+    expect(helperLaunchArguments('/h.app', '/s.sock', '/t.token', '/Applications/Action-Driver.app')).toEqual([
       '-a', '/h.app', '--args', '--socket', '/s.sock', '--token-file', '/t.token',
-      '--owner-app', '/Applications/ActionDriver.app'
+      '--owner-app', '/Applications/Action-Driver.app'
     ])
     expect(helperLaunchArguments('/h.app', '/s.sock', '/t.token')).not.toContain('--owner-app')
-    expect(owningAppBundle('/Applications/ActionDriver.app/Contents/MacOS/ActionDriver'))
-      .toBe('/Applications/ActionDriver.app')
+    expect(owningAppBundle('/Applications/Action-Driver.app/Contents/MacOS/Action-Driver'))
+      .toBe('/Applications/Action-Driver.app')
     expect(owningAppBundle('/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'))
       .toBe('/repo/node_modules/electron/dist/Electron.app')
     expect(owningAppBundle('/usr/local/bin/node')).toBeUndefined()

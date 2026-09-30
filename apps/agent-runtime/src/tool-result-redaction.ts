@@ -1,4 +1,4 @@
-import type { ToolExecutor } from '@actiondriver/runtime-contracts'
+import type { ToolExecutor } from '@action-driver/runtime-contracts'
 import { isExposableToolError } from './tool-error-exposure'
 
 export type ToolRedaction = NonNullable<ToolExecutor['redactForPersistence']>

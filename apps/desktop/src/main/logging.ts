@@ -6,7 +6,7 @@ import {
   type InteractionLogRecorder,
   type InteractionCompletion,
   type InteractionPayloadInput
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import { randomUUID } from 'node:crypto'
 
 export type MainLogging = {
@@ -19,7 +19,7 @@ export type MainLogging = {
  * contract the service uses, so both sides can be aligned by request id.
  */
 export async function createMainLogging(): Promise<MainLogging> {
-  const logger = createProcessObservability({ serviceName: 'actiondriver-main' })
+  const logger = createProcessObservability({ serviceName: 'action-driver-main' })
   return {
     logger,
     interactions: createInteractionLogRecorder({

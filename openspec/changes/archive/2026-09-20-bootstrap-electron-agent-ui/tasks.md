@@ -11,7 +11,7 @@
 - [x] 2.1 从 Figma 节点 `60:5`、`60:7`、`111:247`、`112:409` 下载确切的图像与必要 SVG 资产到本地并记录节点来源，验证代码不引用临时 Figma MCP URL。
 - [x] 2.2 将 Foundations 节点 `55:2` 的语义色、字体、间距、圆角、阴影和动效映射为 CSS 变量与 TypeScript Token，并用单元测试验证关键 Token 值。
 - [x] 2.3 建立全局样式、macOS 系统字体栈、基础重置和 Reduced Motion 规则，并在 1440×900 测试页面验证背景、字体与阴影容器不被裁切。
-- [x] 2.4 以单一 SVG 资产集成仓库现有 ActionDriver Logo，并完成 `lucide-react` 图标映射，验证所有图标使用固定 16px 字形槽并与文字垂直对齐。
+- [x] 2.4 以单一 SVG 资产集成仓库现有 Action-Driver Logo，并完成 `lucide-react` 图标映射，验证所有图标使用固定 16px 字形槽并与文字垂直对齐。
 
 ## 3. Agent 与 Skill 契约
 

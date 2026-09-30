@@ -2,11 +2,11 @@ import type { Server } from 'node:http'
 import {
   LOCAL_CAPABILITY_PATH, LOCAL_CAPABILITY_PROTOCOL, localCapabilityFrame,
   type LocalCapabilityFrame, type LocalCapabilityProvider
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import { WebSocket, WebSocketServer } from 'ws'
 import type { RuntimeSkillRegistry } from '../skill-registry'
 import type { SkillProviderResult } from '../ports'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 import type { VolatileComputerImages } from '../computer-use/volatile-images'
 
 type Pending = { providerId: string; resolve(value: SkillProviderResult): void; reject(error: Error): void; cleanup(): void }

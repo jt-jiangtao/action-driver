@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def stage_candidate_modules(directory):
     for package in ("cua", "sky", "browser-runtime"):
         source = ROOT / "packages" / package
-        target = directory / "node_modules" / "@actiondriver" / package
+        target = directory / "node_modules" / "@action-driver" / package
         target.mkdir(parents=True)
         shutil.copy2(source / "package.json", target / "package.json")
         shutil.copytree(source / "dist", target / "dist")
@@ -45,7 +45,7 @@ def run_variant(config, variant, stage):
         environment["NODE_REPL_NODE_MODULE_DIRS"] = os.pathsep.join(
             [str(stage / "node_modules"), environment["NODE_REPL_NODE_MODULE_DIRS"]]
         )
-        environment["NODE_REPL_JS_BANNER"] = 'await import("@actiondriver/cua/tinysky-alt");'
+        environment["NODE_REPL_JS_BANNER"] = 'await import("@action-driver/cua/tinysky-alt");'
     process = subprocess.Popen(
         [config["command"], launcher],
         stdin=subprocess.PIPE,

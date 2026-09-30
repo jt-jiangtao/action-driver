@@ -1,5 +1,5 @@
-import { evaluateContextCondition, isContextKey, parseContextCondition, PluginError, type ContextCondition, type ContextSnapshot, type ContextValue, type PluginOwner } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { evaluateContextCondition, isContextKey, parseContextCondition, PluginError, type ContextCondition, type ContextSnapshot, type ContextValue, type PluginOwner } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 
 export interface VersionedContextSnapshot { readonly version: number; readonly values: ContextSnapshot }
 

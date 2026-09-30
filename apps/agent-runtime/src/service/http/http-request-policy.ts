@@ -3,7 +3,7 @@ import {
   startBestEffortInteraction,
   type InteractionLogRecorder,
   type StructuredLogger
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import { failure } from './http-contract'
 import {
   bearerToken,
@@ -50,7 +50,7 @@ export function createRequestPolicyMiddleware(policy: RequestPolicy): Middleware
         !requestedMethod ||
         !['GET', 'POST', 'PUT', 'DELETE'].includes(requestedMethod) ||
         requestedHeaders.some(
-          (header) => !['authorization', 'content-type', 'x-actiondriver-file-name'].includes(header)
+          (header) => !['authorization', 'content-type', 'x-action-driver-file-name'].includes(header)
         )
       ) {
         return context.json(failure('unauthorized', 'Preflight request is not allowed'), 403)
@@ -58,7 +58,7 @@ export function createRequestPolicyMiddleware(policy: RequestPolicy): Middleware
       return context.body(null, 204, {
         'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
-        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-ActionDriver-File-Name',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Action-Driver-File-Name',
         'Access-Control-Max-Age': '600',
         Vary: 'Origin'
       })

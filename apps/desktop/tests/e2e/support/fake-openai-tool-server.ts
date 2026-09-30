@@ -215,7 +215,7 @@ export class FakeOpenAiToolServer {
           toolMode === 'read' || toolMode === 'activity'
             ? '{"script":"mkdir -p output && printf \'E2E workspace\\n\' > output/README.md && cat output/README.md"}'
             : toolMode === 'sandbox'
-              ? '{"script":"import json, os\\nprint(json.dumps({\\"cwd\\": os.getcwd(), \\"inherited\\": sorted(key for key in os.environ if key.startswith(\\"ACTIONDRIVER\\"))}))"}'
+              ? '{"script":"import json, os\\nprint(json.dumps({\\"cwd\\": os.getcwd(), \\"inherited\\": sorted(key for key in os.environ if key.startswith(\\"ACTION_DRIVER\\"))}))"}'
               : toolMode === 'sandbox-escape'
                 ? '{"script":"import pathlib\\nprint(pathlib.Path(\'../../README.md\').read_text())"}'
                 : toolMode === 'office'

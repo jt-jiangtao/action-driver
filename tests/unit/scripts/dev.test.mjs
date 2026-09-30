@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 async function fixture(t, content, overrides = {}) {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-dev-'))
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-dev-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const bin = join(root, 'bin'),
     report = join(root, 'calls.jsonl')
@@ -46,8 +46,8 @@ test('developer startup loads ignored credentials and preserves inherited enviro
   assert.deepEqual(
     calls.map((value) => value.args),
     [
-      ['--filter', '@actiondriver/agent-runtime', 'build'],
-      ['--filter', '@actiondriver/desktop', 'dev']
+      ['--filter', '@action-driver/agent-runtime', 'build'],
+      ['--filter', '@action-driver/desktop', 'dev']
     ]
   )
   for (const value of calls)

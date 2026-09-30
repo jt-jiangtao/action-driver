@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { RuntimeToolRegistry } from '../../src/tool-registry'
 import { activate } from '../../../../plugins/web/src/search/extension'
 import { catalog } from '../../../../plugins/web/src/search/catalog'
-import { createPluginContext } from '@actiondriver/plugin-sdk'
+import { createPluginContext } from '@action-driver/plugin-sdk'
 describe('web search plugin registration', () => {
   it('keeps discovery separate from availability and task grants', async () => {
     const registry = new RuntimeToolRegistry(), grants: string[] = []

@@ -1,4 +1,4 @@
-import type { AgentSessionRepository, TaskProjection } from '@actiondriver/contracts'
+import type { AgentSessionRepository, TaskProjection } from '@action-driver/contracts'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 
 export interface TaskStoreState {

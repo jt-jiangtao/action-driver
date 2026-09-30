@@ -1,12 +1,12 @@
-import { ResourceError } from '@actiondriver/runtime-contracts'
-import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceWatchEvent, ResourceWriteRequest } from '@actiondriver/runtime-contracts'
+import { ResourceError } from '@action-driver/runtime-contracts'
+import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceWatchEvent, ResourceWriteRequest } from '@action-driver/runtime-contracts'
 import { boundedStream } from './store'
 import type { RemoteResourceTransport } from './remote-provider'
 
 const PROBE_INTERVAL_MS = 1_000
 
 export interface RemoteHttpHostOptions {
-  /** Base URL of another ActionDriver runtime that hosts this scheme. */
+  /** Base URL of another Action-Driver runtime that hosts this scheme. */
   baseUrl: string
   token: string
   fetch?: typeof fetch

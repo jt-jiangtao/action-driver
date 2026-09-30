@@ -14,7 +14,7 @@
 
 **Non-Goals:**
 
-- 不改变 ActionDriver 产品运行时 Agent Loop 或 Skill Contract。
+- 不改变 Action-Driver 产品运行时 Agent Loop 或 Skill Contract。
 - 不要求每次代码编辑都生成独立 ADR 或 OpenSpec。
 - 不建立自动评分、投票或审批系统。
 - 不允许 Agent 以 Battle 为由否定用户对项目的最终决策权。

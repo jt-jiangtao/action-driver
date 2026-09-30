@@ -9,9 +9,9 @@ import { SessionOutputStore } from '../../src/media/session-output-store'
 const temporaryDirectories: string[] = []
 
 function createStorage() {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-output-store-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-output-store-'))
   temporaryDirectories.push(directory)
-  const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
+  const database = openRuntimeDatabase(join(directory, 'action-driver.db'))
   const workspaceRoot = join(directory, 'workspace')
   const workspaces = new SessionWorkspaceStore({ workspaceRoot })
   const store = new SessionOutputStore({ database, rootDirectory: directory, workspaces })
@@ -117,7 +117,7 @@ describe('session output registration', () => {
     database.close()
 
     const reopened = new SessionOutputStore({
-      database: openRuntimeDatabase(join(directory, 'actiondriver.db')),
+      database: openRuntimeDatabase(join(directory, 'action-driver.db')),
       rootDirectory: directory,
       workspaces
     })

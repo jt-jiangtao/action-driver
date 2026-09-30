@@ -1,5 +1,5 @@
-import type { ModelCompletionServicePort, ModelFailureCode } from '@actiondriver/model-connections'
-import type { InteractionLogRecorder } from '@actiondriver/observability'
+import type { ModelCompletionServicePort, ModelFailureCode } from '@action-driver/model-connections'
+import type { InteractionLogRecorder } from '@action-driver/observability'
 import { randomUUID } from 'node:crypto'
 import type { ModelTraceFinish, ModelTracePort } from '../model-trace-port'
 import { isModelCredentialKey } from '../model-credential-key'

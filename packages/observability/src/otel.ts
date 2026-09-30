@@ -72,7 +72,7 @@ export function withRemoteTraceparent<T>(value: string, run: () => Promise<T>): 
   }
   if (!trace.isSpanContextValid(spanContext)) return run()
   return context.with(trace.setSpanContext(context.active(), spanContext), () =>
-    trace.getTracer('actiondriver-runtime').startActiveSpan('actiondriver.runtime.rpc', async (span) => {
+    trace.getTracer('action-driver-runtime').startActiveSpan('action-driver.runtime.rpc', async (span) => {
       try {
         const result = await run()
         span.setStatus({ code: SpanStatusCode.OK })
@@ -147,7 +147,7 @@ export function createProcessObservability(
       otelLogger.emit({
         severityNumber,
         severityText,
-        body: 'actiondriver.event',
+        body: 'action-driver.event',
         attributes: safeAttributes
       })
     }

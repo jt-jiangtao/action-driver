@@ -48,7 +48,7 @@
 - Move: `apps/*/src/**/*.test.{ts,tsx}`、`packages/*/src/**/*.test.{ts,tsx}`、`plugins/*/src/**/*.test.{ts,tsx}` → 各项目 `tests/unit/**`
 - Move: 各项目现有 `tests/**/*.test.{ts,tsx}` → 其 `tests/unit/**`
 - Move: `scripts/**/*.test.{ts,mjs}` → 根 `tests/unit/scripts/**`；根 `tests/*.test.ts` → 根 `tests/unit/**`
-- Modify: 被移动测试及引用它们的文件中的相对导入；必要的项目 `tsconfig.json`、包级测试配置与 `packages/create-actiondriver-plugin/package.json`
+- Modify: 被移动测试及引用它们的文件中的相对导入；必要的项目 `tsconfig.json`、包级测试配置与 `packages/create-action-driver-plugin/package.json`
 
 **Interfaces:**
 - Consumes: Task 1 的路径映射。

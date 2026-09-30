@@ -1,4 +1,4 @@
-import { PluginError, type InvocationContext, type Json, type PluginOwner } from '@actiondriver/plugin-contracts'
+import { PluginError, type InvocationContext, type Json, type PluginOwner } from '@action-driver/plugin-contracts'
 export interface CapabilityRoutingPorts {
   now(): number
   resolve(id: string): { id: string; owner: PluginOwner } | undefined

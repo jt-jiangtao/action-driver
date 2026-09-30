@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: 独立源码与固定原包基准
-系统 SHALL 将重建实现放在 packages/cua、sky、cua-repl、browser-runtime、browser-desktop，对比框架放在 packages/cua-parity。系统 SHALL 保存原包版本、文件哈希、资源及依赖清单和原文件至重建模块的映射；阅读副本 MUST NOT 作为产品构建输入。新实现包名 SHALL 使用 @actiondriver/*，内部目录与标识 MUST NOT 使用 oai_ 前缀；原始来源记录允许保留原路径。
+系统 SHALL 将重建实现放在 packages/cua、sky、cua-repl、browser-runtime、browser-desktop，对比框架放在 packages/cua-parity。系统 SHALL 保存原包版本、文件哈希、资源及依赖清单和原文件至重建模块的映射；阅读副本 MUST NOT 作为产品构建输入。新实现包名 SHALL 使用 @action-driver/*，内部目录与标识 MUST NOT 使用 oai_ 前缀；原始来源记录允许保留原路径。
 
 #### Scenario: 原包变化
 - **WHEN** 原包文件与固定基准不一致
@@ -63,22 +63,22 @@
 - **THEN** 返回明确平台不可用错误，不创建子进程
 
 ### Requirement: 独立 browser-desktop 包
-系统 SHALL 将本机 `@oai/browser-desktop@0.1.1` 的完整原件及版本和逐文件哈希保存在 `thirdparty/backup/browser-desktop/@oai/browser-desktop`，并将其自有 JavaScript、接口和资源还原为独立的 `@actiondriver/browser-desktop` 源码包。与已复制内嵌 browser bundle 相同的内容可以复用已验证的自有实现，但差异部分 SHALL 单独映射和测试。第三方依赖按确切版本引入，不自行重写。
+系统 SHALL 将本机 `@oai/browser-desktop@0.1.1` 的完整原件及版本和逐文件哈希保存在 `thirdparty/backup/browser-desktop/@oai/browser-desktop`，并将其自有 JavaScript、接口和资源还原为独立的 `@action-driver/browser-desktop` 源码包。与已复制内嵌 browser bundle 相同的内容可以复用已验证的自有实现，但差异部分 SHALL 单独映射和测试。第三方依赖按确切版本引入，不自行重写。
 
 #### Scenario: 独立原件与实现
 - **WHEN** 检查 browser-desktop 的交付物
 - **THEN** 原件、哈希清单、来源映射与独立构建的候选包均存在，候选包不从备份目录导入运行代码
 
 ### Requirement: 所有候选包与 Codex 私有服务隔离
-全部重建的 `@actiondriver/*` 包及其验收测试 MUST NOT 连接、调用或依赖 Codex App 私有服务、私有 native pipe、会话、turn metadata 或认证 broker。需要计算机或浏览器宿主能力时 SHALL 使用 ActionDriver 自有宿主接口及其 macOS 实现，缺少能力时明确失败。原件保留不变，仅可用于静态或不触达私有服务的离线差异对照；历史 Codex 服务实验 MUST NOT 计入最终验收。
+全部重建的 `@action-driver/*` 包及其验收测试 MUST NOT 连接、调用或依赖 Codex App 私有服务、私有 native pipe、会话、turn metadata 或认证 broker。需要计算机或浏览器宿主能力时 SHALL 使用 Action-Driver 自有宿主接口及其 macOS 实现，缺少能力时明确失败。原件保留不变，仅可用于静态或不触达私有服务的离线差异对照；历史 Codex 服务实验 MUST NOT 计入最终验收。
 
 #### Scenario: 私有服务不可用
 - **WHEN** 独立包执行需要浏览器宿主能力的操作
-- **THEN** 只能经 ActionDriver 自有宿主接口执行或明确报告能力不可用，不回退到 Codex 私有服务
+- **THEN** 只能经 Action-Driver 自有宿主接口执行或明确报告能力不可用，不回退到 Codex 私有服务
 
 #### Scenario: 独立包验收
 - **WHEN** 对任一候选包宣称 macOS 真实操作验收通过
-- **THEN** 必须提供 ActionDriver 自有宿主、可重置本地操作夹具、行为和资源清理证据；离线原包差异或 mock 结果不得代替
+- **THEN** 必须提供 Action-Driver 自有宿主、可重置本地操作夹具、行为和资源清理证据；离线原包差异或 mock 结果不得代替
 
 #### Scenario: 认证安全文档来源
 - **WHEN** 请求读取 browserAuthSafetyPrecheck
@@ -102,7 +102,7 @@ This explicit user-approved exception supersedes the exact original-version requ
 Battle complete: user explicitly approved autonomous implementation of missing-runtime helpers under documented contracts. Existing declarations do not prove debounce/caching/error/help details. Alternatives were waiting for missing source (unavailable, leaves modules incomplete) and implementing explicit contracts; recommended latter, user chose it. createDelayedAction uses last-call debounce; createLazyEvaluator caches first successful return, retries synchronous throws, caches Promise identity. sleep/enumerate/invariant follow declarations; env follows documented normalization/cache/missing/invalid behavior. These MUST be labeled autonomous implementations without original runtime parity evidence. Semantic risk remains unknown original edge behavior. Default debounce delay is 0ms, latest receiver forwarded, lazy evaluation forwards first receiver; env errors are retryable and successful/default values cached. Error/help text is project-defined, not asserted original.
 
 ### Requirement: 生产切换后完全移除 agent-runtime vendor
-系统 SHALL 在自有 macOS 宿主真实验收通过后，将生产 Computer Use REPL、CUA、Sky、构建和打包统一切换到 ActionDriver 自有实现，并删除 `apps/agent-runtime/vendor`。切换后的 Computer Use MUST 保持现有授权、取消、截图、重置和资源清理能力。`thirdparty/backup` MAY 作为离线对照输入，但 MUST NOT 被产品运行时、构建产物或生产依赖图读取。最终交付还 SHALL 满足 `integrate-browser-use-desktop` 的内置与外部 Chrome 真实验收。
+系统 SHALL 在自有 macOS 宿主真实验收通过后，将生产 Computer Use REPL、CUA、Sky、构建和打包统一切换到 Action-Driver 自有实现，并删除 `apps/agent-runtime/vendor`。切换后的 Computer Use MUST 保持现有授权、取消、截图、重置和资源清理能力。`thirdparty/backup` MAY 作为离线对照输入，但 MUST NOT 被产品运行时、构建产物或生产依赖图读取。最终交付还 SHALL 满足 `integrate-browser-use-desktop` 的内置与外部 Chrome 真实验收。
 
 #### Scenario: 完成联合切换
 - **WHEN** Browser Use 与 Computer Use 自有宿主真实验收均通过

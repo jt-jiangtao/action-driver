@@ -12,9 +12,9 @@ import {
 const temporaryDirectories: string[] = []
 
 function databasePath(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-runtime-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-runtime-'))
   temporaryDirectories.push(directory)
-  return join(directory, 'data', 'actiondriver.db')
+  return join(directory, 'data', 'action-driver.db')
 }
 
 afterEach(() => {

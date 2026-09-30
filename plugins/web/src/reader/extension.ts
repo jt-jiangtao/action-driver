@@ -1,4 +1,4 @@
-import { PluginError, type PluginContext } from '@actiondriver/plugin-sdk'
+import { PluginError, type PluginContext } from '@action-driver/plugin-sdk'
 import { definition } from './catalog.js'
 import { createJinaReaderTool } from './jina.js'
 export async function activate(context: PluginContext): Promise<void> {

@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/browser-desktop",
+  "name": "@action-driver/browser-desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/browser-runtime": "workspace:*"
+    "@action-driver/browser-runtime": "workspace:*"
   },
   "files": ["dist", "resources", "docs"]
 }

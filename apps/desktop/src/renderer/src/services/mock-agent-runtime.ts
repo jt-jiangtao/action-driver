@@ -5,8 +5,8 @@ import type {
   SkillExecutionEvent,
   SkillGateway,
   TaskProjection
-} from '@actiondriver/contracts'
-import { SKILL_IDS } from '@actiondriver/contracts'
+} from '@action-driver/contracts'
+import { SKILL_IDS } from '@action-driver/contracts'
 import { mockBrowserSkillProjection } from './mock-task-fixture'
 
 const BROWSER_INVOCATION_ID = 'browser-invocation'

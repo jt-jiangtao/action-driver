@@ -1,4 +1,4 @@
-import type { Json, PlacementDeclaration, PlacementLocation } from '@actiondriver/plugin-contracts'
+import type { Json, PlacementDeclaration, PlacementLocation } from '@action-driver/plugin-contracts'
 import { createHttpHostChannel, createLocalSkillChannel, type HostInvokeRequest, type LocalSkillBinding } from './channels'
 import { HostRegistry, PlacementError, type PlacementAuditEntry, type RegisteredHost } from './hosts'
 import { PlacementInvoker, type HostChannel, type InvocationContextDto } from './invoker'
@@ -235,7 +235,7 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export const PLACEMENT_HOSTS_ENV = 'ACTIONDRIVER_PLACEMENT_HOSTS'
+export const PLACEMENT_HOSTS_ENV = 'ACTION_DRIVER_PLACEMENT_HOSTS'
 
 export interface RemoteHostDeclaration {
   hostId?: string

@@ -74,7 +74,7 @@ describe('script process runner', () => {
   })
 
   it('terminates a child process in the same process group on cancellation', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'actiondriver-child-'))
+    const directory = await mkdtemp(join(tmpdir(), 'action-driver-child-'))
     const pidFile = join(directory, 'pid')
     const code = `const {spawn}=require('node:child_process');const fs=require('node:fs');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});fs.writeFileSync(${JSON.stringify(pidFile)},String(child.pid));setInterval(()=>{},1000)`
     const controller = new AbortController()

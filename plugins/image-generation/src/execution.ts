@@ -1,11 +1,11 @@
-import type { ImageAssetRef } from '@actiondriver/plugin-sdk'
+import type { ImageAssetRef } from '@action-driver/plugin-sdk'
 import { definition } from './catalog.js'
 export type ModelRef = { connectionId: string; modelId: string }
 import type {
   ToolCall,
   ToolExecutor,
   ToolExecutorEvent
-} from '@actiondriver/plugin-sdk'
+} from '@action-driver/plugin-sdk'
 
 export type ImageGenerationToolOptions = {
   defaultModel: () => Promise<ModelRef | null>

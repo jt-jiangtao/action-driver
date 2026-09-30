@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/model-connections",
+  "name": "@action-driver/model-connections",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/contracts": "workspace:*",
-    "@actiondriver/runtime-contracts": "workspace:*"
+    "@action-driver/contracts": "workspace:*",
+    "@action-driver/runtime-contracts": "workspace:*"
   }
 }

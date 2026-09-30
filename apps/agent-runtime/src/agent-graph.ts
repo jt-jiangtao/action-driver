@@ -10,9 +10,9 @@ import {
   interrupt as langGraphInterrupt,
   isInterrupted
 } from '@langchain/langgraph'
-import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
-import type { ProviderToolCall } from '@actiondriver/model-connections'
-import { parseToolCall, type ToolDefinition, type ToolEvent } from '@actiondriver/runtime-contracts'
+import type { ImageAssetRef, ModelRef } from '@action-driver/contracts'
+import type { ProviderToolCall } from '@action-driver/model-connections'
+import { parseToolCall, type ToolDefinition, type ToolEvent } from '@action-driver/runtime-contracts'
 import type { RuntimeToolRegistry } from './tool-registry'
 import type { RuntimeToolPolicy } from './tool-policy'
 import type { ToolInvocationService } from './tool-invocation-service'
@@ -743,7 +743,7 @@ export class LangGraphRunner implements GraphRunner {
       .addEdge('awaitUser', 'finish')
       .addEdge('finish', END)
       .addEdge('failed', END)
-      .compile({ name: 'actiondriver-agent-runtime', checkpointer: this.checkpointer })
+      .compile({ name: 'action-driver-agent-runtime', checkpointer: this.checkpointer })
   }
 
   private async consumeModelStream(

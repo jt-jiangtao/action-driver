@@ -21,7 +21,7 @@ const runtimeRoot = join(projectRoot, 'apps/agent-runtime')
 const desktopRequire = createRequire(join(projectRoot, 'apps/desktop/package.json'))
 const runtimeRequire = createRequire(join(runtimeRoot, 'package.json'))
 
-const arch = process.env.ACTIONDRIVER_NATIVE_ARCH?.trim() || process.arch
+const arch = process.env.ACTION_DRIVER_NATIVE_ARCH?.trim() || process.arch
 const electronVersion = desktopRequire('electron/package.json').version
 const outputDirectory = join(runtimeRoot, 'native', 'electron', arch)
 const bindingPath = join(outputDirectory, BINDING_FILE)
@@ -40,7 +40,7 @@ function isUpToDate() {
 
 function build() {
   const sourceDirectory = dirname(runtimeRequire.resolve('better-sqlite3/package.json'))
-  const workDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-electron-native-'))
+  const workDirectory = mkdtempSync(join(tmpdir(), 'action-driver-electron-native-'))
   const buildDirectory = join(workDirectory, 'better-sqlite3')
   cpSync(sourceDirectory, buildDirectory, { recursive: true, dereference: true })
 

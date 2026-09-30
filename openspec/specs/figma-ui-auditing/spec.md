@@ -1,7 +1,7 @@
 # figma-ui-auditing Specification
 
 ## Purpose
-定义对 ActionDriver Figma 源文件执行可重复结构审计的行为契约，使布局、动态内容、控件状态与交互问题能够被确定性脚本定位，同时保留对主观视觉质量的截图复核边界。
+定义对 Action-Driver Figma 源文件执行可重复结构审计的行为契约，使布局、动态内容、控件状态与交互问题能够被确定性脚本定位，同时保留对主观视觉质量的截图复核边界。
 
 ## Requirements
 
@@ -67,8 +67,8 @@
 ### Requirement: Skill 执行全面审计并诚实报告范围
 项目 SHALL 提供可发现的 Figma UI 审计 Skill。Skill MUST 提取新鲜快照、运行脚本、处理 error、逐项复核 warning，并在最终报告中分别列出自动通过项、确认问题、批准例外、截图复核结果和未扫描范围。
 
-#### Scenario: 全面检查 ActionDriver 设计
-- **WHEN** 用户要求全面检查当前 ActionDriver Figma 文件
+#### Scenario: 全面检查 Action-Driver 设计
+- **WHEN** 用户要求全面检查当前 Action-Driver Figma 文件
 - **THEN** Skill 覆盖 Components、Home、Task、Model Configuration、Agent Configuration 与 Logs 页面，并按 page 与 node id 输出去重后的结果
 
 #### Scenario: 当前设计仍有错误

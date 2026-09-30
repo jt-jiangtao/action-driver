@@ -1,6 +1,6 @@
 ## 1. 依赖与测试基线
 
-- [x] 1.1 用户执行 `pnpm --filter @actiondriver/desktop add zustand`，确认锁文件更新。（Agent 以 `corepack pnpm@12.4.1` 执行，固定为 `5.0.15`，锁文件已更新。）
+- [x] 1.1 用户执行 `pnpm --filter @action-driver/desktop add zustand`，确认锁文件更新。（Agent 以 `corepack pnpm@12.4.1` 执行，固定为 `5.0.15`，锁文件已更新。）
 - [x] 1.2 编写不可变性测试（深度冻结所有快照，覆盖文本、工具、活动与结束事件），确认在当前代码上因 `last.text += delta` 失败。
 - [x] 1.3 编写渲染次数测试（100 条历史消息 + 50 个增量），确认在当前代码上失败。
 

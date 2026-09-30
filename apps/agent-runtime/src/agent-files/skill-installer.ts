@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, join, relative, sep } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { AgentSkillSummaryDto, InstallSkillInput } from '@actiondriver/runtime-contracts'
+import type { AgentSkillSummaryDto, InstallSkillInput } from '@action-driver/runtime-contracts'
 import { AgentFileStoreError, type AgentFileStore } from './agent-file-store'
 import { parseSkillDeclaration } from './skill-declaration'
 import { cloneGitSkill, parseGithubSkillUrl, type GithubSkillLocation } from './skill-source'
@@ -31,7 +31,7 @@ export class SkillInstaller {
     if (!SKILL_ID.test(id) || SYSTEM_SKILL_IDS.has(id)) {
       throw new AgentFileStoreError('VALIDATION', 'GitHub Skill 目录名无效或占用系统名称。')
     }
-    const temporaryRoot = await mkdtemp(join(tmpdir(), 'actiondriver-skill-source-'))
+    const temporaryRoot = await mkdtemp(join(tmpdir(), 'action-driver-skill-source-'))
     const selected = join(temporaryRoot, id)
     try {
       if (this.options.fetchGithub) await this.options.fetchGithub(location, selected)

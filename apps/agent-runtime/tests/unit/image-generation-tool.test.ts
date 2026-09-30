@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ToolCall } from '@actiondriver/runtime-contracts'
+import type { ToolCall } from '@action-driver/runtime-contracts'
 import { createImageGenerationTool } from '../../src/media/image-generation-tool'
 import { createTokenPlanImageGenerationAdapter } from '../../src/media/token-plan-image-generation-adapter'
 

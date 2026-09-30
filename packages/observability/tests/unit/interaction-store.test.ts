@@ -158,7 +158,7 @@ describe('structured interaction logs', () => {
     const finish = await recorder.start({
       transport: 'ipc',
       direction: 'renderer->service',
-      operation: 'actiondriver:agent:submit',
+      operation: 'action-driver:agent:submit',
       request: { kind: 'json', value: { goal: 'summarise' } }
     })
 

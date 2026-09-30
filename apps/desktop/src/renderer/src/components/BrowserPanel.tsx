@@ -1,5 +1,5 @@
-import type { BrowserSkillProjection } from '@actiondriver/contracts'
-import type { BrowserSessionCommand, BrowserSessionControl } from '@actiondriver/browser-desktop'
+import type { BrowserSkillProjection } from '@action-driver/contracts'
+import type { BrowserSessionCommand, BrowserSessionControl } from '@action-driver/browser-desktop'
 import { useEffect, useRef } from 'react'
 import hotelSearch from '../assets/hotel-search.png'
 import { BrowserNavigationBar } from './browser/BrowserNavigationBar'
@@ -38,7 +38,7 @@ export function BrowserPanel({
   useEffect(() => {
     if (!live || projection.surface !== 'embedded' || !taskId || !sessionId) return
     const element = contentRef.current
-    const api = window.actionDriverDesktop?.browserSession
+    const api = window.productDesktop?.browserSession
     if (!element || !api) return
     const update = (visible: boolean) => {
       const rect = element.getBoundingClientRect()
@@ -60,14 +60,14 @@ export function BrowserPanel({
   }, [live, mode, projection.surface, sessionId, taskId])
   const execute = (command: BrowserSessionCommand) => {
     if (!taskId || !sessionId || !tabId) return
-    void window.actionDriverDesktop?.browserSession.command({
+    void window.productDesktop?.browserSession.command({
       action: 'execute', taskId, sessionId, tabId, command
     })
   }
   const transition = async (control: BrowserSessionControl,
     next: () => Promise<unknown> | void) => {
     if (taskId && sessionId)
-      await window.actionDriverDesktop?.browserSession.command({
+      await window.productDesktop?.browserSession.command({
         action: 'transition', taskId, sessionId, control
       })
     return next()
@@ -83,13 +83,13 @@ export function BrowserPanel({
         onNewTab={live ? () => execute({ type: 'create-tab' }) : undefined}
         onSelectTab={live ? (id) => {
           if (!taskId || !sessionId) return
-          void window.actionDriverDesktop?.browserSession.command({
+          void window.productDesktop?.browserSession.command({
             action: 'execute', taskId, sessionId, tabId: id, command: { type: 'select-tab' }
           })
         } : undefined}
         onCloseTab={live ? (id) => {
           if (!taskId || !sessionId) return
-          void window.actionDriverDesktop?.browserSession.command({
+          void window.productDesktop?.browserSession.command({
             action: 'execute', taskId, sessionId, tabId: id, command: { type: 'close-tab' }
           })
         } : undefined}

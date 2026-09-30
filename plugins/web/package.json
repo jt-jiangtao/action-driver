@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/web-plugin",
+  "name": "@action-driver/web-plugin",
   "version": "1.3.0",
   "private": true,
   "type": "module",
@@ -78,7 +78,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/plugin-sdk": "workspace:*",
+    "@action-driver/plugin-sdk": "workspace:*",
     "ipaddr.js": "2.5.0",
     "@mozilla/readability": "0.6.0",
     "jsdom": "26.1.0"

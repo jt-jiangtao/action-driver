@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBrowserDesktopSessionController } from '@actiondriver/browser-desktop'
+import { createBrowserDesktopSessionController } from '@action-driver/browser-desktop'
 import { createTaskBrowserBinding } from '../../../../src/main/browser-session/task-binding.js'
 import { BROWSER_SESSION_COMMAND_CHANNEL } from '../../../../src/shared/browser-session-contract.js'
 

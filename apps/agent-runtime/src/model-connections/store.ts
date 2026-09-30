@@ -1,5 +1,5 @@
-import type { ModelOptionDto, ModelProtocol } from '@actiondriver/model-connections'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelOptionDto, ModelProtocol } from '@action-driver/model-connections'
+import type { ModelRef } from '@action-driver/contracts'
 
 export type StoredModelConnection = {
   id: string

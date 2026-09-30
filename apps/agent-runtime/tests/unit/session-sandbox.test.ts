@@ -13,7 +13,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ToolExecutorEvent } from '@actiondriver/runtime-contracts'
+import type { ToolExecutorEvent } from '@action-driver/runtime-contracts'
 import { runProcess } from '../../src/execution/process-runner'
 import { createScriptTools } from '../../src/execution/tools'
 import {
@@ -90,7 +90,7 @@ async function run(
 
 describe('per-session macOS script sandbox', () => {
   it('refuses to run on a platform without a supported sandbox', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-unsupported-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-unsupported-')
     const workspace = sessionWorkspacePaths(workspaceRoot, 'session-a')
     mkdirSync(workspace.input, { recursive: true })
     mkdirSync(workspace.output, { recursive: true })
@@ -111,7 +111,7 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('lets a bundled interpreter read its own input and write its own output', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-own-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-own-')
     const launch = await prepare(workspaceRoot, 'session-a')
     const workspace = sessionWorkspacePaths(workspaceRoot, 'session-a')
     writeFileSync(join(workspace.input, 'notes.txt'), 'input-bytes')
@@ -136,7 +136,7 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('denies reading another session workspace', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-cross-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-cross-')
     const launch = await prepare(workspaceRoot, 'session-a')
     const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
     const other = sessionWorkspacePaths(workspaceRoot, 'session-b')
@@ -156,14 +156,14 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('denies application-private files outside the workspace', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-private-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-private-')
     const launch = await prepare(workspaceRoot, 'session-a')
     const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
-    const privateDirectory = temporaryDirectory('actiondriver-sandbox-private-store-')
-    writeFileSync(join(privateDirectory, 'actiondriver.db'), 'database-bytes')
+    const privateDirectory = temporaryDirectory('action-driver-sandbox-private-store-')
+    writeFileSync(join(privateDirectory, 'action-driver.db'), 'database-bytes')
     writeFileSync(join(privateDirectory, 'service-token'), 'token-bytes')
 
-    for (const target of ['actiondriver.db', 'service-token']) {
+    for (const target of ['action-driver.db', 'service-token']) {
       const result = await run(
         launch,
         node,
@@ -179,10 +179,10 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('denies writing outside the session output and refuses symlinked escapes', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-write-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-write-')
     const launch = await prepare(workspaceRoot, 'session-a')
     const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
-    const outside = temporaryDirectory('actiondriver-sandbox-outside-')
+    const outside = temporaryDirectory('action-driver-sandbox-outside-')
     symlinkSync(outside, join(own.output, 'escape'))
 
     const outsideWrite = await run(
@@ -203,11 +203,11 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('starts scripts with a minimal environment that carries no runtime secrets', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-env-')
-    const previousToken = process.env.ACTIONDRIVER_SERVICE_TOKEN
-    const previousMarker = process.env.ACTIONDRIVER_TEST_SECRET
-    process.env.ACTIONDRIVER_SERVICE_TOKEN = 'service-token-value'
-    process.env.ACTIONDRIVER_TEST_SECRET = 'credential-value'
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-env-')
+    const previousToken = process.env.ACTION_DRIVER_SERVICE_TOKEN
+    const previousMarker = process.env.ACTION_DRIVER_TEST_SECRET
+    process.env.ACTION_DRIVER_SERVICE_TOKEN = 'service-token-value'
+    process.env.ACTION_DRIVER_TEST_SECRET = 'credential-value'
     try {
       const launch = await prepare(workspaceRoot, 'session-a')
       const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
@@ -219,21 +219,21 @@ describe('per-session macOS script sandbox', () => {
       )
 
       expect(result.exitCode).toBe(0)
-      expect(result.output).not.toContain('ACTIONDRIVER_SERVICE_TOKEN')
-      expect(result.output).not.toContain('ACTIONDRIVER_TEST_SECRET')
+      expect(result.output).not.toContain('ACTION_DRIVER_SERVICE_TOKEN')
+      expect(result.output).not.toContain('ACTION_DRIVER_TEST_SECRET')
       expect(result.output).not.toContain('service-token-value')
       expect(result.output).toContain('TMPDIR')
       expect(result.output).toContain('PATH')
     } finally {
-      if (previousToken === undefined) delete process.env.ACTIONDRIVER_SERVICE_TOKEN
-      else process.env.ACTIONDRIVER_SERVICE_TOKEN = previousToken
-      if (previousMarker === undefined) delete process.env.ACTIONDRIVER_TEST_SECRET
-      else process.env.ACTIONDRIVER_TEST_SECRET = previousMarker
+      if (previousToken === undefined) delete process.env.ACTION_DRIVER_SERVICE_TOKEN
+      else process.env.ACTION_DRIVER_SERVICE_TOKEN = previousToken
+      if (previousMarker === undefined) delete process.env.ACTION_DRIVER_TEST_SECRET
+      else process.env.ACTION_DRIVER_TEST_SECRET = previousMarker
     }
   })
 
   it('runs the bundled Office tooling inside the sandbox and writes deliverables', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-office-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-office-')
     const workspace = sessionWorkspacePaths(workspaceRoot, 'session-a')
     mkdirSync(workspace.input, { recursive: true })
     mkdirSync(workspace.output, { recursive: true })
@@ -348,7 +348,7 @@ describe('per-session macOS script sandbox', () => {
     await once(server, 'listening')
     const port = (server.address() as AddressInfo).port
     try {
-      const workspaceRoot = temporaryDirectory('actiondriver-sandbox-local-')
+      const workspaceRoot = temporaryDirectory('action-driver-sandbox-local-')
       const launch = await prepare(workspaceRoot, 'session-a')
       const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
       const result = await run(
@@ -377,7 +377,7 @@ describe('per-session macOS script sandbox', () => {
   })
 
   it('keeps the limits for processes a script starts', async () => {
-    const workspaceRoot = temporaryDirectory('actiondriver-sandbox-child-')
+    const workspaceRoot = temporaryDirectory('action-driver-sandbox-child-')
     const launch = await prepare(workspaceRoot, 'session-a')
     const own = sessionWorkspacePaths(workspaceRoot, 'session-a')
     const other = sessionWorkspacePaths(workspaceRoot, 'session-b')

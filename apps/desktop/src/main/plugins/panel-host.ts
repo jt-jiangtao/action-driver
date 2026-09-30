@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { PluginError, panelDefinitionSchema, viewDefinitionSchema, type PanelDefinition, type PluginOwner, type Json, type ViewDefinition } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { PluginError, panelDefinitionSchema, viewDefinitionSchema, type PanelDefinition, type PluginOwner, type Json, type ViewDefinition } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 export const PANEL_PREFERENCES = { sandbox: true, nodeIntegration: false, contextIsolation: true, webSecurity: true } as const
 type SurfaceDefinition = PanelDefinition | ViewDefinition
 export interface PanelHostPorts {

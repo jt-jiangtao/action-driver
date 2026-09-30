@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 新增项目级 Figma UI 审计 Skill 和确定性 Node 校验脚本，能够发现布局、模态框、图标、交互状态以及按钮/下拉框内容预算问题，并对当前 ActionDriver Figma 六个页面执行全面检查。
+**Goal:** 新增项目级 Figma UI 审计 Skill 和确定性 Node 校验脚本，能够发现布局、模态框、图标、交互状态以及按钮/下拉框内容预算问题，并对当前 Action-Driver Figma 六个页面执行全面检查。
 
 **Architecture:** Figma 插件 API 负责提取标准化 JSON 快照，仓库脚本只读取快照与显式配置并输出 error/warning。确定性几何问题自动失败，主观视觉问题进入截图复核清单；脚本不保存 Figma Token，也不自动修改设计。
 
@@ -225,7 +225,7 @@ Run: `node --test --test-name-pattern='reaction|state|config|exception' .agents/
 
 Expected: FAIL because interaction and configuration validation is missing.
 
-- [ ] **Step 3: Implement interaction rules and ActionDriver configuration**
+- [ ] **Step 3: Implement interaction rules and Action-Driver configuration**
 
 Register pages `60:2`, `60:4`, `60:6`, `273:5`, `379:2`, `315:2`; content regions and authoritative control component IDs; required variant states; baseline reaction counts; dynamic select/model label slots; and only reviewed overlay/Hotspot/fixed-size exceptions. Reject wildcard node IDs or blank reasons.
 
@@ -282,7 +282,7 @@ Then replace the generated content and remove every unused scaffold file or mark
 
 - [ ] **Step 3: Write the extraction and audit workflow**
 
-`SKILL.md` must require `figma-use`, one page per `use_figma` call, fresh snapshots after every mutation, validator execution before success claims, screenshot review for warnings, and a final report separating errors, warnings, approved exceptions and unscanned scope. `references/audit-rules.md` contains the snapshot schema, Plugin API extraction program, rule table and ActionDriver control profiles.
+`SKILL.md` must require `figma-use`, one page per `use_figma` call, fresh snapshots after every mutation, validator execution before success claims, screenshot review for warnings, and a final report separating errors, warnings, approved exceptions and unscanned scope. `references/audit-rules.md` contains the snapshot schema, Plugin API extraction program, rule table and Action-Driver control profiles.
 
 - [ ] **Step 4: Validate Skill structure and script discoverability**
 

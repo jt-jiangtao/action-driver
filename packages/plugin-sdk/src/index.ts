@@ -1,6 +1,6 @@
-import type { ContextValue, Contribution, InvocationContext, Json, PluginOwner, SkillContribution } from '@actiondriver/plugin-contracts'
-import type { ToolDefinition, ToolExecutor } from '@actiondriver/plugin-contracts'
-export type { Contribution, InvocationContext, Json, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { ContextValue, Contribution, InvocationContext, Json, PluginOwner, SkillContribution } from '@action-driver/plugin-contracts'
+import type { ToolDefinition, ToolExecutor } from '@action-driver/plugin-contracts'
+export type { Contribution, InvocationContext, Json, PluginOwner } from '@action-driver/plugin-contracts'
 export interface Disposable { dispose(): void | Promise<void> }
 export interface DisposableStore { add<T extends Disposable>(resource: T): T }
 export type StopReason = 'disabled' | 'upgrade' | 'uninstall' | 'shutdown' | 'crash'
@@ -15,7 +15,7 @@ export interface RegistrationPort {
 export interface ToolRegistrationPort { register(definition: ToolDefinition, executor: ToolExecutor): Disposable }
 export type ContributionHandler = (input: Json, context: InvocationContext, signal: AbortSignal) => Promise<Json>
 export interface ResourceHandle { resourceId: string }
-export interface ActionDriverAPI {
+export interface ProductAPI {
   context: { set(key: string, value: ContextValue): Promise<void>; remove(key: string): Promise<void> }
   tools: ToolRegistrationPort
   contributions: RegistrationPort
@@ -33,22 +33,22 @@ export interface ActionDriverAPI {
   storage: { get(key: string): Promise<Json>; set(key: string, value: Json): Promise<void> }
   logging: { write(level: 'debug' | 'info' | 'warn' | 'error', message: string, fields?: Record<string, Json>): Promise<void> }
 }
-export interface PluginContext { readonly plugin: PluginOwner; readonly subscriptions: DisposableStore; readonly api: ActionDriverAPI }
+export interface PluginContext { readonly plugin: PluginOwner; readonly subscriptions: DisposableStore; readonly api: ProductAPI }
 export interface PluginModule { activate(context: PluginContext): void | Promise<void>; deactivate?(reason: StopReason): void | Promise<void> }
 
-export type { PluginCatalog, SkillContribution, PanelDefinition } from '@actiondriver/plugin-contracts'
-export type { MenuDefinition, ViewDefinition, PluginContributionCatalog } from '@actiondriver/plugin-contracts'
-export { VIEW_CONTAINERS, MENU_LOCATIONS, buildContributionCatalog, PLUGIN_UI_PROTOCOL_VERSION } from '@actiondriver/plugin-contracts'
-export type { ToolDefinition, ToolExecutor, ToolCall, ToolExecutorEvent, ImageAssetRef } from '@actiondriver/plugin-contracts'
+export type { PluginCatalog, SkillContribution, PanelDefinition } from '@action-driver/plugin-contracts'
+export type { MenuDefinition, ViewDefinition, PluginContributionCatalog } from '@action-driver/plugin-contracts'
+export { VIEW_CONTAINERS, MENU_LOCATIONS, buildContributionCatalog, PLUGIN_UI_PROTOCOL_VERSION } from '@action-driver/plugin-contracts'
+export type { ToolDefinition, ToolExecutor, ToolCall, ToolExecutorEvent, ImageAssetRef } from '@action-driver/plugin-contracts'
 
 export { createPluginContext, ResourceLedger } from './context.js'
 
 export { EventQueue } from './event-queue.js'
 
-export { PluginError } from '@actiondriver/plugin-contracts'
+export { PluginError } from '@action-driver/plugin-contracts'
 
-export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
+export { MAX_IMAGE_BYTES } from '@action-driver/plugin-contracts'
 
-export { createToolIdentity, toolIdSchema, type ToolTarget } from '@actiondriver/plugin-contracts'
+export { createToolIdentity, toolIdSchema, type ToolTarget } from '@action-driver/plugin-contracts'
 
-export { toolPresentationSchema, toolDetailsSchema, projectToolDetails, type ToolPresentation, type ToolPresentationField, type ToolDetails, type ToolDetailField } from '@actiondriver/plugin-contracts'
+export { toolPresentationSchema, toolDetailsSchema, projectToolDetails, type ToolPresentation, type ToolPresentationField, type ToolDetails, type ToolDetailField } from '@action-driver/plugin-contracts'

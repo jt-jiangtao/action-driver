@@ -1,4 +1,4 @@
-import type { ToolPresentation } from '@actiondriver/plugin-sdk'
+import type { ToolPresentation } from '@action-driver/plugin-sdk'
 
 /** Pure semantic metadata; importing it never activates the plugin. */
 export const presentations: Record<string, ToolPresentation> = {

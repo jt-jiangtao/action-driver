@@ -55,7 +55,7 @@
 
 - [ ] **Step 1: 核对删除前状态。** `rg -n 'DetailBounds|detail-bounds|isExecutorRegistered' apps packages plugins scripts` 只命中待删定义；运行时未使用检查准确报告成员和测试参数。
 - [ ] **Step 2: 删除最小代码。** 删除死文件、构造选项及赋值，重命名未使用参数；在审计表记录确切删除项。
-- [ ] **Step 3: 定向验证。** 运行 `pnpm vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`、`pnpm exec tsc --noEmit --noUnusedLocals --noUnusedParameters -p apps/agent-runtime/tsconfig.json` 及 `pnpm --filter @actiondriver/desktop typecheck`，确认通过；如有新失败，先定位原因再继续。
+- [ ] **Step 3: 定向验证。** 运行 `pnpm vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`、`pnpm exec tsc --noEmit --noUnusedLocals --noUnusedParameters -p apps/agent-runtime/tsconfig.json` 及 `pnpm --filter @action-driver/desktop typecheck`，确认通过；如有新失败，先定位原因再继续。
 
 ### Task 3: 清理其余经审计证实无用的代码与空目录
 

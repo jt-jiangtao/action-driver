@@ -17,8 +17,8 @@ const instructions = {
 const base = {
   CUA_REPL_NODE_REPL_PATH: '/node-repl',
   CUA_REPL_ENABLED_SURFACES: ' computer, browser,computer, ',
-  NODE_REPL_TRUSTED_SERVICES: JSON.stringify({ browser: '/actiondriver/browser-service.mjs',
-    sky: '/actiondriver/computer-service.mjs' })
+  NODE_REPL_TRUSTED_SERVICES: JSON.stringify({ browser: '/action-driver/browser-service.mjs',
+    sky: '/action-driver/computer-service.mjs' })
 }
 test('launch plan normalizes surfaces and composes descriptions, services and allowlist', () => {
   const result = createLaunchPlan(
@@ -32,8 +32,8 @@ test('launch plan normalizes surfaces and composes descriptions, services and al
     'CUSTOM,CUA_REPL_ENABLED_SURFACES,CUA_REPL_BROWSER_ENV'
   )
   expect(JSON.parse(result.env.NODE_REPL_TRUSTED_SERVICES!)).toEqual({
-    browser: '/actiondriver/browser-service.mjs',
-    sky: '/actiondriver/computer-service.mjs'
+    browser: '/action-driver/browser-service.mjs',
+    sky: '/action-driver/computer-service.mjs'
   })
   expect(JSON.parse(result.env.NODE_REPL_TOOL_OVERRIDES!).tools.js.description).toBe(
     'description\n\nbrowser\n\ncomputer\n\noutput'
@@ -57,9 +57,9 @@ test.each(['browser', 'computer'])(
   }
 )
 test('empty service map and private service module paths are rejected', () => {
-  for (const value of ['', JSON.stringify({browser:'@actiondriver/browser-runtime/service',
-    sky:'@actiondriver/sky/service'}), JSON.stringify({browser:'/Applications/Codex.app/service.mjs',
-    sky:'/actiondriver/computer-service.mjs'})])
+  for (const value of ['', JSON.stringify({browser:'@action-driver/browser-runtime/service',
+    sky:'@action-driver/sky/service'}), JSON.stringify({browser:'/Applications/Codex.app/service.mjs',
+    sky:'/action-driver/computer-service.mjs'})])
     expect(() => createLaunchPlan({ ...base, NODE_REPL_TRUSTED_SERVICES: value },
       instructions, () => 'banner')).toThrow()
 })

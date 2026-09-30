@@ -1,4 +1,4 @@
-import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
+import { STREAM_PROTOCOL } from '@action-driver/runtime-contracts'
 import type { RuntimeServiceDescriptor } from './runtime-supervisor'
 import {
   RUNTIME_CONNECTION_IPC_CHANNEL,

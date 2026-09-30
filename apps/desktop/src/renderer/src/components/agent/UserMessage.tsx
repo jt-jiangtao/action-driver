@@ -1,4 +1,4 @@
-import type { AgentMessageProjection } from '@actiondriver/contracts'
+import type { AgentMessageProjection } from '@action-driver/contracts'
 import { memo, useMemo } from 'react'
 import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
 import documentIconUrl from '../../assets/file-document.png'

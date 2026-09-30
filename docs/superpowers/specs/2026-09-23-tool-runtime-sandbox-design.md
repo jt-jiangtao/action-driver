@@ -2,7 +2,7 @@
 
 ## 目标
 
-为 ActionDriver 建立所有后续能力共用的 Tool Runtime，并以工作区只读 Sandbox 验证真实“模型请求工具 → 执行 → 模型继续生成 → WebSocket 渲染 → 日志查询”闭环。
+为 Action-Driver 建立所有后续能力共用的 Tool Runtime，并以工作区只读 Sandbox 验证真实“模型请求工具 → 执行 → 模型继续生成 → WebSocket 渲染 → 日志查询”闭环。
 
 ## 已确认范围
 

@@ -1,11 +1,11 @@
 ## Purpose
 
-定义 ActionDriver 将真实模型调用追踪到 LangSmith、按会话读取追踪摘要并安全关联应用内 LangSmith 详情页面的可观察性边界，使模型层日志拥有单一且可审计的事实来源。
+定义 Action-Driver 将真实模型调用追踪到 LangSmith、按会话读取追踪摘要并安全关联应用内 LangSmith 详情页面的可观察性边界，使模型层日志拥有单一且可审计的事实来源。
 
 ## ADDED Requirements
 
 ### Requirement: 追踪真实模型调用到 LangSmith
-当 LangSmith 配置有效时，Runtime SHALL 为每次真实模型调用创建和完成可关联的追踪记录，并 SHALL 将 ActionDriver 的会话标识、任务标识、请求标识、模型标识和终态关联到该记录。追踪 SHALL 包含执行所需的输入、输出、错误、用量和耗时；鉴权凭据 MUST NOT 写入追踪。
+当 LangSmith 配置有效时，Runtime SHALL 为每次真实模型调用创建和完成可关联的追踪记录，并 SHALL 将 Action-Driver 的会话标识、任务标识、请求标识、模型标识和终态关联到该记录。追踪 SHALL 包含执行所需的输入、输出、错误、用量和耗时；鉴权凭据 MUST NOT 写入追踪。
 
 #### Scenario: 成功的流式模型调用
 - **WHEN** Runtime 收到一条真实模型调用的最终成功结果
@@ -16,7 +16,7 @@
 - **THEN** LangSmith 中对应记录标记为失败并包含安全化错误信息，Runtime 仍按原有任务失败语义处理该错误
 
 ### Requirement: 按 LangSmith 会话读取模型日志摘要
-模型层日志服务 SHALL 从 LangSmith 返回的追踪记录构造会话列表，并 SHALL 以 ActionDriver 会话标识聚合其任务摘要。列表 SHALL 提供会话名称、会话标识、开始时间、状态、总耗时、任务数及每个任务的模型和状态；MUST NOT 以本地模型调用存储或 Mock 记录补足、替换或伪装成功响应。
+模型层日志服务 SHALL 从 LangSmith 返回的追踪记录构造会话列表，并 SHALL 以 Action-Driver 会话标识聚合其任务摘要。列表 SHALL 提供会话名称、会话标识、开始时间、状态、总耗时、任务数及每个任务的模型和状态；MUST NOT 以本地模型调用存储或 Mock 记录补足、替换或伪装成功响应。
 
 #### Scenario: 查询有追踪记录的会话
 - **WHEN** 用户打开模型层日志且 LangSmith 返回属于已配置项目的追踪记录

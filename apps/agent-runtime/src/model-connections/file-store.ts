@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import { ModelStorageError, type ModelConnectionStore, type StoredModelConnection } from './store'
 
 export type FileModelConnectionStoreOptions = {

@@ -8,8 +8,8 @@ import type {
   SkillGateway,
   SkillId,
   SkillInvocation
-} from '@actiondriver/contracts'
-import { SKILL_IDS } from '@actiondriver/contracts'
+} from '@action-driver/contracts'
+import { SKILL_IDS } from '@action-driver/contracts'
 import { transitionSkillState } from './skill-state-machine'
 
 const occurredAt = '2026-09-20T12:00:00.000Z'

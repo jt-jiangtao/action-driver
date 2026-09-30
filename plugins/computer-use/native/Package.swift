@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "ActionDriverComputerUse",
+    name: "ProductComputerUse",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "actiondriver-computer-use", targets: ["ComputerUseHelper"])],
+    products: [.executable(name: "action-driver-computer-use", targets: ["ComputerUseHelper"])],
     targets: [
         .target(name: "ComputerUseCore", resources: [.process("Resources")]),
         .executableTarget(name: "ComputerUseHelper", dependencies: ["ComputerUseCore"]),

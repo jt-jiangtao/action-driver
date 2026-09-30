@@ -64,7 +64,7 @@ otelcol.processor.transform "tempo_allowlist" {
     statements = [
       `keep_keys(attributes, ["http.request.method", "http.route", "http.response.status_code", "rpc.system", "rpc.method", "task.id", "request.id", "session.id", "operation", "outcome", "duration.ms", "error.type"])`,
       `set(status.message, "")`,
-      `set(name, "actiondriver.operation")`,
+      `set(name, "action-driver.operation")`,
     ]
   }
   output {

@@ -46,7 +46,7 @@
     return context.json(await service.createModelConnection(context.req.valid('json')), 201)
   })
   ```
-- [ ] **Step 4: Run green and commit.** Run target tests, `pnpm typecheck`, `pnpm --filter @actiondriver/agent-runtime build`; stage route/package/lock/test files and commit `refactor(runtime): serve validated HTTP routes with Hono`.
+- [ ] **Step 4: Run green and commit.** Run target tests, `pnpm typecheck`, `pnpm --filter @action-driver/agent-runtime build`; stage route/package/lock/test files and commit `refactor(runtime): serve validated HTTP routes with Hono`.
 
 ### Task 2: 本机能力执行端口
 

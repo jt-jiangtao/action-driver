@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { Hono } from 'hono'
 import { describe, expect, it } from 'vitest'
-import { PluginError } from '@actiondriver/plugin-contracts'
+import { PluginError } from '@action-driver/plugin-contracts'
 import { mapErrorToResponse } from '../../../src/service/http/http-errors'
 import { failure } from '../../../src/service/http/http-contract'
 import { registerPluginRoutes } from '../../../src/service/http/http-routes-plugin'

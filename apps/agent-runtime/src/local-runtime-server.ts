@@ -3,8 +3,8 @@ import type {
   SkillExecutionEvent,
   SkillExecutionState,
   ToolInvocationProjection
-} from '@actiondriver/contracts'
-import { type StreamServerEvent } from '@actiondriver/runtime-contracts'
+} from '@action-driver/contracts'
+import { type StreamServerEvent } from '@action-driver/runtime-contracts'
 import { createRuntimeServices } from './composition-root'
 import {
   buildRecentTaskProjection,

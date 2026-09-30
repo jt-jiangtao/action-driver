@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 用确定性 Mock 数据实现 ActionDriver Figma 文件中的全部 14 个页面状态与完整组件库，并让每个最近任务进入共享的任务详情页。
+**Goal:** 用确定性 Mock 数据实现 Action-Driver Figma 文件中的全部 14 个页面状态与完整组件库，并让每个最近任务进入共享的任务详情页。
 
 **Architecture:** renderer 按 `ui`、`navigation`、`model-selector`、`agent`、`browser`、`settings` 六个语义域组合组件；`MockTaskCatalog` 与现有 service/repository 提供视图 projection；`AppRoute` 判别联合控制页面，不把业务状态放进基础组件。页面结构使用 Grid/Flex，只有菜单、弹层、浏览器浮动控制与目标高亮使用覆盖定位。
 
@@ -137,7 +137,7 @@ Hover、focus、pressed 使用 CSS 伪类，loading/disabled/error/success 等�
 
 - [ ] **Step 5: 运行组件测试和类型检查**
 
-Run: `pnpm vitest run apps/desktop/src/renderer/src/components/ui/ui.test.tsx && pnpm --filter @actiondriver/desktop typecheck`
+Run: `pnpm vitest run apps/desktop/src/renderer/src/components/ui/ui.test.tsx && pnpm --filter @action-driver/desktop typecheck`
 
 Expected: PASS，且 19 个组件集核对表中的基础控件项更新为已实现。
 

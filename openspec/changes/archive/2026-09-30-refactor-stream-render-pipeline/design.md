@@ -95,8 +95,8 @@ Runtime WS --> RendererStreamClient (连接/鉴权/重连/定序/去重/lifecycl
 
 - 当前方案：把 `tools/local/image-generation/generate` 与「进行中/已完成」判定收进共享位置，`TaskPage`、`AgentResponse`、`ActivityTimeline`、`ImageGallery` 与插件目录共同引用；用源码级测试保证不再出现重复字面量。
 - 替代方案：放进 renderer 内部常量模块（改动面最小，但插件与 renderer 仍各写一份）。
-- 待裁决点：落点选 `@actiondriver/contracts`（renderer 与 Runtime 均可见）还是 renderer 内部 `models/`。
-- 最终裁决：**采纳并落在 `@actiondriver/contracts`**（renderer 与 Runtime/插件共用），状态白名单同时收敛为共享判定函数。
+- 待裁决点：落点选 `@action-driver/contracts`（renderer 与 Runtime 均可见）还是 renderer 内部 `models/`。
+- 最终裁决：**采纳并落在 `@action-driver/contracts`**（renderer 与 Runtime/插件共用），状态白名单同时收敛为共享判定函数。
 
 ### Battle：替代方案比较
 
@@ -152,7 +152,7 @@ Runtime WS --> RendererStreamClient (连接/鉴权/重连/定序/去重/lifecycl
 - D4：`selectTranscript` 成为唯一决策点；`AgentResponse` 改用 `planMessageMedia`，`ActivityTimeline` 改为必填 `items`。旧转录镜像布局保留为选择器内的显式分支（见 Battle 结论的 legacy 边界）。
 - D5：投影删除重复的定序/去重账本；保留「attach 快照游标已覆盖的缓冲事件不再应用」——这条属于投影自身对 attach 快照的正确性，client 无法代为判断（有既有用例锁定）。
 - D6：适配器在 `create()` 之前创建投影，删除 `pendingStreamEvents`；`tasks` 降级为最近快照缓存，并在代码注释中标注投影是运行中任务的事实源。
-- D7：常量与判定函数落在 `@actiondriver/contracts`；插件清单由根级边界测试校验。Runtime 侧 5 处字面量本次未动（其中 2 个文件在其他回话的未提交改动中），已记为已知缺口。
+- D7：常量与判定函数落在 `@action-driver/contracts`；插件清单由根级边界测试校验。Runtime 侧 5 处字面量本次未动（其中 2 个文件在其他回话的未提交改动中），已记为已知缺口。
 
 ## Open Questions
 

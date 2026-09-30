@@ -78,7 +78,7 @@ Policy 输入包含任务、工具定义、本轮 grants、风险和调用参数
 
 SQLite 新增 `tool_invocations`，字段包括 call id、provider tool call id、task id、tool id/version、arguments hash、输入、policy decision、状态、聚合输出、结构化错误和时间戳。迁移只新增表和索引，不修改现有消息与模型调用记录。
 
-每次状态转移写入 `runtime_events`，事件名为 `tool.proposed`、`tool.waiting_approval`、`tool.running`、`tool.content`、`tool.completed|failed|cancelled`；content 事件可分片推送，但数据库中的 invocation 保存有上限的聚合输出。接口层日志以一次 invocation 为一条 request/response 记录，操作名使用稳定工具 id；模型层日志仍保留每一轮真实模型请求和响应。日志查询控制面沿用排除规则，工具层不得记录 `actiondriver:log:list`。
+每次状态转移写入 `runtime_events`，事件名为 `tool.proposed`、`tool.waiting_approval`、`tool.running`、`tool.content`、`tool.completed|failed|cancelled`；content 事件可分片推送，但数据库中的 invocation 保存有上限的聚合输出。接口层日志以一次 invocation 为一条 request/response 记录，操作名使用稳定工具 id；模型层日志仍保留每一轮真实模型请求和响应。日志查询控制面沿用排除规则，工具层不得记录 `action-driver:log:list`。
 
 ### 7. Sandbox 采用受限能力集合，而不是伪装成强隔离 Shell
 

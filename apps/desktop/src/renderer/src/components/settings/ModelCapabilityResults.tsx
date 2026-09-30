@@ -1,4 +1,4 @@
-import type { ModelCapability, ModelCapabilityResultDto } from '@actiondriver/model-connections'
+import type { ModelCapability, ModelCapabilityResultDto } from '@action-driver/model-connections'
 import { AppIcon } from '../ui/AppIcon'
 
 const names: Record<ModelCapability, string> = {

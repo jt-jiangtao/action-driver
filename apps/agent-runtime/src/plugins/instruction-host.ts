@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import { cp, mkdir, readFile, realpath, rm, stat, writeFile, readdir } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
-import { PluginError, type PluginOwner, type SkillContribution } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
-import type { AgentFileNodeDto, AgentSkillSummaryDto, AgentTextFileDto } from '@actiondriver/runtime-contracts'
+import { PluginError, type PluginOwner, type SkillContribution } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
+import type { AgentFileNodeDto, AgentSkillSummaryDto, AgentTextFileDto } from '@action-driver/runtime-contracts'
 type Entry = { owner: PluginOwner; skill: SkillContribution; root: string; path: string; modifiedAt: string }
 export class PluginInstructionHost {
   private readonly staged = new Map<string, Entry>()

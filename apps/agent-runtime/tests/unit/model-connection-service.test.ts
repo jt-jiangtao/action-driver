@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ModelServiceError, type ModelOptionDto } from '@actiondriver/model-connections'
+import { ModelServiceError, type ModelOptionDto } from '@action-driver/model-connections'
 import { ModelConnectionService } from '../../src/model-connections/service'
 import type {
   HttpRequest,

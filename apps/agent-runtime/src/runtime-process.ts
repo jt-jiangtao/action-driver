@@ -52,7 +52,7 @@ export async function createAgentRuntime(options: AgentRuntimeOptions): Promise<
   const runtimeEntry = fileURLToPath(import.meta.url)
   const execution = await createRuntimeExecutionEnvironment({ runtimeEntry, workspaceRoot, environment })
   const { runtimeDist, agentHome } = execution
-  const serviceToken = environment.ACTIONDRIVER_SERVICE_TOKEN?.trim()
+  const serviceToken = environment.ACTION_DRIVER_SERVICE_TOKEN?.trim()
   const storage = await createRuntimeStorage({ dataRoot, workspaceRoot, environment })
   let startupPlugin: Awaited<ReturnType<typeof createRuntimePluginAssembly>> | null = null
   let startupComputer: Awaited<ReturnType<typeof createComputerUseEntry>> | null = null
@@ -238,7 +238,7 @@ export async function createAgentRuntime(options: AgentRuntimeOptions): Promise<
       skillInstaller,
       taskControl: server,
       token: serviceToken,
-      runtimeVersion: environment.ACTIONDRIVER_RUNTIME_VERSION ?? '0.1.0',
+      runtimeVersion: environment.ACTION_DRIVER_RUNTIME_VERSION ?? '0.1.0',
       logger: logging.logger,
       interactions,
       streamSessions,
@@ -246,8 +246,8 @@ export async function createAgentRuntime(options: AgentRuntimeOptions): Promise<
       computerImages,
       resourceRoutes: createResourceHttpPort(resourceRegistry),
       placementRoutes: placement.routes(),
-      ...(environment.ACTIONDRIVER_RENDERER_ORIGIN?.trim()
-        ? { rendererOrigin: environment.ACTIONDRIVER_RENDERER_ORIGIN.trim() }
+      ...(environment.ACTION_DRIVER_RENDERER_ORIGIN?.trim()
+        ? { rendererOrigin: environment.ACTION_DRIVER_RENDERER_ORIGIN.trim() }
         : {})
     })
     startupHttpServer = httpServer

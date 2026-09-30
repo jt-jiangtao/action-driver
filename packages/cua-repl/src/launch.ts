@@ -11,7 +11,7 @@ export interface LaunchPlan {
   env: NodeJS.ProcessEnv
 }
 function ownedServices(value: string | undefined, surfaces: Set<string>): Record<string, string> {
-  if (!value) throw new Error('NODE_REPL_TRUSTED_SERVICES must name ActionDriver-owned service modules')
+  if (!value) throw new Error('NODE_REPL_TRUSTED_SERVICES must name Action-Driver-owned service modules')
   let configured: unknown
   try { configured = JSON.parse(value) } catch { throw new Error('NODE_REPL_TRUSTED_SERVICES is invalid JSON') }
   if (!configured || typeof configured !== 'object' || Array.isArray(configured))
@@ -20,12 +20,12 @@ function ownedServices(value: string | undefined, surfaces: Set<string>): Record
   for (const [surface, key] of [['browser', 'browser'], ['computer', 'sky']] as const) {
     if (!surfaces.has(surface)) continue
     const module = (configured as Record<string, unknown>)[key]
-    if (typeof module !== 'string') throw new Error(`Missing ActionDriver ${surface} service`)
+    if (typeof module !== 'string') throw new Error(`Missing Action-Driver ${surface} service`)
     let path: string
     try { path = module.startsWith('file:') ? fileURLToPath(module) : module }
-    catch { throw new Error(`Invalid ActionDriver ${surface} service path`) }
+    catch { throw new Error(`Invalid Action-Driver ${surface} service path`) }
     if (!isAbsolute(path) || /(?:^|\/)Codex\.app\/|(?:^|\/)ChatGPT\.app\/|(?:^|\/)(?:back|vendor)\//u.test(path))
-      throw new Error(`ActionDriver ${surface} service must use an owned absolute path`)
+      throw new Error(`Action-Driver ${surface} service must use an owned absolute path`)
     services[key] = module
   }
   return services

@@ -1,4 +1,4 @@
-import type { BrowserSkillProjection } from '@actiondriver/contracts'
+import type { BrowserSkillProjection } from '@action-driver/contracts'
 import { useRef, useState } from 'react'
 import { AppIcon } from '../ui/AppIcon'
 

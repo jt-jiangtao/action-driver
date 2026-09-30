@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
+import { STREAM_PROTOCOL } from '@action-driver/runtime-contracts'
 import { registerRuntimeConnectionIpc } from '../../../src/main/runtime-connection-ipc'
 import { RUNTIME_CONNECTION_IPC_CHANNEL } from '../../../src/shared/runtime-connection-contract'
 

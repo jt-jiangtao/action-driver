@@ -466,12 +466,12 @@ describe('conversation components', () => {
     expect(screen.queryByLabelText('更多')).not.toBeInTheDocument()
   })
 
-  it('renders user and agent copy without an ActionDriver speaker label', () => {
+  it('renders user and agent copy without an Action-Driver speaker label', () => {
     render(<ConversationMessages messages={mockTaskFixture.messages} />)
 
     expect(screen.getByText(mockTaskFixture.messages[0]!.content)).toBeVisible()
     expect(screen.getByText(mockTaskFixture.messages[1]!.content)).toBeVisible()
-    expect(screen.queryByText('ActionDriver')).not.toBeInTheDocument()
+    expect(screen.queryByText('Action-Driver')).not.toBeInTheDocument()
   })
 
   it('keeps message roles in dedicated presentational components', () => {

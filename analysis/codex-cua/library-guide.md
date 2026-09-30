@@ -39,7 +39,7 @@ Browser 文档及键盘资源的原 bundle 与候选提取结果另由 `node ana
 
 cua 和 sky 下 core、types、tslib 当前字节一致。inventory.json 的 duplicateOf 是内容重复线索；无论名称是否相同，合并实现前仍需检查调用语义，全部来源保持映射。
 
-Sky 自有 JS 在 CUA 内另有一份复制树：54 个共同路径中 53 个字节完全相同；唯一不同的是 `targets/mac/computer-use-telemetry.js`，Sky 包直接导入 `@statsig/js-client`，CUA 包导入同版本 Statsig 的构建虚拟入口。独立 `@oai/sky` 还多一个 `service.js`。`python3 analysis/codex-cua/verify-duplicated-sky.py` 固定检查该集合与差异；候选复用 `@actiondriver/sky` 的实现和固定的 Statsig 3.32.6，原复制树及备份保持完整。构建形式不同不等于逐项运行语义已证明，telemetry 事件仍以原包差异测试为准。
+Sky 自有 JS 在 CUA 内另有一份复制树：54 个共同路径中 53 个字节完全相同；唯一不同的是 `targets/mac/computer-use-telemetry.js`，Sky 包直接导入 `@statsig/js-client`，CUA 包导入同版本 Statsig 的构建虚拟入口。独立 `@oai/sky` 还多一个 `service.js`。`python3 analysis/codex-cua/verify-duplicated-sky.py` 固定检查该集合与差异；候选复用 `@action-driver/sky` 的实现和固定的 Statsig 3.32.6，原复制树及备份保持完整。构建形式不同不等于逐项运行语义已证明，telemetry 事件仍以原包差异测试为准。
 
 ## 旧版 CUA 入口补充
 

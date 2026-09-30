@@ -12,7 +12,7 @@ test('default runtime refuses private global service when no owned host is suppl
   } finally { vi.unstubAllGlobals() }
 })
 
-test('computer-only default uses ActionDriver helper without a private RPC', async () => {
+test('computer-only default uses Action-Driver helper without a private RPC', async () => {
   const requests: string[] = []
   const computerHost = { request: vi.fn(async (input: any) => {
     requests.push(input.operation)

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { BrowserWindow, WebContentsView } from 'electron'
-import type { BrowserDesktopHostSession, BrowserSessionCommand } from '@actiondriver/browser-desktop'
+import type { BrowserDesktopHostSession, BrowserSessionCommand } from '@action-driver/browser-desktop'
 import { formatBrowserAXTree } from './ax-state.js'
 
 type ViewOptions = ConstructorParameters<typeof WebContentsView>[0]
@@ -21,7 +21,7 @@ export function createEmbeddedBrowserHost(
   onChanged: () => void = () => {}
 ): BrowserDesktopHostSession & { setViewport(bounds: Bounds, visible: boolean): void } {
   const tabs = new Map<string, WebContentsView>()
-  const partition = `actiondriver-browser-${randomUUID()}`
+  const partition = `action-driver-browser-${randomUUID()}`
   let activeTabId: string | null = null
   let viewport: Bounds = { x: 0, y: 0, width: 0, height: 0 }
   let visible = false

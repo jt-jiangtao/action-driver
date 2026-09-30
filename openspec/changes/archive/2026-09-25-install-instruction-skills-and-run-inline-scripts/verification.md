@@ -8,4 +8,4 @@
 - GitHub 导入通过 Git 仓库子目录、已有本机 Git 配置替身、网络错误及重名回滚测试。
 - x64 Python 和 Node 资源已通过锁文件摘要校验并暂存，`file` 确认为 x86_64 Mach-O。当前 arm64 主机没有 Rosetta，无法在本机执行 x64 发布包；该架构的运行验收仍未完成。
 - Agent 安装工具已通过 Runtime 集成测试，设置页安装已通过桌面 E2E；模型发起 `skill_install`、再由桌面界面读取并验证权限边界的完整单条 E2E 尚未执行，因此任务 5.2 保持未完成。
-- 复制的 Codex `skill-creator` Python 辅助脚本依赖 PyYAML。ActionDriver 仅承诺包内 Python 标准库执行；其适配入口指导 Agent 用现有脚本工具创建 Skill，并将原入口保存在参考文件中。
+- 复制的 Codex `skill-creator` Python 辅助脚本依赖 PyYAML。Action-Driver 仅承诺包内 Python 标准库执行；其适配入口指导 Agent 用现有脚本工具创建 Skill，并将原入口保存在参考文件中。

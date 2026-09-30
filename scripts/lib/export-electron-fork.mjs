@@ -84,7 +84,7 @@ export async function exportElectronFork(root) {
   const source = path.join(root, 'thirdparty/electron')
   const src = path.join(root, 'thirdparty/build/electron-workspace/src')
   const buildSource = path.join(src, 'electron')
-  const out = path.join(src, 'out/ActionDriver')
+  const out = path.join(src, 'out/Action-Driver')
   const lock = JSON.parse(await readFile(path.join(root, 'config/browser-forks.lock.json'), 'utf8'))
   for (const checkout of [source, buildSource]) {
     if (await git(checkout, 'status', '--porcelain')) throw new Error(`SOURCE_DIRTY: ${checkout}`)

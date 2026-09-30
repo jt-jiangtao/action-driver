@@ -63,9 +63,9 @@ export class DesktopAgentFilesService implements AgentFilesService {
     return call(() => this.api.installSkill(input))
   }
 
-  chooseLocalSkillFolder() { return window.actionDriverDesktop.skillFolders.choose() }
-  browseSkillDirectory() { return window.actionDriverDesktop.skillFolders.browse() }
-  revealSkillFolder(skillId: string) { return window.actionDriverDesktop.skillFolders.reveal(skillId) }
+  chooseLocalSkillFolder() { return window.productDesktop.skillFolders.choose() }
+  browseSkillDirectory() { return window.productDesktop.skillFolders.browse() }
+  revealSkillFolder(skillId: string) { return window.productDesktop.skillFolders.reveal(skillId) }
 
   renameSkill(skillId: string, name: string) {
     return call(() => this.api.renameSkill(skillId, name))

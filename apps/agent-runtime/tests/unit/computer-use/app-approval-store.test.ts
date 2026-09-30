@@ -7,7 +7,7 @@ import { AppApprovalStore } from '../../../src/computer-use/app-approval-store'
 
 describe('AppApprovalStore', () => {
   it('retains always approvals across runtime restart and supports revocation', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'actiondriver-app-approvals-'))
+    const directory = mkdtempSync(join(tmpdir(), 'action-driver-app-approvals-'))
     const path = join(directory, 'runtime.sqlite')
     let database = openRuntimeDatabase(path)
     try {

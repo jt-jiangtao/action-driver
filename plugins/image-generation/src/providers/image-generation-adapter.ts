@@ -1,4 +1,4 @@
-import { MAX_IMAGE_BYTES } from '@actiondriver/plugin-sdk'
+import { MAX_IMAGE_BYTES } from '@action-driver/plugin-sdk'
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 export type ImageGenerationRequest = {

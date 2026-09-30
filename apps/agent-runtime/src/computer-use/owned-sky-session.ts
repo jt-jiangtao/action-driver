@@ -1,4 +1,4 @@
-import { computerHelperRequest } from '@actiondriver/runtime-contracts'
+import { computerHelperRequest } from '@action-driver/runtime-contracts'
 import type { AppApprovalBroker } from './app-approval-broker'
 import type { ApplicationLeases } from './application-leases'
 import type { ComputerCallContext } from './call-context'
@@ -39,7 +39,7 @@ export function createOwnedSkySession(options: {
           if (typeof text === 'string') options.onExecutedText?.(context, text)
         } else if (result && typeof result === 'object' && 'delivered' in result && result.delivered === true) {
           options.onNotice?.(context,
-            '[ActionDriver] Input reached the app, but the app gave no confirmation it was received. ' +
+            '[Action-Driver] Input reached the app, but the app gave no confirmation it was received. ' +
             'Verify with getScreenshot() or getAXState() before relying on it.\n')
         }
       }

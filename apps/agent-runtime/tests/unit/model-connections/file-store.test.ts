@@ -8,7 +8,7 @@ import { ModelStorageError, type StoredModelConnection } from '../../../src/mode
 const temporaryDirectories: string[] = []
 
 function configPath(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-model-file-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-model-file-'))
   temporaryDirectories.push(directory)
   return join(directory, 'model-connections.json')
 }

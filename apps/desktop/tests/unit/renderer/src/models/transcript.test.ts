@@ -3,7 +3,7 @@ import type {
   MessageContentPart,
   TaskProjection,
   ToolInvocationProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import { describe, expect, it } from 'vitest'
 import {
   selectActivityItems,

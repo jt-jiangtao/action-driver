@@ -6,9 +6,9 @@ import {
 } from '../../src/index'
 import type { NativeBindingError } from '../../src/index'
 
-const runtimeDirectory = '/opt/actiondriver/apps/agent-runtime/dist'
-const bindingPath = '/opt/actiondriver/apps/agent-runtime/native/electron/arm64/better_sqlite3.node'
-const metadataPath = `/opt/actiondriver/apps/agent-runtime/native/electron/arm64/${NATIVE_BINDING_METADATA_FILE}`
+const runtimeDirectory = '/opt/action-driver/apps/agent-runtime/dist'
+const bindingPath = '/opt/action-driver/apps/agent-runtime/native/electron/arm64/better_sqlite3.node'
+const metadataPath = `/opt/action-driver/apps/agent-runtime/native/electron/arm64/${NATIVE_BINDING_METADATA_FILE}`
 
 function filesystem(entries: Record<string, string>) {
   return {
@@ -58,7 +58,7 @@ describe('Electron native binding resolution', () => {
 
     expect(
       resolveElectronNativeBinding({
-        environment: { ACTIONDRIVER_RUNTIME_NATIVE_BINDING: override },
+        environment: { ACTION_DRIVER_RUNTIME_NATIVE_BINDING: override },
         electronVersion: '38.8.6',
         arch: 'arm64',
         runtimeDirectory,

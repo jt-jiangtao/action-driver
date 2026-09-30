@@ -60,7 +60,7 @@ describe('BrowserPanel', () => {
   it('uses the managed page and sends address-bar navigation to its active tab', async () => {
     const user = userEvent.setup()
     const command = vi.fn(async () => null)
-    Object.defineProperty(window, 'actionDriverDesktop', { configurable: true,
+    Object.defineProperty(window, 'productDesktop', { configurable: true,
       value: { browserSession: { command, setViewport: vi.fn(async () => undefined) } } })
     render(<BrowserPanel taskId="task-1" mode="split"
       projection={{ ...mockTaskFixture.browser!, title: 'Example', url: 'https://example.test/',
@@ -76,7 +76,7 @@ describe('BrowserPanel', () => {
       sessionId: 'session-1', tabId: 'tab-1', command: {
         type: 'navigate', url: 'https://wikipedia.org/'
       } })
-    Object.defineProperty(window, 'actionDriverDesktop', { configurable: true, value: undefined })
+    Object.defineProperty(window, 'productDesktop', { configurable: true, value: undefined })
   })
 
   it('switches to continue Agent after takeover', async () => {

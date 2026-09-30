@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/observability",
+  "name": "@action-driver/observability",
   "version": "0.1.0",
   "private": true,
   "type": "module",

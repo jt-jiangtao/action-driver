@@ -21,7 +21,7 @@ function browserHost() {
   return { setup, execute, displayImage: vi.fn(), close: vi.fn(async () => {}) }
 }
 
-test('browser-only default uses explicit ActionDriver host and training environment', async () => {
+test('browser-only default uses explicit Action-Driver host and training environment', async () => {
   const host = browserHost()
   const runtime = await createTinyskyAlt({ browserHost: host, computer: false })
   const state = await runtime.getState({ emit: false })

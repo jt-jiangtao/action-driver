@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import { AgentComposer, type ComposerAttachments } from './AgentComposer'
 import type { ModelSelectionProjection } from '../models/model-selection'
 

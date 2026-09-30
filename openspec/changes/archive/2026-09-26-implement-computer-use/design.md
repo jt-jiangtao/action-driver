@@ -22,11 +22,11 @@
 ### 1. 原生服务独立进程与通信
 Swift helper 作为签名内置的独立进程，由 **LaunchServices 启动**（不是 Electron 的子进程），Main 通过 **Unix domain socket** 传输版本化、类型化的请求与响应：socket 位于用户数据目录下的私有运行目录（目录 0700、socket 0600），首个握手帧校验一次性 token（token 由 Main 写入同目录的 0600 文件，helper 读完即删）。没有任何 TCP 监听端口。Main 与 helper 均校验消息大小、动作参数、截止时间和取消状态；helper 只执行固定动作集合，不运行模型生成的任意代码。
 
-改动理由（Battle 结论）：TCC 按「发起进程链」归属授权。实测同一二进制直接由 shell 启动时读到 `accessibility=true`（继承终端授权），经 `open -a` 由 LaunchServices 启动时读到 `false`（自己的身份）。只有后者能让用户在系统设置里给 `ActionDriver Computer Use` 的授权真正生效，也才能让引导文案里的进程名成立。
+改动理由（Battle 结论）：TCC 按「发起进程链」归属授权。实测同一二进制直接由 shell 启动时读到 `accessibility=true`（继承终端授权），经 `open -a` 由 LaunchServices 启动时读到 `false`（自己的身份）。只有后者能让用户在系统设置里给 `Action-Driver Computer Use` 的授权真正生效，也才能让引导文案里的进程名成立。
 
 生命周期：Main 启动前先尝试连接既有 socket，连不上才通过 `open -n -a <helper> --args <socket> <tokenFile>` 拉起；就绪以「socket 可连接」为准（带超时）。helper 不是 Main 的子进程，崩溃通过 socket 断开来感知，下次请求时重新拉起。退出走 `shutdown` 请求，Main 兜底清理 socket 文件并终止残留进程。**不留 stdio 回退通道**（用户裁决）：要么 socket 方案成立，要么重新 Battle。
 
-硬门禁：打包构建必须验证嵌套在 `ActionDriver.app/Contents/Helpers` 里的 helper 仍能被 LaunchServices 拉起并完成握手；不成立就必须重新 Battle，而不是退回旧通道。
+硬门禁：打包构建必须验证嵌套在 `Action-Driver.app/Contents/Helpers` 里的 helper 仍能被 LaunchServices 拉起并完成握手；不成立就必须重新 Battle，而不是退回旧通道。
 
 ### 2. 观察模型与引用
 元素引用由 `AXUIElement` 的稳定属性（角色、标题、标识、层级路径）构造指纹；动作前校验，失效返回 `STALE_REFERENCE`。与浏览器引用策略一致，便于 Agent 侧复用。
@@ -53,9 +53,9 @@ Agent 使用现有多轮 Tool/Policy Gate 发出类型化 Computer Tool 调用�
 ### 8. 授权指引窗口与真实授权触发
 授权引导是 helper 内的**原生 Swift 窗口**（AppKit + SwiftUI），不再由 Electron 渲染：窗口只有关闭按钮、没有标题栏，固定尺寸、不可缩放、内容铺满窗口。选择原生的原因是需要真实 SF Symbols 图标（`figure.stand`、`camera.viewfinder`）与原生材质、原生动效，这是 Chromium 渲染给不了的。代价是 UI 分成两套、原生窗口无法被 Playwright 驱动，因此窗口行为由 Swift 单测 + 打包冒烟覆盖，Electron 侧只保留“请求 helper 弹出窗口”的通道。
 
-内容按参考形态组织为“应用图标 + 标题 + 说明 + 逐项权限卡片”，每张卡片给出权限名称、一行用途、当前状态与操作：未授权显示 `允许`，已授权显示 `已完成`。系统提示正处于待办状态时，该权限项**被**“在系统设置中完成”虚线卡**替换**（不是额外加一块），并附带动画与“把 ActionDriver Computer Use 拖入上方列表”的浮动提示；授权落地后虚线卡动画切回 `已完成`。
+内容按参考形态组织为“应用图标 + 标题 + 说明 + 逐项权限卡片”，每张卡片给出权限名称、一行用途、当前状态与操作：未授权显示 `允许`，已授权显示 `已完成`。系统提示正处于待办状态时，该权限项**被**“在系统设置中完成”虚线卡**替换**（不是额外加一块），并附带动画与“把 Action-Driver Computer Use 拖入上方列表”的浮动提示；授权落地后虚线卡动画切回 `已完成`。
 
-「飞出—飞入」动效作用在**第二个窗口**上，指引窗口本身始终不动：点 `允许` 后，待授权卡变成虚线卡，**拖动提示窗口从该卡片的位置飞出**（0.34s 放大淡入）到屏幕下方，面板里带可拖拽的应用图标、向上箭头与“把 ActionDriver Computer Use 拖入上方列表”；授权落地或点面板的返回按钮时，面板**飞回卡片位置**并淡出，焦点交还指引窗口。窗口按 1.2s 轮询 helper 的权限状态，两项都完成且用户确实发起过授权时指引窗口自动关闭。
+「飞出—飞入」动效作用在**第二个窗口**上，指引窗口本身始终不动：点 `允许` 后，待授权卡变成虚线卡，**拖动提示窗口从该卡片的位置飞出**（0.34s 放大淡入）到屏幕下方，面板里带可拖拽的应用图标、向上箭头与“把 Action-Driver Computer Use 拖入上方列表”；授权落地或点面板的返回按钮时，面板**飞回卡片位置**并淡出，焦点交还指引窗口。窗口按 1.2s 轮询 helper 的权限状态，两项都完成且用户确实发起过授权时指引窗口自动关闭。
 
 权限状态一律取 macOS 的真实返回（`AXIsProcessTrusted` / `CGPreflightScreenCaptureAccess` 或它们的 prompt 版本），不做任何预览或假设：被授权环境继承时如实显示“已完成”，未授权时显示“允许”并进入待授权流程。
 
@@ -199,5 +199,5 @@ helper 只按 bundle id、路径或英文 `.app` 名解析应用，中文显示�
 - 打包：`apps/agent-runtime` 构建新增 `scripts/copy-js-entry.mjs`，把 `resources/js-repl` 复制到 `dist/js-repl`；`scripts/test-packaged-macos.mjs` 同步复制该目录，并用打包后的 Node 跑一次真实单元（断言输出 `2`），缺失即打包冒烟失败。
 - Desktop provider：`list-apps` 与 `app-state` 从“不支持的指令”改为放行（原先只有 `permissions/observe/capture/act`，JS 入口的 `list_apps`/`get_app_state` 会被拒）。
 - 提交前一次性验证：`pnpm typecheck` 通过；`pnpm lint` 通过（交互契约 139 项）；`pnpm test` 158 个文件通过、2 跳过，996 个用例通过、2 跳过；`pnpm test:e2e:packaged:macos` 通过（含新的入口探针）；`pnpm test:e2e:local` 7 项通过、1 项失败（既有 `persists the selected Token Plan image API and default model in settings`）。
-- 环境问题（非本次改动）：一次 `pnpm test:e2e:local` 里 `opens the native guidance window only when a permission is missing` 报 `ENGINE_UNAVAILABLE: helper client closed`，原因是本机残留了 13:20 启动的旧 `actiondriver-computer-use` 进程占着 `/var/folders/…/actiondriver-computer-use.sock`；终止该残留进程后该用例单独重跑通过，整组回到 7 通过 / 1 既有失败。开发期重跑 e2e 前建议先确认没有遗留 helper 进程。
-- 真实 helper + 真实 AX 冒烟（只读，不动用户桌面）：用当前构建的 `actiondriver-computer-use` 起私有 socket，经 `sky-session` 调用 `list_apps` → 81 个应用（含 `id`/`displayName`/`path`/`isRunning`）；用**本地化显示名**`文本编辑`调 `get_app_state` 时 helper 会回 `ACTION_FAILED: Unknown application: 文本编辑`（它只认 bundle id、路径与英文 `.app` 名），适配层按 `list_apps` 的 `displayName → id` 自动重试成功：返回 300 行 `[index] role "title" actions=[…]` 文本、`app=com.apple.TextEdit`，以及 177 KB 的 JPEG 截图文件（`file://` 路径写盘、模型可读）。
+- 环境问题（非本次改动）：一次 `pnpm test:e2e:local` 里 `opens the native guidance window only when a permission is missing` 报 `ENGINE_UNAVAILABLE: helper client closed`，原因是本机残留了 13:20 启动的旧 `action-driver-computer-use` 进程占着 `/var/folders/…/action-driver-computer-use.sock`；终止该残留进程后该用例单独重跑通过，整组回到 7 通过 / 1 既有失败。开发期重跑 e2e 前建议先确认没有遗留 helper 进程。
+- 真实 helper + 真实 AX 冒烟（只读，不动用户桌面）：用当前构建的 `action-driver-computer-use` 起私有 socket，经 `sky-session` 调用 `list_apps` → 81 个应用（含 `id`/`displayName`/`path`/`isRunning`）；用**本地化显示名**`文本编辑`调 `get_app_state` 时 helper 会回 `ACTION_FAILED: Unknown application: 文本编辑`（它只认 bundle id、路径与英文 `.app` 名），适配层按 `list_apps` 的 `displayName → id` 自动重试成功：返回 300 行 `[index] role "title" actions=[…]` 文本、`app=com.apple.TextEdit`，以及 177 KB 的 JPEG 截图文件（`file://` 路径写盘、模型可读）。

@@ -58,7 +58,7 @@
 - **THEN** 系统将其记录为 `one-way-event`，只展示实际消息方向与载荷
 
 #### Scenario: 查询日志控制面
-- **WHEN** Renderer 调用 `actiondriver:log:list`、`actiondriver:log:detail` 或其他 `actiondriver:log:*` 日志管理通道
+- **WHEN** Renderer 调用 `action-driver:log:list`、`action-driver:log:detail` 或其他 `action-driver:log:*` 日志管理通道
 - **THEN** 系统返回日志数据但不为该调用创建新的交互事件，避免查询行为污染记录或形成递归采集
 
 ### Requirement: 按需读取请求与响应详情
@@ -162,4 +162,4 @@
 
 #### Scenario: 查看日志不产生新日志
 - **WHEN** 用户刷新、筛选或打开接口层与模型层日志详情
-- **THEN** `actiondriver:log:*` 控制面调用继续被采集器排除，列表内容不会因查看行为自增长
+- **THEN** `action-driver:log:*` 控制面调用继续被采集器排除，列表内容不会因查看行为自增长

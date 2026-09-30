@@ -53,7 +53,7 @@
 
 - [遗漏的原地修改会在共享引用后污染旧快照、导致界面不刷新] → 不可变性测试深度冻结所有快照；归约器与投影改动逐处核对。
 - [memo 依赖稳定引用，任一上游重新创建对象都会让优化失效且不报错] → 渲染次数测试把「不重渲染」固化为断言。
-- [用户覆盖：选择 zustand 而非零依赖方案] → 接受新增运行时依赖及其升级维护成本；Agent 无法联网安装，需用户执行 `pnpm --filter @actiondriver/desktop add zustand`。
+- [用户覆盖：选择 zustand 而非零依赖方案] → 接受新增运行时依赖及其升级维护成本；Agent 无法联网安装，需用户执行 `pnpm --filter @action-driver/desktop add zustand`。
 - [验证依赖用户] → Agent 的 shell 无法运行 macOS 版 `node_modules`，每一批改动由用户运行定向测试与 `pnpm typecheck` 并回传结果。
 
 ## 实施记录（2026-09-26）

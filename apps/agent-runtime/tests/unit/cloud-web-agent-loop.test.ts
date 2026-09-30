@@ -53,7 +53,7 @@ describe('Tavily-to-Jina agent loop', () => {
               {
                 providerCallId: 'search-1',
                 modelName: 'tools_local_web_search',
-                arguments: { query: 'ActionDriver' }
+                arguments: { query: 'Action-Driver' }
               }
             ]
           }

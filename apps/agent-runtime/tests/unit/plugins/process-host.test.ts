@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolve } from 'node:path'
 import { NodePluginHostFactory } from '../../../src/plugins/process-host'
-import type { PluginManifest } from '@actiondriver/plugin-contracts'
+import type { PluginManifest } from '@action-driver/plugin-contracts'
 const manifest: PluginManifest = { id: 'external-fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'external.mjs', platforms: ['darwin-arm64'], activation: [], contributions: [{ kind: 'capability', id: 'external-fixture.echo' }], dependencies: [] }
 describe('process plugin host', () => {
   it('activates an external module using injected public context and closes its process', async () => {

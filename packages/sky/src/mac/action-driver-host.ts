@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import type { ComputerHelperRequest } from '@actiondriver/runtime-contracts'
+import type { ComputerHelperRequest } from '@action-driver/runtime-contracts'
 import { windowResult } from './window-result.js'
 
-export interface ActionDriverComputerHost {
+export interface ProductComputerHost {
   request(input: ComputerHelperRequest, signal?: AbortSignal): Promise<unknown>
 }
 
-export interface ActionDriverSkyOptions {
+export interface ProductSkyOptions {
   sessionId: string
   signal?: AbortSignal | undefined
   requestId?: (() => string) | undefined
@@ -16,8 +16,8 @@ export interface ActionDriverSkyOptions {
 type App = { app: string }
 type Position = App & { element_index?: number; x?: number; y?: number }
 
-/** Adapt the Sky-shaped macOS methods to ActionDriver's versioned helper protocol. */
-export function createActionDriverSky(host: ActionDriverComputerHost, options: ActionDriverSkyOptions) {
+/** Adapt the Sky-shaped macOS methods to Action-Driver's versioned helper protocol. */
+export function createProductSky(host: ProductComputerHost, options: ProductSkyOptions) {
   if (!options.sessionId) throw new Error('SKY_SESSION_REQUIRED')
   const nextId = options.requestId ?? randomUUID
   const now = options.now ?? Date.now

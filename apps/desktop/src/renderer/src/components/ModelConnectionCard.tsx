@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { ModelLibrary } from './settings/ModelLibrary'
 import { AppIcon } from './ui/AppIcon'
 import { e2eId } from '../testing/e2e-id'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 
 export function ModelConnectionCard({
   connection,

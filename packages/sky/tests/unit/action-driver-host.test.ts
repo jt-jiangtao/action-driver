@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { expect, test, vi } from 'vitest'
-import { createActionDriverSky } from '../../src/mac/actiondriver-host'
+import { createProductSky } from '../../src/mac/action-driver-host'
 
 test('maps app listing, state with screenshot, and click through owned helper requests', async () => {
   const requests: unknown[] = []
@@ -15,7 +15,7 @@ test('maps app listing, state with screenshot, and click through owned helper re
   }) }
   vi.stubGlobal('nodeRepl', { nativePipe: { createConnection: vi.fn(() => { throw Error('private pipe') }) } })
   try {
-    const sky = createActionDriverSky(host, { sessionId: 'test-session', requestId: (() => {
+    const sky = createProductSky(host, { sessionId: 'test-session', requestId: (() => {
       let id = 0
       return () => `request-${++id}`
     })(), now: () => 1000 })
@@ -43,7 +43,7 @@ test('propagates helper permission errors, cancellation and closes once', async 
     return { accepted: true }
   }) }
   const abort = new AbortController()
-  const sky = createActionDriverSky(host, { sessionId: 's', signal: abort.signal })
+  const sky = createProductSky(host, { sessionId: 's', signal: abort.signal })
   await expect(sky.get_app_state({ app: 'TextEdit' })).rejects.toBe(denied)
   abort.abort()
   await expect(sky.click({ app: 'TextEdit', x: 1, y: 2 })).rejects.toThrow('CANCELLED')
@@ -55,7 +55,7 @@ test('propagates helper permission errors, cancellation and closes once', async 
 
 test('unsupported Sky capabilities reject explicitly without private service fallback', async () => {
   const host = { request: vi.fn(async () => ({})) }
-  const sky = createActionDriverSky(host, { sessionId: 's' })
+  const sky = createProductSky(host, { sessionId: 's' })
   await expect(sky.start_audio_recording()).rejects.toThrow('SKY_CAPABILITY_UNAVAILABLE')
   expect(host.request).not.toHaveBeenCalled()
 })
@@ -70,7 +70,7 @@ test('closing during an in-flight session start blocks new actions and ends the 
     if (input.operation === 'app-state') return { app: 'TextEdit', text: 'state' }
     return { accepted: true }
   }) }
-  const sky = createActionDriverSky(host, { sessionId: 's' })
+  const sky = createProductSky(host, { sessionId: 's' })
   const state = sky.get_app_state({ app: 'TextEdit' })
   await vi.waitFor(() => expect(operations).toContain('session-start'))
   const closing = sky.close()

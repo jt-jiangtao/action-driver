@@ -1,7 +1,7 @@
 # tavily-web-search Specification
 
 ## Purpose
-定义 ActionDriver 如何通过 Tavily 检索公开网页索引，使用独立且受授权的供应商凭据，并控制出站服务、规范化结果、取消、额度与本地审计边界。
+定义 Action-Driver 如何通过 Tavily 检索公开网页索引，使用独立且受授权的供应商凭据，并控制出站服务、规范化结果、取消、额度与本地审计边界。
 
 ## Requirements
 

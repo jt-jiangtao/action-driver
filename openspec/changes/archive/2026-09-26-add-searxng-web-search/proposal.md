@@ -4,7 +4,7 @@
 
 通用 Tool Runtime 已能在真实模型调用中执行只读 Sandbox 工具，但无法检索工作区之外的最新公开信息。通过用户本机独立运行的 SearXNG 提供受控 Web Search，可在不把搜索引擎、容器生命周期或第三方搜索凭据打包进桌面应用的前提下补齐这一能力。
 
-这是一次架构型变更，Battle 已完成。最终方向是“本机 Docker 独立部署 SearXNG，ActionDriver 只调用其 loopback JSON API；首版只搜索、不抓取网页正文；每次调用均须允许一次；L1 本地双层日志保留查询与截断摘要”。不存在未裁决的关键分歧。
+这是一次架构型变更，Battle 已完成。最终方向是“本机 Docker 独立部署 SearXNG，Action-Driver 只调用其 loopback JSON API；首版只搜索、不抓取网页正文；每次调用均须允许一次；L1 本地双层日志保留查询与截断摘要”。不存在未裁决的关键分歧。
 
 ## What Changes
 

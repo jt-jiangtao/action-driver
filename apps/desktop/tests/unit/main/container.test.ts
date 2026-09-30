@@ -6,17 +6,17 @@ import { SkillProviderHost } from '../../../src/main/skill-provider-host'
 describe('main composition root', () => {
   it('returns typed services directly from an explicit factory', () => {
     const services = createMainServices({ mode: 'mock' })
-    expect(services.windowOptionsFactory('/tmp/preload.js', '/tmp/icon.png').title).toBe('ActionDriver')
+    expect(services.windowOptionsFactory('/tmp/preload.js', '/tmp/icon.png').title).toBe('Action-Driver')
     expect(services.runtimeSupervisor).toBeNull()
   })
 
   it('provides the window factory directly', () => {
     const services = createMainServices({ mode: 'mock' })
-    const options = services.windowOptionsFactory('/tmp/preload.js', '/tmp/actiondriver.png')
+    const options = services.windowOptionsFactory('/tmp/preload.js', '/tmp/action-driver.png')
 
     expect(options.width).toBe(1440)
-    expect(options.title).toBe('ActionDriver')
-    expect(options.icon).toBe('/tmp/actiondriver.png')
+    expect(options.title).toBe('Action-Driver')
+    expect(options.icon).toBe('/tmp/action-driver.png')
     expect(options.webPreferences?.preload).toBe('/tmp/preload.js')
   })
 

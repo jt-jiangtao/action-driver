@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
-import type { SessionWorkspacePaths } from '@actiondriver/runtime-contracts'
+import type { SessionWorkspacePaths } from '@action-driver/runtime-contracts'
 import { SessionSandbox, type SandboxPrepared } from '../execution/session-sandbox'
 import { resolveExecutionRuntimePaths } from '../execution/runtime-paths'
 import type { AppApprovalBroker } from './app-approval-broker'

@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 如何通过用户本机独立运行的 SearXNG 检索公开网页索引，同时保持明确的出站网络、结果内容和本地审计边界。
+定义 Action-Driver 如何通过用户本机独立运行的 SearXNG 检索公开网页索引，同时保持明确的出站网络、结果内容和本地审计边界。
 
 ## ADDED Requirements
 
@@ -49,4 +49,4 @@
 
 #### Scenario: 用户启动本地搜索服务
 - **WHEN** 用户按部署文档在应用外启动 SearXNG 并配置有效 endpoint
-- **THEN** ActionDriver 可调用其 JSON 搜索接口，但容器的生命周期仍完全由用户管理
+- **THEN** Action-Driver 可调用其 JSON 搜索接口，但容器的生命周期仍完全由用户管理

@@ -4,16 +4,16 @@ import type {
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
-} from '@actiondriver/contracts'
-import type { RuntimeEvent } from '@actiondriver/runtime-contracts'
-import type { ModelRef } from '@actiondriver/contracts'
+} from '@action-driver/contracts'
+import type { RuntimeEvent } from '@action-driver/runtime-contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import type {
   ModelConnectionDraftDto,
   ModelConnectionDto,
   ModelConnectionTestResultDto,
   ModelOptionDto,
   ModelTestResultDto
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import type {
   AgentFileNodeDto,
   AgentSkillSummaryDto,
@@ -21,7 +21,7 @@ import type {
   CreateAgentSkillDto,
   SaveAgentFileDto,
   InstallSkillInput
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import {
   RUNTIME_CONNECTION_IPC_CHANNEL,
   type RuntimeConnectionDesktopApi,
@@ -35,7 +35,7 @@ import {
   type BrowserSessionRequest,
   type BrowserViewportRequest
 } from '../shared/browser-session-contract'
-import type { BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import type { BrowserSessionSnapshot } from '@action-driver/browser-desktop'
 import {
   SKILL_FOLDER_BROWSE_CHANNEL,
   SKILL_FOLDER_CHOOSE_CHANNEL,
@@ -49,7 +49,7 @@ import {
   PLUGIN_VIEW_OPEN_CHANNEL,
   type PluginContributionsDesktopApi
 } from '../shared/plugin-contributions-contract'
-import type { PluginUiContributions } from '@actiondriver/plugin-contracts'
+import type { PluginUiContributions } from '@action-driver/plugin-contracts'
 import {
   COMPUTER_APP_ICON_CHANNEL,
   COMPUTER_GUIDANCE_ENSURE_CHANNEL,

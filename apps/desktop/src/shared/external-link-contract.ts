@@ -1,1 +1,1 @@
-export const EXTERNAL_LINK_OPEN_CHANNEL = 'actiondriver:external-link:open'
+export const EXTERNAL_LINK_OPEN_CHANNEL = 'action-driver:external-link:open'

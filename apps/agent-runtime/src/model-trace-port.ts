@@ -1,4 +1,4 @@
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 
 export type ModelTraceStart = {
   id: string

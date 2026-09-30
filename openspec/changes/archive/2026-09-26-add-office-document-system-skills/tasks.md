@@ -49,15 +49,15 @@
 
 ## 本机验证记录（2026-09-25，darwin-arm64）
 
-依赖根：`apps/agent-runtime/dist/dependencies/`；下列命令均使用该目录内的解释器与第三方库。测试构建器和产物位于 `/tmp/actiondriver-office-smoke.S96sdo/`，未入库。四份 Skill 的 `mark_artifact_operation_started.mjs` 分别在首次生成前用包内 Node 执行一次，均退出 0。
+依赖根：`apps/agent-runtime/dist/dependencies/`；下列命令均使用该目录内的解释器与第三方库。测试构建器和产物位于 `/tmp/action-driver-office-smoke.S96sdo/`，未入库。四份 Skill 的 `mark_artifact_operation_started.mjs` 分别在首次生成前用包内 Node 执行一次，均退出 0。
 
 | 格式 | 实际主要命令 | 结果 |
 | --- | --- | --- |
-| xlsx | `dist/dependencies/node/bin/node /tmp/actiondriver-office-smoke.S96sdo/create-xlsx.mjs` | 退出 0；`recalculate()`、导出前后 `inspect()` 均显示 `C2=5`；重新导入 XLSX 后公式结果为 5。 |
+| xlsx | `dist/dependencies/node/bin/node /tmp/action-driver-office-smoke.S96sdo/create-xlsx.mjs` | 退出 0；`recalculate()`、导出前后 `inspect()` 均显示 `C2=5`；重新导入 XLSX 后公式结果为 5。 |
 | pptx | 带 `RUNTIME_NODE`、`RUNTIME_NODE_MODULES`、`RUNTIME_BIN_DIR`、`RUNTIME_PYTHON` 四变量运行包内 Node 执行 `create-pptx.mjs` | 退出 0；PPTX 含 `ppt/slides/charts/chart1.xml` 与 `<c:chart>`；原生 PNG 预览为 1280×720、15,522 字节，已目视检查。首次未设置变量的尝试按预期报 `RUNTIME_NODE_MODULES is required`，设置后通过。完整 finalization 门禁未执行。 |
 | docx | 包内 Python 执行 `create-docx.py`，再以包内 `bin/override` 为 `PATH` 执行 `documents/render_docx.py sample.docx --output_dir docx-render --emit_pdf` | 两步均退出 0；经包内 LibreOffice 与 Poppler 得到 1 页 PDF、1547×2002 PNG；目视检查后修正默认 Title 样式的蓝色边线，重新渲染通过。 |
-| pdf | `dist/dependencies/python/bin/python3 /tmp/actiondriver-office-smoke.S96sdo/create-pdf.py` | 退出 0；`pypdf` 重读为 1 页，抽取文本与写入的 `Bundled PDF validation` 一致。 |
+| pdf | `dist/dependencies/python/bin/python3 /tmp/action-driver-office-smoke.S96sdo/create-pdf.py` | 退出 0；`pypdf` 重读为 1 页，抽取文本与写入的 `Bundled PDF validation` 一致。 |
 
 依赖版本实测：Python 3.12.14、Node v24.19.0、`@oai/artifact-tool` 2.8.59、LibreOfficeDev 26.8.0.0.alpha0、Poppler 26.05.0。暂存保留来源的相对符号链接；来源树另有 3 个指向已不存在临时目录的绝对链接，位于 Python 的 `pkgconfig` 和 man 手册文件，不参与上述运行与验证。
 
-集成检查：`pnpm --filter @actiondriver/agent-runtime build:office-local`、`pnpm --filter @actiondriver/desktop build`、`pnpm typecheck`、`pnpm lint`、`pnpm test` 均退出 0；单元测试为 127 个文件通过、2 个跳过，819 个用例通过、2 个跳过。运行时构建目录仅有 `documents`、`imagegen`、`pdf`、`presentations`、`skill-creator`、`spreadsheets`；本地桌面端到端的 Skill 列表用例单独运行通过。`pnpm test:e2e:local` 共 7 项，6 项通过，1 项失败：既有“生图接口设置”用例仍查找当前界面已不存在的下拉框，失败与本次 Skill 列表改动无关；该用例未声称通过。macOS 安装包脚本的清单已更新，但未构建完整安装包。
+集成检查：`pnpm --filter @action-driver/agent-runtime build:office-local`、`pnpm --filter @action-driver/desktop build`、`pnpm typecheck`、`pnpm lint`、`pnpm test` 均退出 0；单元测试为 127 个文件通过、2 个跳过，819 个用例通过、2 个跳过。运行时构建目录仅有 `documents`、`imagegen`、`pdf`、`presentations`、`skill-creator`、`spreadsheets`；本地桌面端到端的 Skill 列表用例单独运行通过。`pnpm test:e2e:local` 共 7 项，6 项通过，1 项失败：既有“生图接口设置”用例仍查找当前界面已不存在的下拉框，失败与本次 Skill 列表改动无关；该用例未声称通过。macOS 安装包脚本的清单已更新，但未构建完整安装包。

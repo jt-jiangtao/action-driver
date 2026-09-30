@@ -1,4 +1,4 @@
-# ActionDriver Runtime Foundations Implementation Plan
+# Action-Driver Runtime Foundations Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -36,7 +36,7 @@
 
 - Create: `buf.yaml`
 - Create: `buf.gen.yaml`
-- Create: `proto/actiondriver/runtime/v1/runtime.proto`
+- Create: `proto/action-driver/runtime/v1/runtime.proto`
 - Create: `packages/runtime-protocol/package.json`
 - Create: `packages/runtime-protocol/tsconfig.json`
 - Create: `packages/runtime-protocol/src/generated/runtime.ts`
@@ -71,7 +71,7 @@ Expected: FAIL，提示无法解析 `src/generated/runtime`。
 
 ```proto
 syntax = "proto3";
-package actiondriver.runtime.v1;
+package action-driver.runtime.v1;
 
 message RequestContext {
   uint32 protocol_major = 1;
@@ -110,7 +110,7 @@ git commit -m "feat(protocol): define local runtime v1 API"
 
 - Create: `go.work`
 - Create: `services/agentd/go.mod`
-- Create: `services/agentd/cmd/actiondriver-agentd/main.go`
+- Create: `services/agentd/cmd/action-driver-agentd/main.go`
 - Create: `services/agentd/internal/app/config.go`
 - Create: `services/agentd/internal/app/service.go`
 - Create: `services/agentd/internal/app/service_test.go`
@@ -388,11 +388,11 @@ git commit -m "feat(desktop): supervise the local agent sidecar"
 - [ ] **Step 1: 写隔离、异步仓储和 mock/local 绑定测试**
 
 ```ts
-expect(window.actionDriver.agent).toEqual(
+expect(window.productDesktop.agent).toEqual(
   expect.objectContaining({ submitGoal: expect.any(Function), getTask: expect.any(Function) })
 )
-expect(window.actionDriver).not.toHaveProperty('invoke')
-expect(window.actionDriver).not.toHaveProperty('socketPath')
+expect(window.productDesktop).not.toHaveProperty('invoke')
+expect(window.productDesktop).not.toHaveProperty('socketPath')
 ```
 
 - [ ] **Step 2: 运行契约与 Adapter 测试确认失败**

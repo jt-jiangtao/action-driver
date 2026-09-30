@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { ActivityTimeline } from '../../../../../src/renderer/src/components/ActivityTimeline'
 import { selectActivityItems } from '../../../../../src/renderer/src/models/transcript'
 
@@ -606,7 +606,7 @@ describe('ActivityTimeline', () => {
 
   it('renders a webpage title, source and text instead of raw JSON', () => {
     const open = vi.fn(async () => {})
-    vi.stubGlobal('actionDriverDesktop', { externalLinks: { open } })
+    vi.stubGlobal('productDesktop', { externalLinks: { open } })
     const reading = task('running')
     reading.activities![0]!.title = '已读取网页'
     reading.tools![0] = {

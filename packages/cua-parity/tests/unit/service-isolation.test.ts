@@ -46,7 +46,7 @@ test('finds private RPC, native pipe, App path and original bundle imports', asy
 test('rejects dynamic loading and an injected path disguised as a local socket', async () => {
   const root = await fixture({
     'src/dynamic.ts': `const path = process.env.CODEX_HOME + '/computer-use/Codex Computer Use.app'\nawait import(path)`,
-    'src/disguised.ts': `await host.nativePipe.createConnection('/tmp/actiondriver.sock')`,
+    'src/disguised.ts': `await host.nativePipe.createConnection('/tmp/action-driver.sock')`,
     'src/template.ts': "const path = `${prefix}/vendor/codex-cua/original.mjs`\nawait import(path)"
   })
   expect((await auditServiceIsolation([root])).map(({ reason }) => reason)).toEqual([
@@ -56,9 +56,9 @@ test('rejects dynamic loading and an injected path disguised as a local socket',
   ])
 })
 
-test('allows explicit ActionDriver helper and own socket; skips read-only originals', async () => {
+test('allows explicit Action-Driver helper and own socket; skips read-only originals', async () => {
   const root = await fixture({
-    'packages/sky/src/host.ts': `await actionDriverHelper.request({kind: 'getState'})\nawait connect('/tmp/actiondriver/browser.sock')`,
+    'packages/sky/src/host.ts': `await productHelper.request({kind: 'getState'})\nawait connect('/tmp/action-driver/browser.sock')`,
     'thirdparty/backup/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`,
     'analysis/codex-cua/readable/original.mjs': `await nodeRepl.rpc('browser', {})`,
     'thirdparty/backup/codex-cua/original.mjs': `await nodeRepl.rpc('browser', {})`

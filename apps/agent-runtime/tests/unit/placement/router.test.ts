@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
-import type { Json } from '@actiondriver/plugin-contracts'
+import type { Json } from '@action-driver/plugin-contracts'
 import { registerPlacementRoutes } from '../../../src/placement/routes'
 import { PLACEMENT_HOSTS_ENV, PlacementRouter, parseRemoteHostDeclarations, type LocalHostOptions } from '../../../src/placement/router'
 import { RuntimeSkillRegistry } from '../../../src/skill-registry'

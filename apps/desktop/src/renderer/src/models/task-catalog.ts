@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 
 export interface RecentTaskSummary {
   id: string

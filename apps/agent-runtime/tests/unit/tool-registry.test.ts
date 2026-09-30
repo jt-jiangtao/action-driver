@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ToolDefinition, ToolExecutor } from '@actiondriver/runtime-contracts'
+import type { ToolDefinition, ToolExecutor } from '@action-driver/runtime-contracts'
 import { RuntimeToolRegistry, ToolRegistryError } from '../../src/tool-registry'
 
 const executor: ToolExecutor = {

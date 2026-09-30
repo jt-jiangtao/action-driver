@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { PluginInstructionHost } from '../../../src/plugins/instruction-host'
 import { AgentFileStore } from '../../../src/agent-files/agent-file-store'
 it('makes same-package Skill content/resources readable only for the live contribution', async () => {
-  const homeDirectory = await mkdtemp(join(tmpdir(), 'actiondriver-plugin-skill-'))
+  const homeDirectory = await mkdtemp(join(tmpdir(), 'action-driver-plugin-skill-'))
   const source = join(homeDirectory, 'package')
   await mkdir(join(source, 'skills/hello'), { recursive: true }); await writeFile(join(source, 'skills/hello/reference.txt'), 'resource')
   const host = new PluginInstructionHost(homeDirectory, ['computer-use'])

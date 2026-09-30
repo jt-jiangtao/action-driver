@@ -62,11 +62,11 @@ Runtime 使用 `StateGraph` 构建最小图，首个可验证图包含：`accept
 
 LangGraph 的 `thread_id` 使用稳定 task id。需要用户信息时使用 `interrupt()`；收到输入后用 `Command({ resume })` 继续。用户主动中断不等同于 LangGraph 的 HITL interrupt：Supervisor 将 AbortSignal 传播给当前模型或 Skill 调用，Runtime 停止调度新节点，并从最近已提交 checkpoint 标记任务为 `interrupted`。继续命令从该 checkpoint 恢复。
 
-不使用 LangChain `createAgent` 作为核心，因为它会隐藏 ActionDriver 需要显式控制的 Skill 解析、权限检查、UI 事件和接管状态。`@langchain/core` 只用于必要的模型消息与适配器类型；业务领域不导入具体模型供应商类型。
+不使用 LangChain `createAgent` 作为核心，因为它会隐藏 Action-Driver 需要显式控制的 Skill 解析、权限检查、UI 事件和接管状态。`@langchain/core` 只用于必要的模型消息与适配器类型；业务领域不导入具体模型供应商类型。
 
 ### 4. SQLite 同时保存业务记录和 LangGraph checkpoint
 
-数据库位于 `app.getPath('userData')/data/actiondriver.db`，路径由 Main 在启动 Runtime 时传入。Runtime 是唯一写入进程，启用 WAL、foreign keys 和 busy timeout。业务 schema 包含 tasks、messages、steps、skill_invocations、runtime_events 和 schema_migrations；LangGraph 使用官方 SQLite checkpointer 的表保存 checkpoints 与 pending writes。
+数据库位于 `app.getPath('userData')/data/action-driver.db`，路径由 Main 在启动 Runtime 时传入。Runtime 是唯一写入进程，启用 WAL、foreign keys 和 busy timeout。业务 schema 包含 tasks、messages、steps、skill_invocations、runtime_events 和 schema_migrations；LangGraph 使用官方 SQLite checkpointer 的表保存 checkpoints 与 pending writes。
 
 业务事件以单调 cursor 排序，并记录 `thread_id + checkpoint_id + event_key` 唯一键。图执行流在 checkpoint 提交后由 ProjectionService 幂等写入业务投影；若进程在两者之间退出，启动 reconciliation 会比较最新 checkpoint 与已投影 checkpoint 并补齐缺失事件。这样不要求跨 LangGraph 内部写入和业务仓储建立不可控的分布式事务，同时保证 UI 不遗漏或重复应用事件。
 
@@ -119,7 +119,7 @@ Battle 已于 2026-09-22 裁决：用户选择用真实桌面路径验证 6.5，
 - [SQLite 驱动包含原生模块并受 Electron ABI 影响] → 锁定 Electron/Node ABI，使用 electron-rebuild/预构建产物并在两种 macOS 架构做打包后冒烟；缺失产物时构建失败。
 - [UtilityProcess MessagePort 断线造成请求悬挂] → 所有请求携带 deadline，断线统一失败 pending request，重连后从持久化 cursor 和 checkpoint 恢复。
 - [用户中断发生在不可取消的外部动作中间] → Provider 契约声明取消能力；Runtime 不把“已请求取消”当作“已取消”，等待终态并在恢复前重新观察。
-- [LangGraph 或 LangChain 类型泄漏到 UI 和 Skill 合同] → 框架类型只存在于 Runtime adapter；`packages/contracts` 与 `packages/runtime-contracts` 使用 ActionDriver 自有 DTO。
+- [LangGraph 或 LangChain 类型泄漏到 UI 和 Skill 合同] → 框架类型只存在于 Runtime adapter；`packages/contracts` 与 `packages/runtime-contracts` 使用 Action-Driver 自有 DTO。
 - [本 change 被扩展成 Browser Use 实现] → 验收仅允许 Mock Provider、注册/调用/取消和独立 Provider 标识；Playwright/Native 引擎、记忆和网页操作进入后续 change。
 - [新增 Skill 控制入口扩大 Renderer 可调用面] → 只允许固定的 invocation id 与三种枚举命令，Main 与 Runtime 双重校验，拒绝通用命令名、任意状态和值未持久化的伪成功响应。
 - [Electron 专用原生产物与 Node 绑定并存造成误用] → 只在 `process.versions.electron` 为真时加载 Electron 产物，缺失即启动失败；构建脚本按 Electron 版本与架构输出到独立目录，并在产物旁记录 Electron 版本、架构与构建时间的元数据，加载时逐项校验。

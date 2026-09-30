@@ -1,6 +1,6 @@
 ## Why
 
-ActionDriver 已跑通真实模型流式会话，但当前模型适配器只接受文本结果，现有 Skill Provider 也缺少可供模型发现、校验、审批和流式观察的通用 Tool 契约，因此无法在不为每种能力重复实现状态、权限和日志的前提下执行真实操作。下一步需要先建立通用 Tool Runtime，并用受限 Sandbox 跑通第一个真实工具闭环，作为后续 Web Search、Browser Use、Computer Use 和 MCP Adapter 的共同底座。
+Action-Driver 已跑通真实模型流式会话，但当前模型适配器只接受文本结果，现有 Skill Provider 也缺少可供模型发现、校验、审批和流式观察的通用 Tool 契约，因此无法在不为每种能力重复实现状态、权限和日志的前提下执行真实操作。下一步需要先建立通用 Tool Runtime，并用受限 Sandbox 跑通第一个真实工具闭环，作为后续 Web Search、Browser Use、Computer Use 和 MCP Adapter 的共同底座。
 
 ## What Changes
 

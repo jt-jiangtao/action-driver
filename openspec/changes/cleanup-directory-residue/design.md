@@ -43,7 +43,7 @@
 ### A-3 四个包的 `description`
 
 - **当前方案**：读取各包源码后按实际职责写一句描述。
-- **替代方案**：复制包名或同类包的原描述。被否决：既无法表达重建包的独立职责，也会把 `@oai/*` 的产品定位错误地带入 `@actiondriver/*`。
+- **替代方案**：复制包名或同类包的原描述。被否决：既无法表达重建包的独立职责，也会把 `@oai/*` 的产品定位错误地带入 `@action-driver/*`。
 - **裁决**：执行型，直接采用当前方案。描述内容见 tasks 2.1–2.4。
 
 ### A-4 根 `tests/` 规则的归属
@@ -73,7 +73,7 @@
 
 - **当前方案**：把旧目录名改为 `thirdparty`，同步 `.gitmodules` 的两个 submodule `path` 与全仓引用。
 - **挑战**：这条路径不是普通目录，而是两个 Git submodule 的挂载点。改名会同时影响 `.gitmodules`、`.gitignore`（旧目录名的 `/*` 忽略与两条 `!`）、`eslint.config.mjs`、`vitest.config.ts`、`config/browser-forks.lock.json`、`config/electron-fork.json`、`scripts/build-browser-forks.mjs` 与 `scripts/lib/browser-forks/{prepare,sync,build,pipeline,inputs}.mjs`、`scripts/lib/electron-fork.mjs`、`scripts/lib/export-electron-fork.mjs`、`docs/development/browser-forks.md`、`docs/development/electron-watermark.md`、`README.md`、`tests/unit/scripts/lib/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts`，以及被 `.gitignore` 排除的本地产物路径（`build/`、`tools/`、`downloads/`、`logs/`）。
-- **真实约束**：两个 submodule 的**工作树内部**也写死了旧目录名下的路径（如 `electron/action_driver/watermark/verify-electron.mjs`、`playwright/action_driver/baseline/README.md`）。这些文件属于 `jt-jiangtao/playwright`、`jt-jiangtao/electron` 两个独立仓库，本仓库无法修复；改名后它们指向的路径会失效。仓库内没有 CI 配置，因此影响面是本机开发者工作区与本地产物。
+- **真实约束**：两个 submodule 的**工作树内部**也写死了旧目录名下的路径（如 `electron/action-driver/watermark/verify-electron.mjs`、`playwright/action-driver/baseline/README.md`）。这些文件属于 `jt-jiangtao/playwright`、`jt-jiangtao/electron` 两个独立仓库，本仓库无法修复；改名后它们指向的路径会失效。仓库内没有 CI 配置，因此影响面是本机开发者工作区与本地产物。
 - **替代方案**：
   1. **不改名**：零风险，但保留拼写错误，且未来每处新增引用都会复制该错误。
   2. **一次性改名**：`git mv <旧目录名> thirdparty` + 更新 `.gitmodules` + `git submodule sync --recursive` + 迁移 `.git/modules/{electron,playwright}` + 更新全部引用与本地路径；单次完成、无长期双名状态，但要求每个已有工作区按文档执行迁移，否则 submodule 命令会因 gitdir 路径不匹配而失败。
@@ -82,7 +82,7 @@
 - **Agent 推荐**：**方案 2（一次性改名）**，并交付本机迁移步骤与回滚步骤；若用户希望避免任何 submodule 状态迁移，则退化为方案 1（明确接受拼写错误长期保留）。
 - **风险 / 回滚**：Fork 仓库内部的旧目录名引用无法在本仓库修复，改名后会指向不存在路径，需在这两个 Fork 仓库中另行修正；本地产物（`build`、`tools`、`downloads`、`logs`）整体随目录改名移动，脚本已同步指向新路径。回滚方案：把 `.gitmodules` 的 `path` 与目录名改回旧目录名，执行 `git submodule sync --recursive`。
 - **裁决（2026-09-30，用户）**：**方案 2 —— 一次性改名**，不保留兼容软链。
-- **已知代价（用户覆盖项）**：两个 Fork 仓库工作树内部的旧目录名引用（`thirdparty/electron/action_driver/watermark/verify-electron.mjs`、`thirdparty/playwright/action_driver/baseline/README.md`）不在本仓库的版本控制范围内，改名后会指向不存在的路径。该代价已按用户追加要求消除（见 tasks 9.x）：在两个 Fork 各提交一次路径修正并推送到 `codex/fork-baseline`，主仓库同步更新 submodule 指针、`config/browser-forks.lock.json`、`config/electron-fork.json`、`README.md` 与 `docs/development/**` 中的提交记录。按用户追加要求（2026-09-30），`docs/superpowers/**` 与已归档 OpenSpec 记录中的路径标识也一并更新为 `thirdparty/...`、`thirdparty/backup/...`；只替换路径标识，不改写叙事与历史结论。
+- **已知代价（用户覆盖项）**：两个 Fork 仓库工作树内部的旧目录名引用（`thirdparty/electron/action-driver/watermark/verify-electron.mjs`、`thirdparty/playwright/action-driver/baseline/README.md`）不在本仓库的版本控制范围内，改名后会指向不存在的路径。该代价已按用户追加要求消除（见 tasks 9.x）：在两个 Fork 各提交一次路径修正并推送到 `codex/fork-baseline`，主仓库同步更新 submodule 指针、`config/browser-forks.lock.json`、`config/electron-fork.json`、`README.md` 与 `docs/development/**` 中的提交记录。按用户追加要求（2026-09-30），`docs/superpowers/**` 与已归档 OpenSpec 记录中的路径标识也一并更新为 `thirdparty/...`、`thirdparty/backup/...`；只替换路径标识，不改写叙事与历史结论。
 - **实施结果**：目录改名完成，`.gitmodules`、`.gitignore`、ESLint/Vitest 忽略、`config/**`、`scripts/**`、`README.md`、`docs/development/**`、`tests/unit/scripts/**`、`apps/desktop/tests/e2e/electron-fork-runtime.spec.ts` 全部指向 `thirdparty`；`git submodule sync --recursive` 后两个 submodule 在 `thirdparty/{playwright,electron}` 正常解析，`.git/modules` 无需迁移。
 
 ## Risks / Trade-offs

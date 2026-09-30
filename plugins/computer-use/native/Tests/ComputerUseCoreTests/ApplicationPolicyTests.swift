@@ -67,7 +67,7 @@ extension ApplicationPolicyTests {
 }
 
 extension ApplicationPolicyTests {
-    /// ActionDriver ships as a renamed Electron.app, so it is recognized by path, never by bundle id:
+    /// Action-Driver ships as a renamed Electron.app, so it is recognized by path, never by bundle id:
     /// the model must not drive the app that shows its own approval cards.
     func testTheOwningApplicationIsForbiddenWhateverItsBundleIdentifier() throws {
         let owner = URL(fileURLWithPath: "/System/Applications/Calculator.app")
@@ -83,11 +83,11 @@ extension ApplicationPolicyTests {
 
     func testFindsTheApplicationThatContainsAPackagedHelper() {
         let helper = URL(fileURLWithPath:
-            "/Applications/ActionDriver.app/Contents/Helpers/ActionDriver Computer Use.app")
+            "/Applications/Action-Driver.app/Contents/Helpers/Action-Driver Computer Use.app")
         XCTAssertEqual(ApplicationPolicy.containingApplication(of: helper)?.path,
-                       "/Applications/ActionDriver.app")
+                       "/Applications/Action-Driver.app")
         XCTAssertNil(ApplicationPolicy.containingApplication(of: URL(fileURLWithPath:
-            "/Users/dev/action-driver/plugins/computer-use/native/dist/arm64/ActionDriver Computer Use.app")))
+            "/Users/dev/action-driver/plugins/computer-use/native/dist/arm64/Action-Driver Computer Use.app")))
     }
 }
 

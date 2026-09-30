@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../../../src/renderer/src/App'

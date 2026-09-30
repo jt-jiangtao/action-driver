@@ -31,9 +31,9 @@ export class RuntimeAgentFilesService implements AgentFilesService {
     '/agent-files/skills', { method: 'POST', body: input }) }
   installSkill(input: InstallSkillInput) { return this.call<Awaited<ReturnType<AgentFilesService['installSkill']>>>(
     '/agent-files/skills/install', { method: 'POST', body: input }) }
-  chooseLocalSkillFolder() { return window.actionDriverDesktop.skillFolders.choose() }
-  browseSkillDirectory() { return window.actionDriverDesktop.skillFolders.browse() }
-  revealSkillFolder(skillId: string) { return window.actionDriverDesktop.skillFolders.reveal(skillId) }
+  chooseLocalSkillFolder() { return window.productDesktop.skillFolders.choose() }
+  browseSkillDirectory() { return window.productDesktop.skillFolders.browse() }
+  revealSkillFolder(skillId: string) { return window.productDesktop.skillFolders.reveal(skillId) }
   renameSkill(skillId: string, name: string) { return this.call<Awaited<ReturnType<AgentFilesService['renameSkill']>>>(
     `/agent-files/skills/${encodeURIComponent(skillId)}/rename`, { method: 'POST', body: { name } }) }
   deleteSkill(skillId: string) { return this.call<void>(

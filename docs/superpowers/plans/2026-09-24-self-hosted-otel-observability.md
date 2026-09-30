@@ -4,9 +4,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 ActionDriver 的运行与 HTTP/IPC/WebSocket 调用日志只送入本地 Docker 统一平台，在 Grafana 关联链路和指标，在 Phoenix 查看完整模型内容，并取消本机日志存储与应用内日志列表。
+**Goal:** 将 Action-Driver 的运行与 HTTP/IPC/WebSocket 调用日志只送入本地 Docker 统一平台，在 Grafana 关联链路和指标，在 Phoenix 查看完整模型内容，并取消本机日志存储与应用内日志列表。
 
-**Architecture:** Electron Main 与 Agent Runtime 使用 `packages/observability` 的 OTel Logs SDK、tracer 和 meter 向本机 Alloy 发送 OTLP。Alloy 将日志送 Loki、指标送 Prometheus、完整模型 trace 送 Phoenix，并把允许字段的 trace 送 Tempo；Grafana 统一查询运行信息。ActionDriver 设置页只提供经 Main 校验的本地平台入口。
+**Architecture:** Electron Main 与 Agent Runtime 使用 `packages/observability` 的 OTel Logs SDK、tracer 和 meter 向本机 Alloy 发送 OTLP。Alloy 将日志送 Loki、指标送 Prometheus、完整模型 trace 送 Phoenix，并把允许字段的 trace 送 Tempo；Grafana 统一查询运行信息。Action-Driver 设置页只提供经 Main 校验的本地平台入口。
 
 **Tech Stack:** Node.js ≥20.14.0、pnpm 12.4.1、TypeScript、Electron、React、OpenTelemetry JavaScript、Docker Compose、Grafana、Alloy、Loki、Tempo、Prometheus、Phoenix、Vitest、Playwright。
 
@@ -253,7 +253,7 @@ const platformUrls: Record<ObservabilityPlatform, URL> = {
 corepack pnpm exec vitest run apps/desktop/src/renderer/src/pages/LogsPage.test.tsx apps/desktop/src/preload/desktop-api.test.ts
 corepack pnpm validate:e2e-interactions
 corepack pnpm typecheck
-rg -n 'LocalInteractionLogStore|actiondriver:logs:list|LANGSMITH_API_KEY' apps packages
+rg -n 'LocalInteractionLogStore|action-driver:logs:list|LANGSMITH_API_KEY' apps packages
 ```
 
 预期：测试通过；`rg` 命中只属于历史工具/测试或已解释的非生产路径，不能凭搜索结果直接删除用户文件。

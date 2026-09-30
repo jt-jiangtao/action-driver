@@ -17,7 +17,7 @@ describe('runtime hosts', () => {
       service: {
         baseUrl: 'http://127.0.0.1:1234',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v2'
+        streamProtocol: 'action-driver.stream.v2'
       }
     })
     expect(parent.postMessage).toHaveBeenCalledWith({
@@ -25,7 +25,7 @@ describe('runtime hosts', () => {
       service: {
         baseUrl: 'http://127.0.0.1:1234',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v2'
+        streamProtocol: 'action-driver.stream.v2'
       }
     })
     parent.emit('message', { data: { type: 'runtime.shutdown' } })
@@ -44,11 +44,11 @@ describe('runtime hosts', () => {
   })
 
   it('rejects a missing lifecycle host before creating runtime files', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-missing-host-'))
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-missing-host-'))
     await expect(
       startHostedAgentRuntime(null, {
         dataRoot,
-        workspaceRoot: mkdtempSync(join(tmpdir(), 'actiondriver-missing-host-workspace-'))
+        workspaceRoot: mkdtempSync(join(tmpdir(), 'action-driver-missing-host-workspace-'))
       })
     ).rejects.toThrow('RUNTIME_HOST_UNAVAILABLE')
     expect(existsSync(join(dataRoot, 'state.sqlite'))).toBe(false)

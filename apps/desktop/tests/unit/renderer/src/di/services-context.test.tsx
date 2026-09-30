@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { createRendererServices } from '../../../../../src/renderer/src/di/container'

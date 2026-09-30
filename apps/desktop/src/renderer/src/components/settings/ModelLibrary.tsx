@@ -1,6 +1,6 @@
 import type { ModelConnection } from '../../models/model-connections'
 import { LibraryModelRow } from './LibraryModelRow'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 
 export function ModelLibrary({
   connection,

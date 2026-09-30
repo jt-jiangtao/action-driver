@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { validateManifest, PluginError, PLUGIN_UI_PROTOCOL_VERSION, type Json } from '@actiondriver/plugin-contracts'
+import { validateManifest, PluginError, PLUGIN_UI_PROTOCOL_VERSION, type Json } from '@action-driver/plugin-contracts'
 import { createPanelMessageClient } from './plugins/panel-message-client'
 import { createPluginPanelProvider } from './plugins/panel-provider'
 import { createPluginContributionClient } from './plugins/contribution-client'
@@ -33,7 +33,7 @@ import { registerExternalLinkIpc } from './external-link-ipc'
 import { registerTaskOutputIpc } from './task-output-ipc'
 import { registerRuntimeConnectionIpc } from './runtime-connection-ipc'
 import { createDesktopBrowserSessionManager } from './browser-session/manager'
-import type { BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import type { BrowserSessionSnapshot } from '@action-driver/browser-desktop'
 import { createEmbeddedBrowserHost } from './browser-session/embedded-host'
 import { createExternalChromeHost } from './browser-session/external-chrome-host'
 import { createBrowserUseProvider } from './browser-session/provider'
@@ -51,7 +51,7 @@ import {
 } from '../shared/skill-folder-contract'
 
 protocol.registerSchemesAsPrivileged([{
-  scheme: 'actiondriver',
+  scheme: 'action-driver',
   privileges: { standard: true, secure: true, supportFetchAPI: true }
 }])
 
@@ -77,7 +77,7 @@ applyApplicationName(app)
 function applyDesktopBranding(): void {
   const icon = nativeImage.createFromPath(desktopIconPath)
   if (icon.isEmpty()) {
-    console.error(`[branding] ActionDriver icon could not be loaded from ${desktopIconPath}`)
+    console.error(`[branding] Action-Driver icon could not be loaded from ${desktopIconPath}`)
     return
   }
   app.dock?.setIcon(icon)
@@ -166,7 +166,7 @@ function parsePluginCommandExecute(value: unknown): { pluginId: string; commandI
 }
 app.whenReady().then(async () => {
   registerExternalLinkIpc(ipcMain, (url) => shell.openExternal(url))
-  protocol.handle('actiondriver', (request) => {
+  protocol.handle('action-driver', (request) => {
     const path = resolveRendererAssetPath(dirname(rendererPath), request.url)
     return path
       ? net.fetch(pathToFileURL(path).href)
@@ -175,8 +175,8 @@ app.whenReady().then(async () => {
   applyDesktopBranding()
   logging = await createMainLogging()
   const agentHomeDirectory =
-    !app.isPackaged && process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
-      ? process.env.ACTIONDRIVER_E2E_HOME_DIRECTORY
+    !app.isPackaged && process.env.ACTION_DRIVER_E2E_HOME_DIRECTORY
+      ? process.env.ACTION_DRIVER_E2E_HOME_DIRECTORY
       : app.getPath('home')
   const skillsDirectory = join(agentHomeDirectory, '.action-driver', 'skills')
   ipcMain.handle(SKILL_FOLDER_CHOOSE_CHANNEL, async () => {
@@ -234,8 +234,8 @@ app.whenReady().then(async () => {
       // at ~104 bytes and application-support paths can exceed that.
       computerUseClient = new ComputerUseClient({
         helperPath: paths.computerHelperBundlePath,
-        socketPath: join(tmpdir(), 'actiondriver-computer-use.sock'),
-        tokenPath: join(tmpdir(), 'actiondriver-computer-use.token'),
+        socketPath: join(tmpdir(), 'action-driver-computer-use.sock'),
+        tokenPath: join(tmpdir(), 'action-driver-computer-use.token'),
         ...(owningAppBundle(process.execPath) ? { ownerAppPath: owningAppBundle(process.execPath)! } : {})
       })
       skillProviderHost.register(createComputerUseProvider(computerUseClient))
@@ -291,7 +291,7 @@ app.whenReady().then(async () => {
 }).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
   console.error('[desktop] startup failed:', error)
-  dialog.showErrorBox('ActionDriver 启动失败', message)
+  dialog.showErrorBox('Action-Driver 启动失败', message)
   app.quit()
 })
 

@@ -8,7 +8,7 @@ import type {
   ToolEvent,
   ToolExecutionContext,
   ToolExecutor
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import {
   RuntimeToolPolicy,
   RuntimeToolRegistry,
@@ -54,7 +54,7 @@ function persistedTask(id: string, sessionId: string): RuntimeTaskRecord {
 }
 
 async function createHarness(tasks: RuntimeTaskRecord[]) {
-  const directory = temporaryDirectory('actiondriver-execution-context-')
+  const directory = temporaryDirectory('action-driver-execution-context-')
   const database = openRuntimeDatabase(join(directory, 'state.sqlite'))
   const repositories = new RolloutSessionStore({
     sessionsRoot: directory,

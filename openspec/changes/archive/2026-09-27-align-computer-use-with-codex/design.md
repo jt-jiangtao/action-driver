@@ -121,7 +121,7 @@ helper 为每个"会话 + 应用"保存最近一次的状态：元素表（AXUIE
 
 ### D7 覆盖提示、Esc 取消与用户介入（待签名 helper 权限验证）
 
-helper 在第一次动作前显示一个不激活、不接收鼠标事件的浮层，文案为"ActionDriver 正在使用你的电脑 · Esc 取消"，会话结束时隐藏。
+helper 在第一次动作前显示一个不激活、不接收鼠标事件的浮层，文案为"Action-Driver 正在使用你的电脑 · Esc 取消"，会话结束时隐藏。
 
 helper 同时安装一个只监听的事件 tap：
 
@@ -139,7 +139,7 @@ helper 同时安装一个只监听的事件 tap：
 helper 判定 `forbidden` 的范围：
 
 - 终端类应用：Terminal、iTerm2、Warp、Ghostty 等，按 bundleId 列表判断；
-- ActionDriver 自身和它的 helper；
+- Action-Driver 自身和它的 helper；
 - 系统认证与隐私授权界面：SecurityAgent，以及系统设置中的隐私与安全、登录密码相关面板；
 - 钥匙串访问。
 
@@ -213,7 +213,7 @@ D6/D7 是待验证设计，0.1/0.2 完成前不得开始依赖它们的实现。
 
 ### D7 签名身份与真实事件验证（2026-09-26）
 
-使用临时诊断 app，经 LaunchServices 启动，bundleId 为 com.actiondriver.computer-use，可执行名与实际 helper 相同，并使用同一 ActionDriver Dev Signing 证书及 hardened runtime 签名。codesign 的 designated requirement 与实际 helper 相同：identifier com.actiondriver.computer-use，certificate root SHA-1 8630c40a8f4ad70f37b6979e3d3295142d6a1fc4。结束后重新注册仓库中的实际 helper 路径。
+使用临时诊断 app，经 LaunchServices 启动，bundleId 为 com.action-driver.computer-use，可执行名与实际 helper 相同，并使用同一 Action-Driver Dev Signing 证书及 hardened runtime 签名。codesign 的 designated requirement 与实际 helper 相同：identifier com.action-driver.computer-use，certificate root SHA-1 8630c40a8f4ad70f37b6979e3d3295142d6a1fc4。结束后重新注册仓库中的实际 helper 路径。
 
 系统设置的“隐私与安全 → 输入监控”列表显示“无项目”，未给 helper 单独添加输入监控授权。诊断进程 AXIsProcessTrusted=true，CGPreflightListenEventAccess=true，CGPreflightPostEventAccess=true，cgSessionEventTap + listenOnly 创建成功。用户按要求移动鼠标并按 Esc；60 秒窗口共收到 203 个事件、其中 1 次 Esc。探针仅记录计数，不保存键盘内容。
 
@@ -239,7 +239,7 @@ D6/D7 是待验证设计，0.1/0.2 完成前不得开始依赖它们的实现。
 
 ## 方案 A 兼容矩阵初稿（2026-09-26）
 
-基线：SOURCE.md 中的 sky 0.7.1、cua 0.2.5、cua-repl 0.1.0；Mac 实测环境 macOS 27.0。状态“源码确认”仅证明 JS 契约，不证明 ActionDriver 已兼容。
+基线：SOURCE.md 中的 sky 0.7.1、cua 0.2.5、cua-repl 0.1.0；Mac 实测环境 macOS 27.0。状态“源码确认”仅证明 JS 契约，不证明 Action-Driver 已兼容。
 
 | 范围 | 证据与状态 | 本项目差异或待验证项 |
 |---|---|---|
@@ -255,11 +255,11 @@ D6/D7 是待验证设计，0.1/0.2 完成前不得开始依赖它们的实现。
 | 沙箱与受信服务 | 原版 CUA + 受信 sky/service + 真实独立沙箱子进程链路已验证，D10 前置检查通过 | 模型子进程的 process 可达是已接受边界；受信端口留在宿主，实际生产注册与完整唯一通道验收尚未完成 |
 | 超时、断线与迟到结果 | D12 已规定未知结果不自动重发 | 对照场景和实现未完成 |
 
-应用策略首批实现：默认组织策略文件为 ~/Library/Application Support/ActionDriver/computer-use-policy.json，JSON 字段 deniedBundleIds 为非空 bundleId 字符串数组。缺失文件无额外组织拒绝；格式或读取错误拒绝完成策略判定。尚未接入实际动作门禁，系统设置敏感面板和桌面自身识别仍待补齐。
+应用策略首批实现：默认组织策略文件为 ~/Library/Application Support/Action-Driver/computer-use-policy.json，JSON 字段 deniedBundleIds 为非空 bundleId 字符串数组。缺失文件无额外组织拒绝；格式或读取错误拒绝完成策略判定。尚未接入实际动作门禁，系统设置敏感面板和桌面自身识别仍待补齐。
 
 ### 前置兼容检查的新增证据
 
-- 原包在普通 Node 20 中启动时，嵌套 node_modules 下的 tslib.es6.js 被当作 CommonJS，出现命名导出错误。受信加载钩子仅对规范化 vendor 根目录中的 JS 指定 ESM 格式，不修改 vendor。真实子进程的原版 CUA 契约测试通过 3 项（包括禁止 fork 的 JS 专属沙箱内加载）：初始化文档不获取应用库存；sky setup/execute RPC、应用绑定及动作参数、emit:false、截图图片输出和跨 requestMeta 文档重写。RPC 和图片数据为替身，未证明原生动作效果或 ActionDriver 端到端兼容。
+- 原包在普通 Node 20 中启动时，嵌套 node_modules 下的 tslib.es6.js 被当作 CommonJS，出现命名导出错误。受信加载钩子仅对规范化 vendor 根目录中的 JS 指定 ESM 格式，不修改 vendor。真实子进程的原版 CUA 契约测试通过 3 项（包括禁止 fork 的 JS 专属沙箱内加载）：初始化文档不获取应用库存；sky setup/execute RPC、应用绑定及动作参数、emit:false、截图图片输出和跨 requestMeta 文档重写。RPC 和图片数据为替身，未证明原生动作效果或 Action-Driver 端到端兼容。
 - 沙箱真实进程测试 3 项通过：初始 Node 可启动、不继承测试凭据和 NODE_OPTIONS、osascript 与另一 Node 子进程均被系统拒绝。原脚本启动子进程的定向回归测试保留，不将此有限验证称为完整 D10 兼容完成。
 - Broker 内部 12 项测试与宿主授权计时测试通过；真实 HTTP/事件流、runtime 设置存储、复用包的受信服务接入仍未完成。
 - D12 客户端测试覆盖动作投递后超时/断线、迟到成功不复活原请求且不重发；这些错误现明确提示可能已执行。客户端排队取消已验证及时拒绝且不投递；helper actor、安全取消及启动恢复尚待实现与验证。

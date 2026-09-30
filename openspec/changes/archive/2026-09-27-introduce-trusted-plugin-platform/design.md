@@ -50,7 +50,7 @@ export interface PluginModule {
 export interface PluginContext {
   readonly plugin: { id: string; version: string };
   readonly subscriptions: DisposableStore;
-  readonly api: ActionDriverAPI;
+  readonly api: ProductAPI;
 }
 ```
 
@@ -184,9 +184,9 @@ Skill 加载器、模型网关、检查点、数据库、依赖运行时定位�
 
 ### 8. npm SDK 与插件开发脚手架
 
-用户已明确裁决：Skill 与执行层必须在同一个插件包内，模块分离不表示分开分发。公共 `@actiondriver/plugin-sdk` 提供版本化 API、类型与上下文客户端，npm 构建产物包含 JavaScript 与声明文件，依赖链不得要求第三方导入仓库内部代码。`@actiondriver/plugin-contracts` 提供可序列化 DTO 与校验。
+用户已明确裁决：Skill 与执行层必须在同一个插件包内，模块分离不表示分开分发。公共 `@action-driver/plugin-sdk` 提供版本化 API、类型与上下文客户端，npm 构建产物包含 JavaScript 与声明文件，依赖链不得要求第三方导入仓库内部代码。`@action-driver/plugin-contracts` 提供可序列化 DTO 与校验。
 
-`create-actiondriver-plugin` 提供 `npm create actiondriver-plugin` 入口；接受插件名与目标目录，生成 package.json、plugin.json、skills/、src/catalog.ts、src/extension.ts、src/execution.ts、测试与构建配置。catalog 独立暴露完整工具 schema 与 Skill 内容；extension 只完成 activate/deactivate 注册；execution 接收窄接口。开发命令支持 build、test 和 package，最终包带完整 Skill 资源。模板不自行启动宿主、修改 grants 或创建全局服务定位器。
+`create-action-driver-plugin` 提供 `npm create action-driver-plugin` 入口；接受插件名与目标目录，生成 package.json、plugin.json、skills/、src/catalog.ts、src/extension.ts、src/execution.ts、测试与构建配置。catalog 独立暴露完整工具 schema 与 Skill 内容；extension 只完成 activate/deactivate 注册；execution 接收窄接口。开发命令支持 build、test 和 package，最终包带完整 Skill 资源。模板不自行启动宿主、修改 grants 或创建全局服务定位器。
 
 替代方案是 Yeoman generator，与 VS Code 的开发入口一致，但引入通用生成器运行时。推荐并由用户选择独立 npm create CLI，减少依赖，保持产物协议与统一宿主生命周期。首版只生成 TypeScript 模板；原生/MCP 使用已批准 manifest/service 扩展，不生成编译器或假驱动。
 

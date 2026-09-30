@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { createInteractionLogRecorder } from '@actiondriver/observability'
+import { createInteractionLogRecorder } from '@action-driver/observability'
 import { openRuntimeDatabase } from './database'
 import { claimRuntimeOwnership } from './runtime-ownership'
 import { SqliteRuntimeRepositories } from './repositories'
@@ -33,7 +33,7 @@ export async function createRuntimeStorage(options: {
   // The session log and its projection replaced the single business database; drop the old file
   // so a stale schema can never be read, and keep auxiliary state in its own database.
   for (const suffix of ['', '-wal', '-shm'])
-    rmSync(join(dataRoot, `actiondriver.db${suffix}`), { force: true })
+    rmSync(join(dataRoot, `action-driver.db${suffix}`), { force: true })
   const statePath = join(dataRoot, 'state.sqlite')
   const database = openRuntimeDatabase(statePath)
   const releases: Array<() => void | Promise<void>> = [
@@ -107,7 +107,7 @@ export async function createRuntimeStorage(options: {
       tracer: logging.tracer,
       meter: logging.meter
     })
-    const credentialSecret = environment.ACTIONDRIVER_CREDENTIAL_KEY?.trim()
+    const credentialSecret = environment.ACTION_DRIVER_CREDENTIAL_KEY?.trim()
     const service = new ModelConnectionService({
       store: createFileModelConnectionStore({ filePath: join(dataRoot, 'model-connections.json') }),
       cipher: createCredentialCipher(

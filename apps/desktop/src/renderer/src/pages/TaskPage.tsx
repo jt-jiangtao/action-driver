@@ -4,7 +4,7 @@ import type {
   AgentMessageProjection,
   PriorActivityTurnProjection,
   TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import { Fragment, memo, useEffect, useMemo, useState } from 'react'
 import type { ComposerAttachments } from '../components/AgentComposer'
 import { TaskComposer } from '../components/TaskComposer'
@@ -14,7 +14,7 @@ import { ConversationMessages, TaskHeader } from '../components/Conversation'
 import { ConversationViewport } from '../components/ConversationViewport'
 import { ActivityTimeline } from '../components/ActivityTimeline'
 import type { ModelSelectionProjection } from '../models/model-selection'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import type { ImageReader } from '../components/agent/ConversationImage'
 import { TaskOutputFiles, type OutputFileReader } from '../components/agent/TaskOutputFiles'
 import { activityOwnedText, dedupeAssistantText } from '../components/agent/activity-mirror'
@@ -308,7 +308,7 @@ function AppApprovalCard({ request, onDecision }: {
   const [icon, setIcon] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
-    void window.actionDriverDesktop?.computerUse?.getAppIcon(request.target.appPath)
+    void window.productDesktop?.computerUse?.getAppIcon(request.target.appPath)
       .then((value) => { if (!cancelled) setIcon(value ?? null) })
       .catch(() => undefined)
     return () => { cancelled = true }

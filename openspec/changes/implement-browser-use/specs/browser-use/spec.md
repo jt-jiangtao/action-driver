@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: 独立验证双 Fork 兼容操作
-验证程序 SHALL 使用自有 Playwright 与 Electron/Chromium 共同完成同一页面的导航、点击、输入、截图和关闭；本期 MUST NOT 要求修改或接入 ActionDriver 产品。
+验证程序 SHALL 使用自有 Playwright 与 Electron/Chromium 共同完成同一页面的导航、点击、输入、截图和关闭；本期 MUST NOT 要求修改或接入 Action-Driver 产品。
 
 #### Scenario: 基础兼容冒烟
 - **WHEN** 两套自有产物运行确定性本地页面夹具

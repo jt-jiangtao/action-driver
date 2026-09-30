@@ -1,4 +1,4 @@
-import { projectToolDetails } from '@actiondriver/plugin-contracts'
+import { projectToolDetails } from '@action-driver/plugin-contracts'
 import {
   appendActivityAnchor,
   currentActivityId,
@@ -8,13 +8,13 @@ import {
   type MessageContentPart,
   type TaskProjection,
   type ToolInvocationProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import {
   emptyActivityTimelineState,
   reduceActivityProjection,
   type ActivityTimelineState
-} from '@actiondriver/activity-projection'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+} from '@action-driver/activity-projection'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 
 type ScheduledHandle = unknown
 

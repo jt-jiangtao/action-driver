@@ -1,4 +1,4 @@
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { describe, expect, it } from 'vitest'
 import { createTaskStore } from '../../../../../src/renderer/src/stores/task-store'
 

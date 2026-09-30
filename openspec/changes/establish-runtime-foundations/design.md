@@ -35,7 +35,7 @@ Renderer 只消费 `AgentCommandService`、`AgentSessionRepository` 和只读投
 
 ### 2. 使用 Protobuf + gRPC over Unix Domain Socket
 
-协议源文件放在 `proto/actiondriver/runtime/v1/`，使用 Buf 管理 lint、breaking check 与 Go/TypeScript 代码生成。Go 使用官方 gRPC 实现；Electron Main 使用纯 JavaScript 的 gRPC 客户端，避免原生 Node ABI 依赖。生成代码分别进入 Go 内部协议包与 `packages/runtime-protocol`，生成物提交仓库，CI 重新生成并检查 drift。
+协议源文件放在 `proto/action-driver/runtime/v1/`，使用 Buf 管理 lint、breaking check 与 Go/TypeScript 代码生成。Go 使用官方 gRPC 实现；Electron Main 使用纯 JavaScript 的 gRPC 客户端，避免原生 Node ABI 依赖。生成代码分别进入 Go 内部协议包与 `packages/runtime-protocol`，生成物提交仓库，CI 重新生成并检查 drift。
 
 首个协议面包含：
 
@@ -60,7 +60,7 @@ Main 新增 `SidecarSupervisor`，状态为 `stopped | starting | ready | degrad
 
 ### 4. SQLite 由 Go Sidecar 独占，事件日志是投影来源
 
-数据库位于 `app.getPath('userData')/data/actiondriver.db`，路径由 Main 在启动参数中明确传递。Sidecar 使用单一数据库拥有者接口，启用 foreign keys、busy timeout 和 WAL。Electron 任何进程都不直接打开数据库。
+数据库位于 `app.getPath('userData')/data/action-driver.db`，路径由 Main 在启动参数中明确传递。Sidecar 使用单一数据库拥有者接口，启用 foreign keys、busy timeout 和 WAL。Electron 任何进程都不直接打开数据库。
 
 首版 schema 包含：
 
@@ -80,7 +80,7 @@ Main 新增 `SidecarSupervisor`，状态为 `stopped | starting | ready | degrad
 `services/agentd` 采用以下边界：
 
 ```text
-cmd/actiondriver-agentd/   进程入口与依赖组装
+cmd/action-driver-agentd/   进程入口与依赖组装
 internal/app/              生命周期与配置
 internal/transport/        gRPC 服务和协议映射
 internal/runtime/          Agent 命令、会话与事件编排
@@ -106,9 +106,9 @@ Eino 只出现在 `einoadapter`，领域层不导入具体模型或框架类型�
 
 ### 7. 定制 Electron Fork 使用独立源码仓库与本仓库锁定清单
 
-完整 Electron/Chromium 源码不进入当前产品仓库。维护独立的 ActionDriver Electron Fork；本仓库保存 `toolchains/electron-fork/manifest.json`、补丁目录索引、产物清单 schema 与验证脚本。manifest 固定 Electron tag、Chromium revision、Fork commit、patch-set id、目标架构和协议兼容版本。
+完整 Electron/Chromium 源码不进入当前产品仓库。维护独立的 Action-Driver Electron Fork；本仓库保存 `toolchains/electron-fork/manifest.json`、补丁目录索引、产物清单 schema 与验证脚本。manifest 固定 Electron tag、Chromium revision、Fork commit、patch-set id、目标架构和协议兼容版本。
 
-Fork 仓库使用有序 patch queue 保存 ActionDriver 差异。Phase 0 只建立无行为改动的基线构建与消费链路；Action Graph 等补丁由下一 change 增加。产物按 `electron-version/fork-commit/platform-arch` 发布，并附 SHA-256、构建环境和 patch-set 元数据。产品生产打包必须验证清单，不允许回退到 npm 公版 Electron。
+Fork 仓库使用有序 patch queue 保存 Action-Driver 差异。Phase 0 只建立无行为改动的基线构建与消费链路；Action Graph 等补丁由下一 change 增加。产物按 `electron-version/fork-commit/platform-arch` 发布，并附 SHA-256、构建环境和 patch-set 元数据。产品生产打包必须验证清单，不允许回退到 npm 公版 Electron。
 
 Docker CI 负责 manifest/schema、patch 元数据、协议 codegen 和通用测试。Electron/Chromium 的 macOS 编译与运行测试需要 Apple 工具链，因此在固定 Xcode/macOS runner 完成；这被视为 CI 的平台构建阶段，而不是要求最终用户安装 Docker。
 

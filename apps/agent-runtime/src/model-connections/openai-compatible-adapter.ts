@@ -13,8 +13,8 @@ import OpenAI, {
   UnprocessableEntityError
 } from 'openai'
 import type { HttpTransport } from './http-transport'
-import type { ModelInputMessage, ModelUsage } from '@actiondriver/model-connections'
-import type { ToolDefinition } from '@actiondriver/runtime-contracts'
+import type { ModelInputMessage, ModelUsage } from '@action-driver/model-connections'
+import type { ToolDefinition } from '@action-driver/runtime-contracts'
 import {
   classifyResponse,
   failure,

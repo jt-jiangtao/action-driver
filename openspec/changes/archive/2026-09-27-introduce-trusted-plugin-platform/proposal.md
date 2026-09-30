@@ -5,7 +5,7 @@
 ## What Changes
 
 - 建立可信插件平台，使用版本化 manifest、宿主 SDK 和 RPC，允许 Node 与平台原生组件，以及 stdio/HTTP MCP 服务。
-- 公共插件 API/SDK 封装为可构建和打包的 npm 包，提供独立 `npm create actiondriver-plugin` TypeScript 脚手架；Skill、schema 与执行层在同一个插件包内按模块分工。
+- 公共插件 API/SDK 封装为可构建和打包的 npm 包，提供独立 `npm create action-driver-plugin` TypeScript 脚手架；Skill、schema 与执行层在同一个插件包内按模块分工。
 - 强制依赖注入：插件与内核依赖接口，由各执行环境的 composition root 注入具体实现，禁止插件直接导入 Runtime/Desktop 内部实现。
 - Skill/工具插件独立暴露可序列化 Skill 内容与工具 schema 贡献目录，供外部装配层继续拼接；目录发现不激活插件、不授予调用权。
 - 插件统一注册工具、命令、指令型 Skill、能力、服务与面板；内置插件不使用私有核心 API。

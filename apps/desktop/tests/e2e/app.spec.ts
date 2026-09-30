@@ -76,9 +76,9 @@ test.afterAll(() => {
 test('captures all Home and Task Figma states through public controls', async () => {
   const page = await launch()
 
-  expect(await application!.evaluate(({ app }) => app.getName())).toBe('ActionDriver')
-  await expect(page).toHaveTitle('ActionDriver')
-  await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+  expect(await application!.evaluate(({ app }) => app.getName())).toBe('Action-Driver')
+  await expect(page).toHaveTitle('Action-Driver')
+  await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   await auditRenderedInteractions(page, contracts, [
     'e2e/home/main/composer#section',
     'e2e/shared/sidebar/root#nav',

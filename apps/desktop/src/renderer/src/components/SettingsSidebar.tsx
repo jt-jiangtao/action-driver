@@ -1,4 +1,4 @@
-import { ActionDriverLogo } from './ActionDriverLogo'
+import { ProductLogo } from './ProductLogo'
 import { AppIcon } from './ui/AppIcon'
 
 export function SettingsSidebar({
@@ -87,8 +87,8 @@ export function SettingsSidebar({
       </div>
       </nav>
       <div className="settings-brand">
-        <ActionDriverLogo size={18} />
-        <strong>ActionDriver</strong>
+        <ProductLogo size={18} />
+        <strong>Action-Driver</strong>
       </div>
     </aside>
   )

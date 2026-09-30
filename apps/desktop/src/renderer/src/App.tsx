@@ -1,4 +1,4 @@
-import type { AppApprovalDecision, ModelRef, TaskProjection } from '@actiondriver/contracts'
+import type { AppApprovalDecision, ModelRef, TaskProjection } from '@action-driver/contracts'
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useQueryClient } from '@tanstack/react-query'
@@ -24,7 +24,7 @@ import type { RecentTaskSummary } from './models/task-catalog'
 import type { ComposerAttachments } from './components/AgentComposer'
 import { taskUsesComputerUse, useComputerUseGuidance } from './services/computer-use-guidance'
 
-const ACTIVE_TASK_ID_KEY = 'actiondriver.active-task-id'
+const ACTIVE_TASK_ID_KEY = 'action-driver.active-task-id'
 
 export function App({ initialRoute = 'home' }: { initialRoute?: InitialAppRoute }) {
   const services = useAppServices()

@@ -163,17 +163,17 @@ export function createInteractionLogRecorder(options: {
   meter?: Meter
 }): InteractionLogRecorder {
   const clock = options.clock ?? Date.now
-  const callCount = options.meter?.createCounter('actiondriver.calls', {
-    description: 'Completed ActionDriver calls'
+  const callCount = options.meter?.createCounter('action-driver.calls', {
+    description: 'Completed Action-Driver calls'
   })
-  const callDuration = options.meter?.createHistogram('actiondriver.call.duration', {
-    unit: 'ms', description: 'ActionDriver call duration'
+  const callDuration = options.meter?.createHistogram('action-driver.call.duration', {
+    unit: 'ms', description: 'Action-Driver call duration'
   })
   return {
     async start(input) {
       const time = input.startedAt ?? clock()
       const correlationId = input.correlationId ?? options.ids.correlationId()
-      const span = options.tracer?.startSpan('actiondriver.call', {
+      const span = options.tracer?.startSpan('action-driver.call', {
         startTime: time,
         attributes: {
           'rpc.system': input.transport,
@@ -253,7 +253,7 @@ export function createInteractionLogRecorder(options: {
     },
     async recordOneWay(input) {
       const correlationId = input.correlationId ?? options.ids.correlationId()
-      const span = options.tracer?.startSpan('actiondriver.event', {
+      const span = options.tracer?.startSpan('action-driver.event', {
         attributes: {
           'rpc.system': input.transport,
           'rpc.method': input.operation,

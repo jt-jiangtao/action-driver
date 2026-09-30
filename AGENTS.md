@@ -1,4 +1,4 @@
-# ActionDriver Agent 治理规范
+# Action-Driver Agent 治理规范
 
 本文件适用于在本仓库工作的所有开发 Agent。开始任务时必须先阅读本文件以及 [Agent Battle 协议](docs/governance/agent-battle-protocol.md)。
 

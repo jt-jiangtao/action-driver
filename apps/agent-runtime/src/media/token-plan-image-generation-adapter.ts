@@ -1,1 +1,1 @@
-export * from '@actiondriver/image-generation-plugin/providers/token-plan'
+export * from '@action-driver/image-generation-plugin/providers/token-plan'

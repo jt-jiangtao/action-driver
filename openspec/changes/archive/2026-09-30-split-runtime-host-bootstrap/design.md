@@ -4,7 +4,7 @@
 
 已归档的 `replace-sqlite-store-with-rollout-jsonl` 把会话历史改为 rollout JSONL + SQLite 投影，并在 `ports.ts` 引入 `RuntimeRepositories`，`local-adapters.ts` 已不再依赖具体存储实现。因此**存储接口层已经就绪**，本变更只需要装配入口与宿主引导，不重新设计存储。
 
-约束：只支持 macOS 本地运行时；对外协议 `actiondriver.stream.v2` 与事件语义保持不变；工作区存在其他会话未提交的改动，提交时必须排除。
+约束：只支持 macOS 本地运行时；对外协议 `action-driver.stream.v2` 与事件语义保持不变；工作区存在其他会话未提交的改动，提交时必须排除。
 
 ## Goals / Non-Goals
 

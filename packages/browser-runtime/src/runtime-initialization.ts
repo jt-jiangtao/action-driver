@@ -1,9 +1,9 @@
 import { createDisplaySideEffect } from './display.js'
 import type { ApiManifest } from './api-view.js'
-import type { ActionDriverBrowserHost } from './host-port.js'
+import type { ProductBrowserHost } from './host-port.js'
 
 export interface RuntimeSetupOptions {
-  host?: ActionDriverBrowserHost | undefined
+  host?: ProductBrowserHost | undefined
   environment?: string | null | undefined
   undocumentedApiMembers?: string[] | undefined
   excludedDocumentation?: string[] | undefined

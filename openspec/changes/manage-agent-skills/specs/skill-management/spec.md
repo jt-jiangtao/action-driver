@@ -115,8 +115,8 @@
 - **WHEN** 页面展示或改变 Skill 状态
 - **THEN** 请求经由服务端接口完成，页面不导入任何 Skill 具体实现
 
-### Requirement: 设置内容区还原 ActionDriver 主题并使用一致布局
-系统 SHALL 引用唯一的既有 248px 设置侧栏，并 SHALL 以已确认的 ActionDriver 生图和现有设置页主题 Token 为视觉基准。右侧内容 SHALL 使用页面内局部 Auto Layout 管理标题操作区、路径栏、编辑器工具栏、筛选栏、表格、分页和抽屉；组件复用 MUST NOT 改变生图的信息层级、密度或按钮形态。页面每组操作 SHOULD 最多包含一个 Primary 按钮。
+### Requirement: 设置内容区还原 Action-Driver 主题并使用一致布局
+系统 SHALL 引用唯一的既有 248px 设置侧栏，并 SHALL 以已确认的 Action-Driver 生图和现有设置页主题 Token 为视觉基准。右侧内容 SHALL 使用页面内局部 Auto Layout 管理标题操作区、路径栏、编辑器工具栏、筛选栏、表格、分页和抽屉；组件复用 MUST NOT 改变生图的信息层级、密度或按钮形态。页面每组操作 SHOULD 最多包含一个 Primary 按钮。
 
 日志页为视觉例外：系统 SHALL 保留同一设置侧栏与日志信息架构，但日志右侧内容区 SHALL 使用 Codex 式纯白画布和中性灰分隔，蓝色 SHOULD 仅用于选中态、链接与必要主操作；下拉打开与关闭状态 SHALL 使用同一 Chevron 图标体系。
 

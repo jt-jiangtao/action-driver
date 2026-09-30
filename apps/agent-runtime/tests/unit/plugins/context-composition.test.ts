@@ -8,7 +8,7 @@ import { RuntimeToolRegistry } from '../../../src/tool-registry'
 import { RuntimeToolPolicy } from '../../../src/tool-policy'
 
 it('owns plugin context keys for the real host lifecycle', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-context-plugin-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-context-plugin-'))
   const root = join(directory, 'plugin')
   await mkdir(root)
   await writeFile(join(root, 'plugin.json'), JSON.stringify({
@@ -31,7 +31,7 @@ it('owns plugin context keys for the real host lifecycle', async () => {
 }, 10000)
 
 it('filters plugin tools from discovery and rejects direct execution after context changes', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-context-tool-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-context-tool-'))
   const root = join(directory, 'plugin')
   await mkdir(root)
   const definition = { id: 'tools/local/fixture/run', version: 1, modelName: 'tools_local_fixture_run', description: 'Run', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, risk: 'low', sideEffects: { filesystem: 'none', network: false }, timeoutMs: 1000 }

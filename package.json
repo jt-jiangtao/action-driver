@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "pnpm validate:e2e-interactions && pnpm --filter @actiondriver/desktop build",
+    "build": "pnpm validate:e2e-interactions && pnpm --filter @action-driver/desktop build",
     "build:native:electron": "node scripts/build-electron-native.mjs",
     "build:native:computer-use": "node scripts/build-computer-use-helper.mjs",
     "typecheck": "pnpm -r typecheck",
@@ -21,8 +21,8 @@
     "validate:figma-audit": "node .agents/skills/auditing-figma-ui/scripts/validate-figma-snapshot.mjs --config design/figma-ui-audit.config.json",
     "test:watch": "vitest",
     "test:e2e": "pnpm test:e2e:visual && pnpm test:e2e:local",
-    "test:e2e:visual": "pnpm --filter @actiondriver/desktop build:visual && playwright test apps/desktop/tests/e2e/app.spec.ts",
-    "test:e2e:local": "pnpm build:native:electron && pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop build && playwright test apps/desktop/tests/e2e/local-runtime.spec.ts apps/desktop/tests/e2e/computer-use.spec.ts",
+    "test:e2e:visual": "pnpm --filter @action-driver/desktop build:visual && playwright test apps/desktop/tests/e2e/app.spec.ts",
+    "test:e2e:local": "pnpm build:native:electron && pnpm --filter @action-driver/agent-runtime build && pnpm --filter @action-driver/desktop build && playwright test apps/desktop/tests/e2e/local-runtime.spec.ts apps/desktop/tests/e2e/computer-use.spec.ts",
     "test:e2e:packaged:macos": "node scripts/test-packaged-macos.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "check:all": "pnpm check && pnpm test:e2e"

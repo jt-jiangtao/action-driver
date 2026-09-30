@@ -44,8 +44,8 @@ class FakeParentPort extends EventEmitter {
 
 describe('Agent Runtime process entry', () => {
   it('starts and closes without an Electron parent port', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-hostless-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-hostless-root-'))
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-hostless-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-hostless-root-'))
     const runtime = await createAgentRuntime({ dataRoot, workspaceRoot, environment: {} })
     expect(runtime.ready).toEqual({ service: null })
     await runtime.close()
@@ -53,10 +53,10 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('releases the storage owner when a later startup step fails', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-startup-failure-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-startup-failure-root-'))
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-startup-failure-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-startup-failure-root-'))
     await expect(createAgentRuntime({ dataRoot, workspaceRoot,
-      environment: { ACTIONDRIVER_PLACEMENT_HOSTS: 'not-json' }
+      environment: { ACTION_DRIVER_PLACEMENT_HOSTS: 'not-json' }
     })).rejects.toThrow('must be valid JSON')
     const runtime = await createAgentRuntime({ dataRoot, workspaceRoot, environment: {} })
     await runtime.close()
@@ -75,11 +75,11 @@ describe('Agent Runtime process entry', () => {
     try {
       await startAgentRuntimeProcess(
         parentPort,
-        mkdtempSync(join(tmpdir(), 'actiondriver-no-langsmith-')),
+        mkdtempSync(join(tmpdir(), 'action-driver-no-langsmith-')),
         exit,
         {
-          ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(
-            join(tmpdir(), 'actiondriver-no-langsmith-root-')
+          ACTION_DRIVER_WORKSPACE_ROOT: mkdtempSync(
+            join(tmpdir(), 'action-driver-no-langsmith-root-')
           )
         }
       )
@@ -97,10 +97,10 @@ describe('Agent Runtime process entry', () => {
   it('wires the process tracer into Phoenix model observability', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-phoenix-root-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-phoenix-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-phoenix-root-'))
     await startAgentRuntimeProcess(parentPort, databasePath, exit, {
-      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+      ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
     })
     expect(phoenixConstruction).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -112,18 +112,18 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('refuses a second live Runtime before it can recover the first Runtime tasks', async () => {
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-single-owner-root-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-single-owner-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-single-owner-root-'))
     const firstParent = new FakeParentPort()
     const firstExit = vi.fn()
     const firstStart = startAgentRuntimeProcess(firstParent, databasePath, firstExit, {
-      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+      ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
     })
     await firstStart
     try {
       const secondParent = new FakeParentPort()
       const secondStart = startAgentRuntimeProcess(secondParent, databasePath, vi.fn(), {
-        ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+        ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
       })
       await expect(secondStart).rejects.toThrow('RUNTIME_ALREADY_RUNNING')
       expect(secondParent.postMessage).not.toHaveBeenCalledWith(
@@ -136,8 +136,8 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('recovers an orphan before announcing readiness and does not append another terminal event on restart', async () => {
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-recovery-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-recovery-root-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-recovery-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-recovery-root-'))
     const dataRoot = databasePath
     const rolloutPaths = {
       sessionsRoot: dataRoot,
@@ -253,7 +253,7 @@ describe('Agent Runtime process entry', () => {
       const parentPort = new FakeParentPort()
       const exit = vi.fn()
       const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
-        ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+        ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
       })
       await started
       const read = new RolloutSessionStore(rolloutPaths)
@@ -272,10 +272,10 @@ describe('Agent Runtime process entry', () => {
   it('announces HTTP readiness and closes on shutdown', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-process-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-process-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-workspace-'))
     const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
-      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+      ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
     })
 
     await started
@@ -289,15 +289,15 @@ describe('Agent Runtime process entry', () => {
   it('reports the HTTP service address when the client injected a token', async () => {
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-http-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-workspace-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-http-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-workspace-'))
 
     const started = startAgentRuntimeProcess(parentPort, databasePath, exit, {
-      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot,
-      ACTIONDRIVER_SERVICE_TOKEN: 'service-token',
-      ACTIONDRIVER_CREDENTIAL_KEY: 'credential-secret',
-      ACTIONDRIVER_RUNTIME_VERSION: '1.2.3',
-      ACTIONDRIVER_RENDERER_ORIGIN: 'http://localhost:5173'
+      ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot,
+      ACTION_DRIVER_SERVICE_TOKEN: 'service-token',
+      ACTION_DRIVER_CREDENTIAL_KEY: 'credential-secret',
+      ACTION_DRIVER_RUNTIME_VERSION: '1.2.3',
+      ACTION_DRIVER_RENDERER_ORIGIN: 'http://localhost:5173'
     })
     await started
 
@@ -310,7 +310,7 @@ describe('Agent Runtime process entry', () => {
     expect(readyMessage.service.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
     expect(readyMessage.service).toMatchObject({
       streamPath: '/stream',
-      streamProtocol: 'actiondriver.stream.v2'
+      streamProtocol: 'action-driver.stream.v2'
     })
 
     const socket = new WebSocket(
@@ -332,7 +332,7 @@ describe('Agent Runtime process entry', () => {
     socket.send(
       JSON.stringify({
         type: 'auth',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-auth',
         createdAt: '2026-09-23T00:00:00.000Z',
         payload: { token: 'service-token' }
@@ -343,7 +343,7 @@ describe('Agent Runtime process entry', () => {
     socket.send(
       JSON.stringify({
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-resume',
         createdAt: '2026-09-23T00:00:01.000Z',
         requestId: 'missing-request',
@@ -361,18 +361,18 @@ describe('Agent Runtime process entry', () => {
   })
 
   it('drops the legacy business database before the runtime starts', async () => {
-    const dataRoot = mkdtempSync(join(tmpdir(), 'actiondriver-legacy-'))
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'actiondriver-legacy-root-'))
+    const dataRoot = mkdtempSync(join(tmpdir(), 'action-driver-legacy-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'action-driver-legacy-root-'))
     mkdirSync(dataRoot, { recursive: true })
-    writeFileSync(join(dataRoot, 'actiondriver.db'), 'legacy')
-    writeFileSync(join(dataRoot, 'actiondriver.db-wal'), 'legacy')
+    writeFileSync(join(dataRoot, 'action-driver.db'), 'legacy')
+    writeFileSync(join(dataRoot, 'action-driver.db-wal'), 'legacy')
     const parentPort = new FakeParentPort()
     const exit = vi.fn()
     await startAgentRuntimeProcess(parentPort, dataRoot, exit, {
-      ACTIONDRIVER_WORKSPACE_ROOT: workspaceRoot
+      ACTION_DRIVER_WORKSPACE_ROOT: workspaceRoot
     })
-    expect(existsSync(join(dataRoot, 'actiondriver.db'))).toBe(false)
-    expect(existsSync(join(dataRoot, 'actiondriver.db-wal'))).toBe(false)
+    expect(existsSync(join(dataRoot, 'action-driver.db'))).toBe(false)
+    expect(existsSync(join(dataRoot, 'action-driver.db-wal'))).toBe(false)
     expect(existsSync(join(dataRoot, 'state.sqlite'))).toBe(true)
     parentPort.emit('message', { data: { type: 'runtime.shutdown' }, ports: [] })
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 10_000 })
@@ -380,7 +380,7 @@ describe('Agent Runtime process entry', () => {
 
   it('rejects startup without a configured workspace root', async () => {
     const parentPort = new FakeParentPort()
-    const databasePath = mkdtempSync(join(tmpdir(), 'actiondriver-root-missing-'))
+    const databasePath = mkdtempSync(join(tmpdir(), 'action-driver-root-missing-'))
     await expect(startAgentRuntimeProcess(parentPort, databasePath, vi.fn(), {})).rejects.toThrow(
       'SANDBOX_ROOT_INVALID'
     )

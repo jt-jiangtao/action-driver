@@ -1,6 +1,6 @@
 ## Context
 
-参见 proposal.md。现有布局为直属 thirdparty/playwright、thirdparty/electron，以及 thirdparty/build/electron-workspace。源码 submodule 已注册但尚未提交；Playwright action_driver 夹具尚未提交。现有 Electron 构建依赖本机 .gclient、args.gn、thirdparty/package.json、Node 22.23.3、depot_tools 41c9bd890277c2f551499d171d215dfdf5dab97d、macOS SDK 26.5 与 Metal Toolchain。
+参见 proposal.md。现有布局为直属 thirdparty/playwright、thirdparty/electron，以及 thirdparty/build/electron-workspace。源码 submodule 已注册但尚未提交；Playwright action-driver 夹具尚未提交。现有 Electron 构建依赖本机 .gclient、args.gn、thirdparty/package.json、Node 22.23.3、depot_tools 41c9bd890277c2f551499d171d215dfdf5dab97d、macOS SDK 26.5 与 Metal Toolchain。
 
 现有 scripts/lib/electron-fork.mjs 读取 config/electron-fork.json，其中混合了锁定源码、构建参数、本机补丁后 Chromium commit 与 bundle 哈希；不能将旧机器记录直接作为新机器重建结果。scripts/test-packaged-macos.mjs 已涵盖 Electron 原生 SQLite binding、Computer Use helper、Runtime 和桌面构建及打包运行验收，可复用。scripts/build-electron-native.mjs 使用 node-gyp@11 范围版本，完整工具输入需要锁定确切解析版本。
 

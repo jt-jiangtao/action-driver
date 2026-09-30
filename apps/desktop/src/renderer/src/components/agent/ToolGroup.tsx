@@ -17,7 +17,7 @@ import {
   Search,
   SquareTerminal
 } from 'lucide-react'
-import type { ActivityProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import type { ActivityProjection, ToolInvocationProjection } from '@action-driver/contracts'
 import {
   ToolDetails,
   toolDetails,

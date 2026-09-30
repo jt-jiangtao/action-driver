@@ -29,8 +29,8 @@
 | `apps/desktop/src/shared/detail-bounds.ts` | 只有文件自身定义 `DetailBounds`；`rg` 对应用、包、插件、脚本及活跃规划无消费者；不在任何包导出、脚本或插件入口中。 | 删除文件。 | Desktop `typecheck`；全仓引用反查。 |
 | `apps/agent-runtime/src/agent-files/agent-file-store.ts` 中的 `isExecutorRegistered` 成员、构造选项和赋值 | `tsc --noUnusedLocals` 报 TS6133；`rg` 仅命中这四处定义/赋值，没有调用者传该选项，成员也未读取。 | 删除这些声明和赋值。 | `agent-file-store.test.ts` 与运行时 unused 诊断。 |
 | `apps/agent-runtime/tests/stream-session-service.test.ts:637` 的 `observer` 形参名 | `tsc --noUnusedParameters` 报 TS6133；相邻同类测试使用 `_observer`，该回调中未读取此参数。 | 改为 `_observer`，保持函数位置与行为。 | `stream-session-service.test.ts` 与运行时 unused 诊断。 |
-| `apps/agent-runtime/src/web-open/address.ts` | 唯一内容为 `@actiondriver/web-plugin/address` 再导出；只有旧测试直接导入，真实插件通过包导出提供相同实现。 | 删除再导出文件，测试改用插件包入口。 | `web-open-address.test.ts` 4/4 通过。 |
-| `apps/agent-runtime/src/web-open/http.ts` | 唯一内容为 `@actiondriver/web-plugin/http` 再导出；只有旧测试直接导入，生产插件使用自身实现。 | 删除再导出文件，测试改用插件包入口。 | `web-open-http.test.ts` 12/12 通过。 |
+| `apps/agent-runtime/src/web-open/address.ts` | 唯一内容为 `@action-driver/web-plugin/address` 再导出；只有旧测试直接导入，真实插件通过包导出提供相同实现。 | 删除再导出文件，测试改用插件包入口。 | `web-open-address.test.ts` 4/4 通过。 |
+| `apps/agent-runtime/src/web-open/http.ts` | 唯一内容为 `@action-driver/web-plugin/http` 再导出；只有旧测试直接导入，生产插件使用自身实现。 | 删除再导出文件，测试改用插件包入口。 | `web-open-http.test.ts` 12/12 通过。 |
 | `apps/agent-runtime/src/web-open/tool.ts` | 仅旧测试引用；实际 Web 插件用 `plugins/web/src/reader/extension.ts` 注册工具。旧 `registerWebOpenTool` 测试验证的是未装配的注册路径；现行包目录与装配另有 `plugins/web/src/reader/catalog.test.ts`、`capability-plugin-packaging.test.ts`。 | 删除桥接文件及旧注册测试；保留 URL 拒绝、提取和 Agent Loop 测试，改为直接导入插件实现。 | Web 定向 5 文件 20/20 通过；运行时 TypeScript 检查通过。 |
 
 ## 空目录与排除项
@@ -42,11 +42,11 @@
 - 已删除 `apps/desktop/src/shared/detail-bounds.ts`；运行时移除 `isExecutorRegistered` 成员/构造选项/赋值；测试形参改为 `_observer`。删除后 `rg -n 'DetailBounds|detail-bounds|isExecutorRegistered' apps packages plugins scripts` 无命中。
 - `corepack pnpm vitest run apps/agent-runtime/tests/agent-file-store.test.ts apps/agent-runtime/tests/stream-session-service.test.ts`：2 文件、41/41 通过。预期错误路径测试仍打印 `INPUT_FILE_NOT_FOUND` / `INPUT_FILE_NOT_STAGED` 的 stderr。
 - `corepack pnpm exec tsc --noEmit --noUnusedLocals --noUnusedParameters -p apps/agent-runtime/tsconfig.json`：通过，原两项 TS6133 消失。
-- 首次 Desktop `typecheck` 因独立工作区缺少 `@actiondriver/browser-desktop` 构建声明而失败；先运行 `@actiondriver/browser-runtime` 与 `@actiondriver/browser-desktop` 的定向 build 后，`corepack pnpm --filter @actiondriver/desktop typecheck` 通过。构建产物均为被忽略文件。
+- 首次 Desktop `typecheck` 因独立工作区缺少 `@action-driver/browser-desktop` 构建声明而失败；先运行 `@action-driver/browser-runtime` 与 `@action-driver/browser-desktop` 的定向 build 后，`corepack pnpm --filter @action-driver/desktop typecheck` 通过。构建产物均为被忽略文件。
 - Web 旧桥接清理前，4 个相关测试文件 20/20 通过。改为直接验证插件后，`corepack pnpm vitest run apps/agent-runtime/tests/web-open-address.test.ts apps/agent-runtime/tests/web-open-http.test.ts apps/agent-runtime/tests/web-open-tool.test.ts apps/agent-runtime/tests/web-open-agent-loop.test.ts plugins/web/src/reader/catalog.test.ts` 为 5 文件 20/20 通过；运行时 unused TypeScript 检查通过。
 - 额外运行 `capability-plugin-packaging.test.ts` 时首次 2/4 通过、2 项因独立工作区尚未分发 `dist/plugins/pdf` 和 `dist/plugins/command` 而失败；执行 `node apps/agent-runtime/scripts/stage-plugins.mjs` 后，同一测试 4/4 通过。暂存输出均被 Git 忽略。
 - 仅测试引用的运行时 Skill 与图片生成桥接层继续保留：现有测试验证会话权限、资源保存和并发等现行插件行为；删除这些测试会丢失有效回归覆盖，迁移测试需另行保持等价覆盖。共享包、插件和顶层脚本没有其他已证实可删的源码。
-- 集成构建：运行时入口按 `apps/agent-runtime/package.json` 的 esbuild 参数单独打包通过。首次 Desktop build 因独立工作区缺少 `@actiondriver/command-plugin/presentation` 的 `dist` 而失败；执行 `corepack pnpm --filter './plugins/*' build` 后，Desktop Main/Preload/Renderer 构建通过（入口声明验证 149 项）。这些都是被忽略的本地构建输出。
+- 集成构建：运行时入口按 `apps/agent-runtime/package.json` 的 esbuild 参数单独打包通过。首次 Desktop build 因独立工作区缺少 `@action-driver/command-plugin/presentation` 的 `dist` 而失败；执行 `corepack pnpm --filter './plugins/*' build` 后，Desktop Main/Preload/Renderer 构建通过（入口声明验证 149 项）。这些都是被忽略的本地构建输出。
 - 提交前检查各执行一次：`corepack pnpm typecheck` 通过（27 个工作区项目）；`corepack pnpm lint` 通过（含 149 项交互声明）；`corepack pnpm test` 失败，403 个测试文件中 386 通过、15 失败、2 跳过，2391 项测试中 2313 通过、76 失败、2 跳过。
 - 全量失败诊断：`provider-adapters.test.ts` 的本地 SSE 用例在本独立工作区单独运行仍报 `Connection error`（同一源文件在原主工作区单独运行 32/32 通过，说明存在工作区环境差异）；`otel-logger.test.ts` 的 2 个用例和 `interaction-logging.test.ts` 的 1 个用例单独运行仍在 5 秒超时；`Conversation.test.tsx` 的 6 个用例单独运行报 `motionPreference?.removeEventListener is not a function`，并在未改代码的原主工作区复现相同 6 项失败。这些源文件均不在本变更的差异中。全量其余失败未逐项归因，不能声称全量通过。
 - 本变更直接涉及的 AgentFileStore、StreamSessionService、Web 地址/HTTP/工具/Agent Loop 与插件目录测试均通过。运行时入口 esbuild、插件暂存、全部插件 build、Desktop Main/Preload/Renderer build 通过；未运行需原生 Electron Fork 与 helper 的 E2E（独立工作区的两个子模块未初始化，且本变更没有更改运行时装配入口）。

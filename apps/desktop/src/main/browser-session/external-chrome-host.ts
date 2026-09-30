@@ -1,5 +1,5 @@
-import type { BrowserDesktopHostSession, BrowserSessionCommand } from '@actiondriver/browser-desktop'
-import type { ActionDriverBrowserHost } from '@actiondriver/browser-runtime'
+import type { BrowserDesktopHostSession, BrowserSessionCommand } from '@action-driver/browser-desktop'
+import type { ProductBrowserHost } from '@action-driver/browser-runtime'
 import { formatBrowserAXTree } from './ax-state.js'
 
 type RemoteTab = { id: string; title: string; url: string }
@@ -13,8 +13,8 @@ function tabsFrom(value: unknown): RemoteTab[] {
   })
 }
 
-/** Maps the product session contract onto an ActionDriver-owned Chrome host. */
-export function createExternalChromeHost(host: Pick<ActionDriverBrowserHost, 'execute' | 'close'>):
+/** Maps the product session contract onto an Action-Driver-owned Chrome host. */
+export function createExternalChromeHost(host: Pick<ProductBrowserHost, 'execute' | 'close'>):
   BrowserDesktopHostSession {
   let activeTabId: string | null = null
   let closed = false

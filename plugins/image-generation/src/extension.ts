@@ -1,4 +1,4 @@
-import { PluginError, type PluginContext, type ImageAssetRef } from '@actiondriver/plugin-sdk'
+import { PluginError, type PluginContext, type ImageAssetRef } from '@action-driver/plugin-sdk'
 import { definition, catalog } from './catalog.js'
 import { createImageGenerationTool, type ModelRef } from './execution.js'
 export function activate(context: PluginContext): void {

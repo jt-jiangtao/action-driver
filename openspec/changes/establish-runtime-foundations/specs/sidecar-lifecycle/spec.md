@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 桌面进程管理本地 Agent Service 的生命周期行为，确保普通用户无需安装 Docker 或手工启动服务即可稳定使用应用。
+定义 Action-Driver 桌面进程管理本地 Agent Service 的生命周期行为，确保普通用户无需安装 Docker 或手工启动服务即可稳定使用应用。
 
 ## ADDED Requirements
 
@@ -8,7 +8,7 @@
 系统 SHALL 在桌面应用启动时自动启动与当前应用版本和 macOS 架构匹配的本地 Agent Service，并在服务就绪前拒绝运行 Agent 命令。
 
 #### Scenario: 正常启动
-- **WHEN** 用户启动已安装的 ActionDriver
+- **WHEN** 用户启动已安装的 Action-Driver
 - **THEN** 桌面进程启动随应用分发的 Agent Service，并在服务通过健康检查后开放 Agent 命令
 
 #### Scenario: 服务尚未就绪
@@ -37,12 +37,12 @@
 系统 SHALL 在桌面应用退出时请求 Agent Service 完成受控关闭，并在超时后终止遗留进程与清理本次运行的套接字文件。
 
 #### Scenario: 正常退出应用
-- **WHEN** 用户退出 ActionDriver
+- **WHEN** 用户退出 Action-Driver
 - **THEN** 系统停止接收新命令、等待进行中的本地写入结束、关闭 Agent Service 并移除运行时套接字
 
 ### Requirement: 生产环境无需 Docker
 系统 MUST 将可运行的 Agent Service 随生产版 macOS 应用分发，最终用户无需安装 Go、Docker 或其他开发工具。
 
 #### Scenario: 离线启动生产应用
-- **WHEN** 用户在未安装 Docker 和 Go 的 macOS 设备上启动 ActionDriver
+- **WHEN** 用户在未安装 Docker 和 Go 的 macOS 设备上启动 Action-Driver
 - **THEN** 本地 Agent Service 能够从应用包内启动并完成就绪检查

@@ -2,12 +2,12 @@
 
 > 本组是当前唯一优先交付。目标只有“真实请求流程跑通、页面实时渲染、日志可追踪”三项；完成前除直接依赖和严重回归外，不推进 Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制或其他横向迁移。每个子项只运行定向测试，整组完成后再运行全集门禁。
 
-- [x] 0.1 最初定义 `actiondriver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。现行协议已由 `converge-runtime-architecture` 升为 v2 请求级序号。
+- [x] 0.1 最初定义 `action-driver.stream.v1` WebSocket 合同与纯状态机：覆盖 `auth`、`request.create`、`request.accepted`、`request.error`、`request.cancel`、`request.resume`、`response.start`、`response.content`、`response.end`、`response.snapshot`，以及稳定 ID、`sequence`、`cursor`、幂等键和结构化错误；用契约测试验证 `start → content* → end`、开始前失败、开始后失败/取消、重复事件、序列缺口和终态全文校准。现行协议已由 `converge-runtime-architecture` 升为 v2 请求级序号。
 - [x] 0.2 使用官方 `openai` Node SDK 把 OpenAI-compatible 模型网关扩展为真实流式 `/chat/completions`：按保存连接设置 `baseURL`，关闭自动重试与 SDK debug logging，传入 15 秒超时和调用级 `AbortSignal`，暴露不含凭据的可取消 async iterable，并聚合最终 assistant 全文、用量与结束原因；用本地假上游定向测试覆盖多分片 Markdown、认证失败、限流、超时、畸形分片、无文本与中途断流，确认凭据只存在于 Runtime 上游边界且不以定时器伪造流。
 - [x] 0.3 在 Runtime 建立最小 WebSocket 服务与流式执行编排：校验并持久化会话、任务、用户消息后发送 `request.accepted`，再持久化并发布固定生命周期事件，终态原子写入 assistant 全文与任务状态；实现同一 `idempotencyKey` 不重复执行、`eventId` 去重、`request.resume(afterCursor)` 重放和窗口过期快照，并用服务端定向测试覆盖完成、失败、取消与重连。
 - [x] 0.4 把单连接 WebSocket 客户端迁入 Renderer 并接入真实提交：Main/Preload 只注入本次 Runtime 的 `wsUrl + accessToken`，Renderer 管理鉴权、命令截止时间、标准 close code、指数退避、命令关联、事件去重、序列检查与恢复；服务端主动 Ping、Chromium 自动 Pong。移除 Main 的流式 WebSocket 与 IPC 事件代理，用客户端定向测试验证重连不重复正文、错误不串线、token 不进入日志且生产装配无 Mock 降级；服务端 MUST 接受且只接受 Main 为本次 Runtime 注入的受信任 renderer Origin（并保留既有 `file://` / 无 Origin 本机路径），拒绝其他 Origin。
 - [x] 0.5 完成任务页流式渲染：同一 `messageId` 聚合 `response.content.delta`，以 50–100ms 合并视图刷新并把完整字符串交给 `markdown-it`（`html: false`），在 `response.end` 用最终全文校准并正确显示完成、失败、取消；没有 Browser/Computer 数据时保持 Agent-only 全宽且不渲染右侧面板。用组件测试覆盖未闭合 Markdown、重复分片、终态校准、错误保留部分正文和窄窗口布局。
-- [x] 0.6 接入真实聚合日志：一次 `service->model` 调用只创建一条 pending 交互并在终态补齐完整 Request、最终聚合 Response、状态、结束原因、用量和耗时；模型层投影系统提示词、用户输入、模型请求、最终响应和任务终态，并以 `taskId`/`requestId`/`correlationId` 串联。用回归测试证明供应商分片、`response.content` 与全部 `actiondriver:log:*` 控制面不会创建新日志，凭据不会进入摘要、详情或复制数据。
+- [x] 0.6 接入真实聚合日志：一次 `service->model` 调用只创建一条 pending 交互并在终态补齐完整 Request、最终聚合 Response、状态、结束原因、用量和耗时；模型层投影系统提示词、用户输入、模型请求、最终响应和任务终态，并以 `taskId`/`requestId`/`correlationId` 串联。用回归测试证明供应商分片、`response.content` 与全部 `action-driver:log:*` 控制面不会创建新日志，凭据不会进入摘要、详情或复制数据。
 - [x] 0.7 建立确定性的自动化端到端回归：本地假 OpenAI-compatible 服务按多个分片返回 Markdown，桌面端选择真实持久化模型配置 → WebSocket 发送 → 立即出现真实会话 → 持续渲染 → 正确结束 → 在真实任务列表、会话详情、接口层和模型层日志中查看同一次调用；中途断开一次客户端连接并验证恢复后正文不重复，同时断言无 Mock 页面数据、无 Browser/Computer 面板、无分片日志和无密钥泄漏。
 - [x] 0.8 使用用户已经在模型连接页配置并启用的真实 OpenAI-compatible 服务完成一次 live smoke：生产装配从 Runtime 凭据存储读取真实密钥并发起真实流式请求，页面展示真实返回，结束后任务、消息和双层日志都能查询；测试过程不得把密钥写入命令、测试夹具、截图、日志或仓库，真实服务不可用时必须明确失败而不能回退到假服务或 Mock。
 - [x] 0.9 本组全部完成后再统一运行流式协议/网关/Runtime/页面/日志定向测试、完整 `corepack pnpm check`、桌面 E2E 与 `openspec validate serve-runtime-over-http --strict`；在此之前不得为每个子项重复运行全集门禁。
@@ -90,7 +90,7 @@
 - [ ] 9.2 增加服务端"云端装配"骨架与冒烟：用注入的远端存储与托管凭据适配器启动，验证同一契约下健康检查与配置接口可用。
 - [ ] 9.3 验证服务端代码不包含本机假设（路径、`safeStorage`、回环地址、进程引用），用静态检查或测试守卫防止回归。
 - [ ] 9.4 验证云端装配不操作用户本机 GUI：以云端装配运行时不产生本机 Browser/Computer 调用，并记录本机不开放入站端口、云端侧能力范围待独立裁决。
-- [ ] 9.5 应用包身份：打包产物声明 `CFBundleName`/`CFBundleDisplayName` 为 ActionDriver、`CFBundleIconFile` 指向品牌图标并设置稳定的 bundle id，验证 Dock 在启动与退出动画中都显示品牌图标与名称，不再回退到 Electron 图标。
+- [ ] 9.5 应用包身份：打包产物声明 `CFBundleName`/`CFBundleDisplayName` 为 Action-Driver、`CFBundleIconFile` 指向品牌图标并设置稳定的 bundle id，验证 Dock 在启动与退出动画中都显示品牌图标与名称，不再回退到 Electron 图标。
 
 ## 10. 测试与验证
 
@@ -122,7 +122,7 @@
 - [x] 12.9 记录当前边界的 Renderer → Main IPC 交互（transport=ipc、operation=通道名、outcome、载荷尺寸）并写入 `<userData>/logs/renderer-service.log`，验证设置页读取连接时产生可读记录。
 - [x] 12.10 定义可替换的 `InteractionLogStore` 端口，提供开始事件、完成事件、记录单向事件、摘要分页、按 ID 读取详情与清理能力；用内存适配器测试状态转换、分页游标和幂等完成。
 - [x] 12.11 实现本地日志存储适配器：追加式摘要索引、按事件 ID 命名的独立压缩载荷文件、临时文件 + 原子替换提交；验证列表不读取正文、详情只读取目标载荷、摘要存在但载荷缺失时返回结构化 `payload-unavailable`。
-- [ ] 12.12 把 IPC Handler、HTTP 服务端与 WebSocket 会话的真实输入输出接入统一采集器；验证同一调用共享 `correlationId`，HTTP 状态、IPC 结果和 WebSocket requestId/taskId 可串联，事件推送记录为 `one-way-event`；日志控制面 `actiondriver:log:*` 必须被统一排除并用回归测试证明列表/详情查询不会生成新日志。
+- [ ] 12.12 把 IPC Handler、HTTP 服务端与 WebSocket 会话的真实输入输出接入统一采集器；验证同一调用共享 `correlationId`，HTTP 状态、IPC 结果和 WebSocket requestId/taskId 可串联，事件推送记录为 `one-way-event`；日志控制面 `action-driver:log:*` 必须被统一排除并用回归测试证明列表/详情查询不会生成新日志。
 - [x] 12.13 在服务启动恢复阶段把无法完成的旧 `pending` 事件转为 `incomplete`，验证已有请求正文保留且系统不会伪造失败响应。
 
 > 12.3 / 12.12 状态说明：WebSocket 记录适配器及 requestId/taskId/单向事件契约测试已完成；仓库尚无 WebSocket 服务，真实调用点需等待 3.1–3.7 后接入，因此两项保持未完成。

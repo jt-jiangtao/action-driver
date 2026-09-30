@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
-import type { StreamClientEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { StreamClientEvent, StreamServerEvent } from '@action-driver/runtime-contracts'
 import {
   createInteractionLogRecorder,
   MemoryInteractionLogStore
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import {
   startServiceHttpServer,
   type ServiceHttpServer,
@@ -88,7 +88,7 @@ function auth(ws: WebSocket, token = 'service-token'): void {
   ws.send(
     JSON.stringify({
       type: 'auth',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'client-auth-1',
       createdAt: '2026-09-23T00:00:00.000Z',
       payload: { token }
@@ -106,14 +106,14 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const closed = waitForClose(socket)
     socket.send(
       JSON.stringify({
         type: 'tool.approve',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'decision-1',
         createdAt: '2026-09-23T00:00:00.000Z',
         requestId: 'request-1',
@@ -126,7 +126,7 @@ describe('service WebSocket surface', () => {
     expect(handle).not.toHaveBeenCalled()
 
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
@@ -139,7 +139,7 @@ describe('service WebSocket surface', () => {
     socket.send(
       JSON.stringify({
         type: 'tool.approve',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'decision-2',
         createdAt: '2026-09-23T00:00:00.000Z',
         requestId: 'request-1',
@@ -157,12 +157,12 @@ describe('service WebSocket surface', () => {
       streamSessions: { async handle() {} },
       token: 'service-token',
       runtimeVersion: '0.1.0',
-      rendererOrigin: 'actiondriver://renderer'
+      rendererOrigin: 'action-driver://renderer'
     })
     socket = new WebSocket(
       `${server.url.replace('http:', 'ws:')}/stream`,
-      ['actiondriver.stream.v2'],
-      { origin: 'actiondriver://renderer' }
+      ['action-driver.stream.v2'],
+      { origin: 'action-driver://renderer' }
     )
     await waitForOpen(socket)
     const ready = nextMessage(socket)
@@ -172,7 +172,7 @@ describe('service WebSocket surface', () => {
 
     socket = new WebSocket(
       `${server.url.replace('http:', 'ws:')}/stream`,
-      ['actiondriver.stream.v2'],
+      ['action-driver.stream.v2'],
       { origin: 'file://' }
     )
     await expect(waitForOpen(socket)).rejects.toThrow('Unexpected server response: 403')
@@ -188,7 +188,7 @@ describe('service WebSocket surface', () => {
     })
     socket = new WebSocket(
       `${server.url.replace('http:', 'ws:')}/stream`,
-      ['actiondriver.stream.v2'],
+      ['action-driver.stream.v2'],
       { origin: 'http://localhost:5173' }
     )
     await waitForOpen(socket)
@@ -196,7 +196,7 @@ describe('service WebSocket surface', () => {
 
     socket = new WebSocket(
       `${server.url.replace('http:', 'ws:')}/stream`,
-      ['actiondriver.stream.v2'],
+      ['action-driver.stream.v2'],
       { origin: 'http://localhost:5174' }
     )
     await expect(waitForOpen(socket)).rejects.toThrow('Unexpected server response: 403')
@@ -210,7 +210,7 @@ describe('service WebSocket surface', () => {
         if (event.type !== 'request.resume') return
         await emit({
           type: 'request.error',
-          protocol: 'actiondriver.stream.v2',
+          protocol: 'action-driver.stream.v2',
           eventId: 'server-event-1',
           requestId: event.requestId,
           error: { code: 'request-not-found', message: 'Unknown request', retryable: false },
@@ -225,7 +225,7 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
 
@@ -233,14 +233,14 @@ describe('service WebSocket surface', () => {
     auth(socket)
     await expect(message).resolves.toMatchObject({
       type: 'session.ready',
-      protocol: 'actiondriver.stream.v2'
+      protocol: 'action-driver.stream.v2'
     })
 
     message = nextMessage(socket)
     socket.send(
       JSON.stringify({
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-resume-1',
         createdAt: '2026-09-23T00:00:01.000Z',
         requestId: 'missing-request',
@@ -282,7 +282,7 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     let closed = waitForClose(socket)
@@ -290,14 +290,14 @@ describe('service WebSocket surface', () => {
     await expect(closed).resolves.toMatchObject({ code: 1008 })
 
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const message = nextMessage(socket)
     auth(socket)
     await message
     closed = waitForClose(socket)
-    socket.send(JSON.stringify({ type: 'unknown', protocol: 'actiondriver.stream.v2' }))
+    socket.send(JSON.stringify({ type: 'unknown', protocol: 'action-driver.stream.v2' }))
     await expect(closed).resolves.toMatchObject({ code: 1002 })
   })
 
@@ -309,7 +309,7 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const closed = waitForClose(socket)
@@ -333,7 +333,7 @@ describe('service WebSocket surface', () => {
       interactions
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
@@ -365,7 +365,7 @@ describe('service WebSocket surface', () => {
           for (let index = 0; index < 20; index++)
             await emit({
               type: 'response.chunk',
-              protocol: 'actiondriver.stream.v2',
+              protocol: 'action-driver.stream.v2',
               eventId: `chunk-${index}`,
               requestId: 'requestId' in event ? event.requestId : 'request-1',
               sessionId: 'session-1',
@@ -381,7 +381,7 @@ describe('service WebSocket surface', () => {
       }
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
@@ -391,7 +391,7 @@ describe('service WebSocket surface', () => {
     socket.send(
       JSON.stringify({
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'resume-1',
         createdAt: new Date().toISOString(),
         requestId: 'request-1',
@@ -412,7 +412,7 @@ describe('service WebSocket surface', () => {
         if (event.type !== 'request.create') return
         if (event.sessionId !== null) throw new Error('expected a new-session request')
         const identity = {
-          protocol: 'actiondriver.stream.v2' as const,
+          protocol: 'action-driver.stream.v2' as const,
           requestId: event.requestId,
           sessionId: 'session-1',
           taskId: 'task-1',
@@ -470,7 +470,7 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     let messages = nextMessages(socket, 1)
@@ -480,7 +480,7 @@ describe('service WebSocket surface', () => {
     socket.send(
       JSON.stringify({
         type: 'request.create',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-create',
         createdAt: '2026-09-23T00:00:00.000Z',
         requestId: 'request-1',
@@ -507,7 +507,7 @@ describe('service WebSocket surface', () => {
         if (event.type !== 'request.resume') return
         await emit({
           type: 'request.error',
-          protocol: 'actiondriver.stream.v2',
+          protocol: 'action-driver.stream.v2',
           eventId: 'event-large',
           requestId: event.requestId,
           error: { code: 'large', message: 'x'.repeat(1_000), retryable: false },
@@ -523,7 +523,7 @@ describe('service WebSocket surface', () => {
       streamMaxBufferedBytes: 500
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const ready = nextMessage(socket)
@@ -533,7 +533,7 @@ describe('service WebSocket surface', () => {
     socket.send(
       JSON.stringify({
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-resume-large',
         createdAt: '2026-09-23T00:00:01.000Z',
         requestId: 'request-1',
@@ -553,7 +553,7 @@ describe('service WebSocket surface', () => {
       runtimeVersion: '0.1.0'
     })
     socket = new WebSocket(`${server.url.replace('http:', 'ws:')}/stream`, [
-      'actiondriver.stream.v2'
+      'action-driver.stream.v2'
     ])
     await waitForOpen(socket)
     const closed = waitForClose(socket)

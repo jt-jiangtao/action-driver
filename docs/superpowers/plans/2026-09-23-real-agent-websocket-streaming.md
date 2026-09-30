@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- The stream subprotocol is exactly `actiondriver.stream.v1`; an accepted response follows exactly `response.start → response.content* → response.end`.
+- The stream subprotocol is exactly `action-driver.stream.v1`; an accepted response follows exactly `response.start → response.content* → response.end`.
 - Main owns the local WebSocket connection; Renderer only receives the whitelisted typed API and never sees the local service token or provider credential.
 - Runtime remains the sole writer for connections, credentials, sessions, tasks, messages, events, model calls, and logs.
 - Production never falls back to `DeterministicModelGateway`, fake upstreams, Mock catalogs, or example logs.
@@ -91,7 +91,7 @@
 
 **Interfaces:**
 
-- Produces: `STREAM_PROTOCOL = 'actiondriver.stream.v1'`.
+- Produces: `STREAM_PROTOCOL = 'action-driver.stream.v1'`.
 - Produces: `StreamClientEvent`, `StreamServerEvent`, `RequestAcceptedEvent`, `ResponseStartEvent`, `ResponseContentEvent`, `ResponseEndEvent`, `ResponseSnapshotEvent`.
 - Produces: `parseStreamClientEvent(value)`, `parseStreamServerEvent(value)`, `StreamLifecycleGuard.apply(event)`.
 - Consumes: existing `ModelRef` and serializable contract rules.
@@ -101,7 +101,7 @@
 ```ts
 const accepted = parseStreamServerEvent({
   type: 'request.accepted',
-  protocol: 'actiondriver.stream.v1',
+  protocol: 'action-driver.stream.v1',
   eventId: 'event-accepted',
   cursor: 1,
   requestId: 'request-1',
@@ -338,7 +338,7 @@ git commit -m "feat: persist streaming agent sessions"
 
 **Interfaces:**
 
-- Produces: same-port `ws://127.0.0.1:<port>/stream` using `actiondriver.stream.v1`.
+- Produces: same-port `ws://127.0.0.1:<port>/stream` using `action-driver.stream.v1`.
 - Produces: authenticated socket sessions backed by one `StreamSessionService`.
 - Consumes: Task 1 parsing, Task 3 service, existing one-time service token and HTTP server.
 
@@ -347,9 +347,9 @@ git commit -m "feat: persist streaming agent sessions"
 Run:
 
 ```bash
-corepack pnpm --filter @actiondriver/agent-runtime add ws@8.21.3
-corepack pnpm --filter @actiondriver/desktop add ws@8.21.3
-corepack pnpm --filter @actiondriver/agent-runtime --filter @actiondriver/desktop add -D @types/ws
+corepack pnpm --filter @action-driver/agent-runtime add ws@8.21.3
+corepack pnpm --filter @action-driver/desktop add ws@8.21.3
+corepack pnpm --filter @action-driver/agent-runtime --filter @action-driver/desktop add -D @types/ws
 ```
 
 Expected: both app manifests and `pnpm-lock.yaml` change; no other dependency is introduced.
@@ -517,7 +517,7 @@ Expose `GET /models` and `POST /chat/completions`. Capture model/messages, requi
 
 - [ ] **Step 2: Replace the obsolete Mock E2E path**
 
-In an isolated profile, add/enable the fake connection through the real configuration API/UI, select it, submit, assert the real task page appears before final content, observe at least one partial render, then final Markdown. Assert there is no browser panel, task/list/detail survive restart, and interface/model logs expose exactly one correlated aggregate call with full final response and no `actiondriver:log:*` recursion.
+In an isolated profile, add/enable the fake connection through the real configuration API/UI, select it, submit, assert the real task page appears before final content, observe at least one partial render, then final Markdown. Assert there is no browser panel, task/list/detail survive restart, and interface/model logs expose exactly one correlated aggregate call with full final response and no `action-driver:log:*` recursion.
 
 - [ ] **Step 3: Run task-level E2E**
 

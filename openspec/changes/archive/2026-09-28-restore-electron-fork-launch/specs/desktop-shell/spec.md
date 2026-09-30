@@ -19,7 +19,7 @@ macOS arm64 桌面的开发、预览、自动化测试与打包入口 SHALL 使�
 自有 macOS Electron SHALL 在启用 ACTION_DRIVER 的非官方开发构建中默认显示原生全屏斜向平铺的 `action-driver-dev` 水印，初始透明度为 5%。水印 MUST NOT 修改网页 DOM 或截获页面交互。官方自有构建仅在传入 `--action-driver-watermark` 时显示；未启用 ACTION_DRIVER 的构建不显示自有水印。
 
 #### Scenario: 开发窗口显示水印
-- **WHEN** 用户以已验证的自有开发 Fork 启动 ActionDriver
+- **WHEN** 用户以已验证的自有开发 Fork 启动 Action-Driver
 - **THEN** 原生窗口内容区域显示平铺的 `action-driver-dev` 水印，且点击、输入与滚动仍正常
 
 #### Scenario: 验收水印来源

@@ -1,5 +1,5 @@
 import { presentations } from './presentation.js'
-import type { PluginCatalog } from '@actiondriver/plugin-sdk'
+import type { PluginCatalog } from '@action-driver/plugin-sdk'
 import { instructions, skillContent } from './instructions.js'
 const { description, computer, output, reset, codeDescription } = instructions
 /** Project-level prerequisite the vendored Codex instructions do not carry. */
@@ -8,7 +8,7 @@ const skillPrerequisite =
 
 /** Keeps the model on the host-provided entry. */
 const entryPointNote =
-  'Entry point: the host provides one persistent global `cua` object. For browsers use `cua.getBrowser({ id: "iab" })`, `cua.getTab(...)` or `cua.createBrowserTab("chrome", url)`; for desktop apps use `cua.getState()` and `cua.getApp("...")`. Browser actions use ActionDriver-owned tabs only. App actions use ActionDriver approval and the local macOS helper.'
+  'Entry point: the host provides one persistent global `cua` object. For browsers use `cua.getBrowser({ id: "iab" })`, `cua.getTab(...)` or `cua.createBrowserTab("chrome", url)`; for desktop apps use `cua.getState()` and `cua.getApp("...")`. Browser actions use Action-Driver-owned tabs only. App actions use Action-Driver approval and the local macOS helper.'
 
 
 export const catalog: PluginCatalog = { tools: [

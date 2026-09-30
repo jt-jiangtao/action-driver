@@ -3,12 +3,12 @@ import {
   ModelServiceError,
   type ModelConnectionDto,
   type ModelConnectionServicePort
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import {
   createInteractionLogRecorder,
   MemoryInteractionLogStore,
   type InteractionLogRecorder
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -170,8 +170,8 @@ describe('service HTTP surface', () => {
   })
 
   it('authenticates binary image upload/read and never logs image bytes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'actiondriver-image-http-'))
-    const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+    const root = mkdtempSync(join(tmpdir(), 'action-driver-image-http-'))
+    const database = openRuntimeDatabase(join(root, 'action-driver.db'))
     const assets = new SessionAssetStore({ database, rootDirectory: root })
     const { interactions, store } = recordingInteractions()
     server = await startServiceHttpServer({
@@ -220,8 +220,8 @@ describe('service HTTP surface', () => {
   })
 
   it('stages document uploads with their name and format', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'actiondriver-input-http-'))
-    const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+    const root = mkdtempSync(join(tmpdir(), 'action-driver-input-http-'))
+    const database = openRuntimeDatabase(join(root, 'action-driver.db'))
     const inputFiles = new SessionInputFileStore({
       database,
       rootDirectory: root,
@@ -238,7 +238,7 @@ describe('service HTTP surface', () => {
       authorized('/input-files/staged', {
         method: 'POST',
         body: new Uint8Array(body),
-        headers: { 'content-type': type, 'x-actiondriver-file-name': encodeURIComponent(name) }
+        headers: { 'content-type': type, 'x-action-driver-file-name': encodeURIComponent(name) }
       })
     try {
       expect((await fetch(`${server.url}/input-files/staged`, { method: 'POST' })).status).toBe(401)
@@ -512,12 +512,12 @@ describe('service HTTP surface', () => {
       headers: {
         origin: 'http://localhost:5173',
         'access-control-request-method': 'POST',
-        'access-control-request-headers': 'authorization,content-type,x-actiondriver-file-name'
+        'access-control-request-headers': 'authorization,content-type,x-action-driver-file-name'
       }
     })
     expect(uploadPreflight.status).toBe(204)
     expect(uploadPreflight.headers.get('access-control-allow-headers')).toContain(
-      'X-ActionDriver-File-Name'
+      'X-Action-Driver-File-Name'
     )
 
     const allowed = await authorized('/model-connections', {

@@ -56,7 +56,7 @@ async function launch(mode: 'computer-approval' | 'browser-computer' = 'computer
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: home,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: home,
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: home,
       TMPDIR: runDirectory
     }
   })
@@ -65,7 +65,7 @@ async function launch(mode: 'computer-approval' | 'browser-computer' = 'computer
   })
   const page = await application.firstWindow()
   page.on('pageerror', (error) => console.error(`[renderer:pageerror] ${error.message}`))
-  await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+  await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   await configureProvider(page, provider.baseUrl)
   return page
 }
@@ -73,7 +73,7 @@ async function launch(mode: 'computer-approval' | 'browser-computer' = 'computer
 async function configureProvider(page: Page, baseUrl: string): Promise<void> {
   await page.evaluate(
     async ({ baseUrl, secret }) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const httpUrl = new URL(connection.wsUrl)
       httpUrl.protocol = httpUrl.protocol === 'wss:' ? 'https:' : 'http:'
       httpUrl.pathname = '/model-connections'

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { copyComputerUseResources } from './computer-use-resources.mjs'
 
 if (process.platform !== 'darwin') throw new Error('Computer Use helper requires macOS')
-const arch = process.env.ACTIONDRIVER_NATIVE_ARCH?.trim() || process.arch
+const arch = process.env.ACTION_DRIVER_NATIVE_ARCH?.trim() || process.arch
 if (arch !== 'arm64' && arch !== 'x64') throw new Error(`Unsupported Computer Use architecture: ${arch}`)
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -22,8 +22,8 @@ execFileSync('swift', ['build', ...options], { cwd: root, stdio: 'inherit' })
 const binDirectory = execFileSync('swift', ['build', ...options, '--show-bin-path'], {
   cwd: root, encoding: 'utf8'
 }).trim()
-const source = join(binDirectory, 'actiondriver-computer-use')
-const destination = join(packagePath, 'dist', arch, 'actiondriver-computer-use')
+const source = join(binDirectory, 'action-driver-computer-use')
+const destination = join(packagePath, 'dist', arch, 'action-driver-computer-use')
 mkdirSync(dirname(destination), { recursive: true })
 copyFileSync(source, destination)
 chmodSync(destination, 0o755)
@@ -31,20 +31,20 @@ copyComputerUseResources(binDirectory, dirname(destination))
 if (!(statSync(destination).mode & 0o111)) throw new Error('Computer Use helper is not executable')
 execFileSync('/usr/bin/file', [destination], { stdio: 'inherit' })
 
-const bundle = join(packagePath, 'dist', arch, 'ActionDriver Computer Use.app')
-const executable = join(bundle, 'Contents', 'MacOS', 'actiondriver-computer-use')
+const bundle = join(packagePath, 'dist', arch, 'Action-Driver Computer Use.app')
+const executable = join(bundle, 'Contents', 'MacOS', 'action-driver-computer-use')
 mkdirSync(dirname(executable), { recursive: true })
 copyFileSync(destination, executable)
 chmodSync(executable, 0o755)
-const brandSource = join(root, 'apps', 'desktop', 'resources', 'actiondriver.png')
-const brandDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.png')
+const brandSource = join(root, 'apps', 'desktop', 'resources', 'action-driver.png')
+const brandDestination = join(bundle, 'Contents', 'Resources', 'Action-Driver.png')
 mkdirSync(dirname(brandDestination), { recursive: true })
 copyComputerUseResources(binDirectory, dirname(brandDestination))
 copyFileSync(brandSource, brandDestination)
 
 // A real .icns so System Settings and the Dock show the brand instead of a blank app icon.
-const iconWork = mkdtempSync(join(tmpdir(), 'actiondriver-icns-'))
-const iconset = join(iconWork, 'ActionDriver.iconset')
+const iconWork = mkdtempSync(join(tmpdir(), 'action-driver-icns-'))
+const iconset = join(iconWork, 'Action-Driver.iconset')
 mkdirSync(iconset, { recursive: true })
 for (const size of [16, 32, 64, 128, 256, 512]) {
   execFileSync('sips', ['-z', String(size), String(size), brandSource,
@@ -52,17 +52,17 @@ for (const size of [16, 32, 64, 128, 256, 512]) {
   execFileSync('sips', ['-z', String(size * 2), String(size * 2), brandSource,
     '--out', join(iconset, `icon_${size}x${size}@2x.png`)], { stdio: 'ignore' })
 }
-const iconDestination = join(bundle, 'Contents', 'Resources', 'ActionDriver.icns')
+const iconDestination = join(bundle, 'Contents', 'Resources', 'Action-Driver.icns')
 execFileSync('iconutil', ['-c', 'icns', iconset, '-o', iconDestination], { stdio: 'inherit' })
 rmSync(iconWork, { recursive: true, force: true })
 writeFileSync(join(bundle, 'Contents', 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleIdentifier</key><string>com.actiondriver.computer-use</string>
-  <key>CFBundleExecutable</key><string>actiondriver-computer-use</string>
-  <key>CFBundleIconFile</key><string>ActionDriver.icns</string>
-  <key>CFBundleName</key><string>ActionDriver Computer Use</string>
-  <key>CFBundleDisplayName</key><string>ActionDriver Computer Use</string>
+  <key>CFBundleIdentifier</key><string>com.action-driver.computer-use</string>
+  <key>CFBundleExecutable</key><string>action-driver-computer-use</string>
+  <key>CFBundleIconFile</key><string>Action-Driver.icns</string>
+  <key>CFBundleName</key><string>Action-Driver Computer Use</string>
+  <key>CFBundleDisplayName</key><string>Action-Driver Computer Use</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
@@ -74,15 +74,15 @@ execFileSync('plutil', ['-lint', join(bundle, 'Contents', 'Info.plist')], { stdi
 // Development builds must keep a stable TCC identity, otherwise every rebuild invalidates the
 // permission the user granted. When no identity is given, fall back to the local development
 // keychain if it exists; only then fall back to an ad-hoc signature.
-const defaultKeychain = join(homedir(), 'Library', 'Keychains', 'actiondriver-dev.keychain-db')
-const keychain = process.env.ACTIONDRIVER_CODESIGN_KEYCHAIN?.trim()
+const defaultKeychain = join(homedir(), 'Library', 'Keychains', 'action-driver-dev.keychain-db')
+const keychain = process.env.ACTION_DRIVER_CODESIGN_KEYCHAIN?.trim()
   || (existsSync(defaultKeychain) ? defaultKeychain : undefined)
-const identity = process.env.ACTIONDRIVER_CODESIGN_IDENTITY?.trim()
-  || (keychain ? 'ActionDriver Dev Signing' : '-')
+const identity = process.env.ACTION_DRIVER_CODESIGN_IDENTITY?.trim()
+  || (keychain ? 'Action-Driver Dev Signing' : '-')
 if (keychain) {
   // Local development identities live in their own keychain, so unlock it before signing.
   execFileSync('security', ['unlock-keychain', '-p',
-    process.env.ACTIONDRIVER_CODESIGN_KEYCHAIN_PASSWORD ?? '', keychain], { stdio: 'inherit' })
+    process.env.ACTION_DRIVER_CODESIGN_KEYCHAIN_PASSWORD ?? '', keychain], { stdio: 'inherit' })
 }
 execFileSync('codesign', [
   '--force', '--options', 'runtime',

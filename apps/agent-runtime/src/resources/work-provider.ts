@@ -1,4 +1,4 @@
-import { ResourceError, formatResourceUri, parseResourceUri } from '@actiondriver/runtime-contracts'
+import { ResourceError, formatResourceUri, parseResourceUri } from '@action-driver/runtime-contracts'
 import type {
   ResourceEntry,
   ResourceOperationContext,
@@ -6,7 +6,7 @@ import type {
   ResourceReadResult,
   ResourceWatchEvent,
   ResourceWriteRequest
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import type { VersionedResourceStore } from './store'
 
 /** Virtual collection id that lists a session's writable resources without a path syntax. */

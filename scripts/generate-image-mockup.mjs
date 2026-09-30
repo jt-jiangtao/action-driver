@@ -3,7 +3,7 @@
  * Generates a design mockup through the Aliyun Model Studio (百炼) synchronous image API.
  *
  * Usage:
- *   ACTIONDRIVER_IMAGE_API_KEY=sk-... node scripts/generate-image-mockup.mjs \
+ *   ACTION_DRIVER_IMAGE_API_KEY=sk-... node scripts/generate-image-mockup.mjs \
  *     --prompt "..." --out design/actual/example.png [--model qwen-image-3.0-pro] [--size 1664*928]
  *
  * The API key is read from the environment and never logged or written to disk.
@@ -12,13 +12,13 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 const args = parseArgs(process.argv.slice(2))
-const apiKey = process.env.ACTIONDRIVER_IMAGE_API_KEY ?? process.env.DASHSCOPE_API_KEY
+const apiKey = process.env.ACTION_DRIVER_IMAGE_API_KEY ?? process.env.DASHSCOPE_API_KEY
 const baseUrl =
-  process.env.ACTIONDRIVER_IMAGE_BASE_URL ?? 'https://token-plan.cn-beijing.maas.aliyuncs.com'
+  process.env.ACTION_DRIVER_IMAGE_BASE_URL ?? 'https://token-plan.cn-beijing.maas.aliyuncs.com'
 const model = args.model ?? 'qwen-image-3.0-pro'
 const size = args.size ?? '1664*928'
 
-if (!apiKey) throw new Error('ACTIONDRIVER_IMAGE_API_KEY (or DASHSCOPE_API_KEY) is required')
+if (!apiKey) throw new Error('ACTION_DRIVER_IMAGE_API_KEY (or DASHSCOPE_API_KEY) is required')
 if (!args.prompt) throw new Error('--prompt is required')
 if (!args.out) throw new Error('--out is required')
 

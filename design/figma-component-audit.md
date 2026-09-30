@@ -1,6 +1,6 @@
 # Figma 组件与页面核对表
 
-来源：[ActionDriver Figma](https://www.figma.com/design/PzmxsQ99mfhqedj4aFYut0/action-driver?node-id=60-4)。每一行均已读取具体节点的 `get_design_context`；实现完成后将 visual status 更新为运行截图结果。
+来源：[Action-Driver Figma](https://www.figma.com/design/PzmxsQ99mfhqedj4aFYut0/action-driver?node-id=60-4)。每一行均已读取具体节点的 `get_design_context`；实现完成后将 visual status 更新为运行截图结果。
 
 ## Product Frames（14/14）
 
@@ -49,7 +49,7 @@
 
 | Figma node | variants | implementation | tests | visual status | notes |
 |---|---|---|---|---|---|
-| `62:5` | Brand mark | `components/ActionDriverLogo.tsx` | `pages/pages.test.tsx` | passed | reuse exact brand asset |
+| `62:5` | Brand mark | `components/ProductLogo.tsx` | `pages/pages.test.tsx` | passed | reuse exact brand asset |
 | `63:51` | PanelLeft icon button | `components/ui/IconButton.tsx` | `components/ui/ui.test.tsx` | passed | AppIcon panel-left |
 | `63:63` | PanelRight icon button | `components/ui/IconButton.tsx` | `components/ui/ui.test.tsx` | passed | AppIcon panel-right |
 | `63:59` | Plus icon button | `components/ui/IconButton.tsx` | `components/ui/ui.test.tsx` | passed | inherits currentColor |

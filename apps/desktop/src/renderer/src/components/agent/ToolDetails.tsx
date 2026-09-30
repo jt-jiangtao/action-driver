@@ -5,13 +5,13 @@ import {
   type ToolDetailField,
   type ToolDetails as Details,
   type ToolPresentation
-} from '@actiondriver/plugin-contracts'
-import { presentations as commands } from '@actiondriver/command-plugin/presentation'
-import { presentations as web } from '@actiondriver/web-plugin/presentation'
-import { presentations as skills } from '@actiondriver/skills-plugin/presentation'
-import { presentations as images } from '@actiondriver/image-generation-plugin/presentation'
-import { presentations as computer } from '@actiondriver/computer-use-plugin/presentation'
-import type { ToolInvocationProjection } from '@actiondriver/contracts'
+} from '@action-driver/plugin-contracts'
+import { presentations as commands } from '@action-driver/command-plugin/presentation'
+import { presentations as web } from '@action-driver/web-plugin/presentation'
+import { presentations as skills } from '@action-driver/skills-plugin/presentation'
+import { presentations as images } from '@action-driver/image-generation-plugin/presentation'
+import { presentations as computer } from '@action-driver/computer-use-plugin/presentation'
+import type { ToolInvocationProjection } from '@action-driver/contracts'
 import { ReadOnlyCode } from '../ReadOnlyCode'
 import { ConversationImage, useImagePreview, type ImageReader } from './ConversationImage'
 
@@ -93,7 +93,7 @@ function FieldValue({
         data-testid="e2e/tasks/detail/activity/web-open/source#link"
         onClick={(event) => {
           event.preventDefault()
-          void window.actionDriverDesktop.externalLinks
+          void window.productDesktop.externalLinks
             .open(field.value)
             .catch((error) => console.error('[tool-details] Failed to open link:', error))
         }}

@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/browser-use-plugin",
+  "name": "@action-driver/browser-use-plugin",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -16,6 +16,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/plugin-sdk": "workspace:*"
+    "@action-driver/plugin-sdk": "workspace:*"
   }
 }

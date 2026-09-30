@@ -80,7 +80,7 @@ if (digest !== artifact.sha256) throw new Error('RUNTIME_ARCHIVE_CHECKSUM_MISMAT
 // staging target: dist/runtimes/darwin-${process.arch}/{python,node}/
 ```
 
-- [ ] **Step 4: 重跑 Task 1 测试和 `corepack pnpm --filter @actiondriver/agent-runtime build`，确认两种运行时存在且版本正确。**当前机器只执行当前架构；另一个架构需至少检查锁定归档和 Mach-O 架构头。
+- [ ] **Step 4: 重跑 Task 1 测试和 `corepack pnpm --filter @action-driver/agent-runtime build`，确认两种运行时存在且版本正确。**当前机器只执行当前架构；另一个架构需至少检查锁定归档和 Mach-O 架构头。
 - [ ] **Step 5: 提交 Task 1 文件，提交信息 `build: bundle pinned Python and Node runtimes`。**
 
 ### Task 2: 解析包内路径并统一进程生命周期
@@ -197,7 +197,7 @@ const scriptInputSchema = {
 }
 ```
 
-- [ ] **Step 4: 运行 Runtime 工具/进程/恢复测试和 `corepack pnpm --filter @actiondriver/agent-runtime typecheck`；确认 `z.fromJSONSchema` 在真实调用链中拒绝歧义输入。**
+- [ ] **Step 4: 运行 Runtime 工具/进程/恢复测试和 `corepack pnpm --filter @action-driver/agent-runtime typecheck`；确认 `z.fromJSONSchema` 在真实调用链中拒绝歧义输入。**
 - [ ] **Step 5: 提交 Task 3 文件，提交信息 `feat: expose shell Python and Node tools`。**
 
 ### Task 4: 活动标题与桌面工具流程
@@ -246,10 +246,10 @@ expect(screen.getByText(/Node.js/).closest('.activity-tool')).toHaveClass('is-co
 
 ```ts
 expect(pythonExecutable).toContain(
-  '/ActionDriver.app/Contents/Resources/agent-runtime/dist/runtimes/'
+  '/Action-Driver.app/Contents/Resources/agent-runtime/dist/runtimes/'
 )
 expect(nodeExecutable).toContain(
-  '/ActionDriver.app/Contents/Resources/agent-runtime/dist/runtimes/'
+  '/Action-Driver.app/Contents/Resources/agent-runtime/dist/runtimes/'
 )
 expect(shellOutput).toContain('needle')
 ```

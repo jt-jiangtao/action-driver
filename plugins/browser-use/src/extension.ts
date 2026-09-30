@@ -1,4 +1,4 @@
-import type { PluginContext } from '@actiondriver/plugin-sdk'
+import type { PluginContext } from '@action-driver/plugin-sdk'
 import { catalog } from './catalog.js'
 
 export function activate(context: PluginContext): void {

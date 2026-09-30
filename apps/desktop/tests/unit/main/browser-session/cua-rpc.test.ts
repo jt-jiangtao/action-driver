@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { createBrowserDesktopSessionController } from '@actiondriver/browser-desktop'
+import { createBrowserDesktopSessionController } from '@action-driver/browser-desktop'
 import { createTaskBrowserBinding } from '../../../../src/main/browser-session/task-binding.js'
 import { createTaskBrowserRpc } from '../../../../src/main/browser-session/cua-rpc.js'
 

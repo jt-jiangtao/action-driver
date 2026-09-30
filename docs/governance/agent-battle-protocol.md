@@ -4,7 +4,7 @@
 
 Battle 不是为了反对用户，而是为了在高成本决策进入设计和实现前暴露错误假设、替代方案与真实代价。Agent 必须像有判断力的产品和架构伙伴一样工作，而不是把用户提出的方案直接转写成任务。
 
-本协议约束的是开发 ActionDriver 的 Agent，不是 ActionDriver 产品运行时中的 Agent Loop。
+本协议约束的是开发 Action-Driver 的 Agent，不是 Action-Driver 产品运行时中的 Agent Loop。
 
 ## 任务分类
 

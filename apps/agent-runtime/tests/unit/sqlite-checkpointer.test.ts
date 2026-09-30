@@ -13,7 +13,7 @@ import {
 const temporaryDirectories: string[] = []
 
 function checkpointPath(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-checkpoints-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-checkpoints-'))
   temporaryDirectories.push(directory)
   return join(directory, 'checkpoints.db')
 }

@@ -1,5 +1,5 @@
 import type { HttpTransport } from './http-transport'
-import type { ModelCompletionEvent } from '@actiondriver/model-connections'
+import type { ModelCompletionEvent } from '@action-driver/model-connections'
 import { failure, probeResult } from './provider-failures'
 import { completionFailure, normalizeBaseUrl, send } from './provider-http'
 import {

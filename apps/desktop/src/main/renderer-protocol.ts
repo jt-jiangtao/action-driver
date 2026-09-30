@@ -1,10 +1,10 @@
 import { isAbsolute, relative, resolve } from 'node:path'
 
-export const PACKAGED_RENDERER_URL = 'actiondriver://renderer/index.html'
+export const PACKAGED_RENDERER_URL = 'action-driver://renderer/index.html'
 
 export function resolveRendererAssetPath(rendererDirectory: string, requestUrl: string): string | null {
   const url = new URL(requestUrl)
-  if (url.protocol !== 'actiondriver:' || url.hostname !== 'renderer') return null
+  if (url.protocol !== 'action-driver:' || url.hostname !== 'renderer') return null
   let requestedPath: string
   try {
     requestedPath = decodeURIComponent(url.pathname)

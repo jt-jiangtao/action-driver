@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Json, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { Json, PluginOwner } from '@action-driver/plugin-contracts'
 import type { SkillRegistry } from '../ports'
 export function createDesktopResourcePort(registry: SkillRegistry, ids: () => string) {
   const execute = async (owner: PluginOwner, operation: 'bind' | 'request' | 'release', method?: string, payload?: Json): Promise<Json> => {

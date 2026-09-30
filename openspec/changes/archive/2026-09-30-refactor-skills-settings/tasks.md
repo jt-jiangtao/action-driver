@@ -16,4 +16,4 @@
 - 弹窗：引入固定版本 `@radix-ui/react-dialog@1.1.23`；详情与操作弹窗共用同一 primitive，删除自建 `document` 键盘循环。焦点进入即落在「关闭 Skill 详情」按钮，Tab/Shift+Tab 被限制在弹窗内，Escape 关闭并把焦点还给打开它的行；提交进行中 Escape、遮罩点击与取消按钮均不生效。
 - 弹窗保持内联渲染（不使用 Portal），因为既有测试与 `inert` 语义都依赖列表留在同一棵树中；`settings.css` 为 Radix 的 overlay/内容兄弟结构补充固定居中规则。
 - 新增 3 项定向断言（列表刷新后详情与列表行同步、弹窗焦点约束与关闭后焦点归还、忙碌时不可关闭）；`pnpm vitest run apps/desktop/tests/unit/renderer/src/pages/AgentSettingsPages.test.tsx` 23 项通过（原有 20 项全部保留，其中 1 项因 Radix 会把背景标记为 inert 而改为显式 `hidden: true` 断言列表仍挂载）。
-- `pnpm --filter @actiondriver/desktop typecheck` 与改动文件 ESLint 通过。
+- `pnpm --filter @action-driver/desktop typecheck` 与改动文件 ESLint 通过。

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ResourceError } from '@actiondriver/runtime-contracts'
+import type { ResourceError } from '@action-driver/runtime-contracts'
 import { openRuntimeDatabase } from '../../../src/database'
 import { SessionWorkspaceStore } from '../../../src/execution/session-workspace'
 import { SessionInputFileStore } from '../../../src/media/session-input-file-store'
@@ -14,7 +14,7 @@ import { createInputFileStore } from '../../../src/persistence/input-file-store'
 const temporaryDirectories: string[] = []
 
 function resourceRoot(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-resource-root-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-resource-root-'))
   temporaryDirectories.push(directory)
   return directory
 }
@@ -34,9 +34,9 @@ function context(sessionId: string, taskId?: string) {
 }
 
 function createStorage() {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-runtime-resources-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-runtime-resources-'))
   temporaryDirectories.push(directory)
-  const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
+  const database = openRuntimeDatabase(join(directory, 'action-driver.db'))
   const workspaceRoot = join(directory, 'workspace')
   const workspaces = new SessionWorkspaceStore({ workspaceRoot })
   const inputFiles = new SessionInputFileStore({ database, rootDirectory: directory, workspaces })

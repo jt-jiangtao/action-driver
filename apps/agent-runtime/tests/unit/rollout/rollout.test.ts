@@ -15,7 +15,7 @@ import {
 const temporaryDirectories: string[] = []
 
 function temporaryFile(name = 'rollout.jsonl'): string {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-rollout-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-rollout-'))
   temporaryDirectories.push(directory)
   return join(directory, name)
 }
@@ -33,7 +33,7 @@ const meta = (seq: number): RolloutLine => ({
   sessionId: 'session-1',
   threadId: 'session-1',
   model: { connectionId: 'c', modelId: 'm' },
-  originator: 'actiondriver-desktop',
+  originator: 'action-driver-desktop',
   version: '0.1.0'
 })
 

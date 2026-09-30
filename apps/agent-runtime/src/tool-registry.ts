@@ -1,10 +1,10 @@
-import { type PluginOwner } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { type PluginOwner } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 import {
   parseToolDefinition,
   type ToolDefinition,
   type ToolExecutor
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 export class ToolRegistryError extends Error {
   constructor(

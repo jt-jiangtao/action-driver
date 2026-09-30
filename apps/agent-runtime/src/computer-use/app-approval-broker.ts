@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import type { AppApprovalRequest, AppApprovalDecision } from '@actiondriver/contracts'
-import { appApprovalRequestSchema } from '@actiondriver/runtime-contracts'
+import type { AppApprovalRequest, AppApprovalDecision } from '@action-driver/contracts'
+import { appApprovalRequestSchema } from '@action-driver/runtime-contracts'
 import { z } from 'zod'
 import { COMPUTER_USE_GUIDANCE_ERRORS } from '../tool-error-exposure'
-export type { AppApprovalRequest, AppApprovalDecision } from '@actiondriver/contracts'
+export type { AppApprovalRequest, AppApprovalDecision } from '@action-driver/contracts'
 
 export class AppApprovalError extends Error {
   constructor(

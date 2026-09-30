@@ -3,7 +3,7 @@ import type {
   MessageContentPart,
   SkillExecutionState,
   TaskTimelineProjectionItem
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 
 type ActivityTask = {
   status: SkillExecutionState

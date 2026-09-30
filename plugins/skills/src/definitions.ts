@@ -1,5 +1,5 @@
 import { presentations } from './presentation.js'
-import type { ToolDefinition } from '@actiondriver/plugin-sdk'
+import type { ToolDefinition } from '@action-driver/plugin-sdk'
 export const readDefinition: ToolDefinition = {
         id: 'tools/local/skills/read',
         presentation: presentations['tools/local/skills/read'], version: 1, modelName: 'tools_local_skills_read',

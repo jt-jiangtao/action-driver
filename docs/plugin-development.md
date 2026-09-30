@@ -4,19 +4,19 @@
 
 ## 创建与打包
 
-公共 npm 包为 `@actiondriver/plugin-contracts`、`@actiondriver/plugin-sdk` 和 `create-actiondriver-plugin`，当前版本均为 1.0.0。仓库已提供可发布产物，尚未发布到 npm registry。
+公共 npm 包为 `@action-driver/plugin-contracts`、`@action-driver/plugin-sdk` 和 `create-action-driver-plugin`，当前版本均为 1.0.0。仓库已提供可发布产物，尚未发布到 npm registry。
 
 在仓库内可以立即生成项目：
 
 ```sh
-node packages/create-actiondriver-plugin/src/index.mjs example --directory /absolute/path/example
-corepack pnpm --filter @actiondriver/plugin-contracts build
-corepack pnpm --filter @actiondriver/plugin-sdk build
-corepack pnpm --filter @actiondriver/plugin-contracts pack --pack-destination /absolute/path/npm-packs
-corepack pnpm --filter @actiondriver/plugin-sdk pack --pack-destination /absolute/path/npm-packs
+node packages/create-action-driver-plugin/src/index.mjs example --directory /absolute/path/example
+corepack pnpm --filter @action-driver/plugin-contracts build
+corepack pnpm --filter @action-driver/plugin-sdk build
+corepack pnpm --filter @action-driver/plugin-contracts pack --pack-destination /absolute/path/npm-packs
+corepack pnpm --filter @action-driver/plugin-sdk pack --pack-destination /absolute/path/npm-packs
 ```
 
-在生成目录用 `npm install /absolute/path/npm-packs/<contracts-tarball> /absolute/path/npm-packs/<sdk-tarball>` 安装本地产物，再执行 `npm test` 和 `npm pack`。脚手架拒绝覆盖非空目录。发布后入口为 `npm create actiondriver-plugin example`；`--directory` 参数通过 npm 的 `--` 传递。
+在生成目录用 `npm install /absolute/path/npm-packs/<contracts-tarball> /absolute/path/npm-packs/<sdk-tarball>` 安装本地产物，再执行 `npm test` 和 `npm pack`。脚手架拒绝覆盖非空目录。发布后入口为 `npm create action-driver-plugin example`；`--directory` 参数通过 npm 的 `--` 传递。
 
 模板对 extension 与 catalog 分别打包，运行时依赖不要求宿主安装第三方 node_modules。包导出构建后的 `example/catalog`，外部消费者可直接读取 `catalog.tools` 与 `catalog.skills` 继续拼接；执行层依赖公共 SDK，不导入 Runtime/Desktop 内部模块。
 
@@ -40,13 +40,13 @@ SDK 注册及打开的资源自动进入 `context.subscriptions`。插件可导�
 
 `services` 声明 Node/native/MCP stdio 或 HTTP 服务；宿主使用明确的运行时和平台产物，不回退到 PATH。MCP stdout 只承载协议，日志走 stderr。HTTP 凭据通过注入的 credential port 提供。有限服务重启不重放业务调用。会话、artifact、凭据、事件等可选 ports 未配置时返回明确的 UNAVAILABLE。
 
-`panels` 声明本地 entry 或 HTTPS URL 和消息 JSON schema。`context.api.panels.register(id, handler)` 处理已校验消息；`open/close` 返回宿主拥有的资源句柄。Desktop 使用隔离 preload，只暴露固定的 `actiondriverPanel.postMessage(type, payload)`。网页没有 Node、任意 IPC、弹窗或设备权限，消息绑定实际 webContents、主 frame、面板与插件实例。查看事件没有 task 或输入控制 grants。
+`panels` 声明本地 entry 或 HTTPS URL 和消息 JSON schema。`context.api.panels.register(id, handler)` 处理已校验消息；`open/close` 返回宿主拥有的资源句柄。Desktop 使用隔离 preload，只暴露固定的 `productPanel.postMessage(type, payload)`。网页没有 Node、任意 IPC、弹窗或设备权限，消息绑定实际 webContents、主 frame、面板与插件实例。查看事件没有 task 或输入控制 grants。
 
 Skill 由统一指令宿主发布，资源来自同一包，停用后立即不可发现/读取并清除已加载状态；界面将其标为只读插件内容。不要复制插件 Skill 到传统 system-skills 目录。
 
 ## 内置包与构建
 
-内置 command、web、skills、documents、pdf、presentations、spreadsheets、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @actiondriver/agent-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
+内置 command、web、skills、documents、pdf、presentations、spreadsheets、image-generation、computer-use 与外部包使用同一注册与生命周期。browser-use 只有接入边界，尚不发布操作工具。`corepack pnpm --filter @action-driver/agent-runtime build` 构建并归集插件 catalog、执行入口、Skill 和 native 资源。Computer helper 源码位于 `plugins/computer-use/native`；构建入口与应用安装后的签名身份、Helpers 路径保持兼容。CUA 来源与分发限制见 `plugins/computer-use/SOURCE.md`，迁移不改变许可证。
 
 提交前按 AGENTS.md 验证；迭代时只运行相关定向测试。脚手架回归会在仓库外实际安装 npm tarball、构建、加载 catalog、运行宿主并验证 Skill 回收。
 
@@ -54,7 +54,7 @@ Skill 由统一指令宿主发布，资源来自同一包，停用后立即不�
 
 Skill 内容直接导入包内文件，例如 `import content from '../skills/pdf/SKILL.md?raw'`，其他 Markdown 指令同样导入。脚手架默认采用相同的文件导入方式。TypeScript 通过 `raw-assets.d.ts` 声明文本模块，Vite 测试和 esbuild 的 `.md: text` loader 读取原文件；构建后的 catalog 不需要源码路径。`scripts/sync-plugin-skills.mjs` 只更新元数据与资源清单，不再内嵌 Skill 正文。
 
-内置包同样导出 `dist` 构建产物；`development` condition 供仓库内开发解析源码。Runtime 通过 `@actiondriver/skills-plugin/execution`、`@actiondriver/web-plugin/*` 和 `@actiondriver/image-generation-plugin/providers/*` 公共入口装配，禁止以相对路径穿透插件源码。
+内置包同样导出 `dist` 构建产物；`development` condition 供仓库内开发解析源码。Runtime 通过 `@action-driver/skills-plugin/execution`、`@action-driver/web-plugin/*` 和 `@action-driver/image-generation-plugin/providers/*` 公共入口装配，禁止以相对路径穿透插件源码。
 
 ## 工具命名
 
@@ -71,7 +71,7 @@ Skill 内容直接导入包内文件，例如 `import content from '../skills/pd
 `ToolDefinition.presentation` 是公共 SDK 导出的可选 `ToolPresentation`。插件在纯 `src/presentation.ts` 导出按规范工具 ID 索引的 `presentations: Record<string, ToolPresentation>`，catalog 引用同一声明；包通过 `./presentation` 暴露独立入口。此入口只依赖类型，不导入 Skill 内容、执行器或激活逻辑，界面可用于历史调用恢复。
 
 ```ts
-import type { ToolPresentation } from '@actiondriver/plugin-sdk'
+import type { ToolPresentation } from '@action-driver/plugin-sdk'
 
 export const presentations: Record<string, ToolPresentation> = {
   'tools/local/example/echo': {

@@ -21,11 +21,11 @@ export class FakeComputerHelper {
   ) {}
 
   get socketPath(): string {
-    return join(this.directory, 'actiondriver-computer-use.sock')
+    return join(this.directory, 'action-driver-computer-use.sock')
   }
 
   get tokenPath(): string {
-    return join(this.directory, 'actiondriver-computer-use.token')
+    return join(this.directory, 'action-driver-computer-use.token')
   }
 
   async start(): Promise<void> {
@@ -108,7 +108,7 @@ export class FakeComputerHelper {
           accessibility: true,
           screenRecording: true,
           eventPosting: true,
-          permissionTarget: 'ActionDriver Computer Use'
+          permissionTarget: 'Action-Driver Computer Use'
         })
         return
       case 'app-state':

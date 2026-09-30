@@ -11,7 +11,7 @@
 在本工作区根目录执行：
 
 ```sh
-pnpm --filter @actiondriver/cua-parity build
+pnpm --filter @action-driver/cua-parity build
 pnpm vitest run --config packages/cua-parity/vitest.config.ts packages/cua-parity/tests packages/cua/tests/unit/core.test.ts packages/cua/tests/unit/discovery.test.ts packages/cua/tests/unit/tab-reference.test.ts packages/sky/tests/unit/bytes.test.ts
 pnpm exec tsc --noEmit -p packages/cua/tsconfig.type-tests.json
 node packages/cua-parity/dist/cli.js verify thirdparty/backup/codex-cua analysis/codex-cua/baseline.json

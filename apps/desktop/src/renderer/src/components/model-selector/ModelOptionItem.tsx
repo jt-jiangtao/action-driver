@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ModelCapability } from '@actiondriver/model-connections'
+import type { ModelCapability } from '@action-driver/model-connections'
 import type { ModelOptionItemProjection } from '../../models/model-selection'
 import { AppIcon } from '../ui/AppIcon'
 import { e2eId } from '../../testing/e2e-id'

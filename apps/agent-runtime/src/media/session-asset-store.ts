@@ -1,4 +1,4 @@
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 import type Database from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { fileTypeFromBuffer } from 'file-type'
 import { imageSize } from 'image-size'
 
-import { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
-export { MAX_IMAGE_BYTES } from '@actiondriver/plugin-contracts'
+import { MAX_IMAGE_BYTES } from '@action-driver/plugin-contracts'
+export { MAX_IMAGE_BYTES } from '@action-driver/plugin-contracts'
 export const MAX_IMAGE_PIXELS = 16_777_216
 export type StagedAssetRef = Omit<ImageAssetRef, 'sessionId'>
 type ImageMime = ImageAssetRef['mimeType']

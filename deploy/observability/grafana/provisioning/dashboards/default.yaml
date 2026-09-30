@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: ActionDriver
+  - name: Action-Driver
     orgId: 1
-    folder: ActionDriver
+    folder: Action-Driver
     type: file
     disableDeletion: true
     editable: false

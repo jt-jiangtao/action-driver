@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 客户端访问服务端能力的传输契约：配置与模型连接走 HTTP，会话与反向 Skill 调用走 WebSocket，使本地集成形态与将来的云端形态共用同一套接口，并让服务端成为会话数据与配置的唯一写入者。
+定义 Action-Driver 客户端访问服务端能力的传输契约：配置与模型连接走 HTTP，会话与反向 Skill 调用走 WebSocket，使本地集成形态与将来的云端形态共用同一套接口，并让服务端成为会话数据与配置的唯一写入者。
 
 ## ADDED Requirements
 
@@ -41,7 +41,7 @@ Renderer SHALL 直接持有该 WebSocket 连接并负责鉴权、命令关联、
 
 #### Scenario: Renderer 直接建立连接
 - **WHEN** 本地 Runtime 就绪且页面加载完成
-- **THEN** Renderer 使用注入的 `wsUrl` 建立 `actiondriver.stream.v2` 连接并通过首个鉴权帧提交一次性 token，后续流式命令和事件不经过 Main IPC
+- **THEN** Renderer 使用注入的 `wsUrl` 建立 `action-driver.stream.v2` 连接并通过首个鉴权帧提交一次性 token，后续流式命令和事件不经过 Main IPC
 
 #### Scenario: 页面重新加载
 - **WHEN** Renderer 被刷新或重新创建

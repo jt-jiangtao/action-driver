@@ -1,5 +1,5 @@
-import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { AgentMessageProjection, TaskProjection } from '@action-driver/contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import { act, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StreamTaskProjection } from '../../../../../src/renderer/src/services/stream-task-projection'
@@ -22,7 +22,7 @@ vi.mock('../../../../../src/renderer/src/components/AgentComposer', async (impor
 })
 
 const identity = {
-  protocol: 'actiondriver.stream.v2' as const,
+  protocol: 'action-driver.stream.v2' as const,
   requestId: 'request-1',
   sessionId: 'session-1',
   taskId: 'task-1',

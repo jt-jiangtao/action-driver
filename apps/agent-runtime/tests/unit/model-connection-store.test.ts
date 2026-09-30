@@ -11,7 +11,7 @@ import {
 import { createSqliteModelConnectionStore } from '../../src/model-connections/sqlite-store'
 
 function databasePath(): string {
-  return join(mkdtempSync(join(tmpdir(), 'actiondriver-model-store-')), 'actiondriver.db')
+  return join(mkdtempSync(join(tmpdir(), 'action-driver-model-store-')), 'action-driver.db')
 }
 
 const connection: StoredModelConnection = {

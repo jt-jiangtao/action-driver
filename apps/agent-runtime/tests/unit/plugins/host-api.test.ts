@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PluginHostAPI } from '../../../src/plugins/host-api'
-import type { Json } from '@actiondriver/plugin-contracts'
+import type { Json } from '@action-driver/plugin-contracts'
 const owner = { pluginId: 'fixture', version: '1.0.0', hostEpoch: 'epoch' }
 describe('scoped host API', () => {
   it('scopes storage and logs to the validated instance and rejects unknown methods', async () => {

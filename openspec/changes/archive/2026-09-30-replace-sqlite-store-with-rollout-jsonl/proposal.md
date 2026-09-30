@@ -6,7 +6,7 @@
 
 ## What Changes
 
-- **BREAKING**：删除运行时 SQLite 业务库（`data/actiondriver.db`：tasks、messages、steps、runtime_events、tool_invocations、stream_requests、session_assets 等），**不做数据迁移**，旧数据直接丢弃。
+- **BREAKING**：删除运行时 SQLite 业务库（`data/action-driver.db`：tasks、messages、steps、runtime_events、tool_invocations、stream_requests、session_assets 等），**不做数据迁移**，旧数据直接丢弃。
 - 新增 **rollout JSONL**：每会话一个 append-only 文件，逐行记录会话事件，作为唯一权威日志；除追加外永不改写。
 - 新增 **SQLite 投影**：以 `rollout_ordinal`（及其字节偏移）为序的 thread / turn / item 索引，由 rollout 增量投影得到（带字节偏移 + 序号游标）；侧栏、分页、刷新只读投影，不重新推导顺序。
 - **占位与待执行**成为 rollout 里的普通项：生图批次先写 `image_batch` 行占位并预留序号，待执行工具先写 `tool` 行（`proposed`/`queued`）再执行；状态更新一律追加新行，折叠取最后状态。
@@ -58,4 +58,4 @@
 - 测试：`apps/agent-runtime/tests/unit/{database,repositories,stream-session-service,local-adapters,runtime-process,sqlite-checkpointer,persistence-guard}.test.ts` 及 media/computer-use 相关定向测试；提交阶段按仓库规范运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`。
 - 契约：新增 rollout 行 schema 与投影 schema；`StreamServerEvent` 对外协议保持不变，快照改由投影生成。
 - 依赖：投影仍用 SQLite，`better-sqlite3` 保留；不新增外部依赖。
-- 数据：删除现有 `data/actiondriver.db` 及其 `-wal`/`-shm`；不做迁移。
+- 数据：删除现有 `data/action-driver.db` 及其 `-wal`/`-shm`；不做迁移。

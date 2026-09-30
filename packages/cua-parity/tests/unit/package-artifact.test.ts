@@ -80,9 +80,9 @@ for (const name of ['cua', 'cua-repl', 'browser-runtime', 'sky']) {
           })
           const archive = join(work, dependency + '.tgz')
           await execute('corepack', ['pnpm', 'pack', '--out', archive], { cwd: dependencyRoot })
-          overrides['@actiondriver/' + dependency] = 'file:' + archive
+          overrides['@action-driver/' + dependency] = 'file:' + archive
           if (name === 'cua' || dependency === 'cua')
-            expect(metadata.dependencies['@actiondriver/' + dependency]).toBe('0.1.0')
+            expect(metadata.dependencies['@action-driver/' + dependency]).toBe('0.1.0')
         }
       }
       if (name === 'sky') {

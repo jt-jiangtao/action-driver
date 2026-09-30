@@ -38,7 +38,7 @@ describe('Computer Use entry', () => {
     expect(description).toContain('tools_local_skills_read')
     expect(description).toContain('computer-use')
     expect(description).toContain('SKILL_NOT_LOADED')
-    expect(description).toContain('ActionDriver')
+    expect(description).toContain('Action-Driver')
     expect(description).toContain('cua.getState()')
     await computer.dispose()
   })

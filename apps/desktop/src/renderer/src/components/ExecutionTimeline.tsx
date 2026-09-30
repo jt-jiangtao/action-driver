@@ -1,4 +1,4 @@
-import type { ExecutionStepProjection } from '@actiondriver/contracts'
+import type { ExecutionStepProjection } from '@action-driver/contracts'
 import { Timeline } from 'antd'
 
 export function ExecutionTimeline({ steps }: { steps: ExecutionStepProjection[] }) {

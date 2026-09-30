@@ -16,7 +16,7 @@ export function createLocalRuntimeServices(
     authorizeSkillExecution?: (skillId: string) => Promise<void>
   }
 ): { runtimeSupervisor: RuntimeSupervisor } {
-  const configuredWorkspaceRoot = process.env.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
+  const configuredWorkspaceRoot = process.env.ACTION_DRIVER_WORKSPACE_ROOT?.trim()
   if (!configuredWorkspaceRoot) mkdirSync(paths.workspaceRoot, { recursive: true })
   const workspaceRoot = configuredWorkspaceRoot || paths.workspaceRoot
   let capabilityHost: { close(): void } | null = null

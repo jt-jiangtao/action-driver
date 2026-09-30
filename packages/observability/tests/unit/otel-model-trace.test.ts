@@ -17,7 +17,7 @@ describe('model span parent chain', () => {
     const provider = new NodeTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
     const contextManager = new AsyncLocalStorageContextManager().enable()
     context.setGlobalContextManager(contextManager)
-    const tracer = provider.getTracer('actiondriver-runtime-test')
+    const tracer = provider.getTracer('action-driver-runtime-test')
     const request: ModelRequest = {
       sessionId: 'session-parent',
       taskId: 'task-parent',
@@ -56,7 +56,7 @@ describe('model span parent chain', () => {
       now: () => new Date().toISOString()
     })
     try {
-      await tracer.startActiveSpan('actiondriver.call', async (parent) => {
+      await tracer.startActiveSpan('action-driver.call', async (parent) => {
         try {
           await expect(gateway.complete(request)).resolves.toMatchObject({
             content: 'OUTPUT_PARENT_MARKER'
@@ -66,7 +66,7 @@ describe('model span parent chain', () => {
         }
       })
       const spans = exporter.getFinishedSpans()
-      const parent = spans.find((span) => span.name === 'actiondriver.call')
+      const parent = spans.find((span) => span.name === 'action-driver.call')
       const model = spans.find((span) => span.name === 'chat model-parent')
       expect(parent).toBeDefined()
       expect(model).toBeDefined()

@@ -6,7 +6,7 @@ import { resolveExecutionRuntimePaths, resolveOfficeDependencyPaths } from '../.
 
 describe('execution runtime paths', () => {
   it('uses only executable files inside the selected deployment tree', async () => {
-    const dist = await mkdtemp(join(tmpdir(), 'actiondriver-paths-'))
+    const dist = await mkdtemp(join(tmpdir(), 'action-driver-paths-'))
     await expect(resolveExecutionRuntimePaths(dist, 'arm64')).rejects.toThrow('BUNDLED_PYTHON_UNAVAILABLE')
     for (const file of [
       'runtimes/darwin-arm64/python/bin/python3',
@@ -28,7 +28,7 @@ describe('execution runtime paths', () => {
 
 describe('office dependency paths', () => {
   it('returns only complete executable paths in the deployment tree', async () => {
-    const dist = await mkdtemp(join(tmpdir(), 'actiondriver-office-paths-'))
+    const dist = await mkdtemp(join(tmpdir(), 'action-driver-office-paths-'))
     await expect(resolveOfficeDependencyPaths(dist)).rejects.toThrow('TOOL_UNAVAILABLE')
     for (const file of [
       'dependencies/node/bin/node', 'dependencies/python/bin/python3',

@@ -37,7 +37,7 @@ export async function startAgentRuntimeProcess(
   exit: (code: number) => void = process.exit,
   environment: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
-  const workspaceRoot = environment.ACTIONDRIVER_WORKSPACE_ROOT?.trim()
+  const workspaceRoot = environment.ACTION_DRIVER_WORKSPACE_ROOT?.trim()
   if (!workspaceRoot) throw new Error('SANDBOX_ROOT_INVALID: workspace root is required')
   await startHostedAgentRuntime(
     createElectronRuntimeHost(parentPort),

@@ -15,12 +15,12 @@ afterEach(async () => {
   for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true })
 })
 async function prepare() {
-  const root = await mkdtemp(join(tmpdir(), 'actiondriver-js-sandbox-'))
+  const root = await mkdtemp(join(tmpdir(), 'action-driver-js-sandbox-'))
   directories.push(root)
   const workspace = sessionWorkspacePaths(root, 'session')
   const launch = await new SessionSandbox({ runtimeRoots: [dirname(executable)] }).prepare({
     workspace, jsExecutable: executable,
-    environment: { ACTIONDRIVER_SERVICE_TOKEN: 'must-not-leak', NODE_OPTIONS: '--inspect' }
+    environment: { ACTION_DRIVER_SERVICE_TOKEN: 'must-not-leak', NODE_OPTIONS: '--inspect' }
   })
   launches.push(launch)
   return { launch, workspace }

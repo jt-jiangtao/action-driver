@@ -1,6 +1,6 @@
 ## Purpose
 
-定义 ActionDriver 客户端对历史会话、任务运行记录和 Agent checkpoint 的本地持久化行为，确保离线读取、升级迁移与崩溃恢复具有一致结果。
+定义 Action-Driver 客户端对历史会话、任务运行记录和 Agent checkpoint 的本地持久化行为，确保离线读取、升级迁移与崩溃恢复具有一致结果。
 
 ## ADDED Requirements
 
@@ -8,7 +8,7 @@
 系统 MUST 将任务、消息、步骤、Skill 调用、运行事件和 Agent checkpoint 默认保存在当前 macOS 用户的本地应用数据目录，不依赖账号、云同步或远程历史服务。
 
 #### Scenario: 离线读取历史任务
-- **WHEN** 用户在无网络连接时重新打开 ActionDriver
+- **WHEN** 用户在无网络连接时重新打开 Action-Driver
 - **THEN** 系统能够从本地数据库读取历史任务、对话和最后已保存的运行状态
 
 #### Scenario: 模型服务返回结果

@@ -20,7 +20,7 @@ for (const name of packages) {
   if (manifest.catalog) entries.push(join(root, 'src/catalog.ts'))
   await build({ entryPoints: entries, outdir: join(destination, 'dist'), loader: { '.md': 'text' }, bundle: true, platform: 'node', format: 'esm' })
   await cp(join(root, 'plugin.json'), join(destination, 'plugin.json'))
-  await writeFile(join(destination, 'package.json'), JSON.stringify({ name: `@actiondriver/${name}-plugin`, version: manifest.version, type: 'module' }))
+  await writeFile(join(destination, 'package.json'), JSON.stringify({ name: `@action-driver/${name}-plugin`, version: manifest.version, type: 'module' }))
   try { await cp(join(root, 'SOURCE.md'), join(destination, 'SOURCE.md')) }
   catch (error) { if (error.code !== 'ENOENT') throw error }
   for (const directory of ['skills', 'instructions', 'ui', 'services', 'native', 'bin']) {

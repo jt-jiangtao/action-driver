@@ -82,7 +82,7 @@ if (!context.grants.includes(`${definition.id}@${definition.version}`)) return {
 if (definition.modelName !== call.modelName) return { kind: 'deny', error: mismatchError }
 return { kind: 'allow' }
 ```
-- [ ] **Step 5: Verify and commit.** Run the four test files above and `pnpm --filter @actiondriver/agent-runtime typecheck`; expected: all pass. Commit only Task 2 files with `git commit -m "feat: execute granted tools without approval"`.
+- [ ] **Step 5: Verify and commit.** Run the four test files above and `pnpm --filter @action-driver/agent-runtime typecheck`; expected: all pass. Commit only Task 2 files with `git commit -m "feat: execute granted tools without approval"`.
 
 ### Task 3: Remove live approval control frames while preserving old snapshots
 
@@ -116,7 +116,7 @@ await repositories.cancelLegacyPendingApprovals('TOOL_APPROVAL_REMOVED')
 const snapshot = await streamSessions.getTaskSnapshot(taskId)
 expect(snapshot?.tools.find((tool) => tool.callId === legacyCallId)?.status).toBe('cancelled')
 ```
-- [ ] **Step 4: Verify and commit.** Run Task 3 tests plus `pnpm --filter @actiondriver/runtime-contracts typecheck` and `pnpm --filter @actiondriver/agent-runtime typecheck`; expected: pass. Commit only Task 3 files with `git commit -m "refactor: remove tool approval stream controls"`.
+- [ ] **Step 4: Verify and commit.** Run Task 3 tests plus `pnpm --filter @action-driver/runtime-contracts typecheck` and `pnpm --filter @action-driver/agent-runtime typecheck`; expected: pass. Commit only Task 3 files with `git commit -m "refactor: remove tool approval stream controls"`.
 
 ### Task 4: Remove approval UI and renderer commands
 
@@ -145,7 +145,7 @@ expect(container.querySelector('.agent-composer')).not.toBeNull()
 ```
 - [ ] **Step 2: Confirm red.** Run `pnpm exec vitest run apps/desktop/src/renderer/src/pages/pages.test.tsx apps/desktop/src/renderer/src/services/renderer-stream-client.test.ts`; expected: the old approval bar assertion fails.
 - [ ] **Step 3: Remove view and commands.** Delete approval component and CSS, remove its TaskPage props and App callbacks, remove adapter/client approve/reject methods, and remove `waiting_approval` from active-status wording while retaining a neutral historical label for archived records. Update interaction-selector registry if it names deleted buttons.
-- [ ] **Step 4: Verify and commit.** Run Task 4 tests, `pnpm validate:e2e-interactions`, and `pnpm --filter @actiondriver/desktop typecheck`; expected: pass. Commit only Task 4 files with `git commit -m "refactor: remove interactive tool approval UI"`.
+- [ ] **Step 4: Verify and commit.** Run Task 4 tests, `pnpm validate:e2e-interactions`, and `pnpm --filter @action-driver/desktop typecheck`; expected: pass. Commit only Task 4 files with `git commit -m "refactor: remove interactive tool approval UI"`.
 
 ### Task 5: End-to-end proof, history compatibility, and documentation
 
@@ -167,6 +167,6 @@ await page.reload()
 await page.getByTestId('e2e/tasks/detail/activity/archive#button').click()
 await expect(page.locator('.activity-tool')).toHaveCount(1)
 ```
-- [ ] **Step 2: Run E2E.** Run `pnpm --filter @actiondriver/agent-runtime build && pnpm --filter @actiondriver/desktop build && pnpm exec playwright test apps/desktop/e2e/tool-runtime.spec.ts`; expected: all tool-runtime E2E cases pass with no manual approval.
+- [ ] **Step 2: Run E2E.** Run `pnpm --filter @action-driver/agent-runtime build && pnpm --filter @action-driver/desktop build && pnpm exec playwright test apps/desktop/e2e/tool-runtime.spec.ts`; expected: all tool-runtime E2E cases pass with no manual approval.
 - [ ] **Step 3: Run cross-package verification.** Run `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, and `openspec validate remove-interactive-tool-approval --strict`. Record any unrelated pre-existing failure separately; do not mark the OpenSpec task complete while a relevant failure remains.
 - [ ] **Step 4: Review and archive.** Inspect `git diff` for residual live approval callbacks or buttons; use `rg 'approveTool|rejectTool|ToolApprovalBar|require_approval' apps packages` to confirm remaining references are only legacy readers/tests. Mark OpenSpec tasks complete, commit the final verification change, then archive with `openspec archive remove-interactive-tool-approval --yes` only after verification and user-visible behavior are complete.

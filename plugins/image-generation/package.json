@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/image-generation-plugin",
+  "name": "@action-driver/image-generation-plugin",
   "version": "1.3.0",
   "private": true,
   "type": "module",
@@ -63,6 +63,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/plugin-sdk": "workspace:*"
+    "@action-driver/plugin-sdk": "workspace:*"
   }
 }

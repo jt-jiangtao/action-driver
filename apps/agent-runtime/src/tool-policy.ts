@@ -1,4 +1,4 @@
-import type { ToolCall, ToolDecision, ToolDefinition } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolDecision, ToolDefinition } from '@action-driver/runtime-contracts'
 
 export type ToolPolicyContext = {
   grants: readonly string[]

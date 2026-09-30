@@ -1,4 +1,4 @@
-import type { PluginContext } from '@actiondriver/plugin-sdk'
+import type { PluginContext } from '@action-driver/plugin-sdk'
 import { activate as search } from './search/extension.js'
 import { activate as reader } from './reader/extension.js'
 export async function activate(context: PluginContext): Promise<void> {

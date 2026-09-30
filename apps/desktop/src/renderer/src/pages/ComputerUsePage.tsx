@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ComputerPermissionStatus } from '../../../shared/computer-use-contract'
-import { ActionDriverLogo } from '../components/ActionDriverLogo'
+import { ProductLogo } from '../components/ProductLogo'
 import { ModelToggle } from '../components/ModelToggle'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { e2eId } from '../testing/e2e-id'
@@ -36,8 +36,8 @@ export function ComputerUsePage({
     setChecking(true)
     setError(null)
     try {
-      if (!window.actionDriverDesktop?.computerUse) throw new Error('当前环境没有原生 Computer Use 服务')
-      setStatus(await window.actionDriverDesktop.computerUse.permissions())
+      if (!window.productDesktop?.computerUse) throw new Error('当前环境没有原生 Computer Use 服务')
+      setStatus(await window.productDesktop.computerUse.permissions())
     } catch (cause) {
       setStatus(null)
       setError(cause instanceof Error ? cause.message : '权限检测失败')
@@ -69,11 +69,11 @@ export function ComputerUsePage({
   // Controlling any app needs both grants; input events ride along with Accessibility.
   const authorized = status !== null && status.accessibility && status.screenRecording
   const openGuidance = async () => {
-    try { await window.actionDriverDesktop.computerUse.ensureGuidance() }
+    try { await window.productDesktop.computerUse.ensureGuidance() }
     catch (cause) { setError(cause instanceof Error ? cause.message : '无法打开授权指引') }
   }
   const openSystemSettings = async () => {
-    try { await window.actionDriverDesktop.computerUse.openSystemSettings() }
+    try { await window.productDesktop.computerUse.openSystemSettings() }
     catch (cause) { setError(cause instanceof Error ? cause.message : '无法打开系统设置') }
   }
 
@@ -86,17 +86,17 @@ export function ComputerUsePage({
       <div className="agent-page computer-use-settings">
         <header className="agent-page-header"><div>
           <h1>电脑操控</h1>
-          <p>管理 ActionDriver 如何使用你电脑上的其他应用程序</p>
+          <p>管理 Action-Driver 如何使用你电脑上的其他应用程序</p>
         </div></header>
 
         <section className="computer-use-group" aria-label="控制">
           <h2>控制</h2>
           <div className="computer-use-card">
             <div className="computer-use-card-row">
-              <span className="computer-use-card-icon"><ActionDriverLogo size={24} /></span>
+              <span className="computer-use-card-icon"><ProductLogo size={24} /></span>
               <span className="computer-use-card-copy">
                 <strong>任意应用</strong>
-                <span>允许 ActionDriver 控制你电脑上的应用</span>
+                <span>允许 Action-Driver 控制你电脑上的应用</span>
               </span>
               <ModelToggle
                 label="任意应用"

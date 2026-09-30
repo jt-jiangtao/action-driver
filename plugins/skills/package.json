@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/skills-plugin",
+  "name": "@action-driver/skills-plugin",
   "version": "1.2.0",
   "private": true,
   "type": "module",
@@ -47,6 +47,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/plugin-sdk": "workspace:*"
+    "@action-driver/plugin-sdk": "workspace:*"
   }
 }

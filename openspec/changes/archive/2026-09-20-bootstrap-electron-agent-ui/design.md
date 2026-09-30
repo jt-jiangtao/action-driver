@@ -1,6 +1,6 @@
 ## Context
 
-参见 `proposal.md` 的 Why。仓库当前只有 OpenSpec 配置与 `design/assets/actiondriver-logo.svg`，没有应用代码或历史约定。设计来源为 Figma Foundations 节点 `55:2`、首页画板 `60:5`，以及任务页画板 `60:7`、`111:247`、`112:409`。
+参见 `proposal.md` 的 Why。仓库当前只有 OpenSpec 配置与 `design/assets/action-driver-logo.svg`，没有应用代码或历史约定。设计来源为 Figma Foundations 节点 `55:2`、首页画板 `60:5`，以及任务页画板 `60:7`、`111:247`、`112:409`。
 
 本阶段需要同时建立 Electron 工程边界、React UI、依赖注入与可替换的 Mock 数据层。真实 Agent Service 最终由 Go + Eino 提供，Browser Use 与 Computer Use 最终作为 Agent 可调用的 Skill 存在；因此 TypeScript 端只定义 UI 所需的可序列化契约与适配器，不在 Renderer 中实现 Agent 推理或操作引擎。
 
@@ -80,7 +80,7 @@ Browser Skill 与 Computer Use Skill 仅共享基础 Skill Contract，不互相�
 
 - 样式使用 CSS Modules 和全局语义 CSS 变量，不引入 Tailwind。
 - 生产字体使用 macOS 系统字体栈，以 SF Pro 为首选；测试截图环境使用兼容回退。
-- 通用图标使用 `lucide-react`，只有字形与 Figma 明确匹配时才复用；ActionDriver Logo 使用仓库现有 SVG。
+- 通用图标使用 `lucide-react`，只有字形与 Figma 明确匹配时才复用；Action-Driver Logo 使用仓库现有 SVG。
 - Figma 中的酒店网页栅格在实现开始时下载为本地 PNG，禁止依赖七天失效的 MCP 资产 URL，也不自行重画网页。
 - 输入框使用 Slate.js，仅实现文本输入、空状态、加号、发送和中断所需行为。
 - 时间线使用 Ant Design Timeline，但颜色、尺寸、间距和当前项背景通过 Token 与局部样式覆盖，以 Figma 为最终视觉标准。

@@ -1,4 +1,4 @@
-import { ActionDriverLogo } from './ActionDriverLogo'
+import { ProductLogo } from './ProductLogo'
 import type { RecentTaskSummary } from '../models/task-catalog'
 import { IconButton } from './ui/IconButton'
 import { RecentTaskItem } from './navigation/RecentTaskItem'
@@ -44,9 +44,9 @@ export function Sidebar({
 
       <div className="sidebar-brand-row">
         <span className="sidebar-logo-slot">
-          <ActionDriverLogo size={18} />
+          <ProductLogo size={18} />
         </span>
-        <strong>ActionDriver</strong>
+        <strong>Action-Driver</strong>
         <IconButton
           className="sidebar-search"
           icon="search"

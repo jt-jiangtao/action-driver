@@ -1,14 +1,14 @@
-import { PluginError } from '@actiondriver/plugin-contracts'
+import { PluginError } from '@action-driver/plugin-contracts'
 import { z } from 'zod'
-import { isImageGenerationToolId } from '@actiondriver/contracts'
+import { isImageGenerationToolId } from '@action-driver/contracts'
 import {
   parseToolCall,
   type ToolCall,
   type ToolError,
   type ToolEvent,
   type ToolExecutionContext
-} from '@actiondriver/runtime-contracts'
-import type { InteractionLogRecorder } from '@actiondriver/observability'
+} from '@action-driver/runtime-contracts'
+import type { InteractionLogRecorder } from '@action-driver/observability'
 import type {
   Clock,
   PersistedToolInvocation,

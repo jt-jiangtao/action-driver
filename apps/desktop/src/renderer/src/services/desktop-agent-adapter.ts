@@ -11,8 +11,8 @@ import type {
   SkillId,
   SkillInvocation,
   TaskProjection
-} from '@actiondriver/contracts'
-import { AgentServiceError, isSerializableContract } from '@actiondriver/contracts'
+} from '@action-driver/contracts'
+import { AgentServiceError, isSerializableContract } from '@action-driver/contracts'
 import type { AgentControlApi } from './runtime-agent-http-api'
 import { StreamTaskProjection } from './stream-task-projection'
 import type { RendererStreamClient, RuntimeStreamListener } from './renderer-stream-client'

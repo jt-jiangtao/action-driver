@@ -14,7 +14,7 @@ public enum BundleRegistration {
 
 /// Brand artwork copied into the helper bundle at build time; falls back to the app icon.
 private let brandImage: NSImage =
-    Bundle.main.image(forResource: "ActionDriver") ?? NSApp.applicationIconImage ?? NSImage()
+    Bundle.main.image(forResource: "Action-Driver") ?? NSApp.applicationIconImage ?? NSImage()
 
 @MainActor
 final class GuidanceModel: ObservableObject {
@@ -47,7 +47,7 @@ final class AccessibilityShieldView: NSView {
         super.init(frame: frameRect)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel("ActionDriver Computer Use")
+        setAccessibilityLabel("Action-Driver Computer Use")
         setAccessibilityChildren([])
     }
 
@@ -77,7 +77,7 @@ final class BundleDragView: NSView, NSDraggingSource {
     }
 
     private var dragImage: NSImage {
-        Bundle.main.image(forResource: "ActionDriver")
+        Bundle.main.image(forResource: "Action-Driver")
             ?? NSWorkspace.shared.icon(forFile: bundleURL.path)
     }
 
@@ -102,9 +102,9 @@ struct GuidanceView: View {
                     .frame(width: 56, height: 56)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                Text("启用 ActionDriver Computer Use")
+                Text("启用 Action-Driver Computer Use")
                     .font(.system(size: 24, weight: .bold))
-                Text("ActionDriver Computer Use 需要以下权限，才能在你的 Mac 上使用各个 App。这些权限只在你要求 ActionDriver 执行任务时使用。")
+                Text("Action-Driver Computer Use 需要以下权限，才能在你的 Mac 上使用各个 App。这些权限只在你要求 Action-Driver 执行任务时使用。")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -131,8 +131,8 @@ struct GuidanceView: View {
 
     private func detail(_ permission: GuidancePermission) -> String {
         permission == .accessibility
-            ? "允许 ActionDriver 访问 App 界面"
-            : "ActionDriver 通过截图判断该点哪里"
+            ? "允许 Action-Driver 访问 App 界面"
+            : "Action-Driver 通过截图判断该点哪里"
     }
 
     private func icon(_ permission: GuidancePermission) -> some View {
@@ -212,8 +212,8 @@ struct DragHintView: View {
 
     private var instruction: String {
         isScreenRecording
-            ? "在“屏幕录制”列表中打开 ActionDriver Computer Use"
-            : "把 ActionDriver Computer Use 拖入上方列表"
+            ? "在“屏幕录制”列表中打开 Action-Driver Computer Use"
+            : "把 Action-Driver Computer Use 拖入上方列表"
     }
 
     var body: some View {
@@ -241,7 +241,7 @@ struct DragHintView: View {
                         .resizable()
                         .frame(width: 28, height: 28)
                         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    Text("ActionDriver Computer Use").font(.system(size: 15))
+                    Text("Action-Driver Computer Use").font(.system(size: 15))
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 12)

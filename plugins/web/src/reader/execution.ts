@@ -3,7 +3,7 @@ import type {
   ToolDefinition,
   ToolExecutor,
   ToolExecutorEvent
-} from '@actiondriver/plugin-sdk'
+} from '@action-driver/plugin-sdk'
 import { parsePublicUrl } from './address.js'
 import type { ExtractedPage } from './extract.js'
 import { definition } from './catalog.js'

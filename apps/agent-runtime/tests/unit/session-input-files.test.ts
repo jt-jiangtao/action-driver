@@ -8,9 +8,9 @@ import { createTestRepositories, type TestRepositories } from './rollout/test-re
 const temporaryDirectories: string[] = []
 
 function createStorage(): { repositories: TestRepositories; path: string } {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-input-files-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-input-files-'))
   temporaryDirectories.push(directory)
-  const path = join(directory, 'actiondriver.db')
+  const path = join(directory, 'action-driver.db')
   return { repositories: createTestRepositories(directory), path }
 }
 

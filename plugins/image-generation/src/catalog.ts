@@ -1,6 +1,6 @@
 import { presentations } from './presentation.js'
 import { skill } from './skill.js'
-import type { ToolDefinition, PluginCatalog } from '@actiondriver/plugin-sdk'
+import type { ToolDefinition, PluginCatalog } from '@action-driver/plugin-sdk'
 export const definition: ToolDefinition = {
   id: 'tools/local/image-generation/generate',
         presentation: presentations['tools/local/image-generation/generate'],

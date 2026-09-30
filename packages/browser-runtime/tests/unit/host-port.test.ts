@@ -5,13 +5,13 @@ import { initializeBrowserRuntime } from '../../src/runtime-initialization'
 
 const manifest = { interfaces: {} }
 
-test('generic browser package does not export the ActionDriver Chrome launcher', async () => {
+test('generic browser package does not export the Action-Driver Chrome launcher', async () => {
   const api = await import('../../src/index')
   expect(api).toHaveProperty('setupBrowserRuntime')
   expect(api).not.toHaveProperty('createLocalBrowserHost')
 })
 
-test('requires explicit ActionDriver host even when a private global exists', async () => {
+test('requires explicit Action-Driver host even when a private global exists', async () => {
   const rpc = vi.fn()
   vi.stubGlobal('nodeRepl', { rpc })
   try {

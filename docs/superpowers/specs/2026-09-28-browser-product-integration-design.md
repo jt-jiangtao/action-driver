@@ -1,4 +1,4 @@
-# ActionDriver 浏览器产品集成设计
+# Action-Driver 浏览器产品集成设计
 
 ## 目标与验收
 
@@ -10,7 +10,7 @@
 
 - 任务默认使用右侧内置浏览器。分栏、放大、折叠只改变展示，不重建标签页或丢失页面状态。
 - 标签栏支持新建、选择、关闭；地址栏支持输入 URL、后退、前进和刷新；网页本身接受鼠标与键盘操作。URL、标题、加载及错误状态来自实际页面。
-- Agent 可选择外部 Chrome 作为执行表面，ActionDriver 以单独 profile 启动并拥有该窗口。用户可直接在窗口操作。任务记录当前表面和标签页；内置与外部会话不自动迁移页面或凭据。
+- Agent 可选择外部 Chrome 作为执行表面，Action-Driver 以单独 profile 启动并拥有该窗口。用户可直接在窗口操作。任务记录当前表面和标签页；内置与外部会话不自动迁移页面或凭据。
 - Agent 与用户访问同一 Browser Use 会话。用户接管时暂停 Agent 的该会话操作；恢复后 Agent 读取当前页面状态再继续。普通用户页面操作的并发冲突按会话串行化，不把点击发送到错误标签页。
 - 未安装 Chrome、启动失败、页面加载失败、标签页或窗口关闭时展示可恢复的错误；不回退到静态图片或假成功。
 
@@ -18,11 +18,11 @@
 
 Browser Use 的公共端口只传可序列化的 session ID、surface (`embedded` 或 `external-chrome`)、tab ID、命令、状态和结果。`packages/browser-desktop` 承载可复用的桌面会话核心：标签身份、命令分发、控制状态、错误与关闭生命周期，宿主由外部注入。已有 `setupBrowserDesktop`/`createBrowserDesktopService` 继续承担还原候选的客户端及服务边界；产品会话核心作为明确的新出口，不以这次产品集成宣称整个候选包已完成原件等价。`packages/browser-runtime` 继续提供独立 Chrome host。两个底层包不引用 Electron UI、Agent 任务模型或 Codex 私有接口。
 
-`apps/desktop` 是 ActionDriver 适配层：它创建内置与外部宿主、把会话绑定到任务、转发 Agent 工具调用、生成任务投影并管理 UI。用户关闭会话或应用退出时，它调用 `browser-desktop` 的关闭契约来清理自有资源。任务 ID 只存在于应用层映射，不进入通用包的会话接口。
+`apps/desktop` 是 Action-Driver 适配层：它创建内置与外部宿主、把会话绑定到任务、转发 Agent 工具调用、生成任务投影并管理 UI。用户关闭会话或应用退出时，它调用 `browser-desktop` 的关闭契约来清理自有资源。任务 ID 只存在于应用层映射，不进入通用包的会话接口。
 
-内置表面由 Electron Main 持有隔离的网页 `WebContentsView`，Renderer 仅绘制浏览器栏、控件及 WebContentsView 的位置占位，通过具名类型化 IPC 发命令和接收事件。Main 将原生 view 与任务页的尺寸、可见性和窗口生命周期同步，网页不获得 ActionDriver 的 preload 或 Node 能力。Agent 通过同一桌面 Browser Use 端口操作该 view；控制实现可采用 Electron 的 webContents/CDP 适配，不另开一个不可见浏览器冒充右侧页面。
+内置表面由 Electron Main 持有隔离的网页 `WebContentsView`，Renderer 仅绘制浏览器栏、控件及 WebContentsView 的位置占位，通过具名类型化 IPC 发命令和接收事件。Main 将原生 view 与任务页的尺寸、可见性和窗口生命周期同步，网页不获得 Action-Driver 的 preload 或 Node 能力。Agent 通过同一桌面 Browser Use 端口操作该 view；控制实现可采用 Electron 的 webContents/CDP 适配，不另开一个不可见浏览器冒充右侧页面。
 
-外部表面复用自有 `createLocalBrowserHost` 的隔离 Chrome profile 和 Playwright/CDP 能力。桌面适配层只暴露 ActionDriver 创建的会话与标签页，不扫描或附着用户已打开的 Chrome。任务完成后保留可回看的页面；显式关闭会话或退出应用时终止自有会话并清理临时 profile。用户主动关闭外部窗口时投影转为已关闭并允许重新启动。
+外部表面复用自有 `createLocalBrowserHost` 的隔离 Chrome profile 和 Playwright/CDP 能力。桌面适配层只暴露 Action-Driver 创建的会话与标签页，不扫描或附着用户已打开的 Chrome。任务完成后保留可回看的页面；显式关闭会话或退出应用时终止自有会话并清理临时 profile。用户主动关闭外部窗口时投影转为已关闭并允许重新启动。
 
 Agent Runtime 通过现有 Tool Registry、Policy Gate 和 Skill Provider 边界发起 Browser Use 调用，页面按钮走同一个 `browser-desktop` 会话核心。该核心是标签与控制状态的事实来源；任务投影保存 ID 与可显示状态，不保存 Electron 对象或 Playwright Page。Mock 继续提供可复现的视觉验收路径，生产不得回退到 Mock Browser Provider。
 
@@ -41,4 +41,4 @@ Agent Runtime 通过现有 Tool Registry、Policy Gate 和 Skill Provider 边界
 
 ## 实施与验证边界
 
-先在 `browser-desktop` 建立通用会话契约和核心，再接入 ActionDriver 桌面适配、内置 view、UI 控件、外部 Chrome Provider 与 Agent 工具。定向测试覆盖会话、IPC、标签页与错误转换；真实 Electron 加本地 HTTP 夹具覆盖内置页面及外部 Chrome 的 Agent 操作与用户接管。首版不支持 Edge、Brave、Safari、现有标签页连接、跨表面迁移或 Codex 私有服务。
+先在 `browser-desktop` 建立通用会话契约和核心，再接入 Action-Driver 桌面适配、内置 view、UI 控件、外部 Chrome Provider 与 Agent 工具。定向测试覆盖会话、IPC、标签页与错误转换；真实 Electron 加本地 HTTP 夹具覆盖内置页面及外部 Chrome 的 Agent 操作与用户接管。首版不支持 Edge、Brave、Safari、现有标签页连接、跨表面迁移或 Codex 私有服务。

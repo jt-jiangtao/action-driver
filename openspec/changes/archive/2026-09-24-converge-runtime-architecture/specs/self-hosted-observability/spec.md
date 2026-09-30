@@ -13,7 +13,7 @@
 
 #### Scenario: 无需登录查看 Grafana 数据
 - **WHEN** 操作者在部署主机打开 Grafana 首页
-- **THEN** 预置的 ActionDriver 运行诊断仪表盘可查看日志、调用量、错误和耗时，并可进入 Explore 查询 Loki、Tempo 与 Prometheus
+- **THEN** 预置的 Action-Driver 运行诊断仪表盘可查看日志、调用量、错误和耗时，并可进入 Explore 查询 Loki、Tempo 与 Prometheus
 
 ### Requirement: 接口调用日志仅存统一平台
 系统 SHALL 为 HTTP、Electron IPC 与 WebSocket 边界产生结构化摘要运行日志，并 SHALL 发送至 OpenTelemetry 采集链路；摘要 MUST NOT 包含任意请求/响应正文。SQLite SHALL 保存任务、工具与审批事实，而不作为模型层日志或接口层摘要日志的替代来源。

@@ -66,7 +66,7 @@
 
   在 `sqlite-store.ts` 的 SELECT/INSERT/`toModel` 往返字段；缺失或旧 DTO 归一化为 `openai-images`。在 `service.ts` 增加 `setModelImageGenerationApi`，验证枚举、模型归属与 `token-plan` 的官方 HTTPS `*.maas.aliyuncs.com` 地址；不改变能力开关或默认引用。
 
-- [ ] **Step 4: 运行测试和类型检查。** 使用 Step 2 的 Vitest 命令及 `pnpm --filter @actiondriver/agent-runtime typecheck`，确认迁移、读写与旧配置通过。
+- [ ] **Step 4: 运行测试和类型检查。** 使用 Step 2 的 Vitest 命令及 `pnpm --filter @action-driver/agent-runtime typecheck`，确认迁移、读写与旧配置通过。
 - [ ] **Step 5: 提交本任务。** `git add packages/model-connections/src/types.ts apps/agent-runtime/src/database.ts apps/agent-runtime/src/model-connections apps/agent-runtime/tests && git commit -m "feat: persist image generation API per model"`。
 
 ### Task 2: Token Plan 生图适配与路由
@@ -102,7 +102,7 @@
   ```
 
 - [ ] **Step 4: 在服务中分发。** `generateImage` 完成默认模型、能力及地址验证后，按 `model.imageGenerationApi ?? 'openai-images'` 选择适配器；不改工具 schema 或存储时序。
-- [ ] **Step 5: 运行 Step 2 测试与类型检查。** 确认错误、取消和两条路由均通过；`pnpm --filter @actiondriver/agent-runtime typecheck`。
+- [ ] **Step 5: 运行 Step 2 测试与类型检查。** 确认错误、取消和两条路由均通过；`pnpm --filter @action-driver/agent-runtime typecheck`。
 - [ ] **Step 6: 提交本任务。** `git add apps/agent-runtime/src/media apps/agent-runtime/src/model-connections/service.ts apps/agent-runtime/tests && git commit -m "feat: generate images through Token Plan"`。
 
 ### Task 3: 未配置状态进入模型请求
@@ -129,7 +129,7 @@
     : state.modelMessages
   ```
 
-- [ ] **Step 4: 运行测试与类型检查。** Step 2 命令及 `pnpm --filter @actiondriver/agent-runtime typecheck`；检查含多次工具轮次的请求没有重复说明。
+- [ ] **Step 4: 运行测试与类型检查。** Step 2 命令及 `pnpm --filter @action-driver/agent-runtime typecheck`；检查含多次工具轮次的请求没有重复说明。
 - [ ] **Step 5: 提交本任务。** `git add apps/agent-runtime/src/agent-graph.ts apps/agent-runtime/src/runtime-process.ts apps/agent-runtime/tests/agent-graph.test.ts && git commit -m "fix: explain unconfigured image generation to agent"`。
 
 ### Task 4: 桌面设置接通协议选择
@@ -167,7 +167,7 @@
   ```
 
 - [ ] **Step 4: 加入模型行选择器。** 只在生图开关开启时显示 `Images API` / `Token Plan`，清晰区分协议与默认模型；沿用当前设置页布局与错误提示，给控件可读标签和键盘焦点。
-- [ ] **Step 5: 运行测试、类型检查和交互契约校验。** Step 2 命令、`pnpm --filter @actiondriver/desktop typecheck`、`pnpm validate:e2e-interactions`。
+- [ ] **Step 5: 运行测试、类型检查和交互契约校验。** Step 2 命令、`pnpm --filter @action-driver/desktop typecheck`、`pnpm validate:e2e-interactions`。
 - [ ] **Step 6: 提交本任务。** `git add apps/agent-runtime/src/service/http-service.ts apps/desktop/src && git commit -m "feat: configure image generation API in model settings"`。
 
 ### Task 5: 图片预览与用户消息显示
@@ -206,7 +206,7 @@
   }
   ```
 
-- [ ] **Step 4: 验证。** 运行 Step 2 命令和 `pnpm --filter @actiondriver/desktop typecheck`；运行含图 UI 用例并检查宽幅白底文字图的截图，确认构图完整、尺寸和间距协调。
+- [ ] **Step 4: 验证。** 运行 Step 2 命令和 `pnpm --filter @action-driver/desktop typecheck`；运行含图 UI 用例并检查宽幅白底文字图的截图，确认构图完整、尺寸和间距协调。
 - [ ] **Step 5: 提交本任务。** `git add apps/desktop/src/renderer/src/components apps/desktop/src/renderer/src/styles/agent.css apps/desktop/e2e && git commit -m "fix: show complete conversation image previews"`。
 
 ### Task 6: 跨层验收与 OpenSpec 收尾

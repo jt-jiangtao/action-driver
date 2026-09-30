@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ToolCall, ToolExecutionContext } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolExecutionContext } from '@action-driver/runtime-contracts'
 import { AgentFileStore } from '../../src/agent-files/agent-file-store'
 import { SkillInstaller } from '../../src/agent-files/skill-installer'
 import { createSkillRuntimeTools } from '../../src/agent-files/runtime-tools'
@@ -23,7 +23,7 @@ function sessionContext(workspaceRoot: string): ToolExecutionContext {
 }
 
 async function fixture() {
-  const homeDirectory = await mkdtemp(join(tmpdir(), 'actiondriver-skill-tool-'))
+  const homeDirectory = await mkdtemp(join(tmpdir(), 'action-driver-skill-tool-'))
   const store = new AgentFileStore({ homeDirectory })
   await store.initialize()
   const installer = new SkillInstaller({ homeDirectory, store })

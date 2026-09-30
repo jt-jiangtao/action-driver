@@ -13,7 +13,7 @@ import { RolloutSessionStore } from '../../../src/rollout/session-store'
 const temporaryDirectories: string[] = []
 
 function workspace(): { root: string; statePath: string; historyPath: string; sessionsRoot: string } {
-  const root = mkdtempSync(join(tmpdir(), 'actiondriver-session-store-'))
+  const root = mkdtempSync(join(tmpdir(), 'action-driver-session-store-'))
   temporaryDirectories.push(root)
   return {
     root,

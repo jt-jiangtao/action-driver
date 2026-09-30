@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- 新建 packages/cua、sky、cua-repl、browser-runtime、browser-desktop 五个源码包，以及 packages/cua-parity 差异验证包，使用 @actiondriver 命名。
+- 新建 packages/cua、sky、cua-repl、browser-runtime、browser-desktop 五个源码包，以及 packages/cua-parity 差异验证包，使用 @action-driver 命名。
 - 原始 vendor 保持基准职责，analysis/codex-cua 保存阅读副本。
 - 固定基准、逐一分析全部自有 lib 的接口、用途和行为，依照项目架构重实现 TS，并建立原包和新实现的独立进程差异验证。
 - 完整覆盖 oai_js_core、oai_js_types、oai_js_cua、oai_js_cua_repl、oai_js_browser 与 project/cua/sky_js；第三方库（包括 tslib、Statsig 及 browser 随附依赖）核实来源、锁定版本后复用，不重写。重复副本均记录来源映射。
@@ -42,11 +42,11 @@ Battle complete: user explicitly approved autonomous implementation of missing-r
 
 ## 2026-09-28 browser-desktop 扩围裁决
 
-Battle 已结束：用户明确要求纳入独立的 desktop 包，并禁止连接 Codex 的服务。目标是把当前 App 中实际加载的 `@oai/browser-desktop@0.1.1` 也纳入可维护、可验证的 macOS 自主实现，而不是将其误认为已复制的 `@oai/cua` 内嵌 browser service。两个 service bundle 哈希不同，客户端文件相同；前者有 106 个文件和独立环境文档。比较了并入既有 `browser-runtime` 与独立 `@actiondriver/browser-desktop` 两种可执行方案；后者便于保留两套服务契约、单独验收和回退，用户选择纳入 desktop，并追加不接 Codex 私有服务的边界。
+Battle 已结束：用户明确要求纳入独立的 desktop 包，并禁止连接 Codex 的服务。目标是把当前 App 中实际加载的 `@oai/browser-desktop@0.1.1` 也纳入可维护、可验证的 macOS 自主实现，而不是将其误认为已复制的 `@oai/cua` 内嵌 browser service。两个 service bundle 哈希不同，客户端文件相同；前者有 106 个文件和独立环境文档。比较了并入既有 `browser-runtime` 与独立 `@action-driver/browser-desktop` 两种可执行方案；后者便于保留两套服务契约、单独验收和回退，用户选择纳入 desktop，并追加不接 Codex 私有服务的边界。
 
-原件从本机安装包复制到 `thirdparty/backup/browser-desktop/@oai/browser-desktop`，保存版本、逐文件哈希和来源；它只作只读基准。新实现放 `packages/browser-desktop`，复用经验证的通用自有代码和确切版本第三方依赖，不重写第三方库。用户进一步明确：**所有重建后的 `@actiondriver/*` 包及其验收测试都不能连接 Codex App 私有服务**，包括通过 Node REPL、私有 native pipe、会话/turn metadata 或认证 broker 的间接连接；ActionDriver 自有 helper、socket 和浏览器宿主允许使用。原包仅可作离线静态基准及不会触达私有服务的受控差异对照，不把 App 签名二进制作为候选依赖或验收捷径。原件保持不变；验收前既有生产 loader 也保持不变，但它不能作为新实现独立性的证据。
+原件从本机安装包复制到 `thirdparty/backup/browser-desktop/@oai/browser-desktop`，保存版本、逐文件哈希和来源；它只作只读基准。新实现放 `packages/browser-desktop`，复用经验证的通用自有代码和确切版本第三方依赖，不重写第三方库。用户进一步明确：**所有重建后的 `@action-driver/*` 包及其验收测试都不能连接 Codex App 私有服务**，包括通过 Node REPL、私有 native pipe、会话/turn metadata 或认证 broker 的间接连接；Action-Driver 自有 helper、socket 和浏览器宿主允许使用。原包仅可作离线静态基准及不会触达私有服务的受控差异对照，不把 App 签名二进制作为候选依赖或验收捷径。原件保持不变；验收前既有生产 loader 也保持不变，但它不能作为新实现独立性的证据。
 
-可用的离线原包行为、受控替身与 ActionDriver 自有宿主上的重置 macOS 夹具分别标注证据等级。既有候选经 Codex 服务得到的实机记录保留为历史研究，不计入最终验收。需要真实宿主能力的路径须迁移到 ActionDriver 自有接口；缺少该真实路径时，相关包的整体验收与统一生产替换保持未完成。
+可用的离线原包行为、受控替身与 Action-Driver 自有宿主上的重置 macOS 夹具分别标注证据等级。既有候选经 Codex 服务得到的实机记录保留为历史研究，不计入最终验收。需要真实宿主能力的路径须迁移到 Action-Driver 自有接口；缺少该真实路径时，相关包的整体验收与统一生产替换保持未完成。
 
 认证安全说明只按原包环境来源纳入 cloud/orbit；codex-app 环境未发现同名文档，仍须缺失即拒绝，不得把其他环境说明静默注入。风险：独立服务的部分行为依赖不可访问的 Codex 私有宿主，无法靠 mock 证明真实等价；用户的服务隔离要求优先，保留这些路径为未验收，不降低替换门槛。
 

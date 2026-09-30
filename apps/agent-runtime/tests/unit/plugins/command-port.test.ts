@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { createCommandExecutionPort } from '../../../src/plugins/command-port'
-import type { InvocationContext } from '@actiondriver/plugin-contracts'
+import type { InvocationContext } from '@action-driver/plugin-contracts'
 const authority: InvocationContext = { requestId: 'r', callId: 'c', taskId: 'persisted', sessionId: 'session', deadline: Date.now() + 1000, source: { kind: 'runtime' }, chain: [], grants: ['tools/local/command/shell/run@2'] }
 it('resolves command workspace from runtime facts and enforces the exact tool grant', async () => {
   const execute = vi.fn(async function* (_call, _signal, context) { yield { kind: 'result' as const, output: context.workspace.root } })

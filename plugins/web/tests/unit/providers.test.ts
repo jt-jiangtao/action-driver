@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createTavilySearchTool } from '../../src/search/tavily'
 import { createJinaReaderTool } from '../../src/reader/jina'
-import type { Json, ToolExecutor } from '@actiondriver/plugin-sdk'
+import type { Json, ToolExecutor } from '@action-driver/plugin-sdk'
 
 const lookup = async () => [{ address: '93.184.216.34', family: 4 as const }]
 const response = (value: unknown, status = 200) =>
@@ -24,7 +24,7 @@ describe('Tavily Search', () => {
       expect(init?.redirect).toBe('manual')
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer search-secret')
       expect(JSON.parse(String(init?.body))).toEqual({
-        query: 'ActionDriver',
+        query: 'Action-Driver',
         max_results: 5,
         search_depth: 'basic',
         auto_parameters: false,
@@ -36,7 +36,7 @@ describe('Tavily Search', () => {
       })
     })
     const tool = createTavilySearchTool({ apiKey: 'search-secret', fetch })
-    const result = await run(tool.executor, { query: ' ActionDriver ' })
+    const result = await run(tool.executor, { query: ' Action-Driver ' })
     expect(result).toEqual({
       kind: 'result',
       output: {

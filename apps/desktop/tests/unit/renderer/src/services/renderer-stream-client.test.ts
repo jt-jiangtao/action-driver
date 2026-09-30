@@ -2,7 +2,7 @@ import { once } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket, WebSocketServer } from 'ws'
 import fc from 'fast-check'
-import type { StreamServerEvent } from '@actiondriver/runtime-contracts'
+import type { StreamServerEvent } from '@action-driver/runtime-contracts'
 import { RendererStreamClient } from '../../../../../src/renderer/src/services/renderer-stream-client'
 
 let server: WebSocketServer | undefined
@@ -31,7 +31,7 @@ function send(socket: WebSocket, event: StreamServerEvent): void {
 }
 
 const identity = {
-  protocol: 'actiondriver.stream.v2' as const,
+  protocol: 'action-driver.stream.v2' as const,
   requestId: 'request-1',
   sessionId: 'session-1',
   taskId: 'task-1',
@@ -53,7 +53,7 @@ describe('RendererStreamClient', () => {
               if (frame.type === 'auth') {
                 send(socket, {
                   type: 'session.ready',
-                  protocol: 'actiondriver.stream.v2',
+                  protocol: 'action-driver.stream.v2',
                   eventId: 'ready-property',
                   connectionId: 'connection-1',
                   capabilities: ['request.create', 'request.resume'],
@@ -122,7 +122,7 @@ describe('RendererStreamClient', () => {
           client = new RendererStreamClient({
             getConnection: async () => ({
               wsUrl,
-              protocol: 'actiondriver.stream.v2',
+              protocol: 'action-driver.stream.v2',
               accessToken: 'token'
             }),
             createWebSocket: (url, protocols) => new WebSocket(url, protocols),
@@ -172,7 +172,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth') {
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v2',
+            protocol: 'action-driver.stream.v2',
             eventId: 'ready-1',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -193,7 +193,7 @@ describe('RendererStreamClient', () => {
     })
     const getConnection = vi.fn(async () => ({
       wsUrl,
-      protocol: 'actiondriver.stream.v2' as const,
+      protocol: 'action-driver.stream.v2' as const,
       accessToken: 'launch-token'
     }))
     let id = 0
@@ -236,7 +236,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth') {
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v2',
+            protocol: 'action-driver.stream.v2',
             eventId: `ready-${connection}`,
             connectionId: `connection-${connection}`,
             capabilities: ['request.create', 'request.resume'],
@@ -314,7 +314,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'launch-token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols),
@@ -350,7 +350,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth')
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v2',
+            protocol: 'action-driver.stream.v2',
             eventId: 'ready-order',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -412,7 +412,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols)
@@ -445,7 +445,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth')
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v2',
+            protocol: 'action-driver.stream.v2',
             eventId: 'ready-snapshot',
             connectionId: 'connection-1',
             capabilities: ['request.create'],
@@ -516,7 +516,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols)
@@ -554,7 +554,7 @@ describe('RendererStreamClient', () => {
         if (frame.type === 'auth') {
           send(socket, {
             type: 'session.ready',
-            protocol: 'actiondriver.stream.v2',
+            protocol: 'action-driver.stream.v2',
             eventId: 'ready-restored',
             connectionId: 'connection-1',
             capabilities: ['request.resume'],
@@ -578,7 +578,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols)
@@ -618,7 +618,7 @@ describe('RendererStreamClient', () => {
     client = new RendererStreamClient({
       getConnection: async () => ({
         wsUrl,
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         accessToken: 'launch-token'
       }),
       createWebSocket: (url, protocols) => new WebSocket(url, protocols),

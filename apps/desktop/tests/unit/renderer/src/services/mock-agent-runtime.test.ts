@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SKILL_IDS } from '@actiondriver/contracts'
+import { SKILL_IDS } from '@action-driver/contracts'
 import { MockAgentRuntime } from '../../../../../src/renderer/src/services/mock-agent-runtime'
 import {
   MockBrowserSkillCapability,

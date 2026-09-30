@@ -6,8 +6,8 @@ export interface BrowserHostSetup {
   excludedDocumentation?: string[] | undefined
 }
 
-/** Only an ActionDriver-owned host is accepted by the candidate client. */
-export interface ActionDriverBrowserHost {
+/** Only an Action-Driver-owned host is accepted by the candidate client. */
+export interface ProductBrowserHost {
   setup(options: BrowserHostSetup): Promise<{ apiManifest: ApiManifest; disabledMemberIds: string[] }>
   execute(command: Record<string, unknown>): Promise<unknown>
   displayImage(bytes: Uint8Array): void | Promise<void>
@@ -15,7 +15,7 @@ export interface ActionDriverBrowserHost {
 }
 
 /** Idempotent close and a fail-closed command boundary for injected hosts. */
-export function createGuardedBrowserHost(host: ActionDriverBrowserHost): ActionDriverBrowserHost {
+export function createGuardedBrowserHost(host: ProductBrowserHost): ProductBrowserHost {
   let closed = false
   let closing: Promise<void> | undefined
   const assertOpen = () => {

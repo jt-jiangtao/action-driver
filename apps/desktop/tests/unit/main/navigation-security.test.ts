@@ -3,8 +3,8 @@ import { installNavigationGuards, resolveTrustedRendererOrigin } from '../../../
 
 describe('installNavigationGuards', () => {
   it('derives a stable exact origin for the packaged application protocol', () => {
-    expect(resolveTrustedRendererOrigin('actiondriver://renderer/index.html'))
-      .toBe('actiondriver://renderer')
+    expect(resolveTrustedRendererOrigin('action-driver://renderer/index.html'))
+      .toBe('action-driver://renderer')
   })
 
   it('denies new windows and prevents navigation outside the renderer origin', () => {
@@ -46,7 +46,7 @@ describe('installNavigationGuards', () => {
       }
     }
     const entry =
-      'file:///Applications/ActionDriver.app/Contents/Resources/app.asar/out/renderer/index.html'
+      'file:///Applications/Action-Driver.app/Contents/Resources/app.asar/out/renderer/index.html'
     installNavigationGuards(target, entry)
 
     const entryEvent = { preventDefault: vi.fn() }
@@ -55,7 +55,7 @@ describe('installNavigationGuards', () => {
     const siblingEvent = { preventDefault: vi.fn() }
     navigateHandler?.(
       siblingEvent,
-      'file:///Applications/ActionDriver.app/Contents/Resources/app.asar/package.json'
+      'file:///Applications/Action-Driver.app/Contents/Resources/app.asar/package.json'
     )
     expect(siblingEvent.preventDefault).toHaveBeenCalledOnce()
   })

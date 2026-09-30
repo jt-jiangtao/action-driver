@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PluginManager } from '../../../src/plugins/manager'
 import type { PluginHostFactory, PluginRepository, HostInstance, ContributionRegistrar } from '../../../src/plugins/ports'
-import type { PluginManifest } from '@actiondriver/plugin-contracts'
+import type { PluginManifest } from '@action-driver/plugin-contracts'
 
 const manifest: PluginManifest = { id: 'fixture', version: '1.0.0', sdk: '^1.0.0', entry: 'index.js', platforms: ['darwin-arm64'], activation: [], contributions: [{ kind: 'tool', id: 'fixture/read', modelName: 'fixture_read' }], dependencies: [] }
 function fixture(options: { fail?: boolean; wait?: Promise<void> } = {}) {

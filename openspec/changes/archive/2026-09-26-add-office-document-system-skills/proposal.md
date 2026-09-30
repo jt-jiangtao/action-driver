@@ -1,6 +1,6 @@
 ## Why
 
-ActionDriver 需要随包提供 Codex 的 Word、PPT、Excel、PDF 四份 Skill，并让它们真的能产出与验证文件，而不只是可读的说明文本。当前这些 Skill 的正文把 `load_workspace_dependencies`、`@oai/artifact-tool`、LibreOffice 与 Poppler 写成硬前置条件，ActionDriver 既没有该工具，也没有这些依赖；本机探针已验证补齐依赖后四类文件可以真实产出，因此现在把这个能力固化下来。
+Action-Driver 需要随包提供 Codex 的 Word、PPT、Excel、PDF 四份 Skill，并让它们真的能产出与验证文件，而不只是可读的说明文本。当前这些 Skill 的正文把 `load_workspace_dependencies`、`@oai/artifact-tool`、LibreOffice 与 Poppler 写成硬前置条件，Action-Driver 既没有该工具，也没有这些依赖；本机探针已验证补齐依赖后四类文件可以真实产出，因此现在把这个能力固化下来。
 
 ## What Changes
 

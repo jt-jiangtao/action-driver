@@ -3,7 +3,7 @@ import type {
   ModelCapabilityResultDto,
   ModelFailure,
   ModelProtocol
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -103,7 +103,7 @@ export async function probeCapability(
 
 async function verifyGeneratedImage(bytes: Uint8Array): Promise<void> {
   const { mimeType } = await inspectImage(bytes)
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-image-probe-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-image-probe-'))
   const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png'
   const input = join(directory, `input.${extension}`)
   try {

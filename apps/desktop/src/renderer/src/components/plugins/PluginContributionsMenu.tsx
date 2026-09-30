@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { PluginUiContributions } from '@actiondriver/plugin-contracts'
+import type { PluginUiContributions } from '@action-driver/plugin-contracts'
 import { useOptionalAppServices } from '../../di/services-context'
 import { e2eId } from '../../testing/e2e-id'
 

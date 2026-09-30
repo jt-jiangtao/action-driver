@@ -5,11 +5,11 @@ import type {
   ModelOptionDto,
   ModelProtocol,
   ModelTestState
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
 import type Database from 'better-sqlite3'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 
 type ConnectionRow = {
   id: string

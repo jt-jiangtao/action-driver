@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PluginError, type PluginOwner, type Json } from '@actiondriver/plugin-contracts'
+import { PluginError, type PluginOwner, type Json } from '@action-driver/plugin-contracts'
 export function createPanelMessageClient(options: { connection(): { url: string; token: string }; fetch: typeof globalThis.fetch }) {
   return async (owner: PluginOwner, panelId: string, type: string, payload: Json): Promise<Json> => {
     const connection = options.connection()

@@ -1,13 +1,13 @@
-import type { BrowserSessionCommand, BrowserSurface } from '@actiondriver/browser-desktop'
+import type { BrowserSessionCommand, BrowserSurface } from '@action-driver/browser-desktop'
 import type { createTaskBrowserBinding } from './task-binding.js'
 
 type Binding = ReturnType<typeof createTaskBrowserBinding>
 type Command = Record<string, unknown>
 
 const browsers = {
-  iab: { id: 'iab', name: 'ActionDriver', type: 'iab', family: 'chrome',
+  iab: { id: 'iab', name: 'Action-Driver', type: 'iab', family: 'chrome',
     apiSupportOverrides: { 'Tab.ax': true }, capabilities: { browser: [], tab: [] } },
-  chrome: { id: 'chrome', name: 'ActionDriver Chrome', type: 'cdp', family: 'chrome',
+  chrome: { id: 'chrome', name: 'Action-Driver Chrome', type: 'cdp', family: 'chrome',
     apiSupportOverrides: { 'Tab.ax': true }, capabilities: { browser: [], tab: [] } }
 } as const
 
@@ -80,7 +80,7 @@ export function createTaskBrowserRpc(binding: Binding) {
       case 'get_documentation': return {}
       case 'get_browser_documentation': {
         surface(command.browser_id)
-        return 'Use browser.tabs.list(), browser.tabs.get(id), browser.tabs.new(), tab.goto(url), tab.getAXState(), tab.screenshot(), and tab.cua. Only ActionDriver-owned tabs are available.'
+        return 'Use browser.tabs.list(), browser.tabs.get(id), browser.tabs.new(), tab.goto(url), tab.getAXState(), tab.screenshot(), and tab.cua. Only Action-Driver-owned tabs are available.'
       }
       case 'get_browser_for_url': {
         for (const snapshot of await binding.snapshots(taskId))

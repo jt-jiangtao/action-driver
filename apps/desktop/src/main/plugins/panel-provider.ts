@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PluginError, type PluginManifest, type PluginOwner, type Json } from '@actiondriver/plugin-contracts'
+import { PluginError, type PluginManifest, type PluginOwner, type Json } from '@action-driver/plugin-contracts'
 import type { HostedSkillProvider } from '../skill-provider-host'
 import type { PluginPanelHost } from './panel-host'
 const ownerSchema = z.object({ pluginId: z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/), version: z.string().min(1), hostEpoch: z.string().min(1).max(200) }).strict()

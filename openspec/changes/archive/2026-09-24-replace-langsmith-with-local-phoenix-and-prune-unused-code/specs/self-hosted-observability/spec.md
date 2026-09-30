@@ -17,13 +17,13 @@
 
 #### Scenario: 无需登录查看 Grafana 数据
 - **WHEN** 操作者在部署主机打开 Grafana 首页
-- **THEN** 预置的 ActionDriver 运行诊断仪表盘可查看日志、调用量、错误和耗时，并可进入 Explore 查询 Loki、Tempo 与 Prometheus
+- **THEN** 预置的 Action-Driver 运行诊断仪表盘可查看日志、调用量、错误和耗时，并可进入 Explore 查询 Loki、Tempo 与 Prometheus
 
 ### Requirement: 应用内不提供观测入口
-ActionDriver SHALL NOT 在设置侧栏、页面路由或 Preload/Main IPC 中提供 Grafana、Phoenix 或其他模型日志平台的观测入口；平台的本机访问地址与启动方法 SHALL 由运维文档说明。
+Action-Driver SHALL NOT 在设置侧栏、页面路由或 Preload/Main IPC 中提供 Grafana、Phoenix 或其他模型日志平台的观测入口；平台的本机访问地址与启动方法 SHALL 由运维文档说明。
 
 #### Scenario: 打开设置页面
-- **WHEN** 用户进入 ActionDriver 设置
+- **WHEN** 用户进入 Action-Driver 设置
 - **THEN** 设置侧栏不显示“日志/观测平台”，应用中也没有模型日志详情、Grafana 或 Phoenix 入口
 
 ## ADDED Requirements

@@ -1,5 +1,5 @@
-import { ResourceError, formatResourceUri, parseResourceUri } from '@actiondriver/runtime-contracts'
-import type { ResourceEntry, ResourceOperationContext, ResourceProvider, ResourceScope, ResourceWatchEvent } from '@actiondriver/runtime-contracts'
+import { ResourceError, formatResourceUri, parseResourceUri } from '@action-driver/runtime-contracts'
+import type { ResourceEntry, ResourceOperationContext, ResourceProvider, ResourceScope, ResourceWatchEvent } from '@action-driver/runtime-contracts'
 import { boundedStream } from './store'
 
 /** Virtual collection id used to list a scheme's resources without inventing a path syntax. */

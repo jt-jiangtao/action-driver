@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { validateManifest, type PluginCatalog } from '@actiondriver/plugin-contracts'
+import { validateManifest, type PluginCatalog } from '@action-driver/plugin-contracts'
 
 it('ships each approved instruction capability in its owning package with every declared resource', async () => {
   const owners = { documents: 'documents', pdf: 'pdf', presentations: 'presentations', spreadsheets: 'spreadsheets', 'skill-creator': 'skills', imagegen: 'image-generation' }
@@ -17,7 +17,7 @@ it('ships each approved instruction capability in its owning package with every 
   }
 })
 it('publishes one web catalog and hides cloud tools without credentials', async () => {
-  const { createPluginContext } = await import('@actiondriver/plugin-sdk')
+  const { createPluginContext } = await import('@action-driver/plugin-sdk')
   const { catalog } = await import('../../../../plugins/web/src/catalog')
   const { activate } = await import('../../../../plugins/web/src/extension')
   expect(catalog.tools.map(tool => tool.id)).toEqual(['tools/local/web/search', 'tools/local/web/open'])
@@ -41,7 +41,7 @@ it('loads all instruction packages through real hosts and withdraws a stopped pa
   const { createRuntimePluginPlatform } = await import('../../src/plugins/composition')
   const { RuntimeToolRegistry } = await import('../../src/tool-registry')
   const { createSkillStoragePorts } = await import('../../src/plugins/skill-port')
-  const home = await mkdtemp(join(tmpdir(), 'actiondriver-capability-packages-'))
+  const home = await mkdtemp(join(tmpdir(), 'action-driver-capability-packages-'))
   const ids = ['documents', 'pdf', 'presentations', 'spreadsheets', 'skill-creator', 'imagegen', 'computer-use']
   const instructions = new PluginInstructionHost(home, ids)
   const store = new AgentFileStore({ homeDirectory: home, pluginSkills: instructions })
@@ -73,7 +73,7 @@ it('routes current dependency calls and grants through the command host and with
   const { tmpdir } = await import('node:os')
   const { createRuntimePluginPlatform } = await import('../../src/plugins/composition')
   const { RuntimeToolRegistry } = await import('../../src/tool-registry')
-  const home = await mkdtemp(join(tmpdir(), 'actiondriver-command-identity-'))
+  const home = await mkdtemp(join(tmpdir(), 'action-driver-command-identity-'))
   const registry = new RuntimeToolRegistry()
   const id = 'tools/local/command/dependencies/load'
   const platform = await createRuntimePluginPlatform({ node: process.execPath, hostEntry: resolve('apps/agent-runtime/dist/plugin-host.mjs'), packageRoots: [resolve('apps/agent-runtime/dist/plugins/command')], dataRoot: home, registry, configuration: {}, now: Date.now, ids: () => String(Math.random()),

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 
 export function taskUsesComputerUse(task: TaskProjection | null | undefined): boolean {
   return Boolean(task?.tools?.some((tool) => tool.toolId === 'tools/local/cua/js'))
@@ -15,7 +15,7 @@ export function useComputerUseGuidance(taskId: string | null, usesComputerUse: b
   useEffect(() => {
     if (!taskId || !usesComputerUse || ensured.current.has(taskId)) return
     ensured.current.add(taskId)
-    const api = window.actionDriverDesktop?.computerUse
+    const api = window.productDesktop?.computerUse
     if (!api?.ensureGuidance) return
     void api.ensureGuidance().catch(() => undefined)
   }, [taskId, usesComputerUse])

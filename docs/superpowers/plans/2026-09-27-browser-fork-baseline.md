@@ -4,7 +4,7 @@
 
 **Goal:** 编译用户的 Playwright 与 Electron/Chromium Fork，并用独立夹具证明两套自有产物共同运行。
 
-**Architecture:** Electron Fork 通过官方 gclient/DEPS 链获取 Chromium，自有内核补丁由 Electron 补丁队列追踪。Playwright Fork 编译本地 playwright-core，独立脚本通过 Electron 支持启动自编译二进制并操作测试页面。ActionDriver 产品不参与本期。
+**Architecture:** Electron Fork 通过官方 gclient/DEPS 链获取 Chromium，自有内核补丁由 Electron 补丁队列追踪。Playwright Fork 编译本地 playwright-core，独立脚本通过 Electron 支持启动自编译二进制并操作测试页面。Action-Driver 产品不参与本期。
 
 **Tech Stack:** macOS arm64、Git、Node.js、npm、Python、depot_tools、GN、Ninja、Electron、Playwright。
 
@@ -15,7 +15,7 @@
 - 源码仓库固定为 https://github.com/jt-jiangtao/playwright 与 https://github.com/jt-jiangtao/electron。
 - Chromium 自有行为改动必须受 ACTION_DRIVER 平台宏控制；Playwright 自有实现必须位于自有目录。
 - 必要上游接线冲突先裁决，不隐含豁免；零行为差异如实记录，不新增扩展接口。
-- 不修改 ActionDriver 产品代码、依赖、打包、面板或工具，不实现 Agent 闭环。
+- 不修改 Action-Driver 产品代码、依赖、打包、面板或工具，不实现 Agent 闭环。
 - 两套实际加载产物都必须来自自有源码构建，不回退官方二进制。
 - 只声明实际验证的 macOS arm64 组合；不推送远程、发布产物或修改用户全局默认 Node 配置。
 - 读取各 Fork 治理文件后执行适用验证；本仓库迭代期不运行全量测试，提交不混入无关改动。
@@ -36,14 +36,14 @@
 
 - `playwright/`：用户 Fork，分支 `codex/fork-baseline`。
 - `electron/src/electron/`：用户 Electron Fork，分支 `codex/fork-baseline`；其余 `src/` 由 gclient 管理。
-- `package.json`：独立 独立包边界，隔离 ActionDriver 根 type=module。
+- `package.json`：独立 独立包边界，隔离 Action-Driver 根 type=module。
 - `tools/depot_tools/`：构建工具，记录其 commit。
-- `playwright/action_driver/baseline/manifest.json`：来源、上游与 Fork commit、Chromium revision、架构、配置、模块路径、二进制路径、校验值。
-- `playwright/action_driver/baseline/electron-app/package.json` 和 `main.cjs`：独立 Electron 页面宿主。
-- `playwright/action_driver/baseline/fixture.html`：本地点击与输入夹具。
-- `playwright/action_driver/baseline/verify.mjs`：来源校验；`smoke.mjs`：兼容脚本与 CLI 入口。
-- `playwright/action_driver/baseline/verify.test.mjs`：校验失败定向测试。
-- `playwright/action_driver/baseline/README.md`：复现步骤及两套差异清单。
+- `playwright/action-driver/baseline/manifest.json`：来源、上游与 Fork commit、Chromium revision、架构、配置、模块路径、二进制路径、校验值。
+- `playwright/action-driver/baseline/electron-app/package.json` 和 `main.cjs`：独立 Electron 页面宿主。
+- `playwright/action-driver/baseline/fixture.html`：本地点击与输入夹具。
+- `playwright/action-driver/baseline/verify.mjs`：来源校验；`smoke.mjs`：兼容脚本与 CLI 入口。
+- `playwright/action-driver/baseline/verify.test.mjs`：校验失败定向测试。
+- `playwright/action-driver/baseline/README.md`：复现步骤及两套差异清单。
 - 工具放 `tools/`；导出的构建产物和截图放 `build/`；下载包放 `downloads/`，日志放 `logs/`。上游要求原位生成的编译中间文件保留其原生布局，交付产物另行导出到 `build/`，不修改上游构建系统。
 
 ## Task 1: 获取并锁定独立源码
@@ -67,24 +67,24 @@
 - [ ] 诊断 Node、Python、Xcode、磁盘和内存。规划时检测到 arm64、约 548 GiB 可用、Xcode 27、Python 3.9.6、默认 Node 20.14.0；这些不能代替实际构建前检查。
 - [ ] 按锁定 Electron 文档准备 Node >=22.12.0 的独立环境与所需 SDK；不改变用户默认 Node。使用 session PATH 选择运行时；兼容 Xcode 需求以源码和构建诊断为准。
 - [ ] 在 Playwright checkout 执行 `npm ci`、`npm run build`。用绝对路径加载 `packages/playwright-core`，断言导出 `_electron.launch`；无需下载官方浏览器来证明本期成功。
-- [ ] 在 Electron `src/` 设置构建工具路径，执行 `gn gen out/ActionDriver --args='import("//electron/build/args/testing.gn") target_cpu="arm64"'`，随后 `ninja -C out/ActionDriver electron`；记录实际配置，允许增量续建，不替换源码基线。
-- [ ] 运行 `out/ActionDriver/Electron.app/Contents/MacOS/Electron --version`；核验 arm64 二进制、版本、构建成功日志与 SHA-256。若失败区分工具链、源码和兼容问题，保留证据。
+- [ ] 在 Electron `src/` 设置构建工具路径，执行 `gn gen out/Action-Driver --args='import("//electron/build/args/testing.gn") target_cpu="arm64"'`，随后 `ninja -C out/Action-Driver electron`；记录实际配置，允许增量续建，不替换源码基线。
+- [ ] 运行 `out/Action-Driver/Electron.app/Contents/MacOS/Electron --version`；核验 arm64 二进制、版本、构建成功日志与 SHA-256。若失败区分工具链、源码和兼容问题，保留证据。
 - [ ] 本期不扩展内核行为，不凭空添加宏接口；若运行兼容迫使修改 Chromium 行为或 Playwright 上游接线，先停止相关写入并重新裁决，再实施宏/目录规则及开关验证。
 
 ## Task 3: 来源核验与独立兼容夹具
 
-**Files:** `playwright/action_driver/baseline/` 中列出的 manifest、校验脚本、测试、独立 app 与 HTML。
+**Files:** `playwright/action-driver/baseline/` 中列出的 manifest、校验脚本、测试、独立 app 与 HTML。
 
 **Interfaces:** `verifyManifest(manifest: object): Promise<void>` 验证来源与文件完整性，错误时抛诊断异常；`runSmoke(manifest: object): Promise<object>` 返回操作断言、版本和截图路径；CLI 非成功返回非零退出码。
 
 - [ ] 先在 `verify.test.mjs` 定义校验断言：不存在的 Electron 路径、错误 SHA-256、预期与实际源码提交不同、自有模块路径落在目标 checkout 外均拒绝；有效构建记录通过。
-- [ ] 执行 `node --test action_driver/baseline/verify.test.mjs` 确认待实现校验失败，再实现 manifest 读取与 `verifyManifest`；重复该定向命令确认通过。不扫描任意全局安装寻找替代。
+- [ ] 执行 `node --test action-driver/baseline/verify.test.mjs` 确认待实现校验失败，再实现 manifest 读取与 `verifyManifest`；重复该定向命令确认通过。不扫描任意全局安装寻找替代。
 - [ ] manifest 写入 Task 1、2 的实际结果；版本组合以该文件的准确来源和运行版本共同核验，路径用绝对路径，不把版本字符串等同于自有构建证明。
-- [ ] HTML 提供一个按钮、一个文本输入和结果区：按钮点击后结果为 `clicked`；输入 `ActionDriver baseline` 后页面值完全一致。server 监听动态 loopback 端口。
-- [ ] 独立 Electron main 创建 BrowserWindow，先加载 about:blank，由 Playwright session 显式导航到夹具 URL，关闭最后一个测试窗口后退出。app 仅测试用途，不加载 ActionDriver。
+- [ ] HTML 提供一个按钮、一个文本输入和结果区：按钮点击后结果为 `clicked`；输入 `Action-Driver baseline` 后页面值完全一致。server 监听动态 loopback 端口。
+- [ ] 独立 Electron main 创建 BrowserWindow，先加载 about:blank，由 Playwright session 显式导航到夹具 URL，关闭最后一个测试窗口后退出。app 仅测试用途，不加载 Action-Driver。
 - [ ] `runSmoke` 通过绝对本地模块路径加载 `_electron`，显式 `executablePath` 指向 Task 2 自编译二进制，启动独立 app；断言导航 URL、按钮结果和输入值，保存 PNG 并核验可解码且非零尺寸。
 - [ ] 关闭页面并断言再次操作失败，验证测试进程退出；在 finally 中关闭 Electron 与 HTTP server。故意引入一个不存在的定位目标验证失败路径也清理资源。
-- [ ] 执行 `node action_driver/baseline/smoke.mjs`；只有来源校验、全部操作断言、截图和清理均成功才输出成功与运行证据。
+- [ ] 执行 `node action-driver/baseline/smoke.mjs`；只有来源校验、全部操作断言、截图和清理均成功才输出成功与运行证据。
 
 ## Task 4: 差异审查与交付
 
@@ -92,7 +92,7 @@
 
 **Interfaces:** Consumes: Task 1–3 输出。Produces: 可复现构建步骤、准确差异清单、实际兼容验收报告。
 
-- [ ] 对两个 Fork 分别检查相对 Task 1 上游 commit 的 `git diff`、已暂存与未追踪文件，确认 Playwright 自有文件全部在 action_driver；Electron 基线没有自有行为改动则明确记录零差异。
+- [ ] 对两个 Fork 分别检查相对 Task 1 上游 commit 的 `git diff`、已暂存与未追踪文件，确认 Playwright 自有文件全部在 action-driver；Electron 基线没有自有行为改动则明确记录零差异。
 - [ ] 若裁决后有内核补丁，导出有序补丁并验证 ACTION_DRIVER 宏开关行为；上游 Electron 原有补丁与自有补丁分开列明。
 - [ ] README 记录所有源码和工具 commit、环境、构建命令、manifest 校验与运行命令、截图及退出证据，注明仅 macOS arm64 实测。
 - [ ] 按各 Fork 治理完成直接相关检查；产品没有代码改动，不为本期文档运行产品全量测试。准备提交时仅暂存本期文件，不推送或发布；记录各仓库提交和验证结果。

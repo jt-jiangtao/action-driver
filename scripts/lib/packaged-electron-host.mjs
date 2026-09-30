@@ -11,7 +11,7 @@ export async function stageVerifiedElectronHost(destination) {
   await access(path.join(artifact.appPath, 'Contents/Info.plist'))
   await exec('ditto', [artifact.appPath, destination])
   await writeFile(
-    path.join(destination, 'Contents/Resources/actiondriver-electron-provenance.json'),
+    path.join(destination, 'Contents/Resources/action-driver-electron-provenance.json'),
     `${JSON.stringify(artifact.provenance, null, 2)}\n`
   )
   return artifact

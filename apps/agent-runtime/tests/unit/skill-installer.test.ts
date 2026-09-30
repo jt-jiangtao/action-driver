@@ -6,7 +6,7 @@ import { AgentFileStore } from '../../src/agent-files/agent-file-store'
 import { SkillInstaller } from '../../src/agent-files/skill-installer'
 
 async function fixture() {
-  const homeDirectory = await mkdtemp(join(tmpdir(), 'actiondriver-install-'))
+  const homeDirectory = await mkdtemp(join(tmpdir(), 'action-driver-install-'))
   const store = new AgentFileStore({ homeDirectory })
   await store.initialize()
   const source = join(homeDirectory, 'source', 'plain')

@@ -6,7 +6,7 @@
 
 ## What Changes
 
-- Runtime SHALL 使用标准 `LANGSMITH_API_KEY`、可选 `LANGSMITH_ENDPOINT` 与 `LANGSMITH_PROJECT` 环境变量把每次模型调用追踪到 LangSmith，并以 ActionDriver 的会话和任务标识关联 trace/thread。
+- Runtime SHALL 使用标准 `LANGSMITH_API_KEY`、可选 `LANGSMITH_ENDPOINT` 与 `LANGSMITH_PROJECT` 环境变量把每次模型调用追踪到 LangSmith，并以 Action-Driver 的会话和任务标识关联 trace/thread。
 - 模型层日志列表 SHALL 从 LangSmith 查询会话/trace 数据并映射为现有会话视图；成功为空时显示空状态，读取失败时显示可诊断错误和重试，MUST NOT 回退到本地或 Mock 模型日志。
 - 模型层日志中的会话和任务“详情”操作 SHALL 在应用内隔离的 Electron `WebContentsView` 中展示受验证的 LangSmith Web URL；应用内自制调用详情视图及其本地请求/响应投影 SHALL 被移除。
 - **BREAKING** `model-log.get` 与本地 `model_calls` 不再作为模型层日志 UI 的数据源；本地任务、消息和接口层交互日志不受影响。

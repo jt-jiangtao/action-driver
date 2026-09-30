@@ -4,8 +4,8 @@
 
 | 路径 | 来源 | 当前提交 |
 | --- | --- | --- |
-| `thirdparty/playwright` | jt-jiangtao/playwright | `7f98443fcd7ffc902aa42e0eeae040e8806bcf28` |
-| `thirdparty/electron` | jt-jiangtao/electron | `8b6c1f84f6c20f79b7176ccf868cf9e7615e9384` |
+| `thirdparty/playwright` | jt-jiangtao/playwright | `2b32735c21cc17880dcf14b8c1b5594c39d45338` |
+| `thirdparty/electron` | jt-jiangtao/electron | `0343e0193a6d593287df7bb0a95765afa35ed7e1` |
 
 新机器拉取（将占位地址替换为主仓库地址）：
 
@@ -34,7 +34,7 @@ git -C thirdparty/electron diff
 
 主仓库显示子仓库的脏状态与提交指针，具体代码差异属于对应子仓库。新文件在子仓库 `status` 中显示，尚未加入索引时不会出现在普通 `diff` 中。
 
-先在相应 Fork 审查、验证、提交代码，并将该提交发布到对应 Fork 远端；再在主仓库更新源码指针。只提交主仓库指针不会上传子仓库文件。当前是本地交付检查点：两个自有提交尚未确认可从远端获取，递归拉取暂不可复现；发布前必须先推送 Fork 提交。
+先在相应 Fork 审查、验证、提交代码，并将该提交发布到对应 Fork 远端；再在主仓库更新源码指针。只提交主仓库指针不会上传子仓库文件。表中两个自有提交已推送至各自远端的 `codex/fork-baseline`，并通过 `git ls-remote` 确认远端引用；主仓库 gitlink 可供递归拉取。
 
 注册后源码目录的 `.git` 是文本文件，分别指向主仓库 `.git/modules/playwright` 和 `.git/modules/electron`；Git 元数据仍存在。`thirdparty/electron` 是直属源码 submodule；gclient 工作区位于 `thirdparty/build/electron-workspace`，Chromium 位于其 `src`，其中 `src/electron` 是同提交的独立构建检出。
 

@@ -11,7 +11,7 @@ function fixture(
 ) {
   const handlers = new Map<string, (_event: unknown, input: unknown) => Promise<unknown>>()
   const fetched: string[] = []
-  const temporaryRoot = mkdtempSync(join(tmpdir(), 'actiondriver-open-ipc-'))
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'action-driver-open-ipc-'))
   registerTaskOutputIpc(
     {
       handle(channel, handler) {

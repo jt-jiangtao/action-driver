@@ -22,5 +22,5 @@ export function syncComputerUseSkill({ sourceDirectory, documentsDirectory, dest
   mkdirSync(dirname(destinationDirectory), { recursive: true })
   cpSync(sourceDirectory, destinationDirectory, { recursive: true })
   cpSync(documentsDirectory, join(destinationDirectory, 'codex-docs'), { recursive: true })
-  writeFileSync(join(destinationDirectory, 'SKILL.md'), metadata + '## ActionDriver tool entry\n\nUse `tools_local_computer_use_js` to execute CUA code and `tools_local_computer_use_reset` to reset it. Read this Skill first with `tools_local_skills_read`. Upstream references to cua_repl are the underlying API, not an additional model tool.\n\n' + body)
+  writeFileSync(join(destinationDirectory, 'SKILL.md'), metadata + '## Action-Driver tool entry\n\nUse `tools_local_computer_use_js` to execute CUA code and `tools_local_computer_use_reset` to reset it. Read this Skill first with `tools_local_skills_read`. Upstream references to cua_repl are the underlying API, not an additional model tool.\n\n' + body)
 }

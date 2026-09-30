@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 运行时依赖只新增 `zustand`，由用户执行 `pnpm --filter @actiondriver/desktop add zustand` 安装（Agent 无法访问 npm）。
+- 运行时依赖只新增 `zustand`，由用户执行 `pnpm --filter @action-driver/desktop add zustand` 安装（Agent 无法访问 npm）。
 - 不引入虚拟列表（用户裁决）。
 - 不改变视觉、交互、IPC、Runtime 协议与 e2e 测试 id。
 - 已发出的任务快照 MUST NOT 被修改；分发路径 MUST NOT 深拷贝整个任务。
@@ -280,7 +280,7 @@ import type {
   ActivityProjection,
   ActivityTextProjection,
   TaskTimelineProjectionItem
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 ```
 
 ```ts
@@ -440,7 +440,7 @@ Expected: 全部 PASS（`stream-session-service` 测试文件若不存在，去�
 
 - [ ] **Step 1: 安装依赖（用户执行）**
 
-Run: `pnpm --filter @actiondriver/desktop add zustand`
+Run: `pnpm --filter @action-driver/desktop add zustand`
 Expected: `apps/desktop/package.json` 出现 `zustand`，`pnpm-lock.yaml` 更新。
 
 - [ ] **Step 2: 写失败的 store 测试**
@@ -449,7 +449,7 @@ Expected: `apps/desktop/package.json` 出现 `zustand`，`pnpm-lock.yaml` 更新
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
-import type { AgentSessionRepository, TaskProjection } from '@actiondriver/contracts'
+import type { AgentSessionRepository, TaskProjection } from '@action-driver/contracts'
 import { bindTaskStoreToRepository, createTaskStore } from './task-store'
 
 const task = (id: string, title = id): TaskProjection => ({
@@ -514,7 +514,7 @@ describe('task store', () => {
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 
 const sidebarRenders = vi.hoisted(() => vi.fn())
 vi.mock('./components/Sidebar', async (importOriginal) => {
@@ -597,7 +597,7 @@ describe('App render scope', () => {
 
   it('asks for Computer Use guidance once however often the task updates', async () => {
     const ensureGuidance = vi.fn(async () => true)
-    vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
+    vi.stubGlobal('productDesktop', { computerUse: { ensureGuidance } })
     const { current, push } = await renderStreamingApp()
     const computerTask = {
       ...current,
@@ -622,7 +622,7 @@ Expected: store 测试因模块不存在 FAIL；`re-renders the task page but no
 
 ```ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import type { AgentSessionRepository, TaskProjection } from '@actiondriver/contracts'
+import type { AgentSessionRepository, TaskProjection } from '@action-driver/contracts'
 
 export type TaskStoreState = {
   /** The task the task page shows; a frozen, structurally shared projection. */
@@ -721,7 +721,7 @@ export function useComputerUseGuidanceFor(taskId: string | null): void {
   useEffect(() => {
     if (!taskId || ensured.current.has(taskId)) return
     ensured.current.add(taskId)
-    const api = window.actionDriverDesktop?.computerUse
+    const api = window.productDesktop?.computerUse
     if (!api?.ensureGuidance) return
     void api.ensureGuidance().catch(() => undefined)
   }, [taskId])
@@ -888,7 +888,7 @@ function ActiveTaskPage(props: Omit<ComponentProps<typeof TaskPage>, 'task'>) {
 
 - [ ] **Step 9: 运行，确认通过**
 
-Run: `pnpm vitest run apps/desktop/src/renderer/src/stores/task-store.test.ts apps/desktop/src/renderer/src/App.render-scope.test.tsx apps/desktop/src/renderer/src/App.test.tsx apps/desktop/src/renderer/src/services/computer-use-guidance.test.tsx && pnpm --filter @actiondriver/desktop typecheck`
+Run: `pnpm vitest run apps/desktop/src/renderer/src/stores/task-store.test.ts apps/desktop/src/renderer/src/App.render-scope.test.tsx apps/desktop/src/renderer/src/App.test.tsx apps/desktop/src/renderer/src/services/computer-use-guidance.test.tsx && pnpm --filter @action-driver/desktop typecheck`
 Expected: 全部 PASS，typecheck 无错误。
 
 ---
@@ -916,7 +916,7 @@ Expected: 全部 PASS，typecheck 无错误。
 ```tsx
 import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { AgentMessageProjection, TaskProjection } from '@actiondriver/contracts'
+import type { AgentMessageProjection, TaskProjection } from '@action-driver/contracts'
 
 const markdownRenders = vi.hoisted(() => vi.fn<(source: string) => void>())
 vi.mock('markdown-it', async (importOriginal) => {
@@ -1107,7 +1107,7 @@ import type {
   PriorActivityTurnProjection,
   TaskOutputFileProjection,
   TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import { ActivityTimeline } from '../ActivityTimeline'
 import { ConversationMessages, EMPTY_TOOLS } from '../Conversation'
 import type { ImageReader } from './ConversationImage'
@@ -1230,7 +1230,7 @@ import { PriorTurn, type TaskShell } from '../components/agent/PriorTurn'
 
 - [ ] **Step 7: 运行，确认通过**
 
-Run: `pnpm vitest run apps/desktop/src/renderer/src/pages apps/desktop/src/renderer/src/components && pnpm --filter @actiondriver/desktop typecheck`
+Run: `pnpm vitest run apps/desktop/src/renderer/src/pages apps/desktop/src/renderer/src/components && pnpm --filter @action-driver/desktop typecheck`
 Expected: 全部 PASS（含新的渲染次数测试与既有 `pages.test.tsx`、`ActivityTimeline.test.tsx`、`Conversation.test.tsx`），typecheck 无错误。
 
 ---

@@ -1,4 +1,4 @@
-import { createProcessObservability, type ProcessObservability } from '@actiondriver/observability'
+import { createProcessObservability, type ProcessObservability } from '@action-driver/observability'
 
 export type ServiceLoggerOptions = {
   level?: string
@@ -13,5 +13,5 @@ export type ServiceLogger = ProcessObservability
  * Service process telemetry is exported over OTLP. No operational log is written beside runtime data.
  */
 export function createServiceLogger(options: ServiceLoggerOptions = {}): ServiceLogger {
-  return createProcessObservability({ serviceName: options.name ?? 'actiondriver-service' })
+  return createProcessObservability({ serviceName: options.name ?? 'action-driver-service' })
 }

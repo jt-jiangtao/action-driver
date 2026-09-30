@@ -29,7 +29,7 @@ describe('model module imports', () => {
   it('bundles the owned CUA session without Codex private service wiring', async () => {
     const bundle = await readFile(join(process.cwd(),
       'apps/agent-runtime/dist/js-repl/owned-cua.mjs'), 'utf8')
-    expect(bundle).toContain('createActionDriverSky')
+    expect(bundle).toContain('createProductSky')
     expect(bundle).not.toMatch(/CODEX_HOME|SKY_CUA_SERVICE_PATH|nativePipe|Codex Computer Use\.app/u)
   })
   it.each(['child_process', 'worker_threads', 'cluster', 'inspector', 'process'])('rejects %s and its node alias', async name => {

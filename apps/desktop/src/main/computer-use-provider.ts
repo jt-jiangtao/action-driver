@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { computerHelperRequest, type ComputerHelperRequest } from '@actiondriver/runtime-contracts'
+import { computerHelperRequest, type ComputerHelperRequest } from '@action-driver/runtime-contracts'
 import type { HostedSkillProvider } from './skill-provider-host'
 
 type Helper = { execute(request: ComputerHelperRequest, signal?: AbortSignal): Promise<unknown> }

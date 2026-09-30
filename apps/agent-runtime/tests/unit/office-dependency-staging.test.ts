@@ -6,7 +6,7 @@ import { join } from 'node:path'
 describe('office dependency staging', () => {
   it('copies the source layout and symlinks without modifying the source', async () => {
     const { stageOfficeDependencies } = await import('../../scripts/stage-office-dependencies.mjs')
-    const root = await mkdtemp(join(tmpdir(), 'actiondriver-office-stage-'))
+    const root = await mkdtemp(join(tmpdir(), 'action-driver-office-stage-'))
     const source = join(root, 'source')
     const target = join(root, 'dist', 'dependencies')
     for (const dir of ['bin/override', 'native', 'node/bin', 'node/node_modules', 'python/bin']) {

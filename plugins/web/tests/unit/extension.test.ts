@@ -3,7 +3,7 @@ import {
   createPluginContext,
   type InvocationContext,
   type ToolExecutor
-} from '@actiondriver/plugin-sdk'
+} from '@action-driver/plugin-sdk'
 import { RuntimeToolRegistry } from '../../../../apps/agent-runtime/src/tool-registry'
 import { activate } from '../../src/extension'
 

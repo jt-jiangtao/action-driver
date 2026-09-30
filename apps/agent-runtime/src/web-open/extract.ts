@@ -1,1 +1,1 @@
-export * from '@actiondriver/web-plugin/extract'
+export * from '@action-driver/web-plugin/extract'

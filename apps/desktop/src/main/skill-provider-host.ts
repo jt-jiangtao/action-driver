@@ -1,4 +1,4 @@
-import type { SkillExecuteRequest, SkillExecuteResult } from '@actiondriver/runtime-contracts'
+import type { SkillExecuteRequest, SkillExecuteResult } from '@action-driver/runtime-contracts'
 
 export type HostedSkillProvider = {
   readonly providerId: string

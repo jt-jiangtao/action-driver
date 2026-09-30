@@ -1,6 +1,6 @@
-import type { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
+import type { STREAM_PROTOCOL } from '@action-driver/runtime-contracts'
 
-export const RUNTIME_CONNECTION_IPC_CHANNEL = 'actiondriver:runtime-connection:get' as const
+export const RUNTIME_CONNECTION_IPC_CHANNEL = 'action-driver:runtime-connection:get' as const
 
 export type RuntimeConnectionInfo = {
   wsUrl: string

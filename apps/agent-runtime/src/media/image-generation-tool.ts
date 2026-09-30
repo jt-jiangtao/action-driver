@@ -1,5 +1,5 @@
-import type { ImageAssetRef, ModelRef } from '@actiondriver/contracts'
-import { createImageGenerationTool as createPluginTool } from '@actiondriver/image-generation-plugin/execution'
+import type { ImageAssetRef, ModelRef } from '@action-driver/contracts'
+import { createImageGenerationTool as createPluginTool } from '@action-driver/image-generation-plugin/execution'
 export type ImageGenerationToolOptions = {
   defaultModel: () => Promise<ModelRef | null>
   generate: (

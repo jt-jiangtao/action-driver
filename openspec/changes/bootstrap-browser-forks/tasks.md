@@ -34,7 +34,7 @@
 
 - 已确认书面计划并执行；输入与模板、命令调度、环境准备已有实现。29 个脚本定向测试通过，OpenSpec strict 与差异检查通过。
 - 实际 prepare 成功：SDK 26.5、Metal 32023.921、Node 22.23.3、depot_tools 固定提交；未安装或升级系统组件。源码指针更新后原 prepare 状态必须重新核验，不自动视为新输入成功。
-- Playwright 自有夹具本地提交 10591bdc1e05692ba829287bf300f81abb2d9001；全部位于 action_driver/baseline，manifest.json 被忽略。真实双 Fork 验证 14/14 通过。主仓库待提交 gitlink 与锁定记录已同步更新。
+- Playwright 自有夹具本地提交 10591bdc1e05692ba829287bf300f81abb2d9001；全部位于 action-driver/baseline，manifest.json 被忽略。真实双 Fork 验证 14/14 通过。主仓库待提交 gitlink 与锁定记录已同步更新。
 - 用户明确批准将该提交推送到 origin 的 codex/fork-baseline；实际推送因 GitHub HTTPS 缺少非交互认证失败，gh 未安装，尚未证明远端提交可获取。因此 1.3 未完成。
 - sync 冲突保护、Ninja 并发／文件句柄上限基础实现已添加，但同步失败恢复、完整依赖安装、导出／来源切换、双 Fork 接线与打包阶段仍待完成。统一 all 入口尚不能用于完整验收。
 - 旧 Electron 解析器、来源记录与有效 bundle 保留。尚未启动新一轮 Electron 编译，未声明全新工作区验收成功。

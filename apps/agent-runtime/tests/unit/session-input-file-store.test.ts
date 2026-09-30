@@ -17,9 +17,9 @@ import { SessionWorkspaceStore } from '../../src/execution/session-workspace'
 const temporaryDirectories: string[] = []
 
 function createStorage() {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-input-store-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-input-store-'))
   temporaryDirectories.push(directory)
-  const database = openRuntimeDatabase(join(directory, 'actiondriver.db'))
+  const database = openRuntimeDatabase(join(directory, 'action-driver.db'))
   const repositories = createTestRepositories(directory)
   const workspaceRoot = join(directory, 'workspace')
   const store = new SessionInputFileStore({

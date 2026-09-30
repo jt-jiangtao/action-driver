@@ -63,7 +63,7 @@
 - 5.2：`pnpm vitest run apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx` 通过（34 项）。
 - 5.3：`pnpm vitest run apps/agent-runtime/src/computer-use/cua-runtime.test.ts` 通过（16 项）；实测 `await import("@oai/sky")` 在加载器接入后成功（导出 1 个键），未接入时报 `Cannot find package '@statsig/js-client'`。
 - 5.4／5.5：`pnpm vitest run apps/agent-runtime/src/computer-use apps/agent-runtime/tests/stream-session-service.test.ts apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx apps/desktop/src/renderer/src/services/stream-task-projection.test.ts packages/runtime-contracts/tests/stream-protocol.test.ts` 通过（21 个文件、258 项）。
-- 类型与静态检查：`pnpm --filter @actiondriver/agent-runtime typecheck`、`pnpm --filter @actiondriver/desktop typecheck` 与改动文件 ESLint 通过。
+- 类型与静态检查：`pnpm --filter @action-driver/agent-runtime typecheck`、`pnpm --filter @action-driver/desktop typecheck` 与改动文件 ESLint 通过。
 - 6.1／6.2：`pnpm vitest run apps/desktop/src/main apps/agent-runtime/src/computer-use apps/agent-runtime/tests/stream-session-service.test.ts apps/desktop/src/renderer/src/components/ActivityTimeline.test.tsx apps/agent-runtime/tests/tool-activity-title.test.ts apps/agent-runtime/tests/agent-graph.test.ts` 通过（38 个文件、257 项）。
 - 6.3：实际错误 `PERSISTENCE_PAYLOAD_REJECTED at runtimeEvent.payload.approval.signal: DOM, Electron, and other live objects are forbidden` 的根因是审批请求展开了调用方上下文；修复后 `pnpm vitest run apps/agent-runtime/src/computer-use apps/agent-runtime/tests/stream-session-service.test.ts apps/desktop/src/main apps/agent-runtime/tests/agent-graph.test.ts` 通过（36 个文件、218 项）。
 - 根因确认：用户实际错误 `SKILL_PROVIDER_FAILED: INVALID_REQUEST: Unsupported Computer Use command` 长度正好 72，与历史记录中的 `[redacted 72 characters]` 一致；原因是 provider 白名单未跟上应用寻址改造。

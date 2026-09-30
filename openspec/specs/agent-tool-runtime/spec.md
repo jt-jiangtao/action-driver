@@ -114,7 +114,7 @@
 
 #### Scenario: 查询日志页面
 - **WHEN** 客户端调用日志查询控制面
-- **THEN** 系统继续排除 `actiondriver:log:list` 等日志读取操作，避免日志递归记录自身
+- **THEN** 系统继续排除 `action-driver:log:list` 等日志读取操作，避免日志递归记录自身
 
 ### Requirement: 工具过程遵循请求内事件顺序
 系统 MUST 为活动、正文、工具生命周期及任务终态使用同一请求内持久化序号；工具条目 SHALL 保持首个生命周期事件的位置，后续同 call id 事件 SHALL 更新该条目。

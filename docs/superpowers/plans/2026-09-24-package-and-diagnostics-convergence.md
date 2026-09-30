@@ -45,7 +45,7 @@
   // Runtime owns this import; wire packages expose ModelConnectionDto only.
   import { createModelProviderAdapter } from './model-connections/provider-adapters'
   ```
-- [ ] **Step 4: Run green and commit.** `pnpm typecheck && pnpm test && pnpm --filter @actiondriver/agent-runtime build`; stage move/import/lock files and commit `refactor(runtime): own model provider implementations`.
+- [ ] **Step 4: Run green and commit.** `pnpm typecheck && pnpm test && pnpm --filter @action-driver/agent-runtime build`; stage move/import/lock files and commit `refactor(runtime): own model provider implementations`.
 
 ### Task 2: UI 投影与 TanStack Query 读取态
 

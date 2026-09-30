@@ -1,4 +1,4 @@
-import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceScope, ResourceWriteRequest } from '@actiondriver/runtime-contracts'
+import type { ResourceEntry, ResourceOperationContext, ResourceReadResult, ResourceScope, ResourceWriteRequest } from '@action-driver/runtime-contracts'
 import { join } from 'node:path'
 import type { SessionInputFileStore } from '../media/session-input-file-store'
 import type { SessionOutputStore } from '../media/session-output-store'
@@ -16,7 +16,7 @@ export const RESOURCE_PROVIDER_VERSIONS = [1] as const
 
 export const WORKSPACE_RESOURCE_SCHEME = 'workspace'
 /** JSON list of `{ scheme, baseUrl, token, version? }` remote resource hosts to proxy. */
-export const REMOTE_RESOURCE_HOSTS_ENV = 'ACTIONDRIVER_RESOURCE_REMOTE_HOSTS'
+export const REMOTE_RESOURCE_HOSTS_ENV = 'ACTION_DRIVER_RESOURCE_REMOTE_HOSTS'
 
 export type RemoteResourceRegistration = {
   descriptor: { scheme: string; version: number }

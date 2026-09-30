@@ -14,4 +14,4 @@
 - 注册顺序保持原样：插件 → 健康/版本 → 媒体 → 模型连接 → Agent 文件/Skill → 任务 → `notFound`；顶层 `onError` 保留在 `createServiceHttpApp`。
 - 新增 1 项定向断言（来源 → 凭据 → body 限制的拒绝优先级、预检短路、错误 envelope）：`pnpm vitest run apps/agent-runtime/tests/unit/service-http.test.ts` 25 项通过。
 - 相关定向套件：`service-http`、`service-logging`、`service-logs`、`service-websocket`、`local-capability-service`、`plugins/composition` 共 57 项通过。
-- `pnpm --filter @actiondriver/agent-runtime typecheck` 与改动文件 ESLint 通过。
+- `pnpm --filter @action-driver/agent-runtime typecheck` 与改动文件 ESLint 通过。

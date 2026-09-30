@@ -15,7 +15,7 @@
 
 ## 3. 契约不变性验证
 
-- [x] 3.1 对外协议不变：HTTP 路由、`actiondriver.stream.v2` 事件顺序与游标恢复；验证：服务端 HTTP 与 `stream-session-service` 定向测试通过
+- [x] 3.1 对外协议不变：HTTP 路由、`action-driver.stream.v2` 事件顺序与游标恢复；验证：服务端 HTTP 与 `stream-session-service` 定向测试通过
 - [x] 3.2 权限与工作区约束不变：服务凭据校验、未授权拒绝、工作区越界拒绝；验证：相关定向测试通过
 - [x] 3.3 桌面监督行为不变：重启上限、就绪等待、关闭超时；验证：`runtime-supervisor` 定向测试通过
 

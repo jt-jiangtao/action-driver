@@ -30,7 +30,7 @@
 - `corepack pnpm lint`：通过，146 项 E2E 交互声明校验通过。
 - `corepack pnpm test`：193 文件通过、1 失败、2 跳过；1181 用例通过、1 失败、2 跳过。唯一失败为 `cua-runtime.test.ts` 应用批准等待 `TIMED_OUT`，上一轮已在原 HEAD 单独复现，与本次迁移无关。未重复运行全量。
 - `corepack pnpm test:e2e:local`：6 通过、2 失败、1 跳过。Skill 列表、主提示词、本地/GitHub 安装及双轮持久会话通过；失败均为现有 UI 断言：测试期望当前 Renderer 不再提供的“生图接口” combobox；预览实际已打开但 AntD 预览 img 未传递断言要求的 alt。独立复审确认 Renderer、local-runtime.spec、model-connections 及 AntD 锁定版本均未变，未扩大任务修改这些 UI/断言。
-- `@actiondriver/pdf-plugin` npm tarball 在仓库外直接导入 `/catalog` 成功；脚手架同包原文件 import、构建和真实宿主回收成功。
+- `@action-driver/pdf-plugin` npm tarball 在仓库外直接导入 `/catalog` 成功；脚手架同包原文件 import、构建和真实宿主回收成功。
 
 - `corepack pnpm test:e2e:packaged:macos`：1 通过；包内全部迁移 Skill/脚本资源检查、Computer helper 签名及明确的 bundled Node/rg 检查通过。
 - 本次提交只含迁移、公共导出、原文件 import 与对应规范；排除 browser-fork-baseline、implement-browser-use 规划和 docs/explorations 等其他线程改动。

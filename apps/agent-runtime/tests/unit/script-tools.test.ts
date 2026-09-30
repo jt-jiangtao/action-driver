@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { chmod, mkdir, mkdtemp, realpath, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ToolCall, ToolExecutionContext } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolExecutionContext } from '@action-driver/runtime-contracts'
 import { createScriptTools } from '../../src/execution/tools'
 import { SessionSandbox } from '../../src/execution/session-sandbox'
 import { z } from 'zod'
@@ -42,8 +42,8 @@ async function collect(
 
 describe('independent script tools', () => {
   it('exposes only complete bundled office dependency paths to shell scripts', async () => {
-    const runtimeDist = await mkdtemp(join(tmpdir(), 'actiondriver-office-env-'))
-    const workspaceRoot = await mkdtemp(join(tmpdir(), 'actiondriver-office-workspace-'))
+    const runtimeDist = await mkdtemp(join(tmpdir(), 'action-driver-office-env-'))
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'action-driver-office-workspace-'))
     const rg = join(runtimeDist, 'bin', 'rg')
     await mkdir(join(rg, '..'), { recursive: true })
     await writeFile(rg, '#!/bin/sh\n')
@@ -101,7 +101,7 @@ describe('independent script tools', () => {
   })
 
   it('runs shell syntax, Python standard library and Node built-ins from bundled paths', async () => {
-    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-tools-')
+    const workspaceRoot = await sessionWorkspaceRoot('action-driver-tools-')
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
     expect(tools.map((tool) => tool.definition.modelName)).toEqual(['tools_local_command_shell_run', 'tools_local_command_python_run', 'tools_local_command_node_run', 'tools_local_command_typescript_run'])
     expect(tools.map((tool) => tool.definition.timeoutMs)).toEqual([120_000, 120_000, 120_000, 120_000])
@@ -121,7 +121,7 @@ describe('independent script tools', () => {
   })
 
   it('rejects ambiguous script input before spawning', async () => {
-    const workspaceRoot = await mkdtemp(join(tmpdir(), 'actiondriver-tools-invalid-'))
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'action-driver-tools-invalid-'))
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
     for (const tool of tools) {
       const schema = z.fromJSONSchema(tool.definition.inputSchema as Parameters<typeof z.fromJSONSchema>[0])
@@ -136,7 +136,7 @@ describe('independent script tools', () => {
   })
 
   it('reports unsupported TypeScript syntax without invoking a system compiler', async () => {
-    const workspaceRoot = await mkdtemp(join(tmpdir(), 'actiondriver-tools-ts-'))
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'action-driver-tools-ts-'))
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
     const ts = tools.find((tool) => tool.definition.modelName === 'tools_local_command_typescript_run')!
     await expect(collect(ts, { script: 'enum Color { Red }\nconsole.log(Color.Red)' }, workspaceRoot))
@@ -144,7 +144,7 @@ describe('independent script tools', () => {
   })
 
   it('starts every script in the session workspace it was given', async () => {
-    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-session-workspace-')
+    const workspaceRoot = await sessionWorkspaceRoot('action-driver-session-workspace-')
     const physicalRoot = await realpath(join(workspaceRoot, 'sessions', 'session-1'))
     const tools = await createScriptTools({ runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist') })
     for (const tool of tools) {
@@ -175,7 +175,7 @@ describe('independent script tools', () => {
   })
 
   it('blocks cross-session reads even when a script asks for the absolute path', async () => {
-    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-sandbox-cross-')
+    const workspaceRoot = await sessionWorkspaceRoot('action-driver-sandbox-cross-')
     const otherSession = join(workspaceRoot, 'sessions', 'session-2', 'output')
     await mkdir(otherSession, { recursive: true })
     await writeFile(join(otherSession, 'secret.txt'), 'other-session-bytes')
@@ -192,7 +192,7 @@ describe('independent script tools', () => {
   })
 
   it('fails closed when the platform cannot establish a session sandbox', async () => {
-    const workspaceRoot = await sessionWorkspaceRoot('actiondriver-sandbox-closed-')
+    const workspaceRoot = await sessionWorkspaceRoot('action-driver-sandbox-closed-')
     const tools = await createScriptTools({
       runtimeDist: join(process.cwd(), 'apps/agent-runtime/dist'),
       sandbox: new SessionSandbox({

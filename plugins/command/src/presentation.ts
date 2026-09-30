@@ -1,4 +1,4 @@
-import type { ToolPresentation } from '@actiondriver/plugin-sdk'
+import type { ToolPresentation } from '@action-driver/plugin-sdk'
 
 const commandOutput: ToolPresentation['output'] = [
   { label: '标准输出', path: 'stdout', kind: 'text' },

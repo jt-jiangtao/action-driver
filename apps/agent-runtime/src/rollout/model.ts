@@ -6,7 +6,7 @@ import { z } from 'zod'
  * view and a reopened session see the same order without anyone recomputing it.
  */
 
-export const ROLLOUT_ORIGINATOR = 'actiondriver-desktop' as const
+export const ROLLOUT_ORIGINATOR = 'action-driver-desktop' as const
 
 const idSchema = z.string().trim().min(1)
 const timestampSchema = z.string().trim().min(1)

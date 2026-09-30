@@ -10,7 +10,7 @@ import { getElectronForkExecutable } from './support/electron-fork'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 
 test('desktop starts from the verified watermarked Electron Fork', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-fork-runtime-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-fork-runtime-'))
   const artifact = await resolveElectronFork()
   expect(artifact.provenance.watermark).toMatchObject({
     enabled: true,
@@ -24,14 +24,14 @@ test('desktop starts from the verified watermarked Electron Fork', async () => {
     env: {
       ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))),
       HOME: directory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: directory
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: directory
     }
   })
   try {
     expect(await application.evaluate(() => process.execPath)).toBe(artifact.executablePath)
     const page = await application.firstWindow()
-    await expect(page).toHaveTitle('ActionDriver')
-    await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+    await expect(page).toHaveTitle('Action-Driver')
+    await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
     const windowId = await application.evaluate(({ BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows()[0]
       if (!window) throw new Error('No native window for watermark capture')
@@ -40,7 +40,7 @@ test('desktop starts from the verified watermarked Electron Fork', async () => {
     const screenshots = join(root, 'thirdparty/build/verification/watermark')
     mkdirSync(screenshots, { recursive: true })
     execFileSync('/usr/sbin/screencapture', [
-      '-x', '-o', `-l${windowId}`, join(screenshots, 'development-actiondriver.png')
+      '-x', '-o', `-l${windowId}`, join(screenshots, 'development-action-driver.png')
     ])
   } finally {
     await application.close()

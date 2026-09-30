@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Image as ImageIcon, SquareArrowOutUpRight } from 'lucide-react'
-import type { TaskOutputFileProjection } from '@actiondriver/contracts'
+import type { TaskOutputFileProjection } from '@action-driver/contracts'
 import { openTaskOutput } from '../../services/task-output-open'
 import documentIconUrl from '../../assets/file-document.png'
 import pdfIconUrl from '../../assets/file-pdf.png'

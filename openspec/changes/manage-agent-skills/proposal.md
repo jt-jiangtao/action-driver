@@ -26,7 +26,7 @@
 ## Impact
 
 - Runtime：新增限定在 `~/.action-driver/prompts` 与 `~/.action-driver/skills` 的文件读写、目录枚举、原子保存和任务启动读取能力。
-- 客户端：新增与现有 ActionDriver 主题一致的主提示词与 Skills 设置页、单面板 Markdown 编辑、Monaco 源码模式和设置导航；应用主侧栏 Skills 改为快捷入口。
+- 客户端：新增与现有 Action-Driver 主题一致的主提示词与 Skills 设置页、单面板 Markdown 编辑、Monaco 源码模式和设置导航；应用主侧栏 Skills 改为快捷入口。
 - 契约：新增主提示词文件、Skill 目录树、文件内容、保存状态与执行器状态 DTO，以及相应查询和变更接口。
 - 测试：生产组合根验证不注入 Mock；测试组合根继续使用确定性替身覆盖加载、空、保存、失败和删除等状态。
 

@@ -8,7 +8,7 @@ import { RolloutProjection } from '../../../src/rollout/projection'
 const temporaryDirectories: string[] = []
 
 function workspace(): { root: string; rolloutPath: string; statePath: string; historyPath: string } {
-  const root = mkdtempSync(join(tmpdir(), 'actiondriver-projection-'))
+  const root = mkdtempSync(join(tmpdir(), 'action-driver-projection-'))
   temporaryDirectories.push(root)
   return {
     root,
@@ -39,7 +39,7 @@ const sessionMeta: RolloutLine = {
   sessionId: 'session-1',
   threadId: 'session-1',
   model: { connectionId: 'conn', modelId: 'model' },
-  originator: 'actiondriver-desktop',
+  originator: 'action-driver-desktop',
   version: '0.1.0'
 }
 

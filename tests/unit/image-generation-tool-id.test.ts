@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { IMAGE_GENERATION_TOOL_ID } from '@actiondriver/contracts'
+import { IMAGE_GENERATION_TOOL_ID } from '@action-driver/contracts'
 
 const root = process.cwd()
 const literal = 'tools/local/image-generation/generate'

@@ -44,7 +44,7 @@
 
 - [ ] **Step 2: 验证测试失败**
 
-Run: `corepack pnpm --filter @actiondriver/agent-runtime test -- agent-graph.test.ts`
+Run: `corepack pnpm --filter @action-driver/agent-runtime test -- agent-graph.test.ts`
 
 Expected: FAIL，因为当前两条工具事件的 `activityId` 为 `null`，且没有兜底活动事件。
 
@@ -54,7 +54,7 @@ Expected: FAIL，因为当前两条工具事件的 `activityId` 为 `null`，且
 
 - [ ] **Step 4: 验证定向测试通过**
 
-Run: `corepack pnpm --filter @actiondriver/agent-runtime test -- agent-graph.test.ts`
+Run: `corepack pnpm --filter @action-driver/agent-runtime test -- agent-graph.test.ts`
 
 Expected: PASS，已有显式活动更新用例和新增普通工具批次用例均通过。
 
@@ -75,7 +75,7 @@ Expected: PASS，已有显式活动更新用例和新增普通工具批次用例
 
 - [ ] **Step 2: 验证测试失败**
 
-Run: `corepack pnpm --filter @actiondriver/agent-runtime test -- stream-session-service.test.ts`
+Run: `corepack pnpm --filter @action-driver/agent-runtime test -- stream-session-service.test.ts`
 
 Expected: FAIL，因为当前 snapshot schema 和 payload 没有活动过程字段。
 
@@ -85,7 +85,7 @@ Expected: FAIL，因为当前 snapshot schema 和 payload 没有活动过程字�
 
 - [ ] **Step 4: 验证定向测试通过**
 
-Run: `corepack pnpm --filter @actiondriver/agent-runtime test -- stream-session-service.test.ts`
+Run: `corepack pnpm --filter @action-driver/agent-runtime test -- stream-session-service.test.ts`
 
 Expected: PASS，过期恢复得到可渲染活动快照，既有 snapshot 用例继续通过。
 
@@ -106,7 +106,7 @@ Expected: PASS，过期恢复得到可渲染活动快照，既有 snapshot 用�
 
 - [ ] **Step 2: 验证测试失败**
 
-Run: `corepack pnpm --filter @actiondriver/desktop test -- stream-task-projection.test.ts`
+Run: `corepack pnpm --filter @action-driver/desktop test -- stream-task-projection.test.ts`
 
 Expected: FAIL，因为当前 `response.snapshot` 仅映射 messages 与 tools。
 
@@ -116,7 +116,7 @@ Expected: FAIL，因为当前 `response.snapshot` 仅映射 messages 与 tools�
 
 - [ ] **Step 4: 验证定向测试通过**
 
-Run: `corepack pnpm --filter @actiondriver/desktop test -- stream-task-projection.test.ts`
+Run: `corepack pnpm --filter @action-driver/desktop test -- stream-task-projection.test.ts`
 
 Expected: PASS，实时投影与 snapshot 投影都产生相同活动树。
 
@@ -139,7 +139,7 @@ Expected: PASS，实时投影与 snapshot 投影都产生相同活动树。
 
 - [ ] **Step 2: 验证测试失败**
 
-Run: `corepack pnpm --filter @actiondriver/desktop test -- pages.test.tsx ActivityTimeline.test.tsx`
+Run: `corepack pnpm --filter @action-driver/desktop test -- pages.test.tsx ActivityTimeline.test.tsx`
 
 Expected: FAIL，因为 `TaskPage` 仍在 `activityTimeline` 缺失时渲染 `ToolActivityCards`。
 
@@ -149,7 +149,7 @@ Expected: FAIL，因为 `TaskPage` 仍在 `activityTimeline` 缺失时渲染 `To
 
 - [ ] **Step 4: 验证组件测试通过**
 
-Run: `corepack pnpm --filter @actiondriver/desktop test -- pages.test.tsx ActivityTimeline.test.tsx`
+Run: `corepack pnpm --filter @action-driver/desktop test -- pages.test.tsx ActivityTimeline.test.tsx`
 
 Expected: PASS，工具任务使用 Codex 时间线，结论不进入过程归档。
 

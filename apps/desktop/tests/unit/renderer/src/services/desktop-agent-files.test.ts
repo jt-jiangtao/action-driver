@@ -13,7 +13,7 @@ function apiStub(overrides: Partial<AgentFilesDesktopApi> = {}): AgentFilesDeskt
     }),
     resetMainPrompt: async () => ({
       path: '.action-driver/prompts/main.md',
-      content: '# ActionDriver 主提示词',
+      content: '# Action-Driver 主提示词',
       digest: 'reset',
       modifiedAt: 'now'
     }),
@@ -71,7 +71,7 @@ describe('DesktopAgentFilesService', () => {
   it('forwards successful file operations', async () => {
     const service = new DesktopAgentFilesService(apiStub())
     expect((await service.getMainPrompt()).content).toBe('# Prompt')
-    expect((await service.resetMainPrompt('a')).content).toContain('ActionDriver')
+    expect((await service.resetMainPrompt('a')).content).toContain('Action-Driver')
     expect((await service.readFile('.action-driver/skills/example/SKILL.md')).path).toContain(
       'example'
     )

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
-import type { Json, PlacementDeclaration } from '@actiondriver/plugin-contracts'
+import type { Json, PlacementDeclaration } from '@action-driver/plugin-contracts'
 import { HostRegistry, type PlacementAuditEntry, type PlacementError } from '../../../src/placement/hosts'
 import { PlacementInvoker, type HostChannel } from '../../../src/placement/invoker'
 import { selectHost } from '../../../src/placement/selector'

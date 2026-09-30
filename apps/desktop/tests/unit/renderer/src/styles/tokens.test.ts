@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { colorTokens, layoutTokens, motionTokens, typographyTokens } from '../../../../../src/renderer/src/styles/tokens'
 
-describe('ActionDriver design tokens', () => {
+describe('Action-Driver design tokens', () => {
   it('matches the Figma foundations used by the desktop layouts', () => {
     expect(colorTokens.actionPrimary).toBe('#5267F7')
     expect(colorTokens.bgSidebar).toBe('#F7F7F8')

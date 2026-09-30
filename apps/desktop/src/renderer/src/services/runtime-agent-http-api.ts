@@ -4,7 +4,7 @@ import type {
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import type { AgentDesktopApi } from '../../../preload/desktop-api'
 import type { RuntimeHttpClient } from './runtime-http-client'
 

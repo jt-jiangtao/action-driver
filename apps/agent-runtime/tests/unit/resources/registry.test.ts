@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ResourceError, type ResourceProvider } from '@actiondriver/runtime-contracts'
+import { ResourceError, type ResourceProvider } from '@action-driver/runtime-contracts'
 import { ResourceProviderRegistry } from '../../../src/resources/registry'
 
 const authority = { taskId: 'task-1', sessionId: 'session-1' }

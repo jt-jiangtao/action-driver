@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
-import { ResourceError } from '@actiondriver/runtime-contracts'
+import { ResourceError } from '@action-driver/runtime-contracts'
 import { RESOURCE_INLINE_MAX_BYTES, registerResourceRoutes } from '../../../src/service/http/http-routes-resources'
 import { mapErrorToResponse } from '../../../src/service/http/http-errors'
 import { failure } from '../../../src/service/http/http-contract'

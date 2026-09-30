@@ -2,7 +2,7 @@
 
 `image.generate` 已按 1–4 条需求并行执行，`tool.asset` 带有调用 ID 和输入索引。界面目前只看到已完成图片，运行中没有每张图片的稳定位置。更明显的是 Runtime 和桌面投影在 `response.end` 都把图片移到文字前面，导致结束时跳位；持久化记录继承这一顺序。
 
-系统 Skill 已从随包资源播种到 `~/.action-driver/skills/.system`，可在设置中查看及启停。Codex Imagegen Skill 的原始执行说明依赖 Codex 内置生图工具，不能直接成为 ActionDriver 的默认调用路径。
+系统 Skill 已从随包资源播种到 `~/.action-driver/skills/.system`，可在设置中查看及启停。Codex Imagegen Skill 的原始执行说明依赖 Codex 内置生图工具，不能直接成为 Action-Driver 的默认调用路径。
 
 ## Goals / Non-Goals
 
@@ -41,7 +41,7 @@ Runtime 生成持久化内容以及桌面投影读取流式、结束和历史消
 
 ### 4. 完整复制并适配 Imagegen 系统 Skill
 
-将本机 `.codex/skills/.system/imagegen` 下的 `SKILL.md`、`references`、`scripts`、`assets`、`agents` 和 `LICENSE.txt` 全部复制到随包 `system-skills/imagegen`。保留许可证与引用关系；把主 Skill 和必要入口元数据中的默认执行步骤改成 ActionDriver 的 `image.generate`，明确附带 CLI 仅供参考且并非隐式回退。加入系统 ID 保护、初始化播种及打包资源校验；继续使用现有启停逻辑和模型权限。
+将本机 `.codex/skills/.system/imagegen` 下的 `SKILL.md`、`references`、`scripts`、`assets`、`agents` 和 `LICENSE.txt` 全部复制到随包 `system-skills/imagegen`。保留许可证与引用关系；把主 Skill 和必要入口元数据中的默认执行步骤改成 Action-Driver 的 `image.generate`，明确附带 CLI 仅供参考且并非隐式回退。加入系统 ID 保护、初始化播种及打包资源校验；继续使用现有启停逻辑和模型权限。
 
 **替代方案：** 原样复制。它默认调用本应用不存在的 Codex 内置工具，用户启用后仍无法生图，因此不采用。
 

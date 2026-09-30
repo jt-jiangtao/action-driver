@@ -564,7 +564,7 @@ describe('agent stream protocol', () => {
 
   it.each([
     ['blank id', { eventId: '' }],
-    ['unsupported protocol', { protocol: 'actiondriver.stream.v1' }],
+    ['unsupported protocol', { protocol: 'action-driver.stream.v1' }],
     ['negative cursor', { cursor: -1 }]
   ])('rejects %s in a server event', (_label, override) => {
     expect(() =>

@@ -11,7 +11,7 @@ Use this Skill for a Figma design audit or for validation after Figma UI changes
 
 1. Load `figma-use` before calling Figma `use_figma`.
 2. Read [references/audit-rules.md](references/audit-rules.md) before extracting a snapshot or interpreting a finding.
-3. Resolve the requested file and page scope. For ActionDriver, use `design/figma-ui-audit.config.json` as the project contract.
+3. Resolve the requested file and page scope. For Action-Driver, use `design/figma-ui-audit.config.json` as the project contract.
 4. Extract a fresh snapshot with one `use_figma` call per page. Each call may switch page exactly once with `await figma.setCurrentPageAsync(page)`.
 5. Save snapshots outside the repository unless the user requests checked-in fixtures. Validate the snapshot page id and required fields before running the script.
 6. Run both reports:

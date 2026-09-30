@@ -1,8 +1,8 @@
-import { ActionDriverLogo } from '../components/ActionDriverLogo'
+import { ProductLogo } from '../components/ProductLogo'
 import { AgentComposer, type ComposerAttachments } from '../components/AgentComposer'
 import { SidebarRestoreButton } from '../components/navigation/SidebarRestoreButton'
 import type { ModelSelectionProjection } from '../models/model-selection'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 
 export function HomePage({
   modelSelection,
@@ -31,10 +31,10 @@ export function HomePage({
       <div className="home-body">
         <section className="home-hero">
           <div className="home-logo-frame">
-            <ActionDriverLogo size={58} />
+            <ProductLogo size={58} />
           </div>
           <div className="home-copy">
-            <h1>我们应该在 ActionDriver 中做些什么？</h1>
+            <h1>我们应该在 Action-Driver 中做些什么？</h1>
             <p>描述目标，Agent 会使用所选模型完成任务并保留完整记录。</p>
           </div>
         </section>

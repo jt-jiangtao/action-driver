@@ -1,5 +1,5 @@
 import type { HttpTransport } from './http-transport'
-import type { ModelRef } from '@actiondriver/contracts'
+import type { ModelRef } from '@action-driver/contracts'
 import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from './provider-adapters'
 import { createModelProviderAdapter } from './provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
@@ -11,7 +11,7 @@ import type { SecretCipher } from './credential-cipher'
 import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
-import { ModelServiceError } from '@actiondriver/model-connections'
+import { ModelServiceError } from '@action-driver/model-connections'
 import { capabilityCandidates, isChatCandidate } from './model-capability-catalog'
 import { probeCapability } from './capability-probes'
 import type {
@@ -29,7 +29,7 @@ import type {
   ModelTestResultDto,
   ModelConnectionServicePort,
   ModelCompletionServicePort
-} from '@actiondriver/model-connections'
+} from '@action-driver/model-connections'
 
 export type ModelConnectionServiceOptions = {
   store: ModelConnectionStore

@@ -1,4 +1,4 @@
-import type { ModelCompletionOutcome } from '@actiondriver/model-connections'
+import type { ModelCompletionOutcome } from '@action-driver/model-connections'
 import type { HttpTransport } from './http-transport'
 import { HttpTransportError } from './http-transport'
 import {

@@ -1,13 +1,13 @@
 export const AGENT_RUNTIME_VERSION = '0.1.0'
 
 export interface AgentRuntimeBuildInfo {
-  name: '@actiondriver/agent-runtime'
+  name: '@action-driver/agent-runtime'
   version: string
 }
 
 export function getAgentRuntimeBuildInfo(): AgentRuntimeBuildInfo {
   return {
-    name: '@actiondriver/agent-runtime',
+    name: '@action-driver/agent-runtime',
     version: AGENT_RUNTIME_VERSION
   }
 }

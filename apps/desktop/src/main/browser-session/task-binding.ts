@@ -5,11 +5,11 @@ import type {
   BrowserSessionSnapshot,
   BrowserSurface,
   createBrowserDesktopSessionController
-} from '@actiondriver/browser-desktop'
+} from '@action-driver/browser-desktop'
 
 type Controller = ReturnType<typeof createBrowserDesktopSessionController>
 
-/** Keeps ActionDriver task ownership out of the reusable browser-desktop package. */
+/** Keeps Action-Driver task ownership out of the reusable browser-desktop package. */
 export function createTaskBrowserBinding(controller: Controller) {
   const sessions = new Map<string, Map<BrowserSurface, string>>()
   const opening = new Map<string, Map<BrowserSurface, Promise<BrowserSessionSnapshot>>>()

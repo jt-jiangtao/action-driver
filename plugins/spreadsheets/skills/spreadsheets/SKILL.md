@@ -452,7 +452,7 @@ Never cite intermediates unless asked.
 - Bundled Python libraries available in the bundled runtime environment for extraction/analysis include `pandas`, `numpy`, `pypdf`, `python-docx`, and `reportlab`. You may read/extract in separate scripts if needed.
 - Bundled JS libraries available for document/PDF work include `docx`, `pdf-lib`, and `pdfjs-dist`.
 
-## ActionDriver working directory
+## Action-Driver working directory
 
 - Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
 - Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.

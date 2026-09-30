@@ -1,5 +1,5 @@
-import type { Contribution, InvocationContext, Json, PluginManifest, PluginOwner } from '@actiondriver/plugin-contracts'
-import type { Disposable, StopReason } from '@actiondriver/plugin-sdk'
+import type { Contribution, InvocationContext, Json, PluginManifest, PluginOwner } from '@action-driver/plugin-contracts'
+import type { Disposable, StopReason } from '@action-driver/plugin-sdk'
 export interface PluginRepository {
   publish(manifest: PluginManifest): Promise<void>
   list(): Promise<PluginManifest[]>

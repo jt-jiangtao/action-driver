@@ -1,6 +1,6 @@
-import { toolIdSchema, toolPresentationSchema } from '@actiondriver/plugin-contracts'
+import { toolIdSchema, toolPresentationSchema } from '@action-driver/plugin-contracts'
 import { z } from 'zod'
-import type { ImageAssetRef } from '@actiondriver/contracts'
+import type { ImageAssetRef } from '@action-driver/contracts'
 
 const idSchema = z.string().trim().min(1)
 const jsonObjectSchema = z.record(z.string(), z.json())

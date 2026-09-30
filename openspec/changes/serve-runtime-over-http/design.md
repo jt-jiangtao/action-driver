@@ -39,7 +39,7 @@
 ### 2. 传输：HTTP 承载配置，WebSocket 承载会话
 
 - HTTP：`GET /health`、`GET /version`、模型连接 CRUD、模型发现、连接测试、模型测试、任务查询。
-- WebSocket：客户端建立一条应用级长期连接，使用子协议 `actiondriver.stream.v2`。客户端事件为 `auth`、`request.create`、`request.cancel`、`request.resume`；服务端控制事件为 `session.ready`、`request.accepted`、`request.error`、`response.snapshot`；流式事件固定为 `response.start`、`response.content`、`response.end`。原 v1 响应级计序已由 `converge-runtime-architecture` 的请求级连续计序覆盖。
+- WebSocket：客户端建立一条应用级长期连接，使用子协议 `action-driver.stream.v2`。客户端事件为 `auth`、`request.create`、`request.cancel`、`request.resume`；服务端控制事件为 `session.ready`、`request.accepted`、`request.error`、`response.snapshot`；流式事件固定为 `response.start`、`response.content`、`response.end`。原 v1 响应级计序已由 `converge-runtime-architecture` 的请求级连续计序覆盖。
 - 生命周期：服务端只有在初始会话、任务和用户消息持久化成功后才发送 `request.accepted`。每个已开始响应严格遵循 `start → content* → end`；开始前失败使用 `request.error`，开始后的完成、失败和取消都以唯一 `response.end` 收口。
 - 标识：`eventId` 用于去重，`requestId` 用于命令关联，`idempotencyKey` 用于安全重试；`responseId`、`sessionId`、`taskId`、`streamId`、`messageId` 分别标识响应、会话、任务、流和消息。每个响应的 `sequence` 从 0 单调递增，持久化事件另带全局可恢复 `cursor`。
 - 事件恢复：传输按至少一次投递设计。客户端只在成功应用请求内连续 `sequence` 的事件后推进本地 cursor，重连时发送 `request.resume(afterCursor)`；服务端重放相同 `eventId` 的原事件，客户端先按 `eventId` 去重，再按请求 `sequence` 检测缺口。保留窗口外返回 `response.snapshot`，客户端用持久化全文替换不完整投影。
@@ -100,11 +100,11 @@
 - 入口做了背压保护：队列满时返回 JSON-RPC `-32001 Server overloaded; retry later`，客户端按指数退避 + 抖动重试。
 - 客户端类型由服务端按版本生成（`codex app-server generate-ts` / `generate-json-schema`），避免协议漂移。
 
-对 ActionDriver 的取舍：
+对 Action-Driver 的取舍：
 
 1. **采纳**：本地服务端持有会话与配置、客户端是它的客户端、健康检查走 HTTP、远端模式用 WSS + token + TLS、反向调用走服务端出站连接、入口做背压与结构化错误、客户端类型由服务端版本生成。
 2. **调整**：Codex 明确拒绝带 Origin 的本地请求，说明"浏览器页面直连本地服务端"不是它采用的做法。因此本地形态建议由 Electron Main 作为服务端的原生客户端（页面经窄桥接口使用能力），云端形态再由页面直连 HTTPS/WSS。两个形态对页面暴露同一组接口，只替换传输适配器。
-3. **不建议照搬**：WebSocket 在 Codex 中仍是实验性传输，默认是 stdio；ActionDriver 是 Electron + TypeScript，直接采用 HTTP + WebSocket 比自实现 stdio 帧更稳妥，但需要自行承担 Codex 已经处理好的鉴权、背压与版本兼容。
+3. **不建议照搬**：WebSocket 在 Codex 中仍是实验性传输，默认是 stdio；Action-Driver 是 Electron + TypeScript，直接采用 HTTP + WebSocket 比自实现 stdio 帧更稳妥，但需要自行承担 Codex 已经处理好的鉴权、背压与版本兼容。
 4. **与 Codex 的差异（2026-09-22 用户裁决）**：云端执行**不操作**用户本机 GUI。云端装配只运行服务端侧能力（含将来的云端浏览器/沙箱），不通过客户端反向请求本机 Browser/Computer 动作；本机 GUI 动作只发生在本地装配。这样云端与本地是两套执行环境，而不是"云端大脑 + 本机手脚"。
 
 ### 8. 接口日志：结构化配对事件与独立载荷存储
@@ -123,7 +123,7 @@
 
 查询端口拆分为摘要分页与单条详情：`list` 支持传输协议、方向、级别、关键词和分页游标，`getDetail` 只接受事件 ID。协议筛选只表达 IPC、HTTP、WebSocket；OpenAI/Anthropic 属于模型供应商协议，保留为上下文字段或后续独立筛选，不混入传输协议枚举。
 
-日志查询与维护接口属于观测控制面，不属于被观测业务流量。Main 的统一 IPC 采集入口必须在开始记录前排除 `actiondriver:log:*`，包括列表、详情、刷新与后续日志管理通道；排除规则集中维护并由回归测试验证，避免日志页面每次刷新都生成新的日志事件。
+日志查询与维护接口属于观测控制面，不属于被观测业务流量。Main 的统一 IPC 采集入口必须在开始记录前排除 `action-driver:log:*`，包括列表、详情、刷新与后续日志管理通道；排除规则集中维护并由回归测试验证，避免日志页面每次刷新都生成新的日志事件。
 
 替代方案 A：把完整 Request/Response 直接内联到现有 JSONL。实现成本较低，但自动刷新会重复读取并跨 IPC 传输大正文，现有小文件轮转也会快速淘汰可用记录。
 
@@ -145,7 +145,7 @@
 
 本地生产装配必须读取真实数据：模型选项来自连接服务，最近任务/会话与任务详情来自 Runtime 存储，接口层日志来自 `InteractionLogStore`，模型层日志由真实运行事件投影。刷新应用或重启本地服务后仍能恢复这些数据。Mock catalog、示例会话与示例模型日志只保留在测试/视觉装配中，并通过组合根显式注入，不能作为真实数据为空或请求失败时的降级内容。
 
-日志链路覆盖客户端创建、Runtime 处理和供应商调用。供应商调用新增 `service->model` 方向，并在开始时创建一条 pending 记录，终态时以同一 `correlationId` 写入不含鉴权头和 API Key 的完整模型请求、最终聚合响应、用量、结束原因、状态与耗时。中间供应商分片和 `response.content` 不各自创建日志记录。模型层日志按同一 `taskId`、`requestId`、`correlationId` 投影系统提示词、用户输入、模型请求、最终模型响应和任务终态。`actiondriver:log:*` 等日志查询控制面继续排除，避免查看日志产生新的日志。
+日志链路覆盖客户端创建、Runtime 处理和供应商调用。供应商调用新增 `service->model` 方向，并在开始时创建一条 pending 记录，终态时以同一 `correlationId` 写入不含鉴权头和 API Key 的完整模型请求、最终聚合响应、用量、结束原因、状态与耗时。中间供应商分片和 `response.content` 不各自创建日志记录。模型层日志按同一 `taskId`、`requestId`、`correlationId` 投影系统提示词、用户输入、模型请求、最终模型响应和任务终态。`action-driver:log:*` 等日志查询控制面继续排除，避免查看日志产生新的日志。
 
 自动化回归使用本地假 OpenAI-compatible HTTP 服务，以确定性覆盖多分片 Markdown、错误、取消与断线恢复；但它不能替代真实服务验收。交付前还必须使用用户已在模型连接页配置并启用的真实 OpenAI-compatible 服务完成一次 live smoke：生产装配从 Runtime 凭据存储读取真实密钥，通过 WebSocket 创建任务并展示真实流式返回，结束后任务、消息与两层日志均可查询。live smoke 不把密钥写入命令、夹具、截图、日志或仓库，真实服务不可用时明确失败且不得回退假服务或 Mock。两类验收都断言不存在 Browser/Computer 面板、分片日志或正文重复。
 
@@ -155,7 +155,7 @@
 
 Runtime 使用官方 `openai` Node SDK 调用已保存连接的 `/chat/completions` 流式接口。每次调用以连接的 `baseUrl` 和服务端解密出的 API Key 创建受限客户端，设置 `maxRetries: 0`，并显式传入 15 秒超时与调用级 `AbortSignal`；请求固定携带 `stream: true` 和 `stream_options.include_usage: true`。适配器只向领域层暴露可见文本 delta、最终全文、`finish_reason`、usage、HTTP 状态和安全的聚合响应，不暴露客户端实例、地址、请求头或凭据。
 
-SDK 负责 HTTP、SSE 分帧、UTF-8 边界、结构化 chunk、取消与供应商错误；ActionDriver 继续负责模型引用校验、`start → content* → end` 生命周期、无 `[DONE]`/非完整终态判定、事件持久化、幂等与重放、单条聚合 Request/Response 日志以及凭据过滤。SDK 的 debug logging 必须关闭，避免请求正文或供应商响应绕过现有日志边界；自动重试关闭，避免一次用户请求产生不可见的多次供应商调用和重复日志。
+SDK 负责 HTTP、SSE 分帧、UTF-8 边界、结构化 chunk、取消与供应商错误；Action-Driver 继续负责模型引用校验、`start → content* → end` 生命周期、无 `[DONE]`/非完整终态判定、事件持久化、幂等与重放、单条聚合 Request/Response 日志以及凭据过滤。SDK 的 debug logging 必须关闭，避免请求正文或供应商响应绕过现有日志边界；自动重试关闭，避免一次用户请求产生不可见的多次供应商调用和重复日志。
 
 替代方案 A：继续维护自研 Fetch + SSE 解析器。优势是完全掌控 wire format，代价是需要长期处理 UTF-8 分片、多行 `data:`、畸形帧、取消竞态、超时和供应商兼容差异。替代方案 B：只使用 `eventsource-parser`。它能可靠分帧，但 HTTP、错误分类、OpenAI chunk 类型和取消仍需自研。用户确认采用官方 SDK，以最小化协议层维护成本；若已配置兼容网关无法被 SDK 正确解析，则以该网关的可复现响应作为新证据重新 Battle，而不是静默退回自研解析器。裁决状态：**已裁决（2026-09-23）：采用官方 `openai` Node SDK。**
 

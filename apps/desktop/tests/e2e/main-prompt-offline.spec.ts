@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url'
 const desktopRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 test('主提示词源码在 Monaco CDN 不可用时仍显示内容', async () => {
-  const userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-monaco-e2e-'))
-  const homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-monaco-home-'))
+  const userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-monaco-e2e-'))
+  const homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-monaco-home-'))
   const application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
     cwd: desktopRoot,
@@ -18,7 +18,7 @@ test('主提示词源码在 Monaco CDN 不可用时仍显示内容', async () =>
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: homeDirectory
     }
   })
   try {
@@ -31,11 +31,11 @@ test('主提示词源码在 Monaco CDN 不可用时仍显示内容', async () =>
 
     await page.getByRole('button', { name: '设置' }).click()
     await page.getByTestId('e2e/settings/sidebar/main-prompt#button').click()
-    await expect(page.getByRole('heading', { name: 'ActionDriver 主提示词' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Action-Driver 主提示词' })).toBeVisible()
     await page.getByTestId('e2e/settings/agent-editors/main-prompt/mode/source#button').click()
 
     await expect(page.locator('.agent-monaco-editor .view-lines')).toContainText(
-      'ActionDriver 主提示词',
+      'Action-Driver 主提示词',
       { timeout: 5_000 }
     )
     await page.getByRole('textbox', { name: '主提示词 Markdown 源码' }).focus()

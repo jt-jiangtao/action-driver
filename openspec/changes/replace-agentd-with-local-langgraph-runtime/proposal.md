@@ -1,6 +1,6 @@
 ## Why
 
-现有运行时规划以 Go、Eino、gRPC 和 Protobuf 为核心，但 ActionDriver 的 Agent Loop 需要与 Electron、TypeScript 领域模型和本地 Skill Provider 高频协作，并原生支持暂停、继续、人工接管与持久化恢复。改用本地 Node.js/TypeScript + LangGraph 可以减少跨语言边界，让 Agent 编排、依赖注入和桌面能力调用保持类型一致，同时继续确保历史会话只保存在客户端。
+现有运行时规划以 Go、Eino、gRPC 和 Protobuf 为核心，但 Action-Driver 的 Agent Loop 需要与 Electron、TypeScript 领域模型和本地 Skill Provider 高频协作，并原生支持暂停、继续、人工接管与持久化恢复。改用本地 Node.js/TypeScript + LangGraph 可以减少跨语言边界，让 Agent 编排、依赖注入和桌面能力调用保持类型一致，同时继续确保历史会话只保存在客户端。
 
 ## What Changes
 
@@ -8,7 +8,7 @@
 - 在独立的 `apps/agent-runtime` 中使用 LangGraph 编排 Agent Loop、checkpoint、中断、继续和等待用户；LangChain 仅按需提供模型与 Tool 适配，不使用高层 `createAgent` 作为核心循环。
 - Electron Main 负责启动和监督单一 Runtime 进程，并通过版本化、类型安全的本地消息协议进行双向通信；Renderer 仍只能通过白名单 Preload API 使用 Agent 能力。
 - Preload 白名单增加类型化 `controlSkill(invocationId, command)`，只允许暂停、继续和人工接管三种 Skill 控制命令，使生产 Renderer 不需要保留伪造的 Mock SkillGateway。
-- 由本地 Runtime 独占 SQLite 写入，保存任务、消息、步骤、Skill 调用、运行事件、历史会话和 LangGraph checkpoint；远程模型推理端不保存 ActionDriver 会话历史。
+- 由本地 Runtime 独占 SQLite 写入，保存任务、消息、步骤、Skill 调用、运行事件、历史会话和 LangGraph checkpoint；远程模型推理端不保存 Action-Driver 会话历史。
 - 使用 InversifyJS 分别组装 Renderer 前端、Electron Main 和 Agent Runtime；前端页面只消费注入的领域服务，Browser Use 与 Computer Use 继续作为相互独立的 Skill Provider，由 Agent Loop 调用。
 - 保留确定性 Mock Runtime 和 Mock Skill，用于当前页面、组件测试和视觉回归；本阶段不实现真实模型推理、Browser Use、Computer Use、Action Graph 或 Page/Procedure Memory。
 - 后续 Browser Use change 将独立实现 Playwright Fork 第一版，并为 Native Browser Engine 保留分离的接口与评测边界；不得在本 change 中把两套引擎抽象成同一底层 Graph Provider。

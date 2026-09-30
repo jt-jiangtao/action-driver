@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/plugin-sdk",
+  "name": "@action-driver/plugin-sdk",
   "version": "1.0.0",
   "type": "module",
   "exports": {
@@ -14,7 +14,7 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@actiondriver/plugin-contracts": "workspace:*"
+    "@action-driver/plugin-contracts": "workspace:*"
   },
   "files": [
     "dist"

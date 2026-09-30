@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-export const APP_NAME = 'ActionDriver'
+export const APP_NAME = 'Action-Driver'
 
 export type ApplicationNameTarget = {
   setName(name: string): void
@@ -29,5 +29,5 @@ export function applyDockIcon(application: DockIconTarget, iconPath: string): vo
  * bundle icon while the app is starting or quitting.
  */
 export function resolveDesktopIconPath(compiledMainDirectory: string): string {
-  return join(compiledMainDirectory, '..', '..', 'resources', 'actiondriver.png')
+  return join(compiledMainDirectory, '..', '..', 'resources', 'action-driver.png')
 }

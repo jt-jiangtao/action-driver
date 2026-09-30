@@ -1,5 +1,5 @@
 import { readDefinition, installDefinition } from './definitions.js'
-import { PluginError, type Json, type ToolCall, type ToolDefinition, type ToolExecutor } from '@actiondriver/plugin-sdk'
+import { PluginError, type Json, type ToolCall, type ToolDefinition, type ToolExecutor } from '@action-driver/plugin-sdk'
 type ToolExecutionContext = Parameters<ToolExecutor['execute']>[2]
 type Workspace = NonNullable<ToolExecutionContext>['workspace']
 type InstallInput = { source: 'local'; path: string } | { source: 'github'; url: string }

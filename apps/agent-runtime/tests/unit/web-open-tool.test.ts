@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWebOpenTool } from '@actiondriver/web-plugin/reader'
+import { createWebOpenTool } from '@action-driver/web-plugin/reader'
 import { extractPageText } from '../../src/web-open/extract'
 
 function call(url: string) {

@@ -41,12 +41,12 @@ describe('renderer dependency boundary', () => {
         file.endsWith('services/renderer-stream-client.ts') ||
         file.endsWith('services/stream-task-projection.ts')
       ) {
-        expect(source).toMatch(/@actiondriver\/runtime-contracts/)
+        expect(source).toMatch(/@action-driver\/runtime-contracts/)
       } else {
-        expect(source).not.toMatch(/@actiondriver\/runtime-contracts/)
+        expect(source).not.toMatch(/@action-driver\/runtime-contracts/)
       }
       expect(source).not.toMatch(/runtime-message-port|parent-port-endpoint|MessagePortMain/)
-      expect(source).not.toMatch(/actiondriver\.db|databasePath|runtimeEntryPath/)
+      expect(source).not.toMatch(/action-driver\.db|databasePath|runtimeEntryPath/)
     }
   })
 })

@@ -1,5 +1,5 @@
-import { createBrowserDesktopSessionController } from '@actiondriver/browser-desktop'
-import type { BrowserDesktopHostSession, BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import { createBrowserDesktopSessionController } from '@action-driver/browser-desktop'
+import type { BrowserDesktopHostSession, BrowserSessionSnapshot } from '@action-driver/browser-desktop'
 import { BROWSER_SESSION_VIEWPORT_CHANNEL } from '../../shared/browser-session-contract.js'
 import { registerBrowserSessionIpc } from './ipc.js'
 import { createTaskBrowserBinding } from './task-binding.js'

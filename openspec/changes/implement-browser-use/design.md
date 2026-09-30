@@ -1,6 +1,6 @@
 ## Context
 
-参见 proposal.md。两个自有仓库已由用户提供。本期仅在项目内 `thirdparty/` 下的独立 Fork 工作区操作，不修改 ActionDriver 产品代码。原计划的产品内嵌浏览器与独立引擎 Provider 任务已推迟。
+参见 proposal.md。两个自有仓库已由用户提供。本期仅在项目内 `thirdparty/` 下的独立 Fork 工作区操作，不修改 Action-Driver 产品代码。原计划的产品内嵌浏览器与独立引擎 Provider 任务已推迟。
 
 ## Goals / Non-Goals
 
@@ -12,7 +12,7 @@
 
 **Non-Goals:**
 
-- 不接入 ActionDriver，不修改产品依赖、打包、面板或工具。
+- 不接入 Action-Driver，不修改产品依赖、打包、面板或工具。
 - 不设计或实现具体扩展接口、Action Graph、Agent 闭环、高亮或接管。
 
 ## Decisions
@@ -31,7 +31,7 @@ Electron 构建链获取 Chromium，自有内核差异由 Electron Fork 的补�
 
 ### 3. 独立兼容夹具
 
-链路为独立测试脚本 → 自有 Playwright → 自有 Electron/Chromium 测试页面。测试页面仅载入确定性本地夹具，验证导航、点击、输入、截图和关闭；不加载或改造 ActionDriver。
+链路为独立测试脚本 → 自有 Playwright → 自有 Electron/Chromium 测试页面。测试页面仅载入确定性本地夹具，验证导航、点击、输入、截图和关闭；不加载或改造 Action-Driver。
 
 Playwright 验证会话与页面生命周期，独立 Electron 程序提供测试宿主。两套自有产物必须同时参与验收。使用其中任一官方产物的测试不能代替最终兼容验收。
 

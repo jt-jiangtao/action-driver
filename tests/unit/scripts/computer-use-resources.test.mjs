@@ -8,7 +8,7 @@ import { copyComputerUseResources } from '../../../scripts/computer-use-resource
 test('copies the Swift resource bundle and removes obsolete generated resources', () => {
   const root = mkdtempSync(join(tmpdir(), 'helper-resources-'))
   try {
-    const bundle = 'ActionDriverComputerUse_ComputerUseCore.bundle'
+    const bundle = 'ProductComputerUse_ComputerUseCore.bundle'
     const source = join(root, 'build'),
       destination = join(root, 'app', 'Contents', 'Resources')
     const nested = join(bundle, 'Contents', 'Resources', 'app-instructions.json')

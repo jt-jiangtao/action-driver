@@ -1,6 +1,6 @@
 import { lstat, mkdir, realpath } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
-import type { SessionWorkspacePaths } from '@actiondriver/runtime-contracts'
+import type { SessionWorkspacePaths } from '@action-driver/runtime-contracts'
 
 export class SessionWorkspaceError extends Error {
   constructor(

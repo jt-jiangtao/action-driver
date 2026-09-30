@@ -6,13 +6,13 @@
     "playwright": {
       "path": "thirdparty/playwright",
       "repo": "https://github.com/jt-jiangtao/playwright.git",
-      "commit": "7f98443fcd7ffc902aa42e0eeae040e8806bcf28",
+      "commit": "2b32735c21cc17880dcf14b8c1b5594c39d45338",
       "version": "1.63.0"
     },
     "electron": {
       "path": "thirdparty/electron",
       "repo": "https://github.com/jt-jiangtao/electron.git",
-      "commit": "8b6c1f84f6c20f79b7176ccf868cf9e7615e9384",
+      "commit": "0343e0193a6d593287df7bb0a95765afa35ed7e1",
       "version": "38.8.6"
     }
   },
@@ -42,6 +42,6 @@
   "build": {
     "jobs": 8,
     "fileLimit": 65536,
-    "output": "out/ActionDriver"
+    "output": "out/Action-Driver"
   }
 }

@@ -28,16 +28,16 @@ export function resolveRuntimePaths(options: RuntimePathOptions): RuntimePaths {
   }
 
   const computerHelperBundlePath = options.isPackaged
-    ? resolve(options.resourcesPath, '..', 'Helpers', 'ActionDriver Computer Use.app')
+    ? resolve(options.resourcesPath, '..', 'Helpers', 'Action-Driver Computer Use.app')
     : resolve(options.appPath, '../..', 'plugins', 'computer-use', 'native', 'dist', options.arch,
-      'ActionDriver Computer Use.app')
+      'Action-Driver Computer Use.app')
   return {
     runtimeEntryPath: options.isPackaged
       ? resolve(options.resourcesPath, 'agent-runtime', 'dist', 'index.js')
       : resolve(options.appPath, '..', 'agent-runtime', 'dist', 'index.js'),
     computerHelperBundlePath,
     computerHelperPath: resolve(computerHelperBundlePath, 'Contents', 'MacOS',
-      'actiondriver-computer-use'),
+      'action-driver-computer-use'),
     dataRoot: resolve(options.userDataPath, 'data'),
     workspaceRoot: resolve(options.userDataPath, 'workspace')
   }

@@ -1,9 +1,9 @@
 {
-  "name": "@actiondriver/cua-repl",
+  "name": "@action-driver/cua-repl",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ActionDriver-owned CUA REPL host: loads the macOS instruction resources and launches the REPL process against ActionDriver browser and computer service modules.",
+  "description": "Action-Driver-owned CUA REPL host: loads the macOS instruction resources and launches the REPL process against Action-Driver browser and computer service modules.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -25,6 +25,6 @@
     "docs"
   ],
   "dependencies": {
-    "@actiondriver/cua": "workspace:*"
+    "@action-driver/cua": "workspace:*"
   }
 }

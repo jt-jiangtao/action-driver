@@ -21,7 +21,7 @@ import type {
   AgentTextFileDto,
   CreateAgentSkillDto,
   SaveAgentFileDto
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import { parseSkillDeclaration } from './skill-declaration'
 
 const MANAGED_DIRECTORY = '.action-driver'

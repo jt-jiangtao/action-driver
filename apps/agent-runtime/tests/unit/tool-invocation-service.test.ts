@@ -5,13 +5,13 @@ import { join } from 'node:path'
 import {
   MemoryInteractionLogStore,
   createInteractionLogRecorder
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import type {
   ToolCall,
   ToolDefinition,
   ToolEvent,
   ToolExecutor
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import {
   COMPUTER_USE_GUIDANCE_ERRORS,
   RuntimeToolPolicy,
@@ -69,7 +69,7 @@ describe('ToolInvocationService', () => {
   })
 
   it('runs the read-only office dependency tool through the normal lifecycle and reports missing bundles', async () => {
-    const dist = await mkdtemp(join(tmpdir(), 'actiondriver-dependency-tool-'))
+    const dist = await mkdtemp(join(tmpdir(), 'action-driver-dependency-tool-'))
     const tool = createWorkspaceDependenciesTool(dist)
     expect(tool.definition).toMatchObject({
       modelName: 'tools_local_command_dependencies_load',
@@ -540,7 +540,7 @@ async function waitFor(assertion: () => boolean): Promise<void> {
 }
 
 it('persists a crashed plugin side effect as unknown even after cancellation, without replay', async () => {
-  const { PluginError } = await import('@actiondriver/plugin-contracts')
+  const { PluginError } = await import('@action-driver/plugin-contracts')
   const controller = new AbortController()
   let executions = 0
   const fixture = createFixture({ ...readDefinition, sideEffects: { filesystem: 'write', network: false } }, {

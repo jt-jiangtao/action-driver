@@ -1,4 +1,4 @@
-import type { Json, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { Json, PluginOwner } from '@action-driver/plugin-contracts'
 import { PlacementError, remainingMs, type HostRegistry, type PlacementAuditEntry, type RegisteredHost } from './hosts'
 import { selectHost, type PlacementDecision, type PlacementRequest } from './selector'
 

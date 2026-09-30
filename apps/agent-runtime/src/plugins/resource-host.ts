@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { PluginError, pluginToolDefinitionSchema, type Json, type PluginManifest, type PluginOwner, type PluginCatalog } from '@actiondriver/plugin-contracts'
-import type { Disposable } from '@actiondriver/plugin-sdk'
+import { PluginError, pluginToolDefinitionSchema, type Json, type PluginManifest, type PluginOwner, type PluginCatalog } from '@action-driver/plugin-contracts'
+import type { Disposable } from '@action-driver/plugin-sdk'
 import type { ContributionRegistrar } from './ports'
 import type { NodeServiceSupervisor, SupervisedService } from './service-supervisor'
 export interface PluginResourceHostPorts {

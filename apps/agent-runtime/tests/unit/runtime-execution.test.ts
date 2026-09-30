@@ -6,7 +6,7 @@ describe('runtime execution assembly', () => {
   it('creates sandboxed script tools from a workspace root', async () => {
     const result = await createRuntimeExecutionEnvironment({
       runtimeEntry: resolve('apps/agent-runtime/src/runtime-process.ts'),
-      workspaceRoot: '/tmp/actiondriver-execution-test',
+      workspaceRoot: '/tmp/action-driver-execution-test',
       environment: {}
     })
     expect(result.scriptTools.map((tool) => tool.definition.id)).toContain(

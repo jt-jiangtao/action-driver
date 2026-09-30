@@ -25,7 +25,7 @@ const files = [
 ]
 
 function withBridge(open: (input: unknown) => Promise<void>) {
-  ;(window as unknown as { actionDriverDesktop?: unknown }).actionDriverDesktop = {
+  ;(window as unknown as { productDesktop?: unknown }).productDesktop = {
     taskOutput: { open }
   }
 }

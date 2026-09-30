@@ -20,10 +20,10 @@ Computer Use 的 Skill 与 `@oai/sky` 接口取自 Codex，但运行时的审批
 - **BREAKING** 审批粒度由"每个动作"改为"每个应用"：每次 sky 调用先查应用策略，再在调用内阻塞询问（仅本次 / 本会话 / 始终）；已持久授权的应用直接放行；等待期间暂停工具超时；获批后冻结入参。
 - **BREAKING** 移除 JS 单元挂起/续接协议：删除 `ApprovalRequiredError`、`ToolApprovalRequired`、`continuation.decisions`、`jsAction` 审批卡、`COMPUTER_ACTION_SPLIT_REQUIRED`、`APPROVAL_ROUND_LIMIT`；一次调用可连续执行多个动作。
 - **BREAKING** 下线 `computer_permissions` / `computer_observe` / `computer_capture` / `computer_act` 四个类型化工具。
-- 应用策略由 helper 判定：`forbidden`（终端类应用、ActionDriver 自身、系统认证与隐私授权弹窗）不可放行；`denied` 预留给组织策略；每个应用给出风险等级、警告副标题与是否允许持久授权。
+- 应用策略由 helper 判定：`forbidden`（终端类应用、Action-Driver 自身、系统认证与隐私授权弹窗）不可放行；`denied` 预留给组织策略；每个应用给出风险等级、警告副标题与是否允许持久授权。
 - 敏感动作确认走追问，与 Codex 一致：内置确认策略文档，随首次调用输出；模型按策略在对话中向用户提问或要求接管，然后结束本轮；用户在同一会话中回复后继续。为此，REPL 会话、已读 Skill 与本会话授权都改为按 sessionId 跨轮保留。每轮结束时执行 `turn_ended` 等价收尾：隐藏覆盖提示、释放应用租约。会话闲置超时或被回收时，清理 REPL 与截图。
 - helper 以应用为目标、可后台操作：元素序号由 helper 按应用维护；优先 AX 动作，键盘事件投递到目标进程、不能触发全局快捷键；截图按窗口采集；`getApp` 在后台启动未运行的应用、不抢前台；`typeText` 中的 `\n` / `\r` 模拟回车；按 xdotool 语法支持任意按键；支持右键 / 中键、`clickCount`、按元素或坐标滚动；后台仅使用可用 AX 动作，坐标鼠标操作要求目标已在前台，否则投递前返回不支持。
-- 覆盖提示与 Esc 取消：Computer Use 会话进行时显示"ActionDriver 正在使用你的电脑 · Esc 取消"；按 Esc 结束会话并使后续调用返回 `USER_STOPPED_SESSION`，用户手动操作时中断当前动作并返回 `USER_INTERVENED`。
+- 覆盖提示与 Esc 取消：Computer Use 会话进行时显示"Action-Driver 正在使用你的电脑 · Esc 取消"；按 Esc 结束会话并使后续调用返回 `USER_STOPPED_SESSION`，用户手动操作时中断当前动作并返回 `USER_INTERVENED`。
 - 应用专属说明：helper 可为应用返回操作说明，读取应用状态时注入，每个应用每会话一次；`cua.rewriteDocumentation()` 在上下文压缩后重新输出文档。
 - 同一应用同一时间只允许一个会话操作（应用级租约，按轮持有）。
 - 已批准动作不自动重复执行（最终结果可能未知）：删除 sky 层"失效后换新树重试"；helper 在动作执行后不再以超时判失败；取消可中断排队与执行中的请求。

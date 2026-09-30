@@ -2,8 +2,8 @@ import { access, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 import type { BrowserContext, Page } from 'playwright-core'
-import { readApiManifest } from '@actiondriver/browser-runtime'
-import type { ActionDriverBrowserHost, BrowserHostSetup } from '@actiondriver/browser-runtime'
+import { readApiManifest } from '@action-driver/browser-runtime'
+import type { ProductBrowserHost, BrowserHostSetup } from '@action-driver/browser-runtime'
 import { LocalCdpAdapter } from './local-cdp-adapter.js'
 
 const defaultChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -25,12 +25,12 @@ export interface LocalBrowserHostOptions {
 }
 
 function browserInfo() {
-  return { id: 'local', name: 'ActionDriver Chrome', type: 'cdp' as const,
+  return { id: 'local', name: 'Action-Driver Chrome', type: 'cdp' as const,
     family: 'chrome', capabilities: { browser: [], tab: [] } }
 }
 
 /** Owns a separate Chrome profile and accepts only a deliberate local browser host. */
-export async function createLocalBrowserHost(options: LocalBrowserHostOptions): Promise<ActionDriverBrowserHost> {
+export async function createLocalBrowserHost(options: LocalBrowserHostOptions): Promise<ProductBrowserHost> {
   if (process.platform !== 'darwin') throw new Error('BROWSER_PLATFORM_UNSUPPORTED')
   const profileRoot = resolve(options.profileRoot)
   const executable = resolve(options.browserExecutable ?? defaultChrome)

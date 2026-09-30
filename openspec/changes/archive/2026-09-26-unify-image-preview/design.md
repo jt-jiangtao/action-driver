@@ -1,6 +1,6 @@
 ## Context
 
-参见 `proposal.md` 的 Why。现状：`ConversationImage` 自行读取 blob、创建 object URL，并在点击后渲染一个 `role="dialog"` 的遮罩（仅 Esc 与关闭按钮）；`AgentComposer` 用 `zoomedPreviewIndex` 渲染另一套遮罩；`TaskOutputFiles` 的图片缩略图只能「打开文件」交给系统应用。`ImageGallery` 已按生成调用（`callId`）把图片分成网格，未匹配调用的图片进入剩余网格。antd 6.6.4 已是 `@actiondriver/desktop` 的依赖，当前只用到 `Timeline`。
+参见 `proposal.md` 的 Why。现状：`ConversationImage` 自行读取 blob、创建 object URL，并在点击后渲染一个 `role="dialog"` 的遮罩（仅 Esc 与关闭按钮）；`AgentComposer` 用 `zoomedPreviewIndex` 渲染另一套遮罩；`TaskOutputFiles` 的图片缩略图只能「打开文件」交给系统应用。`ImageGallery` 已按生成调用（`callId`）把图片分成网格，未匹配调用的图片进入剩余网格。antd 6.6.4 已是 `@action-driver/desktop` 的依赖，当前只用到 `Timeline`。
 
 ## Goals / Non-Goals
 

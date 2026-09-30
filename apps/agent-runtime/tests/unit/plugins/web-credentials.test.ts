@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createWebCredentialPort } from '../../../src/plugins/web-credentials'
-import type { InvocationContext, PluginOwner } from '@actiondriver/plugin-contracts'
+import type { InvocationContext, PluginOwner } from '@action-driver/plugin-contracts'
 const owner = { pluginId: 'web', version: '1.2.0', hostEpoch: 'test' }
 const context = (tool: string): InvocationContext => ({
   callId: 'call',

@@ -84,13 +84,13 @@
 - 范围后置：Anthropic Agent 执行、Skill、Browser Use、Computer Use、人工接管、复杂多任务控制及与最小闭环无关的横向 HTTP/WS 迁移均不阻塞本轮验收。
 - 用户覆盖：Agent 曾推荐首版本地形态复用既有 Runtime 事件通道以降低连接治理成本；用户明确选择独立 WebSocket，以便后续远程 Runtime 复用同一协议。接受的已知风险是新增鉴权、连接生命周期、幂等、重放、背压和断线恢复复杂度。
 - 成功标准：真实上游按流返回内容时，页面从 `start` 进入生成态、随 `content` 持续显示 Markdown、在 `end` 后进入准确终态；刷新或重连不会重复文本；任务列表、会话详情和请求/响应日志均来自真实持久化数据且能用标识串联；整个流程不出现 Mock 降级、Browser/Computer 面板或日志递归记录。
-- 上游 SDK 裁决：用户确认采用官方 `openai` Node SDK 处理 OpenAI-compatible HTTP/SSE、取消、超时和结构化 chunk；ActionDriver 保留业务生命周期、持久化、幂等重放、聚合日志和凭据过滤。比较过继续自研 Fetch/SSE 与仅引入 `eventsource-parser` 的方案，前者维护面过大，后者仍需自研大部分上游适配。SDK 自动重试和 debug logging 必须关闭，避免一次请求产生隐藏重试、重复日志或敏感正文旁路。
+- 上游 SDK 裁决：用户确认采用官方 `openai` Node SDK 处理 OpenAI-compatible HTTP/SSE、取消、超时和结构化 chunk；Action-Driver 保留业务生命周期、持久化、幂等重放、聚合日志和凭据过滤。比较过继续自研 Fetch/SSE 与仅引入 `eventsource-parser` 的方案，前者维护面过大，后者仍需自研大部分上游适配。SDK 自动重试和 debug logging 必须关闭，避免一次请求产生隐藏重试、重复日志或敏感正文旁路。
 
 ## Renderer Direct WebSocket Update (2026-09-23)
 
 - 类型：安全边界 + 公共协议 + 客户端架构，属于决策型任务；Battle 已完成。
 - 目标：让本地与未来云端形态复用同一套 Renderer WebSocket 客户端，页面直接发送流式命令、接收事件并负责重连和游标恢复，移除 Main 对流式消息的代理。
-- 当前方案：Renderer 通过 Preload 只读获取 Main 注入的本次启动 `wsUrl + accessToken`，使用浏览器 WebSocket API 建立 `actiondriver.stream.v2` 长连接；Main 不再转发 `request.create` 或 `response.*`。服务端主动发送原生 Ping，浏览器网络栈自动回复 Pong；页面通过连接关闭、业务超时和恢复快照判断健康状态。
+- 当前方案：Renderer 通过 Preload 只读获取 Main 注入的本次启动 `wsUrl + accessToken`，使用浏览器 WebSocket API 建立 `action-driver.stream.v2` 长连接；Main 不再转发 `request.create` 或 `response.*`。服务端主动发送原生 Ping，浏览器网络栈自动回复 Pong；页面通过连接关闭、业务超时和恢复快照判断健康状态。
 - 比较方案：保留 Main WebSocket 客户端可避免访问凭据进入页面环境，安全边界更窄，但本地与未来云端需要不同传输适配，且增加一层 IPC 流式代理。Renderer 直连减少代理层并提高云端复用度，但扩大 Renderer 注入漏洞的影响面。
 - 最终裁决：用户确认采用 Renderer 直连，并明确接受一次性 Runtime token 进入 Renderer 内存的风险。模型供应商 API Key 仍由 Runtime 独占，页面不得读取或透传。
 - 安全约束：访问凭据只存在内存且随 Runtime 生命周期失效；只允许受信任应用 Origin 连接回环地址；CSP 仅开放注入的 Runtime 端点；连接 URL、token、鉴权帧不得进入日志、截图、持久化任务或错误正文。

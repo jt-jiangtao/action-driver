@@ -21,7 +21,7 @@ describe('GitHub Skill source', () => {
   })
 
   it('copies only the selected directory from a Git repository', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'actiondriver-git-skill-'))
+    const root = await mkdtemp(join(tmpdir(), 'action-driver-git-skill-'))
     const repository = join(root, 'repo')
     const destination = join(root, 'destination', 'review')
     await mkdir(join(repository, 'skills', 'review'), { recursive: true })
@@ -36,7 +36,7 @@ describe('GitHub Skill source', () => {
   })
 
   it('uses existing Git configuration for a private-repository credential stand-in', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'actiondriver-git-auth-'))
+    const root = await mkdtemp(join(tmpdir(), 'action-driver-git-auth-'))
     const repository = join(root, 'private-repo')
     const destination = join(root, 'installed', 'private-skill')
     const gitConfig = join(root, 'gitconfig')

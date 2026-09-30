@@ -232,52 +232,52 @@ importers:
 
   apps/agent-runtime:
     dependencies:
-      '@actiondriver/activity-projection':
+      '@action-driver/activity-projection':
         specifier: workspace:*
         version: link:../../packages/activity-projection
-      '@actiondriver/browser-desktop':
+      '@action-driver/browser-desktop':
         specifier: workspace:*
         version: link:../../packages/browser-desktop
-      '@actiondriver/browser-runtime':
+      '@action-driver/browser-runtime':
         specifier: workspace:*
         version: link:../../packages/browser-runtime
-      '@actiondriver/command-plugin':
+      '@action-driver/command-plugin':
         specifier: workspace:*
         version: link:../../plugins/command
-      '@actiondriver/computer-use-plugin':
+      '@action-driver/computer-use-plugin':
         specifier: workspace:*
         version: link:../../plugins/computer-use
-      '@actiondriver/contracts':
+      '@action-driver/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@actiondriver/cua':
+      '@action-driver/cua':
         specifier: workspace:*
         version: link:../../packages/cua
-      '@actiondriver/image-generation-plugin':
+      '@action-driver/image-generation-plugin':
         specifier: workspace:*
         version: link:../../plugins/image-generation
-      '@actiondriver/model-connections':
+      '@action-driver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
-      '@actiondriver/observability':
+      '@action-driver/observability':
         specifier: workspace:*
         version: link:../../packages/observability
-      '@actiondriver/plugin-contracts':
+      '@action-driver/plugin-contracts':
         specifier: workspace:*
         version: link:../../packages/plugin-contracts
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
-      '@actiondriver/runtime-contracts':
+      '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
-      '@actiondriver/skills-plugin':
+      '@action-driver/skills-plugin':
         specifier: workspace:*
         version: link:../../plugins/skills
-      '@actiondriver/sky':
+      '@action-driver/sky':
         specifier: workspace:*
         version: link:../../packages/sky
-      '@actiondriver/web-plugin':
+      '@action-driver/web-plugin':
         specifier: workspace:*
         version: link:../../plugins/web
       '@hono/node-server':
@@ -356,46 +356,46 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@actiondriver/activity-projection':
+      '@action-driver/activity-projection':
         specifier: workspace:*
         version: link:../../packages/activity-projection
-      '@actiondriver/browser-desktop':
+      '@action-driver/browser-desktop':
         specifier: workspace:*
         version: link:../../packages/browser-desktop
-      '@actiondriver/browser-runtime':
+      '@action-driver/browser-runtime':
         specifier: workspace:*
         version: link:../../packages/browser-runtime
-      '@actiondriver/command-plugin':
+      '@action-driver/command-plugin':
         specifier: workspace:*
         version: link:../../plugins/command
-      '@actiondriver/computer-use-plugin':
+      '@action-driver/computer-use-plugin':
         specifier: workspace:*
         version: link:../../plugins/computer-use
-      '@actiondriver/contracts':
+      '@action-driver/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@actiondriver/image-generation-plugin':
+      '@action-driver/image-generation-plugin':
         specifier: workspace:*
         version: link:../../plugins/image-generation
-      '@actiondriver/model-connections':
+      '@action-driver/model-connections':
         specifier: workspace:*
         version: link:../../packages/model-connections
-      '@actiondriver/observability':
+      '@action-driver/observability':
         specifier: workspace:*
         version: link:../../packages/observability
-      '@actiondriver/plugin-contracts':
+      '@action-driver/plugin-contracts':
         specifier: workspace:*
         version: link:../../packages/plugin-contracts
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
-      '@actiondriver/runtime-contracts':
+      '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/runtime-contracts
-      '@actiondriver/skills-plugin':
+      '@action-driver/skills-plugin':
         specifier: workspace:*
         version: link:../../plugins/skills
-      '@actiondriver/web-plugin':
+      '@action-driver/web-plugin':
         specifier: workspace:*
         version: link:../../plugins/web
       '@monaco-editor/react':
@@ -462,16 +462,16 @@ importers:
 
   packages/activity-projection:
     dependencies:
-      '@actiondriver/contracts':
+      '@action-driver/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@actiondriver/runtime-contracts':
+      '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../runtime-contracts
 
   packages/browser-desktop:
     dependencies:
-      '@actiondriver/browser-runtime':
+      '@action-driver/browser-runtime':
         specifier: workspace:*
         version: link:../browser-runtime
 
@@ -501,18 +501,18 @@ importers:
 
   packages/contracts:
     dependencies:
-      '@actiondriver/plugin-contracts':
+      '@action-driver/plugin-contracts':
         specifier: workspace:*
         version: link:../plugin-contracts
 
-  packages/create-actiondriver-plugin: {}
+  packages/create-action-driver-plugin: {}
 
   packages/cua:
     dependencies:
-      '@actiondriver/browser-runtime':
+      '@action-driver/browser-runtime':
         specifier: workspace:*
         version: link:../browser-runtime
-      '@actiondriver/sky':
+      '@action-driver/sky':
         specifier: workspace:*
         version: link:../sky
 
@@ -527,16 +527,16 @@ importers:
 
   packages/cua-repl:
     dependencies:
-      '@actiondriver/cua':
+      '@action-driver/cua':
         specifier: workspace:*
         version: link:../cua
 
   packages/model-connections:
     dependencies:
-      '@actiondriver/contracts':
+      '@action-driver/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@actiondriver/runtime-contracts':
+      '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../runtime-contracts
 
@@ -591,7 +591,7 @@ importers:
 
   packages/plugin-sdk:
     dependencies:
-      '@actiondriver/plugin-contracts':
+      '@action-driver/plugin-contracts':
         specifier: workspace:*
         version: link:../plugin-contracts
     devDependencies:
@@ -601,10 +601,10 @@ importers:
 
   packages/runtime-contracts:
     dependencies:
-      '@actiondriver/contracts':
+      '@action-driver/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@actiondriver/plugin-contracts':
+      '@action-driver/plugin-contracts':
         specifier: workspace:*
         version: link:../plugin-contracts
       zod:
@@ -617,67 +617,67 @@ importers:
         specifier: 3.32.6
         version: 3.32.6
     devDependencies:
-      '@actiondriver/runtime-contracts':
+      '@action-driver/runtime-contracts':
         specifier: workspace:*
         version: link:../runtime-contracts
 
   plugins/browser-use:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/command:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/computer-use:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/documents:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/image-generation:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/pdf:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/presentations:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/skills:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/spreadsheets:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
   plugins/web:
     dependencies:
-      '@actiondriver/plugin-sdk':
+      '@action-driver/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       '@mozilla/readability':

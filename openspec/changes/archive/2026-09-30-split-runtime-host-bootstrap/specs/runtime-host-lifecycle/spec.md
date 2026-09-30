@@ -42,7 +42,7 @@
 
 ### Requirement: 本地形态的既有契约不变
 
-宿主拆分 MUST NOT 改变本地形态的对外行为：HTTP/WS 路由与 `actiondriver.stream.v2` 协议、事件顺序与游标恢复、工具与审批语义、服务访问凭据校验、工作区与沙箱约束、以及桌面端启动与监督流程 SHALL 保持既有规格。
+宿主拆分 MUST NOT 改变本地形态的对外行为：HTTP/WS 路由与 `action-driver.stream.v2` 协议、事件顺序与游标恢复、工具与审批语义、服务访问凭据校验、工作区与沙箱约束、以及桌面端启动与监督流程 SHALL 保持既有规格。
 
 #### Scenario: 桌面端启动流程
 - **WHEN** 桌面应用启动本地 Runtime

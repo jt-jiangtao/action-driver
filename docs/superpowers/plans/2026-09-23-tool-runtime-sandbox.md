@@ -105,7 +105,7 @@ expect(await repositories.toolInvocations.listByTask('task-1')).toHaveLength(1)
 
 - [ ] **Step 6: 运行协议、数据库、仓储和类型检查**
 
-Run: `pnpm vitest run packages/runtime-contracts/tests/tool-protocol.test.ts apps/agent-runtime/tests/tool-registry.test.ts apps/agent-runtime/tests/database.test.ts apps/agent-runtime/tests/repositories.test.ts && pnpm --filter @actiondriver/runtime-contracts typecheck && pnpm --filter @actiondriver/agent-runtime typecheck`
+Run: `pnpm vitest run packages/runtime-contracts/tests/tool-protocol.test.ts apps/agent-runtime/tests/tool-registry.test.ts apps/agent-runtime/tests/database.test.ts apps/agent-runtime/tests/repositories.test.ts && pnpm --filter @action-driver/runtime-contracts typecheck && pnpm --filter @action-driver/agent-runtime typecheck`
 
 Expected: PASS。
 
@@ -169,7 +169,7 @@ export type ModelInputMessage =
 
 - [ ] **Step 5: 实现 Gateway 映射并运行相关测试**
 
-Run: `pnpm vitest run packages/model-connections/tests apps/agent-runtime/tests/model-gateway.test.ts && pnpm --filter @actiondriver/model-connections typecheck`
+Run: `pnpm vitest run packages/model-connections/tests apps/agent-runtime/tests/model-gateway.test.ts && pnpm --filter @action-driver/model-connections typecheck`
 
 Expected: PASS。
 
@@ -232,11 +232,11 @@ await expect(service.approve({ taskId, callId, argumentsHash: 'changed' }))
 
 - [ ] **Step 5: 验证日志控制面排除**
 
-新增测试确保 `actiondriver:log:list` 不进入 interaction store，tool content 分片不会增加接口日志条数。
+新增测试确保 `action-driver:log:list` 不进入 interaction store，tool content 分片不会增加接口日志条数。
 
 - [ ] **Step 6: 运行目标测试与类型检查**
 
-Run: `pnpm vitest run apps/agent-runtime/tests/tool-policy.test.ts apps/agent-runtime/tests/tool-invocation-state-machine.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/service-logs.test.ts && pnpm --filter @actiondriver/agent-runtime typecheck`
+Run: `pnpm vitest run apps/agent-runtime/tests/tool-policy.test.ts apps/agent-runtime/tests/tool-invocation-state-machine.test.ts apps/agent-runtime/tests/tool-invocation-service.test.ts apps/agent-runtime/tests/service-logs.test.ts && pnpm --filter @action-driver/agent-runtime typecheck`
 
 Expected: PASS。
 
@@ -464,7 +464,7 @@ git commit -m "feat: approve tool calls over websocket"
 
 - [ ] **Step 4: 验证两层日志**
 
-断言接口层每个 tool call 恰好一条聚合日志，模型层包含两轮请求/响应，查询日志不生成 `actiondriver:log:list`，正文不含“执行中/正在读取”等内部进度。
+断言接口层每个 tool call 恰好一条聚合日志，模型层包含两轮请求/响应，查询日志不生成 `action-driver:log:list`，正文不含“执行中/正在读取”等内部进度。
 
 - [ ] **Step 5: 运行分组测试**
 

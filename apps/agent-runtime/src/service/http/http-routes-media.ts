@@ -38,7 +38,7 @@ export function registerMediaRoutes(app: Hono, options: MediaRoutes): void {
   const inputFiles = options.inputFiles
   if (inputFiles) {
     app.post('/input-files/staged', async (context) => {
-      const rawName = context.req.header('x-actiondriver-file-name')
+      const rawName = context.req.header('x-action-driver-file-name')
       let name = ''
       try {
         name = decodeURIComponent(rawName ?? '')

@@ -50,7 +50,7 @@ final class ComputerUseCoreTests: XCTestCase {
             line: #"{"version":1,"requestId":"prompt","deadlineUnixMs":9999999999999,"operation":"permissions","prompt":true}"#)
         let result = try await service.execute(prompting)
         XCTAssertEqual(gate.requests, [true, true, true])
-        XCTAssertEqual(result["permissionTarget"] as? String, "ActionDriver Computer Use")
+        XCTAssertEqual(result["permissionTarget"] as? String, "Action-Driver Computer Use")
     }
 
     func testTargetedPromptOnlyRequestsTheNamedCapability() async throws {

@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 import { z } from 'zod'
-import type { PluginOwner, PluginUiContributions, Json } from '@actiondriver/plugin-contracts'
+import type { PluginOwner, PluginUiContributions, Json } from '@action-driver/plugin-contracts'
 import { success } from './http-contract'
 
 export type PluginInterfaceRoutes = {

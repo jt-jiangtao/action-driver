@@ -17,7 +17,7 @@
     "tab_screenshot",
     "profile-cleanup"
   ],
-  "title": "ActionDriver fixture",
+  "title": "Action-Driver fixture",
   "cdpValue": "Ready",
   "inputResult": "Owned input",
   "screenshotBytes": 10468,

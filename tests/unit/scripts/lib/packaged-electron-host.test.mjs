@@ -9,13 +9,13 @@ const api = await import('../../../../scripts/lib/packaged-electron-host.mjs').c
 
 test('packaged host copies the verified Fork and its provenance', async (t) => {
   assert.equal(typeof api.stageVerifiedElectronHost, 'function')
-  const directory = await mkdtemp(path.join(tmpdir(), 'actiondriver-host-'))
+  const directory = await mkdtemp(path.join(tmpdir(), 'action-driver-host-'))
   t.after(() => rm(directory, { recursive: true, force: true }))
-  const destination = path.join(directory, 'ActionDriver.app')
+  const destination = path.join(directory, 'Action-Driver.app')
   const artifact = await resolveElectronFork()
   await api.stageVerifiedElectronHost(destination)
   const provenance = JSON.parse(await readFile(
-    path.join(destination, 'Contents/Resources/actiondriver-electron-provenance.json'), 'utf8'
+    path.join(destination, 'Contents/Resources/action-driver-electron-provenance.json'), 'utf8'
   ))
   assert.equal(provenance.sourceCommit, artifact.provenance.sourceCommit)
   assert.equal(provenance.executableSha256, artifact.provenance.executableSha256)

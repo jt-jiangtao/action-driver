@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ToolPresentation } from '@actiondriver/plugin-contracts'
-import type { RequestCreateEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
-import { STREAM_PROTOCOL } from '@actiondriver/runtime-contracts'
+import type { ToolPresentation } from '@action-driver/plugin-contracts'
+import type { RequestCreateEvent, StreamServerEvent } from '@action-driver/runtime-contracts'
+import { STREAM_PROTOCOL } from '@action-driver/runtime-contracts'
 import {
   SqliteRuntimeRepositories,
   StreamSessionService,
@@ -34,7 +34,7 @@ function createHarness(
   turnEnded?: (taskId: string) => Promise<void>,
   toolPresentation?: (toolId: string) => ToolPresentation | undefined
 ) {
-  const directory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-session-'))
+  const directory = mkdtempSync(join(tmpdir(), 'action-driver-stream-session-'))
   temporaryDirectories.push(directory)
   const database = openRuntimeDatabase(join(directory, 'state.sqlite'))
   const rolloutStore = new RolloutSessionStore({
@@ -112,7 +112,7 @@ afterEach(() => {
 
 const createEvent: RequestCreateEvent = {
   type: 'request.create',
-  protocol: 'actiondriver.stream.v2',
+  protocol: 'action-driver.stream.v2',
   eventId: 'client-event-1',
   createdAt: '2026-09-23T00:00:00.000Z',
   requestId: 'request-client-1',
@@ -1470,7 +1470,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'resume-activity',
         createdAt: '2026-09-23T00:00:10.000Z',
         requestId: accepted.requestId,
@@ -1546,7 +1546,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'resume-new-socket',
         createdAt: '2026-09-23T00:00:00.000Z',
         requestId: start.requestId,
@@ -1619,7 +1619,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'resume-1',
         createdAt: '2026-09-23T00:00:02.000Z',
         requestId: accepted.requestId,
@@ -1675,7 +1675,7 @@ describe('StreamSessionService', () => {
 
     const continuation: RequestCreateEvent = {
       type: 'request.create',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'client-event-2',
       createdAt: '2026-09-23T00:01:00.000Z',
       requestId: 'request-client-2',
@@ -1918,7 +1918,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.cancel',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-event-cancel',
         createdAt: '2026-09-23T00:00:01.000Z',
         requestId: accepted.requestId,
@@ -2095,7 +2095,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'client-event-resume',
         createdAt: '2026-09-23T00:01:00.000Z',
         requestId: accepted.requestId,
@@ -2190,7 +2190,7 @@ describe('StreamSessionService', () => {
     await service.handle(
       {
         type: 'request.resume',
-        protocol: 'actiondriver.stream.v2',
+        protocol: 'action-driver.stream.v2',
         eventId: 'resume-safe',
         createdAt: '2026-09-23T00:00:04.000Z',
         requestId: accepted.requestId,

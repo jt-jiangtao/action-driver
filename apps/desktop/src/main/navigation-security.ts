@@ -8,8 +8,8 @@ export interface NavigationGuardTarget {
 
 export function resolveTrustedRendererOrigin(rendererEntryUrl: string): string | null {
   const rendererEntry = new URL(rendererEntryUrl)
-  if (rendererEntry.protocol === 'actiondriver:' && rendererEntry.hostname === 'renderer') {
-    return 'actiondriver://renderer'
+  if (rendererEntry.protocol === 'action-driver:' && rendererEntry.hostname === 'renderer') {
+    return 'action-driver://renderer'
   }
   return rendererEntry.protocol === 'http:' || rendererEntry.protocol === 'https:'
     ? rendererEntry.origin

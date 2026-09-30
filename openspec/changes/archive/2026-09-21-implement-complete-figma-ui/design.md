@@ -102,7 +102,7 @@ Shell 使用两列 Grid 或 Flex；Task 工作区通过布局 mode 切换列模�
 
 | Figma 节点 | React 责任 |
 |---|---|
-| `62:5` Brand/Logo Mark | 复用 `ActionDriverLogo` |
+| `62:5` Brand/Logo Mark | 复用 `ProductLogo` |
 | `63:51`、`63:63`、`63:59`、`63:55`、`63:67` | `IconButton` + `AppIcon` 的 PanelLeft/PanelRight/Plus/Search/Send |
 | `110:180` Browser/Tab Bar · Expanded | `BrowserTabBar` |
 | `110:216` Browser/Navigation Bar · Expanded | `BrowserNavigationBar` |

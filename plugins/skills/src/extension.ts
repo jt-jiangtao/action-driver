@@ -1,4 +1,4 @@
-import { PluginError, type PluginContext, type Json } from '@actiondriver/plugin-sdk'
+import { PluginError, type PluginContext, type Json } from '@action-driver/plugin-sdk'
 import { catalog } from './catalog.js'
 import { createSkillRuntimeTools } from './execution.js'
 export function activate(context: PluginContext): void {

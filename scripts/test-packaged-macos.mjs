@@ -7,10 +7,10 @@ import { spawnSync } from 'node:child_process'
 if (process.platform !== 'darwin') throw new Error('macOS packaged smoke requires macOS')
 
 const root = resolve(import.meta.dirname, '..')
-const temporary = mkdtempSync(join(tmpdir(), 'actiondriver-packaged-smoke-'))
+const temporary = mkdtempSync(join(tmpdir(), 'action-driver-packaged-smoke-'))
 const desktopDeployment = join(temporary, 'desktop')
 const runtimeDeployment = join(temporary, 'runtime')
-const app = join(temporary, 'ActionDriver.app')
+const app = join(temporary, 'Action-Driver.app')
 
 function run(command, args, env = process.env) {
   const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' })
@@ -21,12 +21,12 @@ function run(command, args, env = process.env) {
 try {
   run('corepack', ['pnpm', 'build:native:electron'])
   run('corepack', ['pnpm', 'build:native:computer-use'])
-  run('corepack', ['pnpm', '--filter', '@actiondriver/agent-runtime', 'build'])
-  run('corepack', ['pnpm', '--filter', '@actiondriver/desktop', 'build'])
+  run('corepack', ['pnpm', '--filter', '@action-driver/agent-runtime', 'build'])
+  run('corepack', ['pnpm', '--filter', '@action-driver/desktop', 'build'])
   run('corepack', [
     'pnpm',
     '--filter',
-    '@actiondriver/desktop',
+    '@action-driver/desktop',
     'deploy',
     '--prod',
     desktopDeployment
@@ -34,7 +34,7 @@ try {
   run('corepack', [
     'pnpm',
     '--filter',
-    '@actiondriver/agent-runtime',
+    '@action-driver/agent-runtime',
     'deploy',
     '--prod',
     runtimeDeployment
@@ -45,10 +45,10 @@ try {
   run('ditto', [desktopDeployment, join(app, 'Contents', 'Resources', 'app')])
   run('ditto', [runtimeDeployment, join(app, 'Contents', 'Resources', 'agent-runtime')])
   const computerHelperSource = join(root, 'plugins', 'computer-use', 'native',
-    'dist', process.arch, 'ActionDriver Computer Use.app')
-  const computerHelperBundle = join(app, 'Contents', 'Helpers', 'ActionDriver Computer Use.app')
+    'dist', process.arch, 'Action-Driver Computer Use.app')
+  const computerHelperBundle = join(app, 'Contents', 'Helpers', 'Action-Driver Computer Use.app')
   run('ditto', [computerHelperSource, computerHelperBundle])
-  const computerHelper = join(computerHelperBundle, 'Contents', 'MacOS', 'actiondriver-computer-use')
+  const computerHelper = join(computerHelperBundle, 'Contents', 'MacOS', 'action-driver-computer-use')
   if (!(statSync(computerHelper).mode & 0o111)) {
     throw new Error('PACKAGED_COMPUTER_HELPER_NOT_EXECUTABLE')
   }
@@ -89,7 +89,7 @@ try {
   // bundled runtimes; release packaging keeps its own decision on this tree.
   if (!existsSync(join(builtRuntimeDist, 'dependencies'))) {
     throw new Error(
-      'PACKAGED_DEPENDENCIES_MISSING: run pnpm --filter @actiondriver/agent-runtime build:office-local first'
+      'PACKAGED_DEPENDENCIES_MISSING: run pnpm --filter @action-driver/agent-runtime build:office-local first'
     )
   }
   run('ditto', [join(builtRuntimeDist, 'dependencies'), join(runtimeDist, 'dependencies')])
@@ -158,17 +158,17 @@ try {
   }
   renameSync(
     join(app, 'Contents', 'MacOS', 'Electron'),
-    join(app, 'Contents', 'MacOS', 'ActionDriver')
+    join(app, 'Contents', 'MacOS', 'Action-Driver')
   )
   run('/usr/libexec/PlistBuddy', [
     '-c',
-    'Set :CFBundleExecutable ActionDriver',
+    'Set :CFBundleExecutable Action-Driver',
     join(app, 'Contents', 'Info.plist')
   ])
   run(
     'corepack',
     ['pnpm', 'exec', 'playwright', 'test', 'apps/desktop/tests/e2e/packaged-runtime.spec.ts'],
-    { ...process.env, ACTIONDRIVER_PACKAGED_APP: app }
+    { ...process.env, ACTION_DRIVER_PACKAGED_APP: app }
   )
 } finally {
   rmSync(temporary, { recursive: true, force: true })

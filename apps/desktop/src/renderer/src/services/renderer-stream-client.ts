@@ -1,4 +1,4 @@
-import type { AgentGoalRequest } from '@actiondriver/contracts'
+import type { AgentGoalRequest } from '@action-driver/contracts'
 import {
   STREAM_PROTOCOL,
   StreamLifecycleGuard,
@@ -7,7 +7,7 @@ import {
   type StreamClientEvent,
   type StreamResponseEvent,
   type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import type { RuntimeConnectionInfo } from '../../../shared/runtime-connection-contract'
 
 export type RuntimeStreamAccepted = Extract<StreamServerEvent, { type: 'request.accepted' }>

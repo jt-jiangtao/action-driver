@@ -4,7 +4,7 @@
 
 **Goal:** Record inspectable Request/Response bodies for real IPC and HTTP interactions, expose protocol filtering and lazy detail loading in the existing interface-log page, and provide the same recorder boundary for the planned WebSocket service.
 
-**Architecture:** `@actiondriver/observability` owns transport-neutral event types, an `InteractionLogStore` port, the recorder state machine, credential-boundary sanitation, and a local file adapter. Electron Main and Agent Runtime each write a separate namespace under the same `userData/logs/interactions` root; Main merges summaries and routes detail reads by source-prefixed event ID. Renderer list calls receive summaries only, while a separate detail call loads one payload on demand.
+**Architecture:** `@action-driver/observability` owns transport-neutral event types, an `InteractionLogStore` port, the recorder state machine, credential-boundary sanitation, and a local file adapter. Electron Main and Agent Runtime each write a separate namespace under the same `userData/logs/interactions` root; Main merges summaries and routes detail reads by source-prefixed event ID. Renderer list calls receive summaries only, while a separate detail call loads one payload on demand.
 
 **Tech Stack:** TypeScript, Node.js `fs/promises`, `zlib`, Pino, Electron IPC/Preload, React, Vitest, Testing Library, Playwright.
 
@@ -50,7 +50,7 @@ it('serializes begin and completion into one correlated event', async () => {
   const finish = await recorder.start({
     transport: 'ipc',
     direction: 'renderer->service',
-    operation: 'actiondriver:agent:submit',
+    operation: 'action-driver:agent:submit',
     request: { kind: 'json', value: { goal: 'summarise' } }
   })
 
@@ -266,7 +266,7 @@ git commit -m "feat: persist bounded interaction payloads"
 it('captures request and response with one correlation id', async () => {
   const recorder = createMemoryRecorder()
   registerAgentIpcHandlers(ipc, runtime, recorder)
-  await invokeRegistered('actiondriver:agent:submit', { goal: 'inspect logs' })
+  await invokeRegistered('action-driver:agent:submit', { goal: 'inspect logs' })
   expect(await recorder.store.getDetail(recorder.onlyEventId())).toMatchObject({
     transport: 'ipc',
     request: { text: expect.stringContaining('inspect logs') },
@@ -277,7 +277,7 @@ it('captures request and response with one correlation id', async () => {
 
 Add model-connection coverage asserting `draft.apiKey` is absent while non-secret fields remain.
 
-Add a control-plane exclusion test asserting `actiondriver:log:list`, `actiondriver:log:detail`, and any future `actiondriver:log:*` channel do not call the interaction recorder. Keep the prefix rule centralized at the IPC capture boundary so automatic refresh cannot generate self-observation noise.
+Add a control-plane exclusion test asserting `action-driver:log:list`, `action-driver:log:detail`, and any future `action-driver:log:*` channel do not call the interaction recorder. Keep the prefix rule centralized at the IPC capture boundary so automatic refresh cannot generate self-observation noise.
 
 - [ ] **Step 2: Run IPC tests and confirm RED**
 
@@ -379,8 +379,8 @@ Expected: FAIL because only the old list channel exists.
 
 ```ts
 export const LOG_IPC_CHANNELS = {
-  list: 'actiondriver:logs:list',
-  detail: 'actiondriver:logs:detail'
+  list: 'action-driver:logs:list',
+  detail: 'action-driver:logs:detail'
 } as const
 
 export type LogListRequest = {

@@ -69,7 +69,7 @@
   await expect(gateway.complete(realRequest)).resolves.toEqual({ kind: 'finish', content: 'done' })
   ```
 
-- [ ] **Step 2: 跑红。** `corepack pnpm --filter @actiondriver/agent-runtime typecheck`，确认新模块尚不存在导致类型检查失败；再运行 `corepack pnpm exec vitest run apps/agent-runtime/tests/phoenix-model-observability.test.ts apps/agent-runtime/tests/model-gateway.test.ts` 检查新增行为断言。
+- [ ] **Step 2: 跑红。** `corepack pnpm --filter @action-driver/agent-runtime typecheck`，确认新模块尚不存在导致类型检查失败；再运行 `corepack pnpm exec vitest run apps/agent-runtime/tests/phoenix-model-observability.test.ts apps/agent-runtime/tests/model-gateway.test.ts` 检查新增行为断言。
 - [ ] **Step 3: 实现最小修改。** 将 `ModelTraceStart`、`ModelTraceFinish` 从 LangSmith 文件移入 `model-trace-port.ts`，定义端口；Phoenix 和网关从新文件导入。保留网关的观测异常隔离，Phoenix 对嵌套对象/数组过滤凭据并在每个终态结束 span。
 
   ```ts
@@ -79,7 +79,7 @@
   }
   ```
 
-- [ ] **Step 4: 跑绿并提交。** 重跑上述 Vitest 与 `corepack pnpm --filter @actiondriver/agent-runtime typecheck`；审查 `git diff --check`，提交 `refactor: decouple model tracing from LangSmith`。
+- [ ] **Step 4: 跑绿并提交。** 重跑上述 Vitest 与 `corepack pnpm --filter @action-driver/agent-runtime typecheck`；审查 `git diff --check`，提交 `refactor: decouple model tracing from LangSmith`。
 
 ### Task 2: Runtime 装配 Phoenix 与真实链路
 
@@ -112,7 +112,7 @@
   })
   ```
 
-- [ ] **Step 4: 跑绿并提交。** 重跑定向测试、`corepack pnpm --filter @actiondriver/agent-runtime build`，提交 `feat: send model spans to local Phoenix`。
+- [ ] **Step 4: 跑绿并提交。** 重跑定向测试、`corepack pnpm --filter @action-driver/agent-runtime build`，提交 `feat: send model spans to local Phoenix`。
 
 ### Task 3: 退役 LangSmith 和 SQLite 新模型日志写入
 
@@ -138,7 +138,7 @@
 
 - [ ] **Step 2: 跑红。** `corepack pnpm exec vitest run apps/agent-runtime/tests/model-gateway.test.ts apps/agent-runtime/tests/database.test.ts apps/agent-runtime/tests/model-log-projection.test.ts`，确认新任务写入旧表导致断言失败。
 - [ ] **Step 3: 删旧路径。** 移除网关的 `modelCalls` 参数和 `save` 调用、仓储 `modelCalls` 属性、`ModelCallRepository`/`PersistedModelCall`、未用模型日志投影；保留数据库 v3 迁移的建表语句与历史行。删除 LangSmith 源码、单测、Runtime 导出和直接依赖，使用 `corepack pnpm install --lockfile-only` 更新锁文件。
-- [ ] **Step 4: 跑绿并提交。** 运行上述定向测试、Runtime 类型检查与构建，检查 ActionDriver 源码无 LangSmith 主动调用与直接依赖；锁文件允许由 `@langchain/core` 带入的间接 SDK。用行为测试确认继承追踪环境变量不会启用 LangSmith；提交退役修改。
+- [ ] **Step 4: 跑绿并提交。** 运行上述定向测试、Runtime 类型检查与构建，检查 Action-Driver 源码无 LangSmith 主动调用与直接依赖；锁文件允许由 `@langchain/core` 带入的间接 SDK。用行为测试确认继承追踪环境变量不会启用 LangSmith；提交退役修改。
 
 ### Task 4: 删除遗留模型/接口日志代码并审计其他候选
 
@@ -157,7 +157,7 @@
 - [ ] **Step 1: 记录候选。** 从 Runtime、Electron Main/Preload/Renderer、脚本和包入口构建引用图；对每个零生产引用文件用 `rg` 复核动态引用、测试和设计审计用途。把候选、证据、结论写入审计文档；把旧模型连接迁移与有效视觉夹具列为保留项。
 - [ ] **Step 2: 固定行为测试。** 在现有 `apps/desktop/src/main/interaction-logging.test.ts`、`apps/agent-runtime/tests/service-logging.test.ts` 和 `packages/observability/tests/otel-logger.test.ts` 中断言 Main/Runtime 仍产生无正文摘要、不会新增本机日志文件；先运行定向测试确认用户可见的记录边界被覆盖。旧日志 IPC 与模型详情入口缺席用生产入口审计和构建验证，不写镜像源码的测试。
 - [ ] **Step 3: 分组删除。** 先删无生产入口的 Desktop 模型/接口日志路径及 DTO，再删旧本机日志读取/存储和测试；对 `interaction-store.ts` 中仅供旧存储使用的分支删除并让生产摘要接口保持稳定。确认 Pino 仅剩测试或类型引用后删除相关代码及依赖；保留真正参与运行/构建的模块。
-- [ ] **Step 4: 验证并提交。** 运行 `corepack pnpm typecheck`、`corepack pnpm lint`、上述日志测试、`corepack pnpm --filter @actiondriver/desktop build`；检查包依赖和 `git diff --check`，提交 `refactor: remove unused log and UI paths`。
+- [ ] **Step 4: 验证并提交。** 运行 `corepack pnpm typecheck`、`corepack pnpm lint`、上述日志测试、`corepack pnpm --filter @action-driver/desktop build`；检查包依赖和 `git diff --check`，提交 `refactor: remove unused log and UI paths`。
 
 ### Task 5: 当前规范、运维文档和本地平台验收
 

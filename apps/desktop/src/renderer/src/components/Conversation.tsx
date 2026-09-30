@@ -1,4 +1,4 @@
-import type { AgentMessageProjection, ToolInvocationProjection } from '@actiondriver/contracts'
+import type { AgentMessageProjection, ToolInvocationProjection } from '@action-driver/contracts'
 import { AgentResponse } from './agent/AgentResponse'
 import { UserMessage } from './agent/UserMessage'
 import type { ImageReader } from './agent/ConversationImage'

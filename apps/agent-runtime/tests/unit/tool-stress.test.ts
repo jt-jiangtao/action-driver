@@ -2,11 +2,11 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ToolCall, ToolExecutionContext, ToolExecutor } from '@actiondriver/runtime-contracts'
+import type { ToolCall, ToolExecutionContext, ToolExecutor } from '@action-driver/runtime-contracts'
 import { createScriptTools } from '../../src/execution/tools'
 import { createTavilySearchTool } from '../../../../plugins/web/src/search/tavily'
 
-const stress = process.env.ACTIONDRIVER_STRESS_TOOLS === '1' ? it : it.skip
+const stress = process.env.ACTION_DRIVER_STRESS_TOOLS === '1' ? it : it.skip
 
 async function execute(
   executor: ToolExecutor,
@@ -30,7 +30,7 @@ describe('explicit 100 calls per tool stress verification', () => {
   stress(
     'executes Shell, bundled Python, bundled Node, and Tavily Web Search 100 times each',
     async () => {
-      const workspaceRoot = await mkdtemp(join(tmpdir(), 'actiondriver-tool-stress-'))
+      const workspaceRoot = await mkdtemp(join(tmpdir(), 'action-driver-tool-stress-'))
       const requests: string[] = []
       try {
         const tools = await createScriptTools({

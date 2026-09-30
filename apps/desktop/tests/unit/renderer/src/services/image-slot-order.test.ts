@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextPartOrder, sortPartsByOrder, type MessageContentPart } from '@actiondriver/contracts'
+import { nextPartOrder, sortPartsByOrder, type MessageContentPart } from '@action-driver/contracts'
 
 const batch = (callId: string, imageCount = 4, order = 1): MessageContentPart => ({
   kind: 'image-batch',

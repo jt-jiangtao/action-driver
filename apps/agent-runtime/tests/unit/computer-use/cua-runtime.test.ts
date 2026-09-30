@@ -8,7 +8,7 @@ import { COMPUTER_USE_GUIDANCE_ERRORS } from '../../../src/tool-error-exposure'
 
 // A fresh Node host is required for the original service's vm.SourceTextModule.
 async function probe(source: string) {
-  const directory = await mkdtemp(join(tmpdir(), 'actiondriver-cua-runtime-'))
+  const directory = await mkdtemp(join(tmpdir(), 'action-driver-cua-runtime-'))
   try {
     const bundle = join(directory, 'host.mjs')
     const compile = spawnSync(
@@ -76,7 +76,7 @@ describe('owned CUA runtime with sandboxed children', () => {
       runtime=createCuaRuntime({...runtimeOptions,
         browserSkillLoaded:()=>true,computerSkillLoaded:()=>false,
         invokeBrowser:async(task,command)=>{browser.push({task,type:command.type});
-          if(command.type==='list_browsers')return [{id:'iab',name:'ActionDriver',type:'iab'}];
+          if(command.type==='list_browsers')return [{id:'iab',name:'Action-Driver',type:'iab'}];
           throw new Error('unexpected browser command')}
       });
       const cell=[];
@@ -98,7 +98,7 @@ describe('owned CUA runtime with sandboxed children', () => {
       const browser=[];
       runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
         invokeBrowser:async(_task,command)=>{browser.push(command.type);
-          if(command.type==='get_browser')return {id:'iab',name:'ActionDriver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
+          if(command.type==='get_browser')return {id:'iab',name:'Action-Driver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
           if(command.type==='get_browser_documentation')return 'Browser documentation';
           if(command.type==='list_tabs')return {tabs:[{id:'tab-1',title:'Fixture',url:'https://example.org'}]};
           if(command.type==='get_tab')return {id:'tab-1',title:'Fixture',url:'https://example.org'};
@@ -142,7 +142,7 @@ describe('owned CUA runtime with sandboxed children', () => {
       const browser=[];
       runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
         invokeBrowser:async(task,command)=>{browser.push({task,type:command.type});
-          if(command.type==='list_browsers')return [{id:'iab',name:'ActionDriver',type:'iab'}];
+          if(command.type==='list_browsers')return [{id:'iab',name:'Action-Driver',type:'iab'}];
           if(command.type==='close_task')return {closed:true};
           throw new Error('unexpected browser command')}
       });
@@ -184,7 +184,7 @@ describe('owned CUA runtime with sandboxed children', () => {
         computerSkillLoaded:()=>true,
         invoke:async()=>{throw new Error('HELPER_UNAVAILABLE')},
         invokeBrowser:async(_task,command)=>command.type==='list_browsers'
-          ? [{id:'iab',name:'ActionDriver',type:'iab'}]
+          ? [{id:'iab',name:'Action-Driver',type:'iab'}]
           : (()=>{throw new Error('unexpected browser command')})()
       });
       const cell=[];
@@ -202,7 +202,7 @@ describe('owned CUA runtime with sandboxed children', () => {
       await runtime.dispose();
       runtime=createCuaRuntime({...runtimeOptions,browserSkillLoaded:()=>true,
         invokeBrowser:async(_task,command)=>{
-          if(command.type==='get_browser')return {id:'iab',name:'ActionDriver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
+          if(command.type==='get_browser')return {id:'iab',name:'Action-Driver',type:'iab',apiSupportOverrides:{'Tab.ax':true},capabilities:{browser:[],tab:[]}};
           if(command.type==='get_browser_documentation')return 'Browser documentation';
           if(command.type==='list_tabs')return {tabs:[{id:'tab-1',title:'Fixture',url:'https://example.org'}]};
           if(command.type==='get_tab')return {id:'tab-1',title:'Fixture',url:'https://example.org'};

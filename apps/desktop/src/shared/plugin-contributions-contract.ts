@@ -1,8 +1,8 @@
-import type { PluginUiContributions } from '@actiondriver/plugin-contracts'
+import type { PluginUiContributions } from '@action-driver/plugin-contracts'
 
-export const PLUGIN_CONTRIBUTIONS_LIST_CHANNEL = 'actiondriver:plugin-contributions:list'
-export const PLUGIN_VIEW_OPEN_CHANNEL = 'actiondriver:plugin-contributions:open-view'
-export const PLUGIN_COMMAND_EXECUTE_CHANNEL = 'actiondriver:plugin-contributions:execute-command'
+export const PLUGIN_CONTRIBUTIONS_LIST_CHANNEL = 'action-driver:plugin-contributions:list'
+export const PLUGIN_VIEW_OPEN_CHANNEL = 'action-driver:plugin-contributions:open-view'
+export const PLUGIN_COMMAND_EXECUTE_CHANNEL = 'action-driver:plugin-contributions:execute-command'
 
 /** Desktop surface for declared plugin views and menus; availability stays runtime-owned. */
 export interface PluginContributionsDesktopApi {

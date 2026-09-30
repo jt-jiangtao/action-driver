@@ -1,4 +1,4 @@
-import type { ModelCapability } from '@actiondriver/model-connections'
+import type { ModelCapability } from '@action-driver/model-connections'
 import { isTokenPlanBaseUrl } from '../media/token-plan-image-generation-adapter'
 
 export type DisplayOnlyCapability =

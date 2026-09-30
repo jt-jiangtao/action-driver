@@ -44,7 +44,7 @@
 
 ### Task 1: 锁定输入与可拉取的源码夹具
 
-**Files:** 创建 inputs.mjs、inputs.test.mjs、锁定记录与模板；提交 Playwright 的 action_driver/baseline 自有文件（排除 manifest.json），更新主仓库 gitlink。
+**Files:** 创建 inputs.mjs、inputs.test.mjs、锁定记录与模板；提交 Playwright 的 action-driver/baseline 自有文件（排除 manifest.json），更新主仓库 gitlink。
 
 **Interfaces:** 产生 `loadBuildInputs(root:string):Promise<{lock:object,digest:string}>`，检查 .gitmodules、gitlink、源码 HEAD 与工具字段；后续阶段消费返回的 lock。
 
@@ -99,14 +99,14 @@
 
 ### Task 6: 状态恢复与双 Fork 验证
 
-**Files:** pipeline.mjs、pipeline.test.mjs；必要时修改 Playwright action_driver/baseline 内的 manifest 生成接线。
+**Files:** pipeline.mjs、pipeline.test.mjs；必要时修改 Playwright action-driver/baseline 内的 manifest 生成接线。
 
 **Interfaces:** 消费各阶段函数；产生 `runPipeline(context, options:{stage:string,from?:string}):Promise<void>`，状态 schema 包含阶段名、输入/输出摘要及成功/失败信息。
 
 - [ ] 写 stale_input_reexecutes_stage、tampered_output_rejected_on_resume、success_marker_without_output_rejected、verify_uses_both_local_forks 测试。
 - [ ] 跑 pipeline.test.mjs RED。
 - [ ] 实现显式续跑验证；从当前实测来源生成 baseline manifest，调用已有 runSmoke(manifest)，保留真实页面操作、截图和进程关闭。不中断当前旧工作区的后台编译。
-- [ ] 同一测试 GREEN；真实运行 `node --test thirdparty/playwright/action_driver/baseline/verify.test.mjs thirdparty/playwright/action_driver/baseline/smoke.test.mjs`，预期 14/14。记录待提交文件。
+- [ ] 同一测试 GREEN；真实运行 `node --test thirdparty/playwright/action-driver/baseline/verify.test.mjs thirdparty/playwright/action-driver/baseline/smoke.test.mjs`，预期 14/14。记录待提交文件。
 
 ### Task 7: 桌面打包入口与使用文档
 

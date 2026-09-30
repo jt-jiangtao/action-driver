@@ -11,7 +11,7 @@ const root = resolve('packages/cua-repl')
 test('packed macOS REPL exposes an executable that delegates to launch', async () => {
   const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'))
   expect(manifest.bin?.['cua-repl']).toBe('bin/cua-repl.mjs')
-  expect(manifest.dependencies?.['@actiondriver/cua']).toBe('workspace:*')
+  expect(manifest.dependencies?.['@action-driver/cua']).toBe('workspace:*')
   await expect(execute(process.execPath, [resolve(root, manifest.bin['cua-repl'])], {
     env: { ...process.env, CUA_REPL_NODE_REPL_PATH: '' }
   })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('CUA_REPL_NODE_REPL_PATH must name an absolute executable') })

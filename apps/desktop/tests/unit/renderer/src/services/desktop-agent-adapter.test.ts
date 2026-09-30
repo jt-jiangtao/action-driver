@@ -2,9 +2,9 @@ import type {
   SkillControlCommand,
   SkillExecutionEvent,
   TaskProjection
-} from '@actiondriver/contracts'
-import { AgentServiceError, SKILL_IDS } from '@actiondriver/contracts'
-import type { RuntimeEvent, StreamServerEvent } from '@actiondriver/runtime-contracts'
+} from '@action-driver/contracts'
+import { AgentServiceError, SKILL_IDS } from '@action-driver/contracts'
+import type { RuntimeEvent, StreamServerEvent } from '@action-driver/runtime-contracts'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentDesktopApi } from '../../../../../src/preload/desktop-api'
 import { DesktopAgentAdapter, DesktopSkillGateway } from '../../../../../src/renderer/src/services/desktop-agent-adapter'
@@ -54,7 +54,7 @@ function harness(browserSession?: DesktopApi['browserSession']) {
   const streamClient = {
     create: vi.fn(async () => ({
       type: 'request.accepted' as const,
-      protocol: 'actiondriver.stream.v2' as const,
+      protocol: 'action-driver.stream.v2' as const,
       eventId: 'accepted-1',
       cursor: 1,
       sequence: 0,
@@ -144,7 +144,7 @@ describe('DesktopAgentAdapter', () => {
     expect(adapter.getTask('task-1')?.preparingToolName).toBe('tools_local_command_shell_run')
     emitStream({
       type: 'response.end',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'restored-end',
       requestId: 'request-1',
       sessionId: 'session-1',
@@ -190,7 +190,7 @@ describe('DesktopAgentAdapter', () => {
 
     emitStream({
       type: 'response.start',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'start-1',
       cursor: 2,
       requestId: 'request-1',
@@ -205,7 +205,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.content',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'content-1',
       cursor: 3,
       requestId: 'request-1',
@@ -246,7 +246,7 @@ describe('DesktopAgentAdapter', () => {
     // the events, without a second buffer of its own.
     emitStream({
       type: 'response.start',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'start-1',
       cursor: 2,
       requestId: 'request-1',
@@ -261,7 +261,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.content',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'content-1',
       cursor: 3,
       requestId: 'request-1',
@@ -278,7 +278,7 @@ describe('DesktopAgentAdapter', () => {
 
     acceptCreate({
       type: 'request.accepted',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'accepted-1',
       cursor: 1,
       sequence: -1,
@@ -314,7 +314,7 @@ describe('DesktopAgentAdapter', () => {
     })
     vi.mocked(streamClient.create).mockResolvedValueOnce({
       type: 'request.accepted',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'accepted-2',
       cursor: 4,
       sequence: 0,
@@ -330,7 +330,7 @@ describe('DesktopAgentAdapter', () => {
     await adapter.submitGoal({ goal: '第二问', sessionId: 'session-1' })
     emitStream({
       type: 'response.start',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'start-2',
       cursor: 5,
       requestId: 'request-2',
@@ -345,7 +345,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.content',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'content-2',
       cursor: 6,
       requestId: 'request-2',
@@ -361,7 +361,7 @@ describe('DesktopAgentAdapter', () => {
     })
     emitStream({
       type: 'response.end',
-      protocol: 'actiondriver.stream.v2',
+      protocol: 'action-driver.stream.v2',
       eventId: 'end-2',
       cursor: 7,
       requestId: 'request-2',

@@ -20,7 +20,7 @@ describe('Sidebar', () => {
     )
 
     expect(screen.getByTestId('e2e/shared/sidebar/root#nav')).toHaveAttribute('data-width', '248')
-    expect(screen.getByText('ActionDriver')).toBeVisible()
+    expect(screen.getByText('Action-Driver')).toBeVisible()
     expect(screen.getByText('新任务')).toBeVisible()
     expect(screen.getByText('Skills')).toBeVisible()
     expect(screen.getByText('MCP')).toBeVisible()

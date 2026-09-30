@@ -58,8 +58,8 @@ describe('RuntimeSupervisor', () => {
       )
     ).toMatchObject({
       NODE_OPTIONS: '--max-old-space-size=2048 --experimental-vm-modules',
-      ACTIONDRIVER_RUNTIME_DATA_ROOT: '/data',
-      ACTIONDRIVER_WORKSPACE_ROOT: '/workspace'
+      ACTION_DRIVER_RUNTIME_DATA_ROOT: '/data',
+      ACTION_DRIVER_WORKSPACE_ROOT: '/workspace'
     })
     expect(
       runtimeProcessEnvironment(
@@ -128,14 +128,14 @@ describe('RuntimeSupervisor', () => {
       service: {
         baseUrl: 'http://127.0.0.1:45123',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v2'
+        streamProtocol: 'action-driver.stream.v2'
       }
     })
     await firstStart
     expect(onServiceReady).toHaveBeenNthCalledWith(1, {
       baseUrl: 'http://127.0.0.1:45123',
       streamPath: '/stream',
-      streamProtocol: 'actiondriver.stream.v2'
+      streamProtocol: 'action-driver.stream.v2'
     })
 
     processes[0]?.emitExit(1)
@@ -144,14 +144,14 @@ describe('RuntimeSupervisor', () => {
       service: {
         baseUrl: 'http://127.0.0.1:45124',
         streamPath: '/stream',
-        streamProtocol: 'actiondriver.stream.v2'
+        streamProtocol: 'action-driver.stream.v2'
       }
     })
     await vi.waitFor(() => expect(supervisor.state).toBe('ready'))
     expect(onServiceReady).toHaveBeenNthCalledWith(2, {
       baseUrl: 'http://127.0.0.1:45124',
       streamPath: '/stream',
-      streamProtocol: 'actiondriver.stream.v2'
+      streamProtocol: 'action-driver.stream.v2'
     })
   })
 

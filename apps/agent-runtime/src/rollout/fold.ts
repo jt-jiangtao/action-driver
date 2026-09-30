@@ -1,4 +1,4 @@
-import type { DocumentFileRef, ImageAssetRef } from '@actiondriver/contracts'
+import type { DocumentFileRef, ImageAssetRef } from '@action-driver/contracts'
 import { blockRegion, type BlockKind, type BlockRegion, type RolloutLine, type ToolStatus } from './model'
 
 export type RolloutBlockState = {

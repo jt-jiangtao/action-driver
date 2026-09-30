@@ -1,14 +1,14 @@
 ## Purpose
 
-定义 ActionDriver 首个可运行桌面壳层的用户可见行为，使 macOS 应用在安全的 Electron 进程边界内稳定呈现已确认的导航、品牌和页面布局。
+定义 Action-Driver 首个可运行桌面壳层的用户可见行为，使 macOS 应用在安全的 Electron 进程边界内稳定呈现已确认的导航、品牌和页面布局。
 
 ## ADDED Requirements
 
 ### Requirement: 启动桌面应用
-系统 SHALL 以 macOS 桌面窗口启动，并默认显示 ActionDriver 首页，不打开外部浏览器窗口。
+系统 SHALL 以 macOS 桌面窗口启动，并默认显示 Action-Driver 首页，不打开外部浏览器窗口。
 
 #### Scenario: 首次启动
-- **WHEN** 用户启动 ActionDriver
+- **WHEN** 用户启动 Action-Driver
 - **THEN** 系统在单一桌面窗口中显示首页及左侧导航
 
 ### Requirement: 使用安全的渲染边界
@@ -19,7 +19,7 @@
 - **THEN** 请求仅能通过预先声明的桥接接口完成，页面不能直接访问 Node.js 或 Electron 原始 API
 
 ### Requirement: 呈现统一侧栏
-系统 SHALL 在首页和任务页呈现宽度为 248px 的浅色侧栏，包含窗口控制区域、ActionDriver 品牌、新任务、Skills、MCP 和最近任务列表，并且不显示底部用户名。
+系统 SHALL 在首页和任务页呈现宽度为 248px 的浅色侧栏，包含窗口控制区域、Action-Driver 品牌、新任务、Skills、MCP 和最近任务列表，并且不显示底部用户名。
 
 #### Scenario: 首页侧栏
 - **WHEN** 用户位于首页
@@ -37,7 +37,7 @@
 - **THEN** 当前页面保持不变，并且系统不创建额外页面或占位流程
 
 ### Requirement: 遵循设计基础
-系统 SHALL 使用 Figma 中定义的语义色、字体层级、间距、圆角、阴影和动效 Token，并使用现有 ActionDriver 品牌 SVG 与匹配的 Lucide 图标。
+系统 SHALL 使用 Figma 中定义的语义色、字体层级、间距、圆角、阴影和动效 Token，并使用现有 Action-Driver 品牌 SVG 与匹配的 Lucide 图标。
 
 #### Scenario: 1440×900 基准窗口
 - **WHEN** 窗口内容区域为 1440×900

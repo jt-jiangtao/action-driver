@@ -1,4 +1,4 @@
-import type { BrowserSessionCommand, BrowserSessionSnapshot } from '@actiondriver/browser-desktop'
+import type { BrowserSessionCommand, BrowserSessionSnapshot } from '@action-driver/browser-desktop'
 import {
   BROWSER_SESSION_COMMAND_CHANNEL,
   type BrowserSessionRequest

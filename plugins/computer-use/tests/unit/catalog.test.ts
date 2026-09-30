@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { catalog } from '../../src/catalog'
-import { projectToolDetails } from '@actiondriver/plugin-sdk'
+import { projectToolDetails } from '@action-driver/plugin-sdk'
 it('exports original js schemas and computer-use Skill without starting the native runtime', () => {
   expect(catalog.tools.map(tool => tool.modelName)).toEqual(['tools_local_cua_js', 'tools_local_cua_reset'])
   expect(catalog.tools.map(tool => tool.id)).toEqual(['tools/local/cua/js', 'tools/local/cua/reset'])

@@ -1,9 +1,9 @@
 ---
-name: actiondriver-optimization
-description: 分析并优化 ActionDriver 项目的性能、渲染、组件架构或进程边界。当用户说“优化项目”“优化性能”“优化架构”“代码优化”“重构一下”，或要求对 ActionDriver 做优化分析时使用。
+name: action-driver-optimization
+description: 分析并优化 Action-Driver 项目的性能、渲染、组件架构或进程边界。当用户说“优化项目”“优化性能”“优化架构”“代码优化”“重构一下”，或要求对 Action-Driver 做优化分析时使用。
 ---
 
-# ActionDriver 优化
+# Action-Driver 优化
 
 用户要求“优化这个项目”时用这份流程。核心是：先拿证据，再按面加载对应 skill，并把结论落进本仓库既有治理流程。
 

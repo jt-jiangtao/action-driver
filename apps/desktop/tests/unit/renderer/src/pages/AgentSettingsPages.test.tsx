@@ -73,7 +73,7 @@ describe('Agent settings pages', () => {
     renderWithQuery(<MainPromptPage service={service} onBack={() => undefined} />)
 
     await screen.findByRole('textbox', { name: '主提示词 Markdown' })
-    expect(screen.getByRole('heading', { name: 'ActionDriver 主提示词', level: 1 })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Action-Driver 主提示词', level: 1 })).toBeVisible()
     expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '源码' }))
     await user.type(
@@ -142,7 +142,7 @@ describe('Agent settings pages', () => {
     await user.click(screen.getByRole('button', { name: '确认恢复' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: '已保存' })).toBeDisabled())
-    expect((await service.getMainPrompt()).content).toContain('# ActionDriver 主提示词')
+    expect((await service.getMainPrompt()).content).toContain('# Action-Driver 主提示词')
   })
 
   it('offers save, discard, and cancel before leaving a dirty main prompt', async () => {

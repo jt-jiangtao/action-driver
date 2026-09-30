@@ -12,7 +12,7 @@ import {
   type ResourceScope,
   type ResourceWatchEvent,
   type ResourceWriteRequest
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 
 export interface ResourceProviderRegistryOptions {
   /** Provider protocol versions this host understands. */

@@ -2,18 +2,18 @@ import {
   projectToolDetails,
   toolPresentationSchema,
   type ToolPresentation
-} from '@actiondriver/plugin-contracts'
+} from '@action-driver/plugin-contracts'
 import {
   emptyActivityTimelineState,
   reduceActivityProjection
-} from '@actiondriver/activity-projection'
-import { isImageGenerationToolId, normalizeAssistantParts } from '@actiondriver/contracts'
-import type { AppApprovalRequest } from '@actiondriver/contracts'
+} from '@action-driver/activity-projection'
+import { isImageGenerationToolId, normalizeAssistantParts } from '@action-driver/contracts'
+import type { AppApprovalRequest } from '@action-driver/contracts'
 import {
   STREAM_PROTOCOL,
   parseStreamServerEvent,
   type StreamServerEvent
-} from '@actiondriver/runtime-contracts'
+} from '@action-driver/runtime-contracts'
 import type {
   PersistedStreamRequest,
   RuntimeEventRecord,

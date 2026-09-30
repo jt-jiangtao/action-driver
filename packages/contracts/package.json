@@ -1,5 +1,5 @@
 {
-  "name": "@actiondriver/contracts",
+  "name": "@action-driver/contracts",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@actiondriver/plugin-contracts": "workspace:*"
+    "@action-driver/plugin-contracts": "workspace:*"
   }
 }

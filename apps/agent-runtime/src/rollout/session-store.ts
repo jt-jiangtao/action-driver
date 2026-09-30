@@ -11,7 +11,7 @@ import type {
   StreamRequestRepository,
   TaskRepository
 } from '../ports'
-import type { MessageContentPart } from '@actiondriver/contracts'
+import type { MessageContentPart } from '@action-driver/contracts'
 import { countRolloutEvents, deriveRolloutEvents } from './event-bridge'
 import {
   applyRolloutLine,
@@ -394,7 +394,7 @@ export class RolloutSessionStore implements StreamSessionRepository {
       sessionId,
       threadId: sessionId,
       model: task.model,
-      originator: 'actiondriver-desktop',
+      originator: 'action-driver-desktop',
       version: '0.1.0'
     }
     if (!runtime.lines.some((line) => line.t === 'session_meta'))

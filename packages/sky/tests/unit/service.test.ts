@@ -171,7 +171,7 @@ test('Mac remote proxy matches baseline keys, RPC traces and decoded audio', asy
     else Reflect.set(globalThis, 'nodeRepl', saved)
   }
 })
-test('default sky entry fails closed without an explicit ActionDriver host', async () => {
+test('default sky entry fails closed without an explicit Action-Driver host', async () => {
   const saved = Reflect.get(globalThis, 'nodeRepl')
   const rpc = vi.fn(async (_service: string, message: any) =>
     message.type === 'setup' ? { target: 'mac', methods: ['list_apps'] } : [{ id: 'app' }]

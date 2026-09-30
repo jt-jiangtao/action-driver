@@ -1,4 +1,4 @@
-import { PluginError } from '@actiondriver/plugin-contracts'
+import { PluginError } from '@action-driver/plugin-contracts'
 import type { PluginHostAPIPorts } from './host-api'
 
 export function createWebCredentialPort(environment: NodeJS.ProcessEnv) {

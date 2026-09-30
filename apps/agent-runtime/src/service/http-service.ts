@@ -5,7 +5,7 @@ import {
   withRemoteTraceparent,
   type InteractionLogRecorder,
   type StructuredLogger
-} from '@actiondriver/observability'
+} from '@action-driver/observability'
 import {
   attachServiceWebSocketServer,
   type ServiceStreamSessionPort

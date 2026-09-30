@@ -9,12 +9,12 @@
 - 真实任务跨 HTTP、IPC、WebSocket、工具与模型时，能以 `trace_id`、`sessionId`、`taskId` 在 Loki、Tempo、Phoenix 中关联。
 - Desktop Main 与 Agent Runtime 只用 OpenTelemetry Logs SDK 产生运行日志及接口调用摘要；不新增本机日志文件、交互日志记录或本机日志读取 API。
 - Loki 仅存调用摘要与运行日志，Tempo 仅存不含模型原文的链路元数据，Phoenix 存完整模型提示词、输入、输出和错误详情。
-- Grafana、Alloy、Loki、Tempo、Prometheus、Phoenix 由本地 Docker 启动、持久化和验收；ActionDriver 不提供观测页面或导航。
+- Grafana、Alloy、Loki、Tempo、Prometheus、Phoenix 由本地 Docker 启动、持久化和验收；Action-Driver 不提供观测页面或导航。
 
 **Non-Goals:**
 
 - 不将 Electron、Agent Runtime 或模型供应商迁入 Docker，不做云服务或高可用部署。
-- 不在 ActionDriver 内重建日志、trace 或模型详情 UI；不记录每个 WebSocket 流式 chunk 或把每条普通日志转成 span。
+- 不在 Action-Driver 内重建日志、trace 或模型详情 UI；不记录每个 WebSocket 流式 chunk 或把每条普通日志转成 span。
 - 不保证 Alloy 停机、OTel 批处理队列溢出或下游故障时日志零丢失；不提供离线日志副本。
 - 不删除历史本机日志文件或数据库记录；任务状态、图 checkpoint 等业务持久化不属于“日志”迁移。
 - 不在规划阶段改写未提交的 LangSmith 实现；实施时逐项核对其引用、测试和迁移边界。
@@ -43,9 +43,9 @@ HTTP 使用 W3C `traceparent`；Electron IPC 与 WebSocket 在现有类型化信
 
 ### 4. 本地 Docker 平台与产品界面分离
 
-新增独立观测 Compose，固定镜像版本，提供 Grafana、Alloy、Loki、Tempo、Prometheus、Phoenix 与持久卷。Phoenix 首版使用持久卷 SQLite；宿主机服务端口只绑定 loopback。Grafana 预配 Loki、Tempo、Prometheus 数据源、trace-to-logs 关联及 ActionDriver 概览仪表盘。Grafana 的匿名角色使用 Editor，使操作者无需登录即可进入 Explore 自由查询；仪表盘覆盖应用日志、调用量、错误和耗时。文档写明启动、健康检查、持久化路径、停止、故障排查与原文数据的本机访问边界。
+新增独立观测 Compose，固定镜像版本，提供 Grafana、Alloy、Loki、Tempo、Prometheus、Phoenix 与持久卷。Phoenix 首版使用持久卷 SQLite；宿主机服务端口只绑定 loopback。Grafana 预配 Loki、Tempo、Prometheus 数据源、trace-to-logs 关联及 Action-Driver 概览仪表盘。Grafana 的匿名角色使用 Editor，使操作者无需登录即可进入 Explore 自由查询；仪表盘覆盖应用日志、调用量、错误和耗时。文档写明启动、健康检查、持久化路径、停止、故障排查与原文数据的本机访问边界。
 
-ActionDriver 设置侧栏及路由不再提供“日志/观测平台”页面，也不保留 Grafana/Phoenix 外链按钮或其专用 IPC。访问地址和启动指引仅写在运维文档，操作者用浏览器直接访问本机端口。现有 LangSmith 页面、RPC 和 `WebContentsView` 适配器在迁移测试通过后核对清理。
+Action-Driver 设置侧栏及路由不再提供“日志/观测平台”页面，也不保留 Grafana/Phoenix 外链按钮或其专用 IPC。访问地址和启动指引仅写在运维文档，操作者用浏览器直接访问本机端口。现有 LangSmith 页面、RPC 和 `WebContentsView` 适配器在迁移测试通过后核对清理。
 
 替代方案是在应用设置中保留两个受约束的外链按钮，平台更容易发现，但增加与核心任务无关的诊断入口及专用 IPC。用户明确选择删除整个入口并接受可发现性下降。将 Grafana/Phoenix 嵌入 Electron 还需处理认证、Cookie、页面生命周期与隔离，同样不采用。
 

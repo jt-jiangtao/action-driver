@@ -1,6 +1,6 @@
 # 真实 OpenAI-compatible 流式 Agent 闭环设计
 
-> **协议版本更新：** 本文记录最初的 v1 纵向闭环。当前持久化事件协议以 `2026-09-24-architecture-convergence-design.md` 为准，使用 `actiondriver.stream.v2` 和请求内连续 `sequence`；下文的 v1 示例仅作历史背景。
+> **协议版本更新：** 本文记录最初的 v1 纵向闭环。当前持久化事件协议以 `2026-09-24-architecture-convergence-design.md` 为准，使用 `action-driver.stream.v2` 和请求内连续 `sequence`；下文的 v1 示例仅作历史背景。
 
 日期：2026-09-23
 
@@ -82,7 +82,7 @@ Runtime 是连接、凭据、会话、任务、消息和运行事件的唯一写
 
 ## WebSocket 协议
 
-连接使用 `Sec-WebSocket-Protocol: actiondriver.stream.v1`。客户端消息：
+连接使用 `Sec-WebSocket-Protocol: action-driver.stream.v1`。客户端消息：
 
 - `auth`
 - `request.create`
@@ -122,7 +122,7 @@ type ModelRef = {
 
 type RequestCreate = {
   type: "request.create";
-  protocol: "actiondriver.stream.v1";
+  protocol: "action-driver.stream.v1";
   eventId: string;
   requestId: string;
   idempotencyKey: string;
@@ -155,7 +155,7 @@ OpenAI-compatible adapter 使用官方 `openai` Node SDK 发起真实流式 `/ch
 - 在取消时中止上游请求；
 - 绝不发布隐藏推理内容，只发布用户可见 assistant 输出。
 
-SDK 只承担 Runtime 到供应商这一跳的 HTTP/SSE、UTF-8 分帧、取消和基础错误解析；桌面端到 Runtime 仍只使用 `actiondriver.stream.v1` WebSocket。ActionDriver 自己维护事件生命周期、幂等、重放、持久化和聚合日志，不把 SDK 类型传播到公共协议。
+SDK 只承担 Runtime 到供应商这一跳的 HTTP/SSE、UTF-8 分帧、取消和基础错误解析；桌面端到 Runtime 仍只使用 `action-driver.stream.v1` WebSocket。Action-Driver 自己维护事件生命周期、幂等、重放、持久化和聚合日志，不把 SDK 类型传播到公共协议。
 
 不得用非流式响应加定时器模拟逐字输出。真实服务不可用时任务进入明确失败态，不回退到假服务或 Mock。
 
@@ -186,7 +186,7 @@ SDK 只承担 Runtime 到供应商这一跳的 HTTP/SSE、UTF-8 分帧、取消�
 - 状态、结束原因、用量和耗时；
 - `taskId`、`requestId` 和 `correlationId`。
 
-供应商原始分片和 `response.content` 不创建独立日志。模型层日志从同一真实任务事件投影系统提示词、用户输入、模型请求、最终模型响应和任务终态。所有 `actiondriver:log:*` 查询、刷新和详情消息在采集前统一排除，避免日志递归。
+供应商原始分片和 `response.content` 不创建独立日志。模型层日志从同一真实任务事件投影系统提示词、用户输入、模型请求、最终模型响应和任务终态。所有 `action-driver:log:*` 查询、刷新和详情消息在采集前统一排除，避免日志递归。
 
 业务正文按既有容量规则保存；Authorization、API Key、Cookie、服务端访问凭据和已声明密钥字段永不落盘。过滤无法确认时拒绝保存正文，只保留安全诊断摘要。
 

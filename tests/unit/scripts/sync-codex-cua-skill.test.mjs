@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { syncComputerUseSkill } from '../../../scripts/sync-codex-cua-skill.mjs'
 
 test('copies the whole Skill with nested resources and removes stale destination files', () => {
-  const root = mkdtempSync(join(tmpdir(), 'actiondriver-cua-skill-'))
+  const root = mkdtempSync(join(tmpdir(), 'action-driver-cua-skill-'))
   try {
     const sourceDirectory = join(root, 'source')
     const documentsDirectory = join(root, 'documents')
@@ -37,7 +37,7 @@ test('copies the whole Skill with nested resources and removes stale destination
 })
 
 test('leaves the existing Skill intact when source documentation is missing', () => {
-  const root = mkdtempSync(join(tmpdir(), 'actiondriver-cua-skill-'))
+  const root = mkdtempSync(join(tmpdir(), 'action-driver-cua-skill-'))
   try {
     const sourceDirectory = join(root, 'source')
     const documentsDirectory = join(root, 'documents')

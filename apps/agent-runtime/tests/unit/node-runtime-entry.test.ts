@@ -13,7 +13,7 @@ describe('Node Runtime entry', () => {
       'pnpm',
       [
         '--filter',
-        '@actiondriver/agent-runtime',
+        '@action-driver/agent-runtime',
         'exec',
         'esbuild',
         'src/node-entry.ts',
@@ -22,7 +22,7 @@ describe('Node Runtime entry', () => {
         '--bundle',
         '--platform=node',
         '--format=esm',
-        '--banner:js=import { createRequire as __actionDriverCreateRequire } from "node:module"; const require = __actionDriverCreateRequire(import.meta.url);',
+        '--banner:js=import { createRequire as __productCreateRequire } from "node:module"; const require = __productCreateRequire(import.meta.url);',
         '--outfile=dist/node.js',
         '--external:better-sqlite3',
         '--external:electron',
@@ -57,10 +57,10 @@ describe('Node Runtime entry', () => {
     const child = spawn(process.execPath, [resolve('apps/agent-runtime/dist/node.js')], {
       env: {
         ...process.env,
-        ACTIONDRIVER_RUNTIME_DATA_ROOT: mkdtempSync(join(tmpdir(), 'actiondriver-node-')),
-        ACTIONDRIVER_WORKSPACE_ROOT: mkdtempSync(join(tmpdir(), 'actiondriver-node-workspace-')),
-        ACTIONDRIVER_SERVICE_TOKEN: 'node-smoke-token',
-        ACTIONDRIVER_CREDENTIAL_KEY: 'node-smoke-credential-key'
+        ACTION_DRIVER_RUNTIME_DATA_ROOT: mkdtempSync(join(tmpdir(), 'action-driver-node-')),
+        ACTION_DRIVER_WORKSPACE_ROOT: mkdtempSync(join(tmpdir(), 'action-driver-node-workspace-')),
+        ACTION_DRIVER_SERVICE_TOKEN: 'node-smoke-token',
+        ACTION_DRIVER_CREDENTIAL_KEY: 'node-smoke-credential-key'
       },
       stdio: ['ignore', 'pipe', 'pipe']
     })
@@ -117,7 +117,7 @@ describe('Node Runtime entry', () => {
       socket.send(
         JSON.stringify({
           type: 'auth',
-          protocol: 'actiondriver.stream.v2',
+          protocol: 'action-driver.stream.v2',
           eventId: 'node-auth',
           createdAt: new Date().toISOString(),
           payload: { token: 'node-smoke-token' }
@@ -134,7 +134,7 @@ describe('Node Runtime entry', () => {
       socket.send(
         JSON.stringify({
           type: 'request.create',
-          protocol: 'actiondriver.stream.v2',
+          protocol: 'action-driver.stream.v2',
           eventId: 'node-create',
           createdAt: new Date().toISOString(),
           requestId: 'node-request',

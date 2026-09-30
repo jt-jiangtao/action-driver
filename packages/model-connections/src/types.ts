@@ -1,5 +1,5 @@
-import type { MessageContentPart, ModelRef } from '@actiondriver/contracts'
-import type { ToolDefinition } from '@actiondriver/runtime-contracts'
+import type { MessageContentPart, ModelRef } from '@action-driver/contracts'
+import type { ToolDefinition } from '@action-driver/runtime-contracts'
 
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 

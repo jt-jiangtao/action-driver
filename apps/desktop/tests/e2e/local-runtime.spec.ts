@@ -30,7 +30,7 @@ let provider: FakeOpenAiStreamServer
 
 test.beforeAll(async () => {
   expect(existsSync(runtimeEntry)).toBe(true)
-  expect(readFileSync(mainBundle, 'utf8')).toContain('ACTIONDRIVER_RUNTIME_DATA_ROOT')
+  expect(readFileSync(mainBundle, 'utf8')).toContain('ACTION_DRIVER_RUNTIME_DATA_ROOT')
   provider = new FakeOpenAiStreamServer()
   await provider.start()
 })
@@ -49,8 +49,8 @@ async function launch(
   environment: NodeJS.ProcessEnv = {}
 ): Promise<Page> {
   if (!reuseDirectories) {
-    userDataDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-data-'))
-    homeDirectory = mkdtempSync(join(tmpdir(), 'actiondriver-stream-e2e-home-'))
+    userDataDirectory = mkdtempSync(join(tmpdir(), 'action-driver-stream-e2e-data-'))
+    homeDirectory = mkdtempSync(join(tmpdir(), 'action-driver-stream-e2e-home-'))
   }
   application = await electron.launch({ executablePath: await getElectronForkExecutable(),
     args: ['.', `--user-data-dir=${userDataDirectory}`],
@@ -60,7 +60,7 @@ async function launch(
         Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1]))
       ),
       HOME: homeDirectory,
-      ACTIONDRIVER_E2E_HOME_DIRECTORY: homeDirectory,
+      ACTION_DRIVER_E2E_HOME_DIRECTORY: homeDirectory,
       ...Object.fromEntries(
         Object.entries(environment).filter((entry): entry is [string, string] => Boolean(entry[1]))
       )
@@ -76,14 +76,14 @@ async function launch(
     }
   })
   page.on('pageerror', (error) => console.error(`[renderer:pageerror] ${error.message}`))
-  await expect(page.getByText('我们应该在 ActionDriver 中做些什么？')).toBeVisible()
+  await expect(page.getByText('我们应该在 Action-Driver 中做些什么？')).toBeVisible()
   return page
 }
 
 async function configureProvider(page: Page): Promise<void> {
   await page.evaluate(
     async ({ baseUrl, secret }) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const httpUrl = new URL(connection.wsUrl)
       httpUrl.protocol = httpUrl.protocol === 'wss:' ? 'https:' : 'http:'
       httpUrl.pathname = '/model-connections'
@@ -123,9 +123,9 @@ async function configureProvider(page: Page): Promise<void> {
 
 test('packaged Renderer reaches the Runtime HTTP API with its exact origin and token', async () => {
   const page = await launch()
-  expect(page.url()).toBe('actiondriver://renderer/index.html')
-  expect(await page.evaluate(() => window.location.origin)).toBe('actiondriver://renderer')
-  expect(await page.evaluate(() => Object.keys(window.actionDriverDesktop).sort())).toEqual([
+  expect(page.url()).toBe('action-driver://renderer/index.html')
+  expect(await page.evaluate(() => window.location.origin)).toBe('action-driver://renderer')
+  expect(await page.evaluate(() => Object.keys(window.productDesktop).sort())).toEqual([
     'browserSession',
     'computerUse',
     'externalLinks',
@@ -138,7 +138,7 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
     request.url().endsWith('/model-connections')
   )
   const result = await page.evaluate(async () => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const httpUrl = new URL(connection.wsUrl)
     httpUrl.protocol = httpUrl.protocol === 'wss:' ? 'https:' : 'http:'
     httpUrl.pathname = '/model-connections'
@@ -147,14 +147,14 @@ test('packaged Renderer reaches the Runtime HTTP API with its exact origin and t
     })
     return { status: response.status }
   })
-  expect(await (await requestPromise).headerValue('origin')).toBe('actiondriver://renderer')
+  expect(await (await requestPromise).headerValue('origin')).toBe('action-driver://renderer')
   expect(result).toEqual({ status: 200 })
 })
 
 test('opens the native guidance window only when a permission is missing', async () => {
   const page = await launch()
   const { status, opened } = await page.evaluate(async () => {
-    const api = window.actionDriverDesktop.computerUse
+    const api = window.productDesktop.computerUse
     return { status: await api.permissions(), opened: await api.ensureGuidance() }
   })
   expect(opened).toBe(!status.accessibility || !status.screenRecording)
@@ -167,7 +167,7 @@ test('opens the native guidance window only when a permission is missing', async
 test('persists the selected Token Plan image API and default model in settings', async () => {
   let page = await launch()
   await page.evaluate(async () => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = '/model-connections'
@@ -254,7 +254,7 @@ test('installs a local instruction Skill into the desktop list and keeps its sou
   mkdirSync(source, { recursive: true })
   writeFileSync(join(source, 'SKILL.md'), '# E2E Notes\n\nWrite concise notes.\n')
   const installed = await page.evaluate(async (path) => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = '/agent-files/skills/install'
@@ -286,7 +286,7 @@ test('installs a local instruction Skill into the desktop list and keeps its sou
 })
 
 test('installs a GitHub Skill through existing Git configuration and updates the desktop state', async () => {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'actiondriver-github-e2e-'))
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'action-driver-github-e2e-'))
   const repo = join(fixtureRoot, 'private-repo')
   const config = join(fixtureRoot, 'gitconfig')
   mkdirSync(join(repo, 'skills', 'e2e-github'), { recursive: true })
@@ -316,7 +316,7 @@ test('installs a GitHub Skill through existing Git configuration and updates the
   )
   const page = await launch(false, { GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' })
   const installed = await page.evaluate(async (urlValue) => {
-    const connection = await window.actionDriverDesktop.runtimeConnection.get()
+    const connection = await window.productDesktop.runtimeConnection.get()
     const url = new URL(connection.wsUrl)
     url.protocol = 'http:'
     url.pathname = '/agent-files/skills/install'
@@ -394,7 +394,7 @@ test('streams two real turns in one persisted session without local logs', async
 
   const persistedTasks = await page.evaluate(
     async ([firstId, secondId]) => {
-      const connection = await window.actionDriverDesktop.runtimeConnection.get()
+      const connection = await window.productDesktop.runtimeConnection.get()
       const baseUrl = new URL(connection.wsUrl)
       baseUrl.protocol = baseUrl.protocol === 'wss:' ? 'https:' : 'http:'
       return Promise.all(

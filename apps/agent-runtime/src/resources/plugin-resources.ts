@@ -1,12 +1,12 @@
-import { ResourceError, formatResourceUri, parseResourceUri } from '@actiondriver/runtime-contracts'
+import { ResourceError, formatResourceUri, parseResourceUri } from '@action-driver/runtime-contracts'
 import type {
   ResourceEntry,
   ResourceOperationContext,
   ResourceProvider,
   ResourceReadResult,
   ResourceWatchEvent
-} from '@actiondriver/runtime-contracts'
-import type { InvocationContext, Json, PluginOwner } from '@actiondriver/plugin-contracts'
+} from '@action-driver/runtime-contracts'
+import type { InvocationContext, Json, PluginOwner } from '@action-driver/plugin-contracts'
 import type { VersionedResourceStore } from './store';
 import { boundedStream } from './store'
 

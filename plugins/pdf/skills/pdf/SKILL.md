@@ -87,7 +87,7 @@ with open(output_pdf, "wb") as stream:
 
 ## Dependencies
 
-Use the local dependencies provided with ActionDriver. Resolve their paths with `tools_local_command_dependencies_load` before running PDF helpers. The local dependency tree includes:
+Use the local dependencies provided with Action-Driver. Resolve their paths with `tools_local_command_dependencies_load` before running PDF helpers. The local dependency tree includes:
 
 - Python packages: `reportlab`, `pdfplumber`, `pypdf`
 - Rendering tools: `pdftoppm` and `pdfinfo` from Poppler
@@ -135,7 +135,7 @@ PDF citations currently support only plain file citations. Do not add `artifact_
 - Each action must be a distinct, concrete request the user could send next. Do not repeat completed work or invent filler. Omit the list if the user declines suggestions, the requested work fails, or no genuinely useful next action remains.
 - Present each action as an unescaped Markdown list item using this exact syntax: `- :codex-followup[Short action]{prompt="Complete request for that action"}`.
 
-## ActionDriver working directory
+## Action-Driver working directory
 
 - Every script starts in the current session workspace. Read uploaded inputs from the read-only `input/` directory and write each deliverable into `output/`.
 - Keep intermediate and build files inside a private subdirectory of `output/` so only the finished artifact is registered as a deliverable, and never write outside the session workspace.

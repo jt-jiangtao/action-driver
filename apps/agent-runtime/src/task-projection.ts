@@ -7,7 +7,7 @@ import {
   type SkillExecutionState,
   type TaskOutputFileProjection,
   type TaskProjection
-} from '@actiondriver/contracts'
+} from '@action-driver/contracts'
 import type { PersistedMessage, RuntimeTaskRecord } from './ports'
 import { legacyResourceUri } from './resources/media-providers'
 

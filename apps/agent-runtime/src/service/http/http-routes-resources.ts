@@ -1,7 +1,7 @@
 import type { Hono } from 'hono'
 import { z } from 'zod'
-import { ResourceError } from '@actiondriver/runtime-contracts'
-import type { ResourceEntry, ResourceReadResult, ResourceScope, ResourceWriteRequest } from '@actiondriver/runtime-contracts'
+import { ResourceError } from '@action-driver/runtime-contracts'
+import type { ResourceEntry, ResourceReadResult, ResourceScope, ResourceWriteRequest } from '@action-driver/runtime-contracts'
 import { success } from './http-contract'
 
 /** Inline reads stay bounded; larger resources must be streamed by a dedicated surface. */

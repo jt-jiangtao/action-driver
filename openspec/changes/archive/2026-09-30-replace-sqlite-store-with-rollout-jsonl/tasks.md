@@ -38,7 +38,7 @@
 
 ## 6. 删除旧库与清理
 
-- [x] 6.1 启动时检测并删除 `actiondriver.db` 及 `-wal`/`-shm`，不读取不转换；验证：以存在旧库的临时目录启动，断言旧文件被移除且不产生读取错误
+- [x] 6.1 启动时检测并删除 `action-driver.db` 及 `-wal`/`-shm`，不读取不转换；验证：以存在旧库的临时目录启动，断言旧文件被移除且不产生读取错误
 - [x] 6.2 移除 `database.ts`、`persistence/*`、`model-connections/sqlite-store.ts`、`media/*` 与 `computer-use/app-approval-store.ts` 中被替代的旧实现与迁移代码；验证：`rg` 确认无残留调用点，`pnpm typecheck` 通过
 - [x] 6.3 更新桌面端 `runtime-paths.ts`，改传数据目录与投影路径而非单一数据库文件；验证：`runtime-process.test.ts` 与桌面主进程定向测试通过
 

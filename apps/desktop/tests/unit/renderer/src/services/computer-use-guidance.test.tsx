@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import type { TaskProjection } from '@actiondriver/contracts'
+import type { TaskProjection } from '@action-driver/contracts'
 import { taskUsesComputerUse, useComputerUseGuidance } from '../../../../../src/renderer/src/services/computer-use-guidance'
 
 afterEach(() => { vi.unstubAllGlobals() })
@@ -30,7 +30,7 @@ describe('Computer Use guidance trigger', () => {
 
   it('asks Main for the guidance once per task when Computer Use starts', async () => {
     const ensureGuidance = vi.fn(async () => true)
-    vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
+    vi.stubGlobal('productDesktop', { computerUse: { ensureGuidance } })
     const task = taskWith('task-1', 'tools/local/cua/js')
     const view = renderHook(({ value }) => useComputerUseGuidance(value.id, taskUsesComputerUse(value)), {
       initialProps: { value: task }
@@ -44,7 +44,7 @@ describe('Computer Use guidance trigger', () => {
 
   it('stays quiet for tasks that never use Computer Use', async () => {
     const ensureGuidance = vi.fn(async () => true)
-    vi.stubGlobal('actionDriverDesktop', { computerUse: { ensureGuidance } })
+    vi.stubGlobal('productDesktop', { computerUse: { ensureGuidance } })
     renderHook(() => useComputerUseGuidance('task-2', false))
     await Promise.resolve()
     expect(ensureGuidance).not.toHaveBeenCalled()

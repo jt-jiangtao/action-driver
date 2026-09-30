@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ResourceError } from '@actiondriver/runtime-contracts'
+import type { ResourceError } from '@action-driver/runtime-contracts'
 import { openRuntimeDatabase } from '../../../src/database'
 import { SessionWorkspaceStore } from '../../../src/execution/session-workspace'
 import { SessionInputFileStore } from '../../../src/media/session-input-file-store'
@@ -27,7 +27,7 @@ const PDF_V1 = Buffer.from('%PDF-1.7\n1 0 obj\n<<v1>>\nendobj\ntrailer\n%%EOF\n'
 const PDF_V2 = Buffer.from('%PDF-1.7\n1 0 obj\n<<v2>>\nendobj\ntrailer\n%%EOF\n')
 
 function directory(): string {
-  const path = mkdtempSync(join(tmpdir(), 'actiondriver-resource-e2e-'))
+  const path = mkdtempSync(join(tmpdir(), 'action-driver-resource-e2e-'))
   temporaryDirectories.push(path)
   return path
 }
@@ -37,7 +37,7 @@ afterEach(() => {
 })
 
 function boot(root: string) {
-  const database = openRuntimeDatabase(join(root, 'actiondriver.db'))
+  const database = openRuntimeDatabase(join(root, 'action-driver.db'))
   const workspaces = new SessionWorkspaceStore({ workspaceRoot: join(root, 'workspace') })
   const inputFiles = new SessionInputFileStore({ database, rootDirectory: root, workspaces })
   const outputs = new SessionOutputStore({ database, rootDirectory: root, workspaces })
