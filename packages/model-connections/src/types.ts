@@ -4,6 +4,17 @@ import type { ToolDefinition } from '@action-driver/runtime-contracts'
 export type ModelProtocol = 'openai-compatible' | 'anthropic'
 
 export type ImageGenerationApi = 'openai-images' | 'token-plan'
+export type ImageEndpointVerification = {
+  selectedApi: ImageGenerationApi | null
+  results: Record<
+    ImageGenerationApi,
+    {
+      state: 'success' | 'failed'
+      testedAt: string
+      failure?: ModelFailure | undefined
+    }
+  >
+}
 export type ModelKind = 'chat' | 'image'
 
 export type ModelCapability = 'text' | 'reasoning' | 'vision' | 'image_generation'
@@ -130,6 +141,7 @@ export type ModelOptionDto = {
   imageInputEnabled?: boolean | undefined
   imageGenerationEnabled?: boolean | undefined
   imageGenerationApi?: ImageGenerationApi | undefined
+  imageEndpointVerification?: ImageEndpointVerification | undefined
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
   probeCandidates?: ModelCapability[] | undefined
   chatCandidate?: boolean | undefined
@@ -152,6 +164,7 @@ export type ModelTestResultDto = {
   modelId: string
   state: ModelProbeState
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
+  imageEndpointVerification?: ImageEndpointVerification | undefined
 }
 
 export type ModelTestRequestDto = {

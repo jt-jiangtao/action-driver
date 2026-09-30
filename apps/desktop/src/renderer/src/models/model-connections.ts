@@ -1,5 +1,6 @@
 import type {
   ImageGenerationApi,
+  ImageEndpointVerification,
   ModelKind,
   ModelCapability,
   ModelCapabilityResultDto
@@ -48,6 +49,7 @@ export interface ModelOption {
   imageInputEnabled?: boolean
   imageGenerationEnabled?: boolean
   imageGenerationApi?: ImageGenerationApi
+  imageEndpointVerification?: ImageEndpointVerification | undefined
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
   probeCandidates?: ModelCapability[] | undefined
   chatCandidate?: boolean | undefined
@@ -75,6 +77,7 @@ export interface ModelTestResult {
   modelId: string
   state: ModelProbeState
   capabilities?: Partial<Record<ModelCapability, ModelCapabilityResultDto>> | undefined
+  imageEndpointVerification?: ImageEndpointVerification | undefined
 }
 
 export type ModelConnectionTestResult = { ok: true } | { ok: false; failure: ModelFailure }

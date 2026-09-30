@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createTokenPlanImageGenerationAdapter } from '../../src/media/token-plan-image-generation-adapter'
+import {
+  createTokenPlanImageGenerationAdapter,
+  isTokenPlanBaseUrl
+} from '../../src/media/token-plan-image-generation-adapter'
 import { MAX_IMAGE_BYTES } from '../../src/media/session-asset-store'
 
 const baseUrl = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
@@ -14,6 +17,17 @@ const result = (url: string) =>
   )
 
 describe('Token Plan image generation adapter', () => {
+  it('accepts the configured Token Plan gateway without trusting lookalike hosts', () => {
+    expect(isTokenPlanBaseUrl('https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1')).toBe(
+      true
+    )
+    expect(
+      isTokenPlanBaseUrl('https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1')
+    ).toBe(true)
+    expect(isTokenPlanBaseUrl('https://token-plan.maas.qianwenaiapi.com.evil.test/v1')).toBe(false)
+    expect(isTokenPlanBaseUrl('http://token-plan.maas.qianwenaiapi.com/v1')).toBe(false)
+  })
+
   it('uses the multimodal endpoint and downloads the returned image', async () => {
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (fetch.mock.calls.length === 1) {

@@ -2,6 +2,7 @@ import type {
   ModelCapability,
   ModelCapabilityResultDto,
   ModelFailureCode,
+  ImageEndpointVerification,
   ModelOptionDto,
   ModelProtocol,
   ModelTestState
@@ -30,6 +31,7 @@ type ModelRow = {
   image_input_enabled: number
   image_generation_enabled: number
   image_generation_api: string
+  image_endpoint_verification: string | null
   model_kind: string
 }
 
@@ -63,7 +65,8 @@ export function createSqliteModelConnectionStore(
         const models = database
           .prepare(
             `SELECT connection_id, model_id, name, enabled, test_state,
-                    image_input_enabled, image_generation_enabled, image_generation_api, model_kind
+                    image_input_enabled, image_generation_enabled, image_generation_api,
+                    image_endpoint_verification, model_kind
              FROM model_connection_models ORDER BY connection_id, position`
           )
           .all() as ModelRow[]
@@ -115,8 +118,9 @@ export function createSqliteModelConnectionStore(
           const insertModel = database.prepare(
             `INSERT INTO model_connection_models
                (connection_id, model_id, name, enabled, test_state, position,
-                image_input_enabled, image_generation_enabled, image_generation_api, model_kind)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                image_input_enabled, image_generation_enabled, image_generation_api,
+                image_endpoint_verification, model_kind)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           const insertCapability = database.prepare(
             `INSERT INTO model_capability_results
@@ -148,6 +152,9 @@ export function createSqliteModelConnectionStore(
                 model.imageInputEnabled ? 1 : 0,
                 model.imageGenerationEnabled ? 1 : 0,
                 model.imageGenerationApi ?? 'openai-images',
+                model.imageEndpointVerification
+                  ? JSON.stringify(model.imageEndpointVerification)
+                  : null,
                 model.kind ?? (model.imageGenerationEnabled ? 'image' : 'chat')
               )
               for (const capability of CAPABILITIES) {
@@ -248,6 +255,13 @@ function toModel(row: ModelRow, results: readonly CapabilityRow[]): ModelOptionD
     imageInputEnabled: row.image_input_enabled === 1,
     imageGenerationEnabled: row.image_generation_enabled === 1,
     imageGenerationApi: row.image_generation_api === 'token-plan' ? 'token-plan' : 'openai-images',
+    ...(row.image_endpoint_verification
+      ? {
+          imageEndpointVerification: JSON.parse(
+            row.image_endpoint_verification
+          ) as ImageEndpointVerification
+        }
+      : {}),
     capabilities
   }
 }

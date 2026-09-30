@@ -1,6 +1,11 @@
 import type { HttpTransport } from '@action-driver/model-provider-runtime/http-transport'
+import { createHash } from 'node:crypto'
 import type { ModelRef } from '@action-driver/contracts'
-import type { ImageResolver, OpenAiClientFactory, ProviderFailure } from '@action-driver/model-provider-runtime/provider-adapters'
+import type {
+  ImageResolver,
+  OpenAiClientFactory,
+  ProviderFailure
+} from '@action-driver/model-provider-runtime/provider-adapters'
 import { createModelProviderAdapter } from '@action-driver/model-provider-runtime/provider-adapters'
 import { createImageGenerationAdapter } from '../media/image-generation-adapter'
 import {
@@ -12,7 +17,11 @@ import { SecretCipherUnavailableError, apiKeyHint } from './credential-cipher'
 import type { ModelConnectionStore, StoredModelConnection } from './store'
 import { ModelStorageError } from './store'
 import { ModelServiceError } from '@action-driver/model-connections'
-import { capabilityCandidates, isChatCandidate } from './model-capability-catalog'
+import {
+  capabilityCandidates,
+  isChatCandidate,
+  isVerifiedTokenPlanImageModel
+} from './model-capability-catalog'
 import { probeCapability } from './capability-probes'
 import type {
   ModelAddRequestDto,
@@ -27,6 +36,8 @@ import type {
   ModelSetEnabledRequestDto,
   ModelTestRequestDto,
   ModelTestResultDto,
+  ImageEndpointVerification,
+  ImageGenerationApi,
   ModelConnectionServicePort,
   ModelCompletionServicePort
 } from '@action-driver/model-connections'
@@ -42,6 +53,8 @@ export type ModelConnectionServiceOptions = {
 export class ModelConnectionService
   implements ModelConnectionServicePort, ModelCompletionServicePort
 {
+  private readonly draftImageVerifications = new Map<string, ImageEndpointVerification>()
+
   constructor(private readonly options: ModelConnectionServiceOptions) {}
 
   async list(): Promise<ModelConnectionDto[]> {
@@ -152,10 +165,19 @@ export class ModelConnectionService
 
   async testModels(request: ModelTestRequestDto): Promise<ModelTestResultDto[]> {
     const validated = validateDraft(request.draft)
-    return this.probeModelCapabilities(
+    const results = await this.probeModelCapabilities(
       { baseUrl: validated.baseUrl, apiKey: validated.apiKey, protocol: validated.protocol },
       request.modelIds
     )
+    for (const result of results) {
+      if (result.imageEndpointVerification) {
+        this.draftImageVerifications.set(
+          draftImageVerificationKey(validated, result.modelId),
+          result.imageEndpointVerification
+        )
+      }
+    }
+    return results
   }
 
   async testConnectionModels(
@@ -174,13 +196,26 @@ export class ModelConnectionService
     const byId = new Map(results.map((result) => [result.modelId, result]))
     const currentConnections = this.read()
     const currentConnection = requireConnection(currentConnections, request.connectionId)
+    if (
+      currentConnection.protocol !== connection.protocol ||
+      currentConnection.baseUrl !== connection.baseUrl ||
+      currentConnection.apiKeyCipher !== connection.apiKeyCipher
+    )
+      throw new ModelServiceError('invalid-request', 'Model connection changed during testing')
     currentConnection.models = currentConnection.models.map((model) => {
       const result = byId.get(model.id)
       return result
         ? {
             ...model,
             testState: result.state,
-            capabilities: result.capabilities ?? {}
+            capabilities: result.capabilities ?? {},
+            imageEndpointVerification: result.imageEndpointVerification,
+            ...(result.imageEndpointVerification
+              ? {
+                  imageGenerationApi:
+                    result.imageEndpointVerification.selectedApi ?? 'openai-images'
+                }
+              : {})
           }
         : model
     })
@@ -208,7 +243,7 @@ export class ModelConnectionService
       if (
         connection.protocol !== 'openai-compatible' ||
         !chosen?.enabled ||
-        !isImageEligible(chosen)
+        !isImageEligible(chosen, connection.baseUrl)
       )
         throw new ModelServiceError('invalid-request', 'Image model is unavailable')
     }
@@ -216,7 +251,15 @@ export class ModelConnectionService
   }
 
   async getDefaultImageModel(): Promise<ModelRef | null> {
-    return this.options.store.readDefaultImageModel()
+    const selected = this.options.store.readDefaultImageModel()
+    if (!selected) return null
+    const connection = this.read().find((candidate) => candidate.id === selected.connectionId)
+    const model = connection?.models.find((candidate) => candidate.id === selected.modelId)
+    return connection?.protocol === 'openai-compatible' &&
+      model?.enabled &&
+      isImageEligible(model, connection.baseUrl)
+      ? selected
+      : null
   }
 
   async generateImage(
@@ -232,10 +275,14 @@ export class ModelConnectionService
       throw new ModelServiceError('invalid-request', 'Default image model changed')
     const connection = requireConnection(this.read(), selected.connectionId)
     const model = connection.models.find((candidate) => candidate.id === selected.modelId)
-    if (connection.protocol !== 'openai-compatible' || !model?.enabled || !isImageEligible(model))
+    if (
+      connection.protocol !== 'openai-compatible' ||
+      !model?.enabled ||
+      !isImageEligible(model, connection.baseUrl)
+    )
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
     const adapter =
-      imageApiForModel(connection.baseUrl) === 'token-plan'
+      selectedImageApi(model, connection.baseUrl) === 'token-plan'
         ? createTokenPlanImageGenerationAdapter()
         : createImageGenerationAdapter()
     const bytes = await adapter.generate(
@@ -260,9 +307,17 @@ export class ModelConnectionService
     const currentModel = currentConnection?.models.find(
       (candidate) => candidate.id === selected.modelId
     )
-    if (!currentModel?.enabled || !isImageEligible(currentModel))
+    if (!currentModel?.enabled || !isImageEligible(currentModel, currentConnection!.baseUrl))
       throw new ModelServiceError('invalid-request', 'Image model is unavailable')
-    if (imageApiForModel(currentConnection!.baseUrl) !== imageApiForModel(connection.baseUrl))
+    if (
+      currentConnection!.baseUrl !== connection.baseUrl ||
+      currentConnection!.apiKeyCipher !== connection.apiKeyCipher
+    )
+      throw new ModelServiceError('invalid-request', 'Image model connection changed')
+    if (
+      selectedImageApi(currentModel, currentConnection!.baseUrl) !==
+      selectedImageApi(model, connection.baseUrl)
+    )
       throw new ModelServiceError('invalid-request', 'Image generation API changed')
     return bytes
   }
@@ -288,19 +343,30 @@ export class ModelConnectionService
       apiKeyCipher: this.encrypt(draft.apiKey),
       apiKeyHint: apiKeyHint(draft.apiKey),
       expanded: true,
-      models: request.models.map((model) => ({
-        ...model,
-        kind:
-          model.kind ??
-          (model.capabilities?.text?.state === 'success'
-            ? 'chat'
-            : model.capabilities?.image_generation?.state === 'success'
-              ? 'image'
-              : 'chat'),
-        imageGenerationApi: imageApiForModel(draft.baseUrl)
-      }))
+      models: request.models.map((model) => {
+        const verification = isVerifiedTokenPlanImageModel(model.id, draft.baseUrl)
+          ? this.draftImageVerifications.get(draftImageVerificationKey(draft, model.id))
+          : undefined
+        return {
+          ...model,
+          imageEndpointVerification: verification,
+          kind:
+            model.kind ??
+            (model.capabilities?.text?.state === 'success'
+              ? 'chat'
+              : model.capabilities?.image_generation?.state === 'success'
+                ? 'image'
+                : 'chat'),
+          imageGenerationApi: verification?.selectedApi ?? imageApiForModel(draft.baseUrl)
+        }
+      })
     }
     this.write([...connections, connection])
+    for (const model of request.models) {
+      if (isVerifiedTokenPlanImageModel(model.id, draft.baseUrl)) {
+        this.draftImageVerifications.delete(draftImageVerificationKey(draft, model.id))
+      }
+    }
     return toDto(connection)
   }
 
@@ -319,15 +385,29 @@ export class ModelConnectionService
     const testOne = async (modelId: string): Promise<ModelTestResultDto> => {
       const candidates = capabilityCandidates(modelId, endpoint.baseUrl)
       const capabilities: NonNullable<ModelTestResultDto['capabilities']> = {}
+      let imageEndpointVerification: ImageEndpointVerification | undefined
       await Promise.all(
         candidates.probes.map(async (capability) => {
           try {
-            capabilities[capability] = await probeCapability({
-              endpoint,
-              modelId,
-              capability,
-              transport: this.options.transport
-            })
+            if (
+              capability === 'image_generation' &&
+              isVerifiedTokenPlanImageModel(modelId, endpoint.baseUrl)
+            ) {
+              const tested = await probeTokenPlanImageEndpoints(
+                endpoint,
+                modelId,
+                this.options.transport
+              )
+              capabilities.image_generation = tested.capability
+              imageEndpointVerification = tested.verification
+            } else {
+              capabilities[capability] = await probeCapability({
+                endpoint,
+                modelId,
+                capability,
+                transport: this.options.transport
+              })
+            }
           } catch (error) {
             const failure = toServiceError(error)
             capabilities[capability] = {
@@ -345,7 +425,12 @@ export class ModelConnectionService
         : states.includes('failed') || states.includes('inconclusive')
           ? 'failed'
           : 'unsupported'
-      return { modelId, state, capabilities }
+      return {
+        modelId,
+        state,
+        capabilities,
+        ...(imageEndpointVerification ? { imageEndpointVerification } : {})
+      }
     }
     await Promise.all(
       Array.from({ length: Math.min(4, modelIds.length) }, async () => {
@@ -444,20 +529,107 @@ function mergeDiscoveredModel(connection: StoredModelConnection, id: string): Mo
 
 function withCatalogLabels(model: ModelOptionDto, baseUrl: string): ModelOptionDto {
   const { probes, displayOnly: labels } = capabilityCandidates(model.id, baseUrl)
+  const needsImageVerification =
+    isVerifiedTokenPlanImageModel(model.id, baseUrl) &&
+    model.capabilities?.image_generation?.state === 'success' &&
+    !isImageEligible(model, baseUrl)
   return {
     ...model,
+    ...(needsImageVerification
+      ? {
+          capabilities: {
+            ...model.capabilities,
+            image_generation: { state: 'untested' as const, source: 'legacy' as const }
+          }
+        }
+      : {}),
     probeCandidates: probes,
     chatCandidate: isChatCandidate(model.id, baseUrl),
     ...(labels.length ? { catalogLabels: labels } : {})
   }
 }
 
-function isImageEligible(model: ModelOptionDto): boolean {
-  return model.capabilities?.image_generation?.state === 'success'
+function isImageEligible(model: ModelOptionDto, baseUrl: string): boolean {
+  if (model.capabilities?.image_generation?.state !== 'success') return false
+  if (!isVerifiedTokenPlanImageModel(model.id, baseUrl)) return true
+  const selected = model.imageEndpointVerification?.selectedApi
+  return Boolean(
+    selected && model.imageEndpointVerification?.results[selected]?.state === 'success'
+  )
+}
+
+function selectedImageApi(model: ModelOptionDto, baseUrl: string): ImageGenerationApi {
+  if (!isVerifiedTokenPlanImageModel(model.id, baseUrl)) return imageApiForModel(baseUrl)
+  const results = model.imageEndpointVerification!.results
+  return results['token-plan'].state === 'success' ? 'token-plan' : 'openai-images'
 }
 
 function imageApiForModel(baseUrl: string): 'token-plan' | 'openai-images' {
   return isTokenPlanBaseUrl(baseUrl) ? 'token-plan' : 'openai-images'
+}
+
+function draftImageVerificationKey(
+  draft: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
+  modelId: string
+): string {
+  return createHash('sha256')
+    .update(JSON.stringify([draft.protocol, draft.baseUrl, draft.apiKey, modelId]))
+    .digest('hex')
+}
+
+async function probeTokenPlanImageEndpoints(
+  endpoint: { baseUrl: string; apiKey: string; protocol: StoredModelConnection['protocol'] },
+  modelId: string,
+  transport: HttpTransport
+): Promise<{
+  capability: NonNullable<NonNullable<ModelTestResultDto['capabilities']>['image_generation']>
+  verification: ImageEndpointVerification
+}> {
+  const results = {} as ImageEndpointVerification['results']
+  for (const api of ['openai-images', 'token-plan'] as const) {
+    const adapter =
+      api === 'token-plan'
+        ? createTokenPlanImageGenerationAdapter()
+        : createImageGenerationAdapter()
+    const outcome = await probeCapability({
+      endpoint,
+      modelId,
+      capability: 'image_generation',
+      transport,
+      imageGenerator: (signal) =>
+        adapter.generate(
+          {
+            baseUrl: endpoint.baseUrl,
+            apiKey: endpoint.apiKey,
+            modelId,
+            prompt: 'A simple blue square on a white background'
+          },
+          signal
+        )
+    })
+    results[api] = {
+      state: outcome.state === 'success' ? 'success' : 'failed',
+      testedAt: outcome.testedAt ?? new Date().toISOString(),
+      ...(outcome.failure ? { failure: outcome.failure } : {})
+    }
+  }
+  const selectedApi: ImageGenerationApi | null =
+    results['token-plan'].state === 'success'
+      ? 'token-plan'
+      : results['openai-images'].state === 'success'
+        ? 'openai-images'
+        : null
+  return {
+    capability: {
+      state: selectedApi ? 'success' : 'failed',
+      source: 'probe',
+      testedAt: results['token-plan'].testedAt,
+      ...(!selectedApi && results['token-plan'].failure
+        ? { failure: results['token-plan'].failure }
+        : {})
+    },
+    verification: { selectedApi, results }
+  }
 }
 
 export function validateDraft(draft: ModelConnectionDraftDto): ModelConnectionDraftDto {

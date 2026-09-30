@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { capabilityCandidates } from '../../src/model-connections/model-capability-catalog'
+import {
+  capabilityCandidates,
+  isVerifiedTokenPlanImageModel
+} from '../../src/model-connections/model-capability-catalog'
 
 const tokenPlanUrl = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
 
 describe('capabilityCandidates', () => {
+  it('limits dual image endpoint probes to the three configured Token Plan models', () => {
+    const gateway = 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1'
+    for (const modelId of ['wan2.7-image', 'wan2.7-image-pro', 'qwen-image-3.0-pro']) {
+      expect(isVerifiedTokenPlanImageModel(modelId, gateway)).toBe(true)
+      expect(isVerifiedTokenPlanImageModel(modelId, 'https://example.com/v1')).toBe(false)
+    }
+    expect(isVerifiedTokenPlanImageModel('qwen-image-2.0', gateway)).toBe(false)
+  })
+
   it('chooses text, reasoning and vision probes for a listed visual model', () => {
     expect(capabilityCandidates('qwen3.8-max', tokenPlanUrl)).toEqual({
       probes: ['text', 'reasoning', 'vision', 'image_generation'],

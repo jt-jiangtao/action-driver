@@ -47,6 +47,35 @@ const connection: StoredModelConnection = {
 }
 
 describe('service-side model connection storage', () => {
+  it('persists model-specific image endpoint evidence across restart', () => {
+    const path = databasePath()
+    const database = openRuntimeDatabase(path)
+    const store = createSqliteModelConnectionStore(database)
+    const verification = {
+      selectedApi: 'token-plan' as const,
+      results: {
+        'openai-images': {
+          state: 'failed' as const,
+          testedAt: '2026-09-30T00:00:00.000Z',
+          failure: { code: 'invalid-request' as const, message: 'IMAGE_PROVIDER_HTTP_400' }
+        },
+        'token-plan': { state: 'success' as const, testedAt: '2026-09-30T00:00:01.000Z' }
+      }
+    }
+    store.write([
+      {
+        ...connection,
+        models: [{ ...connection.models[1]!, imageEndpointVerification: verification }]
+      }
+    ])
+    database.close()
+    const reopened = openRuntimeDatabase(path)
+    expect(
+      createSqliteModelConnectionStore(reopened).read()[0]?.models[0]?.imageEndpointVerification
+    ).toEqual(verification)
+    reopened.close()
+  })
+
   it('keeps the unique image default after a model rewrite and clears it when removed', () => {
     const path = databasePath()
     const database = openRuntimeDatabase(path)

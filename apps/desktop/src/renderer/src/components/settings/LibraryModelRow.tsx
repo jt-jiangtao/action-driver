@@ -49,7 +49,7 @@ export function LibraryModelRow({
         (model.probeCandidates === undefined && model.catalogLabels?.length) ? null : (
           <IconButton
             aria-label={`测试${model.name}`}
-            title="逐项测试模型能力；生图测试会生成一张测试图，可能产生费用"
+            title="逐项测试模型能力；指定 Token Plan 模型每次生图测试最多生成两张图片，可能产生费用"
             className="plain-icon-action model-test-action"
             disabled={testing || testDisabled}
             icon="play"

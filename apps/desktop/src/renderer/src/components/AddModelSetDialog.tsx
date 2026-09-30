@@ -273,7 +273,8 @@ export function AddModelSetDialog({
                 <div>
                   <strong>发现的模型</strong>
                   <span>
-                    逐项测试文本、推理、视觉和生图；生图测试会实际生成一张图片，可能产生费用
+                    逐项测试文本、推理、视觉和生图；指定 Token Plan
+                    模型每次生图测试最多生成两张图片，可能产生费用
                   </span>
                 </div>
                 <IconButton

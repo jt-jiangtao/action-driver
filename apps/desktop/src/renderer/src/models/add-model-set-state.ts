@@ -76,6 +76,7 @@ export function addModelSetReducer(
             ? {
                 ...model,
                 testState: result.state,
+                imageEndpointVerification: result.imageEndpointVerification,
                 capabilities:
                   result.capabilities ??
                   Object.fromEntries(
@@ -103,7 +104,13 @@ export function addModelSetReducer(
         ...state,
         models: state.models.map((model) =>
           model.id === action.modelId
-            ? { ...model, name: action.name, testState: 'untested', capabilities: {} }
+            ? {
+                ...model,
+                name: action.name,
+                testState: 'untested',
+                capabilities: {},
+                imageEndpointVerification: undefined
+              }
             : model
         )
       }

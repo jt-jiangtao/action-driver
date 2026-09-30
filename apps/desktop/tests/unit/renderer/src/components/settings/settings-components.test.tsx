@@ -1,8 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { ModelConnection, ModelConnectionDraft } from '../../../../../../src/renderer/src/models/model-connections'
-import { addModelSetReducer, initialAddModelSetState } from '../../../../../../src/renderer/src/models/add-model-set-state'
+import type {
+  ModelConnection,
+  ModelConnectionDraft
+} from '../../../../../../src/renderer/src/models/model-connections'
+import {
+  addModelSetReducer,
+  initialAddModelSetState
+} from '../../../../../../src/renderer/src/models/add-model-set-state'
 import { ModelLibrary } from '../../../../../../src/renderer/src/components/settings/ModelLibrary'
 import { SettingsPageTitle } from '../../../../../../src/renderer/src/components/settings/SettingsPageTitle'
 import { ManualModelRow } from '../../../../../../src/renderer/src/components/settings/ManualModelRow'
@@ -156,6 +162,33 @@ describe('settings components', () => {
     })
     expect(failed.models[0]?.capabilities?.text?.state).toBe('failed')
     expect(failed.models[0]?.capabilities?.vision?.state).toBe('failed')
+  })
+
+  it('clears endpoint evidence when a wizard model test no longer returns it', () => {
+    const evidence = {
+      selectedApi: 'token-plan' as const,
+      results: {
+        'openai-images': { state: 'failed' as const, testedAt: '2026-09-30T00:00:00Z' },
+        'token-plan': { state: 'success' as const, testedAt: '2026-09-30T00:00:00Z' }
+      }
+    }
+    const discovered = addModelSetReducer(initialAddModelSetState, {
+      type: 'models-discovered',
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: 'success',
+          imageEndpointVerification: evidence
+        }
+      ]
+    })
+    const retested = addModelSetReducer(discovered, {
+      type: 'model-result',
+      results: [{ modelId: 'wan2.7-image', state: 'failed' }]
+    })
+    expect(retested.models[0]?.imageEndpointVerification).toBeUndefined()
   })
 
   it('runs controlled manual model row actions', async () => {

@@ -99,8 +99,279 @@ const validPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVkAAAAASUVORK5CYII=',
   'base64'
 )
+const probePng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAb0lEQVR4nO3PAQkAAAyEwO9feoshgnABdLep8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3I8QUNyPEFDcjxBQ3IPanc8OLDQitxAAAAAElFTkSuQmCC',
+  'base64'
+)
 
 describe('model connection service', () => {
+  it('tests both image endpoints for a configured Token Plan model and keeps each result', async () => {
+    const imageRequests: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        imageRequests.push(url)
+        if (url.endsWith('/images/generations')) return new Response('url error', { status: 400 })
+        if (url.endsWith('/multimodal-generation/generation'))
+          return new Response(
+            JSON.stringify({
+              output: {
+                choices: [
+                  { message: { content: [{ image: 'https://cdn.example.test/image.png' }] } }
+                ]
+              }
+            })
+          )
+        return new Response(new Uint8Array(probePng))
+      })
+    )
+    const { service } = createService(() => ({ status: 400, body: {}, text: '' }))
+    const [result] = await service.testModels({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      modelIds: ['wan2.7-image']
+    })
+    expect(result?.imageEndpointVerification?.results['openai-images'].state).toBe('failed')
+    expect(result?.imageEndpointVerification?.results['token-plan']).toEqual({
+      state: 'success',
+      testedAt: expect.any(String)
+    })
+    expect(result?.imageEndpointVerification?.selectedApi).toBe('token-plan')
+    expect(result?.capabilities?.image_generation?.state).toBe('success')
+    expect(imageRequests).toEqual([
+      'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1/images/generations',
+      'https://token-plan.maas.qianwenaiapi.com/api/v1/services/aigc/multimodal-generation/generation',
+      'https://cdn.example.test/image.png'
+    ])
+  })
+
+  it('replaces old image endpoint evidence when a saved Token Plan model is retested', async () => {
+    const { service } = createService(() => ({ status: 400, body: {}, text: '' }))
+    const created = await service.add({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: 'success',
+          capabilities: { image_generation: { state: 'success', source: 'probe' } },
+          imageEndpointVerification: {
+            selectedApi: 'token-plan',
+            results: {
+              'openai-images': { state: 'failed', testedAt: '2026-09-29T00:00:00Z' },
+              'token-plan': { state: 'success', testedAt: '2026-09-29T00:00:00Z' }
+            }
+          }
+        }
+      ]
+    })
+    await service.testConnectionModels({ connectionId: created.id, modelIds: ['wan2.7-image'] })
+    const saved = (await service.list())[0]?.models[0]
+    expect(saved?.imageEndpointVerification?.selectedApi).toBeNull()
+    expect(saved?.imageEndpointVerification?.results['token-plan'].state).toBe('failed')
+    expect(saved?.capabilities?.image_generation?.state).toBe('failed')
+    await expect(
+      service.setDefaultImageModel({ connectionId: created.id, modelId: 'wan2.7-image' })
+    ).rejects.toThrow('Image model is unavailable')
+  })
+
+  it('does not expose a legacy Token Plan image default before endpoint verification', async () => {
+    const { service, store } = createService(() => ({ status: 500, body: {}, text: '' }))
+    const created = await service.add({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: 'success',
+          capabilities: { image_generation: { state: 'success', source: 'probe' } }
+        }
+      ]
+    })
+    const model = { connectionId: created.id, modelId: 'wan2.7-image' }
+    expect((await service.list())[0]?.models[0]?.capabilities?.image_generation?.state).toBe(
+      'untested'
+    )
+    await expect(service.setDefaultImageModel(model)).rejects.toThrow('Image model is unavailable')
+    store.writeDefaultImageModel(model)
+    expect(await service.getDefaultImageModel()).toBeNull()
+    await expect(service.generateImage({ model, prompt: 'cat' })).rejects.toThrow()
+  })
+
+  it('does not expose an image default from a legacy Anthropic connection', async () => {
+    const { service, store } = createService(() => ({ status: 500, body: {}, text: '' }))
+    store.write([
+      {
+        id: 'legacy-anthropic',
+        name: 'Legacy Anthropic',
+        protocol: 'anthropic',
+        baseUrl: 'https://example.com',
+        apiKeyCipher: cipher.encrypt('secret'),
+        apiKeyHint: 'secret',
+        expanded: true,
+        models: [
+          {
+            id: 'image-model',
+            name: 'image-model',
+            enabled: true,
+            testState: 'success',
+            capabilities: { image_generation: { state: 'success', source: 'probe' } }
+          }
+        ]
+      }
+    ])
+    store.writeDefaultImageModel({ connectionId: 'legacy-anthropic', modelId: 'image-model' })
+    expect(await service.getDefaultImageModel()).toBeNull()
+  })
+
+  it('does not trust endpoint evidence supplied only by the add request', async () => {
+    const { service } = createService(() => ({ status: 500, body: {}, text: '' }))
+    const created = await service.add({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: 'success',
+          capabilities: { image_generation: { state: 'success', source: 'probe' } },
+          imageEndpointVerification: {
+            selectedApi: 'token-plan',
+            results: {
+              'openai-images': { state: 'failed', testedAt: '2026-09-30T00:00:00Z' },
+              'token-plan': { state: 'success', testedAt: '2026-09-30T00:00:00Z' }
+            }
+          }
+        }
+      ]
+    })
+    await expect(
+      service.setDefaultImageModel({ connectionId: created.id, modelId: 'wan2.7-image' })
+    ).rejects.toThrow('Image model is unavailable')
+  })
+
+  it('carries a real draft endpoint test into the saved connection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.endsWith('/images/generations')) return new Response('unsupported', { status: 400 })
+        if (url.endsWith('/multimodal-generation/generation'))
+          return new Response(
+            JSON.stringify({
+              output: {
+                choices: [
+                  { message: { content: [{ image: 'https://cdn.example.test/image.png' }] } }
+                ]
+              }
+            })
+          )
+        return new Response(new Uint8Array(probePng))
+      })
+    )
+    const { service } = createService(() => ({ status: 400, body: {}, text: '' }))
+    const tokenDraft = {
+      ...draft,
+      baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1'
+    }
+    const [tested] = await service.testModels({ draft: tokenDraft, modelIds: ['wan2.7-image'] })
+    const created = await service.add({
+      draft: tokenDraft,
+      models: [
+        {
+          id: 'wan2.7-image',
+          name: 'wan2.7-image',
+          enabled: true,
+          testState: tested!.state,
+          capabilities: tested!.capabilities,
+          imageEndpointVerification: tested!.imageEndpointVerification
+        }
+      ]
+    })
+    expect(created.models[0]?.imageEndpointVerification?.selectedApi).toBe('token-plan')
+    await expect(
+      service.setDefaultImageModel({ connectionId: created.id, modelId: 'wan2.7-image' })
+    ).resolves.toBeUndefined()
+  })
+
+  it('uses the Token Plan endpoint when both endpoints are verified, without runtime fallback', async () => {
+    const imageRequests: string[] = []
+    let generationShouldFail = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        imageRequests.push(url)
+        if (generationShouldFail) return new Response('provider failed', { status: 500 })
+        if (url.endsWith('/images/generations'))
+          return new Response(JSON.stringify({ data: [{ b64_json: probePng.toString('base64') }] }))
+        if (url.endsWith('/multimodal-generation/generation'))
+          return new Response(
+            JSON.stringify({
+              output: {
+                choices: [
+                  { message: { content: [{ image: 'https://cdn.example.test/image.png' }] } }
+                ]
+              }
+            })
+          )
+        return new Response(new Uint8Array(probePng))
+      })
+    )
+    const { service } = createService(() => ({ status: 500, body: {}, text: '' }))
+    const created = await service.add({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      models: [{ id: 'wan2.7-image', name: 'wan2.7-image', enabled: true, testState: 'untested' }]
+    })
+    const model = { connectionId: created.id, modelId: 'wan2.7-image' }
+    await service.testConnectionModels({ connectionId: created.id, modelIds: ['wan2.7-image'] })
+    expect((await service.list())[0]?.models[0]?.imageEndpointVerification?.selectedApi).toBe(
+      'token-plan'
+    )
+    await service.setDefaultImageModel(model)
+    generationShouldFail = true
+    await expect(service.generateImage({ model, prompt: 'cat' })).rejects.toThrow(
+      'IMAGE_PROVIDER_HTTP_500'
+    )
+    expect(imageRequests.slice(-1)).toEqual([
+      'https://token-plan.maas.qianwenaiapi.com/api/v1/services/aigc/multimodal-generation/generation'
+    ])
+  })
+
+  it('uses the compatible Images API when it is the only verified endpoint', async () => {
+    const imageRequests: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        imageRequests.push(url)
+        return url.endsWith('/images/generations')
+          ? new Response(JSON.stringify({ data: [{ b64_json: probePng.toString('base64') }] }))
+          : new Response('unsupported', { status: 400 })
+      })
+    )
+    const { service } = createService(() => ({ status: 400, body: {}, text: '' }))
+    const created = await service.add({
+      draft: { ...draft, baseUrl: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1' },
+      models: [
+        {
+          id: 'qwen-image-3.0-pro',
+          name: 'qwen-image-3.0-pro',
+          enabled: true,
+          testState: 'untested'
+        }
+      ]
+    })
+    const model = { connectionId: created.id, modelId: 'qwen-image-3.0-pro' }
+    await service.testConnectionModels({ connectionId: created.id, modelIds: [model.modelId] })
+    expect((await service.list())[0]?.models[0]?.imageEndpointVerification?.selectedApi).toBe(
+      'openai-images'
+    )
+    await service.setDefaultImageModel(model)
+    expect(await service.generateImage({ model, prompt: 'cat' })).toEqual(new Uint8Array(probePng))
+    expect(imageRequests.slice(-1)).toEqual([
+      'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1/images/generations'
+    ])
+  })
+
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
@@ -284,6 +555,46 @@ describe('model connection service', () => {
     expect(models?.find((model) => model.id === 'deepseek-v4-pro')?.capabilities?.text?.state).toBe(
       'success'
     )
+  })
+
+  it('discards test results when a connection is replaced during the probe', async () => {
+    let releaseFirst: ((response: HttpResponse) => void) | undefined
+    let first = true
+    const { service } = createService(() => {
+      if (first) {
+        first = false
+        return new Promise<HttpResponse>((resolve) => {
+          releaseFirst = resolve
+        })
+      }
+      return {
+        status: 200,
+        body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+        text: ''
+      }
+    })
+    const original = await service.add({
+      draft,
+      models: [{ id: 'qwen3.7-max', name: 'qwen3.7-max', enabled: true, testState: 'untested' }]
+    })
+    const testing = service.testConnectionModels({
+      connectionId: original.id,
+      modelIds: ['qwen3.7-max']
+    })
+    await vi.waitFor(() => expect(releaseFirst).toBeDefined())
+    await service.delete(original.id)
+    const replacement = await service.add({
+      draft: { ...draft, apiKey: 'sk-different-value' },
+      models: [{ id: 'qwen3.7-max', name: 'qwen3.7-max', enabled: true, testState: 'untested' }]
+    })
+    expect(replacement.id).toBe(original.id)
+    releaseFirst?.({
+      status: 200,
+      body: { choices: [{ message: { content: 'OK', reasoning_content: 'reason' } }] },
+      text: ''
+    })
+    await expect(testing).rejects.toThrow('Model connection changed during testing')
+    expect((await service.list())[0]?.models[0]?.testState).toBe('untested')
   })
 
   it('tests each listed Token Plan capability and keeps their results separate', async () => {

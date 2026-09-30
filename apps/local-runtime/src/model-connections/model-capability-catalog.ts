@@ -13,6 +13,15 @@ const TEXT_REASONING_VISION: readonly ModelCapability[] = ['text', 'reasoning', 
 const TEXT_REASONING: readonly ModelCapability[] = ['text', 'reasoning']
 const IMAGE: readonly ModelCapability[] = ['image_generation']
 const ALL_PROBES: readonly ModelCapability[] = ['text', 'reasoning', 'vision', 'image_generation']
+const VERIFIED_TOKEN_PLAN_IMAGE_MODELS = new Set([
+  'wan2.7-image',
+  'wan2.7-image-pro',
+  'qwen-image-3.0-pro'
+])
+
+export function isVerifiedTokenPlanImageModel(modelId: string, baseUrl: string): boolean {
+  return isTokenPlanBaseUrl(baseUrl) && VERIFIED_TOKEN_PLAN_IMAGE_MODELS.has(modelId)
+}
 
 const TOKEN_PLAN_CATALOG: Readonly<
   Record<

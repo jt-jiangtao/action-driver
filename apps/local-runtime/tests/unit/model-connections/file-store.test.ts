@@ -46,6 +46,25 @@ function connection(overrides: Partial<StoredModelConnection> = {}): StoredModel
 }
 
 describe('file model connection store', () => {
+  it('round-trips image endpoint verification for one model', () => {
+    const filePath = configPath()
+    const store = createFileModelConnectionStore({ filePath })
+    const evidence = {
+      selectedApi: 'token-plan' as const,
+      results: {
+        'openai-images': { state: 'failed' as const, testedAt: '2026-09-30T00:00:00Z' },
+        'token-plan': { state: 'success' as const, testedAt: '2026-09-30T00:00:01Z' }
+      }
+    }
+    store.write([
+      connection({ models: [{ ...connection().models[0]!, imageEndpointVerification: evidence }] })
+    ])
+    expect(
+      createFileModelConnectionStore({ filePath }).read()[0]?.models[0]?.imageEndpointVerification
+    ).toEqual(evidence)
+    expect(statSync(filePath).mode & 0o077).toBe(0)
+  })
+
   it('reads nothing from a missing config file', () => {
     const store = createFileModelConnectionStore({ filePath: configPath() })
     expect(store.read()).toEqual([])

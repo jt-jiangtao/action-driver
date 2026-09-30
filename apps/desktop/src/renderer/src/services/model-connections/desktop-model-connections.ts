@@ -207,7 +207,14 @@ function mapModel(value: unknown): ModelOption {
     ...(typeof value.imageGenerationEnabled === 'boolean'
       ? { imageGenerationEnabled: value.imageGenerationEnabled }
       : {}),
-    imageGenerationApi: value.imageGenerationApi === 'token-plan' ? 'token-plan' : 'openai-images'
+    imageGenerationApi: value.imageGenerationApi === 'token-plan' ? 'token-plan' : 'openai-images',
+    ...(isRecord(value.imageEndpointVerification)
+      ? {
+          imageEndpointVerification: value.imageEndpointVerification as NonNullable<
+            ModelOption['imageEndpointVerification']
+          >
+        }
+      : {})
   }
 }
 
@@ -220,6 +227,12 @@ function mapTestResult(value: unknown): ModelTestResult {
     state: value.state,
     ...(isRecord(value.capabilities)
       ? { capabilities: value.capabilities as ModelTestResult['capabilities'] }
+      : {}),
+    ...(isRecord(value.imageEndpointVerification)
+      ? {
+          imageEndpointVerification:
+            value.imageEndpointVerification as ModelTestResult['imageEndpointVerification']
+        }
       : {})
   }
 }

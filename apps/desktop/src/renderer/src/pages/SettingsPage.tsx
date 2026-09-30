@@ -90,7 +90,8 @@ export function SettingsPage({
                     : {
                         ...model,
                         testState: result.state,
-                        capabilities: result.capabilities ?? {}
+                        capabilities: result.capabilities ?? {},
+                        imageEndpointVerification: result.imageEndpointVerification
                       }
                 )
               }

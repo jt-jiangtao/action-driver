@@ -49,6 +49,61 @@ const modelSchema = z
     imageGenerationEnabled: z.boolean().optional(),
     kind: z.enum(['chat', 'image']).optional(),
     imageGenerationApi: z.enum(['openai-images', 'token-plan']).optional(),
+    imageEndpointVerification: z
+      .object({
+        selectedApi: z.enum(['openai-images', 'token-plan']).nullable(),
+        results: z.object({
+          'openai-images': z.object({
+            state: z.enum(['success', 'failed']),
+            testedAt: z.string(),
+            failure: z
+              .object({
+                code: z.enum([
+                  'unauthorized',
+                  'not-found',
+                  'model-not-found',
+                  'rate-limited',
+                  'provider-error',
+                  'network',
+                  'timeout',
+                  'cancelled',
+                  'invalid-request',
+                  'invalid-response',
+                  'secret-unavailable',
+                  'storage-error',
+                  'unknown'
+                ]),
+                message: z.string()
+              })
+              .optional()
+          }),
+          'token-plan': z.object({
+            state: z.enum(['success', 'failed']),
+            testedAt: z.string(),
+            failure: z
+              .object({
+                code: z.enum([
+                  'unauthorized',
+                  'not-found',
+                  'model-not-found',
+                  'rate-limited',
+                  'provider-error',
+                  'network',
+                  'timeout',
+                  'cancelled',
+                  'invalid-request',
+                  'invalid-response',
+                  'secret-unavailable',
+                  'storage-error',
+                  'unknown'
+                ]),
+                message: z.string()
+              })
+              .optional()
+          })
+        })
+      })
+      .optional(),
     capabilities: z
       .partialRecord(
         z.enum(['text', 'reasoning', 'vision', 'image_generation']),

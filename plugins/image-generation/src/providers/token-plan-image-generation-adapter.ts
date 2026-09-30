@@ -8,7 +8,11 @@ const MAX_RESPONSE_BYTES = 1024 * 1024
 export function isTokenPlanBaseUrl(value: string): boolean {
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' && url.hostname.endsWith('.maas.aliyuncs.com')
+    return (
+      url.protocol === 'https:' &&
+      (url.hostname.endsWith('.maas.aliyuncs.com') ||
+        url.hostname === 'token-plan.maas.qianwenaiapi.com')
+    )
   } catch {
     return false
   }
